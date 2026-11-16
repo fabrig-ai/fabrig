@@ -606,9 +606,7 @@ fn hot_projection_phases_read_as_whole_held_records() {
         let phase = match value.into_parts().value {
             core::ProjectionRecord::GoalHot(value) => value.into_parts().phase,
             core::ProjectionRecord::TaskHot(value) => value.into_parts().phase,
-            core::ProjectionRecord::Goal(_)
-            | core::ProjectionRecord::Task(_)
-            | core::ProjectionRecord::Milestone(_)
+            core::ProjectionRecord::Milestone(_)
             | core::ProjectionRecord::GoalWords(_)
             | core::ProjectionRecord::TaskWords(_) => unreachable!(),
         };

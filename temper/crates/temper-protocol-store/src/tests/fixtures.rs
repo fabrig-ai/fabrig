@@ -878,6 +878,12 @@ pub fn client_rows() -> List<top::Stored> {
     rows
 }
 
+pub fn change_hot(row: top::ChangeRow) -> top::Stored {
+    top::Stored::ChangeHot(Box::new(row.split().1))
+}
+pub fn change_cold(row: top::ChangeRow) -> top::Stored {
+    top::Stored::ChangeCold(Box::new(row.split().0))
+}
 pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::ChangeRow {
     use temper_engine_domain_forge_change::{
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,

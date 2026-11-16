@@ -1299,10 +1299,11 @@ fn open_queues_attempts_whose_transcript_place_is_gone() {
 }
 #[test]
 fn orphan_erases_are_included_in_the_commits_operation_bound() {
-    let limits = fixtures::store_limits();
+    let mut limits = fixtures::store_limits();
+    limits.store.ops = 17;
     let sizes = crate::sizes::check_commits(&limits.core, &fixtures::APPLICATION, &limits.commits, &limits.store, 1)
         .expect("fits");
-    assert_eq!(sizes.ops, 16);
+    assert_eq!(sizes.ops, 17);
 }
 #[test]
 fn dropping_a_transcript_fails_without_submitting_the_commit() {

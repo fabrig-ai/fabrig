@@ -15,6 +15,7 @@ pub enum Own {
     History { task: u64 },
     TurnLog { task: u64 },
     LogAttempt { task: u64, attempt: u64 },
+    Floor,
 }
 const fn owner_byte(owner: crate::Owner) -> u8 {
     match owner {
@@ -67,6 +68,9 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
         Own::Layouts => {
             writer.tag(3);
         }
+        Own::Floor => {
+            writer.tag(13);
+        }
         Own::Format => {
             writer.tag(0);
         }
@@ -88,6 +92,7 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
         11 => Own::TurnLog { task: reader.u64()? },
         12 => Own::LogAttempt { task: reader.u64()?, attempt: reader.u64()? },
         0 => Own::Format,
+        13 => Own::Floor,
         3 => Own::Layouts,
         4 => Own::Wires,
         5 => Own::Opening(Box::from(core::str::from_utf8(&reader.bytes()?).ok()?)),

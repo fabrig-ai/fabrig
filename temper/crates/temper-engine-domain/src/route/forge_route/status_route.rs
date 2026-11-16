@@ -9,9 +9,10 @@ pub(super) fn start_status_run(
     env: &Env<Limits>,
     project: u32,
     words: Box<[u8]>,
+    findings: &[u8],
     signers: &[u64],
 ) {
-    let words = goal_words(domain, env, project, &words, signers);
+    let words = goal_words(domain, env, project, &words, findings, signers);
     roles::start(domain, env, project, words);
 }
 
@@ -32,7 +33,14 @@ fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]
     domain.work.push(Work::Forge(forge::Event::StatusTask { project, task }));
 }
 
-fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8], signers: &[u64]) -> super::List<u8> {
+fn goal_words(
+    domain: &Domain,
+    env: &Env<Limits>,
+    project: u32,
+    facts: &[u8],
+    findings: &[u8],
+    signers: &[u64],
+) -> super::List<u8> {
     let mut words = super::List::uncapped();
     super::append(&mut words, facts);
     super::append(&mut words, b"Live goals:\n");
@@ -66,20 +74,15 @@ fn goal_words(domain: &Domain, env: &Env<Limits>, project: u32, facts: &[u8], si
             super::append(&mut words, b"\n");
         }
     }
+    super::append(&mut words, findings);
     words
 }
 
 fn signer_name(domain: &Domain, project: u32, person: u64) -> &[u8] {
-    if let Some(members) = domain.core.people.project_members(project) {
-        for member in members {
-            if member.person == person
-                && let Some(identity) = domain.core.people.identity(person)
-            {
-                return if identity.name.is_empty() { &identity.login } else { &identity.name };
-            }
-        }
+    match domain.core.people.member_name(project, person) {
+        Some(name) => name,
+        None => b"no longer a member",
     }
-    b"no longer a member"
 }
 
 pub(crate) fn start_status_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {

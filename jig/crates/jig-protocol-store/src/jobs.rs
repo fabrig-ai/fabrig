@@ -6,6 +6,7 @@ pub struct Job {
     pub name: &'static str,
     pub keys: &'static [KeyRange],
     pub converts: Option<Converts>,
+    pub settles: bool,
     pub counts: &'static [&'static str],
 }
 #[derive(Clone, Copy, Debug)]
@@ -101,14 +102,8 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "retention-proposals" {
         return retention::proposals(page);
     }
-    if job == "milestones" {
-        return milestones::page(page);
-    }
-    if job == "live-task-parts" {
-        return live_task_parts::page(page);
-    }
-    if job == "projection-parts" {
-        return projection_parts::page(page);
+    if job == "ended-talk" {
+        return ended_talk::page(page);
     }
     if job == "task-logs" {
         return task_logs::page(page);
@@ -117,9 +112,7 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
 }
 
 mod charter_versions;
-mod live_task_parts;
-mod milestones;
-mod projection_parts;
+mod ended_talk;
 mod retention;
 pub(crate) mod task_logs;
 

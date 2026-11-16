@@ -1957,18 +1957,11 @@ fn rows_stored_before_talk_decode_with_no_talk() {
     let limits = tasks_limits();
     let original = fixtures::task_record();
     let modern = codec::record::task_record(&original, &limits, None).unwrap().into_parts();
-    for live in [true, false] {
-        let value = if live { w::Value::Live(modern.record.clone()) } else { w::Value::Ended(modern.record.clone()) };
-        let record = w::Row::new(&limits, w::RowParts { value, models: List::with_capacity(0) }).unwrap();
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
-        let expected = if live {
-            t::Stored::Live(Box::new(original.clone()))
-        } else {
-            t::Stored::Ended(Box::new(original.clone()))
-        };
-        assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(expected));
-    }
+    let value = w::Value::Ended(modern.record);
+    let record = w::Row::new(&limits, w::RowParts { value, models: List::with_capacity(0) }).unwrap();
+    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(t::Stored::Ended(Box::new(original))));
 }
 
 #[test]

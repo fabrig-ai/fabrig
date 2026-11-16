@@ -46,8 +46,9 @@ fn old_records_patch_in_order_and_the_root_continues() {
 
 #[test]
 fn level_and_set_refusals_leave_every_file_as_it_was() {
-    const BAD: PatchSets =
-        PatchSets { sets: &[PatchSet { patches: &["patch 1\nowner other 1\n"], ..SETS.sets[0] }, SETS.sets[1]] };
+    const BAD: PatchSets = PatchSets {
+        sets: &[PatchSet { level: Some(1), patches: &["patch 1\nowner other 1\n"], ..SETS.sets[0] }, SETS.sets[1]],
+    };
     let records = Records::story();
     for (made, version, opened, expected) in [
         (SETS, 2, BASE, OpenRefusal::Ahead { owner: Owner::Jig, found: Some(2), wanted: Some(0) }),

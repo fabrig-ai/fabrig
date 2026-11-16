@@ -10,6 +10,7 @@ const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
     texts: &[FIRST, KEPT],
     current: CURRENT,
+    retired: &[],
     map: KeptMap::Store,
     frames: None,
     flights: &[],
@@ -21,6 +22,7 @@ const SET: PatchSet = PatchSet {
     name: "fixture-layouts",
     families: &[FAMILY],
     patches: &[PATCH],
+    level: Some(1),
     fresh: None,
     jobs: &[],
 };

@@ -19,12 +19,12 @@ fn the_briefs_spec_shows_the_contract_only_when_the_result_ends_the_task() {
     for (ended_by, expected) in [
         (
             tasks::EndedBy::Result,
-            b"What does this project hold? Answer in two sentences.\n[Report: at most 32 bytes]\n[This task: 1, in project 1]\n[Requested by person 1]\n"
+            b"What does this project hold? Answer in two sentences.\n[Report: at most 32 bytes]\n[This task: 1, in project 1]\n[Requested by person 1, A Person]\n"
                 .as_slice(),
         ),
         (
             tasks::EndedBy::Requester,
-            b"What does this project hold? Answer in two sentences.\n[This task: 1, in project 1]\n[Requested by person 1]\n".as_slice(),
+            b"What does this project hold? Answer in two sentences.\n[This task: 1, in project 1]\n[Requested by person 1, A Person]\n".as_slice(),
         ),
     ] {
         let mut context = settings::charters::context(PARENT, CHARTER);
@@ -108,6 +108,72 @@ fn a_briefs_task_section_names_its_number_and_project() {
         let text = read_brief_part(&core, BriefTextLimits { parts, read_bytes, brief_bytes: 256 }, 12, BriefPart::Spec)
             .expect("cut spec section");
         assert_eq!(text.as_ref(), expected, "{parts} parts, {read_bytes} bytes");
+    }
+}
+
+#[test]
+fn a_briefs_person_requester_uses_its_member_name_on_one_line() {
+    for (name, login, line) in [
+        (b"A Person".as_slice(), b"owner".as_slice(), b"[Requested by person 1, A Person]\n".as_slice()),
+        (b"".as_slice(), b"owner".as_slice(), b"[Requested by person 1, owner]\n".as_slice()),
+        (b"".as_slice(), b"".as_slice(), b"[Requested by person 1]\n".as_slice()),
+        (
+            b"A\n\r\0\t\x1f\x7fPerson".as_slice(),
+            b"owner".as_slice(),
+            b"[Requested by person 1, A      Person]\n".as_slice(),
+        ),
+        (b"Zo\xc3\xab".as_slice(), b"owner".as_slice(), b"[Requested by person 1, Zo\xc3\xab]\n".as_slice()),
+    ] {
+        let (mut core, limits) = make_tree();
+        core.people = people::Domain::new(&limits.people, Box::new([]), 2, Box::new([]));
+        core.people.start_restore(Wall::EPOCH);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
+        let mut out = Queue::uncapped();
+        for record in [
+            people::Stored::Person {
+                number: 1,
+                identity: people::Identity {
+                    key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                    login: login.into(),
+                    name: name.into(),
+                },
+            },
+            people::Stored::Roles {
+                project: 1,
+                holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
+            },
+        ] {
+            people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
+        }
+        finish_people(&mut core.people, &env);
+        let mut context = settings::charters::context(PARENT, CHARTER);
+        context.ended_by = tasks::EndedBy::Requester;
+        core.contexts.insert(PARENT, context).expect("context room");
+        let text = read_brief_part(
+            &core,
+            BriefTextLimits { parts: 2, read_bytes: 256, brief_bytes: 256 },
+            PARENT,
+            BriefPart::Spec,
+        )
+        .expect("spec section");
+        assert_eq!(text.strip_prefix(b"task\n[This task: 1, in project 1]\n"), Some(line));
+    }
+}
+
+#[test]
+fn a_briefs_person_requester_name_is_cut_with_the_task_lines() {
+    let (mut core, _) = make_tree();
+    let mut context = settings::charters::context(PARENT, CHARTER);
+    context.ended_by = tasks::EndedBy::Requester;
+    core.contexts.insert(PARENT, context).expect("context room");
+    for (parts, read_bytes, expected) in [
+        (2, 60, b"task\n[This task: 1, in project 1]\n[Requested by person 1, A \n[8 bytes cut]\n".as_slice()),
+        (1, 256, b"task\n[63 bytes cut]\n".as_slice()),
+    ] {
+        let text =
+            read_brief_part(&core, BriefTextLimits { parts, read_bytes, brief_bytes: 256 }, PARENT, BriefPart::Spec)
+                .expect("cut spec section");
+        assert_eq!(text.as_ref(), expected);
     }
 }
 

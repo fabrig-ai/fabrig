@@ -80,6 +80,51 @@ fn back(world: &mut ChatWorld, client: ClientId) {
 }
 
 #[test]
+fn up_down_and_the_page_up_line_read_the_conversation() {
+    const FIRST: &str = "First terminal answer. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive.";
+    const MIDDLE: &str = "Middle terminal answer. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive.";
+    const LAST: &str = "Last terminal answer. This whole answer leaves the window as earlier replies arrive. This whole answer leaves the window as earlier replies arrive. This whole answer leaves the window as earlier replies arrive.";
+    // These committed turns carry only the reply, not the LLM's input messages.
+    // Longer replies cross the same 2,048-byte window with three turns.
+    let [first, middle, last] = [FIRST, MIDDLE, LAST].map(|text| text.repeat(4));
+    let mut world = fixtures::terminal::reading_world(fixtures::SEED);
+    let task = fixtures::chat(world.front(), b"Read our earlier words");
+    fixtures::reading_turn(world.front(), task, first.as_bytes());
+    let client = fixtures::terminal::reading_client(&mut world, task);
+    person(&mut world, client, vec![see(first.as_bytes())]);
+    let limits = fixtures::terminal::reading_limits();
+    let mut page = super::terminal::printed(&world, client, &limits);
+    assert!(page.contains(&first), "{page}");
+    assert!(!page.contains("▍"), "{page}");
+    for (message, answer) in [
+        (b"Please continue the conversation with a second answer".as_slice(), &middle),
+        (b"Please continue the conversation with a third answer".as_slice(), &last),
+    ] {
+        let composer = Find::named(Role::TextArea, b"Message");
+        person(
+            &mut world,
+            client,
+            vec![Step::Type { find: composer.clone(), words: message.into() }, Step::Send { find: composer }],
+        );
+        fixtures::reading_turn(world.front(), task, answer.as_bytes());
+        person(&mut world, client, vec![see(answer.as_bytes())]);
+        page = super::terminal::printed(&world, client, &limits);
+        assert!(page.contains(answer), "{page}");
+        assert!(!page.contains("▍"), "{page}");
+    }
+    for (command, holds, lacks) in
+        [(b"up".as_slice(), &first, &last), (b"down".as_slice(), &last, &first), (b"\x1b[5~".as_slice(), &first, &last)]
+    {
+        for _ in 0..3 {
+            page = super::terminal::line(&mut world, client, command);
+        }
+        assert!(page.contains(holds), "{page}");
+        assert!(!page.contains(lacks), "{page}");
+        assert!(page.contains("(up, down: more lines)"), "{page}");
+    }
+}
+
+#[test]
 fn reading_back_then_forward_recovers_whole_lines_and_follows_new_turns() {
     let (mut world, client, task) = long_chat();
     let mut visited = held(&world, client);

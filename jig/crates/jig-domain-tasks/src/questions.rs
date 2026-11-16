@@ -469,7 +469,6 @@ fn live_save(request: &Request) -> Option<crate::Key> {
         | crate::Stored::EndedDelegate(_)
         | crate::Stored::Delegate(_)
         | crate::Stored::Activity(_)
-        | crate::Stored::Milestone(_)
         | crate::Stored::PersonProposal(_)
         | crate::Stored::DecidedProposal(_)
         | crate::Stored::ClosedLedger(_)

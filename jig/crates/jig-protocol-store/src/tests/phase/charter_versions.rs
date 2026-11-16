@@ -8,6 +8,19 @@ use alloc::collections::VecDeque;
 fn store(disk: &Disk, set: PatchSet) -> Store {
     // This scene runs the charter job; the other jig jobs have their own page fixtures.
     let set = PatchSet {
+        families: Box::leak(
+            set.families
+                .iter()
+                .map(|family| {
+                    if family.name == "jig-store-settings" {
+                        *family
+                    } else {
+                        crate::KeptFamily { types: &[], retired: &[], ..*family }
+                    }
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
         jobs: Box::leak(
             set.jobs
                 .iter()
@@ -44,7 +57,12 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
         families: Box::leak(
             set.families
                 .iter()
-                .map(|family| crate::KeptFamily { types: &[], current: family.texts.last().unwrap(), ..*family })
+                .map(|family| crate::KeptFamily {
+                    retired: &[],
+                    types: &[],
+                    current: family.texts.last().unwrap(),
+                    ..*family
+                })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),

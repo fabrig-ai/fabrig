@@ -1362,9 +1362,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-caret",
         b"temper-ways-lede",
         b"temper-ways",
-        b"temper-ways-tabs",
-        b"temper-ways-now",
-        b"temper-ways-axis",
+        b"temper-reserved-630",
+        b"temper-reserved-631",
+        b"temper-reserved-632",
         b"temper-ways-panel",
         b"temper-ways-says",
         b"temper-ways-zoom",
@@ -1515,6 +1515,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-tell-acts",
         b"temper-tell-link",
         b"temper-tell-context",
+        b"temper-way",
+        b"temper-way-head",
+        b"temper-way-line",
+        b"temper-way-acts",
+        b"temper-way-pick",
+        b"temper-way-menu",
+        b"temper-way-ask",
+        b"temper-way-ask-mark",
         b"temper-group-context",
         b"temper-group-card",
         b"temper-finding-title",
@@ -1921,9 +1929,6 @@ pub const WAYS_CARET: Style = Style { owner: owner(), token: 627 };
 /// Ask temper’s ways (temper/docs/design/client/pages/README.md).
 pub const WAYS_LEDE: Style = Style { owner: owner(), token: 628 };
 pub const WAYS: Style = Style { owner: owner(), token: 629 };
-pub const WAYS_TABS: Style = Style { owner: owner(), token: 630 };
-pub const WAYS_NOW: Style = Style { owner: owner(), token: 631 };
-pub const WAYS_AXIS: Style = Style { owner: owner(), token: 632 };
 pub const WAYS_PANEL: Style = Style { owner: owner(), token: 633 };
 pub const WAYS_SAYS: Style = Style { owner: owner(), token: 634 };
 pub const WAYS_ZOOM: Style = Style { owner: owner(), token: 635 };
@@ -1937,6 +1942,16 @@ pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
 pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
 pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
+
+/// Ask temper's head and last line (temper/docs/design/client/pages/ask-temper.md, 1).
+pub const WAY: Style = Style { owner: owner(), token: 782 };
+pub const WAY_HEAD: Style = Style { owner: owner(), token: 783 };
+pub const WAY_LINE: Style = Style { owner: owner(), token: 784 };
+pub const WAY_ACTS: Style = Style { owner: owner(), token: 785 };
+pub const WAY_PICK: Style = Style { owner: owner(), token: 786 };
+pub const WAY_MENU: Style = Style { owner: owner(), token: 787 };
+pub const WAY_ASK: Style = Style { owner: owner(), token: 788 };
+pub const WAY_ASK_MARK: Style = Style { owner: owner(), token: 789 };
 
 /// How work runs (temper/docs/design/client/web/look.md).
 pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
@@ -2074,9 +2089,9 @@ pub const FINDING_WHEN: Style = Style { owner: owner(), token: 488 };
 /// Home’s remaining cards.
 pub const HOME_MORE: Style = Style { owner: owner(), token: 489 };
 /// A group's question, rows and context (client/pages/home.md, 1).
-pub const GROUP_CONTEXT: Style = Style { owner: owner(), token: 782 };
-pub const GROUP_CARD: Style = Style { owner: owner(), token: 783 };
-pub const FINDING_TITLE: Style = Style { owner: owner(), token: 784 };
+pub const GROUP_CONTEXT: Style = Style { owner: owner(), token: 790 };
+pub const GROUP_CARD: Style = Style { owner: owner(), token: 791 };
+pub const FINDING_TITLE: Style = Style { owner: owner(), token: 792 };
 
 #[cfg(test)]
 mod tests {

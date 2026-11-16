@@ -45,6 +45,7 @@ temper-engine-service-vocabulary.workspace = true
 temper-engine-service-stock.workspace = true
 temper-client-domain.workspace = true
 temper-client-shell-tui.workspace = true
+temper-client-shell-terminal.workspace = true
 temper-client-tui.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-screen-terminal.workspace = true

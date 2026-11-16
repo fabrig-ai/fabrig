@@ -1,5 +1,6 @@
 //! Named story values and one client profile, shared by every story.
 pub mod b2;
+pub mod terminal;
 #[cfg(test)]
 mod tests;
 use crate::{app::Temper, front::Joint};

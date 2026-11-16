@@ -23,7 +23,8 @@ pub fn narrow(rng: &mut Rng) -> u32 {
     }
 }
 pub fn own(rng: &mut Rng) -> Own {
-    match rng.below(7) {
+    match rng.below(8) {
+        7 => Own::Floor,
         4 => Own::History { task: number(rng) },
         5 => Own::TurnLog { task: number(rng) },
         6 => Own::LogAttempt { task: number(rng), attempt: number(rng) },
@@ -177,7 +178,6 @@ pub fn tasks_key(rng: &mut Rng) -> jig_domain_tasks::Key {
         7 => Key::ClosedLedger(funder(rng)),
         8 => Key::DecidedProposal(number(rng)),
         9 => Key::History { task: number(rng), revision: number(rng) },
-        10 => Key::Milestone { task: number(rng), position: number(rng) },
         11 => Key::Update {
             party: number(rng),
             at: Newest::of(number(rng)),

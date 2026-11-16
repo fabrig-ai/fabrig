@@ -81,6 +81,7 @@ temper-engine-service-startup.workspace = true
 temper-engine-service-stock.workspace = true
 temper-test-env.workspace = true
 temper-init.workspace = true
+temper-github-app.workspace = true
 temper-worker-service-fixtures.workspace = true
 
 [lints]

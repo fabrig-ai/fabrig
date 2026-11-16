@@ -77,6 +77,10 @@ impl Store {
             installation,
         }
     }
+    /// The binary's name for the floor row, supplied before adopting the store.
+    pub(crate) fn build_name(&mut self, name: &'static str) {
+        self.host.component.build_name(name);
+    }
     /// Replace the binary's sets before adopting its deployment directory.
     pub(crate) fn patch_sets(&mut self, sets: protocol::PatchSets) {
         self.host.component.patch_sets(sets);

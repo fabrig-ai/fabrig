@@ -317,6 +317,12 @@ own tests:
   from `Ask`, from template 5 and run by charter 11, and the rail's "Ask
   temper" then opening it; a project with no
   repository saying so on its chats page, with "Adopt a repository";
+  on the terminal's bounds, as skein's text shell prints and reads
+  them, a chat's committed run of calls, its line before its tool rows
+  and its reply and none of its results' bodies
+  (`pages/chat/conversation.md`, 1), and its conversation read back by
+  `up`, `down` and the page-up line, whole lines recovered each way and
+  the shell's hint printed (`pages/chat/conversation.md`, 2; `line.md`, 5);
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
   pending, kept work), each request made once. jig's check holds in
@@ -339,8 +345,9 @@ own tests:
   root and view under skein's text shell, over jig's native transport,
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
-  live-text story: a reply held after its first piece is read printed
-  before its "▍", then replaced by the committed turn.
+  smoke, a chat's committed reply read on its page, and its live-text
+  story: a reply held after its first piece is read printed before its
+  "▍", then replaced by the committed turn.
 - **The process tier** (`../testing/process-tier.md`): the real `temper-box`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and
