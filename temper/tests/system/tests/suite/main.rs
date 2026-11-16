@@ -16,3 +16,5 @@ mod supplied_instructions;
 mod merge_job;
 
 mod close_job;
+
+mod notes;

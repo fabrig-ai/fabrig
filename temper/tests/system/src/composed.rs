@@ -43,6 +43,7 @@ mod link;
 mod long_chat;
 pub mod merge_job;
 mod next_turn;
+mod notes;
 mod parked;
 mod process;
 mod review;
@@ -100,6 +101,7 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
+    notes: notes::Party,
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
     scripts: VecDeque<Script>,
@@ -459,6 +461,7 @@ impl World {
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             seed,
+            notes: notes::Party::default(),
             merge_job: None,
             close_job: None,
             scripts: VecDeque::new(),
@@ -478,7 +481,7 @@ impl World {
                 })),
             ]),
             store,
-            party: signed_in_party(),
+            party: signed_in_party(b"@system"),
             protocol: Protocol::default(),
             worker: worker::Domain::new(&worker_limits, kinds),
             worker_out: Queue::uncapped(),
@@ -874,6 +877,9 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "the protocol dispatcher lists every host delivery beside settings")]
     fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         let event = match request {
+            // Party reads, like internal walks, use this world's store rather
+            // than the engine world's scripted read terminal.
+            request @ engine::Request::Store(engine::StoreRequest::Read { .. }) => return Err(Box::new(request)),
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
@@ -1104,6 +1110,7 @@ impl World {
                 self.adoption = Adoption::Adopted;
             }
             Delivery::WebReply { to, reply } => self.web_reply(to.into_token(), reply),
+            Delivery::Read { reply, answer } => self.notes.read(reply, answer),
             Delivery::Assigned { channel, assignment } => self.assigned(channel, assignment),
             Delivery::Link { channel, down } => {
                 assert_eq!(channel, CHANNEL);
@@ -1134,7 +1141,6 @@ impl World {
             | Delivery::Panel { .. }
             | Delivery::Refuse { .. }
             | Delivery::ForgeRead { .. }
-            | Delivery::Read { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
@@ -1164,6 +1170,9 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        if self.notes.answered(to, &reply) {
+            return;
+        }
         if next_turn::picked(to, &reply) {
             return;
         }
@@ -1609,14 +1618,14 @@ fn questioning_config(seed: u64) -> engine::Config {
     config
 }
 
-fn signed_in_party() -> parties::Party {
+fn signed_in_party(words: &[u8]) -> parties::Party {
     parties::Party::new(
         1,
         parties::Role::Owner,
         400,
         Box::new([
             parties::Act::SignIn { provider: 0, subject: temper_engine_domain_forge::user_key(1, 7).subject },
-            parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: Box::from(&b"@system"[..]) } },
+            parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: words.into() } },
         ]),
     )
 }
