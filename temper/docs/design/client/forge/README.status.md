@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-15. Where temper's code lags or departs from [README.md](README.md).
+2026-11-16. Where temper's code lags or departs from [README.md](README.md).
 
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
@@ -79,3 +79,7 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
 
 - **Not yet:** 4.1: *Its size* on Needs you's and Home's cards, and on a phone [in flight: change 535].
 - **Not yet:** 4.1: the joined world's approval card showing the fake forge's size [in flight: change 536].
+- **Not yet:** 9.5: a change of a project deleted or never made, and
+  of another public project read under this one's identifier, unknown;
+  a public project whose only change is outside every goal's tree, its
+  landings' document empty. [in flight: change 5221]

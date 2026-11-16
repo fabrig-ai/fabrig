@@ -26,3 +26,8 @@
   forge setting reads, including historical revision values. 3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
+- **Not yet:** 2: area 5's Anthropic keys, a key-only account, one put
+  after a declared program's and the deployment's, are not
+  `tests/client`'s. [in flight: change 5219]
+- **Not yet:** 2: a member's `project amend --visibility public`
+  exiting 2. [in flight: change 5221]

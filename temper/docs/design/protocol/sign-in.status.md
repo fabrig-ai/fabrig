@@ -39,6 +39,15 @@ unchanged. Local `Lost` uses the busy page, as `openid-provider.md`, section 3 n
   its upstream stopped, two deployments behind it with one path, a
   refused `Host` with a copy cached, and the headers it drops from a
   public read.
+- **Not yet:** 2.5: malformed paths, the signed-out exchanges, the
+  credentials on a public read and the CORS headers are played in the
+  one-process world, not in jig's mapping and clients' component
+  worlds and the proxy's own rules. [in flight: change 5220]
+- **Not yet:** 2.5: the inaccessible identifiers and a member's
+  widening are played in the one-process world, not in jig's core
+  world, the forge's world and `tests/client`; the limits' relations
+  there too, not `temper-service`'s. 8: the start's public figures.
+  [in flight: change 5221]
 - **Design departs:** `openid-provider.md`, 9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page
