@@ -1,6 +1,6 @@
 # landed-qa: status
 
-2026-11-12. Where the design lags or departs from [landed-qa.md](landed-qa.md).
+2026-11-16. Where the design lags or departs from [landed-qa.md](landed-qa.md).
 
 Milestone Q1 is designed in `../testing/qa/README.md` and its documents: the watcher on main's ref, the deployment's kept builds, triage, and the ledger's landings, cases and builds.
 
@@ -45,10 +45,22 @@ pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 `../protocol/setup/box.md`, 5), and the process-tier story of a box at
 its place on its fake forges' state (`../testing/process-tier.md`).
 
+Milestone Q6, ctl on a deployment, is designed in
+`../testing/qa/deployment.md` (a deployment's session: its documents
+rendered with the place's names, its preparation, its processes, its
+lines' values, `deployment patch`, its stop and exits),
+`../client/drive.md`, 2.1, 2.3, 2.6, 3.4 and 3.8 (the `ctl` surface, a
+session of ctl and `forge` lines signed in from a file, and a
+deployment's lines), `../client/recipe.md`, 2, 4 and 5.1 (a deployment's
+recipe and its walk), `../testing/qa/places.md` and
+`../testing/qa/README.md`, 3.2 and 6 (places of the deployment's kind),
+`../testing/qa/triage.md`, 3 (ctl cases first, of the configured surfaces
+alone), `../testing/qa/gaps.md`, `../testing/qa/setups.md`, 5 and 6 (the
+first deployment setup, `turn-landing`) and `../testing/process-tier.md`
+(the story of a deployment at its place).
+
 - **Design lags:**
-  - 2, 4, 5, 7, 10: places are boxes alone and surfaces web and TUI (`../testing/qa/README.md`, 3.2; `../testing/qa/triage.md`, 3; `../testing/qa/places.md`), where the draft, since 2026-11-14, has places of two kinds, a box and a deployment, and ctl cases first; Q6 to Q8 carry it.
-  - 3: a kept build has no engine, worker or agent, and builds its bundles with `bundle.sh` options it no longer takes (`../testing/qa/builds.md`, 2), where loopback and recording are a page's query since 2026-11-12; Q6 carries both.
-  - 5: a place's box directory takes the umask's mode, and the drivers refuse it unless it is private (`../testing/qa/places.md`, 4; `../client/drive.md`); Q6 carries it.
+  - 2, 4, 5, 7, 10: a deployment place takes ctl and `forge` lines alone, and a deployment setup ctl cases alone (`../testing/qa/deployment.md`, 6; `../testing/qa/triage.md`, 3), where the draft has the web client and the TUI on a deployment too, and one framework for a place's kinds; Q7 and Q8 carry it.
   - 5, 7: a copy whose store a newer build refuses by name is made again with no finding (`../testing/qa/places.md`, 4), where the draft, since 2026-11-12, files a finding as well, so that passes prove the stores' patches; no milestone carries it yet.
 - **Design departs:**
   - 5: `project-landing` connects the box's fake Forgejo as its admin through a ctl line naming the box's values, where the draft names the web journey's setup as the first recipes' source: the web's connect takes the admin's token itself, which no recipe names, and gives no git program, so the box's agents would reach no fake forge's git. It reaches the journey's state, Hello with `work/hello` and ChatGPT, on the fake Forgejo (`../testing/qa/setups.md`, 2). The goal's designer, 2026-11-12.

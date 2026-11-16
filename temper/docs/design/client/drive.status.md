@@ -4,6 +4,5 @@
 
 Unlisted sections have no known gap.
 
-- **Not yet:** 2.1 and 3.8: deployment sessions and deployment patch lines are not built; the session starts a box alone.
-- **Not yet:** 2.6: recipe walks do not select ctl sessions for chains without web or tui lines; the walker injects web and tui reset lines.
-- **Not yet:** 3.4: `{model.key}` is not parsed or resolved from the box log.
+- **Not yet:** 2.1, 2.6 and 3.8: a deployment's session is not run: its preparation, its processes, ctl's values from its documents, `deployment patch` and its stop; the session starts a box alone. [in flight: change 5254]
+- **Not yet:** 2.3: the box's ctl signs in with `sign-in -` and the link on stdin, not from `session/link`. [in flight: change 5254]
