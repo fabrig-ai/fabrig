@@ -99,6 +99,8 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::Take { .. }
         | Ask::HandBack { .. }
         | Ask::Stop { .. }
+        | Ask::Conclude { .. }
+        | Ask::Delegate { .. }
         | Ask::Cancel { .. }
         | Ask::Move { .. }
         | Ask::Seen { .. }

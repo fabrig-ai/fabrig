@@ -595,19 +595,22 @@
   - **A sign-in's usable model,** `suite::connect_model::a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account`:
     the account the sign-in makes reads usable from the engine, where
     before it read not.
-  - **The fake issuer's held sockets,** in the real loop (`real-loop.md`),
-    `tests/real-loop`'s `suite::sign_in::a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away`,
+  - **The fake issuer's held sockets,** in temper-fake's own tests on
+    skein's simulator (`../protocol/setup/box.md`, 5),
     on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;
     and in this package's `suite::fake::the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap`,
     beside the fake's other process stories, `temper-box fake oauth` logging
     each one. Each fails without its half of the fix.
-  - **A long document built in parts,** in the real loop,
+  - **A long document built in parts,** in the system world
+    (`../domain/worker/README.md`, 9), `tests/system`'s
     `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`:
-    a hosted agent's bounded `note` calls build it past one call's size,
+    smith's agent's bounded `note` calls build it past one call's size,
     its stale and past-the-end edits are refused and save nothing, and a
-    fresh run finds it in its brief and revises it by lines. Beside it,
+    fresh run finds it in its brief and revises it by lines, the note
+    read back whole and uncut as the pane reads it. Its path in the real
+    loop (`real-loop.md`),
     `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up`:
     the person's follow-up message reaches the chat's run, which
     rewrites its note whole.

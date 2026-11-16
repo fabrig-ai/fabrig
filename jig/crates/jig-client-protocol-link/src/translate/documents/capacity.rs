@@ -81,6 +81,7 @@ pub(crate) fn person_capacity_action_fields(value: &w::PersonCapacityAction) -> 
         w::PersonCapacityAction::HandBackPerson(row) => c::PersonCapacityAction::HandBackPerson { task: row.task() },
         w::PersonCapacityAction::AnswerPerson(row) => c::PersonCapacityAction::AnswerPerson { task: row.task() },
         w::PersonCapacityAction::Stop(row) => c::PersonCapacityAction::Stop { task: row.task() },
+        w::PersonCapacityAction::Conclude(row) => c::PersonCapacityAction::Conclude { task: row.task() },
         w::PersonCapacityAction::Cancel(row) => c::PersonCapacityAction::Cancel { task: row.task() },
         w::PersonCapacityAction::Lift(row) => c::PersonCapacityAction::Lift { hold: row.hold() },
         w::PersonCapacityAction::Release(row) => c::PersonCapacityAction::Release { task: row.task() },

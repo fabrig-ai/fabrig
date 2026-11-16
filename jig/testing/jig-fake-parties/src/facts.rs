@@ -15,6 +15,9 @@ pub enum Setting {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    Concluded {
+        at: Wall,
+    },
     Judged {
         at: u32,
         setting: Setting,

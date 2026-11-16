@@ -188,6 +188,7 @@ impl World {
             fixture_rows: Box::new([]),
             domain: root::Domain::new(configuration, limits),
             store,
+            pending_ended_loads: None,
             internal_reads: std::collections::BTreeSet::new(),
             systems: [System::new(), System::new()],
             protocol,

@@ -19,7 +19,7 @@ pub struct Slots {
 #[must_use]
 pub fn slot(step: &w::Step) -> Slots {
     let current = match step {
-        w::Step::Producing => 0,
+        w::Step::Taking | w::Step::Producing => 0,
         w::Step::Opening | w::Step::Recreating | w::Step::Reopening => 1,
         w::Step::Checking => 2,
         w::Step::Gating => 3,
@@ -78,6 +78,7 @@ pub fn queue(step: &w::Step) -> Option<Queue<'_>> {
         w::Step::First => Some(Queue { place: 1, ahead: &[], unnamed: 0 }),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
+        | w::Step::Taking
         | w::Step::Producing
         | w::Step::Opening
         | w::Step::Recreating
@@ -117,6 +118,7 @@ pub fn line(panel: &w::ChangePanel) -> Said {
             None => W::ReadyAloneLine,
         },
         w::Step::Preparing(_) => return landing_line(W::PrepareLine, panel),
+        w::Step::Taking => return taking_line(panel),
         w::Step::Producing => W::ProduceLine,
         w::Step::Opening => W::OpenLine,
         w::Step::Recreating => W::RecreateLine,
@@ -149,6 +151,32 @@ pub fn line(panel: &w::ChangePanel) -> Said {
     };
     (word, Box::new([]))
 }
+fn taking_line(panel: &w::ChangePanel) -> Said {
+    let Some(source) = panel.source() else { return (W::Taking, Box::new([])) };
+    let branch = Hole::Name(copy_of(source.branch()));
+    match source.kept() {
+        Some(kept) => (W::TakingKept, Box::new([branch, Hole::Name(source_commit(kept))])),
+        None => (W::TakingBranch, Box::new([branch])),
+    }
+}
+/// Render a source commit whole: a zero tail after byte 20 denotes SHA-1.
+#[must_use]
+pub fn source_commit(commit: &[u8; 32]) -> Box<[u8]> {
+    let mut length = 20;
+    for byte in commit.get(20..).expect("commit tail") {
+        if *byte != 0 {
+            length = 32;
+            break;
+        }
+    }
+    let mut digits = skein_lib::List::with_capacity(64);
+    for byte in commit.get(..length).expect("twenty or thirty-two bytes") {
+        for nibble in [byte >> 4_u8, byte & 15] {
+            digits.push(*b"0123456789abcdef".get(usize::from(nibble)).expect("hex nibble")).expect("commit digits fit");
+        }
+    }
+    digits.into_boxed()
+}
 fn landing_line(word: W, panel: &w::ChangePanel) -> Said {
     (word, Box::new([Hole::Name(copy_of(panel.landing()))]))
 }
@@ -157,6 +185,7 @@ pub fn held_step(step: &w::Step) -> W {
     match step {
         w::Step::Ready(_) => W::HeldReady,
         w::Step::Preparing(_) => W::HeldPreparing,
+        w::Step::Taking => W::Taking,
         w::Step::Producing => W::HeldProducing,
         w::Step::Opening => W::HeldOpening,
         w::Step::Recreating => W::HeldRecreating,
@@ -274,6 +303,7 @@ impl<'a> Change<'a> {
             w::Step::Cleared(value) => value.tiers().as_slice(),
             w::Step::Ready(_)
             | w::Step::Preparing(_)
+            | w::Step::Taking
             | w::Step::Producing
             | w::Step::Opening
             | w::Step::Recreating
@@ -356,6 +386,7 @@ impl<'a> Change<'a> {
                 }
                 w::Step::Ready(_)
                 | w::Step::Preparing(_)
+                | w::Step::Taking
                 | w::Step::Producing
                 | w::Step::Opening
                 | w::Step::Recreating

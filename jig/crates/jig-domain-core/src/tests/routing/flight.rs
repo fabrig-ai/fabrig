@@ -121,7 +121,10 @@ fn person_task_move_and_make_replies_return_the_original_keyed_outcome() {
             ),
             1 => (Flight::Moving { request, task: 5 }, people::Outcome::Moved { task: 5 }),
             _ => (
-                Flight::Made { request, route: crate::routing::Made { first: 6, given: None, stubs: Box::new([]) } },
+                Flight::Made {
+                    request,
+                    route: crate::routing::Made { first: 6, given: None, stubs: Box::new([]), dependencies: None },
+                },
                 people::Outcome::Created { first: 6, last: 7, given: None },
             ),
         };
@@ -496,6 +499,8 @@ fn a_procedure_owner_hears_its_step_before_a_retained_activation() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Person(1),
             batch: Box::new([parent]),

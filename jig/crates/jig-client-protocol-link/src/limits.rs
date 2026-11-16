@@ -1,5 +1,5 @@
 //! Fixed attempt admission and receiving bounds (protocol/client/README.md, 10; client/domain/client/README.md, 11).
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v26 as w;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
 pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
@@ -169,7 +169,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.deployment_readiness, &mut wire.chip_details_fields_resources, &mut wire.chip_rows,
         &mut wire.chip_phase_facts_rows, &mut wire.closing_rows, &mut wire.ending_rows,
         &mut wire.held_runtime_rows, &mut wire.hold_reason_rows, &mut wire.chip_details_rows,
-        &mut wire.chip_ending_rows, &mut wire.result_value_rows, &mut wire.create_tasks, &mut wire.new_task_named,
+        &mut wire.chip_ending_rows, &mut wire.result_value_rows, &mut wire.create_tasks, &mut wire.delegate_tasks, &mut wire.new_task_named,
         &mut wire.authority_grants, &mut wire.authority_note_resources,
         &mut wire.policy_edit_requirements_requirements, &mut wire.policy_edit_projections_grants,
         &mut wire.task_contract_document_verdict_choices, &mut wire.result_details_delegates,

@@ -70,7 +70,7 @@ fn cases_fit_the_session_and_refuse_unknown_fields_without_mutation() {
     let good = json!({"surface":"web","page":"work","setup":"fresh","steps":[{"do":"open Work","expect":"Drafts lists the draft"}]});
     for (pointer, replacement, words) in [
         ("/surface", json!(null), "no surface"),
-        ("/surface", json!("native"), "surface native is neither web nor tui"),
+        ("/surface", json!("native"), "surface native is not ctl, web or tui"),
         ("/page", json!(""), "no page"),
         ("/page", json!("chat"), "chat is no web page; pages: work, home"),
         ("/setup", json!(""), "no setup"),
@@ -282,4 +282,44 @@ fn documents_round_trip_all_fields_and_duplicate_commits_record_nothing() {
         "ledger.json: unknown field future"
     );
     assert!(Ledger::decode(b"broken").expect_err("bad JSON").to_string().starts_with("ledger.json: "));
+}
+
+#[test]
+fn ctl_cases_record_and_join_by_group() {
+    let mut ledger = Ledger::default();
+    landing(&mut ledger, 1);
+    landing(&mut ledger, 2);
+    let input = CaseInput::decode(br#"{"surface":"ctl","page":"task","setup":"fresh","steps":[{"do":"ctl task list","expect":"the person's tasks"}]}"#, "-").expect("ctl case");
+    let first = session(&mut ledger, 1);
+    ledger.add_case(first, &input, 1).expect("record");
+    ledger.end_session(first, Exit::Code(0), None, 2, "qa").expect("triaged");
+    let second = session(&mut ledger, 2);
+    ledger.add_case(second, &input, 3).expect("join");
+    assert_eq!(ledger.cases.len(), 1);
+    assert_eq!(ledger.cases[0].surface, "ctl");
+    assert_eq!(ledger.cases[0].page, "task");
+    assert_eq!(ledger.cases[0].landings(), [1, 2]);
+    let mut other = input.clone();
+    other.page = "project".into();
+    ledger.add_case(second, &other, 4).expect("another group");
+    assert_eq!(ledger.cases.len(), 2);
+    other.page = "missing".into();
+    assert!(
+        ledger.add_case(second, &other, 5).expect_err("unknown group").to_string().contains("missing is no ctl page")
+    );
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
+}
+
+#[test]
+fn ctl_findings_survive_the_ledger_round_trip() {
+    let mut ledger = Ledger::default();
+    super::passes::queue(&mut ledger, "task", "ctl");
+    super::passes::build(&mut ledger, "build", &[1], 1);
+    let pass = ledger.start_pass("places/1", &["ctl".into()], "high", 2).expect("ctl pass");
+    let mut finding = super::passes::finding(1);
+    finding.lines = vec!["ctl task list".into()];
+    finding.evidence.clear();
+    ledger.record_finding(pass.session, &finding, &[], "tools", 3).expect("ctl finding");
+    assert_eq!(ledger.findings[0].surface, "ctl");
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
 }

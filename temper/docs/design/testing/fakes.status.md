@@ -1,6 +1,8 @@
 # fakes: status
 
-2026-11-14. Where the tree's code lags or departs from [fakes.md](fakes.md).
+2026-11-16. Where the tree's code lags or departs from [fakes.md](fakes.md).
+
+Unlisted sections have no known gap.
 
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
 

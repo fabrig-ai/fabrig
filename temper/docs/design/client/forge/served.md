@@ -223,6 +223,9 @@ made by the forge connector from what it keeps of the change
 - **What it carries:**
   - the repository, by its forge's number and its owner and name
     (`README.md`, 2.5); the change's branch and its landing branch; its head;
+  - for a change opened from a pushed branch, its source: the branch,
+    the commit the person named and the head taking kept, while it takes
+    and after (`../../domain/forge/change/opened.md`, 6);
   - its pull request: its number once opened, and its address on the
     forge;
   - its step, the one `README.md`, 2.1 names, with what the step says: its place in

@@ -1,6 +1,7 @@
 # forge: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-15. Where temper's code lags or departs from [README.md](README.md).
+
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, the path sets it signs off, partial-read notice, Open and Later. A

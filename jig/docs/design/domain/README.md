@@ -15,7 +15,8 @@ mechanics are those of skein's `programming-model.md`.
    promises. Read it first.
 2. **tasks/README.md:** the tasks child, the center of the core: tasks,
    batches, lifecycle, holds, inboxes and wake policies, proposals and
-   escalations.
+   escalations; a task that stands, and a gathering parties fill
+   (`tasks/gatherings.md`).
 3. **authority.md:** what a task may do: authority as a value, budgets
    and spend, checks, proposals, requirements and their verdicts.
 4. **connectors.md:** the contract every connector meets, and what
@@ -131,6 +132,7 @@ system.
 | chat | jig's default template for a conversation with an agent: an agent task flagged conversation and kept, whose requester is a party (people/README.md, section 6) |
 | template | an application's recipe for creating a task of one shape, numbered in its configuration and overridden by a project's policy; the client fills it into a `Create` or a `Propose`; the engine keeps the configuration's templates and each policy's overrides, serves them merged in `me`, and never expands or checks one (model.md, 7.3; `../protocol/configuration.md`, 3.1) |
 | recurring batch | the batch a recurring task was given when it was made, which it makes again at each period; not a template (tasks/README.md, section 5) |
+| gathering, concluded | a core procedure's task that parties fill with delegates by `Delegate`; its requester's word, `Conclude`, after which none joins and it ends once they have ended (tasks/gatherings.md) |
 | label | an opaque number the application gives a task, through a template or by hand, which lists filter on and no engine rule reads (tasks/README.md, section 3) |
 | conversation, listed, retention class | a task's flags: its turns are entries for its requester, with a read position; once ended, it is indexed by its project; kept, or forgotten once read (tasks/README.md, section 3; people/README.md, section 5) |
 | last activity, waiting on | when a task last heard words, committed a turn or had a delegate end; what it waits for, computed by the engine: a party, its delegates, news, or nothing (tasks/README.md, section 3) |

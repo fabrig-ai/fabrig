@@ -842,3 +842,29 @@ fn red_panels_keep_all_sixteen_full_length_test_ids() {
         assert!(skein_lib::bytes::find(&tiers[0], id).is_some());
     }
 }
+
+#[test]
+fn an_opened_changes_source_survives_taking_and_landing() {
+    let head = fixtures::HEAD;
+    for (state, step, kept) in [
+        (change::State::Taking { requested: false }, PanelStep::Taking, None),
+        (change::State::Taking { requested: true }, PanelStep::Taking, Some(head)),
+        (change::State::Opening { requested: false }, PanelStep::Opening, Some(head)),
+        (
+            change::State::Landed { merge: fixtures::BASE, since: env().wall },
+            PanelStep::Landed { merge: fixtures::BASE },
+            Some(head),
+        ),
+    ] {
+        for at in [None, Some(fixtures::BASE)] {
+            let mut row = fixtures::opening_row();
+            row.source = Some(ChangeSource { branch: b"docs/x".as_slice().into(), at });
+            row.kept = kept;
+            row.change.state = state.clone();
+            let got = panel(&with_row(row));
+            assert_eq!(got.step, step);
+            assert_eq!(got.source, Some(PanelSource { branch: b"docs/x".as_slice().into(), at, kept }));
+        }
+    }
+    assert_eq!(panel(&with_row(fixtures::opening_row())).source, None);
+}

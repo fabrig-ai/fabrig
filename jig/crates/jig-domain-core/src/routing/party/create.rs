@@ -1,4 +1,5 @@
-//! Party roots checked whole, then made together (domain/people/acts.md, 1).
+//! Party batches checked whole, then made together (jig/docs/design/domain/tasks/README.md, 4;
+//! jig/docs/design/domain/authority.md, 8.4).
 use crate::{
     Core, Limits,
     routing::{
@@ -17,6 +18,7 @@ pub(crate) struct Creation {
     pub person: u64,
     pub project: u32,
     pub role: people::Role,
+    pub beneath: Option<u64>,
     pub batch: Box<[people::Member]>,
 }
 pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, mut creation: Creation) {
@@ -25,6 +27,26 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
         crate::routing::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
+    if let Some(task) = creation.beneath {
+        let party = super::dispatch::Party {
+            request,
+            person: creation.person,
+            project: creation.project,
+            role: Some(creation.role),
+        };
+        if let Err(why) = role_allows(core, &creation) {
+            pool_refused(&mut routed.work, request, why);
+            return;
+        }
+        if core.tasks.task(task).is_none() {
+            crate::routing::run::results::delegate_subject(core, &mut routed.work, &mut routed.out, party, task);
+            return;
+        }
+        if let Err(why) = parent(core, env, &creation) {
+            pool_refused(&mut routed.work, request, why);
+            return;
+        }
+    }
     match checked(core, env, &mut creation, false) {
         Ok((members, given)) => {
             party_inputs::begin(
@@ -32,6 +54,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
                 env,
                 routed,
                 party_inputs::Inputs {
+                    beneath: creation.beneath,
                     person: creation.person,
                     project: creation.project,
                     role: creation.role,
@@ -60,6 +83,16 @@ pub(crate) fn checked(
     let allowed = if proposing { None } else { budget(core, creation)? };
     let Creation { person, project, role, batch, .. } = &*creation;
     well_formed(batch)?;
+    if creation.beneath.is_some() {
+        for (at, member) in batch.iter().enumerate() {
+            if member.flags.conversation {
+                return Err(people::Refusal::NotWellFormed {
+                    at: u32::try_from(at).expect("bounded member"),
+                    why: people::Malformed::Conversation,
+                });
+            }
+        }
+    }
     let first = core
         .counters
         .deployment()
@@ -67,7 +100,7 @@ pub(crate) fn checked(
         .checked_add(1)
         .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
     check_circle(core, env, batch, first)?;
-    if !proposing && !core.authority.escalations_held(*project, role.number()) {
+    if creation.beneath.is_none() && !proposing && !core.authority.escalations_held(*project, role.number()) {
         return Err(people::Refusal::NoEscalationHolder);
     }
     let mut delegates = List::with_capacity(env.limits.people.batch);
@@ -78,40 +111,52 @@ pub(crate) fn checked(
                 return Err(people::Refusal::Limit { which: people::LimitKind::HoldKind });
             }
         }
-        let new = new_task(core, env, creation, member, first, members.len())?;
+        let mut new = new_task(core, env, creation, member, first, members.len(), proposing)?;
+        if let Some(task) = creation.beneath
+            && new.deadline == tasks::Deadline::Named
+            && new.authority.budget.deadline.is_none()
+        {
+            new.authority.budget.deadline = core.tasks.task(task).expect("admitted parent").authority.budget.deadline;
+        }
         let executor = core.delegation_executor(*project, new.executor).ok_or(people::Refusal::Unknown)?;
+        let mut asked =
+            crate::admission::amendments::granted(member.authority.clone(), new.authority.models, &env.limits.tasks)
+                .expect("member authority checked");
+        if creation.beneath.is_some() {
+            asked.budget.deadline = new.authority.budget.deadline;
+        }
         delegates
             .push(authority::Delegate {
                 executor,
-                authority: crate::admission::deadlines::authority(
-                    &crate::admission::amendments::granted(
-                        member.authority.clone(),
-                        new.authority.models,
-                        &env.limits.tasks,
-                    )
-                    .expect("member authority checked"),
-                    new.deadline,
-                    env.wall,
-                ),
+                authority: crate::admission::deadlines::authority(&asked, new.deadline, env.wall),
                 symbolic: crate::symbolic_grants(&named(member, env)?, core.authority.limits().grants)
                     .ok_or(people::Refusal::Limit { which: people::LimitKind::Authority })?,
             })
             .expect("admitted batch");
         members.push(new).expect("admitted batch");
     }
-    if !core.authority.escalations_held(*project, role.number()) {
+    if creation.beneath.is_none() && !core.authority.escalations_held(*project, role.number()) {
         return Err(people::Refusal::NoEscalationHolder);
     }
     if proposing {
         super::propose::allowed(core, *project, delegates.into_boxed())?;
     } else {
-        let (_, pool) = core.person_pool(*project, *person);
+        let (pool, tasks_left, creator) = match creation.beneath {
+            Some(task) => {
+                let context = core.tasks.delegation(task).ok_or(people::Refusal::Unknown)?;
+                (context.numbers, context.tasks_left, Some(crate::translate::tasks_authority(&context.authority)))
+            }
+            None => (core.person_pool(*project, *person).1, env.limits.tasks.tree_tasks, None),
+        };
         let ask = authority::PersonAsk {
             project: *project,
             role: role.number(),
             pool: crate::translate::authority_numbers(pool),
-            tasks_left: env.limits.tasks.tree_tasks,
-            request: authority::PersonRequest::Create(delegates.into_boxed()),
+            tasks_left,
+            request: match creator {
+                Some(creator) => authority::PersonRequest::Delegate { creator, tasks: delegates.into_boxed() },
+                None => authority::PersonRequest::Create(delegates.into_boxed()),
+            },
         };
         let mut findings = Queue::uncapped();
         let checked = authority::check_request(&core.authority, &ask, &mut findings);
@@ -130,7 +175,7 @@ pub(crate) fn checked(
             return Err(refusal);
         }
         let policy = core.authority.policy(*project).expect("checked project");
-        if core.period_budget(*project) > policy.period_spend {
+        if creation.beneath.is_none() && core.period_budget(*project) > policy.period_spend {
             return Err(people::Refusal::Authority {
                 lacking: people::Lack::Budget { needs: core.period_budget(*project), left: policy.period_spend },
                 proposable: None,
@@ -144,10 +189,7 @@ pub(crate) fn checked(
     let accounts = if proposing {
         core.proposed_accounts(&members)
     } else {
-        core.funded_accounts(
-            &members,
-            tasks::Funder::Pool { project: *project, person: *person, period: core.period(*project) },
-        )
+        core.funded_accounts(&members, funder(core, creation))
     };
     if let Err(why) = accounts {
         return Err(core.account_refusal(why));
@@ -162,6 +204,7 @@ pub(crate) fn checked(
     }
     Ok((members, given))
 }
+#[expect(clippy::too_many_lines, reason = "one member translates its complete creation shape and dependency reach")]
 fn new_task(
     core: &Core,
     env: &Env<Limits>,
@@ -169,6 +212,7 @@ fn new_task(
     member: &people::Member,
     first: u64,
     at: u32,
+    proposing: bool,
 ) -> Result<tasks::New, people::Refusal> {
     let Creation { person, project, role, batch, .. } = creation;
     let executor = executor(core, member.executor)?;
@@ -198,16 +242,20 @@ fn new_task(
                     .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?
             }
             people::Dependency::Existing(task) => {
-                if !core.reaches(
-                    crate::admission::compound::PartyTask {
-                        person: *person,
-                        role: Some(creation.role),
-                        project: *project,
-                        task,
-                    },
-                    env.limits.tasks.depth,
-                    &tasks::CompoundAdmission::new(&core.tasks, 0),
-                ) {
+                // Ended places are loaded at batch admission, after inputs and holdings
+                // (jig/docs/design/domain/tasks/README.md, 4).
+                if (proposing || core.tasks.task(task).is_some())
+                    && !core.reaches(
+                        crate::admission::compound::PartyTask {
+                            person: *person,
+                            role: Some(creation.role),
+                            project: *project,
+                            task,
+                        },
+                        env.limits.tasks.depth,
+                        &tasks::CompoundAdmission::new(&core.tasks, 0),
+                    )
+                {
                     return Err(people::Refusal::Unknown);
                 }
                 task
@@ -258,7 +306,7 @@ fn new_task(
         contract: contract(&member.contract),
         authority: given,
         numbers: tasks::Numbers { budget: member.authority.spend, spent: 0, spent_below: 0, reserved: 0 },
-        funder: tasks::Funder::Pool { project: *project, person: *person, period: core.period(*project) },
+        funder: funder(core, creation),
         dependencies: dependencies.into_boxed(),
         holdings: Box::new([]),
         wake: match member.wake {
@@ -410,7 +458,9 @@ fn executor(core: &Core, executor: people::TaskExecutor) -> Result<tasks::Execut
             tasks::Executor::Agent { charter }
         }
         people::TaskExecutor::Procedure { connector, code } => {
-            if code == 0 || !core.connectors.contains(&connector) {
+            if code == 0
+                || !(core.connectors.contains(&connector) || connector == crate::RECURRING && code == crate::GATHERING)
+            {
                 return Err(people::Refusal::NotOffered);
             }
             tasks::Executor::Procedure { connector, code }
@@ -439,8 +489,17 @@ fn named(member: &people::Member, env: &Env<Limits>) -> Result<Box<[tasks::Grant
     }
 }
 fn delegates_for(ask: &authority::PersonAsk) -> &[authority::Delegate] {
-    let authority::PersonRequest::Create(batch) = &ask.request else { unreachable!("party creation") };
-    batch
+    match &ask.request {
+        authority::PersonRequest::Create(batch) | authority::PersonRequest::Delegate { tasks: batch, .. } => batch,
+        authority::PersonRequest::Allot(_)
+        | authority::PersonRequest::Accept(_)
+        | authority::PersonRequest::Amend(_)
+        | authority::PersonRequest::Move(_)
+        | authority::PersonRequest::Cancel
+        | authority::PersonRequest::Release
+        | authority::PersonRequest::Watch
+        | authority::PersonRequest::Policy => unreachable!("party creation"),
+    }
 }
 
 fn budget(core: &Core, creation: &mut Creation) -> Result<Option<(u32, u64)>, people::Refusal> {
@@ -453,7 +512,10 @@ fn budget(core: &Core, creation: &mut Creation) -> Result<Option<(u32, u64)>, pe
                 .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
         }
     }
-    let (_, pool) = core.person_pool(creation.project, creation.person);
+    let pool = match creation.beneath {
+        Some(task) => core.tasks.task(task).ok_or(people::Refusal::Unknown)?.numbers,
+        None => core.person_pool(creation.project, creation.person).1,
+    };
     let ask = authority::PersonAsk {
         project: creation.project,
         role: creation.role.number(),
@@ -488,4 +550,55 @@ pub(crate) fn symbols(batch: &[people::Member]) -> Box<[Box<[people::Symbol]>]> 
         symbols.push(member.symbols.clone()).expect("one symbol list per member");
     }
     symbols.into_boxed()
+}
+
+fn funder(core: &Core, creation: &Creation) -> tasks::Funder {
+    match creation.beneath {
+        Some(task) => tasks::Funder::Task(task),
+        None => tasks::Funder::Pool {
+            project: creation.project,
+            person: creation.person,
+            period: core.period(creation.project),
+        },
+    }
+}
+
+fn role_allows(core: &Core, creation: &Creation) -> Result<(), people::Refusal> {
+    let Some(role) = core.authority.role(creation.project, creation.role.number()) else {
+        return Err(people::Refusal::Role { held: Some(creation.role) });
+    };
+    if !role.requests.allows(authority::RequestKind::Create) {
+        return Err(people::Refusal::Role { held: Some(creation.role) });
+    }
+    Ok(())
+}
+
+pub(super) fn parent(core: &Core, env: &Env<Limits>, creation: &Creation) -> Result<(), people::Refusal> {
+    let Some(task) = creation.beneath else { return Ok(()) };
+    if !core.reaches(
+        crate::admission::compound::PartyTask {
+            person: creation.person,
+            project: creation.project,
+            role: Some(creation.role),
+            task,
+        },
+        env.limits.tasks.depth,
+        &tasks::CompoundAdmission::new(&core.tasks, 0),
+    ) {
+        return Err(people::Refusal::Unknown);
+    }
+    let row = core.tasks.task(task).expect("reached parent");
+    match &row.phase {
+        tasks::Phase::Ended(ending) => return Err(crate::routing::refusals::ended(ending)),
+        tasks::Phase::Closing(closing) | tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => {
+            return Err(crate::routing::refusals::ended(&closing.ending));
+        }
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
+    }
+    match row.executor {
+        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => Ok(()),
+        tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+            Err(people::Refusal::Authority { lacking: people::Lack::TaskKind { executor: None }, proposable: None })
+        }
+    }
 }

@@ -133,6 +133,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::Withdrawn { .. }
         | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
+        | people::Outcome::Concluded { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }
         | people::Outcome::Lifted { .. }
@@ -200,6 +201,7 @@ fn refusal_words(why: people::Refusal) -> Box<[u8]> {
         people::Refusal::SignInRedirect { .. } => b"adopt sign-in redirect was refused",
         people::Refusal::Circle { .. } => b"adopt has a dependency circle",
         people::Refusal::Dependency { .. } => b"adopt prerequisite failed",
+        people::Refusal::Concluded { .. } => b"adopt gathering is concluded",
         people::Refusal::Kept { .. } => b"adopt waits for prerequisites",
     };
     words.into()

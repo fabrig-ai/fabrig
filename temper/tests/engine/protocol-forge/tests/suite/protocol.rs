@@ -1,5 +1,6 @@
 mod ci_poll;
 mod forgejo_ci;
+mod github_repair;
 use skein_fake_forge_domain::{Observation, api::Kind};
 use skein_fake_forge_forgejo::Route;
 use skein_forge_kit::joint::REPO;
@@ -10,6 +11,8 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -242,30 +245,6 @@ fn a_github_change_is_checked_by_its_check_runs_and_lands() {
     let merges: Vec<_> =
         world.observations().iter().filter(|observation| matches!(observation, Observation::Merged { .. })).collect();
     assert!(matches!(merges.as_slice(), [Observation::Merged { head: checked, .. }] if *checked == head));
-    assert_eq!(world.tally().routes.get(&Route::PostStatus), None);
-}
-
-#[test]
-fn a_github_change_whose_check_run_fails_is_repaired() {
-    use skein_fake_forge_domain::api::Check;
-    use skein_forge_kit::joint;
-
-    let mut world = opened_change_in(Protocol::github_with_checks(73, joint::checks(0)));
-    let head = world.branch(b"temper/51");
-    github_head_checks(&mut world, skein_forge::api::Check::Failed);
-    assert!(world.observations().iter().any(|observation| matches!(observation,
-        Observation::Reported { commit, state: Check::Failed, .. } if *commit == head
-    )));
-    let mut repaired = false;
-    for entry in 4..8 {
-        let decision = change_step(&mut world, entry, change::Status::Unknown, Box::new([]));
-        if decision == change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci)) {
-            repaired = true;
-            break;
-        }
-    }
-    assert!(repaired, "the failed check run requests a CI repair");
-    assert_eq!(world.tally().routes.get(&Route::Merge), None);
     assert_eq!(world.tally().routes.get(&Route::PostStatus), None);
 }
 
@@ -920,6 +899,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         world.event(top::Event::Committed { entry });
                     }
                     match decision {
+                        change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
                         change::Decision::Finish { .. } => finished = true,

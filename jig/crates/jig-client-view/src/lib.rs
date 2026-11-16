@@ -15,8 +15,7 @@ mod generated {
     pub(crate) use jig_client_view_codec::records_v1;
 }
 
-mod owner;
-pub mod regions;
+use jig_client_view_words::owner;
 pub mod sizes {
     //! Tree envelopes (jig/docs/design/client/domain/view.md, 10, and jig/docs/design/client/domain/view-state.md, 9).
     pub mod limits;
@@ -48,7 +47,6 @@ pub mod state {
     pub(crate) mod windows;
 }
 
-pub mod styles;
 pub mod tree {
     //! Node builders (jig/docs/design/client/domain/view.md, 4).
     pub mod cards;
@@ -61,35 +59,7 @@ pub mod tree {
     pub(crate) mod turns;
 }
 
-pub mod words {
-    //! Phrases and each part's vocabulary (jig/docs/design/client/domain/view.md, 7).
-    pub(crate) mod activity_words;
-    pub(crate) mod amendment_words;
-    pub(crate) mod authority_words;
-    pub(crate) mod budget_words;
-    pub(crate) mod chip_words;
-    pub(crate) mod deployment_words;
-    pub mod document_words;
-    pub(crate) mod ended_pages_words;
-    pub(crate) mod ended_words;
-    pub(crate) mod history_words;
-    pub(crate) mod inbox_words;
-    pub(crate) mod lifecycle_words;
-    pub mod literal_segment;
-    pub(crate) mod live_call_words;
-    pub(crate) mod outcome_words;
-    pub(crate) mod person_task_words;
-    pub mod phrases;
-    pub(crate) mod project_words;
-    pub(crate) mod proposal_words;
-    pub(crate) mod proposed_task_words;
-    pub(crate) mod result_words;
-    pub(crate) mod tree_words;
-    pub(crate) mod wake_words;
-    #[expect(clippy::module_inception, reason = "words.rs keeps its role inside the words namespace (view.md, 2)")]
-    pub(crate) mod words;
-    pub use words::{Words, name};
-}
+pub use jig_client_view_words::{regions, styles, words};
 
 pub use binding::{JigBindings, JigMeaning, decode};
 pub use boundary::{Event, How, Refused, Request};

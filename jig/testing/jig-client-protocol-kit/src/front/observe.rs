@@ -2,7 +2,7 @@
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v26 as w;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
@@ -121,6 +121,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::Lift(_)
                 | w::Ask::Withdraw(_)
                 | w::Ask::Create(_)
+                | w::Ask::Delegate(_)
                 | w::Ask::Take(_)
                 | w::Ask::HandBack(_)
                 | w::Ask::Stop(_)
@@ -141,6 +142,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::MoveToNewest(_)
                 | w::Ask::Restore(_)
                 | w::Ask::MakeProject(_)
+                | w::Ask::Conclude(_)
                 | w::Ask::SetPool(_) => None,
             };
             if let Some((key, kind, revision)) = decided {

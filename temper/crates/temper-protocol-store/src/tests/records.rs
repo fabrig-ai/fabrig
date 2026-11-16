@@ -951,6 +951,32 @@ fn application_outcomes() -> Box<[forge::ApplicationOutcome]> {
     outcomes.into_boxed()
 }
 #[test]
+fn opened_application_outcomes_preserve_tasks_and_refusal_details() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repositories = Box::new([
+        forge::DraftRepository { owner: b"one".as_slice().into(), name: b"first".as_slice().into() },
+        forge::DraftRepository { owner: b"two".as_slice().into(), name: b"second".as_slice().into() },
+    ]);
+    let outcomes = [
+        forge::ApplicationOutcome::Opened { task: u64::MAX },
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::Several(repositories)),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NoRepository),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NotARepository),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix {
+            owner: b"one".as_slice().into(),
+            name: b"first".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+        }),
+        forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::NamePast { bound: 1024 }),
+    ];
+    for outcome in outcomes {
+        let row = application(outcome);
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn every_application_outcome_preserves_its_complete_record() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for outcome in application_outcomes() {
@@ -2958,6 +2984,10 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
     let mut random = Rng::new(0x12_2f_30);
     for state in fixtures::change_states().into_boxed() {
         let mut row = fixtures::change_row(state);
+        if let temper_engine_domain_forge_change::State::Taking { .. } = row.change.state {
+            row.source = Some(forge::ChangeSource { branch: b"docs/x".as_slice().into(), at: Some([4; 32]) });
+            row.kept = Some([4; 32]);
+        }
         row.task = random.next_u64();
         row.change.task = row.task;
         row.priority =

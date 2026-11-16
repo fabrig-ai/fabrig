@@ -881,7 +881,7 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-view",
+ "jig-client-view-words",
  "jig-protocol-config",
  "serde_json",
  "skein-fake-person",
@@ -1102,7 +1102,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
- "jig-client-view",
+ "jig-client-view-words",
  "skein-http",
  "skein-lib",
  "skein-ui",
@@ -1201,6 +1201,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-view-codec",
+ "jig-client-view-words",
  "skein-codec",
  "skein-lib",
  "skein-scratch",
@@ -1214,6 +1215,15 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "jig-client-view-words"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
 ]
 
 [[package]]
@@ -6101,6 +6111,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-transcript",
  "jig-test-domain",
+ "serde_json",
  "skein-fake-forge-domain",
  "skein-fake-person",
  "skein-forge",
@@ -6118,6 +6129,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
+ "temper-client-shell-terminal",
  "temper-client-shell-tui",
  "temper-client-tools",
  "temper-client-tui",
@@ -6141,6 +6153,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
  "jig-protocol-config",
+ "skein-codec",
  "skein-codegen",
  "skein-fake-forge-github",
  "skein-forge",
@@ -6548,6 +6561,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-forge-setup",
+ "temper-github-app",
  "temper-init",
  "temper-protocol-records",
  "temper-protocol-records-forge",
@@ -6808,11 +6822,13 @@ dependencies = [
  "skein-forge-client",
  "skein-forge-setup",
  "skein-http",
+ "skein-io",
  "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-oauth",
  "skein-shell",
+ "skein-sim",
  "smith-agent-world",
  "smith-domain-run",
  "temper-engine-domain-forge-change",
@@ -7067,6 +7083,7 @@ dependencies = [
  "smith-fake-claude",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-program",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",

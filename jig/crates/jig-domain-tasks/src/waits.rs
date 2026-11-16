@@ -260,7 +260,7 @@ fn rows<'a>(view: &'a View<'_>, number: u64) -> Row<'a> {
             state: WaitState {
                 requester: entry.creator,
                 phase: WaitPhase::Tasks,
-                queued: row.dependencies.is_empty(),
+                queued: !batch_pending(domain, batch, row),
                 taken: false,
             },
         }
@@ -1024,6 +1024,16 @@ pub(crate) fn check_batch(domain: &Domain, limits: &Limits, creator: Party, batc
     )
 }
 
+// Met ended dependencies add no queue wait (jig/docs/design/domain/tasks/README.md, 4).
+fn batch_pending(domain: &Domain, batch: &[New], row: &New) -> bool {
+    for dependency in &row.dependencies {
+        if domain.names.contains_key(dependency) || member_named(batch, *dependency) {
+            return true;
+        }
+    }
+    false
+}
+
 fn member_named(batch: &[New], number: u64) -> bool {
     for member in batch {
         if member.number == number {
@@ -1127,6 +1137,7 @@ fn circle_cut(why: &Refusal) -> bool {
         | Refusal::Kept
         | Refusal::Executor
         | Refusal::Spec
+        | Refusal::Concluded { .. }
         | Refusal::Contract
         | Refusal::AuthorityShape
         | Refusal::Inputs

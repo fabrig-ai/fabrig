@@ -34,10 +34,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1); G2 moves only generated record code",
     },
     Exception {
-        what: "jig-client-view",
-        until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
-    },
-    Exception {
         what: "jig-client-protocol-wire (own)",
         until: "a crate of its own for public (tools/crates/design.md, 5)",
     },

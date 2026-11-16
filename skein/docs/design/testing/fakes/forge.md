@@ -486,6 +486,17 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   40-digit SHA-1 id: SplitMix64's finalizer of the domain's count, then the
   count, each eight bytes big-endian, then four zero bytes; any other id
   names none.
+  Contents reads and combined status reads also accept a named branch:
+  the layer reads that branch with the caller's permission, then reads its
+  commit, answering `404` when the branch is absent, including before a
+  repository's first commit. A contents batch (`POST
+  /repos/OWNER/NAME/contents`) validates every create or update, including
+  each update's blob SHA, before storing one commit. In a repository with
+  no branch it creates the first branch and a commit without a parent;
+  otherwise it commits on the named branch. Moving that head starts the
+  repository's ordinary CI (2.3). A present file's contents read answers
+  JSON with its blob SHA and base64 content, so the next batch can update
+  it.
 - **Credentials.** The header is `Authorization: token <value>`; an unknown
   token is `401`. Tokens stay in this layer: no domain call, observation or
   tally holds one. The tally counts requests at the entrance: total, by route

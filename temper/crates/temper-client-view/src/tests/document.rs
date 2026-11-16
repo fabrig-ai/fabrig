@@ -5,6 +5,7 @@
     clippy::disallowed_macros,
     reason = "ordinary tests inspect semantic trees and prints"
 )]
+mod corner;
 use super::fixtures as f;
 use crate::{look, words::Shell};
 use jig_client::contract as c;
@@ -462,7 +463,7 @@ fn the_empty_pane() {
                     );
                     let line = section_words(shown.tree(), look::DOC_PATH);
                     assert!(line.starts_with(path), "{line:?}");
-                    assert_eq!(line.ends_with(b"writing"), writing);
+                    assert_eq!(line.ends_with(b"thinking \xc2\xb7 0 s"), writing);
                     let button = f::find(shown.tree(), Role::Button, b"Write it up from this chat");
                     assert_eq!(button.is_some(), !writing);
                     if let Some(button) = button {

@@ -52,6 +52,7 @@ pub fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
+        | c::Refusal::Concluded { .. }
         | c::Refusal::Provider => None,
     };
     let name = words.say_word(jig_client::words::Word::refusal(value), hole.as_slice());
@@ -173,6 +174,7 @@ fn owner_outcome(b: &mut Builder, words: &Words, value: &c::DocumentOutcome) {
         | O::ServiceMade { .. }
         | O::Adopted { .. }
         | O::Left { .. }
+        | O::Concluded { .. }
         | O::Stopped { .. }
         | O::Moved { .. }
         | O::Said { .. }

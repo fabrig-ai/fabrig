@@ -282,6 +282,10 @@ pub fn party(number: u64, me: Option<&Me>, out: &mut Text) {
 }
 pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     match why {
+        Refusal::Concluded { at } => {
+            out.put(b"concluded at ");
+            out.number(at.as_nanos());
+        }
         Refusal::Forgotten { oldest } => {
             out.put(b"forgotten; the oldest kept is revision ");
             out.number(u64::from(*oldest));
@@ -419,6 +423,7 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::SignInRedirect { .. }
+        | Refusal::Concluded { .. }
         | Refusal::Provider => book.say(0, word.id(), &[]),
     }
     .expect("checked refusal phrase")

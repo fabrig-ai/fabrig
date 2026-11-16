@@ -3,7 +3,7 @@ pub(crate) use crate::common::how::{Who, chip, project_name, text};
 use crate::{
     bindings::Bindings,
     look,
-    words::{Word, Words},
+    words::{Shell, Word, Words},
 };
 use alloc::boxed::Box;
 use skein_lib::bytes::{concat, copy_of};
@@ -43,16 +43,13 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     };
     text(b, Role::Text, &w.say(Word::HowWay, &[Hole::Name(name)]), look::HOW_WAY);
     b.close();
-    super::ways::tabs(b, ways, w, bindings, project);
+    super::ways::head(b, ways, &project_name(root, w, project), w, bindings, project);
     if let Some(index) = ways.shown()
         && let Some(tab) = tabs.get(index)
     {
         b.open(Role::Group);
-        b.name(&tab.name);
+        b.name(&if tab.current { w.say(Word::SettingsHowTab, &[]) } else { tab.name.clone() });
         b.style(look::WAYS_PANEL);
-        if !tab.line.is_empty() {
-            text(b, Role::Paragraph, &tab.line, look::WAYS_SAYS);
-        }
         super::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
             && let Some(stop) = tab.path.stops().get(open)
@@ -62,10 +59,12 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.open(Role::Slot);
         b.style(look::WAYS_FOOT);
         super::ways::legend(b, w);
-        super::ways::act(b, ways, index, w, bindings, project);
         b.close();
         super::ways::refused(b, ways, w);
         b.close();
+    }
+    if w.shell == Shell::Terminal {
+        super::ways::head_acts(b, ways, w, bindings, project);
     }
     b.close();
 }

@@ -129,6 +129,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     );
     assert!(brief.contains("project: A ready project.\n"));
     assert!(brief.contains("`pass setup`, `pass recipe` and `pass open` may take minutes"));
+    assert!(brief.contains("A ctl-only recipe's lines end with `check` and its ctl reads and waits."));
     assert!(brief.contains("shell's own timeout does not cut them"));
     let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
     assert!(drive_lines.contains("`forge commit forgejo REPOSITORY MESSAGE PATH...`"));
@@ -633,4 +634,37 @@ fn restart_ends_running_pass_and_triage_lost_with_changed_setups_and_a_report() 
         assert!(!world.home.session_directory(number).join("tree").exists());
     }
     assert!(restarted.git.prunes > 0);
+}
+
+#[test]
+fn pass_brief_lists_ctl_cases_first_and_opens_a_ctl_session() {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.git.file_at(2, "temper/docs/help/reference/ctl-task.md", b"# Tasks");
+    world.installable_build(2);
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            ledger.add_case(1, &super::case(), 0)?;
+            let mut tui = super::case();
+            tui.surface = "tui".into();
+            tui.page = "chat".into();
+            ledger.add_case(1, &tui, 0)?;
+            let mut ctl = super::case();
+            ctl.surface = "ctl".into();
+            ctl.page = "task".into();
+            ctl.steps[0].act = "ctl task list".into();
+            ledger.add_case(1, &ctl, 0)?;
+            Ok(())
+        })
+        .expect("three surfaces");
+    run.tick();
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    let cases = brief.split("## Cases").nth(1).expect("cases");
+    assert!(cases.find("ctl / task").expect("ctl") < cases.find("web / work").expect("web"));
+    assert!(cases.find("ctl / task").expect("ctl") < cases.find("tui / chat").expect("tui"));
+    assert!(brief.contains("Run ctl cases first in a ctl session, `temper-qa pass open --ctl`"));
 }

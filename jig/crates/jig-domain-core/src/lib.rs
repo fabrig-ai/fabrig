@@ -107,7 +107,10 @@ pub use crate::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
         Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
     },
-    translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
+    translate::{
+        authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
+        tasks_authority,
+    },
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
@@ -116,7 +119,7 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, RECURRING, SeedProject, Settings, ToolFamilies,
+    Config, ConfiguredPolicy, EndpointFacts, GATHERING, RECURRING, SeedProject, Settings, ToolFamilies,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,

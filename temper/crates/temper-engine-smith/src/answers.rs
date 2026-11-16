@@ -1272,6 +1272,7 @@ fn dependency_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> R
     Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "the exhaustive tasks refusal vocabulary stays together")]
 fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<(), Problem> {
     use jig_domain_tasks::Refusal;
     if let Refusal::Circle { .. } | Refusal::DependencyEnded { .. } | Refusal::Kept = problem.why {
@@ -1283,6 +1284,10 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         text.add(b" ")?;
     }
     match problem.why {
+        Refusal::Concluded { at } => {
+            text.add(b"gathering concluded at ")?;
+            text.number(at.as_nanos())
+        }
         Refusal::Account { account, why } => {
             text.add(b"account ")?;
             text.number(u64::from(account))?;

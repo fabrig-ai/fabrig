@@ -24,6 +24,49 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "registered layout fixtures read their committed codec goldens")]
+fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    for (record, next) in [("record ChangeCold { ", "goal:"), ("record ChangeHot { ", "task_release:")] {
+        let start = before.find(record).unwrap() + record.len();
+        let end = start + before[start..].find(next).unwrap();
+        before.replace_range(start..end, "");
+    }
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    for (root, bytes) in [
+        (b"ChangeCold".as_slice(), include_bytes!("../../golden/v25/record_change_cold_smallest.bin").as_slice()),
+        (b"ChangeHot".as_slice(), include_bytes!("../../golden/v25/record_change_hot_smallest.bin").as_slice()),
+    ] {
+        let plan = skein_codec::layout::Plan::derive(
+            &old,
+            old.root(root, None).unwrap(),
+            &[],
+            &new,
+            new.root(root, None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(1024);
+        // The new leading option is absent from the earlier record's bytes.
+        plan.convert(&bytes[1..], &mut out, &mut work).unwrap();
+        if root == b"ChangeCold" {
+            let row =
+                crate::v25::ChangeCold::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice()))
+                    .unwrap();
+            assert!(row.source().is_none());
+        } else {
+            let row = crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice()))
+                .unwrap();
+            assert!(row.kept().is_none());
+        }
+    }
+}
+
+#[test]
 fn the_current_layout_has_no_whole_change_value_type() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let current = skein_codec::schema::parse(family.current.as_bytes()).unwrap();

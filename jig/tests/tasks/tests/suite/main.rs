@@ -8,6 +8,7 @@ mod close_project;
 mod closer;
 mod exceeded;
 mod funding;
+mod gatherings;
 mod holds;
 mod inbox;
 mod jobs;

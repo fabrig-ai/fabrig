@@ -1634,6 +1634,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         w::ChangePanel::new(
             &l,
             w::ChangePanelParts {
+                source: None,
                 way: w::Way::Queue,
                 in_landing: None,
                 task,
@@ -4287,6 +4288,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        concluded: None,
         talk: None,
         session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),

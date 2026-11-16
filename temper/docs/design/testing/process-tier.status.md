@@ -1,6 +1,7 @@
 # process-tier: status
 
-2026-11-15. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-16. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+
 
 
 
@@ -41,9 +42,10 @@ stories: the box keeps `here_key` and the browser tab, and each lower
 story the bullet names is present in its world, holding its walk's keeps
 on that world's clock. Home's plan brief and its restart story, Away's
 sequence, the chat's goal report and the usable account are the joint
-world's; the held issuer sockets and both documents are the real loop's;
-both copy stories are the one-process world's; the logged turn-away is
-the fake's own process story.
+world's; the held issuer sockets are temper-fake's own, on skein's
+simulator; the long document is the system world's and its rewritten
+path the real loop's; both copy stories are the one-process world's;
+the logged turn-away is the fake's own process story.
 
 - **Not yet:** the whole document: no passing whole run is recorded for the three-test
   profile with the one fixed-callback walk serialized. Its proof belongs

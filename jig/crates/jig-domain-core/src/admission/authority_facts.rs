@@ -17,9 +17,13 @@ impl Core {
     ) -> people::Refusal {
         let finding = findings.pop().expect("a refused authority check explains its reason");
         let held = Some(people::Role::from_number(ask.role));
-        let proposable = match answer {
-            authority::Answer::Propose | authority::Answer::Refuse => Some(self.request_accepter(ask, answer)),
-            authority::Answer::Allow | authority::Answer::Wait => None,
+        let proposable = if let authority::PersonRequest::Delegate { .. } = &ask.request {
+            None
+        } else {
+            match answer {
+                authority::Answer::Propose | authority::Answer::Refuse => Some(self.request_accepter(ask, answer)),
+                authority::Answer::Allow | authority::Answer::Wait => None,
+            }
         };
         match finding {
             authority::Finding::UnknownProject => people::Refusal::Unknown,
@@ -34,7 +38,7 @@ impl Core {
             authority::Finding::Authority { source, lacks } => {
                 let cap = self.source_cap(ask, source);
                 let lacking = if lacks.spend {
-                    people::Lack::Budget { needs: request_spend(&ask.request), left: source_spend(ask, source, cap) }
+                    people::Lack::Budget { needs: request_spend(&ask.request), left: source_spend(ask, source, &cap) }
                 } else if lacks.tasks {
                     people::Lack::Tasks { left: source_tasks(ask, source, cap.delegation.tasks) }
                 } else if lacks.depth {
@@ -42,7 +46,7 @@ impl Core {
                 } else if lacks.deadline {
                     people::Lack::Deadline
                 } else if lacks.grants {
-                    people::Lack::Grant { kind: request_grant(&ask.request, cap, &self.authority.rules().implies) }
+                    people::Lack::Grant { kind: request_grant(&ask.request, &cap, &self.authority.rules().implies) }
                 } else if lacks.executors {
                     people::Lack::TaskKind { executor: None }
                 } else if lacks.tools {
@@ -60,7 +64,7 @@ impl Core {
                     proposable,
                     lacking: people::Lack::Budget {
                         needs: request_spend(&ask.request),
-                        left: source_spend(ask, source, cap),
+                        left: source_spend(ask, source, &cap),
                     },
                 }
             }
@@ -76,7 +80,7 @@ impl Core {
             authority::Finding::Grant { source } => people::Refusal::Authority {
                 proposable,
                 lacking: people::Lack::Grant {
-                    kind: request_grant(&ask.request, self.source_cap(ask, source), &self.authority.rules().implies),
+                    kind: request_grant(&ask.request, &self.source_cap(ask, source), &self.authority.rules().implies),
                 },
             },
             authority::Finding::RunBudget | authority::Finding::RunCap => people::Refusal::Authority {
@@ -124,7 +128,9 @@ impl Core {
             return people::Accepter::Nobody;
         }
         let kind = match &ask.request {
-            authority::PersonRequest::Create(_) => authority::ProposalKind::Batch,
+            authority::PersonRequest::Create(_) | authority::PersonRequest::Delegate { .. } => {
+                authority::ProposalKind::Batch
+            }
             authority::PersonRequest::Amend(_) => authority::ProposalKind::Amend,
             authority::PersonRequest::Allot(_) | authority::PersonRequest::Move(_) => authority::ProposalKind::Widen,
             authority::PersonRequest::Accept(action) => match action {
@@ -153,14 +159,27 @@ impl Core {
         }
     }
 
-    fn source_cap(&self, ask: &authority::PersonAsk, source: authority::Source) -> &authority::Authority {
+    fn source_cap(&self, ask: &authority::PersonAsk, source: authority::Source) -> authority::Authority {
         match source {
-            authority::Source::Task | authority::Source::Role => {
-                &self.authority.role(ask.project, ask.role).expect("checked role").authority
-            }
+            authority::Source::Task => match &ask.request {
+                authority::PersonRequest::Delegate { creator, .. } => creator,
+                authority::PersonRequest::Create(_)
+                | authority::PersonRequest::Allot(_)
+                | authority::PersonRequest::Accept(_)
+                | authority::PersonRequest::Amend(_)
+                | authority::PersonRequest::Move(_)
+                | authority::PersonRequest::Cancel
+                | authority::PersonRequest::Release
+                | authority::PersonRequest::Watch
+                | authority::PersonRequest::Policy => {
+                    &self.authority.role(ask.project, ask.role).expect("checked role").authority
+                }
+            },
+            authority::Source::Role => &self.authority.role(ask.project, ask.role).expect("checked role").authority,
             authority::Source::Project => &self.authority.policy(ask.project).expect("checked policy").ceiling,
             authority::Source::Deployment => &self.authority.rules().ceiling,
         }
+        .clone()
     }
 }
 
@@ -170,7 +189,9 @@ fn available(numbers: authority::Numbers) -> u64 {
 
 fn request_spend(request: &authority::PersonRequest) -> u64 {
     match request {
-        authority::PersonRequest::Create(batch) => batch_spend(batch),
+        authority::PersonRequest::Create(batch) | authority::PersonRequest::Delegate { tasks: batch, .. } => {
+            batch_spend(batch)
+        }
         authority::PersonRequest::Allot(value)
         | authority::PersonRequest::Amend(value)
         | authority::PersonRequest::Move(value) => value.budget.spend,
@@ -220,7 +241,9 @@ fn missing_grant(
 
 fn request_grant(request: &authority::PersonRequest, cap: &authority::Authority, implies: &authority::Implies) -> u16 {
     let kind = match request {
-        authority::PersonRequest::Create(batch) => batch_grant(batch, cap, implies),
+        authority::PersonRequest::Create(batch) | authority::PersonRequest::Delegate { tasks: batch, .. } => {
+            batch_grant(batch, cap, implies)
+        }
         authority::PersonRequest::Allot(value)
         | authority::PersonRequest::Amend(value)
         | authority::PersonRequest::Move(value) => missing_grant(value, cap, implies),
@@ -264,6 +287,7 @@ fn batch_grant(batch: &[authority::Delegate], cap: &authority::Authority, implie
 
 fn source_spend(ask: &authority::PersonAsk, source: authority::Source, cap: &authority::Authority) -> u64 {
     match source {
+        authority::Source::Role if let authority::PersonRequest::Delegate { .. } = &ask.request => cap.budget.spend,
         authority::Source::Task | authority::Source::Role => cap.budget.spend.min(available(ask.pool)),
         authority::Source::Project | authority::Source::Deployment => cap.budget.spend,
     }
@@ -271,6 +295,7 @@ fn source_spend(ask: &authority::PersonAsk, source: authority::Source, cap: &aut
 
 fn source_tasks(ask: &authority::PersonAsk, source: authority::Source, cap: u32) -> u32 {
     match source {
+        authority::Source::Role if let authority::PersonRequest::Delegate { .. } = &ask.request => cap,
         authority::Source::Task | authority::Source::Role => cap.min(ask.tasks_left),
         authority::Source::Project | authority::Source::Deployment => cap,
     }
@@ -278,7 +303,7 @@ fn source_tasks(ask: &authority::PersonAsk, source: authority::Source, cap: u32)
 
 fn request_depth(request: &authority::PersonRequest, source: authority::Source, cap: u32) -> u32 {
     let batch = match request {
-        authority::PersonRequest::Create(_) => true,
+        authority::PersonRequest::Create(_) | authority::PersonRequest::Delegate { .. } => true,
         authority::PersonRequest::Accept(action) => match action {
             authority::Action::Batch(_) => true,
             authority::Action::Widen(_)

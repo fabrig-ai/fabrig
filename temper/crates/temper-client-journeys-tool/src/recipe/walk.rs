@@ -86,11 +86,13 @@ impl Chain {
             .collect()
     }
 }
-/// Check both directories before the drive session can start or prepare anything.
+/// Check both directories before the drive session can start or prepare anything. A restored copy holds
+/// data/, and config/ only where its box made one: a box with fake backends keeps its configuration under
+/// data/ (recipe.md, 5.1).
 pub(super) fn check_scratch(from: Option<&str>, config: bool, data: bool) -> Result<(), String> {
     if from.is_some() {
-        if !config || !data {
-            return Err("--from requires config/ and data/ directories in scratch".into());
+        if !data {
+            return Err("--from requires a restored copy's data/ directory, with or without config/, in scratch".into());
         }
     } else if config || data {
         return Err("fresh walk requires no config/ and no data/ in scratch".into());

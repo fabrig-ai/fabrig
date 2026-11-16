@@ -22,7 +22,13 @@ fn control_task(executor: Executor) -> Harness {
         Executor::Job { .. } => {
             let mut parent = task(PARENT, &[]);
             parent.executor = PROCEDURE;
-            test.send(Event::Make { reply_to: to(), creator: Party::Person(PERSON), batch: Box::new([parent]) });
+            test.send(Event::Make {
+                maker: None,
+                places: Box::new([]),
+                reply_to: to(),
+                creator: Party::Person(PERSON),
+                batch: Box::new([parent]),
+            });
             member.spec.job =
                 Some(Box::new(crate::JobSpec { bytes: Box::new([]), deadline: skein_lib::Duration::from_secs(1) }));
             member.spec.words = Box::new([]);
@@ -34,7 +40,7 @@ fn control_task(executor: Executor) -> Harness {
         }
         Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Person(_) => Party::Person(PERSON),
     };
-    test.send(Event::Make { reply_to: to(), creator, batch: Box::new([member]) });
+    test.send(Event::Make { maker: None, places: Box::new([]), reply_to: to(), creator, batch: Box::new([member]) });
     test
 }
 
@@ -149,7 +155,13 @@ fn a_deployment_cancels_a_task_of_its_project_and_no_other() {
         (2, Operation::Release(Release { task: 1, again: None, message: None }), false),
     ] {
         let mut test = Harness::new();
-        test.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([task(1, &[])]) });
+        test.send(Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Person(9),
+            batch: Box::new([task(1, &[])]),
+        });
         let before = test.domain.task(1).expect("created task").clone();
         let by = Party::Deployment { project };
         assert!(!crate::control::allowed(&test.domain, 1, by, test.env.limits.tasks));
@@ -194,7 +206,13 @@ fn party_sender_labels() {
 #[test]
 fn cancel_permission_is_checked_before_its_shape() {
     let mut test = Harness::new();
-    test.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([task(1, &[])]) });
+    test.send(Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(9),
+        batch: Box::new([task(1, &[])]),
+    });
     let out = test.send(Event::Cancel {
         reply_to: to(),
         by: Party::Task(1),

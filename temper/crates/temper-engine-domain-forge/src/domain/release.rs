@@ -508,6 +508,8 @@ fn applications(d: &mut Domain, repository: Repository, groups: &mut Queue<Box<[
             | crate::ApplicationOutcome::ForgeRefused(_)
             | crate::ApplicationOutcome::MakeKept
             | crate::ApplicationOutcome::Follow(_)
+            | crate::ApplicationOutcome::Opened { .. }
+            | crate::ApplicationOutcome::OpenRefused(_)
             | crate::ApplicationOutcome::MakeRefused(_) => false,
         } {
             erase(groups, Key::Application(key.raw()));

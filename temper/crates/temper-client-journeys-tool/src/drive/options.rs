@@ -17,6 +17,7 @@ pub struct Options {
     pub scratch: PathBuf,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
+    pub ctl: bool,
     pub ports: Option<String>,
     pub files: Option<PathBuf>,
 }
@@ -25,11 +26,16 @@ impl Options {
         let (mut bin, mut bundle, mut scratch) = (None, None, None);
         let mut scripts = vec![];
         let mut strict = false;
+        let mut ctl = false;
         let mut ports = None;
         let mut files = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
+                b"--ctl" if !ctl => {
+                    ctl = true;
+                    continue;
+                }
                 b"--strict" if !strict => {
                     strict = true;
                     continue;
@@ -69,6 +75,7 @@ impl Options {
             scratch: scratch.ok_or("missing --scratch DIR")?,
             scripts,
             strict,
+            ctl,
             ports,
             files,
         })
@@ -247,10 +254,15 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
     for script in &mut options.scripts {
         *script = absolute(script)?;
     }
-    let chromium =
-        crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
-    let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
-    executable(&chromium)?;
+    let chromium = if options.ctl {
+        PathBuf::new()
+    } else {
+        let chromium =
+            crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
+        let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
+        executable(&chromium)?;
+        chromium
+    };
     let mut plan =
         Plan::new(options, chromium, OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default()));
     plan.tui_display = environment

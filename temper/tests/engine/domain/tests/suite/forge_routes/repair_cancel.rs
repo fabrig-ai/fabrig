@@ -111,6 +111,50 @@ fn a_released_cancelled_repair_asks_again_at_a_head_still_failing() {
 }
 
 #[test]
+fn a_released_failed_repair_receives_the_job_log_again_and_merges_nothing() {
+    let (mut world, first, head) = super::change_tool::pull_request_ci_repair();
+    let change = change_task(&world, first.task);
+    super::change_tool::check_pull_repair_brief(&first);
+    super::reviews::finish_review(&mut world, &first, tasks::TaskResult::Failure { reason: REASON.into() });
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }), "failed repair holds its change");
+    let revision = live_task(&world, change).revisions.hold;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(960)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key: [96; 16],
+        ask: people::Ask::Release { project: 1, task: change, revision, again: None },
+    }));
+    for _ in 0..STEPS {
+        world.tick();
+        if world.assigned.len() == 4 {
+            break;
+        }
+    }
+    let replacement = world.assigned.get(3).expect("replacement repair assigned").clone();
+    assert_ne!(replacement.task, first.task);
+    super::change_tool::check_pull_repair_brief(&replacement);
+    assert_eq!(ci_words(&first), ci_words(&replacement), "the same failed step and diagnostic");
+    assert_eq!(change_row(&world, change).change.repairs, 1, "release resets the repair allowance");
+    super::reviews::finish_review(&mut world, &replacement, tasks::TaskResult::Failure { reason: REASON.into() });
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }), "replacement's failure holds again");
+    assert_eq!(world.assigned.len(), 4, "exactly one replacement asked");
+    assert_eq!(live_task(&world, change).made, 4, "change, producer and exactly two repairs");
+    assert_eq!(world.fake.branch(b"org/repo", &change_row(&world, change).branch), Some(head), "no repair pushed");
+    assert_eq!(world.merges, 0, "CI has not passed at this head");
+    world.close();
+}
+
+#[test]
 fn a_cancelled_producer_says_it_was_cancelled() {
     let (mut world, _, producer, _) = change_world(false, 1000, None);
     let change = change_task(&world, producer.task);

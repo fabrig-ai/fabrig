@@ -220,7 +220,8 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
             line: c::first_line(row.producer_failure.as_deref().unwrap_or(b"change ended without an ending account"))
                 .into(),
         }),
-        super::forge_change::State::Producing { .. }
+        super::forge_change::State::Taking { .. }
+        | super::forge_change::State::Producing { .. }
         | super::forge_change::State::Opening { .. }
         | super::forge_change::State::Recreating { .. }
         | super::forge_change::State::Reopening { .. }
@@ -414,6 +415,7 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         | Refusal::Circle { .. }
         | Refusal::DependencyEnded { .. }
         | Refusal::Kept
+        | Refusal::Concluded { .. }
         | Refusal::KeptQuestion { .. }
         | Refusal::PersonAnswers { .. }
         | Refusal::Executor
@@ -502,7 +504,9 @@ fn delegate(
     };
     let mut change = crate::ChangeCall::words(words, None);
     change.questions = Some(crate::ChangeQuestions::Up);
-    let mut delegate = match super::chat_change(domain, env, &context, &change, repository, base, own, spend) {
+    let origin =
+        super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
+    let mut delegate = match super::chat_change(domain, env, &origin, &change, repository, base, own, spend) {
         Ok(delegate) => delegate,
         Err(why) => return Err(short_refusal(why, available, minimum, room)),
     };
@@ -544,7 +548,8 @@ fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
         forge::Ending::NoChange => {
             let words = match &row.change.state {
                 super::forge_change::State::NoChange { words } => words.as_ref(),
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }
@@ -622,7 +627,8 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                     repairs: row.repair_tasks.clone(),
                     resolutions: row.resolution_tasks.clone(),
                 },
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }

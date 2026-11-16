@@ -307,7 +307,11 @@ own tests:
   name in capital, or "My project" with none, and making its first
   project once, as named, and nothing with no name, opening it on its
   Home, opening the person's project of that name when the name is
-  taken, and offering its act again after any other refusal; its
+  taken, and offering its act again after any other refusal; a
+  welcome's model check on a program's source answered, then Ready's
+  "Create your project" making the project, "Skip" on its To begin,
+  Home saying "Nothing needs you." and "No chats yet.", and Work
+  "Nothing in flight yet."; its
   adoption sent once, after the project is made and never before, the
   project open while it is out, nothing sent with no first repository,
   and a refusal leaving the project made and the adoption offered from
@@ -317,6 +321,12 @@ own tests:
   from `Ask`, from template 5 and run by charter 11, and the rail's "Ask
   temper" then opening it; a project with no
   repository saying so on its chats page, with "Adopt a repository";
+  on the terminal's bounds, as skein's text shell prints and reads
+  them, a chat's committed run of calls, its line before its tool rows
+  and its reply and none of its results' bodies
+  (`pages/chat/conversation.md`, 1), and its conversation read back by
+  `up`, `down` and the page-up line, whole lines recovered each way and
+  the shell's hint printed (`pages/chat/conversation.md`, 2; `line.md`, 5);
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
   pending, kept work), each request made once. jig's check holds in
@@ -339,8 +349,10 @@ own tests:
   root and view under skein's text shell, over jig's native transport,
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
-  live-text story: a reply held after its first piece is read printed
-  before its "▍", then replaced by the committed turn.
+  smoke, a chat's committed reply read on its page, a welcome's model
+  check answered on a program's source and read on its Ready, and its live-text
+  story: a reply held after its first piece is read printed before its
+  "▍", then replaced by the committed turn.
 - **The process tier** (`../testing/process-tier.md`): the real `temper-box`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and

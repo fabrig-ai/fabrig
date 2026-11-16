@@ -251,7 +251,9 @@ pub(crate) fn adopted(domain: &mut Domain, token: Token, outcome: Option<forge::
         Some(forge::Answered::Adopt(forge::ApplicationOutcome::Adopted(_))) => true,
         Some(
             forge::Answered::Adopt(
-                forge::ApplicationOutcome::Follow(_)
+                forge::ApplicationOutcome::Opened { .. }
+                | forge::ApplicationOutcome::OpenRefused(_)
+                | forge::ApplicationOutcome::Follow(_)
                 | forge::ApplicationOutcome::CoreRefused(_)
                 | forge::ApplicationOutcome::ForgeRefused(_)
                 | forge::ApplicationOutcome::MakeKept
@@ -374,6 +376,7 @@ pub(crate) fn acted(
         | people::Outcome::Withdrawn { .. }
         | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
+        | people::Outcome::Concluded { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }
         | people::Outcome::PersonTaken { .. }

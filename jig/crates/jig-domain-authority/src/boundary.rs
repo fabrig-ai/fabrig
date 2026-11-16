@@ -286,6 +286,9 @@ pub enum PersonRequest {
         /** Whole directly created batch, bounded by `Limits::batch` and each child's authority limits. */
         Box<[Delegate]>,
     ),
+    /// A party's batch beneath a task, checked within the role without its pool,
+    /// then within the task's remaining (jig/docs/design/domain/authority.md, 8.4).
+    Delegate { creator: Authority, tasks: Box<[Delegate]> },
     /// The complete future authority/allotment to fund, not an unchecked delta. Check role
     /// permission and the complete future allotment.
     Allot(/** Complete future authority/allotment to reserve, bounded by authority limits. */ Authority),
@@ -315,8 +318,8 @@ pub enum PersonRequest {
 pub struct PersonAsk {
     pub project: u32,
     pub role: u32,
-    /// Person-period pool snapshot; funding requests check its budget against role period
-    /// spend.
+    /// Funding snapshot: the task's remaining for Delegate, otherwise the person-period pool.
+    /// Pool-funded requests check its budget against role period spend.
     pub pool: Numbers,
     /// Current lifetime task capacity available to this funding decision.
     pub tasks_left: u32,

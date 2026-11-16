@@ -192,7 +192,13 @@ pub(super) fn decode(to: skein_lib::ReplyTo, call: &jig_domain_fleet::Call) -> e
     let name = smith_domain_run::CallName { activation: 1, completion: 1, position: 1 };
     let input = smith_domain_run::HostInput::attested(call.input.clone()).expect("bounded script input");
     match temper_engine_smith::call(name, &call.tool, &input) {
-        Ok(_) => engine::WorkerInput::DecodedHostCall { to, body: super::link::decode(call) },
+        Ok(temper_engine_smith::Decoded::Call(_)) => {
+            engine::WorkerInput::DecodedHostCall { to, body: super::link::decode(call) }
+        }
+        Ok(temper_engine_smith::Decoded::Answered(answer)) => {
+            let (body, error) = answer.into_parts();
+            engine::WorkerInput::RenderedHostCall { to, answer: jig_domain_core::SettledAnswer::Host { error, body } }
+        }
         Err(temper_engine_smith::Problem::Range(member)) => engine::WorkerInput::RenderedHostCall {
             to,
             answer: jig_domain_core::SettledAnswer::Host {

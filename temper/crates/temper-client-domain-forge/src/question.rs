@@ -3,6 +3,13 @@ use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
 pub const CHOICES: u32 = 16;
+pub const FINDINGS: u32 = 16;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Group {
+    pub noun: Box<[u8]>,
+    pub phrase: Box<[u8]>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Choice {
@@ -19,6 +26,8 @@ pub struct Parsed {
     pub saw: Option<Box<[u8]>>,
     /// Empty on the fallback: answered by a reply alone.
     pub choices: Box<[Choice]>,
+    pub findings: Box<[crate::forge::findings::Id]>,
+    pub group: Option<Group>,
 }
 
 impl Parsed {
@@ -44,7 +53,12 @@ pub fn parse(words: &[u8], cut: bool) -> Parsed {
     }
     let mut trailing = lines.len();
     for (index, line) in lines.iter().enumerate().skip(1).rev() {
-        if !line.trim_ascii_end().is_empty() && !line.starts_with(b"Saw: ") && !line.starts_with(b"Choice: ") {
+        if !line.trim_ascii_end().is_empty()
+            && !line.starts_with(b"Saw: ")
+            && !line.starts_with(b"Choice: ")
+            && !line.starts_with(b"Findings: ")
+            && !line.starts_with(b"Group: ")
+        {
             break;
         }
         trailing = index;
@@ -84,7 +98,77 @@ pub fn parse(words: &[u8], cut: bool) -> Parsed {
         context: join(lines.get(1..trailing).expect("the first line is never trailing")),
         saw: if saw.is_empty() { None } else { Some(join_all(saw.as_slice())) },
         choices: choices.into_boxed(),
+        findings: findings(lines.get(trailing..).expect("trailing begins at a line boundary")).unwrap_or_default(),
+        group: group(lines.get(trailing..).expect("trailing begins at a line boundary")),
     }
+}
+
+fn findings(lines: &[&[u8]]) -> Option<Box<[crate::forge::findings::Id]>> {
+    let mut findings = List::with_capacity(FINDINGS);
+    for line in lines {
+        if let Some(words) = line.strip_prefix(b"Findings: ") {
+            let words = words.trim_ascii();
+            let mut start = 0;
+            for end in 0..=words.len() {
+                if end != words.len() && words.get(end) != Some(&b' ') {
+                    continue;
+                }
+                let token = words.get(start..end)?;
+                start = end.checked_add(1)?;
+                if token.is_empty() {
+                    continue;
+                }
+                let slash = bytes::find(token, b"/")?;
+                let project = decimal(token.get(..slash)?)?;
+                let number = decimal(token.get(slash.checked_add(1)?..)?)?;
+                let id = crate::forge::findings::Id { project, number };
+                if !findings.as_slice().contains(&id) {
+                    findings.push(id).ok()?;
+                }
+            }
+        }
+    }
+    Some(findings.into_boxed())
+}
+
+fn decimal(words: &[u8]) -> Option<u32> {
+    if words.is_empty() {
+        return None;
+    }
+    let mut number = 0_u32;
+    for byte in words {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        number = number.checked_mul(10)?.checked_add(u32::from(byte.checked_sub(b'0')?))?;
+    }
+    Some(number)
+}
+
+fn group(lines: &[&[u8]]) -> Option<Group> {
+    for line in lines {
+        if let Some(words) = line.strip_prefix(b"Group: ") {
+            let trimmed = words.trim_ascii();
+            if trimmed.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits usize") {
+                return None;
+            }
+            let (noun, phrase) = match bytes::find(words, " · ".as_bytes()) {
+                Some(at) => (
+                    words.get(..at).expect("separator in words").trim_ascii(),
+                    words
+                        .get(at.checked_add(" · ".len()).expect("separator fits")..)
+                        .expect("separator in words")
+                        .trim_ascii(),
+                ),
+                None => (trimmed, b"".as_slice()),
+            };
+            if noun.is_empty() {
+                return None;
+            }
+            return Some(Group { noun: bytes::copy_of(noun), phrase: bytes::copy_of(phrase) });
+        }
+    }
+    None
 }
 
 fn lines(words: &[u8]) -> List<&[u8]> {
@@ -113,6 +197,8 @@ fn fallback(lines: &[&[u8]]) -> Parsed {
         context: join(lines.get(paragraph..).expect("context begins at a line boundary")),
         saw: None,
         choices: Box::from([]),
+        findings: Box::from([]),
+        group: None,
     }
 }
 

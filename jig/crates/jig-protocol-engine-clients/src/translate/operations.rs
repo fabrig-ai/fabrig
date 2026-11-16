@@ -1,7 +1,7 @@
 //! General operation targets and template overrides, translated into people records.
 use super::{Untranslatable, asks};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v24 as w;
+use jig_client_protocol_wire::v26 as w;
 use jig_domain_people as p;
 use skein_lib::List;
 
@@ -186,8 +186,48 @@ fn operation_project(value: &w::Operation) -> u32 {
 /// Party-created jobs and project mismatches are typed refusals before the core sees them.
 /// Job admission: jig/docs/design/client/domain/contract/documents.md, 7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
-    if let w::Ask::Create(value) = record {
-        let mut reader = skein_lib::Reader::new(value.tasks());
+    let tasks = match record {
+        w::Ask::Create(value) => Some(value.tasks()),
+        w::Ask::Delegate(value) => Some(value.tasks()),
+        w::Ask::Message(_)
+        | w::Ask::Answer(_)
+        | w::Ask::Take(_)
+        | w::Ask::HandBack(_)
+        | w::Ask::Decide(_)
+        | w::Ask::Release(_)
+        | w::Ask::Amend(_)
+        | w::Ask::Stop(_)
+        | w::Ask::Cancel(_)
+        | w::Ask::MoveTask(_)
+        | w::Ask::Seen(_)
+        | w::Ask::EditNote(_)
+        | w::Ask::DeleteNote(_)
+        | w::Ask::ChangePolicy(_)
+        | w::Ask::SetRoles(_)
+        | w::Ask::MakeService(_)
+        | w::Ask::SetPool(_)
+        | w::Ask::Compound(_)
+        | w::Ask::Propose(_)
+        | w::Ask::Withdraw(_)
+        | w::Ask::SignIn(_)
+        | w::Ask::SignOut(_)
+        | w::Ask::AccountChange(_)
+        | w::Ask::Rename(_)
+        | w::Ask::MakeProject(_)
+        | w::Ask::ChangeSettings(_)
+        | w::Ask::MoveToNewest(_)
+        | w::Ask::Lift(_)
+        | w::Ask::RemoveProject(_)
+        | w::Ask::Restore(_)
+        | w::Ask::SetVisibility(_)
+        | w::Ask::ChangeModel(_)
+        | w::Ask::ReadLists(_)
+        | w::Ask::Talk(_)
+        | w::Ask::Leave(_)
+        | w::Ask::Conclude(_) => None,
+    };
+    if let Some(bytes) = tasks {
+        let mut reader = skein_lib::Reader::new(bytes);
         while let Some(bytes) = wire_piece(&mut reader)? {
             let task = w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
             match task.executor() {
@@ -256,6 +296,18 @@ pub(super) fn create(
     Ok(p::Ask::Create {
         project: value.project(),
         batch: batch(value.tasks(), w::Path::CreateTasks, models, limits, names)?,
+    })
+}
+pub(super) fn delegate(
+    value: w::Delegate,
+    models: &[crate::Model],
+    limits: &w::Limits,
+    names: &mut List<Box<[u8]>>,
+) -> Result<p::Ask, Untranslatable> {
+    Ok(p::Ask::Delegate {
+        project: value.project(),
+        task: value.task(),
+        batch: batch(value.tasks(), w::Path::DelegateTasks, models, limits, names)?,
     })
 }
 fn batch(

@@ -37,6 +37,7 @@ pub struct Drive {
     place: PlacePaths,
     setups: PathBuf,
     files: PathBuf,
+    ctl: bool,
 }
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
@@ -47,6 +48,7 @@ impl Drive {
             let mut paths = PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?);
             paths.ports = home.configuration.ports.get(&pass.place).cloned();
             Ok(Self {
+                ctl: false,
                 home: home.clone(),
                 session,
                 place: paths,
@@ -54,6 +56,44 @@ impl Drive {
                 files: std::path::absolute(crate::pass_files::files(home, number)).map_err(io_refusal)?,
             })
         })
+    }
+
+    #[must_use]
+    pub fn with_ctl(mut self, ctl: bool) -> Self {
+        self.ctl = ctl;
+        self
+    }
+
+    fn holder_command(&self, program: &std::path::Path) -> Command {
+        let mut command = Command::new(program);
+        command.args(["pass", "hold"]);
+        if self.ctl {
+            command.arg("--ctl");
+        }
+        command
+    }
+
+    fn session_command(&self, scripts: &[PathBuf]) -> Command {
+        let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
+        command
+            .arg("drive")
+            .arg("--bin")
+            .arg(&self.place.bin)
+            .arg("--bundle")
+            .arg(&self.place.bundle)
+            .arg("--scratch")
+            .arg(&self.place.scratch);
+        for script in scripts {
+            command.arg("--scripts").arg(script);
+        }
+        command.arg("--strict").arg("--files").arg(&self.files);
+        if let Some(ports) = &self.place.ports {
+            command.args(["--ports", ports]);
+        }
+        if self.ctl {
+            command.arg("--ctl");
+        }
+        command
     }
 
     fn lock(&self) -> Result<File, Refusal> {
@@ -82,12 +122,12 @@ impl Drive {
             &self.place.directory.join("drive.log"),
             OpenOptions::new().write(true).create(true).truncate(true),
         )?;
-        let mut command = Command::new(std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
+        let mut command =
+            self.holder_command(&std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
         crate::faces::captured(&mut command, environment);
         // Release the probe before spawn: the child may take its lock before spawn returns.
         drop(lock);
         let mut child = command
-            .args(["pass", "hold"])
             .stdin(Stdio::null())
             .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
             .stdout(log)

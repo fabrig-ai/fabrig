@@ -47,9 +47,17 @@ pub struct TaskSettings {
     pub newest: u32,
 }
 
+/// The first concluding party and decision (domain/tasks/gatherings.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Concluded {
+    pub by: u64,
+    pub at: Wall,
+}
+
 /// A complete task document with independently moving revisions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Task {
+    pub concluded: Option<Concluded>,
     pub talk: Option<Talk>,
     pub session: Option<Session>,
     /// None for a procedure's or a person's task.
