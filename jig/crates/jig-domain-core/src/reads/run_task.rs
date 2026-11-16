@@ -943,6 +943,7 @@ mod tests {
             core,
             limits,
             tasks::Event::Make {
+                places: Box::new([]),
                 reply_to: ReplyTo::new(skein_lib::Token::new(number)),
                 creator: tasks::Party::Task(requester),
                 batch: Box::new([new]),

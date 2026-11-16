@@ -19,6 +19,7 @@ fn recurring_lines_join_the_supplied_period_and_its_durable_opening_fact() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([recurring]),

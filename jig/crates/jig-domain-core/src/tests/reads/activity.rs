@@ -62,13 +62,23 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     send_task(
         &mut core,
         &limits,
-        tasks::Event::Make { reply_to: to(), creator: tasks::Party::Person(1), batch: Box::new([root]) },
+        tasks::Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([root]),
+        },
     );
     let child = new_row(&core, 2, tasks::Funder::Task(1), None);
     send_task(
         &mut core,
         &limits,
-        tasks::Event::Make { reply_to: to(), creator: tasks::Party::Task(1), batch: Box::new([child]) },
+        tasks::Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: tasks::Party::Task(1),
+            batch: Box::new([child]),
+        },
     );
     let first = core.tasks.task(1).unwrap().activity;
     let mut records =
@@ -258,7 +268,12 @@ fn cumulative_read_core() -> (Core, Env<Limits>) {
     send_task(
         &mut core,
         &limits,
-        tasks::Event::Make { reply_to: to(), creator: tasks::Party::Person(1), batch: Box::new([row]) },
+        tasks::Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([row]),
+        },
     );
     activity_decision(&mut core, &env, Event::Tasks(tasks::Event::Prepare { reply_to: to(), task: 1 }));
     core.proofs.insert(1, RunProof::claimed(1, 7, 7, None, jig_domain_fleet::HostKind::Worker)).unwrap();

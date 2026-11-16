@@ -25,6 +25,7 @@ fn batch_world(seed: u64) -> World {
         limits.core.tasks.batch = 2;
         limits.core.authority.batch = 2;
         limits.core.people.batch = 2;
+        limits.core.tasks.dependencies = 3;
         limits.core.tasks.tasks = 8;
         limits.core.tasks.project_tasks = 8;
     })
@@ -318,6 +319,218 @@ fn a_maintainers_dependency_on_any_project_task_is_made() {
     assert_eq!(live_row(&world, FIRST).dependencies.as_ref(), &[CHAT]);
     assert_eq!(live_row(&world, FIRST).requester, tasks::Party::Person(OTHER_PARTY));
 }
+fn create_at(world: &mut World, key: u8, batch: Box<[people::Member]>) {
+    ask_as(world, world.sign_in.expect("party signed in"), key, people::Ask::Create { project: PROJECT, batch });
+}
+
+fn depending(dependencies: &[u64]) -> people::Member {
+    let mut member = people_member(b"dependent", 10);
+    member.dependencies = dependencies.iter().copied().map(people::Dependency::Existing).collect();
+    member
+}
+
+fn ended_batch_world(seed: u64) -> World {
+    let mut world = batch_world(seed);
+    finish(&mut world);
+    create(&mut world, Box::new([people_member(b"prerequisite", 10)]));
+    assert_eq!(world.assigned.as_ref().expect("prerequisite assigned").task, FIRST);
+    jig_core_world::fixtures::finish_chat(&mut world, 0, b"prerequisite");
+    assert!(world.store.rows.contains_key(&task_key(tasks::Key::Ended(FIRST))));
+    world
+}
+
+fn task_key(key: tasks::Key) -> jig_test_domain::Key {
+    jig_test_domain::Key::Core(jig_domain_core::Key::Tasks(key))
+}
+
+fn resume_ended_load(world: &mut World) -> u64 {
+    let mut pending = world.pending_ended_loads.take().expect("loads paused");
+    assert_eq!(pending.len(), 1);
+    let load = pending.pop().expect("one load");
+    let jig_domain_core::Now::EndedTask { task, .. } = &load else { panic!("ended row load") };
+    let task = *task;
+    world.store.ask(jig_test_store::StoreOut::Now(load));
+    world.drain();
+    task
+}
+
+#[test]
+fn a_partys_new_task_loads_its_done_dependency_without_waiting_and_restores_it() {
+    const SEED: u64 = 345;
+    let mut world = ended_batch_world(SEED);
+    assert!(!world.store.rows.contains_key(&task_key(tasks::Key::Stub(FIRST))));
+    world.pending_ended_loads = Some(Vec::new());
+    let answers = world.people_answers.len();
+    create_at(&mut world, 201, Box::new([depending(&[FIRST])]));
+    assert_eq!(
+        world.people_answers.len(),
+        answers,
+        "no admission before the row returns: {:?}; loads {:?}",
+        world.people_answers.last(),
+        world.pending_ended_loads
+    );
+    assert!(!world.store.rows.contains_key(&task_key(tasks::Key::Live(LAST))));
+    assert_eq!(resume_ended_load(&mut world), FIRST);
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Created { first: LAST, last: LAST, given: None }))
+    );
+    let row = live_row(&world, LAST);
+    assert_eq!(row.dependencies.as_ref(), [FIRST]);
+    assert!(row.waiting_on.is_empty());
+    assert!(matches!(row.phase, tasks::Phase::Active(_)));
+    assert!(world.store.rows.contains_key(&task_key(tasks::Key::Stub(FIRST))));
+    let assignment = world.assigned.as_ref().expect("dependent assigned immediately");
+    assert_eq!(assignment.task, LAST);
+    let text = assignment
+        .brief
+        .iter()
+        .find_map(|section| match section {
+            jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Results, text } => Some(text),
+            _ => None,
+        })
+        .expect("dependency results in brief");
+    assert!(text.windows(b"prerequisite".len()).any(|part| part == b"prerequisite"));
+    world.restart_with(jig_core_world::stories::offers::member_configuration(SEED));
+    assert_eq!(live_row(&world, LAST).dependencies.as_ref(), [FIRST]);
+    assert!(live_row(&world, LAST).waiting_on.is_empty());
+    assert!(world.store.rows.contains_key(&task_key(tasks::Key::Stub(FIRST))));
+    world.close();
+}
+
+fn end_prerequisite(world: &mut World, how: tasks::Status) {
+    match how {
+        tasks::Status::Done => jig_core_world::fixtures::finish_chat(world, 0, b"done"),
+        tasks::Status::Failed => world.end(
+            tasks::End::Finished {
+                result: tasks::TaskResult::Failure { reason: b"failed".as_slice().into() },
+                cancel_delegates: false,
+            },
+            0,
+        ),
+        tasks::Status::Cancelled => {
+            let task = world.assigned.as_ref().expect("prerequisite assigned").task;
+            ask_as(
+                world,
+                world.sign_in.expect("party signed in"),
+                202,
+                people::Ask::Cancel { project: PROJECT, task, reason: b"withdrawn".as_slice().into(), grace: None },
+            );
+            finish(world);
+        }
+    }
+}
+
+#[test]
+fn a_partys_new_batch_refuses_a_failed_or_cancelled_dependency_without_making_any_task() {
+    for how in [tasks::Status::Failed, tasks::Status::Cancelled] {
+        let mut world = batch_world(346);
+        finish(&mut world);
+        create(&mut world, Box::new([people_member(b"prerequisite", 10)]));
+        end_prerequisite(&mut world, how);
+        assert!(world.store.rows.contains_key(&task_key(tasks::Key::Ended(FIRST))));
+        create_at(&mut world, 203, Box::new([people_member(b"independent", 10), depending(&[FIRST])]));
+        refusal(
+            &world,
+            people::Refusal::Dependency {
+                dependency: FIRST,
+                how: if how == tasks::Status::Failed {
+                    people::DependencyStatus::Failed
+                } else {
+                    people::DependencyStatus::Cancelled
+                },
+            },
+        );
+        assert!(!world.store.rows.contains_key(&task_key(tasks::Key::Live(LAST))));
+        world.close();
+    }
+}
+
+#[test]
+fn a_partys_ended_dependency_is_reached_on_its_stored_place_not_its_stub() {
+    for role in [people::Role::Member, people::Role::Maintainer] {
+        let mut world = world_with(347, Some(role), |limits| {
+            limits.core.tasks.tasks = 8;
+            limits.core.tasks.project_tasks = 8;
+        });
+        finish(&mut world);
+        create(&mut world, Box::new([people_member(b"prerequisite", 10)]));
+        finish(&mut world);
+        other_party(&mut world, role);
+        create_at(&mut world, 204, Box::new([depending(&[FIRST])]));
+        if role == people::Role::Member {
+            refusal(&world, people::Refusal::Unknown);
+        } else {
+            assert_eq!(live_row(&world, LAST).dependencies.as_ref(), [FIRST]);
+            assert!(live_row(&world, LAST).waiting_on.is_empty());
+            // The retained stub is not evidence when the store no longer has the row.
+            let ended = world.erase(task_key(tasks::Key::Ended(FIRST))).expect("ended row erased");
+            create_at(&mut world, 205, Box::new([depending(&[FIRST])]));
+            refusal(&world, people::Refusal::Unknown);
+            // End the fixture's store hole before the restart oracle checks
+            // result indexes that also name this row.
+            world.seed(Box::new([ended]));
+        }
+        world.close();
+    }
+}
+
+#[test]
+fn a_partys_new_batch_cannot_reach_an_ended_dependency_in_another_project() {
+    let (configuration, limits) = jig_core_world::fixtures::two_projects(350);
+    let mut world = World::new(Setup { seed: 350, configuration: Some(configuration), limits, ..Setup::default() });
+    finish(&mut world);
+    let sign_in = world.sign_in.expect("owner signed in");
+    ask_as(&mut world, sign_in, 210, people::Ask::Create { project: 2, batch: Box::new([depending(&[CHAT])]) });
+    refusal(&world, people::Refusal::Unknown);
+    world.close();
+}
+
+#[test]
+fn a_partys_batch_rechecks_dependencies_that_end_while_an_ended_row_loads() {
+    for how in [tasks::Status::Done, tasks::Status::Failed] {
+        let mut world = ended_batch_world(348);
+        create_at(&mut world, 206, Box::new([people_member(b"live prerequisite", 10)]));
+        assert_eq!(world.assigned.as_ref().expect("live prerequisite").task, LAST);
+        world.pending_ended_loads = Some(Vec::new());
+        create_at(&mut world, 207, Box::new([depending(&[FIRST, LAST])]));
+        assert!(!world.store.rows.contains_key(&task_key(tasks::Key::Live(4))));
+        end_prerequisite(&mut world, how);
+        assert_eq!(resume_ended_load(&mut world), FIRST);
+        if how == tasks::Status::Failed {
+            refusal(&world, people::Refusal::Dependency { dependency: LAST, how: people::DependencyStatus::Failed });
+            assert!(!world.store.rows.contains_key(&task_key(tasks::Key::Live(4))));
+        } else {
+            assert_eq!(
+                world.people_answers.last(),
+                Some(&people::Reply::Outcome(people::Outcome::Created { first: 4, last: 4, given: None })),
+                "the dependency ending done during the read must also be loaded"
+            );
+            assert_eq!(live_row(&world, 4).dependencies.as_ref(), [FIRST, LAST]);
+            assert!(live_row(&world, 4).waiting_on.is_empty());
+            assert!(matches!(live_row(&world, 4).phase, tasks::Phase::Active(_)));
+        }
+        world.close();
+    }
+}
+
+#[test]
+fn a_partys_mixed_batch_waits_only_on_live_and_batch_dependencies() {
+    let mut world = ended_batch_world(349);
+    create_at(&mut world, 208, Box::new([people_member(b"live prerequisite", 10)]));
+    let first = depending(&[FIRST, LAST]);
+    let mut second = depending(&[FIRST]);
+    second.dependencies = Box::new([people::Dependency::Existing(FIRST), people::Dependency::Batch(0)]);
+    create_at(&mut world, 209, Box::new([first, second]));
+    assert_eq!(live_row(&world, 4).dependencies.as_ref(), [FIRST, LAST]);
+    assert_eq!(live_row(&world, 4).waiting_on.as_ref(), [LAST]);
+    assert_eq!(live_row(&world, 5).dependencies.as_ref(), [FIRST, 4]);
+    assert_eq!(live_row(&world, 5).waiting_on.as_ref(), [4]);
+    finish(&mut world);
+    assert!(live_row(&world, 4).waiting_on.is_empty());
+    world.close();
+}
+
 #[test]
 fn a_named_resource_is_narrowed_to_the_new_tasks_number() {
     let mut world = batch_world(316);

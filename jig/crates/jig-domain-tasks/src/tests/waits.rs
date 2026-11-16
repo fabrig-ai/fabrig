@@ -24,7 +24,12 @@ fn a_holders_added_dependency_cannot_circle_through_a_delegates_queue() {
     test.make([holder, task(REQUESTER, &[])].into());
     let mut waiter = task(WAITER, &[]);
     waiter.holdings = Box::new([holding()]);
-    test.send(Event::Make { reply_to: to(), creator: Party::Task(REQUESTER), batch: Box::new([waiter]) });
+    test.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(REQUESTER),
+        batch: Box::new([waiter]),
+    });
     let problem =
         crate::waits::check_added(&test.domain, &crate::compound::Staged::new(0), &LIMITS, HOLDER, &[REQUESTER])
             .expect_err("circle");
@@ -49,7 +54,12 @@ fn a_pool_only_propagates_stuckness_at_its_slot_threshold() {
     test.make([holder, task(REQUESTER, &[]), other].into());
     let mut waiter = task(WAITER, &[]);
     waiter.holdings = Box::new([pooled]);
-    test.send(Event::Make { reply_to: to(), creator: Party::Task(REQUESTER), batch: Box::new([waiter]) });
+    test.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(REQUESTER),
+        batch: Box::new([waiter]),
+    });
     assert_eq!(
         crate::waits::check_added(&test.domain, &crate::compound::Staged::new(0), &LIMITS, HOLDER, &[REQUESTER]),
         Ok(())

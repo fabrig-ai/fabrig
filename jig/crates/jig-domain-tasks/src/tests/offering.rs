@@ -713,7 +713,12 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
     if person {
         new.executor = crate::Executor::Person(crate::PersonAddress::Person(PERSON));
     }
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(parent), batch: Box::new([new]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(parent),
+        batch: Box::new([new]),
+    });
     assert!(
         out.iter().any(|r| match r {
             Request::Made { .. } => true,

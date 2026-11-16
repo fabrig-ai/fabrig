@@ -22,7 +22,7 @@ pub(crate) struct Batch {
 #[derive(Hash, Debug)]
 pub(crate) enum Kind {
     /// A root, delegate or ordinary accepted proposal.
-    Creation { creator: tasks::Party },
+    Creation { creator: tasks::Party, places: Box<[tasks::DependencyPlace]> },
     /// An accepted result proposal belonging to a closing task.
     Result { proposer: u64, proposal: u64 },
 }
@@ -30,13 +30,13 @@ pub(crate) enum Kind {
 impl Kind {
     fn by(&self) -> tasks::Party {
         match self {
-            Kind::Creation { creator } => *creator,
+            Kind::Creation { creator, .. } => *creator,
             Kind::Result { proposer, .. } => tasks::Party::Task(*proposer),
         }
     }
     fn event(self, reply_to: ReplyTo, batch: Box<[tasks::New]>) -> tasks::Event {
         match self {
-            Kind::Creation { creator } => tasks::Event::Make { reply_to, creator, batch },
+            Kind::Creation { creator, places } => tasks::Event::Make { reply_to, creator, batch, places },
             Kind::Result { proposer, proposal } => {
                 tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, batch }
             }

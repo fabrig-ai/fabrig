@@ -195,6 +195,7 @@ fn narrowed_recurring() -> (Core, Limits, u64) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Deployment { project: 1 },
             batch: Box::new([parent]),

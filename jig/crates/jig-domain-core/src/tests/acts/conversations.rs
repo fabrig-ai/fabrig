@@ -20,6 +20,7 @@ fn conversation() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(MAKE)),
             creator: tasks::Party::Person(PARTY),
             batch: Box::new([row]),

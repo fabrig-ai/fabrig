@@ -251,6 +251,7 @@ fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem)
         &mut core,
         &env.limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7301)),
             creator: tasks::Party::Person(OWNER),
             batch: Box::new([parent]),

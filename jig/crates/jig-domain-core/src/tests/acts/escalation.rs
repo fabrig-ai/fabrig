@@ -10,6 +10,7 @@ fn a_rejected_escalation_still_held_offers_not_waiting() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(110)),
             creator: tasks::Party::Person(1),
             batch: Box::new([chat]),

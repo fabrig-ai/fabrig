@@ -34,7 +34,12 @@ fn batch_input(core: &Core, named: u64, name: fn(&mut tasks::New, &mut tasks::Pa
     let mut row = person_task(core, CREATED);
     let mut creator = tasks::Party::Deployment { project: 1 };
     name(&mut row, &mut creator, named);
-    Event::Tasks(tasks::Event::Make { reply_to: ReplyTo::new(Token::new(9053)), creator, batch: Box::new([row]) })
+    Event::Tasks(tasks::Event::Make {
+        places: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(9053)),
+        creator,
+        batch: Box::new([row]),
+    })
 }
 fn executor_input(core: &Core, named: u64) -> Event {
     batch_input(core, named, executor)
@@ -90,6 +95,7 @@ fn raw_writers_refuse_unknown_people_before_any_child_changes() {
                 &mut core,
                 &limits,
                 tasks::Event::Make {
+                    places: Box::new([]),
                     reply_to: ReplyTo::new(Token::new(1)),
                     creator: tasks::Party::Deployment { project: 1 },
                     batch: Box::new([person]),

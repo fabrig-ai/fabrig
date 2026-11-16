@@ -741,7 +741,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ResizePeriod { reply_to, project, period, budget } => {
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
-        Event::Make { reply_to, creator, batch } => make(domain, env, reply_to, creator, batch, out),
+        Event::Make { reply_to, creator, batch, places } => make(domain, env, reply_to, creator, batch, &places, out),
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
             make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
         }
@@ -1361,15 +1361,25 @@ pub(crate) fn make(
     to: ReplyTo,
     creator: Party,
     batch: Box<[New]>,
+    places: &[crate::DependencyPlace],
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
         return refused(to, None, Refusal::NotReady, out);
     }
-    if let Err(problem) = crate::batch::check(domain, &env.limits, creator, &batch) {
+    if let Err(problem) = crate::batch::check_places(domain, &env.limits, creator, &batch, places) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);
+    for row in places {
+        if row.status == crate::Status::Done {
+            crate::closing::remember_stub(
+                domain,
+                crate::Stub { task: row.number, phase: row.status, result: skein_lib::Token::new(row.number) },
+                out,
+            );
+        }
+    }
     out.push(Request::Made { reply_to: to, tasks: numbers });
 }
 
@@ -1532,6 +1542,12 @@ pub(crate) fn make_admitted(
     }
     for new in batch {
         let number = new.number;
+        let mut waiting = List::with_capacity(env.limits.dependencies);
+        for dependency in &new.dependencies {
+            if domain.names.contains_key(dependency) || numbers.as_slice().contains(dependency) {
+                waiting.push(*dependency).expect("admitted pending dependencies");
+            }
+        }
         let task = Task::new(TaskRecord {
             session: None,
             talk: None,
@@ -1603,7 +1619,7 @@ pub(crate) fn make_admitted(
             authority: new.authority,
             numbers: new.numbers,
             funder: new.funder,
-            waiting_on: new.dependencies.clone(),
+            waiting_on: waiting.into_boxed(),
             holdings: new.holdings,
             holds_taken: false,
             hold_wait_since: None,

@@ -183,7 +183,12 @@ fn an_agents_delegation_refused_for_room_does_not_wait() {
     let mut h = Harness::new();
     h.make(vec![task(1, &[])]);
     h.env.limits.tasks = 1;
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([child(1, 2)]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(1),
+        batch: Box::new([child(1, 2)]),
+    });
     assert!(out.iter().any(|request| match request {
         Request::Refused { problem, .. } => problem.why == Refusal::Live,
         _ => false,

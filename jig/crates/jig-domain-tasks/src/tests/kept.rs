@@ -90,7 +90,12 @@ fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
     for cancel_delegates in [false, true] {
         let mut h = Harness::new();
         h.make([task(1, &[])].into());
-        let made = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([task(2, &[])]) });
+        let made = h.send(Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Task(1),
+            batch: Box::new([task(2, &[])]),
+        });
         assert!(made.iter().any(|request| if let Request::Made { .. } = request { true } else { false }));
         h.send(Event::Prepare { reply_to: to(), task: 1 });
         h.send(Event::Claim {

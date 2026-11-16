@@ -11,7 +11,12 @@ pub(super) fn cohort() -> Harness {
     first.funder = Funder::Task(1);
     let mut second = first.clone();
     second.number = 3;
-    let out = test.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([first, second]) });
+    let out = test.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(1),
+        batch: Box::new([first, second]),
+    });
     assert!(
         out.iter().any(|request| match request {
             Request::Made { .. } => true,

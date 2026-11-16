@@ -78,7 +78,7 @@ pub(crate) fn checked(
                 return Err(people::Refusal::Limit { which: people::LimitKind::HoldKind });
             }
         }
-        let new = new_task(core, env, creation, member, first, members.len())?;
+        let new = new_task(core, env, creation, member, first, members.len(), proposing)?;
         let executor = core.delegation_executor(*project, new.executor).ok_or(people::Refusal::Unknown)?;
         delegates
             .push(authority::Delegate {
@@ -162,6 +162,7 @@ pub(crate) fn checked(
     }
     Ok((members, given))
 }
+#[expect(clippy::too_many_lines, reason = "one member translates its complete creation shape and dependency reach")]
 fn new_task(
     core: &Core,
     env: &Env<Limits>,
@@ -169,6 +170,7 @@ fn new_task(
     member: &people::Member,
     first: u64,
     at: u32,
+    proposing: bool,
 ) -> Result<tasks::New, people::Refusal> {
     let Creation { person, project, role, batch, .. } = creation;
     let executor = executor(core, member.executor)?;
@@ -198,16 +200,20 @@ fn new_task(
                     .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?
             }
             people::Dependency::Existing(task) => {
-                if !core.reaches(
-                    crate::admission::compound::PartyTask {
-                        person: *person,
-                        role: Some(creation.role),
-                        project: *project,
-                        task,
-                    },
-                    env.limits.tasks.depth,
-                    &tasks::CompoundAdmission::new(&core.tasks, 0),
-                ) {
+                // Ended places are loaded at batch admission, after inputs and holdings
+                // (jig/docs/design/domain/tasks/README.md, 4).
+                if (proposing || core.tasks.task(task).is_some())
+                    && !core.reaches(
+                        crate::admission::compound::PartyTask {
+                            person: *person,
+                            role: Some(creation.role),
+                            project: *project,
+                            task,
+                        },
+                        env.limits.tasks.depth,
+                        &tasks::CompoundAdmission::new(&core.tasks, 0),
+                    )
+                {
                     return Err(people::Refusal::Unknown);
                 }
                 task

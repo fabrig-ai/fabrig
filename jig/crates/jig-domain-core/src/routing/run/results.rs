@@ -3,7 +3,10 @@
 
 use crate::routing::{
     Work,
-    party::amendment_reads::{self, AmendmentRead, Replay},
+    party::{
+        amendment_reads::{self, AmendmentRead, Replay},
+        batch_reads::{self, BatchRead},
+    },
 };
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -24,6 +27,7 @@ pub(crate) enum ReadFor {
     DeploymentClose { request: Token, project: u32 },
     Preparation { task: u64, last_message: u64 },
     Amendment(Box<AmendmentRead>),
+    Batch(Box<BatchRead>),
 }
 
 pub(crate) fn clear(core: &mut Core, task: u64) {
@@ -36,7 +40,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
             let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
             let token = id.token();
             let owner = match &read.why {
-                ReadFor::DeploymentClose { .. } => None,
+                ReadFor::DeploymentClose { .. } | ReadFor::Batch(_) => None,
                 ReadFor::Preparation { task, .. } => Some(*task),
                 ReadFor::Amendment(read) => match &read.replay {
                     Replay::Agent { key, .. } => Some(key.task),
@@ -51,7 +55,7 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
         let Some(request) = request else { break };
         if let Some(read) = core.take_result_read(request) {
             match read.why {
-                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
+                ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } | ReadFor::Batch(_) => {}
                 ReadFor::Amendment(amendment) => match amendment.replay {
                     Replay::Agent { key, .. } => {
                         let _pending = core.pending_calls.remove(&key);
@@ -71,7 +75,10 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             ReadFor::Preparation { task: owner, .. } if owner == task => {
                 return out;
             }
-            ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } | ReadFor::Amendment(_) => {}
+            ReadFor::DeploymentClose { .. }
+            | ReadFor::Preparation { .. }
+            | ReadFor::Amendment(_)
+            | ReadFor::Batch(_) => {}
         }
     }
     if core.result_read_flights() == core.flight_tasks_capacity {
@@ -120,6 +127,10 @@ pub(crate) fn loaded(
         ReadFor::DeploymentClose { request, project } => {
             let outcome = closed_outcome(project, *read.ids.first().expect("one close subject"), row, busy);
             work.push(Work::Event(Event::People(jig_domain_people::Event::Decided { request, outcome })));
+        }
+        ReadFor::Batch(batch) => {
+            let wanted = *read.ids.first().expect("one pending batch place");
+            batch_reads::loaded(core, work, *batch, wanted, row, busy);
         }
         ReadFor::Amendment(mut amendment) => {
             if !amendment_reads::current(core, &amendment.replay) {
@@ -233,6 +244,35 @@ pub(crate) fn wait(
     retain(core, out, read);
 }
 
+/// Uses the same held point read as amendments; no new stored or wire form.
+pub(crate) fn wait_batch(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    out: &mut Queue<Request>,
+    next: u64,
+    batch: BatchRead,
+) {
+    if core.result_read_flights() == core.flight_tasks_capacity {
+        batch_reads::terminal(
+            core,
+            work,
+            batch.request,
+            jig_domain_people::Outcome::Again(jig_domain_people::Again::Busy),
+        );
+        return;
+    }
+    retain(
+        core,
+        out,
+        ResultRead {
+            why: ReadFor::Batch(Box::new(batch)),
+            ids: Box::new([next]),
+            at: 0,
+            results: List::with_capacity(0),
+        },
+    );
+}
+
 pub(crate) fn clear_person(core: &mut Core, person: u64) {
     for _ in 0..core.flight_tasks_capacity {
         let mut found = None;
@@ -240,6 +280,14 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
             let crate::routing::flight::Flight::ResultRead(read) = flight else { continue };
             let request = id.token();
             match &read.why {
+                ReadFor::Batch(read) => {
+                    if let Some(admission) = batch_reads::admission(core, read.request)
+                        && admission.person == person
+                    {
+                        found = Some(request);
+                        break;
+                    }
+                }
                 ReadFor::Amendment(read) => match &read.replay {
                     Replay::Person { person: owner, .. } if *owner == person => {
                         found = Some(request);
@@ -254,6 +302,7 @@ pub(crate) fn clear_person(core: &mut Core, person: u64) {
         if let Some(read) = core.take_result_read(request) {
             match read.why {
                 ReadFor::Amendment(read) => discard_party(core, read.replay),
+                ReadFor::Batch(read) => batch_reads::discard(core, read.request),
                 ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } => {}
             }
         }

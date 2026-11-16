@@ -239,6 +239,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
         }
         CreationKind::Batch { person, given, stubs } => {
             let first = creating.members.first().expect("nonempty batch").number;
+            let project = creating.members.first().expect("nonempty batch").project;
             let (period, pool) =
                 core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
             if let Some(event) = period {
@@ -249,9 +250,15 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
             }
             let request = core.fly(crate::routing::flight::Flight::Made {
                 request,
-                route: crate::routing::Made { first, given, stubs },
+                route: crate::routing::Made {
+                    first,
+                    given,
+                    stubs,
+                    dependencies: Some(super::batch_reads::Admission::new(person, project, &env.limits)),
+                },
             });
             routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                places: Box::new([]),
                 reply_to: ReplyTo::new(request),
                 creator: tasks::Party::Person(person),
                 batch: creating.members,

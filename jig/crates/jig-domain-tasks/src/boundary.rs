@@ -1464,8 +1464,8 @@ pub enum Refusal {
     Circle {
         cut: bool,
     },
-    /// A dependency an amendment adds has ended failed or cancelled; `blocked_by` names it
-    /// (domain/tasks/changes.md).
+    /// A dependency a party's batch names or an amendment adds has ended failed or cancelled;
+    /// `blocked_by` names it (jig/docs/design/domain/tasks/README.md, 4).
     DependencyEnded {
         how: Status,
     },
@@ -2006,6 +2006,8 @@ pub enum Event {
     Make {
         /// Root-issued destination owed one `Made` or `Refused` terminal for the whole batch.
         reply_to: ReplyTo,
+        /// Loaded ended places for a person creator (jig/docs/design/domain/tasks/README.md, 4).
+        places: Box<[crate::DependencyPlace]>,
         /// Root-verified creator/requester of every `new` task; task creator and `funding`
         /// ancestry are checked separately.
         creator: Party,

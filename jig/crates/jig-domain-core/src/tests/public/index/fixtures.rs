@@ -93,7 +93,7 @@ pub(super) fn make(
         recurring: None,
         tracked,
     };
-    send(core, limits, tasks::Event::Make { reply_to: reply(), creator, batch: Box::new([new]) });
+    send(core, limits, tasks::Event::Make { places: Box::new([]), reply_to: reply(), creator, batch: Box::new([new]) });
     assert!(core.tasks.task(number).is_some(), "made task {number}");
 }
 

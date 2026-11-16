@@ -81,8 +81,12 @@ fn a_batch_past_goals_per_project_is_refused_naming_the_limit() {
     for row in &mut batch {
         row.tracked = Some(1);
     }
-    let out =
-        test.send(Event::Make { reply_to: to(), creator: Party::Person(REQUESTER), batch: batch.into_boxed_slice() });
+    let out = test.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(REQUESTER),
+        batch: batch.into_boxed_slice(),
+    });
     assert_eq!(out, vec![Request::Refused { reply_to: to(), problem: Problem::new(Some(TASK), Refusal::Goals) }]);
     assert_eq!(test.domain.task(TASK), None);
 }

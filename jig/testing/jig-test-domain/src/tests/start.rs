@@ -321,6 +321,7 @@ fn populated_rows() -> Vec<Record> {
         tasks::Event::Restored,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(1)), project: 1, period: 1, budget: 100 },
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(2)),
             creator: tasks::Party::Person(1),
             batch: Box::new([tasks::New {

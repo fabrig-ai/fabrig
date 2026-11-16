@@ -80,6 +80,7 @@ impl RepairSeed {
             return Err(tasks::Refusal::Funding);
         }
         Ok(tasks::Event::Make {
+            places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
             creator: tasks::Party::Task(task),
             batch: Box::new([tasks::New {

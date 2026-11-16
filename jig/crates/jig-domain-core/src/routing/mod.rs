@@ -109,6 +109,7 @@ pub(crate) struct Made {
     pub first: u64,
     pub given: Option<people::Given>,
     pub stubs: Box<[tasks::Stub]>,
+    pub dependencies: Option<party::batch_reads::Admission>,
 }
 
 /// One person task pending all numbered connector holdings in this decision.

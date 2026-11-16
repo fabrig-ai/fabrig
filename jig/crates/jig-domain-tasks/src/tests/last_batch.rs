@@ -31,7 +31,12 @@ fn master() -> New {
 
 fn pending() -> Harness {
     let mut test = Harness::new();
-    test.send(Event::Make { reply_to: to(), creator: Party::Deployment { project: 1 }, batch: Box::new([master()]) });
+    test.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Deployment { project: 1 },
+        batch: Box::new([master()]),
+    });
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 1000 });
     test.send(Event::TickRecurring { task: 100, period: 1 });
     test

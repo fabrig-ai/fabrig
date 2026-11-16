@@ -19,7 +19,7 @@ fn funded_tree() -> Harness {
     child.authority.budget.spend = 20;
     child.numbers.budget = 20;
     child.funder = Funder::Task(ROOT);
-    h.send(Event::Make { reply_to: to(), creator: Party::Task(ROOT), batch: Box::new([child]) });
+    h.send(Event::Make { places: Box::new([]), reply_to: to(), creator: Party::Task(ROOT), batch: Box::new([child]) });
     h
 }
 

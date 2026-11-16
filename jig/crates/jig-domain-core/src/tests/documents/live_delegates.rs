@@ -11,6 +11,7 @@ fn live_delegate_documents_keep_every_identity_and_the_owner_takeover_reservatio
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Task(2),
             batch: Box::new([grandchild]),
@@ -111,6 +112,7 @@ fn a_chat_document_lists_live_delegates_past_its_lines() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Person(1),
             batch: Box::new([chat]),
@@ -124,6 +126,7 @@ fn a_chat_document_lists_live_delegates_past_its_lines() {
             &mut core,
             &limits,
             tasks::Event::Make {
+                places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(1)),
                 creator: tasks::Party::Task(1),
                 batch: Box::new([child]),

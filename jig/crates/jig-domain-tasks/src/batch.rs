@@ -17,7 +17,18 @@ fn problem(task: Option<u64>, why: Refusal) -> Problem {
 }
 
 pub(crate) fn check(domain: &Domain, limits: &Limits, creator: Party, batch: &[New]) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, None, None)
+    check_places(domain, limits, creator, batch, &[])
+}
+
+/// A party's ended dependencies are judged on loaded places (jig/docs/design/domain/tasks/README.md, 4).
+pub(crate) fn check_places(
+    domain: &Domain,
+    limits: &Limits,
+    creator: Party,
+    batch: &[New],
+    places: &[crate::DependencyPlace],
+) -> Result<(), Problem> {
+    check_with_result_proposal(domain, limits, creator, batch, None, None, places)
 }
 
 /// Preflight an agent verdict's own delegates after its current run reservation and charge settle.
@@ -28,7 +39,7 @@ pub(crate) fn check_direct_followups(
     charge: u64,
     batch: &[New],
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, Party::Task(proposer), batch, None, Some((proposer, charge)))
+    check_with_result_proposal(domain, limits, Party::Task(proposer), batch, None, Some((proposer, charge)), &[])
 }
 
 /// A result proposal may admit its accepted batch while the proposer closes.
@@ -39,7 +50,7 @@ pub(crate) fn check_result_followups(
     proposal: u64,
     batch: &[New],
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None)
+    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, &[])
 }
 
 fn check_with_result_proposal(
@@ -49,6 +60,7 @@ fn check_with_result_proposal(
     batch: &[New],
     result_proposal: Option<u64>,
     direct_finish: Option<(u64, u64)>,
+    places: &[crate::DependencyPlace],
 ) -> Result<(), Problem> {
     let size = u32::try_from(batch.len()).unwrap_or(u32::MAX);
     if size == 0 {
@@ -143,7 +155,7 @@ fn check_with_result_proposal(
         }
         Party::Person(_) | Party::Deployment { .. } => None,
     };
-    check_members(domain, limits, creator, batch, parent)?;
+    check_members(domain, limits, creator, batch, parent, places)?;
     crate::holds::check_batch(domain, limits, creator, batch)?;
     if !crate::funders::can_reserve(domain, creator, batch, result_proposal, direct_finish) {
         return Err(problem(None, Refusal::Funding));
@@ -210,6 +222,7 @@ fn check_members(
     creator: Party,
     batch: &[New],
     parent: Option<&crate::TaskRecord>,
+    places: &[crate::DependencyPlace],
 ) -> Result<(), Problem> {
     for (at, new) in batch.iter().enumerate() {
         assert!(new.deadline == crate::Deadline::Named, "root resolves every made deadline");
@@ -327,10 +340,20 @@ fn check_members(
                     known = true;
                 }
             }
-            if let Party::Person(_) = creator
-                && let Some(row) = record(domain, *dependency)
-            {
-                known = row.project == new.project;
+            if let Party::Person(_) = creator {
+                if let Some(row) = record(domain, *dependency) {
+                    known = row.project == new.project;
+                } else if !known
+                    && let Some(row) = crate::control::place(places, *dependency)
+                    && row.project == new.project
+                {
+                    match row.status {
+                        crate::Status::Done => known = true,
+                        how @ (crate::Status::Failed | crate::Status::Cancelled) => {
+                            return Err(Problem::naming(number, Refusal::DependencyEnded { how }, &[*dependency]));
+                        }
+                    }
+                }
             }
             if !known && let Some(parent) = parent {
                 for delegate in &parent.delegates {

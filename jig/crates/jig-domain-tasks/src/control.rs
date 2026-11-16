@@ -257,8 +257,8 @@ fn save_history(domain: &mut Domain, mut row: History, out: &mut Queue<Request>)
     out.push(Request::Save { record: Stored::History(row) });
 }
 
-/// An ended task's stored place, used only while admitting an amendment
-/// (`domain/tasks/changes.md`). A stub supplies none of this evidence.
+/// An ended task's stored place, used while admitting an amendment or a party's batch
+/// (`jig/docs/design/domain/tasks/README.md`, 4). A stub supplies none of this evidence.
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct DependencyPlace {
     pub number: u64,
@@ -404,7 +404,7 @@ pub(crate) fn check_amend(
 }
 
 #[expect(clippy::manual_find, reason = "step code uses explicit bounded scans without closures")]
-fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
+pub(crate) fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
     for row in places {
         if row.number == number {
             return Some(row);

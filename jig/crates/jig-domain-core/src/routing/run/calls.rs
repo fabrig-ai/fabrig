@@ -145,7 +145,7 @@ pub(crate) fn named_proposal_accept(
                     batch,
                 }
             } else {
-                tasks::Event::Make { reply_to: ReplyTo::new(token), creator, batch }
+                tasks::Event::Make { places: Box::new([]), reply_to: ReplyTo::new(token), creator, batch }
             }
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => {

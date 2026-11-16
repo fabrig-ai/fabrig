@@ -161,7 +161,12 @@ impl Harness {
     }
 
     pub(super) fn make(&mut self, batch: Vec<New>) {
-        let out = self.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: batch.into_boxed_slice() });
+        let out = self.send(Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Person(9),
+            batch: batch.into_boxed_slice(),
+        });
         assert!(
             out.iter().any(|request| match request {
                 Request::Made { .. } => true,
@@ -756,7 +761,8 @@ fn capacity_history_distinguishes_project_shape_from_room_and_survives_diagnosti
     h.env.limits.project_tasks = 1;
     let mut wrong = task(2, &[]);
     wrong.project = 2;
-    let denied = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([wrong]) });
+    let denied =
+        h.send(Event::Make { places: Box::new([]), reply_to: to(), creator: Party::Task(1), batch: Box::new([wrong]) });
     assert!(denied.iter().any(|r| match r {
         Request::Refused { problem, .. } => problem.why == crate::Refusal::Project && problem.capacity.is_none(),
         _ => false,
@@ -764,8 +770,12 @@ fn capacity_history_distinguishes_project_shape_from_room_and_survives_diagnosti
     assert!(h.domain.capacity_refusals().is_empty());
     for number in 2..=4 {
         h.env.wall = Wall::from_nanos(number);
-        let denied =
-            h.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([task(number, &[])]) });
+        let denied = h.send(Event::Make {
+            places: Box::new([]),
+            reply_to: to(),
+            creator: Party::Person(9),
+            batch: Box::new([task(number, &[])]),
+        });
         assert!(denied.iter().any(|r| match r {
             Request::Refused { problem, .. } => problem.capacity.is_some(),
             _ => false,
@@ -1051,7 +1061,12 @@ fn a_task_records_the_newest_revision_whatever_its_parents() {
     settings_charters(&mut h, 4, &[(1, 1, Some(&[0]))]);
     let mut delegate = task(3, &[]);
     delegate.funder = Funder::Task(1);
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([delegate]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(1),
+        batch: Box::new([delegate]),
+    });
     assert!(
         out.iter().any(|r| match r {
             Request::Made { .. } => true,
@@ -1175,8 +1190,12 @@ fn an_amended_llm_choice_is_checked_against_its_own_charter_version() {
     let mut change = amendment();
     change.llm = Some(settings_choice(0));
     h.amend(1, change);
-    let out =
-        h.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([settings_agent(2, 0)]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(9),
+        batch: Box::new([settings_agent(2, 0)]),
+    });
     assert!(
         out.iter().any(|r| match r {
             Request::Refused { problem, .. } =>
@@ -1211,8 +1230,12 @@ fn a_removed_charters_older_version_still_serves_the_task_that_reads_it() {
     let mut change = amendment();
     change.llm = Some(settings_choice(0));
     h.amend(1, change);
-    let out =
-        h.send(Event::Make { reply_to: to(), creator: Party::Person(9), batch: Box::new([settings_agent(2, 0)]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Person(9),
+        batch: Box::new([settings_agent(2, 0)]),
+    });
     assert!(
         out.iter().any(|r| match r {
             Request::Refused { problem, .. } => problem.why == crate::Refusal::Executor,
@@ -1483,8 +1506,12 @@ fn a_recurring_tasks_period_batch_and_an_accepted_proposals_tasks_are_made_on_th
         batch: Box::new([task(1, &[])]),
         overlap: crate::RecurringOverlap::Skip,
     }));
-    let out =
-        h.send(Event::Make { reply_to: to(), creator: Party::Deployment { project: 1 }, batch: Box::new([master]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Deployment { project: 1 },
+        batch: Box::new([master]),
+    });
     assert!(
         out.iter().any(|request| match request {
             Request::Made { .. } => true,
@@ -1532,7 +1559,7 @@ fn a_recurring_tasks_period_batch_and_an_accepted_proposals_tasks_are_made_on_th
     assert!(!h.stored.contains_key(&Key::Live(201)));
     settings_charters(&mut h, 3, &[(1, 1, Some(&[0]))]);
     // As at the parent boundary, acceptance applies its action before deciding the proposal.
-    let made = h.send(Event::Make { reply_to: to(), creator: Party::Task(200), batch });
+    let made = h.send(Event::Make { places: Box::new([]), reply_to: to(), creator: Party::Task(200), batch });
     assert!(
         made.iter().any(|request| match request {
             Request::Made { .. } => true,
@@ -1668,7 +1695,12 @@ fn served_chat_comes_from_the_task_tree_and_requires_a_person_conversation() {
     h.make(vec![chat]);
     let mut delegate = task(2, &[]);
     delegate.funder = Funder::Task(1);
-    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([delegate]) });
+    let out = h.send(Event::Make {
+        places: Box::new([]),
+        reply_to: to(),
+        creator: Party::Task(1),
+        batch: Box::new([delegate]),
+    });
     assert!(
         out.iter().any(|r| match r {
             Request::Made { .. } => true,

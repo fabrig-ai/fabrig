@@ -114,6 +114,7 @@ fn frame_watch_receives_pool_ledger_changes_after_their_decision() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(91)),
             creator: tasks::Party::Person(1),
             batch: Box::new([row]),
