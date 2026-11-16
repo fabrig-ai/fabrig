@@ -339,6 +339,22 @@ class EndToEndTests(RunnerFixture):
                 self.assertIn(output.getvalue().splitlines()[-1],
                               (self.directory / 'command-output.txt').read_text())
 
+    def test_execute_writes_readable_ledger(self):
+        cpu = runpy.run_path(str(HERE / 'cpu.py'))
+        execute = cpu['execute_one_process']
+        execute.__globals__['runpy'] = mock.Mock(run_path=lambda path: {'run': self.run})
+        self.prepare()
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = execute(self.command, self.env, self.directory, 'default', {}, self.config)
+        self.assertEqual(code, 0)
+        ledger = cpu['ledger'](self.directory / 'ledger.json')
+        result = cpu['summary'](self.directory)
+        self.assertEqual(ledger, dict(ledger=1, profile='default', budgets={}, moves=[], binaries={
+            'fixture::suite': dict(tree='repository', layer='checks',
+                                  cpu_s=sum(p['cpu_s'] for p in result['processes']),
+                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']})}))
+        self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
+
     def test_walls_replace_the_profiles_global_timeout(self):
         self.env['FIXTURE_CASE'] = 'hang'
         self.binary(names=('b',))
