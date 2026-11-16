@@ -123,6 +123,7 @@ of domain/host.md, section 2.
 | answer | a call's name, and its answer (below) | once per call, also after a cancel |
 | acknowledge | a turn's number: that turn and every one before it are kept durably | as the host keeps them |
 | grant | an account; a generation; how long it is valid; its value (section 6) | when the host refreshes one |
+| renewals | whether the host's renewals of grants are held | when its link to what grants them is lost, `held`, and when it is back, not held (section 6) |
 | cancel | nothing | at most once |
 | drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
 
@@ -413,6 +414,11 @@ edge is independent of the channel's own flow control (section 7).
   an endpoint that names no program. A start that carries one is
   refused, and a later grant of one fails as any credential the agent
   cannot install.
+- **Renewals held.** A host whose grants come from elsewhere says when
+  it can renew none, `renewals` held, and when it can again, not held;
+  a run starts with them not held. While held, a completion whose
+  renewable grant has lapsed waits for the next grant rather than
+  failing (domain/session.md, section 4).
 - **The agent's half keeps the values** in a table keyed by account,
   holding two generations of each, so a refresh does not cut a call in
   flight. It hands the domain only the account, the generation and when

@@ -312,6 +312,13 @@ policy.
   source's name, never the credential, so that a host in one process can
   refuse what it cannot run (section 9.1). A host lends as a key only a
   credential it never renews.
+- **Renewals held:** a host whose grants come from elsewhere tells each
+  run when it can renew none, and when it can again: its parent says so
+  (`parent::Event::Renewals { held }`) and the kit sends `renewals` down
+  each live run's channel (protocol/channel.md, sections 3 and 6). A
+  worker's root says held at its link's loss and not held at the next
+  hello (jig's `domain/hosts/hub.md`, 6); a host whose grants are its
+  own never holds them.
 - **Notices go up for the host to act on:** a credential unauthorized,
   an account limited, an account refused. The run that met one ends
   failed for its account, except an unauthorized bearer, which a

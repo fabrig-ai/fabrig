@@ -410,6 +410,17 @@ happens.
   since the link sends them after that hello; while up, each relay as it
   is made. A relay made before the hub's first hello is uncarried, and
   the engine's own hub, whose link is never lost, never answers unsent.
+- **Renewals held while the link is lost** (temper's
+  `draft/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
+  run's agent that its grants' renewals are held,
+  `ToAgent::Renewals { agent, held: true }`, and when next asked to report what
+  it hosts for a hello, that they are not, `held: false`, before the
+  engine sends again each kept attempt's current grants
+  (`../engine/fleet.md`, *Grants follow their attempts*). A run started
+  meanwhile starts with them not held. So a completion whose grant
+  lapsed while the engine was away waits for its renewal rather than
+  failing, and one whose source must be signed in again fails as before
+  (smith's `domain/session.md`, section 4).
 - **The grace is the engine-away bound.** It is the application's to
   size so that it outlasts an engine's restart: the restarted engine
   adopts each attempt its store holds as claimed and the worker lists
