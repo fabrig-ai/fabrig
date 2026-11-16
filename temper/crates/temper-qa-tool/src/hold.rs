@@ -12,7 +12,7 @@ use std::{
     time::Duration,
 };
 
-pub const WATCH: Duration = Duration::from_secs(5);
+pub const WATCH: Duration = Duration::from_secs(60);
 const START: Duration = Duration::from_mins(5);
 const STOP: Duration = Duration::from_secs(70);
 const TICK: Duration = Duration::from_millis(10);
@@ -37,6 +37,7 @@ pub struct Drive {
     place: PlacePaths,
     setups: PathBuf,
     files: PathBuf,
+    ctl: bool,
 }
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
@@ -47,6 +48,7 @@ impl Drive {
             let mut paths = PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?);
             paths.ports = home.configuration.ports.get(&pass.place).cloned();
             Ok(Self {
+                ctl: false,
                 home: home.clone(),
                 session,
                 place: paths,
@@ -54,6 +56,44 @@ impl Drive {
                 files: std::path::absolute(crate::pass_files::files(home, number)).map_err(io_refusal)?,
             })
         })
+    }
+
+    #[must_use]
+    pub fn with_ctl(mut self, ctl: bool) -> Self {
+        self.ctl = ctl;
+        self
+    }
+
+    fn holder_command(&self, program: &std::path::Path) -> Command {
+        let mut command = Command::new(program);
+        command.args(["pass", "hold"]);
+        if self.ctl {
+            command.arg("--ctl");
+        }
+        command
+    }
+
+    fn session_command(&self, scripts: &[PathBuf]) -> Command {
+        let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
+        command
+            .arg("drive")
+            .arg("--bin")
+            .arg(&self.place.bin)
+            .arg("--bundle")
+            .arg(&self.place.bundle)
+            .arg("--scratch")
+            .arg(&self.place.scratch);
+        for script in scripts {
+            command.arg("--scripts").arg(script);
+        }
+        command.arg("--strict").arg("--files").arg(&self.files);
+        if let Some(ports) = &self.place.ports {
+            command.args(["--ports", ports]);
+        }
+        if self.ctl {
+            command.arg("--ctl");
+        }
+        command
     }
 
     fn lock(&self) -> Result<File, Refusal> {
@@ -82,12 +122,12 @@ impl Drive {
             &self.place.directory.join("drive.log"),
             OpenOptions::new().write(true).create(true).truncate(true),
         )?;
-        let mut command = Command::new(std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
+        let mut command =
+            self.holder_command(&std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
         crate::faces::captured(&mut command, environment);
         // Release the probe before spawn: the child may take its lock before spawn returns.
         drop(lock);
         let mut child = command
-            .args(["pass", "hold"])
             .stdin(Stdio::null())
             .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
             .stdout(log)
@@ -234,6 +274,43 @@ impl Drive {
         Ok(scripts)
     }
 }
+/// Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,
+/// and wake it again only after the holder releases the place's lock.
+pub(crate) fn end_from_loop(place: PathBuf, waker: crate::events::Waker) {
+    // Capture this holder's connection before the loop may reuse the place.
+    // A delayed connect could reach a later pass's holder at the same path.
+    let mut stream = match UnixStream::connect(place.join("drive.sock")) {
+        Ok(stream) => stream,
+        Err(why) if matches!(why.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => {
+            return;
+        }
+        Err(why) => {
+            eprintln!("temper-qa: end holder: {why}");
+            return;
+        }
+    };
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
+    )]
+    std::thread::spawn(move || {
+        let mut end = || -> Result<(), Refusal> {
+            stream.set_write_timeout(Some(STOP)).map_err(io_refusal)?;
+            stream.set_read_timeout(Some(STOP)).map_err(io_refusal)?;
+            stream.write_all(b"end\n").map_err(io_refusal)?;
+            let mut answer = Vec::new();
+            stream.read_to_end(&mut answer).map_err(io_refusal)?;
+            let lock = File::open(place.join("drive.lock")).map_err(io_refusal)?;
+            lock.lock().map_err(io_refusal)?;
+            Ok(())
+        };
+        if let Err(why) = end() {
+            eprintln!("temper-qa: end holder: {why}");
+        }
+        waker.poke();
+    });
+}
+
 fn recipe_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64

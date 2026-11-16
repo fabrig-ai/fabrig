@@ -13,6 +13,7 @@ pub(super) fn panel(step: w::Step) -> w::ChangePanel {
     w::ChangePanel::new(
         &w::CEILINGS,
         w::ChangePanelParts {
+            source: None,
             way: w::Way::Queue,
             in_landing: None,
             task: 2,
@@ -259,7 +260,7 @@ fn checking_text_and_json_name_pull_head_gates_bounds_and_same_digest() {
     let call = root.submit(&["change", "show", "2", "--project", "1", "--json"]);
     deliver(&mut root, panel(w::Step::Checking));
     let json = root.answer(call).unwrap();
-    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci_required":true,"ci":"pending","gates":[],"approvals":[],"unmapped_reviews":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
+    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","source":null,"pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci_required":true,"ci":"pending","gates":[],"approvals":[],"unmapped_reviews":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
     assert!(json.stdout.starts_with(expected));
     let mut document = skein_lib::Writer::new(expected.len() + 1);
     document.put(expected).unwrap();
@@ -1170,4 +1171,70 @@ fn no_ci_rule_prints_not_required_and_preserves_the_observation_in_json() {
     contains(&text.stdout, b"CI not required");
     let json = change::print(Some(&panel), true, None, b"", &limits, &change::Holds::new());
     contains(&json.stdout, br#""ci_required":false,"ci":"pending""#);
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "independent expected text and JSON for the source commit spellings"
+)]
+fn opened_panels_print_the_source_and_the_head_taking_kept() {
+    let mut kept_head = [0xab; 32];
+    kept_head.get_mut(20..).unwrap().fill(0);
+    let mut named_head = [0xcd; 32];
+    named_head.get_mut(20..).unwrap().fill(0);
+    for step in [w::Step::Taking, w::Step::Opening, landed()] {
+        for (kept, kept_hex) in [
+            (None, ""),
+            (Some(kept_head), "abababababababababababababababababababab"),
+            (Some([0xab; 32]), "abababababababababababababababababababababababababababababababab"),
+        ] {
+            for (at, named) in [
+                (None, "its head"),
+                (Some(named_head), "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"),
+                (Some([0xcd; 32]), "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"),
+            ] {
+                let mut parts = panel(step.clone()).into_parts();
+                parts.source = Some(
+                    w::PanelSource::new(
+                        &w::CEILINGS,
+                        w::PanelSourceParts { branch: b"docs/x".as_slice().into(), at, kept },
+                    )
+                    .unwrap(),
+                );
+                let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+                let mut root = f::signed_in(f::PARTY);
+                let call = root.submit(&["change", "show", "2", "--project", "1"]);
+                deliver(&mut root, panel.clone());
+                let printed = root.answer(call).unwrap();
+                if step == w::Step::Taking {
+                    let line = if kept.is_some() {
+                        format!("step: taking docs/x {kept_hex}\n")
+                    } else {
+                        "step: taking docs/x\n".to_owned()
+                    };
+                    contains(&printed.stdout, line.as_bytes());
+                }
+                let line = if kept.is_some() {
+                    format!("source: docs/x at {named} · kept {kept_hex}\n")
+                } else {
+                    format!("source: docs/x at {named}\n")
+                };
+                contains(&printed.stdout, line.as_bytes());
+                let head = skein_lib::bytes::find(&printed.stdout, b"head 1111").unwrap();
+                let source = skein_lib::bytes::find(&printed.stdout, b"source:").unwrap();
+                assert!(source > head);
+                let call = root.submit(&["change", "show", "2", "--project", "1", "--json"]);
+                deliver(&mut root, panel);
+                let printed = root.answer(call).unwrap();
+                let at = if at.is_some() { format!("\"{named}\"") } else { "null".to_owned() };
+                let kept = if kept.is_some() { format!("\"{kept_hex}\"") } else { "null".to_owned() };
+                contains(
+                    &printed.stdout,
+                    format!(r#""source":{{"branch":"docs/x","at":{at},"kept":{kept}}}"#).as_bytes(),
+                );
+            }
+        }
+    }
 }

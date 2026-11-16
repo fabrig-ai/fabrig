@@ -129,6 +129,41 @@ const NOTE: Command = Command {
     variables: &[&HOME, &SESSION],
     notes: "",
 };
+const TRIAGE_GAP: Command = drive_command(
+    &["triage", "gap"],
+    &["KIND WHY"],
+    "Record what keeps QA from judging the landing; file it without a goal.",
+    &[
+        Argument { shown: "KIND", line: "ctl, fake or qa." },
+        Argument {
+            shown: "WHY",
+            line: "One nonempty argument saying what a person would do or see and what is missing.",
+        },
+    ],
+    "A gap may accompany cases; otherwise it answers the landing as gap.",
+);
+const PASS_GAP: Command = drive_command(
+    &["pass", "gap"],
+    &["CASE KIND WHY"],
+    "Record why no line or setup reaches a case's state, and take it out of the queue.",
+    &[
+        Argument { shown: "CASE", line: "A case assigned to the session's pass." },
+        Argument { shown: "KIND", line: "ctl, fake or qa." },
+        Argument { shown: "WHY", line: "One nonempty argument saying what is missing." },
+    ],
+    "Filed without a goal. A landing with QA-gap: N queues the case again.",
+);
+const GAPS: Command = Command {
+    reach: Reach::Words(&["gaps"]),
+    set: Set::Internal,
+    forms: &["[--open]"],
+    line: "List gaps newest first, with --open omitting closed gaps; each line at most 200 bytes.",
+    arguments: &[Argument { shown: "[--open]", line: "Only gaps not closed, including filed ones." }],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "",
+};
 const RUN: Command = Command {
     reach: Reach::Words(&["run"]),
     set: Set::Internal,
@@ -139,6 +174,17 @@ const RUN: Command = Command {
     switches: &[],
     variables: &[&HOME],
     notes: "Holds run.lock for its life; reads qa.json once at start.",
+};
+const WAKE: Command = Command {
+    reach: Reach::Words(&["wake"]),
+    set: Set::Internal,
+    forms: &[""],
+    line: "Wake the QA loop after moving main's ref.",
+    arguments: &[],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "Connects to run.sock and closes; no running loop is no error.",
 };
 const SHOW: Command = Command {
     reach: Reach::Words(&["show"]),
@@ -186,7 +232,7 @@ const REPORT: Command = Command {
 };
 const OPEN: Command = drive_command(
     &["pass", "open"],
-    &[""],
+    &["[--ctl]"],
     "Start a holder for the restored setup and print the drive session's start.",
     &[],
     "Requires setup and no live holder. Exit 0: ready; 3: store refused; 4: box failed or start exceeded 300 seconds; 1: refused.",
@@ -207,7 +253,7 @@ const CLOSE: Command = drive_command(
 );
 const HOLD: Command = drive_command(
     &["pass", "hold"],
-    &[""],
+    &["[--ctl]"],
     "Hold the drive session on the place's socket until closed or the pass session ends.",
     &[],
     "Owns drive.lock for its life and drive.sock at mode 0600. Watches the ledger every five seconds. Gives end, then kills only the drive session's process group past 70 seconds.",
@@ -268,8 +314,8 @@ pub const TABLE: Table = Table {
     version: "",
     commit: "",
     commands: &[
-        RUN, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES,
-        REPORT, TUNE,
+        RUN, WAKE, KEEP, NONE, CASE, TRIAGE_GAP, PASS_GAP, GAPS, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME,
+        FINDING, CHECK, NOTE, SHOW, LINES, REPORT, TUNE,
     ],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
@@ -314,6 +360,16 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     }
 }
 fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8]>], String> {
+    if command == &TRIAGE_GAP || command == &PASS_GAP {
+        return gap_arguments(command, rest);
+    }
+    if command == &GAPS {
+        return match rest {
+            [] => Ok(rest),
+            [flag] if flag.as_ref() == b"--open" => Ok(rest),
+            _ => Err("expected [--open]".into()),
+        };
+    }
     if command == &KEEP {
         return match rest {
             [commit, directory] if !commit.starts_with(b"--") && !directory.starts_with(b"--") => Ok(rest),
@@ -374,6 +430,13 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected a pass number".into()),
         };
     }
+    if command == &OPEN || command == &HOLD {
+        return match rest {
+            [] => Ok(rest),
+            [flag] if flag.as_ref() == b"--ctl" => Ok(rest),
+            _ => Err("expected [--ctl]".into()),
+        };
+    }
     if command == &NONE || command == &CASE || command == &FINDING || command == &NOTE || command == &LINE {
         let name = if command == &NONE {
             "WHY"
@@ -409,7 +472,8 @@ fn drive_command_run(
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
-    let drive = crate::hold::Drive::for_session(&home, session)?;
+    let drive = crate::hold::Drive::for_session(&home, session)?
+        .with_ctl(arguments.iter().any(|argument| argument.as_ref() == b"--ctl"));
     if command == &OPEN {
         return drive.open(&environment.to_vec());
     }
@@ -522,8 +586,9 @@ fn is_number(value: &[u8]) -> bool {
     std::str::from_utf8(value).ok().and_then(|value| value.parse::<u64>().ok()).is_some()
 }
 fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
-    let pass = command == &OUTCOME || command == &FINDING || command == &CHECK || command == &NOTE;
-    let session = if command == &NONE || command == &CASE || pass {
+    let pass =
+        command == &OUTCOME || command == &FINDING || command == &CHECK || command == &NOTE || command == &PASS_GAP;
+    let session = if command == &NONE || command == &CASE || command == &TRIAGE_GAP || pass {
         let kind = if pass { "pass" } else { "triage" };
         let value = SESSION.value(environment).ok_or_else(|| {
             refused(format!("TEMPER_INTERNAL_QA_SESSION is not set: {kind} commands run in a {kind} session"))
@@ -539,6 +604,10 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     };
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let directory = Path::new(OsStr::from_bytes(directory));
+    if command == &WAKE {
+        crate::events::poke(directory)?;
+        return Ok(String::new());
+    }
     // Session commands run from another working directory, so the home placed
     // in their environment must not depend on this command's working directory.
     let absolute = if command == &RUN {
@@ -568,6 +637,9 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
                 .map_err(|why| refused(format!("report: {why}")))
         });
     }
+    if command == &GAPS {
+        return home.read(|ledger| Ok(ledger.gaps_text(!arguments.is_empty())));
+    }
     if command == &SHOW {
         return home.read(|ledger| Ok(ledger.show()));
     }
@@ -588,6 +660,9 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     let session = session.expect("session command");
     if command == &FINDING {
         return crate::recording::finding(&home, session, arguments.first().expect("finding file"));
+    }
+    if command == &TRIAGE_GAP || command == &PASS_GAP {
+        return record_gap(&home, session, command, arguments);
     }
     if pass {
         return record(&home, session, command, arguments);
@@ -612,5 +687,43 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
         let input = CaseInput::decode(&bytes, &file)?;
         let now = skein_shell::Clock::new().now().wall.as_secs();
         Ok(format!("{}\n", ledger.add_case(session, &input, now)?))
+    })
+}
+
+fn gap_arguments<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8]>], String> {
+    let words = if command == &PASS_GAP {
+        let [case, words @ ..] = rest else { return Err("expected CASE KIND WHY".into()) };
+        if !is_number(case) {
+            return Err("expected a case number".into());
+        }
+        words
+    } else {
+        rest
+    };
+    match words {
+        [kind, why] if std::str::from_utf8(kind).is_ok() && std::str::from_utf8(why).is_ok() => Ok(rest),
+        _ => Err("expected KIND WHY as UTF-8 arguments".into()),
+    }
+}
+
+fn record_gap(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
+    let (case, words) = if command == &PASS_GAP {
+        let (case, words) = arguments.split_first().expect("checked case");
+        (Some(std::str::from_utf8(case).expect("checked number").parse().expect("checked number")), words)
+    } else {
+        (None, arguments)
+    };
+    let [kind, why] = words else { unreachable!("checked gap arguments") };
+    let kind = std::str::from_utf8(kind).expect("checked kind");
+    let why = std::str::from_utf8(why).expect("checked why");
+    let owner = home.configuration.gap_owner(kind);
+    home.transact(|ledger| {
+        let now = skein_shell::Clock::new().now().wall.as_secs();
+        let number = if let Some(case) = case {
+            ledger.pass_gap(session, case, kind, why, owner, now)?
+        } else {
+            ledger.triage_gap(session, kind, why, owner, now)?
+        };
+        Ok(format!("gap {number}\n"))
     })
 }

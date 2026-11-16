@@ -1,4 +1,4 @@
-family temper-client-wire 25
+family temper-client-wire 27
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -56,7 +56,7 @@ versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 record Looked { project: u32 }
 
 # Away and decisions (temper/docs/design/client/forge/records.md).
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other, findings }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
 record ReachKindOf { kind: ReachKind }
@@ -148,7 +148,17 @@ record TierHeldBy { party: u64 reason: bytes 1024 }
 enum TierRefusal { no_repository, no_tier, held: TierHeldBy, not_held, words }
 record TierOutcome { refusal: option TierRefusal }
 
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest, add_device: AddDevice, remove_device: RemoveDevice, file_finding: FileFinding, hand_finding: HandFinding, triage_finding: TriageFinding, tier_act: TierActRequest }
+# A person's own change (temper/docs/design/domain/forge/change/opened.md, 2 and 3).
+record OpenAmount { amount: u64 }
+enum OpenBudget { amount: OpenAmount, as_allowed }
+record OpenChange { project: u32 repository: option DraftRepository branch: bytes 1024 at: option bytes 64 into: option bytes 1024 title: bytes 256 body: option bytes 16384 budget: OpenBudget }
+record Opened { task: u64 }
+record SeveralRepositories { repositories: list 64 DraftRepository }
+record UnderPrefix { owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 }
+record NamePast { bound: u32 }
+enum OpenRefusal { several: SeveralRepositories, no_repository, not_a_repository, under_prefix: UnderPrefix, name_past: NamePast }
+record OpenRefused { reason: OpenRefusal }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest, add_device: AddDevice, remove_device: RemoveDevice, file_finding: FileFinding, hand_finding: HandFinding, triage_finding: TriageFinding, tier_act: TierActRequest, open_change: OpenChange }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -385,7 +395,7 @@ record InLanding { landing: option u64 }
 record Verifying { merge: fixed 32 tiers: list 32 bytes 8192 }
 record Red { merge: fixed 32 tiers: list 32 bytes 8192 }
 record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
-enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared }
+enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared, taking }
 record AuthorityHold { reason: bytes 512 }
 enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
 enum GateKind { review, approval, check }
@@ -402,7 +412,8 @@ enum ReviewRead { unread, incomplete, complete }
 record CountedReview { person: u64 head: fixed 32 }
 record UnmappedReview { account: u64 head: fixed 32 verdict: Verdict }
 record Approval { scope: u32 number: u32 role: u32 freshness: RuleFreshness required: u32 read: ReviewRead counted: list 256 CountedReview remaining: option u32 refused: bool }
-versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions ci_required: bool }
+record PanelSource { branch: bytes 1024 at: option fixed 32 kept: option fixed 32 }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions ci_required: bool source: option PanelSource }
 
 # Its outcome (client/forge/records.md and client/forge/family.md, 6).
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
@@ -429,7 +440,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused, filed: Filed, handed, triaged, finding_refused: FindingRefused, tier: TierOutcome }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused, filed: Filed, handed, triaged, finding_refused: FindingRefused, tier: TierOutcome, opened: Opened, open_refused: OpenRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;

@@ -33,7 +33,7 @@ pub enum Tui {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Forge {
-    Commit { repository: Box<[u8]>, message: Box<[u8]>, paths: Vec<Box<[u8]>> },
+    Commit { repository: Box<[u8]>, branch: Option<Box<[u8]>>, message: Box<[u8]>, paths: Vec<Box<[u8]>> },
     Checks { repository: Box<[u8]> },
 }
 /// Names substituted only in ctl arguments (client/drive.md, 3.4).
@@ -115,9 +115,9 @@ fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
 }
 fn forge(fields: &mut Fields) -> Result<Forge, String> {
-    let record = word(fields, "forge record: commit or checks")?;
-    if record.as_ref() != b"commit" && record.as_ref() != b"checks" {
-        return Err("unknown forge record; expected commit or checks".into());
+    let record = word(fields, "forge record: commit, push or checks")?;
+    if record.as_ref() != b"commit" && record.as_ref() != b"push" && record.as_ref() != b"checks" {
+        return Err("unknown forge record; expected commit, push or checks".into());
     }
     if word(fields, "FORGE forgejo")?.as_ref() != b"forgejo" {
         return Err("expected FORGE forgejo".into());
@@ -130,6 +130,7 @@ fn forge(fields: &mut Fields) -> Result<Forge, String> {
     if record.as_ref() == b"checks" {
         return Ok(Forge::Checks { repository });
     }
+    let branch = if record.as_ref() == b"push" { Some(word(fields, "BRANCH")?) } else { None };
     let message = bytes(fields, "MESSAGE")?;
     let mut paths = vec![];
     while fields.remaining() != 0 {
@@ -148,7 +149,7 @@ fn forge(fields: &mut Fields) -> Result<Forge, String> {
     if !(1..=16).contains(&paths.len()) {
         return Err("expected 1 to 16 PATHs".into());
     }
-    Ok(Forge::Commit { repository, message, paths })
+    Ok(Forge::Commit { repository, branch, message, paths })
 }
 fn web(fields: &mut Fields) -> Result<Web, String> {
     let record = word(fields, "web record")?;

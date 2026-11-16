@@ -287,6 +287,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     super::role::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
+    f::OPEN_CHANGE,
     &["draft", "ready", "--project", "1", "draft.md", "--key", "draft-ready"],
     &["draft", "not-ready", "--project", "1", "draft.md", "--key", "draft-not-ready"],
     &["repository", "make", "--project", "1", "team/widget", "--key", "make-widget"],

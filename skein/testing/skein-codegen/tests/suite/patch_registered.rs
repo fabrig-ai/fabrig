@@ -191,19 +191,8 @@ mod tests {
     }
 
     #[test]
-    fn store_crates_register_their_map_families_and_check_cleanly() {
-        let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-        for (path, names) in [
-            (
-                "jig/crates/jig-protocol-store",
-                "jig-store-core\njig-store-tasks\njig-store-people\njig-store-notes\njig-store-accounts\njig-store-settings\n",
-            ),
-            ("temper/crates/temper-protocol-store", "temper-store\n"),
-        ] {
-            let root = workspace.join(path);
-            assert_eq!(fs::read_to_string(root.join("schema/registered")).expect("registered map families"), names);
-            let landed = Landed::read(&root).expect("landed store crate");
-            assert_eq!(patch::check(&root, &landed), Ok(vec![]), "{path}");
-        }
+    fn registered_fixture_checks_cleanly() {
+        let (scratch, landed) = fixture("clean");
+        assert_eq!(patch::check(scratch.path(), &landed), Ok(vec![]));
     }
 }

@@ -96,7 +96,8 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   set's number, its `words` at most 120 bytes, its `class` a
   `ReachClass`; and `sets`, at most 6 `PathSet { number, name, patterns
   }`, its name at most 40 bytes and at most 6 patterns of 80. `ReachKind`
-  names the ten kinds and `ReachClass` the four classes, `decide`, `ask`,
+  names the eleven kinds in `Kind::ALL`'s order, `findings` last and
+  appended, so every earlier kind keeps its encoding, and `ReachClass` the four classes, `decide`, `ask`,
   `ask_away` and `wait`, in 5.10's order. A judgement of the engine's
   reads it: the forge's `decided` (`../../domain/forge/attention.md`, 5) and no
   other. Its bound, the kind's, is the encoding of a table full at every

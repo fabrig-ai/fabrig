@@ -388,6 +388,14 @@ trips".
 - **The green path only:** the request asks for what the cases expected
   and nothing past it. What the agent noticed off the path goes in the
   ledger's notes, unless it is a security hole or lost data.
+- **Gaps:** what QA should judge and can't yet, because temper ctl
+  offers no way to do or see it, the fakes show no such behaviour, or
+  QA's own lines and setups can't reach the state, is a gap, recorded by
+  triage or a pass with its kind and owner, kept, and filed once as a
+  request with no goal; a person starts what they choose, and a landing
+  naming the gap closes it and puts its case back
+  (`../testing/qa/gaps.md`; the user, 2026-11-16: "file the gap but
+  don't act").
 
 ## 9. The ledger and resuming
 

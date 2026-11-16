@@ -35,6 +35,7 @@ fn table_is_tempers_test_set() {
             "TEMPER_TEST_RATE",
             "TEMPER_TEST_RECORD_RELEASE",
             "TEMPER_TEST_SITTING_WAIT_SECS",
+            "TEMPER_TEST_UPGRADE_IMAGE",
             "TEMPER_TEST_WRAPPER",
         ]
     );

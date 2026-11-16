@@ -38,6 +38,18 @@ impl Home {
         self.sessions.join(number.to_string())
     }
 
+    #[must_use]
+    pub fn triage_tree(&self) -> PathBuf {
+        self.directory.join("trees/triage")
+    }
+
+    /// Places use their one-based configuration order under trees/.
+    #[must_use]
+    pub fn pass_tree(&self, place: &str) -> PathBuf {
+        let index = self.configuration.places.iter().position(|name| name == place).expect("configured place");
+        self.directory.join("trees").join(index.saturating_add(1).to_string())
+    }
+
     /// The lock stays held until the read operation returns.
     pub fn read<T>(&self, operation: impl FnOnce(&Ledger) -> Result<T, Refusal>) -> Result<T, Refusal> {
         let lock = self.lock()?;
@@ -48,6 +60,17 @@ impl Home {
 
     /// A refusal discards even local mutations, and never opens the temporary document.
     pub fn transact<T>(&self, operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>) -> Result<T, Refusal> {
+        let result = self.transact_loop(operation)?;
+        // A saved command remains successful even if its best-effort wake fails.
+        let _ = crate::events::poke(&self.directory);
+        Ok(result)
+    }
+
+    /// The loop already observes its own saves in the current tick.
+    pub(crate) fn transact_loop<T>(
+        &self,
+        operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
         let lock = self.lock()?;
         let mut ledger = self.load()?;
         let result = operation(&mut ledger)?;

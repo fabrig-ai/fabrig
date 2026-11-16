@@ -1,7 +1,7 @@
 //! Each text parsed, layout computed and text's held texts found once in planning,
 //! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7).
 use super::{Digest, Layouts, Text};
-use crate::{OpenRefusal, PatchSets};
+use crate::{OpenRefusal, OwnerSets};
 use alloc::boxed::Box;
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx};
 use skein_lib::{List, Map};
@@ -18,56 +18,54 @@ pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> {
 type LayoutKey = (Digest, Box<[u8]>, Option<Box<[u8]>>, Box<[Digest]>);
 #[derive(Debug)]
 pub(super) struct Binary {
-    names: Map<&'static str, (Digest, Digest)>,
-    held: Map<(Digest, bool), List<Digest>>,
+    names: Map<&'static str, Digest>,
+    held: Map<Digest, List<Digest>>,
     layouts: Map<LayoutKey, Digest>,
 }
 impl Binary {
-    pub(super) fn new(sets: &PatchSets, layouts: &mut Layouts) -> Result<Self, OpenRefusal> {
+    pub(super) fn new(sets: &OwnerSets, layouts: &mut Layouts) -> Result<Self, OpenRefusal> {
         let mut names = Map::uncapped();
         for set in sets.sets {
             for family in set.families {
-                let Some(seed) = family.texts.last() else { continue };
-                let mut digests = List::with_capacity(2);
-                for text in [*seed, family.current] {
-                    let refusal = OpenRefusal::Set { owner: set.owner, patch: 0 };
-                    if text.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) {
-                        return Err(refusal);
-                    }
-                    let digest = digest(text.as_bytes());
-                    let current = text == family.current;
-                    if let Some(held) = layouts.texts.get_mut(&digest) {
-                        held.current |= current;
-                    } else {
-                        // Keep Set's syntax refusal even for families with no value types.
-                        #[cfg(test)]
-                        super::counting::parsed(digest);
-                        let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
-                        let schema = Some(parsed);
-                        layouts
-                            .texts
-                            .insert(digest, Text { bytes: Box::from(text.as_bytes()), schema, stored: false, current })
-                            .expect("uncapped texts");
-                    }
-                    digests.push(digest).expect("two texts");
+                let text = family.current;
+                let refusal = OpenRefusal::Set { owner: set.owner };
+                if text.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) {
+                    return Err(refusal);
                 }
-                names
-                    .insert(family.name, (*digests.get(0).expect("seed"), *digests.get(1).expect("current")))
-                    .expect("uncapped names");
+                let digest = digest(text.as_bytes());
+                if let Some(held) = layouts.texts.get_mut(&digest) {
+                    held.current = true;
+                } else {
+                    #[cfg(test)]
+                    super::counting::parsed(digest);
+                    let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                    layouts
+                        .texts
+                        .insert(
+                            digest,
+                            Text {
+                                bytes: Box::from(text.as_bytes()),
+                                schema: Some(parsed),
+                                stored: false,
+                                current: true,
+                            },
+                        )
+                        .expect("uncapped texts");
+                }
+                names.insert(family.name, digest).expect("uncapped names");
             }
         }
         Ok(Self { names, held: Map::uncapped(), layouts: Map::uncapped() })
     }
-    pub(super) fn text(&self, family: &str, current: bool) -> Option<Digest> {
-        let &(seed, binary) = self.names.get(family)?;
-        Some(if current { binary } else { seed })
+    pub(super) fn text(&self, family: &str) -> Option<Digest> {
+        self.names.get(family).copied()
     }
-    pub(super) fn held(&mut self, layouts: &mut Layouts, text: Digest, current: bool) -> Option<List<Digest>> {
-        if let Some(held) = self.held.get(&(text, current)) {
+    pub(super) fn held(&mut self, layouts: &mut Layouts, text: Digest) -> Option<List<Digest>> {
+        if let Some(held) = self.held.get(&text) {
             return Some(held.clone());
         }
         #[cfg(test)]
-        super::counting::held(text, current);
+        super::counting::held(text);
         let mut held = List::with_capacity(crate::registry_v1::CEILINGS.layout_held);
         let mut pending = List::uncapped();
         pending.push(text).ok()?;
@@ -81,8 +79,7 @@ impl Binary {
                 for offset in 0..count {
                     let field = schema.field(FieldIx::new(first.index().checked_add(offset)?));
                     let Some(name) = holds(schema, field.ty) else { continue };
-                    let Some(&pair) = self.names.get(name) else { continue };
-                    let digest = if current { pair.1 } else { pair.0 };
+                    let Some(&digest) = self.names.get(name) else { continue };
                     if digest == text || held.as_slice().contains(&digest) {
                         continue;
                     }
@@ -91,7 +88,7 @@ impl Binary {
                 }
             }
         }
-        self.held.insert((text, current), held.clone()).expect("uncapped held texts");
+        self.held.insert(text, held.clone()).expect("uncapped held texts");
         Some(held)
     }
     pub(super) fn layout(

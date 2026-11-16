@@ -4,13 +4,13 @@ use jig_core_world::fixtures::PROJECT;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_protocol_store::{Wire, codec, component_v3};
+use jig_protocol_store::{Wire, component_v3};
 use jig_test_domain as root;
 use jig_test_store_files::Fault;
-use skein_lib::{Duration, Reader};
+use skein_lib::Reader;
 
-use crate::fresh_windows;
-use fresh_windows as f;
+use crate::closed_proofs;
+use closed_proofs as f;
 
 const WIRES: &[Wire] = &[Wire { name: "channel", version: 3 }, Wire { name: "fixture", version: 7 }];
 const RESTORES: &[core::start::Phase] = &[
@@ -23,25 +23,19 @@ const RESTORES: &[core::start::Phase] = &[
 ];
 
 fn before() -> World {
-    let mut world = World::new(Setup { seed: f::SEED, patch_sets: f::BEFORE, ..Setup::default() });
+    let mut world = World::new(Setup { seed: f::SEED, owner_sets: f::SETS, ..Setup::default() });
     // Establish the recovered source bytes before comparing generations: a
     // normal open may trim a log's unused tail during recovery (protocol/store/opening.md, 1).
     world.store.crash(f::SEED).expect("crash readback");
     world
 }
 
-fn at_switch(sets: jig_protocol_store::PatchSets) -> World {
+fn at_switch() -> World {
     let mut world = before();
     world.store.wires(WIRES);
     world.hold_switch = true;
-    world.restart_with_patch_sets(f::SEED, false, sets);
+    world.restart(f::SEED, false);
     world
-}
-
-fn release_config() -> root::Config {
-    let mut config = jig_core_world::world::fixture(f::SEED, false).0;
-    config.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
-    config
 }
 
 fn mark(world: &World, since: usize) -> &[root::Write] {
@@ -76,38 +70,8 @@ fn durable_mark(world: World, since: usize, last: u64) {
 }
 
 #[test]
-fn a_patched_copy_is_restored_then_switched() {
-    let mut world = before();
-    let source = world.store.generation_contents(b"generations/1");
-    world.store.wires(WIRES);
-    world.store.patch_sets(f::AFTER);
-    world.hold_switch = true;
-    let config = release_config();
-    world.restart_with(config);
-    assert_eq!(world.restart_steps, RESTORES);
-    assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
-    assert_eq!(world.store.generation_contents(b"generations/1"), source);
-    assert_eq!(world.store.file_bytes(b"generations/2/manifest"), None);
-    assert_eq!(world.domain.settings().newest(), 2, "release revision committed into the copy");
-    assert!(world.store.rows.values().any(|row| matches!(row,
-        root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision { history: false, revision })))
-        if revision.head.number == 2 && revision.head.by == core::settings::Decider::Release
-    )));
-    let last = world.store.applied;
-    let since = world.commits.len();
-    world.store.fault(Fault::Hold { commits: 1 });
-    world.finish_switch();
-    assert_eq!(world.store.switch_requests, 1);
-    assert_eq!(world.store.file_bytes(b"active"), Some(b"2\n".to_vec()));
-    let bytes = world.store.file_bytes(b"generations/2/manifest").expect("copy manifest");
-    assert_eq!(codec::component::Manifest::decode(&bytes).expect("manifest").store, last);
-    assert_eq!(world.store.generation_contents(b"generations/1"), source);
-    durable_mark(world, since, last);
-}
-
-#[test]
 fn a_start_with_nothing_pending_takes_the_switch_step_and_commits_its_wires() {
-    let mut world = at_switch(f::BEFORE);
+    let mut world = at_switch();
     assert_eq!(world.restart_steps, RESTORES);
     assert!(!world.store.generation_pending);
     let last = world.store.applied;
@@ -145,7 +109,6 @@ fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     let last = world.store.applied;
     let mut limits = jig_test_profile::limits();
     limits.core.authority.projects = 0;
-    world.store.patch_sets(f::AFTER);
     let mut config = jig_core_world::world::fixture(f::SEED, false).0;
     // Projects already exist in the store; this build seeds no new policies.
     config.core.seed_projects = Box::new([]);
@@ -168,7 +131,6 @@ fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
-    world.store.patch_sets(f::BEFORE);
     world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
     assert_eq!(world.store.rows, rows);
@@ -179,7 +141,7 @@ fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
 
 #[test]
 fn a_refused_store_switch_stops_the_start() {
-    let mut world = at_switch(f::BEFORE);
+    let mut world = at_switch();
     let since = world.commits.len();
     // A stale shell pending flag asks a real nonpending store to switch;
     // its OpenRefused terminal must stop the root through the normal route.
@@ -194,7 +156,7 @@ fn a_refused_store_switch_stops_the_start() {
 
 #[test]
 fn a_failed_mark_never_adopts_the_runs() {
-    let mut world = at_switch(f::BEFORE);
+    let mut world = at_switch();
     let next = world.store.applied + 1;
     world.store.fault(Fault::Fail { commit: next });
     world.finish_switch();
@@ -207,20 +169,20 @@ fn a_failed_mark_never_adopts_the_runs() {
 
 #[test]
 fn stopping_before_the_mark_does_not_commit_it() {
-    let mut world = at_switch(f::BEFORE);
+    let mut world = at_switch();
     let before = world.store.applied;
     world.send(root::Event::Stop);
     world.finish_switch();
     assert!(world.domain.stopping());
     assert_eq!(world.store.applied, before);
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
-    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    world.restart(f::SEED, false);
     assert!(world.domain.ready());
 }
 
 #[test]
 fn stopping_with_the_mark_held_does_not_adopt_runs() {
-    let mut world = at_switch(f::BEFORE);
+    let mut world = at_switch();
     world.store.fault(Fault::Hold { commits: 1 });
     world.finish_switch();
     let mark = world.store.applied;
@@ -231,19 +193,19 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
     assert!(!world.domain.ready());
     assert!(!world.restart_steps.contains(&core::start::Phase::AdoptRuns));
-    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    world.restart(f::SEED, false);
     assert!(world.domain.ready());
 }
 
-// Every refusal must leave A byte-for-byte reopenable by the earlier build.
+// A link refusal stops the start before switching or adopting runs.
 fn refuses_before_switch(mut world: World) {
-    // Each caller deliberately seeds an unmade link and inspects the unfinished copy.
+    // Each caller deliberately seeds an unmade link.
     world.broken();
     world.store.crash(f::SEED).expect("crash readback");
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
     let assignments = world.assignments.clone();
-    world.restart_with_patch_sets(f::SEED, false, f::AFTER);
+    world.restart(f::SEED, false);
     assert_eq!(
         world.domain.start_failure(),
         Some((
@@ -268,11 +230,9 @@ fn refuses_before_switch(mut world: World) {
             | core::start::Phase::ReadAfresh { .. }
             | core::start::Phase::SettleOutbox { .. }
     )));
-    world.store.patch_sets(f::BEFORE);
     world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
-    // The inspection mirror caches copy rows; compare the recovered files,
-    // including every map, through the earlier build's actual store open.
+    // Compare the recovered files, including every map, at the same sets.
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert!(!world.store.generation_pending);
 }
@@ -295,7 +255,7 @@ fn an_account_source_without_its_account_refuses_at_link_on_the_active_generatio
     let mut world = before();
     world.seed(Box::new([orphan_source()]));
     world.broken();
-    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    world.restart(f::SEED, false);
     assert_eq!(
         world.domain.start_failure(),
         Some((
@@ -325,50 +285,4 @@ fn a_task_naming_a_missing_project_refuses_before_the_switch() {
     world.erase(root::Key::Core(core::Key::People(jig_domain_people::Key::Policy(PROJECT))));
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
     refuses_before_switch(world);
-}
-
-#[test]
-fn a_crash_during_the_restore_patches_a_fresh_copy_next() {
-    let mut world = before();
-    let source = world.store.generation_contents(b"generations/1");
-    let observer = world.observer.clone();
-    let mirror = world.store.rows.clone();
-    let assignments = world.assignments.clone();
-    let config = release_config();
-    world.store.patch_sets(f::AFTER);
-    world.hold_restore_pages = true;
-    world.restart_with(release_config());
-    // Crash after the first restore commit is durable, before acknowledging
-    // it: the root cannot yet release LoadInbox or reach the switch.
-    world.store.fault(Fault::Hold { commits: 1 });
-    world.finish_restore_pages();
-    let first_copy_commit = world.store.applied;
-    assert_eq!(world.restart_steps, RESTORES[..RESTORES.len() - 2]);
-    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
-    assert_eq!(world.domain.settings().newest(), 2);
-    assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
-    assert_eq!(world.store.generation_contents(b"generations/1"), source);
-    assert_eq!(world.assignments, assignments);
-    // No delivery left the process. Discard the observer's process-local
-    // copy commits too; outside ledgers resume at their A checkpoint.
-    world.observer = observer;
-    // The real store reopens its files; reset only the fixture's inspection
-    // mirror, which otherwise keeps the discarded copy's settings erasures.
-    world.store.rows = mirror;
-    world.hold_switch = true;
-    world.restart_with(config);
-    assert_eq!(world.restart_steps, RESTORES);
-    // Continuing the crashed copy would retain revision 2 and add another
-    // commit. Repatching A reconstructs that revision and its commit afresh.
-    assert_eq!(world.store.applied, first_copy_commit);
-    let releases = world.commits.iter().flatten().filter(|write| matches!(write,
-        root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision { history: false, revision }))))
-        if revision.head.number == 2 && revision.head.by == core::settings::Decider::Release
-    )).count();
-    assert_eq!(releases, 2, "one restore release in each fresh copy");
-    assert_eq!(world.store.generation_contents(b"generations/1"), source);
-    assert!(world.store.generation_pending);
-    world.finish_switch();
-    assert!(world.domain.ready());
-    assert_eq!(world.store.file_bytes(b"active"), Some(b"2\n".to_vec()));
 }

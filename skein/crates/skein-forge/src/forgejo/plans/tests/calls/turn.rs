@@ -53,6 +53,7 @@ fn round_request(step: Step) -> Request {
     let encoded = client::encode(&exchange.request, &limits).expect("request fits");
     let decoded = match server::route(encoded.method, &encoded.target, &limits).expect("server route") {
         server::Route::Ready(request) => request,
+        server::Route::Reference(_) => panic!("plans encode resolved commit ids"),
         server::Route::Body(_) => {
             fixtures::request(encoded.method, &encoded.target, encoded.body.as_deref().expect("request body"), &limits)
                 .expect("server body")

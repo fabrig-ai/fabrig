@@ -100,7 +100,8 @@ fn order(step: &w::Step) -> u8 {
         w::Step::First => 5,
         w::Step::Landing => 6,
         w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) => 7,
-        w::Step::Ended
+        w::Step::Taking
+        | w::Step::Ended
         | w::Step::Ready(_)
         | w::Step::Preparing(_)
         | w::Step::Recreating
@@ -717,7 +718,7 @@ fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
     use temper_engine_domain_forge as forge;
     const DELEGATE: u64 = 901;
     let mut world = fixtures::world(fixtures::SEED);
-    *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    *world.front() = Joint::with_change_grace(fixtures::SEED, &fixtures::domain_limits(), skein_lib::Duration::ZERO);
     world.front().engine.forge = Some(silent_forge());
     fixtures::adopt_change_repository(world.front());
     world.front().engine.forge.as_mut().expect("silent forge").push_branch(REPOSITORY.repository, BRANCH);
@@ -781,6 +782,8 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
     world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Running"), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     let before = facts_after_open(&mut world, false);
+    let observed = world.now().saturating_add(Duration::from_secs(1));
+    assert_eq!(world.run(Until::Time(observed)).verdict, Verdict::Passed);
     let row = world
         .front()
         .engine
@@ -801,8 +804,16 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
     assert_eq!(before.pull.merged, None);
     assert_eq!(before.pull.ci, api::Ci::Pending);
     let stall = world.front().engine.env.limits.forge.change_policy.stall;
-    let after_stall =
-        Time::from_nanos(row.change.since.as_nanos()).saturating_add(stall).saturating_add(Duration::from_secs(1));
+    let clock = row.change.clock.expect("first execution reading");
+    let grace = if clock.seen == temper_engine_domain_forge_change::Execution::Unknown {
+        world.front().engine.env.limits.forge.change_policy.unknown_grace
+    } else {
+        Duration::ZERO
+    };
+    let after_stall = Time::from_nanos(clock.at.as_nanos())
+        .saturating_add(stall)
+        .saturating_add(grace)
+        .saturating_add(Duration::from_secs(1));
     assert_eq!(world.run(Until::Time(after_stall)).verdict, Verdict::Passed);
     assert!(
         matches!(world.front().engine.task(change).expect("change").phase, tasks::Phase::Held { .. }),

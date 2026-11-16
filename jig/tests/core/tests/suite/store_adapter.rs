@@ -154,22 +154,23 @@ fn a_seeded_commit_keeps_the_header_in_step() {
     assert_eq!(header.commits, 2);
 }
 
-use crate::fresh_windows;
+use crate::closed_proofs;
 
 #[test]
-fn the_walks_closed_proof_restores_until_the_next_attempt() {
-    use fresh_windows as f;
+fn a_closed_proof_restores_until_the_next_attempt() {
+    use closed_proofs as f;
     let mut world = f::parked();
     let original = f::proof(&world).clone();
     let tries = f::tries(&world);
-    f::restart(&mut world, f::AFTER);
+    f::close(&mut world);
+    f::restart(&mut world);
     assert_eq!(f::tries(&world), tries);
     assert!(world.domain.ready(), "the real root restored the closed proof");
     let closed = f::proof(&world).clone();
     let mut expected = original;
     expected.window.as_mut().expect("parked window").closed = true;
     expected.crossed = true;
-    assert_eq!(closed, expected, "the mirror reads the component's own bytes");
+    assert_eq!(closed, expected, "restart preserves every other proof field");
     let limits = jig_test_profile::limits().core;
     let mut engine =
         core::Core::new(jig_core_world::world::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
@@ -182,7 +183,7 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
         core::Restore::Kept
     );
     assert_eq!(engine.proofs.get(&closed.task), Some(&closed));
-    world.restart_with_patch_sets(f::SEED, false, f::AFTER);
+    world.restart(f::SEED, false);
     assert_eq!(f::proof(&world), &closed, "a later open keeps it closed");
     f::hello(&mut world);
     world.grant_account(1);
@@ -192,19 +193,6 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     world.window_turn(1, 1, None, &f::turn(b"new window"));
     let attempt = f::proof(&world).attempt;
     assert_eq!(f::proof(&world).window, Some(core::CurrentWindow { attempt, turn: 1, closed: false }));
-}
-
-#[test]
-fn a_fork_replays_the_fresh_mark_and_its_commit_numbers() {
-    use fresh_windows as f;
-    let mut world = f::parked();
-    f::restart(&mut world, f::AFTER);
-    let mut fork = world.store.fork().expect("fork readback");
-    assert_eq!(fork.rows, world.store.rows);
-    assert_eq!(fork.applied, world.store.applied);
-    fork.crash(f::SEED).expect("crash readback");
-    assert_eq!(fork.rows, world.store.rows);
-    assert_eq!(fork.applied, world.store.applied);
 }
 
 #[test]

@@ -8,7 +8,6 @@ mod drop_job;
 mod pre_settings;
 use super::fixtures;
 use crate::{End, Stop};
-use core::fmt::Write as _;
 use jig_protocol_store::{Family, OpenRefusal};
 #[test]
 fn a_signal_drains_and_a_second_aborts() {
@@ -173,18 +172,13 @@ fn non_format_open_refusals_preserve_their_own_reason() {
         OpenRefusal::Numbers { store: 9, header: 8 },
         OpenRefusal::Failed,
         OpenRefusal::OlderBuild { why: Older::Unleveled },
-        OpenRefusal::OlderBuild { why: Older::Unrecorded },
+        OpenRefusal::OlderBuild { why: Older::Unregistered },
+        OpenRefusal::OlderBuild { why: Older::Behind },
         OpenRefusal::OlderBuild { why: Older::Layout(Family::Application) },
         OpenRefusal::OlderBuild { why: Older::Directory },
         OpenRefusal::Generations { why: Generations::Busy },
         OpenRefusal::Ahead { owner: Owner::Jig, found: Some(2), wanted: Some(1) },
-        OpenRefusal::Patch {
-            owner: Owner::Application,
-            patch: 2,
-            key: b"record".as_slice().into(),
-            halt: skein_codec::patch::Halt::NoSite(skein_codec::patch::Site::new(2, 0)),
-        },
-        OpenRefusal::Set { owner: Owner::Jig, patch: 2 },
+        OpenRefusal::Set { owner: Owner::Jig },
         OpenRefusal::Check { why: Check::Load { key: b"record".as_slice().into() } },
     ] {
         refused(why);
@@ -295,19 +289,6 @@ fn a_second_signal_while_settling_aborts() {
     assert_eq!(service.end(), Some(&End::Aborted));
 }
 
-// Three named writes, and jig's protocol/store/opening.md, 3's 64-key cap.
-const FLIGHT_KEYS: usize = 64;
-const FIRST_WRITE: (u64, u64) = (7, 11);
-const SECOND_WRITE: (u64, u64) = (9, 13);
-const THIRD_WRITE: (u64, u64) = (17, 19);
-const FLIGHT_REMEDY: &str = " is still in flight; start the build before this one and stop it to settle it\n";
-fn flight_refusal(keys: Box<[Box<[u8]>]>, count: u32) -> OpenRefusal {
-    OpenRefusal::InFlight { owner: jig_protocol_store::Owner::Application, family: "temper", count, keys }
-}
-fn flight_key(task: u64, entry: u64) -> Box<[u8]> {
-    temper_protocol_store::keys::encode(&temper_engine_domain_forge::Key::Flight { task, entry }, u32::MAX)
-        .expect("fixed flight key")
-}
 fn refusal_words(why: &OpenRefusal) -> String {
     format!("temper serve: {}\n", why.words().join("state"))
 }
@@ -326,45 +307,6 @@ fn a_retired_type_layout_refusal_names_its_range_fault() {
     assert_eq!(core::str::from_utf8(&lines).unwrap(), expected);
     assert_eq!(exit, 1);
 }
-#[test]
-fn an_in_flight_refusal_names_each_write() {
-    const WRITES: u32 = 3; // The three keys below.
-    let why = flight_refusal(
-        Box::new([
-            flight_key(FIRST_WRITE.0, FIRST_WRITE.1),
-            flight_key(SECOND_WRITE.0, SECOND_WRITE.1),
-            flight_key(THIRD_WRITE.0, THIRD_WRITE.1),
-        ]),
-        WRITES,
-    );
-    let expected = refusal_words(&why)
-        + "temper serve: task 7's forge write 11 is still in flight; start the build before this one and stop it to settle it\n"
-        + "temper serve: task 9's forge write 13 is still in flight; start the build before this one and stop it to settle it\n"
-        + "temper serve: task 17's forge write 19 is still in flight; start the build before this one and stop it to settle it\n";
-    assert_eq!(crate::refused_start(&why, b"state"), (expected.into_bytes().into_boxed_slice(), 1));
-    refused(why);
-}
-#[test]
-fn an_in_flight_refusal_names_64_keys_and_counts_the_rest() {
-    const COUNT: u32 = 70; // 64 retained keys and six more (E2 acceptance).
-    for retained in [FLIGHT_KEYS, FLIGHT_KEYS + 1] {
-        let keys = (0..retained).map(|entry| flight_key(FIRST_WRITE.0, u64::try_from(entry).unwrap())).collect();
-        let why = flight_refusal(keys, COUNT);
-        let mut expected = refusal_words(&why);
-        for entry in 0..FLIGHT_KEYS {
-            write!(expected, "temper serve: task 7's forge write {entry}{FLIGHT_REMEDY}").unwrap();
-        }
-        expected.push_str("temper serve: and 6 more forge writes in flight\n");
-        assert_eq!(crate::refused_start(&why, b"state"), (expected.into_bytes().into_boxed_slice(), 1));
-    }
-}
-#[test]
-fn an_unknown_flight_key_is_named_in_lowercase_hex() {
-    let why = flight_refusal(Box::new([Box::from([0, 21, 255])]), 1);
-    let expected = refusal_words(&why) + "temper serve: forge write key 0x0015ff" + FLIGHT_REMEDY;
-    assert_eq!(crate::refused_start(&why, b"state"), (expected.into_bytes().into_boxed_slice(), 1));
-}
-
 #[test]
 fn missing_forge_links_refuse_the_start_before_startup_wires() {
     use temper_engine_domain::{Record, Write};

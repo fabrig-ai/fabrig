@@ -126,6 +126,8 @@ fn tier(repository: Repository) -> forge::Stored {
 // An ended change's panel outlives its task; the release must erase both parts.
 fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
+        source: None,
+        kept: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),
@@ -152,6 +154,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            clock: None,
         },
         task_release: None,
         job: None,
@@ -447,6 +450,8 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
             | forge::ApplicationOutcome::CoreRefused(_)
             | forge::ApplicationOutcome::ForgeRefused(_)
             | forge::ApplicationOutcome::MakeKept
+            | forge::ApplicationOutcome::Opened { .. }
+            | forge::ApplicationOutcome::OpenRefused(_)
             | forge::ApplicationOutcome::MakeRefused(_) => false,
         },
         forge::Stored::Landing(row) => row.landing.members.iter().any(|member| {

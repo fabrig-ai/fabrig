@@ -114,6 +114,8 @@ pub fn frozen_rows() -> Box<[ChangeRow]> {
 pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -145,6 +147,7 @@ pub fn opening_row() -> ChangeRow {
             owns_turn: false,
             last_head: Some(HEAD),
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: Some(OPEN),

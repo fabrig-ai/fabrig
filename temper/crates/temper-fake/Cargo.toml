@@ -29,6 +29,8 @@ skein-lib.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+skein-io.workspace = true
+skein-sim.workspace = true
 jig-domain-core.workspace = true
 smith-domain-run.workspace = true
 smith-agent-world.workspace = true

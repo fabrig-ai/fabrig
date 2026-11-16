@@ -146,7 +146,8 @@ fn restored(request: &Ask) -> bool {
     let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
     match request.into_parts().request {
         w::Request::TierAct(_) => true,
-        w::Request::FollowAct(_)
+        w::Request::OpenChange(_)
+        | w::Request::FollowAct(_)
         | w::Request::Adopt(_)
         | w::Request::SetUp(_)
         | w::Request::Connect(_)

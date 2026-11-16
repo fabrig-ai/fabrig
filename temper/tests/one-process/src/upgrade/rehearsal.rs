@@ -274,24 +274,8 @@ fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
     let (lines, code) = render(&tool.0);
     eprintln!("golden maps: {expected} kept records\n{lines}");
     assert_eq!(code, 1, "{lines}");
-    if broken {
-        use std::fmt::Write;
-        let mut hex = String::new();
-        for byte in key {
-            write!(hex, "{byte:02x}").expect("hex key");
-        }
-        assert!(lines.contains(&format!("record not decodable: temper-store 11, store key {hex}\n")), "{lines}");
-        assert!(!lines.contains("decoded ") && !lines.contains("patched "), "no plan runs: {lines}");
-    } else {
-        assert!(lines.contains(&format!("decoded {expected} records\n")), "{lines}");
-        assert!(
-            lines.contains(
-                "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
-            ),
-            "{lines}"
-        );
-        assert!(!lines.contains("patched ") && !lines.contains("patches and restores pass"), "{lines}");
-    }
+    assert!(lines.contains("holds a store from before the baseline"), "{lines}");
+    assert!(!lines.contains("decoded ") && !lines.contains("registry commit, jobs and restores pass"), "{lines}");
     let mut disk = outcome.machine.0.borrow_mut();
     assert_eq!(contents(&mut disk, 0), before, "every source path and byte unchanged");
     assert!(contents(&mut disk, 2).is_empty(), "close emptied scratch");
@@ -314,8 +298,11 @@ fn break_record(disk: &mut Machine, maps: &super::maps::Maps, key: &[u8]) {
         .expect("golden log commits");
     let header_key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
     let encoded_key = jig_protocol_store::keys::encode(&header_key, 64).expect("header key");
-    // The golden's registered family is at its kept text, not today's codec.
-    let text = jig_protocol_store::patches::kept::jig_store_core::TEXTS.last().expect("kept core text");
+    // The golden's deployment header uses the captured pre-restart layout, not today's codec.
+    let text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../jig/crates/jig-protocol-store/src/tests/fixtures/cb429613c6-core-v6.schema"
+    ));
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept core schema");
     let mut value = skein_codec::value::Value::with_room(32);
     let row = value

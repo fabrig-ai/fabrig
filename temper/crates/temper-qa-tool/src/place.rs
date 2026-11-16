@@ -10,6 +10,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A box worker pins this directory afresh at each start (qa/places.md, 4).
+const BOX_PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
+
 /// Shared with the holder and the loop. Only the holder keeps drive.lock held.
 #[derive(Clone, Debug)]
 pub struct PlacePaths {
@@ -92,6 +95,7 @@ pub struct PassPlace<D, A> {
     pub drive: D,
     pub archive: A,
     ledger: Ledger,
+    ctl_only: bool,
 }
 struct CatalogueEntry {
     parent: Option<String>,
@@ -121,7 +125,8 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             .map_err(|why| refused(format!("pass {} setups: {why}", pass.number)))?;
         let mut paths = PlacePaths::new(&directory);
         paths.ports = home.configuration.ports.get(&pass.place).cloned();
-        let place = Self { paths, setups, pass, drive, archive, ledger };
+        let ctl_only = !home.configuration.surfaces.iter().any(|surface| surface == "web" || surface == "tui");
+        let place = Self { paths, setups, pass, drive, archive, ledger, ctl_only };
         place.available()?;
         Ok(place)
     }
@@ -177,6 +182,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         Ok(())
     }
     fn chain(&mut self, name: &str) -> Result<Vec<Recipe>, Refusal> {
+        let setup = name;
         let catalogue = self.catalogue()?;
         self.check_name(name, &catalogue)?;
         let mut chain: Vec<Recipe> = Vec::new();
@@ -184,6 +190,18 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         while let Some(name) = next.take() {
             if chain.len() >= 9 || chain.iter().any(|recipe| recipe.name == name) {
                 return Err(refused(format!("recipe {name}: cycle or more than eight parents")));
+            }
+            if self.ctl_only {
+                let path = self.setups.join(&name).join("recipe");
+                let recipe = io(&path, fs::read_to_string(&path))?;
+                for (index, line) in recipe.lines().enumerate() {
+                    if let Some(surface @ ("web" | "tui")) = line.split_whitespace().next() {
+                        return Err(refused(format!(
+                            "setup {setup}: recipe {name}:{} has a {surface} line; the pass's surfaces take ctl and forge lines alone",
+                            index + 1
+                        )));
+                    }
+                }
             }
             let hash = self.drive.hash(&self.paths, &self.setups, &name)?;
             let entry = catalogue.get(&name).ok_or_else(|| refused(format!("recipe {name}: missing parent")))?;
@@ -235,7 +253,10 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let temporary = directory.join("copy.tmp");
         remove(&temporary)?;
         private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
-        self.archive.create(&self.paths.scratch, &temporary)?;
+        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary, &[BOX_PINNED_AGENT]) {
+            remove(&temporary)?;
+            return Err(why);
+        }
         let kept = directory.join(format!("{}-{}.tar", recipe.hash, self.pass.build));
         io(&kept, fs::rename(&temporary, &kept))?;
         for entry in io(&directory, fs::read_dir(&directory))? {
@@ -340,7 +361,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             self.empty()?;
             if let Some((_, copy)) = &source {
-                self.archive.extract(&copy.path, &self.paths.scratch)?;
+                self.archive.extract(&copy.path, &self.paths.scratch, &[BOX_PINNED_AGENT])?;
             }
             let start =
                 source.as_ref().map_or(0, |(index, _)| if index + 1 == chain.len() { *index } else { index + 1 });

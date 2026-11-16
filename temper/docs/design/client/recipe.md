@@ -52,12 +52,12 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   `otherwise`, each optional. The scripts cover its own steps and,
   where its cases go on past its state, theirs
   (`../draft/landed-qa.md`, 6).
-- **`files/`,** where its `forge commit` lines commit any or its
-  `deployment patch` lines read any: each such file, at its path under
+- **`files/`,** where its `forge commit` or `forge push` lines commit
+  any or its `deployment patch` lines read any: each such file, at its path under
   `files/`, so that the recipe holds all it gives
   (`../draft/landed-qa.md`, 5): `files/PATH` for a line's PATH
-  (`drive.md`, 3.5 and 3.8). Each PATH a `forge commit` or `deployment
-  patch` line of the recipe names is a regular file there, at most 64
+  (`drive.md`, 3.5 and 3.8). Each PATH a `forge commit`, `forge push` or
+  `deployment patch` line of the recipe names is a regular file there, at most 64
   KiB, and each file there is named by one of its lines; a file missing,
   past the bound or named by none refuses the recipe, naming it. At most
   64 files. Only the recipe's own lines read them: a child's lines read
@@ -95,6 +95,10 @@ bare, bytes in double quotes.
 | a step | a drive line: `web`, `tui`, `ctl`, `forge` or `deployment`, then its record (`drive.md`, 3.2 to 3.5 and 3.8) | after those, in order, none or more |
 | `check` | none | where present, once, after the steps: every line after it is the check |
 | the check | after `check`: `ctl` lines, `web see TEXT` or `tui see TEXT`; with no `check`: `web see TEXT` or `tui see TEXT` | last, one line at least |
+
+`forge push forgejo REPOSITORY BRANCH MESSAGE PATH...` is kept as a
+step, including its branch and quoted bytes, with each PATH in the
+recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
 
 - **A person's acts alone:** no look, no `end` and no empty line; each
   refuses the recipe, naming its line (`drive.md`, 4 keeps them out of
@@ -177,7 +181,9 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   scratch directory's box holds, restored there by the place
   (`../draft/landed-qa.md`, 5). Without it, the scratch directory holds
   no box, no `config/` and no `data/`, or the walk refuses, naming them;
-  with it, it holds them, or the walk refuses.
+  with it, it holds `data/`, and `config/` where its box made one (a box
+  with fake backends keeps its configuration under `data/`), or the walk
+  refuses.
 - **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
   root first, as `--scripts`, and `--strict` and `--ports` as given: on
@@ -197,8 +203,8 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   The session starts on the root page with no TUI (`drive.md`, 2.3), so
   each recipe's steps start there, and each check is read there, as a
   restored copy shows it.
-- **Each recipe's files:** a `forge commit` or `deployment patch` line
-  reads its PATHs from the `files/` of the recipe that holds the line
+- **Each recipe's files:** a `forge commit`, `forge push` or `deployment
+  patch` line reads its PATHs from the `files/` of the recipe that holds the line
   (section 2), never from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or
@@ -253,8 +259,8 @@ Focused, with no browser and no box:
   order.
 - **Refused:** a cycle of two, a ninth parent, a missing parent, a
   recipe that ends on a step, a look, an `end`, a `tui stop`, a file
-  beyond the five, a name out of bounds; a `forge commit` or `deployment
-  patch` PATH missing from `files/`, and a file of `files/` no line
+  beyond the five, a name out of bounds; a `forge commit`, `forge push` or
+  `deployment patch` PATH missing from `files/`, and a file of `files/` no line
   names; a `check` with no line after it, or a `forge` line after it; a
   child with `config/`, a root's `config/` lacking one of its five
   documents or holding another file; a web or tui line in a

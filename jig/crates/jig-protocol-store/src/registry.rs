@@ -281,7 +281,7 @@ impl Layouts {
             }
         }
     }
-    pub(crate) fn retire_set(&mut self, set: &crate::PatchSet, logs_pending: bool, bound: u32) -> Option<u64> {
+    pub(crate) fn retire_set(&mut self, set: &crate::OwnerSet, logs_pending: bool, bound: u32) -> Option<u64> {
         let mut retired = 0_u64;
         for family in set.families {
             for ty in family.types {
@@ -387,30 +387,18 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     #[cfg(test)]
     counting::reset();
     let mut layouts = Layouts::new();
-    rows::load(store, &mut layouts)?;
+    let registered = rows::open(store, &mut layouts, empty)?;
     let seeded = !layouts.rows.is_empty();
-    let mut registered = false;
-    for set in store.patch_sets.sets {
-        for family in set.families {
-            registered |= !family.types.is_empty() || !family.retired.is_empty();
-        }
-    }
     if !seeded && !registered {
         *store.registry = Layouts::new();
         *store.layout_work = ReadWork::new();
         return Ok(false);
     }
-    if let Err(why) = crate::patching::plan::checked(store) {
-        return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch });
-    }
-    if seeded {
-        check::patches(store)?;
+    if let Err(why) = crate::upgrade::admission::checked(store) {
+        return Err(OpenRefusal::Set { owner: why });
     }
     check::retired(store, &mut layouts)?;
-    let mut binary = texts::Binary::new(&store.patch_sets, &mut layouts)?;
-    if !seeded && !empty {
-        rows::seed(store, &mut layouts, &mut binary)?;
-    }
+    let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
     check::plans(store, &mut layouts, &mut binary, &mut work)?;

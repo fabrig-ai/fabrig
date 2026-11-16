@@ -96,6 +96,7 @@ impl Harness {
             | w::Request::HandFinding(_)
             | w::Request::TriageFinding(_)
             | w::Request::SetDraft(_)
+            | w::Request::OpenChange(_)
             | w::Request::TierAct(_)
             | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)

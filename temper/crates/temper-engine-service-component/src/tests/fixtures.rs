@@ -336,8 +336,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     let mut core = crate::system::core_config(&settings.jig, &seeds);
     core.kinds.clone_from(&settings.kinds);
     core.jobs = limits::jobs(&settings.jig.limits);
-    let mut store = memory_store_for(&limits, &settings.jig.limits.store, &core.settings.models);
-    store.routes.patch_context().executors.clone_from(&core.defaults.rules.ceiling.delegation.kinds);
+    let store = memory_store_for(&limits, &settings.jig.limits.store, &core.settings.models);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
     let config = root::Config {
         host_part: settings.host_part,

@@ -75,7 +75,7 @@ pub(crate) fn operations(
     for write in writes {
         match write {
             Write::Wires => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 if let Err(check) = crate::openings::clear(store, &mut ops) {
@@ -98,7 +98,7 @@ pub(crate) fn operations(
                 ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
             Write::DropTranscript { task } => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 if let Err(check) = crate::transcripts::drop::queue(store, task, number) {
@@ -118,7 +118,7 @@ pub(crate) fn operations(
                 drops.push(task);
             }
             Write::Save(Record::Core(CoreRecord::Turn(turn))) => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 let file = match crate::transcripts::log::file(store, turn.task) {
@@ -192,7 +192,7 @@ pub(crate) fn operations(
         crate::jobs::kept::first(store, &mut ops, number).ok_or(Refusal::Check(CommitCheck::Encoding))?;
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);
-        row.levels = crate::patching::plan::binary(&store.patch_sets);
+        row.levels = crate::upgrade::admission::binary(&store.owner_sets);
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, store.limits.store.key)
                 .ok_or(Refusal::Check(CommitCheck::Encoding))?,

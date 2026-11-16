@@ -63,7 +63,10 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
             temper_protocol_reaches::Subject::Set(u8::try_from(rng.below(256)).expect("u8"))
         } else {
             temper_protocol_reaches::Subject::Kind(
-                temper_protocol_reaches::Kind::ALL[usize::try_from(rng.below(10)).expect("kind index")],
+                temper_protocol_reaches::Kind::ALL[usize::try_from(
+                    rng.below(u64::try_from(temper_protocol_reaches::Kind::ALL.len()).expect("kind count")),
+                )
+                .expect("kind index")],
             )
         };
         forge::PersonFact::KeepAsking {
@@ -607,7 +610,12 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         overturned: rng.below(2) == 0,
         reach: temper_protocol_reaches::Reach {
             kind: *temper_protocol_reaches::Kind::ALL
-                .get(usize::try_from(rng.below(10)).expect("kind index fits"))
+                .get(
+                    usize::try_from(
+                        rng.below(u64::try_from(temper_protocol_reaches::Kind::ALL.len()).expect("kind count")),
+                    )
+                    .expect("kind index fits"),
+                )
                 .expect("drawn kind exists"),
             class: temper_protocol_reaches::Class::Decide,
             reason: if rng.below(2) == 0 {

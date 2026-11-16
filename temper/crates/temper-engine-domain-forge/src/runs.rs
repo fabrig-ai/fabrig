@@ -2,7 +2,8 @@
 //! An outage spends no unseen lifetime (temper/docs/design/domain/forge/keeping-up.md, 5).
 use alloc::boxed::Box;
 use skein_forge::api;
-use skein_lib::{Duration, List, Time};
+use skein_lib::{Duration, List, Time, Wall};
+use temper_engine_domain_forge_change::{Clock, Execution, Reading};
 use temper_engine_domain_forge_landing as policy;
 
 /// Dispatches with different inputs cannot share the run-matching window
@@ -58,6 +59,7 @@ pub(crate) fn tests_input(tests: &[Box<[u8]>]) -> api::Input {
 
 /// One caller-owned dispatch and its current run. The caller persists its outbox entry.
 #[derive(Clone, Hash, Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the dispatch wall key is internal to the follower's callers")]
 pub struct Follow {
     pub task: u64,
     pub entry: u64,
@@ -70,6 +72,8 @@ pub struct Follow {
     pub start: Option<Time>,
     pub waiting: bool,
     pub since: Option<Time>,
+    pub(crate) wall: Option<Wall>,
+    pub clock: Option<Clock>,
     pub run: Option<api::Run>,
     pub outcome: Option<policy::Verdict>,
     pub writes: Box<[api::Write]>,
@@ -107,6 +111,8 @@ pub fn follow(
         start: None,
         waiting: false,
         since: None,
+        wall: None,
+        clock: None,
         run: None,
         outcome: None,
         writes: Box::new([write]),
@@ -202,6 +208,10 @@ impl Follow {
         self.writes = remaining.into_boxed();
         self.entry = entry;
         self.waiting = first.is_some();
+        if first.is_some() {
+            self.wall = None;
+            self.clock = None;
+        }
         if let Some(api::Write::Rerun { .. }) = &first
             && let Some(run) = &mut self.run
         {
@@ -227,6 +237,7 @@ impl Follow {
         answer: Result<api::Answer, api::Error>,
         writer: u64,
         now: Time,
+        wall: Wall,
         lifetime: Duration,
     ) -> Option<Ended> {
         if let Err(api::Error::Unavailable | api::Error::Timeout) = &answer {
@@ -241,6 +252,7 @@ impl Follow {
                         && run.workflow == self.workflow
                         && Some(run.created) >= self.start
                     {
+                        self.observe(&run, wall);
                         self.run = Some(run);
                         break;
                     }
@@ -256,6 +268,7 @@ impl Follow {
                     Some(known) => known.id == run.id,
                     None => false,
                 } {
+                    self.observe(&run, wall);
                     if !self.writes.is_empty() {
                         self.run = Some(run);
                         return None;
@@ -280,6 +293,21 @@ impl Follow {
             return Some(Ended { run: None, outcome });
         }
         None
+    }
+
+    fn observe(&mut self, run: &api::Run, wall: Wall) {
+        let Some(since) = self.wall else { return };
+        let execution = match run.state {
+            api::RunState::Running => Execution::Running,
+            api::RunState::Waiting => Execution::Waiting,
+            api::RunState::Completed => return,
+        };
+        let mut attempt = 0;
+        for job in &run.jobs {
+            attempt = attempt.max(job.attempt);
+        }
+        let reading = Reading { execution, run: run.id, attempt };
+        self.clock = Some(Clock::observe(self.clock, since, self.commit, reading, wall));
     }
 }
 

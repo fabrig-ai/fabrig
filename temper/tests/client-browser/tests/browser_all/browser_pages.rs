@@ -105,7 +105,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let mut stories = Stories::of_person(0);
     stories.begin("phone ask", &steps);
     let ask = || Find::exactly_named(Role::TextArea, b"Ask temper, or tell it how you work");
-    let tabs = || Find::exactly_named(Role::Navigation, b"Sections");
+    let tab_bar = || Find::exactly_named(Role::Navigation, b"Sections");
     steps.extend([
         Step::Viewport { width: 420, height: 900 },
         // NewChat hides its tab bar on a phone; open the project's Home by address.
@@ -115,13 +115,16 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         press(Role::Button, b"Start"),
         Step::Address(b"/projects/1/ask".as_slice().into()),
         see(ask()),
-        see(Find::exactly_named(Role::Tabs, b"Ways of working")),
-        press(Role::Tab, b"Draft first"),
+        see(Find::exactly_named(Role::Button, b"Stock ways")),
+        press(Role::Button, b"Stock ways"),
+        see(Find::exactly_named(Role::MenuItem, b"Draft first")),
+        press(Role::MenuItem, b"Draft first"),
         see(Find::exactly_named(Role::Button, b"Use this")),
-        see(tabs()),
+        see(Find::exactly_named(Role::Button, b"Back")),
+        see(tab_bar()),
         keep_box(ask(), "phone-ask/composer"),
         keep_box(Find::named(Role::Disclosure, b"Model"), "phone-ask/picker"),
-        keep_box(tabs(), "phone-ask/tabs"),
+        keep_box(tab_bar(), "phone-ask/tab-bar"),
         Step::Viewport { width: 1280, height: 800 },
         // Start adds an entry: Back through Home to the ready playground's NewChat.
         Step::Back,
@@ -202,14 +205,14 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     stories.assert_done(harness.run(&mut [&mut script]));
     let (composer_y, composer_height) = box_of(&harness, "phone-ask", "composer");
     let (picker_y, picker_height) = box_of(&harness, "phone-ask", "picker");
-    let (tabs_y, _) = box_of(&harness, "phone-ask", "tabs");
+    let (tab_bar_y, _) = box_of(&harness, "phone-ask", "tab-bar");
     assert!(
-        composer_y + composer_height <= tabs_y,
-        "phone ask: composer {composer_y} + {composer_height} overlaps tabs at {tabs_y}"
+        composer_y + composer_height <= tab_bar_y,
+        "phone ask: composer {composer_y} + {composer_height} overlaps the tab bar at {tab_bar_y}"
     );
     assert!(
-        picker_y + picker_height <= tabs_y,
-        "phone ask: picker {picker_y} + {picker_height} overlaps tabs at {tabs_y}"
+        picker_y + picker_height <= tab_bar_y,
+        "phone ask: picker {picker_y} + {picker_height} overlaps the tab bar at {tab_bar_y}"
     );
     let lines: Vec<_> = harness.kept().iter().filter(|kept| kept.name.as_ref() == b"call-line").collect();
     let [before, after] = lines.as_slice() else {

@@ -13,6 +13,13 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Watch main and triage its landings, one service per QA home.
 - **Notes:** Holds run.lock for its life; reads qa.json once at start.
 
+### `temper-qa wake`
+
+- **Set:** internal
+- **Forms:** ``
+- Wake the QA loop after moving main's ref.
+- **Notes:** Connects to run.sock and closes; no running loop is no error.
+
 ### `temper-qa build keep`
 
 - **Set:** internal
@@ -34,6 +41,29 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - Queue a checked case, or join the queued case for its surface and page.
 - **Arguments:** `FILE`: A case JSON file, or - to read stdin.
 
+### `temper-qa triage gap`
+
+- **Set:** internal
+- **Forms:** `KIND WHY`
+- Record what keeps QA from judging the landing; file it without a goal.
+- **Arguments:** `KIND`: ctl, fake or qa.; `WHY`: One nonempty argument saying what a person would do or see and what is missing.
+- **Notes:** A gap may accompany cases; otherwise it answers the landing as gap.
+
+### `temper-qa pass gap`
+
+- **Set:** internal
+- **Forms:** `CASE KIND WHY`
+- Record why no line or setup reaches a case's state, and take it out of the queue.
+- **Arguments:** `CASE`: A case assigned to the session's pass.; `KIND`: ctl, fake or qa.; `WHY`: One nonempty argument saying what is missing.
+- **Notes:** Filed without a goal. A landing with QA-gap: N queues the case again.
+
+### `temper-qa gaps`
+
+- **Set:** internal
+- **Forms:** `[--open]`
+- List gaps newest first, with --open omitting closed gaps; each line at most 200 bytes.
+- **Arguments:** `[--open]`: Only gaps not closed, including filed ones.
+
 ### `temper-qa pass setup`
 
 - **Set:** internal
@@ -53,7 +83,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 ### `temper-qa pass open`
 
 - **Set:** internal
-- **Forms:** ``
+- **Forms:** `[--ctl]`
 - Start a holder for the restored setup and print the drive session's start.
 - **Notes:** Requires setup and no live holder. Exit 0: ready; 3: store refused; 4: box failed or start exceeded 300 seconds; 1: refused.
 
@@ -75,7 +105,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 ### `temper-qa pass hold`
 
 - **Set:** internal
-- **Forms:** ``
+- **Forms:** `[--ctl]`
 - Hold the drive session on the place's socket until closed or the pass session ends.
 - **Notes:** Owns drive.lock for its life and drive.sock at mode 0600. Watches the ledger every five seconds. Gives end, then kills only the drive session's process group past 70 seconds.
 

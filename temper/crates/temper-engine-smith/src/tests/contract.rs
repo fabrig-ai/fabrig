@@ -137,3 +137,17 @@ fn versions_outside_the_answered_range_are_error_answers() {
     assert!(error);
     assert_eq!(body.as_ref(), b"this run's host tools are version 1; this engine answers 2..2");
 }
+
+#[test]
+fn kept_decided_calls_preserve_the_current_input() {
+    let input = br#"{"question":"Which?","options":["Small","Broad"],"took":1,"why":"Fits","kind":"implementation","paths":["src/core.rs"],"under":3}"#;
+    let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"decided", input).unwrap() else {
+        panic!("current call decodes")
+    };
+    for version in [1, 2] {
+        let Decoded::Call(kept) = decode(&CONTRACT, version, b"decided", input).unwrap() else {
+            panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}

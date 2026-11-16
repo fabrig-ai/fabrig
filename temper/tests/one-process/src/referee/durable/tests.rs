@@ -5,34 +5,44 @@ use skein_fake_machine::{How, Item, Machine};
 
 fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
-    format.levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
-    if old {
-        format.tasks = 9;
-        format.settings = 1;
-        format.levels.jig = Some(0);
-        format.levels.application = Some(0);
-    }
+    format.levels = jig_protocol_store::levels(&temper_engine_service::store::OWNER_SETS);
     let root::Record::Core(row) = fixture::row() else { unreachable!() };
     let value = if malformed {
         Box::default()
     } else {
         codec::encode(&row, &fixtures::codec(), fixtures::store_names()).expect("current row")
     };
-    fixture::bytes_with_ops(
-        true,
-        Box::new([
-            skein_kv::Op::Put {
-                key: keys::encode_own(&keys::Own::Format, 64).expect("format key"),
-                value: format.encode().expect("format bytes"),
-            },
-            skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
-        ]),
-    )
-    .snapshot
+    let mut ops = vec![
+        skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Format, 64).expect("format key"),
+            value: format.encode().expect("format bytes"),
+        },
+        skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
+    ];
+    for set in temper_engine_service::store::OWNER_SETS.sets {
+        for job in set.jobs {
+            if old && set.owner == jig_protocol_store::Owner::Application && job.name == crate::upgrade::JOB {
+                continue;
+            }
+            let job_row = jig_protocol_store::registry_v1::Job::new(
+                &jig_protocol_store::registry_v1::CEILINGS,
+                jig_protocol_store::registry_v1::JobParts { ended: 1 },
+            )
+            .expect("done job");
+            let mut out = skein_lib::Writer::new(usize::try_from(job_row.measure()).expect("job size"));
+            job_row.encode(&mut out).expect("job bytes");
+            ops.push(skein_kv::Op::Put {
+                key: keys::encode_own(&keys::Own::Job { owner: set.owner, name: job.name.into() }, 1024)
+                    .expect("job key"),
+                value: out.finish(),
+            });
+        }
+    }
+    fixture::bytes_with_ops(true, ops.into_boxed_slice()).snapshot
 }
 
 #[test]
-fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
+fn pending_job_at_equal_levels_keeps_rows_opaque_until_switch_and_current_rows_must_decode() {
     fn start() -> Store {
         let mut store = Store::new();
         store.recovering();

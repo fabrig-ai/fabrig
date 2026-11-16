@@ -119,7 +119,7 @@ pub(crate) fn admit(
         d,
         env,
         request,
-        crate::adoption::Pending { token, retention, observed: None },
+        crate::adoption::Pending { token, retention, observed: None, opening: false },
         outcome,
         out,
     );
@@ -169,7 +169,7 @@ pub(crate) fn dismiss(
         d,
         env,
         request,
-        crate::adoption::Pending { token, retention, observed: None },
+        crate::adoption::Pending { token, retention, observed: None, opening: false },
         outcome,
         out,
     );

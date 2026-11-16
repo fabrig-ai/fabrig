@@ -72,8 +72,10 @@ pub enum Word {
 
     StopAsking,
     StopAskingRule,
+    StopAskingFindingsRule,
     ReachSomeChanges,
     StopAskingDecide,
+    StopAskingFindingsDecide,
     StopAskingWords,
     StopAskingSplit,
     StopAskingPatterns,
@@ -100,6 +102,7 @@ pub enum Word {
     WhyPluralIrreversible,
     WhyPluralRules,
     WhyPluralOther,
+    WhyPluralFindings,
     WhyPluralSet,
     WhyPluralAlways,
     WhyPluralDirect,
@@ -122,6 +125,7 @@ pub enum Word {
     WhyIrreversible,
     WhyRules,
     WhyOther,
+    WhyFindings,
     WhySet,
     WhyPathSet,
     WhyAsk,
@@ -145,6 +149,8 @@ pub enum Word {
     ReachIrreversible,
     ReachRules,
     ReachOther,
+    ReachFindings,
+    ReachFindingsVerb,
     ReachSet,
     ReachPathSet,
     ReachUnder,
@@ -224,6 +230,7 @@ pub enum Word {
     HowLineTests,
     HowLineDependency,
     HowLineDeparture,
+    HowLineFindings,
     HowLineSet,
     HowLineMoney,
     HowLineIrreversible,
@@ -2157,7 +2164,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2704;
+const PHRASES: u32 = 2714;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2184,10 +2191,10 @@ const PHRASES: u32 = 2704;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4962;
+const SEGMENTS: u32 = 4982;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64309;
-const ALL: [Word; 1986] = [
+const ENGLISH_BYTES: u32 = 64562;
+const ALL: [Word; 1993] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2215,8 +2222,10 @@ const ALL: [Word; 1986] = [
     Word::TellLost,
     Word::StopAsking,
     Word::StopAskingRule,
+    Word::StopAskingFindingsRule,
     Word::ReachSomeChanges,
     Word::StopAskingDecide,
+    Word::StopAskingFindingsDecide,
     Word::StopAskingWords,
     Word::StopAskingSplit,
     Word::StopAskingPatterns,
@@ -2243,6 +2252,7 @@ const ALL: [Word; 1986] = [
     Word::WhyPluralIrreversible,
     Word::WhyPluralRules,
     Word::WhyPluralOther,
+    Word::WhyPluralFindings,
     Word::WhyPluralSet,
     Word::WhyPluralAlways,
     Word::WhyPluralDirect,
@@ -2265,6 +2275,7 @@ const ALL: [Word; 1986] = [
     Word::WhyIrreversible,
     Word::WhyRules,
     Word::WhyOther,
+    Word::WhyFindings,
     Word::WhySet,
     Word::WhyPathSet,
     Word::WhyAsk,
@@ -2288,6 +2299,8 @@ const ALL: [Word; 1986] = [
     Word::ReachIrreversible,
     Word::ReachRules,
     Word::ReachOther,
+    Word::ReachFindings,
+    Word::ReachFindingsVerb,
     Word::ReachSet,
     Word::ReachPathSet,
     Word::ReachUnder,
@@ -2365,6 +2378,7 @@ const ALL: [Word; 1986] = [
     Word::HowLineTests,
     Word::HowLineDependency,
     Word::HowLineDeparture,
+    Word::HowLineFindings,
     Word::HowLineSet,
     Word::HowLineMoney,
     Word::HowLineIrreversible,
@@ -4394,6 +4408,7 @@ impl Word {
             Self::HowLineTests => 5644,
             Self::HowLineDependency => 5645,
             Self::HowLineDeparture => 5646,
+            Self::HowLineFindings => 9278,
             Self::HowLineSet => 5647,
             Self::HowLineMoney => 5648,
             Self::HowLineIrreversible => 5649,
@@ -4425,13 +4440,17 @@ impl Word {
             Self::ReachIrreversible => 4328,
             Self::ReachRules => 4329,
             Self::ReachOther => 4330,
+            Self::ReachFindings => 9277,
+            Self::ReachFindingsVerb => 9279,
             Self::ReachSet => 4331,
             Self::ReachPathSet => 4332,
             Self::ReachUnder => 4333,
             Self::StopAsking => 4400,
             Self::StopAskingRule => 5670,
+            Self::StopAskingFindingsRule => 9280,
             Self::ReachSomeChanges => 5671,
             Self::StopAskingDecide => 4401,
+            Self::StopAskingFindingsDecide => 9281,
             Self::StopAskingWords => 4402,
             Self::StopAskingSplit => 4403,
             Self::StopAskingPatterns => 4404,
@@ -4459,6 +4478,7 @@ impl Word {
             Self::WhyPluralIrreversible => 9261,
             Self::WhyPluralRules => 9262,
             Self::WhyPluralOther => 9263,
+            Self::WhyPluralFindings => 9276,
             Self::WhyPluralSet => 9264,
             Self::WhyPluralAlways => 9265,
             Self::WhyPluralDirect => 9266,
@@ -4481,6 +4501,7 @@ impl Word {
             Self::WhyIrreversible => 4342,
             Self::WhyRules => 4343,
             Self::WhyOther => 4344,
+            Self::WhyFindings => 9275,
             Self::WhySet => 4345,
             Self::WhyPathSet => 4346,
             Self::WhyAsk => 4355,
@@ -6952,6 +6973,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowLineTests => (&[b"test-only changes"], &[]),
         Word::HowLineDependency => (&[b"a new dependency"], &[]),
         Word::HowLineDeparture => (&[b"a departure from a landed design"], &[]),
+        Word::HowLineFindings => (&[b"starting work on findings: a goal for them, the backlog or a hand-off"], &[]),
         Word::HowLineSet => (&[b"a change to ", b""], &[Name]),
         Word::HowLineMoney => (&[b"money past a budget"], &[]),
         Word::HowLineIrreversible => (&[b"what can\xe2\x80\x99t be undone: rewriting history, a force-push, deleting unlanded work"], &[]),
@@ -7985,6 +8007,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ReachIrreversible => (&[b"irreversible changes"], &[]),
         Word::ReachRules => (&[b"changes to what reaches you"], &[]),
         Word::ReachOther => (&[b"other decisions"], &[]),
+        Word::ReachFindings => (&[b"starting work on findings"], &[]),
+        Word::ReachFindingsVerb => (&[b"start goals for findings"], &[]),
         Word::ReachPathSet => (&[b"changes to a path set"], &[]),
         Word::DecidedCountMore => (&[b"Decided for you \xc2\xb7 ", b"+"], &[Number]),
         Word::AllowedDecide | Word::AllowedAway => (&[b"Allowed: ", b"."], &[Name]),
@@ -8002,6 +8026,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WhyPluralIrreversible => (&[b"they can\xe2\x80\x99t be undone"], &[]),
         Word::WhyPluralRules => (&[b"they change what reaches you"], &[]),
         Word::WhyPluralOther => (&[b"no kind of decision names them"], &[]),
+        Word::WhyPluralFindings => (&[b"they start work on findings"], &[]),
         Word::WhyPluralSet => (&[b"they change ", b""], &[Name]),
         Word::WhyPluralAlways => (&[b"These reached you because their goals always ask you."], &[]),
         Word::WhyPluralDirect => (&[b"These reached you because they were asked of you directly."], &[]),
@@ -8024,6 +8049,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WhyIrreversible => (&[b"it can\xe2\x80\x99t be undone"], &[]),
         Word::WhyRules => (&[b"it changes what reaches you"], &[]),
         Word::WhyOther => (&[b"no kind of decision names it"], &[]),
+        Word::WhyFindings => (&[b"it starts work on findings"], &[]),
         Word::WhySet => (&[b"it changes ", b""], &[Name]),
         Word::WhyPathSet => (&[b"one of ", b"\xe2\x80\x99s path sets"], &[Name]),
         Word::WhyAsk => (&[b"asks you unless you\xe2\x80\x99re away"], &[]),
@@ -8037,8 +8063,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
         Word::StopAsking => (&[b"Stop asking"], &[]),
         Word::StopAskingRule => (&[b"Stop asking: let agents decide ", b""], &[Name]),
+        Word::StopAskingFindingsRule => (&[b"Stop asking: let the triager ", b""], &[Name]),
         Word::ReachSomeChanges => (&[b"some changes to ", b""], &[Name]),
         Word::StopAskingDecide => (&[b"Let agents decide ", b", then tell you."], &[Name]),
+        Word::StopAskingFindingsDecide => (&[b"Let the triager ", b", then tell you."], &[Name]),
         Word::StopAskingWords => (&[b"Let agents decide changes to ", b" that are:"], &[Name]),
         Word::StopAskingSplit => (&[b"Let agents decide changes to ", b", apart from the rest of ", b"."], &[Name, Name]),
         Word::StopAskingPatterns => (&[b"", b", ", b""], &[Name, Name]),

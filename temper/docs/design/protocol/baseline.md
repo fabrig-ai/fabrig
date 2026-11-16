@@ -259,6 +259,69 @@ store keeps its row until the first patch it meets writes the levels.
   `temper_one_process_world::upgrade::FIXTURE_SETS`, for its upgrade
   stories (`../testing/README.md`, 2.5); no fixture names a family it
   changes.
+- **The settled image:** what the upgrade story's settled stop leaves
+  (`../testing/README.md`, 2.5: story A, a person and an account, its
+  change landed, a chat paused, a task mid-run, a forge write left
+  uncertain, then the settled stop), kept so that each settled case
+  starts from it rather than running the story again
+  (`../draft/focused-pyramid.md`, 5, its fourth item). Kept in
+  `tests/one-process/golden/settled/`: the machine's four roots in
+  `golden/baseline/`'s layout (6), and beside them what the world keeps
+  outside the machine, which no disk holds:
+  - the fake forge's lasting state, as the fake's own image bytes
+    (skein's fake forge's `image`, restored by its `restore`);
+  - the tokens and users the forge issued, which every later forge
+    peer is seeded with;
+  - the wall the service last read before the stop, where the upgrade
+    start's clock begins;
+  - the mid-run task and its attempt, and the kept request's answer as
+    the terminal printed it;
+  - the forge mutations the story made, as the referee's projection of
+    the fake forge's ledger.
+
+  A `README.md` beside them says how it is made and rewritten; under
+  1 MB in all; its paths are globs in `.config/fixture-readers.toml`.
+  Unlike the golden store, it is the current build's, rewritten
+  whenever the story's bytes move.
+- **Its drift test, focused:** runs the story from a fresh machine to
+  the settled stop and compares what it leaves with the kept directory,
+  file for file and byte for byte. A difference fails, naming the first
+  path that differs and the rewrite: the test alone with
+  `TEMPER_TEST_UPGRADE_IMAGE=1` (declared in temper's test table,
+  `../cli/test-env.md`), which writes the whole directory from the story.
+  A change that moves the story's bytes rewrites the image in the same
+  change; nothing edits it by hand. Two runs of one build make the same
+  image.
+- **Its cases:** the settled upgrade, the focused drawn power loss and
+  fuzzy's sweeps (drawn moments and the four named cuts) load the image
+  into a fresh machine and the world's harness: the referee's store
+  reading its files, the forge restored from its image and seeded with
+  its tokens and users, the clock at its wall. Then each runs its own
+  upgrade: the calibration start that locates the cut points, its cut
+  and its recovery, for a cut case. The referee is unchanged: the
+  history at the stop is the image's, no forge mutation follows the
+  story's, and the uncertain write is opened once across every start.
+  The unsettled stop keeps its own story, since a kill with a write in
+  flight is no settled stop.
+- **Where the upgrade module's tests run,** each by what it checks
+  (`../draft/focused-pyramid.md`, 4). In the one-process world, focused,
+  as `../testing/README.md`, 2.5 places them: the settled upgrade; one
+  drawn power loss; the unsettled stop; the rehearsal, the start failed
+  after `Switched` and going back; a worker's opening kept through the
+  stop to the tool's verdict; the mark-only upgrade over a
+  signal-stopped chat (the mark's own semantics are jig's store
+  world's). There too, since `temper-service`'s composition runs in no
+  lower world (`../testing/README.md`, 2.3): the rehearsals that start
+  only the store, with remote workers and an owned forge configured or
+  with accounts, and the rehearsals of a pre-baseline and of a corrupt
+  store reaching their reports. Beside the golden store, its tests (4,
+  6): its rehearsal and patch counts, its records decoded, a broken
+  record named, and each key in one family. In fuzzy: the power-loss
+  sweeps and the four named cuts. In jig's store world, focused and
+  swept: the store's own cuts at those steps, the wires' commit among
+  them (jig's `domain/testing.md`, 9). A test still past a story's
+  2 s once it is placed and made faster goes to the user with its
+  measure (`../draft/focused-pyramid.md`, 4).
 
 ## 9. The catch-up
 

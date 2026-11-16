@@ -36,6 +36,7 @@ pub struct Git {
     pub fail_head: bool,
     pub fail_add: bool,
     pub fail_remove: bool,
+    pub move_error: Option<String>,
     pub prunes: usize,
 }
 impl Git {
@@ -143,12 +144,35 @@ impl GitFace for Git {
         assert_eq!(parent, format!("{commit}^1"));
         Ok(vec!["Work lists drafts".into(), "Work lists drafts".into()])
     }
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
+        assert_eq!(parent, format!("{commit}^1"));
+        let parent = self.node(commit).parents.first().expect("merge parent").clone();
+        let mut values = Vec::new();
+        for record in self.commits(&parent, commit)? {
+            for (key, value) in temper_qa_tool::faces::trailers(&self.node(&record.name).message) {
+                if key == "QA-gap" && !values.contains(&value) {
+                    values.push(value);
+                }
+            }
+        }
+        Ok(values)
+    }
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
         self.calls.push(format!("add {commit}"));
         fs::create_dir_all(path).expect("fake tree");
         if self.fail_add {
             return Err(Refusal("worktree refused".into()));
         }
+        Ok(())
+    }
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
+        self.calls.push(format!("checkout {commit}"));
+        if let Some(why) = &self.move_error {
+            return Err(Refusal(why.clone()));
+        }
+        self.calls.push("clean -ffdxq".into());
+        fs::remove_dir_all(path).expect("fake checkout and clean");
+        fs::create_dir_all(path).expect("fake moved tree");
         Ok(())
     }
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal> {
@@ -195,16 +219,27 @@ pub struct Agents {
     pub signals: Vec<(u64, Signal)>,
     pub bounded: Vec<(ProcessCommand, u64)>,
     pub command_bound: bool,
+    pub answers: VecDeque<CommandAnswer>,
     processes: BTreeMap<u64, Process>,
+    waker: Option<temper_qa_tool::events::Waker>,
 }
 impl Agents {
     pub fn finish(&mut self, number: u64, agent: Agent) {
         self.processes.get_mut(&number).expect("running process").agent = agent;
+        if let Some(waker) = &self.waker {
+            waker.poke();
+        }
     }
 }
 impl Processes for Agents {
+    fn wake_on_exit(&mut self, waker: temper_qa_tool::events::Waker) {
+        self.waker = Some(waker);
+    }
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
         self.bounded.push((command.clone(), seconds));
+        if let Some(answer) = self.answers.pop_front() {
+            return Ok(answer);
+        }
         if self.command_bound {
             return Ok(CommandAnswer { exit: Exit::Bound, last_stdout: None });
         }
@@ -233,6 +268,11 @@ impl Processes for Agents {
             self.notifications.push(fs::read(&command.stdin).expect("notify stdin"));
         }
         self.processes.insert(number, Process { command: command.clone(), agent, ended: false, notify });
+        if !matches!(agent, Agent::Never | Agent::IgnoreTerm)
+            && let Some(waker) = &self.waker
+        {
+            waker.poke();
+        }
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
@@ -368,8 +408,10 @@ impl ClockFace for Clock {
     fn now(&self) -> Moment {
         Moment { wall: self.time, monotonic: self.time }
     }
-    fn sleep(&mut self, seconds: u64) {
-        self.time += seconds;
+    fn wait(&mut self, events: &temper_qa_tool::events::Events, timeout: Option<u64>) {
+        if !events.take() {
+            self.time += timeout.expect("fake wait needs a deadline or an event");
+        }
     }
 }
 pub type Loop = Run<Git, Agents, Clock>;

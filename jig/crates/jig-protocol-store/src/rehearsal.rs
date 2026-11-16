@@ -52,10 +52,10 @@ pub(crate) fn begin(
     {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     }
-    let Some(handles) = store.limits.files.checked_add(4) else {
+    let Some(handles) = crate::host::handles(&store.limits) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
-    let Some(handles) = handles.max(generations::COPY_HANDLES).checked_mul(3) else {
+    let Some(handles) = handles.checked_mul(3) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
     store.rehearsal = Some(State {
@@ -195,30 +195,13 @@ pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     state.announced = true;
     let owner = state.owner;
     let wires = kept_wires(store, owner);
-    let fresh = fresh(store, owner);
     let openings = crate::openings::kept(store).unwrap_or(Box::new([]));
-    above.push(Event::Rehearsing { owner, wires, fresh, openings });
+    above.push(Event::Rehearsing { owner, wires, openings });
 }
 fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;
     let bytes = open::get(store, owner, key).ok()??;
     crate::codec::component::kept_wires(&bytes)
-}
-
-fn fresh(store: &mut Store, owner: Token) -> bool {
-    let Some(key) = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key) else { return false };
-    let Ok(Some(bytes)) = open::get(store, owner, key) else { return false };
-    let Ok(format) = crate::codec::component::Format::decode(&bytes) else { return false };
-    if crate::format::compare(format.levels, crate::levels(&store.patch_sets)) != Ok(crate::format::Compared::Behind) {
-        return false;
-    }
-    let Ok(checked) = crate::patching::plan::checked(store) else { return false };
-    let Ok(plan) =
-        crate::patching::plan::plan(&store.patch_sets, checked, &format.levels, &crate::levels(&store.patch_sets))
-    else {
-        return false;
-    };
-    plan.close()
 }
 
 pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {

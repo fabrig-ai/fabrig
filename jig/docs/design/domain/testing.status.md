@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-16. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
