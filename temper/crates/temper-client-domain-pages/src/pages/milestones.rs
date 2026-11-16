@@ -284,6 +284,7 @@ pub struct Milestones {
     pub live: Handle,
     pub ended: Handle,
     query: Option<c::TaskQuery>,
+    answered: bool,
     ended_rows: List<c::TaskLine>,
     lines: List<c::TaskLine>,
     drawn: List<Milestone>,
@@ -297,6 +298,7 @@ impl Milestones {
             live: allocate(next),
             ended: allocate(next),
             query: None,
+            answered: false,
             ended_rows: List::uncapped(),
             lines: List::uncapped(),
             drawn: List::with_capacity(DRAWN),
@@ -325,6 +327,7 @@ impl Milestones {
         if self.query != query {
             self.leave(out);
             self.query = query;
+            self.answered = false;
             self.lines.clear();
             self.ended_rows.clear();
             self.drawn.clear();
@@ -474,6 +477,7 @@ impl Milestones {
                 return true;
             }
             Told::Page { handle, page } if *handle == self.ended => {
+                self.answered = true;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
                     self.ended_rows = match &page.ended {
                         c::EndedGroup::Rows { rows, .. } => rows.clone(),
@@ -518,6 +522,22 @@ impl Milestones {
         for held in &self.requesters {
             unwatch(held.handle, out);
         }
+    }
+    /// The project's milestone list has answered; a project without its template has none.
+    #[must_use]
+    pub fn known(&self, client: &Client) -> bool {
+        if self.query.is_none() {
+            return true;
+        }
+        if !self.answered {
+            return false;
+        }
+        if let Some(doc) = client.document(self.live)
+            && let Some(Latest::Jig(c::Delivery::Tasks(_))) = doc.latest
+        {
+            return true;
+        }
+        false
     }
     #[must_use]
     pub fn lines(&self) -> &[c::TaskLine] {

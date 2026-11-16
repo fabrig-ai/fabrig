@@ -2435,6 +2435,18 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-work-rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
 .temper-work-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; }
 .temper-work-card .temper-work-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
+.temper-work-milestone { display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px; border-radius: 5px; font-weight: 500; white-space: nowrap; background: var(--gf-ink); color: var(--gf-paper); }
+.temper-ms-card .temper-ms-strip { margin: 2px 0 0; }
+.temper-ms-mark { font: 13px/1.6 var(--gf-mono); color: var(--gf-faint); }
+.temper-ms-landed .temper-ms-mark { color: var(--gf-good); }
+.temper-work-row.temper-ms-live .temper-ms-mark { color: var(--gf-goal-running); }
+.temper-work-row.temper-ms-live > p > a { font-weight: 500; }
+.temper-work-row.temper-ms-waits > p > a { color: var(--gf-muted) !important; }
+.temper-ms-fold { margin: 0; font-size: 13px; color: var(--gf-muted); }
+.temper-ms-fold > summary { cursor: pointer; width: fit-content; padding: 6px 0 2px; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+.temper-work-row.temper-ms-change { padding: 6px 0; font-size: 13.5px; }
+.temper-ms-change > p > a { padding-left: 18px; color: var(--gf-ink-2) !important; }
+.temper-ms-change .temper-ms-mark { visibility: hidden; }
 .temper-work-row > p { margin: 0; }
 .temper-work-row > a, .temper-work-row > p > a { color: inherit; text-decoration: none; }
 .temper-work-row > a:hover, .temper-work-row > p > a:hover { text-decoration: underline; }

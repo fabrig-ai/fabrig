@@ -6,6 +6,19 @@ pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
 }
 
+/// Work milestone cards (client/pages/work.md, 1).
+pub const WORK_MILESTONE: Style = Style { owner: owner(), token: 804 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_CARD: Style = Style { owner: owner(), token: 805 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_FOLD: Style = Style { owner: owner(), token: 806 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_LANDED: Style = Style { owner: owner(), token: 807 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_CHANGE: Style = Style { owner: owner(), token: 808 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_MARK: Style = Style { owner: owner(), token: 809 };
+
 /// Milestone parts (client/pages/milestone.md, 2).
 pub const MS_STRIP: Style = Style { owner: owner(), token: 794 };
 /// Milestone parts (client/pages/milestone.md, 2).
@@ -1560,6 +1573,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ms-row",
         b"temper-goals-group",
         b"temper-goals-group-rows",
+        b"temper-work-milestone",
+        b"temper-ms-card",
+        b"temper-ms-fold",
+        b"temper-ms-landed",
+        b"temper-ms-change",
+        b"temper-ms-mark",
     ],
     regions: &[b"temper-link"],
 };

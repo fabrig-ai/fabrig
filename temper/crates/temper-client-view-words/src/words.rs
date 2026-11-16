@@ -44,6 +44,20 @@ pub fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    WorkMilestoneLede,
+    MsGoals,
+    MsWhole,
+    MsSoFar,
+    MsSpent,
+    MsWaitOne,
+    MsWaitMany,
+    MsFoldDone,
+    MsFoldFailed,
+    MsFoldClosed,
+    MsLastDone,
+    WorkInMilestone,
+    WorkMilestoneComplete,
+
     MsTag,
     MsTagTerminal,
     MsComplete,
@@ -2194,7 +2208,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2743;
+const PHRASES: u32 = 2756;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2221,10 +2235,23 @@ const PHRASES: u32 = 2743;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5067;
+const SEGMENTS: u32 = 5108;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64899;
-const ALL: [Word; 2022] = [
+const ENGLISH_BYTES: u32 = 65187;
+const ALL: [Word; 2035] = [
+    Word::WorkMilestoneLede,
+    Word::MsGoals,
+    Word::MsWhole,
+    Word::MsSoFar,
+    Word::MsSpent,
+    Word::MsWaitOne,
+    Word::MsWaitMany,
+    Word::MsFoldDone,
+    Word::MsFoldFailed,
+    Word::MsFoldClosed,
+    Word::MsLastDone,
+    Word::WorkInMilestone,
+    Word::WorkMilestoneComplete,
     Word::MsTag,
     Word::MsTagTerminal,
     Word::MsComplete,
@@ -5044,6 +5071,19 @@ impl Word {
             Self::GoalsEmpty => 3283,
             Self::GoalsMore => 3284,
             Self::Goals => 3252,
+            Self::WorkMilestoneLede => 9754,
+            Self::MsGoals => 9755,
+            Self::MsWhole => 9756,
+            Self::MsSoFar => 9757,
+            Self::MsSpent => 9758,
+            Self::MsWaitOne => 9759,
+            Self::MsWaitMany => 9760,
+            Self::MsFoldDone => 9761,
+            Self::MsFoldFailed => 9762,
+            Self::MsFoldClosed => 9763,
+            Self::MsLastDone => 9764,
+            Self::WorkInMilestone => 9765,
+            Self::WorkMilestoneComplete => 9766,
             Self::MsTag => 9730,
             Self::MsTagTerminal => 9731,
             Self::MsComplete => 9732,
@@ -7189,6 +7229,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsEnded => (&[b"Ended"], &[]),
         Word::GoalsEmpty => (&[b"None."], &[]),
         Word::GoalsMore => (&[b"More goals"], &[]),
+        Word::WorkMilestoneLede => (&[b"Everything on ", b", in the words of the agent doing it. A milestone opens to its goals, and a goal to its tasks and changes; a chat that started work sits with what it started; a draft waits for its goal."], &[Name]),
+        Word::MsGoals => (&[b"", b" ", b""], &[Number, Name]),
+        Word::MsWhole => (&[b"whole"], &[]),
+        Word::MsSoFar => (&[b"so far"], &[]),
+        Word::MsSpent => (&[b"", b" spent of ", b""], &[Number, Number]),
+        Word::MsWaitOne => (&[b"1 waits"], &[]),
+        Word::MsWaitMany => (&[b"", b" wait"], &[Number]),
+        Word::MsFoldDone => (&[b"", b" done"], &[Number]),
+        Word::MsFoldFailed => (&[b"", b" failed"], &[Number]),
+        Word::MsFoldClosed => (&[b"", b" closed"], &[Number]),
+        Word::MsLastDone => (&[b"", b", the last ", b" at ", b""], &[Name, Name, Name]),
+        Word::WorkInMilestone => (&[b"in ", b""], &[Name]),
+        Word::WorkMilestoneComplete => (&[b"in ", b", now complete"], &[Name]),
         Word::MsTag => (&[b"milestone"], &[]),
         Word::MsTagTerminal => (&[b"milestone \xc2\xb7 "], &[]),
         Word::MsComplete => (&[b"complete"], &[]),
