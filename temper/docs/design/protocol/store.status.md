@@ -2,7 +2,6 @@
 
 2026-11-15. Where temper's code lags or departs from [store.md](store.md).
 
-- **Not yet:** 2 and 4: family 12 retired, `Row`'s `change` dropped, `change-parts` no longer declared; store-floor's F0 jobs `settle-layouts` and `round-branches` [in flight: change 4055].
 
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read

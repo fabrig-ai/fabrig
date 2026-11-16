@@ -2,7 +2,6 @@
 
 2026-11-15. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
-- **Not yet:** 12.4: the milestone variant dropped, its value type retired and the job no longer declared [in flight: change 4054].
 
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).

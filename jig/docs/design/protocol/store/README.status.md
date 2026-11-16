@@ -2,7 +2,6 @@
 
 2026-11-15. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.4: the floor row at `00 0d`, `component.floor` [in flight: change 4051].
 
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
