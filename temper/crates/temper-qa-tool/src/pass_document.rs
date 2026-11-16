@@ -16,6 +16,7 @@ pub(crate) fn case_state(word: &str) -> Result<CaseState, Refusal> {
         "passed" => Ok(CaseState::Passed),
         "failed" => Ok(CaseState::Failed),
         "blocked" => Ok(CaseState::Blocked),
+        "gap" => Ok(CaseState::Gap),
         other => Err(refused(format!("unknown case state {other}"))),
     }
 }
@@ -44,7 +45,10 @@ pub(crate) fn outcome(value: &Value) -> Result<Outcome, Refusal> {
     Ok(Outcome {
         session: integer(object, "session")?,
         time: integer(object, "time")?,
-        result: OutcomeResult::parse(&text(object, "result")?)?,
+        result: match text(object, "result")?.as_str() {
+            "gap" => OutcomeResult::Gap,
+            word => OutcomeResult::parse(word)?,
+        },
         notes: text(object, "notes")?,
         findings: d::numbers(required(object, "findings")?)?,
     })
@@ -146,7 +150,7 @@ pub(crate) fn finding(value: &Value) -> Result<Finding, Refusal> {
         return Err(refused(format!("unknown finding severity {severity}")));
     }
     let surface = text(object, "surface")?;
-    if surface != "web" && surface != "tui" {
+    if surface != "ctl" && surface != "web" && surface != "tui" {
         return Err(refused(format!("unknown finding surface {surface}")));
     }
     Ok(Finding {

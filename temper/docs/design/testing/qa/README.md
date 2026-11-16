@@ -1,6 +1,6 @@
 # Landed QA
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, milestones Q1, Q3, Q4 and Q6 of
 `../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
@@ -41,8 +41,8 @@ first deployment setup, are Q6's.
   loop deletes a build once no pass can need it.
 - **Triage** (`triage.md`): one landing at a time, in main's order, an
   agent session at a lower effort, given the landing's draft, diff and
-  the surfaces, ctl's first; it answers no QA or cases, and a case for a
-  page or ctl group a queued case covers joins it.
+  the surfaces, ctl's first; it answers no QA, cases or a gap, and a
+  case for a page or ctl group a queued case covers joins it.
 - **Places and copies** (`places.md`): a place is a fixed directory with
   its own `bin/`, where one box runs, or one deployment's processes
   (`deployment.md`); a pass installs its build there,
@@ -59,6 +59,9 @@ first deployment setup, are Q6's.
   reproduce it, linked to an open one it matches; a pass's open findings
   go back as one request, put on main by the deployment's command, and
   one goal started on it; two goals at most, then handed on.
+- **Gaps** (`gaps.md`): what QA should judge and cannot yet, recorded by
+  triage or a pass, filed as documents with no goal, and closed by a
+  landing carrying `QA-gap: N`.
 - **Its own faults are lines for its owner** (section 5), never findings
   against temper.
 
@@ -74,8 +77,12 @@ first deployment setup, are Q6's.
   | Command | Whose | Designed in |
   |---|---|---|
   | `temper-qa run` | the deployment's service | section 4 |
+  | `temper-qa wake` | the deployment's after-landing work | section 4 |
   | `temper-qa build keep COMMIT DIR` | the deployment's after-landing work | `builds.md`, 3 |
   | `temper-qa triage none WHY` | a triage session's agent | `triage.md`, 4 |
+  | `temper-qa triage gap KIND WHY` | a triage session's agent | `gaps.md`, 2 |
+  | `temper-qa pass gap CASE KIND WHY` | a pass session's agent | `gaps.md`, 3 |
+  | `temper-qa gaps [--open]` | anyone | `gaps.md`, 5 |
   | `temper-qa triage case FILE` | a triage session's agent | `triage.md`, 4 |
   | `temper-qa pass setup NAME` | a pass session's agent | `places.md`, 4 |
   | `temper-qa pass open [--ctl]` | a pass session's agent | `places.md`, 5 |
@@ -121,9 +128,13 @@ qa.json            its configuration (3.2), the deployment's
 ledger.json        the ledger (ledger.md, 2)
 ledger.lock        the ledger's lock (ledger.md, 3)
 run.lock           held by the one running loop (section 4)
+run.sock           the loop's private wake socket (section 4)
 builds/COMMIT/     each kept build, its files and its manifest (builds.md), unless qa.json names another directory
-sessions/N/        each agent session's brief, output and, while it runs, its tree (triage.md, 2; passes.md, 4)
+sessions/N/        each agent session's brief, diff and output (triage.md, 2; passes.md, 4)
+trees/triage/      triage's kept tree (triage.md, 2)
+trees/PLACE/       each place's kept pass tree, numbered in configuration order (passes.md, 4)
 passes/P/          each pass's setups, reports and requests (passes.md, 2)
+gaps/requests/N/   each gaps request, numbered by its first gap (gaps.md, 6)
 evidence/F/        each finding's evidence (findings.md, 2)
 places/1/          the place, unless qa.json names others (places.md, 2)
 ```
@@ -144,6 +155,7 @@ taken from the home.
   "places": ["places/1"],
   "surfaces": ["ctl", "web", "tui"],
   "areas": { "ctl": "AREA", "web": "AREA", "tui": "AREA" },
+  "gaps": { "fake": "AREA" },
   "request": { "command": ["PROGRAM", "ARG"], "state": ["PROGRAM", "ARG"], "area": "AREA" },
   "notify": ["PROGRAM", "ARG"]
 }
@@ -160,8 +172,9 @@ taken from the home.
   session's effort; `triage`, required, triage's effort, and `pass`,
   required, a pass's, each as the command takes it
   (`../../draft/landed-qa.md`, 2).
-- **`bounds`,** each in seconds: `poll`, between two ticks of the loop,
-  60 when absent; `triage`, a triage session's time, 900 when absent;
+- **`bounds`,** each in seconds: `poll`, the fetch interval when
+  `git.fetch` is set, 60 when absent; without a remote it sets no
+  periodic wake; `triage`, a triage session's time, 900 when absent;
   `build_wait`, how long a case may wait for a kept build that holds its
   landings before it is a line, 21600 when absent (`ledger.md`, 4.7);
   `pass`, a pass session's time, 7200 when absent (`passes.md`, 4).
@@ -181,11 +194,14 @@ taken from the home.
   `temper-qa tune` suggests it (`ledger.md`, 6).
 - **`surfaces`:** the surfaces a pass takes cases of, each `ctl`, `web`
   or `tui`, `["ctl", "web", "tui"]` when absent; a case of another
-  surface stays queued (`passes.md`, 3). Triage records cases of all
-  three, ctl's first (`../../draft/landed-qa.md`, 4).
+  surface stays queued (`passes.md`, 3). Triage records cases of the
+  configured surfaces alone, ctl's first (`triage.md`, 3–4).
 - **`areas`:** each surface's area, `ctl`, `web` and `tui` each
   optional; a finding on a surface with none takes `owner`
   (`findings.md`, 2).
+- **`gaps`,** optional: `{"fake": "AREA"}` names the owner of fake
+  gaps; absent, `owner` takes them too. Ctl gaps take `areas.ctl`,
+  else `owner`; QA gaps take `owner` (`gaps.md`, 4).
 - **`request`,** required: `command`, required, the deployment's command
   that puts a request on main and starts its goal (`findings.md`, 5);
   `state`, the command that says whether a goal has ended without
@@ -205,11 +221,20 @@ the tokens the command reports (`triage.md`, 5).
 `run.lock` for its life, so a second is refused, `another temper-qa run
 holds HOME`. At its start it ends every session the ledger still has
 running as lost (`triage.md`, 6; `passes.md`, 6), its process gone with
-the loop that started it, and prunes their trees.
+the loop that started it. Kept trees stay; session-local trees left by an
+older home are removed and their worktree registrations pruned.
 
-- **A tick,** every `bounds.poll` seconds, and at once when a session
-  it started ends, takes these steps in order, each under the ledger's
-  lock and saved before the next:
+- **The wake socket:** while holding `run.lock`, the loop removes any old
+  `run.sock` in its home and binds a Unix stream socket there, 0o600.
+  Every command that saves a ledger transaction connects after the save
+  and lock release, then closes; it sends no bytes and waits for no
+  answer. A missing socket or refused connection is no error: no loop
+  may be running. A wake failure never undoes a saved command.
+  `temper-qa wake` does only that connection, without a session or a
+  ledger write, so the deployment can announce its own move of main's
+  ref (section 7).
+- **A tick,** at start, on a wake or a deadline, takes these steps in
+  order, each under the ledger's lock and saved before the next:
   1. **Watch:** main's ref read; landings recorded; kept builds the head
      now holds given their landings and order (`landings.md`, 3 to 5).
   2. **Triage:** a session whose agent has ended, or passed its bound,
@@ -220,23 +245,51 @@ the loop that started it, and prunes their trees.
      pass resumed where it may (`passes.md`, 7), else a pass started
      (`passes.md`, 3).
   4. **Requests:** each request not yet filed given to `request.command`
-     (`findings.md`, 5); each waiting pass's goal asked of
+     (`findings.md`, 5); every open gap not yet filed together as one
+     request with no `goal` (`gaps.md`, 6), never starting work;
+     each waiting pass's goal asked of
      `request.state` (`findings.md`, 6).
   5. **Waiting cases:** each case past `bounds.build_wait` with no kept
      build for it becomes a line (`ledger.md`, 4.7).
   6. **Builds:** each build the ledger's rule lets go deleted
      (`builds.md`, 5).
   7. **Lines:** each new line given to `notify` (section 5).
-- **Between ticks** the agents' commands take the lock and record; the
-  loop reads what they recorded at its next step. Nothing the loop does
-  waits on an agent's words: an agent's end is its process's exit.
+- **Between ticks** the loop waits on one channel, fed by the socket's
+  blocking accepts and process exits. A burst coalesces to one pending
+  wake, hence one tick. The loop's own saves need no socket poke. A
+  command's saved records are read on the next tick; nothing waits on
+  an agent's words: an agent's end is its process's exit.
+- **Exits:** every started agent and notification process has a thread
+  blocking on its exit, publishing the result before waking the loop.
+  The loop collects those results without probing the processes. At a
+  session's bound it still signals the process group, then kills it ten
+  seconds later. A bounded request command also waits for its exit
+  through a blocking waiter, with a channel timeout for its bound.
+- **The wait's timeout** is the nearest known deadline: a session's
+  bound, a pending kill, an unreported case's `build_wait`, a busy
+  place's retry, a waiting goal's state check, or a failed step's retry
+  and hour line. Place retries and goal checks are due in 60 seconds
+  while that wait exists. `git.fetch` adds a fetch deadline every
+  `bounds.poll` seconds; other wakes read the fetched ref without
+  fetching again or postponing that deadline. Without `git.fetch` and
+  without work with a deadline, the wait has no timeout.
 - **A failed step** (git refusing, a directory not removed, a request's
   command failing) is said on the loop's stderr and tried again at the
-  next tick; one that has failed for an hour is a line, once, until it
-  next succeeds.
-- **Its world:** the clock, git, the agent's processes, the request's
-  commands and the home's files, each behind a face of the crate's
-  (section 6).
+  next wake, or after 60 seconds; one that has failed for an hour is a
+  line, once, until it next succeeds.
+- **A pass's end** is saved before its holder is sent the existing end
+  request through the place's `drive.sock` (`places.md`, 5). The loop
+  opens that connection before reusing the place, so a delayed helper
+  cannot end a later pass's holder. A thread drains that reply and waits for the place's lock to release, then
+  wakes the loop; the loop keeps running while the drive stops. The
+  holder's ledger watch remains a 60-second fallback.
+- **Its world:** the clock and event wait, git, the agent's processes,
+  the request's commands and the home's files, each behind a face of
+  the crate's (section 6). This std-based tool uses blocking socket and
+  child waiter threads, rather than the service programming model's
+  ring: std and `skein-shell` provide these events without another
+  dependency. Those threads report results; the loop alone advances
+  the ledger.
 
 ## 5. Lines for the owner
 
@@ -254,7 +307,8 @@ the loop that started it, and prunes their trees.
   per new line, with `AREA: WORDS` and a newline on its stdin, and the
   line is marked given whatever it exits. The deployment's command
   carries it to the area: a message, a chat, a mail. A command that
-  fails is said on the loop's stderr, never a line.
+  fails is said on the loop's stderr when its exit event arrives, never
+  a line.
 
 ## 6. Its tests
 
@@ -308,8 +362,9 @@ The deployment's, on the machine that holds the places:
   session never start;
 - a deployment's place, where its cases are wanted, with its own nine
   ports in `qa.json` (3.2);
-- its after-landing work building at each landed tip and calling `temper-qa
-  build keep` (`builds.md`, 2).
+- its after-landing work calling `temper-qa wake` after moving main's
+  ref, then building at each landed tip and calling `temper-qa build
+  keep` (`builds.md`, 2), whose saved transaction wakes the loop too.
 
 ## 8. Later
 

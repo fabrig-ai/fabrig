@@ -4,7 +4,7 @@ use super::*;
 #[test]
 fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
     let mut disk = Disk::new(&[]);
-    let mut store = jig_store(&disk, crate::JIG_STORE_PATCH_SET);
+    let mut store = jig_store(&disk, crate::JIG_STORE_SET);
     assert_opened(&disk.open(&mut store), 0);
     let mut above = Queue::uncapped();
     let mut below = fixtures::below();
@@ -39,7 +39,7 @@ fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
 fn a_fresh_stores_first_commits_put_history_only_in_logs_and_read_it_through_the_view() {
     for registered in [false, true] {
         let mut disk = Disk::new(&[]);
-        let mut store = if registered { jig_store(&disk, crate::JIG_STORE_PATCH_SET) } else { disk.store() };
+        let mut store = if registered { jig_store(&disk, crate::JIG_STORE_SET) } else { disk.store() };
         assert_opened(&disk.open(&mut store), 0);
         for number in [1, 2] {
             let record = fixtures::history(5, number);

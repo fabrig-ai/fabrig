@@ -4,7 +4,22 @@ use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Reader, Writer};
 
-pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
+/// Loading precedes the same registration refusal in a start and a rehearsal (layouts.md, 5.1).
+pub(super) fn open(store: &mut Store, layouts: &mut Layouts, empty: bool) -> Result<bool, OpenRefusal> {
+    load(store, layouts)?;
+    let mut registered = false;
+    for set in store.owner_sets.sets {
+        for family in set.families {
+            registered |= !family.types.is_empty() || !family.retired.is_empty();
+        }
+    }
+    if layouts.rows.is_empty() && !empty && registered {
+        return Err(OpenRefusal::OlderBuild { why: crate::Older::Unregistered });
+    }
+    Ok(registered)
+}
+
+fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
     let ranges = [skein_kv::Range { start: Box::from([0, 6]), end: Some(Box::from([0, 8])) }];
     let mut after = None;
     let mut count = 0_u64;
@@ -68,10 +83,9 @@ fn made(
     binary: &mut texts::Binary,
     family: &KeptFamily,
     ty: &ValueType,
-    current: bool,
 ) -> Option<wire::Layout> {
-    let text = binary.text(family.name, current)?;
-    let held = binary.held(layouts, text, current)?;
+    let text = binary.text(family.name)?;
+    let held = binary.held(layouts, text)?;
     let layout = binary.layout(layouts, text, ty.root.as_bytes(), super::variant(ty.variant), &held)?;
     wire::Layout::new(
         &wire::CEILINGS,
@@ -90,11 +104,11 @@ fn made(
 }
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
     let mut changed = false;
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             for ty in family.types {
-                let refusal = OpenRefusal::Set { owner: set.owner, patch: 0 };
-                let value = made(layouts, binary, family, ty, true).ok_or(refusal.clone())?;
+                let refusal = OpenRefusal::Set { owner: set.owner };
+                let value = made(layouts, binary, family, ty).ok_or(refusal.clone())?;
                 let version = layouts
                     .texts
                     .get(value.text())

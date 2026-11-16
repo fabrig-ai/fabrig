@@ -2312,3 +2312,5 @@ fn a_path_under_no_key_is_missing() {
         Err(Error::Missing(What::File))
     );
 }
+
+mod contents;

@@ -12,14 +12,13 @@ mod settings;
 
 mod follows;
 
-mod catch_up;
-
 mod batches;
 
+mod directory_jobs;
 mod history;
 mod reds;
 mod registered_layouts;
-mod unseeded_upgrade;
+
 mod value_types;
 
 mod jobs;

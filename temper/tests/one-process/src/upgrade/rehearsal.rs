@@ -249,10 +249,7 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
     eprintln!("{lines}");
     let report = tool.0.upgrade_report().expect("completed report");
     assert!(report.done, "report complete: {lines}");
-    assert!(
-        !report.events.iter().any(|event| matches!(event, Event::Patched { .. } | Event::Ran { .. })),
-        "no pending work: {lines}"
-    );
+    assert!(!report.events.iter().any(|event| matches!(event, Event::Ran { .. })), "no pending work: {lines}");
     match copy {
         Copy::Whole => {
             assert_eq!(code, 0, "{lines}");
@@ -261,7 +258,7 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
                 report.events.iter().any(|event| matches!(event, Event::Decoded { records: 293, .. })),
                 "literal record count: {lines}"
             );
-            assert!(lines.contains("patches and restores pass"), "{lines}");
+            assert!(lines.contains("registry commit, jobs and restores pass"), "{lines}");
         }
         Copy::Broken => {
             assert_eq!(code, 1, "{lines}");

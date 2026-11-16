@@ -60,8 +60,8 @@ its binary's generated code was made from and its value types:
 ```rust
 pub struct KeptFamily {
     // ... as `opening.md`, 3
-    pub current: &'static str,          // the binary's text of the family; a patched one's latest kept text
-    pub types: &'static [ValueType],    // its value types; empty for a family the store patches
+    pub current: &'static str,          // the binary's text of the family
+    pub types: &'static [ValueType],    // its value types; empty for a family outside the registry
     pub retired: &'static [Retired],    // its value types no binary writes again
 }
 pub struct Retired {
@@ -213,25 +213,30 @@ versioned record Job { ended: u64 }
 
 ## 5. At open
 
-### 5.1 No seed
+### 5.1 A store with no registry
 
-A store with no `Layout` row is refused, not seeded (temper's
-`draft/store-floor.md`, section 3), where it is not empty and the
-binary's sets register a value type: `OlderBuild` with
-`Older::Unregistered` (`opening.md`, 1.8), before anything is written,
-after the floor's check (`records.md`, 3). Only a store from before the
-registry lacks one, and every such store is below the floor, so the
-refusal is what a store with a floor row and no registry meets, which
-no build makes. An empty store's first commit writes the binary's
-layouts (5.2). A store whose binary's sets register nothing keeps no
-`Layout` row and is not refused for it.
+Every store a build opens holds its registry: an empty store's first
+commit writes it (5.2), and every store from before the registry was
+seeded at an open of a build before temper's store-floor F2 (temper's
+`draft/store-floor.md`, 4.2). A store that holds values and no `Layout`
+row is refused before anything is written, `OlderBuild` with why
+`Unregistered` (`opening.md`, 1.8): its values' heads are versions that
+no row names, and no build makes a registry from texts in its code. A
+value type that a store's registry has no row for, its root or variant
+new since the registry's rows, is registered by 5.2, at its family's
+version as its id, as for any value type with no row: no value of the
+store can be at a layout of it, since no binary before it wrote a key
+of its ranges.
+The refusal follows the floor's check (`records.md`, 3). A store whose
+binary's sets register nothing keeps no `Layout` row and is not refused
+for it. Only an empty store's first commit writes its registry (5.2).
 
 ### 5.2 The binary's layouts
 
 For each value type, its layout in `current`, with the binary's texts of
 the families it holds (each family's `current`): its row is the registry's of that
 fingerprint, whose id is the binary's id; with none, a new row at the
-next id (3) and its texts' rows, committed alone. An
+next id (3) and its texts' rows, committed in the registry's commit (5.5). An
 empty store's first commit (`README.md`, section 5) writes the binary's
 layouts at their families' versions as ids, so its heads are its
 families' versions and the edges map nothing until a later binary moves
@@ -240,8 +245,7 @@ a layout.
 ### 5.3 The check
 
 Before anything is written, every open (whether it writes or not)
-plans each layout the registry holds, or will hold once its pending
-patches are made, to its value type's binary layout
+plans each layout the registry holds to its value type's binary layout
 (skein's `data/codec/layouts.md`): from its row's text and held texts
 and its root and variant, to `current`'s. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
@@ -283,11 +287,10 @@ the census (`logs.md`, 8).
 ### 5.5 When the open writes
 
 The open writes before serving, in a new generation made by links
-(`opening.md`, 2), when a patch is pending, when a binary layout is not
-registered, or when a job is
-pending (`jobs.md`, 2); then, after the patches, one commit (or as many
-as the store's commit edge needs, `records.md`, 4) writes the
-binary's new layouts and the retirements, before any job runs. An open
+(`opening.md`, 2), when a binary layout is not registered or when a job
+is pending (`jobs.md`, 2); then one commit (or as many as the store's
+commit edge needs, `records.md`, 4) writes the binary's new layouts and
+the retirements, before any job runs. An open
 with none of these writes nothing, so a binary that changes no layout
 and brings no job opens the store in place, as before (temper's
 `draft/store-shape.md`, section 4, step 3: an older binary can read all

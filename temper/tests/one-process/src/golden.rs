@@ -22,6 +22,8 @@ use temper_playground::{
     service::Observe,
 };
 
+thread_local! { static UPGRADED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) }; }
+
 const CHAT_REPLY: &str =
     "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.";
 
@@ -40,7 +42,6 @@ impl Harness for Golden {
         fixtures::files()
     }
 }
-thread_local! { static PATCHED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) }; }
 struct Observer {
     inner: ServiceObserver,
 }
@@ -58,9 +59,6 @@ impl Observe for Observer {
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: skein_lib::Wall) -> bool {
         while let Some(note) = service.notes().pop() {
             let (of, line) = match note {
-                temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) => {
-                    (of, format!("{patch} {} {}\n", counts.records, counts.commits))
-                }
                 temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, rows, commits, counts }) => {
                     let mut text = String::new();
                     for count in &counts {
@@ -76,7 +74,7 @@ impl Observe for Observer {
                 jig_protocol_store::Owner::Jig => "jig",
                 jig_protocol_store::Owner::Application => "temper",
             };
-            PATCHED.with(|lines| lines.borrow_mut().push(format!("{owner} {line}")));
+            UPGRADED.with(|lines| lines.borrow_mut().push(format!("{owner} {line}")));
         }
         self.inner.before_iterate(service, now, wall)
     }
@@ -435,7 +433,6 @@ pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
 
 /// An ordinary world story; the caller supplies only its test's temporary directory.
 pub fn make(directory: &Path) {
-    PATCHED.with(|lines| lines.borrow_mut().clear());
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
@@ -495,7 +492,7 @@ pub fn make(directory: &Path) {
     world::lower_store(None);
 }
 
-/// The permanent floor opens without upgrades and serves the kept person.
+/// The permanent floor registers later layouts and serves the kept person.
 pub fn read(directory: &Path) {
     read_copy(directory, false);
 }
@@ -504,10 +501,11 @@ pub fn refuse(directory: &Path) {
     read_copy(directory, true);
 }
 
+#[expect(clippy::too_many_lines, reason = "one golden startup covers the floor and floorless copies through shutdown")]
 fn read_copy(directory: &Path, floorless: bool) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
-    PATCHED.with(|lines| lines.borrow_mut().clear());
+    UPGRADED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = read_configuration(directory);
     let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
@@ -599,9 +597,15 @@ fn read_copy(directory: &Path, floorless: bool) {
             .expect("kept-token caller");
         assert_served(caller);
     }
-    assert_eq!(files::active(&mut outcome.machine.0.borrow_mut()), active, "no new generation");
+    assert_eq!(active, b"1\n", "the kept floor's generation");
+    let expected_active = if floorless { b"1\n" } else { b"2\n" };
+    assert_eq!(
+        files::active(&mut outcome.machine.0.borrow_mut()),
+        expected_active,
+        "the floorless store stays active; the current layouts register in one new generation"
+    );
     let upgraded = std::fs::read_to_string(directory.join("upgraded.txt")).expect("kept upgrade events");
-    assert_eq!(PATCHED.with(|lines| lines.borrow().concat()), upgraded);
+    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), upgraded);
     world::lower_store(None);
 }
 

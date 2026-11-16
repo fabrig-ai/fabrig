@@ -3,8 +3,8 @@ use super::{
     HarnessProcess, Links, Machine, Maps, Person, Proc, STATE, STORE, SignalHost, State, Story, Upgrade, ctl, cuts,
     fixtures, forge_peer, golden, image, judge::Judge, machine, mutations, programs, referee, stories, world,
 };
-use std::{cell::RefCell, rc::Rc};
-/// The service stops settled, then starts with the mark-only fixture sets.
+use std::{cell::RefCell, path::Path, rc::Rc};
+/// The service stops settled, then starts with the production registry and job sets.
 pub fn settled() {
     run(None, None);
 }
@@ -29,10 +29,20 @@ enum Selection {
     MeasureKill,
 }
 
-fn run(selection: Option<Selection>, kill: Option<u32>) {
-    STATE.with(|s| *s.borrow_mut() = State { end_after_kill: kill.is_some(), ..State::default() });
+pub(super) struct World {
+    pub disk: skein_fake_machine::Machine,
+    pub configuration: Vec<u8>,
+    pub transport: temper_fake_git_hosted::Typed,
+    pub store: Rc<RefCell<referee::Store>>,
+    pub ledger: Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>,
+}
+
+fn setup() {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
+}
+
+fn story(kill: Option<u32>) -> World {
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let mut configuration: serde_json::Value =
         serde_json::from_slice(&golden::configuration(&start.deployment)).expect("upgrade configuration");
@@ -52,6 +62,37 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
         false,
         kill.map(|before| (before, skein_world::Cut::Kill)),
     );
+    World { disk, configuration, transport: start.fakes.forge, store, ledger }
+}
+
+/// Make the current build's settled image, or compare it byte for byte.
+pub fn settled_image(directory: &Path, scratch: &Path) {
+    STATE.with(|s| *s.borrow_mut() = State { capture_image: true, ..State::default() });
+    setup();
+    let stopped = story(None);
+    assert!(stopped.store.borrow().pending.is_empty(), "settled stop has no pending commit");
+    let stop = image::Stop::read(stopped);
+    image::write(scratch, stop);
+    if temper_test_env::value(&temper_test_env::UPGRADE_IMAGE).as_deref() == Some(std::ffi::OsStr::new("1")) {
+        image::replace(scratch, directory);
+    } else if let Err(why) = image::compare(scratch, directory) {
+        panic!(
+            "{why}; rewrite with TEMPER_TEST_UPGRADE_IMAGE=1 and upgrade::the_settled_image_matches_the_story alone"
+        );
+    }
+    world::lower_store(None);
+    STORE.with(|s| *s.borrow_mut() = None);
+}
+
+fn run(selection: Option<Selection>, kill: Option<u32>) {
+    STATE.with(|s| *s.borrow_mut() = State { end_after_kill: kill.is_some(), ..State::default() });
+    setup();
+    let World { disk, configuration, transport, store, ledger } =
+        if kill.is_some() || matches!(selection, Some(Selection::MeasureKill)) {
+            story(kill)
+        } else {
+            image::load(&image::directory())
+        };
     if kill.is_none() {
         assert!(store.borrow().pending.is_empty(), "settled stop has no pending commit");
     } else {
@@ -66,23 +107,22 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
     let mut disk = disk;
     let ledger_before = mutations(&ledger.borrow());
     let before = Maps::read(&mut disk);
+    let before_files = image::generation(&mut disk, before.active);
     STATE.with(|s| {
         let mut s = s.borrow_mut();
         s.before = Some(before);
+        s.before_files = before_files;
         s.upgrade = true;
         s.points = cuts::Points::default();
     });
     store.borrow_mut().recovering();
-    if let Some(selection) = selection {
-        let image = image::Image::read(&mut disk);
-        let _calibration = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, true, None);
+    let ledger = if let Some(selection) = selection {
+        let _calibration = phase(disk, &configuration, &transport, &store, &ledger, true, None);
+        assert_eq!(mutations(&ledger.borrow()), ledger_before, "calibration makes no forge mutation");
         let before = STATE.with(|s| {
             let s = s.borrow();
             let points = s.points.fixed();
-            assert!(
-                points.windows(2).all(|pair| pair[0] <= pair[1]),
-                "copy, patch, switch, wires in order: {points:?}"
-            );
+            assert!(points.windows(2).all(|pair| pair[0] <= pair[1]), "copy, seal, switch, wires in order: {points:?}");
             match selection {
                 Selection::MeasureKill => unreachable!("kill measured before the upgrade"),
                 Selection::Fixed(index) => points[index],
@@ -93,27 +133,33 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
             }
         });
         eprintln!("upgrade power cut before service submission {before}");
+        let World { mut disk, configuration, transport, store, ledger } = image::load(&image::directory());
         store.borrow_mut().recovering();
-        store.borrow_mut().agent_records.clear();
-        let disk = image.restore(&mut store.borrow_mut());
         STATE.with(|s| {
             let mut s = s.borrow_mut();
+            let source = Maps::read(&mut disk);
+            s.before_files = image::generation(&mut disk, source.active);
+            s.before = Some(source);
+            s.upgrade = true;
             s.checked = false;
             s.points = cuts::Points::default();
+            s.seal_cut = matches!(selection, Selection::Fixed(1));
+            s.ran.clear();
         });
-        let _disk = phase(
-            disk,
-            &configuration,
-            &start.fakes.forge,
-            &store,
-            &ledger,
-            true,
-            Some((before, skein_world::Cut::PowerLoss)),
-        );
+        let _disk =
+            phase(disk, &configuration, &transport, &store, &ledger, true, Some((before, skein_world::Cut::PowerLoss)));
         assert_eq!(STATE.with(|s| s.borrow().epoch), 2, "power loss restarted the service");
+        ledger
     } else {
-        let _disk = phase(disk, &configuration, &start.fakes.forge, &store, &ledger, true, None);
-    }
+        let _disk = phase(disk, &configuration, &transport, &store, &ledger, true, None);
+        ledger
+    };
+    STATE.with(|s| {
+        let s = s.borrow();
+        if s.seal_cut {
+            assert_eq!(s.ran, [1, 2], "the next start runs the job again and switches");
+        }
+    });
     assert!(STATE.with(|s| s.borrow().checked), "history checked before the root acts");
     assert_eq!(
         mutations(&ledger.borrow()),
@@ -125,6 +171,7 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
     STORE.with(|s| *s.borrow_mut() = None);
 }
 
+#[expect(clippy::too_many_lines, reason = "one phase binds the fixture owner sets and restores the stopped peer")]
 fn phase(
     disk: skein_fake_machine::Machine,
     configuration: &[u8],
@@ -161,56 +208,75 @@ fn phase(
     if upgrade {
         config.wall = STATE.with(|s| s.borrow().stopped_wall.expect("wall at stop"));
     }
-    let mut outcome = programs::with(params, || {
-        let mut world =
-            skein_world::World::new_controlled(fixtures::SEED, config, skein_world::Memory::Unchecked, |controls| {
-                Judge::new(controls, store.clone(), transport.clone(), upgrade, ledger.clone())
-            })
+    let sets = if upgrade { super::CURRENT_SETS } else { super::first_sets() };
+    let mut outcome = world::with_owner_sets(sets, || {
+        programs::with(params, || {
+            let mut world = skein_world::World::new_controlled(
+                fixtures::SEED,
+                config,
+                skein_world::Memory::Unchecked,
+                |controls| Judge::new(controls, store.clone(), transport.clone(), upgrade, ledger.clone()),
+            )
             .with_machine(machine);
-        for (program, roots) in programs::programs::<Upgrade>() {
-            world.host_roots(program, roots);
-        }
-        world.host_roots(
-            ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn, inherited))))),
-            ctl::roots,
-        );
-        world.spawn_restartable(programs::service_roots(), |inherited| {
-            if STATE.with(|s| s.borrow().end_after_kill && s.borrow().epoch > 0) {
-                STATE.with(|s| s.borrow_mut().killed = true);
-                let mut closer = ctl::Caller::scripted_restartable(inherited);
-                closer.closed = true;
-                Proc::Other(HarnessProcess::Calls(Box::new(closer)))
-            } else {
-                programs::service::<Upgrade>(inherited)
+            for (program, roots) in programs::programs::<Upgrade>() {
+                world.host_roots(program, roots);
             }
-        });
-        world.spawn_restartable(
-            vec![skein_world::StartupRoot { name: b"private".as_slice().into(), path: b"client".as_slice().into() }],
-            |inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))),
-        );
-        if !upgrade {
-            world.spawn_root(skein_sim::Handle::new(client.expect("first client").raw()), |root| {
-                Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
-                    Person::welcome(root, golden::person_steps()).with_account_after(7),
-                    None,
-                ))))
+            world.host_roots(
+                ctl::program(|spawn, inherited| {
+                    Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn, inherited))))
+                }),
+                ctl::roots,
+            );
+            world.spawn_restartable(programs::service_roots(), |inherited| {
+                if STATE.with(|s| s.borrow().end_after_kill && s.borrow().epoch > 0) {
+                    STATE.with(|s| s.borrow_mut().killed = true);
+                    let mut closer = ctl::Caller::scripted_restartable(inherited);
+                    closer.closed = true;
+                    Proc::Other(HarnessProcess::Calls(Box::new(closer)))
+                } else {
+                    programs::service::<Upgrade>(inherited)
+                }
             });
-        }
-        world.spawn_restartable(vec![], programs::llm::<Upgrade>);
-        world.spawn_restartable(vec![], |inherited| {
-            let transport = STATE.with(|s| s.borrow().transport.as_ref().expect("forge").clone());
-            programs::fake_forge(forge_peer(&transport), inherited)
-        });
-        if let Some((before, kind)) = cut {
-            world.cut(0, before, kind);
-        }
-        world.run()
+            world.spawn_restartable(
+                vec![skein_world::StartupRoot {
+                    name: b"private".as_slice().into(),
+                    path: b"client".as_slice().into(),
+                }],
+                |inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))),
+            );
+            if !upgrade {
+                world.spawn_root(skein_sim::Handle::new(client.expect("first client").raw()), |root| {
+                    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
+                        Person::welcome(root, golden::person_steps()).with_account_after(7),
+                        None,
+                    ))))
+                });
+            }
+            world.spawn_restartable(vec![], programs::llm::<Upgrade>);
+            world.spawn_restartable(vec![], |inherited| {
+                let transport = STATE.with(|s| s.borrow().transport.as_ref().expect("forge").clone());
+                let mut peer = forge_peer(&transport);
+                if STATE.with(|s| s.borrow().upgrade)
+                    && let Some(bytes) = STATE.with(|s| s.borrow_mut().forge_image.take())
+                {
+                    peer.restore(&bytes).expect("settled forge image restored before its first pass");
+                }
+                programs::fake_forge(peer, inherited)
+            });
+            if let Some((before, kind)) = cut {
+                world.cut(0, before, kind);
+            }
+            world.run()
+        })
     });
     for proc in &mut outcome.procs {
         if !upgrade && let Proc::Forge(peer) = proc {
             STATE.with(|s| {
                 let mut s = s.borrow_mut();
                 s.tokens = peer.setup_mut().issued().iter().map(|t| (t.secret.clone(), t.user)).collect();
+                if s.capture_image {
+                    s.forge_image = Some(peer.image().expect("settled forge has no pending domain call"));
+                }
                 s.users = [b"temper".as_slice(), b"owner"]
                     .into_iter()
                     .filter_map(|login| peer.setup_mut().find(login).map(|a| (a.id, a.login.clone())))

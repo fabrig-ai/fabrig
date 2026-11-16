@@ -135,6 +135,15 @@ impl Chain {
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.recipes.iter().map(|recipe| recipe.name.as_str())
     }
+    fn ctl_only(&self) -> bool {
+        !self.recipes.iter().any(|recipe| {
+            recipe
+                .steps
+                .iter()
+                .chain(&recipe.check)
+                .any(|line| matches!(line.line.record(), Record::Web(_) | Record::Tui(_)))
+        })
+    }
     /// Lines from a fresh box, or from a named member's restored copy.
     pub fn lines(&self, from: Option<&str>) -> Result<Vec<WalkLine>, Refusal> {
         let start = match from {
@@ -145,14 +154,17 @@ impl Chain {
                 .ok_or_else(|| Refusal::file(name, "recipe", "--from is not the recipe or one of its ancestors"))?,
             None => 0,
         };
+        let ctl_only = self.ctl_only();
         let mut lines = vec![];
         for (index, recipe) in self.recipes.iter().enumerate().skip(start) {
             if from.is_none() || index != start {
                 lines.extend(recipe.steps.iter().map(|line| recipe.walk_line(line)));
-                lines.extend(
-                    [br#"web reload "/""#.as_slice(), b"tui stop"]
-                        .map(|line| WalkLine { source: Source::Walk, line: line.into() }),
-                );
+                if !ctl_only {
+                    lines.extend(
+                        [br#"web reload "/""#.as_slice(), b"tui stop"]
+                            .map(|line| WalkLine { source: Source::Walk, line: line.into() }),
+                    );
+                }
             }
             lines.extend(recipe.check.iter().map(|line| recipe.walk_line(line)));
         }
@@ -183,6 +195,7 @@ impl Recipe {
         };
         let mut after = None;
         let mut steps = vec![];
+        let mut explicit_check = None;
         for (index, source) in records {
             let number = index + 1;
             let refuse = |why| Refusal::line(name, number, why);
@@ -201,13 +214,33 @@ impl Recipe {
                 after = Some(parent.to_owned());
                 continue;
             }
+            if source == b"check" {
+                if explicit_check.is_some() {
+                    return Err(refuse("repeated check".into()));
+                }
+                explicit_check = Some((steps.len(), number));
+                continue;
+            }
+            if source.starts_with(b"check ") {
+                return Err(refuse("check takes no fields".into()));
+            }
             let line = Line::parse(source).map_err(refuse)?;
             if !line.kept() || matches!(line.record(), Record::Tui(Tui::Stop)) {
                 return Err(refuse("empty lines, looks, end and tui stop are not recipe acts".into()));
             }
+            if explicit_check.is_some() && !is_check(&line) && !matches!(line.record(), Record::Ctl(_)) {
+                return Err(refuse("only ctl, web see or tui see may follow check".into()));
+            }
             steps.push(RecipeLine { number, line });
         }
-        let check_at = steps.iter().rposition(|line| !is_check(&line.line)).map_or(0, |index| index + 1);
+        let check_at = if let Some((index, number)) = explicit_check {
+            if index == steps.len() {
+                return Err(Refusal::line(name, number, "check must have at least one line after it"));
+            }
+            index
+        } else {
+            steps.iter().rposition(|line| !is_check(&line.line)).map_or(0, |index| index + 1)
+        };
         if steps.is_empty() || check_at == steps.len() {
             let last = bytes.strip_suffix(b"\n").unwrap_or(&bytes).split(|byte| *byte == b'\n').count().max(1);
             return Err(Refusal::line(name, last, "recipe must end with at least one web see or tui see"));
@@ -232,7 +265,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "missing forge commit file",
+                    "missing forge commit or push file",
                 ));
             }
         }
@@ -241,7 +274,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "no forge commit line names this file",
+                    "no forge commit or push line names this file",
                 ));
             }
         }

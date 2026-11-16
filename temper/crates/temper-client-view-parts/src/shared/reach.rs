@@ -19,6 +19,7 @@ pub fn object(w: &Words, subject: Subject, under: u8, classes: Option<&Classes>)
             Kind::Irreversible => Word::ReachIrreversible,
             Kind::Rules => Word::ReachRules,
             Kind::Other => Word::ReachOther,
+            Kind::Findings => Word::ReachFindings,
         },
         Subject::Set(number) => {
             if let Some(classes) = classes
@@ -44,6 +45,9 @@ fn under_words(w: &Words, object: Box<[u8]>, under: u8, classes: Option<&Classes
 /// The first offer's narrower rule (client/pages/needs-you.md, 1, Stop asking).
 #[must_use]
 pub fn rule(w: &Words, classes: &Classes, reach: &Reach, first: Offer) -> Box<[u8]> {
+    if first == Offer::Decide(Subject::Kind(Kind::Findings)) {
+        return w.say(Word::StopAskingFindingsRule, &[Hole::Name(findings_verb(w, classes, reach.under))]);
+    }
     let object = match first {
         Offer::Decide(subject) => object(w, subject, reach.under, Some(classes)),
         Offer::Words(number) | Offer::Split(number) => {
@@ -56,6 +60,9 @@ pub fn rule(w: &Words, classes: &Classes, reach: &Reach, first: Offer) -> Box<[u
 /// An offer's words: the narrowed table's change (temper/docs/design/client/pages/README.md, Needs you, Stop asking).
 #[must_use]
 pub fn offer(w: &Words, classes: &Classes, reach: &Reach, offer: Offer) -> Box<[u8]> {
+    if offer == Offer::Decide(Subject::Kind(Kind::Findings)) {
+        return w.say(Word::StopAskingFindingsDecide, &[Hole::Name(findings_verb(w, classes, reach.under))]);
+    }
     match offer {
         Offer::Decide(subject) => {
             w.say(Word::StopAskingDecide, &[Hole::Name(object(w, subject, reach.under, Some(classes)))])
@@ -84,6 +91,9 @@ pub fn offer(w: &Words, classes: &Classes, reach: &Reach, offer: Offer) -> Box<[
             w.say(Word::StopAskingSplit, &[Hole::Name(patterns), Hole::Name(set.name.clone())])
         }
     }
+}
+fn findings_verb(w: &Words, classes: &Classes, under: u8) -> Box<[u8]> {
+    under_words(w, w.say(Word::ReachFindingsVerb, &[]), under, Some(classes))
 }
 /// What allowed a decided reach (README 3.5, Decided for you); empty for a reach that asked.
 #[must_use]
@@ -211,6 +221,7 @@ fn why_kind(kind: Kind, plural: bool) -> Word {
         Kind::Irreversible => (Word::WhyIrreversible, Word::WhyPluralIrreversible),
         Kind::Rules => (Word::WhyRules, Word::WhyPluralRules),
         Kind::Other => (Word::WhyOther, Word::WhyPluralOther),
+        Kind::Findings => (Word::WhyFindings, Word::WhyPluralFindings),
     };
     if plural { many } else { one }
 }

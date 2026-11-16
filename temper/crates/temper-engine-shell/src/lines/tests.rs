@@ -152,7 +152,14 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
-    for older in [Older::Unleveled, Older::Unrecorded, Older::Layout(Family::Application), Older::Directory] {
+    for older in [
+        Older::Unleveled,
+        Older::Floor,
+        Older::Unregistered,
+        Older::Behind,
+        Older::Layout(Family::Application),
+        Older::Directory,
+    ] {
         let why = OpenRefusal::OlderBuild { why: older };
         for store in ["/data/deployment", "/elsewhere/store"] {
             let expected = format!("temper serve: {}\n", why.words().join(store));
@@ -166,8 +173,15 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
             );
             assert_eq!(line, expected);
             assert!(line.contains("this start has changed nothing"));
-            assert!(line.contains("together"));
-            assert!(line.contains("every client signs in again"));
+            match older {
+                Older::Floor | Older::Behind | Older::Unregistered => {
+                    assert!(line.contains(&format!("build `{}`", jig_protocol_store::FLOOR_BRIDGE)));
+                }
+                Older::Unleveled | Older::Layout(_) | Older::Directory => {
+                    assert!(line.contains("together"));
+                    assert!(line.contains("every client signs in again"));
+                }
+            }
             assert_eq!(code, 1);
         }
     }

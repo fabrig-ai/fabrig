@@ -12,7 +12,9 @@ use skein_lib::{
 };
 
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
-    let Request::ChangeFiles { at, branch, message, files } = request else { unreachable!("change-files dispatch") };
+    let Request::ChangeFiles { at, branch, new_branch, message, files } = request else {
+        unreachable!("change-files dispatch")
+    };
     let mut target = Target { length: 0, writer: None };
     target.repo(at);
     target.put(b"/contents");
@@ -20,13 +22,13 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         return Err(Refusal::TooLong);
     }
     let mut json = Encoder::measure(&limits.writer);
-    body(&mut json, branch, message, files, limits)?;
+    body(&mut json, branch, new_branch.as_deref(), message, files, limits)?;
     let length = match json.measured() {
         Ok(length) => length,
         Err(why) => return Err(refusal(why)),
     };
     let mut json = Encoder::write(length, &limits.writer);
-    body(&mut json, branch, message, files, limits)?;
+    body(&mut json, branch, new_branch.as_deref(), message, files, limits)?;
     let mut out = Target { length: 0, writer: Some(Writer::new(target.length)) };
     out.repo(at);
     out.put(b"/contents");
@@ -45,6 +47,7 @@ fn refusal(why: writer::Refusal) -> Refusal {
 fn body(
     json: &mut Encoder,
     branch: &[u8],
+    new_branch: Option<&[u8]>,
     message: &[u8],
     files: &[FileChange],
     limits: &Limits,
@@ -52,6 +55,10 @@ fn body(
     json.object_start();
     json.key(b"branch");
     json.string(branch);
+    if let Some(new_branch) = new_branch {
+        json.key(b"new_branch");
+        json.string(new_branch);
+    }
     json.key(b"message");
     json.string(message);
     json.key(b"files");

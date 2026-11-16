@@ -1,13 +1,13 @@
 //! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType};
+use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
     clippy::disallowed_macros,
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
-pub const PATCH_SET: PatchSet = PatchSet {
+pub const OWNER_SET: OwnerSet = OwnerSet {
     jobs: &[Job {
         name: "deleted-repository-forge-rows",
         keys: &[
@@ -38,8 +38,6 @@ pub const PATCH_SET: PatchSet = PatchSet {
     owner: Owner::Application,
     name: "temper",
     level: Some(14),
-    patches: crate::patches::PATCHES,
-    fresh: None,
     families: &[
         KeptFamily {
             retired: &[],
@@ -320,7 +318,6 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 },
             ],
             name: "temper-store",
-            texts: crate::patches::kept::temper_store::TEXTS,
             map: KeptMap::Store,
             keys: &[
                 Keys { from: &[0], to: &[1], root: "Row" },
@@ -373,18 +370,15 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[131], to: &[132], root: "Row" },
             ],
             frames: None,
-            flights: &[Keys { from: &[crate::keys::FLIGHT], to: &[22], root: "Row" }],
         },
         KeptFamily {
             retired: &[],
             current: temper_protocol_records::patches::kept::temper_secrets::TEXTS.last().expect("kept text"),
             types: &[],
             name: "temper-secrets",
-            texts: temper_protocol_records::patches::kept::temper_secrets::TEXTS,
             map: KeptMap::Secrets,
             keys: &[Keys { from: &[], to: &[0x80], root: "Stored" }],
             frames: None,
-            flights: &[],
         },
     ],
 };

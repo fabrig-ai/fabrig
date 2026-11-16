@@ -696,11 +696,11 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
     use d::pages::{self, stop_asking::Act as Stop};
     use temper_protocol_reaches::{Class, Classes, Item, Kind, Reach, Reason, Subject};
     let classes = Classes {
-        items: Box::new([Item { subject: Subject::Kind(Kind::Tests), words: Box::default(), class: Class::Ask }]),
+        items: Box::new([Item { subject: Subject::Kind(Kind::Findings), words: Box::default(), class: Class::Ask }]),
         sets: Box::default(),
     };
     let (mut root, _, watch) = f::needs::fixture_classes_role(
-        "Which tests?",
+        "Start goals?",
         false,
         2,
         false,
@@ -714,7 +714,7 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
         &mut root,
         watch,
         Some(Reach {
-            kind: Kind::Tests,
+            kind: Kind::Findings,
             class: Class::Ask,
             reason: Reason::Kind,
             under: 0,
@@ -743,14 +743,14 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
             whys.iter()
                 .filter(|n| n.name.as_deref()
                     == Some(
-                        "These reached you because they change only tests, which asks you unless you’re away."
+                        "These reached you because they start work on findings, which asks you unless you’re away."
                             .as_bytes()
                     ))
                 .count(),
             1
         );
         assert!(!tree.nodes().iter().any(|n| n.name.as_deref()
-            == Some("Reached you because it changes only tests, which asks you unless you’re away.".as_bytes())));
+            == Some("Reached you because it starts work on findings, which asks you unless you’re away.".as_bytes())));
         assert_eq!(
             control(&tree, &bindings, "Stop asking"),
             d::Action::Pages(pages::Act::StopAsking(Stop::Open { object }))
@@ -758,7 +758,7 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
         assert_eq!(f::find(&tree, Role::Button, b"Keep asking").is_some(), opened);
     }
     let (mut cross, _, watch) = f::needs::fixture_classes_role(
-        "Which tests?",
+        "Start goals?",
         false,
         2,
         false,
@@ -769,7 +769,7 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
         2,
     );
     let reach = Reach {
-        kind: Kind::Tests,
+        kind: Kind::Findings,
         class: Class::Ask,
         reason: Reason::Kind,
         under: 0,
@@ -801,7 +801,7 @@ fn shared_question_reason_uses_the_first_objects_offers_but_not_across_projects(
     let lines: Vec<_> = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::WHY)).collect();
     assert_eq!(lines.len(), 2);
     assert!(lines.iter().all(|n| n.name.as_deref()
-        == Some("Reached you because it changes only tests, which asks you unless you’re away.".as_bytes())));
+        == Some("Reached you because it starts work on findings, which asks you unless you’re away.".as_bytes())));
     let root = finding_root(2);
     let cards = root.pages().needs().findings().cards();
     let first = cards[0];

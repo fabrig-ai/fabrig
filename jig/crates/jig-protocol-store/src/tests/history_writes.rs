@@ -33,8 +33,7 @@ fn failed(events: &[Event], check: CommitCheck) {
     let [Event::Failed { why: CommitFailure::Check(why), .. }] = events else { panic!("{events:?}") };
     assert_eq!(*why, check);
 }
-const SETS: crate::PatchSets =
-    crate::PatchSets { sets: &[crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, crate::JIG_STORE_PATCH_SET] };
+const SETS: crate::OwnerSets = crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] };
 fn limits() -> crate::Limits {
     let mut limits = fixtures::store_limits();
     limits.store.ops = 128;
@@ -47,7 +46,7 @@ fn open(limits: &crate::Limits) -> Store {
         secrets: skein_kv::Store::memory(&limits.secrets),
     };
     let mut store = Store::over(limits, fixtures::APPLICATION, &[], stores);
-    store.patch_sets(SETS);
+    store.owner_sets(SETS);
     let events = fixtures::run(
         &mut store,
         Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },

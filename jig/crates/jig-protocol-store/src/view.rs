@@ -175,8 +175,7 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
             | Event::SecretsLoaded { .. }
             | Event::Site { .. }
             | Event::Job { .. }
-            | Event::Ran { .. }
-            | Event::Patched { .. } => None,
+            | Event::Ran { .. } => None,
         };
         let active_owner = match &store.view.active {
             Some(active) => Some(active.ask.owner()),

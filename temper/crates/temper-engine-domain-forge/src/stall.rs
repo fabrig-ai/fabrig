@@ -1,4 +1,4 @@
-//! Diagnostic reads only after a CI bound (change/repairs.md, A stall on CI says why;
+//! Diagnostic reads only after a CI bound (change/stalls.md, 4;
 //! domain/landing.md, 4.2 and 7.1). Reports are volatile; restoration has only the base hold.
 use alloc::boxed::Box;
 use skein_forge::api;

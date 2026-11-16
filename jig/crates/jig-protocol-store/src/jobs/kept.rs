@@ -19,7 +19,7 @@ pub(crate) fn done(store: &mut Store, owner: Owner, job: &Job) -> Result<bool, O
 }
 pub(crate) fn pending(store: &mut Store) -> Result<bool, OpenRefusal> {
     let mut pending = false;
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for job in set.jobs {
             if !done(store, set.owner, job)? {
                 pending = true;
@@ -35,7 +35,7 @@ pub(crate) fn operation(store: &Store, owner: Owner, job: &Job, ended: u64) -> O
     Some(skein_kv::Op::Put { key: key(store, owner, job)?, value: writer.finish() })
 }
 pub(crate) fn first(store: &Store, ops: &mut List<skein_kv::Op>, number: u64) -> Option<()> {
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for job in set.jobs {
             ops.push(operation(store, set.owner, job, number)?).ok()?;
         }

@@ -889,11 +889,6 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
         let Some(Up::Ask(store::Request::Site { owner, result, .. })) = out.pop() else { panic!("site reply") };
         assert_eq!(owner, fixtures::OWNER);
         assert_eq!(result, Err(Halt::NoSite(site)));
-        route::up(
-            &mut routes,
-            store::Event::Patched { owner, of, patch: 2, counts: store::Counts { records: 3, commits: 1 } },
-            &mut out,
-        );
         assert!(out.is_empty());
     }
 }

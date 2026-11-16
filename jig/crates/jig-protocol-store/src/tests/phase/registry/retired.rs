@@ -23,8 +23,8 @@ fn base_family(owner: Owner) -> KeptFamily {
         ..FAMILY
     }
 }
-fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> PatchSet {
-    PatchSet { owner, name: "fixture-layouts", families: Box::leak(Box::new([family])), jobs, ..SET }
+fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> OwnerSet {
+    OwnerSet { owner, name: "fixture-layouts", families: Box::leak(Box::new([family])), jobs, ..SET }
 }
 fn key(owner: Owner, ty: usize, suffix: u8) -> Box<[u8]> {
     let from = base_family(owner).types[ty].keys[0].from;
@@ -79,9 +79,9 @@ fn family(owner: Owner) -> KeptFamily {
 }
 fn baseline(owner: Owner, registry_row: bool, value: bool) -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let base = KeptFamily { types: &[], retired: &[], ..family(owner) };
+    let base = family(owner);
     let mut store = fresh(&mut disk, set(owner, base, &[]));
-    let mut ops = layout(CURRENT, 0, 2);
+    let mut ops = Vec::new();
     if registry_row {
         ops.extend(layout(WRITTEN, 1, 9));
     }
@@ -260,9 +260,7 @@ fn retired_admission_checks_numbers_and_the_ordered_disjoint_exact_union_of_rang
             } else {
                 assert!(
                     {
-                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of, patch: 0 }, .. }] =
-                            events.as_ref()
-                        {
+                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of }, .. }] = events.as_ref() {
                             *of == owner
                         } else {
                             false

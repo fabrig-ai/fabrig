@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Configuration {
     pub owner: String,
+    pub gaps_fake: Option<String>,
     pub git: Git,
     pub agent: Agent,
     pub bounds: Bounds,
@@ -47,6 +48,14 @@ impl Configuration {
     pub fn finding_area(&self, surface: &str) -> &str {
         self.areas.get(surface).map_or(self.owner.as_str(), String::as_str)
     }
+    #[must_use]
+    pub fn gap_owner(&self, kind: &str) -> &str {
+        match kind {
+            "ctl" => self.finding_area("ctl"),
+            "fake" => self.gaps_fake.as_deref().unwrap_or(&self.owner),
+            _ => &self.owner,
+        }
+    }
     pub fn place_directory(&self, home: &Path, name: &str) -> Result<PathBuf, Refusal> {
         if !self.places.iter().any(|place| place == name) {
             return Err(refused(format!("unknown place {name}")));
@@ -58,9 +67,20 @@ impl Configuration {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
             let object = d::object(
                 &value,
-                &["owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request"],
+                &[
+                    "owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request",
+                    "gaps",
+                ],
             )?;
             let owner = nonempty(object, "owner")?;
+            let gaps_fake = object
+                .get("gaps")
+                .map(|value| {
+                    let gaps = d::object(value, &["fake"])?;
+                    gaps.get("fake").map(d::string).transpose()
+                })
+                .transpose()?
+                .flatten();
             let git = named_object(object, "git", &["directory", "branch", "fetch"])?;
             let directory = path(home, &nonempty(git, "directory").map_err(|why| refused(format!("git.{why}")))?);
             let branch = git.get("branch").map(d::string).transpose()?.unwrap_or_else(|| "main".into());
@@ -78,16 +98,19 @@ impl Configuration {
                 area: request.get("area").map(d::string).transpose()?.unwrap_or_else(|| owner.clone()),
             };
             let (places, ports) = places(object.get("places"), home)?;
-            let surfaces =
-                object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into(), "tui".into()]);
+            let surfaces = object
+                .get("surfaces")
+                .map(d::strings)
+                .transpose()?
+                .unwrap_or_else(|| vec!["ctl".into(), "web".into(), "tui".into()]);
             for surface in &surfaces {
-                if surface != "web" && surface != "tui" {
-                    return Err(refused(format!("surfaces: {surface} is neither web nor tui")));
+                if surface != "ctl" && surface != "web" && surface != "tui" {
+                    return Err(refused(format!("surfaces: {surface} is not ctl, web or tui")));
                 }
             }
             let mut areas = std::collections::BTreeMap::new();
             if let Some(value) = object.get("areas") {
-                for (surface, area) in d::object(value, &["web", "tui"])? {
+                for (surface, area) in d::object(value, &["ctl", "web", "tui"])? {
                     areas.insert(surface.clone(), d::string(area)?);
                 }
             }
@@ -108,6 +131,7 @@ impl Configuration {
             let notify = object.get("notify").map(command_line).transpose()?;
             Ok(Self {
                 owner,
+                gaps_fake,
                 git: Git { directory, branch, fetch },
                 agent: Agent { command, triage, pass },
                 bounds,
@@ -139,10 +163,13 @@ fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
         let (name, list) = if value.is_string() {
             (d::string(value)?, None)
         } else {
-            let object = d::object(value, &["directory", "ports"])?;
+            let object = d::object(value, &["directory", "kind", "ports"])?;
             let name = nonempty(object, "directory")?;
-            let list = d::required(object, "ports").map_err(|why| refused(format!("place {name}: {why}")))?;
-            (name, Some(list))
+            let kind = object.get("kind").map(d::string).transpose()?.unwrap_or_else(|| "box".into());
+            if kind != "box" {
+                return Err(refused(format!("place {name}: kind {kind} is not supported; only box places are built")));
+            }
+            (name, object.get("ports"))
         };
         if name.trim().is_empty() {
             return Err(refused(format!("place {name:?}: directory is empty")));

@@ -55,7 +55,7 @@ fn registered_value_type_numbers_are_pinned() {
         (45, "Row", Some("history_last"), &[131]),
     ];
     let mut registered = false;
-    for family in crate::PATCH_SET.families {
+    for family in crate::OWNER_SET.families {
         if family.types.is_empty() {
             continue;
         }

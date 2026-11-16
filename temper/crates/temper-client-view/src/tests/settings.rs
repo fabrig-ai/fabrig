@@ -1235,13 +1235,14 @@ const WAIT: &str = "Always waits for you";
 const DECIDE_NOTE: &str = "Listed in Decided for you for 24 hours, to overturn.";
 const AWAY_ALL: &str = "While you’re away, they are decided with the recommended choice and listed.";
 const AWAY_NONE: &str = "They ask even while you’re away.";
-const MOVABLE_LINES: [&str; 6] = [
+const MOVABLE_LINES: [&str; 7] = [
     "wording and names inside a spec",
     "retrying or splitting a task",
     "implementation choices a spec leaves open",
     "test-only changes",
     "a new dependency",
     "a departure from a landed design",
+    "starting work on findings: a goal for them, the backlog or a hand-off",
 ];
 const FIXED_LINES: [&str; 4] = [
     "money past a budget",
@@ -1277,6 +1278,7 @@ fn reaches_columns_follow_the_project_table() {
             Item { subject: Subject::Set(1), words: Box::default(), class: Class::AskAway },
             Item { subject: Subject::Kind(Kind::Dependency), words: Box::default(), class: Class::Ask },
             Item { subject: Subject::Kind(Kind::Departure), words: Box::default(), class: Class::Ask },
+            Item { subject: Subject::Kind(Kind::Findings), words: Box::default(), class: Class::Ask },
         ]),
         sets: Box::new([PathSet {
             number: 1,
@@ -1329,7 +1331,7 @@ fn reaches_columns_follow_the_project_table() {
             classes: Some(review.clone()),
             columns: [
                 lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
-                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], MOVABLE_LINES[6]]),
                 lines(&FIXED_LINES),
             ],
             notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],
@@ -1349,7 +1351,7 @@ fn reaches_columns_follow_the_project_table() {
             classes: Some(story),
             columns: [
                 lines(&MOVABLE_LINES[..4]),
-                lines(&["a change to vsr’s protocol core", MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&["a change to vsr’s protocol core", MOVABLE_LINES[4], MOVABLE_LINES[5], MOVABLE_LINES[6]]),
                 lines(&FIXED_LINES),
             ],
             notes: [
@@ -1367,7 +1369,13 @@ fn reaches_columns_follow_the_project_table() {
             classes: Some(words),
             columns: [
                 lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
-                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], "test-only changes under “WORDS”"]),
+                lines(&[
+                    MOVABLE_LINES[2],
+                    MOVABLE_LINES[4],
+                    MOVABLE_LINES[5],
+                    MOVABLE_LINES[6],
+                    "test-only changes under “WORDS”",
+                ]),
                 lines(&FIXED_LINES),
             ],
             notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],
@@ -1403,7 +1411,7 @@ fn reaches_columns_follow_the_project_table() {
             classes: Some(review),
             columns: [
                 lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
-                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], MOVABLE_LINES[6]]),
                 lines(&FIXED_LINES),
             ],
             notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],

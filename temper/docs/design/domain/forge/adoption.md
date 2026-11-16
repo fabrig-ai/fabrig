@@ -185,7 +185,7 @@
   lacking, never as a fact of a repository: nothing is narrowed, no
   change is held, and no effect is found again for it.
 - **What waits on it.** The connector steps no change on a forge not
-  connected, and a stall does not count that wait (`change/repairs.md`); an effect whose
+  connected, and a stall does not count that wait (`change/stalls.md`, 1); an effect whose
   entry failed `NotConnected` is committed again once the forge
   connects, since it reached no forge. A change's step on such a forge
   (a restart's, a wake's, a release's) sends no read, and a read of a

@@ -1,5 +1,5 @@
 //! Real registered sets at open (protocol/store/layouts.md, 7).
-use jig_protocol_store::{KeptFamily, PatchSet, PatchSets, ValueType, Write};
+use jig_protocol_store::{KeptFamily, OwnerSet, OwnerSets, ValueType, Write};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 use skein_heap::Meter;
@@ -13,24 +13,22 @@ const EMPTY_REGISTRY: u64 = 9_900;
 const SEEDED_PEAK: u64 = 7_000_000;
 const SEEDED_REGISTRY: u64 = 2_400_000;
 
-const SETS: PatchSets = PatchSets {
-    sets: &[
-        jig_protocol_store::SKEIN_PATCH_SET,
-        jig_protocol_store::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-    ],
-};
+const SETS: OwnerSets =
+    OwnerSets { sets: &[jig_protocol_store::SKEIN_SET, jig_protocol_store::SMITH_SET, jig_protocol_accounts::JIG_SET] };
 
-fn seed_text(family: &KeptFamily) -> &'static str {
-    if ["jig-store-core", "jig-store-tasks"].contains(&family.name) {
-        family.current
-    } else {
-        family.texts.last().copied().unwrap_or(family.current)
+// A source binary registers these fixture layouts in its first commit.
+fn kept_text(family: &KeptFamily) -> &'static str {
+    match family.name {
+        "jig-store-people" => include_str!("fixtures/jig-store-people-v17.schema"),
+        "jig-store-notes" => include_str!("fixtures/jig-store-notes-v1.schema"),
+        "jig-store-accounts" => include_str!("fixtures/jig-store-accounts-v2.schema"),
+        "jig-store-settings" => include_str!("fixtures/jig-store-settings-v3.schema"),
+        _ => family.current,
     }
 }
 
 fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
-    let text = seed_text(family);
+    let text = kept_text(family);
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept family schema");
     let mut kept: Vec<ValueType> = Vec::new();
     for ty in family.types {
@@ -48,7 +46,7 @@ fn kept_types(family: &KeptFamily) -> &'static [ValueType] {
     Box::leak(kept.into_boxed_slice())
 }
 
-fn sets(kept: bool, registered: bool) -> PatchSets {
+fn sets(kept: bool, registered: bool) -> OwnerSets {
     let sets = SETS
         .sets
         .iter()
@@ -58,7 +56,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                 .iter()
                 .map(|family| KeptFamily {
                     retired: if registered { family.retired } else { &[] },
-                    current: if kept { seed_text(family) } else { family.current },
+                    current: if kept { kept_text(family) } else { family.current },
                     types: if !registered {
                         &[]
                     } else if kept {
@@ -69,19 +67,19 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
                     ..*family
                 })
                 .collect::<Vec<_>>();
-            PatchSet {
+            OwnerSet {
                 families: Box::leak(families.into_boxed_slice()),
                 jobs: if registered { set.jobs } else { &[] },
                 ..*set
             }
         })
         .collect::<Vec<_>>();
-    PatchSets { sets: Box::leak(sets.into_boxed_slice()) }
+    OwnerSets { sets: Box::leak(sets.into_boxed_slice()) }
 }
 
-fn seeded(sets: PatchSets) -> Vec<Item> {
+fn seeded(sets: OwnerSets) -> Vec<Item> {
     let mut world = World::unopened(7);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world
@@ -100,12 +98,12 @@ struct Measured {
     private: u64,
 }
 
-fn measure(items: &[Item], sets: PatchSets) -> Measured {
+fn measure(items: &[Item], sets: OwnerSets) -> Measured {
     let meter = Meter::new();
     meter.start();
     let mut world = World::unopened(7);
     world.lay(items);
-    world.patch_sets(sets);
+    world.owner_sets(sets);
     assert!(world.open_switched().is_some(), "{:?}", world.refusal());
     if items.is_empty() {
         assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
@@ -123,6 +121,7 @@ fn measure(items: &[Item], sets: PatchSets) -> Measured {
 
 #[test]
 fn real_registry_open_memory() {
+    let current = jig_store_world::patches::current(SETS);
     let plain = sets(false, false);
     let kept = sets(true, true);
     let items = seeded(kept);
@@ -133,7 +132,7 @@ fn real_registry_open_memory() {
     for (label, items, peak_bound, held_bound) in
         [("empty", &[][..], EMPTY_PEAK, EMPTY_REGISTRY), ("seeded", items.as_slice(), SEEDED_PEAK, SEEDED_REGISTRY)]
     {
-        let measured = measure(items, SETS);
+        let measured = measure(items, current);
         let registry = measured.private - baseline;
         eprintln!("registry {label}: peak={}, held={}, registry={registry}", measured.peak, measured.held);
         assert!(measured.peak <= peak_bound, "{label}: open peak {} > {peak_bound}", measured.peak);

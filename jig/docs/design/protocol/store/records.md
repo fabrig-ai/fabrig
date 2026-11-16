@@ -290,95 +290,65 @@ settings (decided 2026-11-03).
   baseline: a build whose shell hands no set for it writes none. A level is
   its owner's set's `level`, held explicitly (`opening.md`, 3): its
   count of landed patches from its baseline, jig's 6 and temper's 14,
-  which stay when the patches go (temper's `draft/store-floor.md`, section 3). The row is the
-  table of applied patches: the levels and the versions they imply.
+  which stay now that the patches are gone (temper's `draft/store-floor.md`, sections 3
+  and 4.1). No binary moves a level: a registered family changes by
+  its registry and its jobs (`layouts.md`; `jobs.md`), and a format
+  outside the registry is fixed (temper's `draft/store-floor.md`, section 5). The row is
+  the levels and the versions they imply.
 - **The baseline** (temper's `protocol/baseline.md`): the store temper's
   `main` wrote at `bc23255eb7`, before any shell handed a set, so its
-  row's levels are all none. Its row's component and jig families'
-  versions (component 3, core 6, tasks 9, people 14, notes 1, accounts 2,
-  settings 1) and its layouts' row are the component's constant
-  `BASELINE`, written once from that build's `format::current` and
-  `LAYOUTS` and never regenerated: a later build's own layouts move, the
-  baseline's never do. temper's golden store, made by that build, proves
-  it (temper's `protocol/baseline.md`, 6).
+  row's levels are all none. No build reads it as the baseline any
+  more: it is refused as any store whose levels are none
+  (`Older::Unleveled`, below), since the patches that upgraded it are
+  gone (temper's `draft/store-floor.md`, 4.2).
   - **Written** by the first commit, with the binary's levels, and by
-    patching's last commit (`opening.md`, 2), with the levels patched to; by no
-    other commit.
-  - **Read first,** by the kept text of the component's version the row
-    names (skein's `data/codec/patches.md`), so a store behind reads its own
-    row; before the component's baseline, by its current codec.
+    an upgrade's last commit (`opening.md`, 2), with the same levels;
+    by no other commit.
+  - **Read first,** by the binary's codec of the component's own rows:
+    a row whose version is past the binary's is a later jig's,
+    `Ahead { owner: Jig, found: None, wanted }`, its levels unread; one
+    at another version, `Format` naming the component; one at the
+    binary's version that does not decode, `OlderBuild` with
+    `Older::Layout(Component)`.
   - **Compared at open,** per owner, after the component's version and
     with the families' versions, before the header and the deployment
     (`opening.md`, step 2):
-    - first, a store at the baseline: a row whose levels are all none,
-      whose component and jig families' versions are `BASELINE`'s, and
-      whose layouts' row equals `BASELINE`'s, reads as level 0 for each
-      owner whose level the binary sets; an owner the binary leaves none
-      stays none. The comparison below goes on with those levels, and
-      the floor's check after it refuses such a store, which has no
-      floor row (the floor, below);
-    - both none: the versions and the layouts decide, as before the
-      baseline;
     - first, any owner's store level past the binary's: `Ahead { owner,
-      found: Some(level), wanted }`, since no patch runs backwards (a
+      found: Some(level), wanted }`, since no build runs one backwards (a
       level is past none); the first in `Owner`'s order, upstream first;
     - then any owner's store level none where the binary's is set:
       `OlderBuild` with `Older::Unleveled`, including another owner's
-      none in a row whose jig level is set: a store from before the
-      baseline, or not at it (temper's `draft/upgrades.md`, 4.1);
-    - then the floor (below): a store with no floor row, or one whose
-      number is below the binary's `FLOOR`, refuses `OlderBuild` with
-      `Older::Floor`, before any plan is made, any job is found
-      pending, any record is decoded for a rehearsal (`opening.md`, 5)
-      or the registry is read (`layouts.md`, 5.1). A number past the
-      binary's is not refused by it: the levels and layouts decide;
-    - then any owner's store level behind: the patch path (`opening.md`, 2).
-      Each of jig's families' versions must be its version at the
-      store's jig level: `BASELINE`'s, moved by each block of jig's
-      patches up to that level (jig's patch 1 moves `tasks` 9 to 10 and
-      `settings` 1 to 2, temper's `protocol/baseline.md`, 9); a family
-      the set names that no patch up to that level moves keeps
-      `BASELINE`'s. A family jig's set names nowhere, which only a
-      test's set owning jig with families of its own leaves out, no
-      patch of that set can move: its version must be the binary's, as
-      at equal levels. Jig's real set names every family `BASELINE`
-      lists, so a real store at jig level 0 holds `BASELINE`'s. Another
-      version refuses `Format` naming the family, the version found and
-      the version at that level. Jig's patches rewrite each to the
-      binary's in the sealing commit; the layouts are not compared here,
-      the levels and the versions naming them. The application's
-      version is not compared: its patches rewrite it to the binary's
-      in the sealing commit. The deployment and the header's commits
-      are checked as before; both version checks, the row's own and
-      the header's deployment's, follow this rule;
-    - equal: the versions must be the binary's, or `OlderBuild`. The
-      layouts are compared only where both levels are none: from the
-      baseline on, the levels and the versions name the layouts, and a
-      change every old value survives byte for byte (an appended
-      variant, a widened bound) moves a fingerprint and neither
-      (skein's `data/codec/diff.md`, 3), so a store at equal levels
-      opens under it. The layouts' row is still written with the
-      levels, and read for the baseline above.
+      none in a row whose jig level is set, and the baseline's: a store
+      from before the levels, or not at them (temper's `draft/upgrades.md`, 4.1);
+    - then the floor: a store with no floor row, or one whose number is
+      below the binary's `FLOOR`, refuses `OlderBuild` with `Older::Floor`,
+      before any plan is made, job is found pending, record is decoded
+      for a rehearsal (`opening.md`, 5) or registry is read (`layouts.md`,
+      5.1). A number past the binary's is not refused by it: the levels
+      and layouts decide;
+    - then any owner's store level behind the binary's: `OlderBuild`
+      with `Older::Behind`, a store from a build whose patches this
+      one no longer keeps (temper's `draft/store-floor.md`, 4.1), the
+      first in `Owner`'s order;
+    - equal, or both none: the versions must be the binary's, or
+      `Format` naming the first family that differs. The layouts' row
+      is written with the levels and read at no open: the levels and
+      the versions name the families' texts, and the registry what a
+      registered family's values are at.
 
     Every refusal comes before anything is written but skein-kv's
     recovery (`opening.md`, 1). The families' versions are compared
     before the registry is read (`layouts.md`, 5): a store at another
     version is refused `Format` without its registry's rows read, its
-    layouts planned or the set's bounds checked there. A store behind
-    takes its versions at its level from its pending plan (`opening.md`,
-    2), so the comparison follows the set's checks and that plan; the
-    refusals before it keep their order, and the registry's follow it.
-    A row at a component version past the binary's
-    is a later jig's, since from the baseline the component's version
-    moves only by jig's patches: `Ahead { owner: Jig, found: None,
-    wanted }`, its levels unread.
+    layouts planned or the set's bounds checked there.
 - **The registry,** in rows of their own beside it (`jig-store-registry`,
   the component's): the layouts of the registered families' value
   types, the texts they were made with, and the jobs done
   (`layouts.md`, 3; `jobs.md`, 2). From the registration, the format
   row's versions of the registered families stay as they are, and the
-  layouts' row is the baseline's comparison alone: what a store's
-  values are at is the registry's.
+  layouts' row compares nothing: what a store's values are at is the
+  registry's. A store that holds values and no registry is refused
+  (`layouts.md`, 5.1).
 - **The floor,** in a row of its own beside it (`Floor`, the
   component's, added to `component-v3.schema` in place as its other
   rows are, at `00 0d`): the oldest store this build's code still
