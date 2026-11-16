@@ -12,4 +12,3 @@
    widening, moves, successors and surviving questions remain `changes.status.md` (Not yet, the whole document).  markers remain `messages.status.md`, 3.
    conversation questions remain `messages.status.md`, 5.
    the missing stories remain `README.status.md`, 7.
-- **Not yet:** 12.4: the milestones' value type is declared retired with its range in the tasks family's keys [in flight: change 5050].

@@ -69,4 +69,3 @@ Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store
 
 - **Not yet:** 4, the tier rows' ceilings of 2049: the schema still holds 257, so `forge.changes` is at most 128.
 
-- **Not yet:** 2 and 4: family 12 is declared retired with its range in `temper-store`'s keys, and `settle-layouts` and `round-branches` are declared and dispatched [in flight: change 5050].

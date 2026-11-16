@@ -12,4 +12,3 @@
 
 
 
-- **Not yet:** 1.8: no `Older::Floor` or `Older::Unregistered`, and the older stores' words name no bridge; 2: the seal writes the floor row; 5: a rehearsal decodes a store with no floor row before its plan refuses it [in flight: change 5034].
