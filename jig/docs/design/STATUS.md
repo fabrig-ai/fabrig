@@ -220,6 +220,7 @@ Design documents:
 - [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
 - [`protocol/store/parts.md`](protocol/store/parts.status.md)
 - [`protocol/store/logs.md`](protocol/store/logs.status.md)
+- [`protocol/store/crates.md`](protocol/store/crates.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:
