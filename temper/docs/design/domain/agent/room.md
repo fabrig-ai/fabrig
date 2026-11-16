@@ -277,12 +277,19 @@ pub struct HostPart {
 - **What the domain can't read is taken at its largest.** A model's
   encoded cost includes its endpoint's name, which the domain doesn't read:
   `fixed` and `model` are measured at the longest name of the encoding's
-  endpoint table, so the sum is never under smith's measure.
-- **Held equal to smith's measure** by `temper-engine-smith`'s step tests,
-  as the rendered table is today: for each stock charter on each wake,
-  under a Change contract, the sum equals `owned_bytes` and the encoded
-  length of `temper_engine_smith::charter`'s charter without its brief, its
-  models on the longest endpoint name.
+  endpoint table, so the sum is never under smith's measure. Likewise a
+  model's optional fields (its account, its effort, its price's cache
+  write) frame its encoding only where present: `fixed` (its main model)
+  and `model` are measured with each present, an effort empty, so the
+  encoded sum overstates a model lacking one by that field's framing, a
+  few bytes, and is never under.
+- **Held to smith's measure** by `temper-engine-smith`'s step tests, as
+  the rendered table is today: for each stock charter on each wake, under
+  a Change contract, its models on the longest endpoint name, the sum
+  equals `owned_bytes`; with each model's optional fields present (an
+  absent effort empty) it equals the encoded length of
+  `temper_engine_smith::charter`'s charter without its brief, and with the
+  stock's own models it is at or above that length.
 - **Without a local agent** the service still measures the owned and
   encoded costs, which need no agent's limits; `bound` is none, the
   rendered costs are zero, and the rendered check is skipped (4.2).
