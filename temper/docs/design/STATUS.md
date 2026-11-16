@@ -285,7 +285,7 @@ adds, laid over each start's defaults (jig's `domain/engine/overlays.md`);
 `settings apply`'s overlay items, their directories of charter files and
 files stacked in one call, and `settings show`'s marks and literal export
 (`client/ctl/overlays.md`); the room judged on the charter an overlay
-makes, its parts counted (`domain/agent/tools.md`); the reference's
+makes, its parts counted (`domain/agent/room.md`, 4); the reference's
 charters 5 and 2 as overlays of its fields, its charters 7 and 8 gone
 (`protocol/configuration/reference.md`), stage one's golden keeping the
 whole charters on a profile of its own (`testing/checks.md`, 5); and
@@ -445,6 +445,7 @@ Design documents:
 - [`domain/agent/agents.md`](domain/agent/agents.status.md)
 - [`domain/agent/ask-temper.md`](domain/agent/ask-temper.status.md)
 - [`domain/agent/charter.md`](domain/agent/charter.status.md)
+- [`domain/agent/room.md`](domain/agent/room.status.md)
 - [`domain/agent/standing.md`](domain/agent/standing.status.md)
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
@@ -618,7 +619,7 @@ Drafts:
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
-- [`draft/tools-by-role.md`](draft/tools-by-role.status.md)
+- [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: the room named and held: an assignment that can't encode refused naming its field and figures, in the engine's log and the held task's reason, skein's generated paths naming themselves; a charter whose fixed part passes the allowance on a wake refused at apply and over the defaults at start, with or without a local agent, from the declarations' costs by family that the service gives the domain.
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

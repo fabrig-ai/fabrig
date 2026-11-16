@@ -48,7 +48,7 @@
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit. Every repair's brief places its reason's section,
   CI's or reviews', before its pull section, so the charter's fit, which
-  cuts a brief from its end (`../../agent/tools.md`), cuts the pull's
+  cuts a brief from its end (`../../agent/room.md`, 2), cuts the pull's
   contents first and the reason never.
   Repair instructions preserve the requested change and unrelated content
   already landed on the base, including both independent appended lines
@@ -295,7 +295,7 @@
   it in your checkout]`, a side the file lacks reading `absent before` or
   `absent after`. A named file takes its lines' room alone, so the files
   after it are carried as they fit. The charter's fit
-  (`../../agent/tools.md`) can still cut the section's end, with its own line.
+  (`../../agent/room.md`, 2) can still cut the section's end, with its own line.
   Its pinned comparison, of the head and the base it conflicts with, is by
   names (skein's `forge/README.md`, 3.2 and 3.3), so a conflict however far its
   branches have gone apart is compared: `What landed in the base: N

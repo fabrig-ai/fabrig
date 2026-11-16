@@ -161,6 +161,18 @@ Typed, so the engine can act on them without reading prose:
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
 
+**An invalid start names what was wrong** in its task's reason. A start
+refused invalid with words, cause other or grants (an assignment that
+cannot encode, `../../protocol/channel/records.md`, 2), ends its
+attempt as a permanent failure with those words as the task's reason,
+so that a task held out of tries names the field and its figures. The
+reason keeps the words' head, where the field is: whole within
+`REASON_BYTES`, otherwise their longest prefix at a character's
+boundary that leaves room for ` [cut]`, then ` [cut]`; a byte outside
+UTF-8 reads `?` first, as a failed job's does (9). A start refused
+invalid with no words stays a permanent failure with none, and a start
+refused for its transcript keeps its own reason (below).
+
 An agent fault may arrive before admission. While starting, the hub keeps
 its first typed fault and waits for the agent's `Gone`, without acknowledging
 admission, delivering held messages or sending a cancel to an agent token

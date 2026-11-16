@@ -269,7 +269,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | sub-agents at once in one run | 5 | the agent's `conversations` 26, a run and 25 |
   | a task's spec, a message | 19 kB (5.9 kB) | `tasks.spec_bytes` 131,072; `tasks.message_bytes` 262,144 in the profile, since a result is a message in its parent's inbox; the box's, what its agent takes (below) |
   | a report (a result) | 46 kB (4.9 kB) | `tasks.result_bytes` 262,144 in the profile; the box's, its message bound; templates 1 and 2's report, the deployment's result bound |
-  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper-box init`'s models (`../../domain/agent/tools.md`) |
+  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper-box init`'s models (`../../domain/agent/room.md`, 1) |
   | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
   | conflicted paths in one merge | past 4, the bound then, on a goal's merge (2026-11-11) | `checkout.conflicts` 512 and `git_component.stdout_bytes` 131,072 in both profiles, for a merge of a few hundred conflicted paths (`limits.md`, the checkout's capacity) |
