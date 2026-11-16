@@ -46,6 +46,13 @@ impl<'a> Names<'a> {
                 names.add(line);
             }
         }
+        if let Some(milestones) = root.pages().milestones() {
+            for milestone in milestones.drawn() {
+                for goal in &milestone.goals {
+                    names.add(goal);
+                }
+            }
+        }
         names
     }
     pub fn add(&mut self, line: &'a c::TaskLine) {

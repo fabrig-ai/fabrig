@@ -23,14 +23,14 @@ const ENDED_READ: u32 = 3;
 const ALL_READ: u32 = 4;
 const CURRENT_ENDED: usize = 1;
 
-fn me() -> c::Me {
+pub(super) fn me() -> c::Me {
     let mut me = fixtures::chats::me();
     let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
     template.number = jig_client::shapes::GOAL;
     template.tracked = Some(1);
     me
 }
-fn line(task: u64, activity: Wall) -> c::TaskLine {
+pub(super) fn line(task: u64, activity: Wall) -> c::TaskLine {
     let mut line = chat_line();
     line.chip.task = task;
     line.last_activity = activity;

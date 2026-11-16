@@ -17,6 +17,8 @@ pub mod goals;
 pub mod home;
 pub mod home_cards;
 pub mod inbox;
+#[cfg_attr(not(test), expect(dead_code, reason = "shared milestone parts precede the page placements that draw them"))]
+pub(crate) mod milestones;
 pub mod needs;
 pub mod new_chat;
 pub mod only_you;

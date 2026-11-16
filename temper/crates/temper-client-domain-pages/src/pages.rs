@@ -61,6 +61,7 @@ pub mod home;
 pub mod how;
 pub mod inbox;
 pub mod launchpad;
+pub mod milestones;
 pub mod models;
 pub mod needs;
 pub mod only_you;
@@ -126,6 +127,7 @@ pub struct Pages {
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
     goals: Option<goals::Goals>,
+    milestones: Option<milestones::Milestones>,
     has_goals: goals::HasGoals,
     start: Option<start_goal::StartGoal>,
     chat: Option<chat::Chat>,
@@ -450,6 +452,7 @@ impl Pages {
             chats: None,
             rail_handles: RailHandles::None,
             goals: None,
+            milestones: None,
             has_goals: goals::HasGoals::new(),
             start: None,
             chat: None,
@@ -656,6 +659,10 @@ impl Pages {
     #[must_use]
     pub const fn goals(&self) -> Option<&goals::Goals> {
         self.goals.as_ref()
+    }
+    #[must_use]
+    pub const fn milestones(&self) -> Option<&milestones::Milestones> {
+        self.milestones.as_ref()
     }
     #[must_use]
     pub fn has_goals(&self, client: &Client, project: u32) -> bool {
@@ -869,6 +876,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            if let Some(reads) = pages.milestones.take() {
+                reads.leave(out);
+            }
             if let Some(chat) = &pages.chat {
                 chat.leave_talk(client, &mut pages.serial, out);
             }
@@ -1338,11 +1348,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     } else {
         pages.roles.leave(out);
     }
-    // Talk shares the project's reads with its chat's growing handle range.
-    if let Some(chat) = &pages.chat
-        && chat.talk().is_some()
-    {
+    // Cross-page reads allocate beyond every page's growing handle range.
+    if let Some(chat) = &pages.chat {
         pages.next = pages.next.max(chat.next);
+    }
+    if let Some(task) = &pages.task {
+        pages.next = pages.next.max(task.next);
     }
     // The rail's document read shares the page handles with growing card reads.
     if let Some(inbox) = &pages.inbox {
@@ -1363,10 +1374,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     } else {
         pages.team.leave(out);
     }
-    if let Some(chat) = &mut pages.chat
-        && chat.talk().is_some()
-    {
+    if let Some(chat) = &mut pages.chat {
         chat.next = chat.next.max(pages.next);
+    }
+    if let Some(task) = &mut pages.task {
+        task.next = task.next.max(pages.next);
     }
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
@@ -1422,7 +1434,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(left_off) = &mut pages.left_off {
         left_off.configure(me, &env.limits, out);
     }
-    pages.has_goals.configure(me, pages.project, out);
+    pages.has_goals.configure(me, pages.project, &mut pages.next, out);
     if let Address::Home { project } = pages.address
         && pages.home.is_some()
         && pages.has_goals(client, project)
@@ -1462,7 +1474,30 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     {
         goals.configure(me, project, client, &env.limits, out);
     }
+    if let Address::Work { project, .. }
+    | Address::Goals { project, .. }
+    | Address::Changes { project }
+    | Address::Home { project } = pages.address
+    {
+        if pages.milestones.is_none() {
+            pages.milestones = Some(milestones::Milestones::new(&mut pages.next));
+        }
+        if let Some(reads) = &mut pages.milestones {
+            reads.configure(me, project, client, &env.limits, env.wall, &mut pages.next, out);
+            reads.requesters(pages.goals.as_ref(), client, &mut pages.next, out);
+        }
+    }
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.next = inbox.next.max(pages.next);
+    }
+    if let Some(changes) = &mut pages.changes {
+        changes.reserve(pages.next);
+    }
+    if let Some(task) = &mut pages.task {
+        task.next = task.next.max(pages.next);
+    }
     if let Some(chat) = &mut pages.chat {
+        chat.next = chat.next.max(pages.next);
         chat.refresh_talk(client, out);
     }
     chat_inbox(pages, env, client, out);
@@ -1528,7 +1563,12 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     if pages.told.told(client, &told, env.limits.forge, out) {
         return true;
     }
-    if pages.has_goals.told(&told) {
+    if let Some(reads) = &mut pages.milestones
+        && reads.told(&told, &env.limits, out)
+    {
+        return true;
+    }
+    if pages.has_goals.told(&told, out) {
         return true;
     }
     if let Some(page) = &pages.how
@@ -1792,6 +1832,13 @@ fn went(
     returned: bool,
     out: &mut Queue<Request>,
 ) {
+    if (returned
+        || milestones_project(&address).is_none()
+        || milestones_project(&address) != milestones_project(&pages.address))
+        && let Some(reads) = pages.milestones.take()
+    {
+        reads.leave(out);
+    }
     let changing = returned || pages.address != address;
     if changing {
         tell::remember(pages, client);
@@ -2645,6 +2692,9 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
 }
 
 // Work's filters keep the three page reads together (temper/docs/design/client/pages/README.md).
+fn milestones_project(address: &Address) -> Option<u32> {
+    if let Address::Home { project } = address { Some(*project) } else { work_project(address) }
+}
 fn work_project(address: &Address) -> Option<u32> {
     if let Address::Work { project, .. } | Address::Goals { project, .. } | Address::Changes { project } = address {
         Some(*project)

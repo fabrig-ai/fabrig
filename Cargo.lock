@@ -5947,6 +5947,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-ui",
+ "temper-client-domain-forge",
  "temper-settings-form",
 ]
 

@@ -44,6 +44,29 @@ pub fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    MsTag,
+    MsTagTerminal,
+    MsComplete,
+    MsEnded,
+    MsDone,
+    MsWaits,
+    MsOpen,
+    MsCount,
+    MsGoalOne,
+    MsGoalMany,
+    MsCountSentence,
+    MsNoneSentence,
+    MsAll,
+    MsCompleteEmpty,
+    MsNoGoals,
+    MsOpenSentence,
+    MsClosedSentence,
+    MsFailedGoal,
+    MsFailedCount,
+    MsRunning,
+    MsMoreOne,
+    MsMoreMany,
+
     TellTitle,
     TellHint,
     TellHeadline,
@@ -2169,7 +2192,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2719;
+const PHRASES: u32 = 2741;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2196,10 +2219,32 @@ const PHRASES: u32 = 2719;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4995;
+const SEGMENTS: u32 = 5061;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64629;
-const ALL: [Word; 1998] = [
+const ENGLISH_BYTES: u32 = 64878;
+const ALL: [Word; 2020] = [
+    Word::MsTag,
+    Word::MsTagTerminal,
+    Word::MsComplete,
+    Word::MsEnded,
+    Word::MsDone,
+    Word::MsWaits,
+    Word::MsOpen,
+    Word::MsCount,
+    Word::MsGoalOne,
+    Word::MsGoalMany,
+    Word::MsCountSentence,
+    Word::MsNoneSentence,
+    Word::MsAll,
+    Word::MsCompleteEmpty,
+    Word::MsNoGoals,
+    Word::MsOpenSentence,
+    Word::MsClosedSentence,
+    Word::MsFailedGoal,
+    Word::MsFailedCount,
+    Word::MsRunning,
+    Word::MsMoreOne,
+    Word::MsMoreMany,
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -4995,6 +5040,28 @@ impl Word {
             Self::GoalsEmpty => 3283,
             Self::GoalsMore => 3284,
             Self::Goals => 3252,
+            Self::MsTag => 9730,
+            Self::MsTagTerminal => 9731,
+            Self::MsComplete => 9732,
+            Self::MsEnded => 9733,
+            Self::MsDone => 9734,
+            Self::MsWaits => 9735,
+            Self::MsOpen => 9736,
+            Self::MsCount => 9737,
+            Self::MsGoalOne => 9738,
+            Self::MsGoalMany => 9739,
+            Self::MsCountSentence => 9740,
+            Self::MsNoneSentence => 9741,
+            Self::MsAll => 9742,
+            Self::MsCompleteEmpty => 9743,
+            Self::MsNoGoals => 9744,
+            Self::MsOpenSentence => 9745,
+            Self::MsClosedSentence => 9746,
+            Self::MsFailedGoal => 9747,
+            Self::MsFailedCount => 9748,
+            Self::MsRunning => 9749,
+            Self::MsMoreOne => 9750,
+            Self::MsMoreMany => 9751,
             Self::GoalCount => 3253,
             Self::GoalNeedsFunds => 3254,
             Self::GoalNeedsYou => 3255,
@@ -7116,6 +7183,28 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsEnded => (&[b"Ended"], &[]),
         Word::GoalsEmpty => (&[b"None."], &[]),
         Word::GoalsMore => (&[b"More goals"], &[]),
+        Word::MsTag => (&[b"milestone"], &[]),
+        Word::MsTagTerminal => (&[b"milestone \xc2\xb7 "], &[]),
+        Word::MsComplete => (&[b"complete"], &[]),
+        Word::MsEnded => (&[b"ended"], &[]),
+        Word::MsDone => (&[b"done"], &[]),
+        Word::MsWaits => (&[b"waits"], &[]),
+        Word::MsOpen => (&[b"open"], &[]),
+        Word::MsCount => (&[b"", b" / ", b" done"], &[Number, Number]),
+        Word::MsGoalOne => (&[b"goal"], &[]),
+        Word::MsGoalMany => (&[b"goals"], &[]),
+        Word::MsCountSentence => (&[b"", b" of ", b" ", b" done."], &[Number, Number, Name]),
+        Word::MsNoneSentence => (&[b"None of ", b" ", b" done."], &[Number, Name]),
+        Word::MsAll => (&[b"All ", b" ", b" done."], &[Number, Name]),
+        Word::MsCompleteEmpty => (&[b"Complete, with no goals."], &[]),
+        Word::MsNoGoals => (&[b"No goals yet."], &[]),
+        Word::MsOpenSentence => (&[b"", b" ", b" done so far; more may join."], &[Number, Name]),
+        Word::MsClosedSentence => (&[b"Closed by you; ", b""], &[Name]),
+        Word::MsFailedGoal => (&[b"", b"; ", b" failed."], &[Name, Name]),
+        Word::MsFailedCount => (&[b"", b"; ", b" failed."], &[Name, Number]),
+        Word::MsRunning => (&[b"", b" ", b": ", b""], &[Name, Name, Name]),
+        Word::MsMoreOne => (&[b"", b", and one more running."], &[Name]),
+        Word::MsMoreMany => (&[b"", b", and ", b" more running."], &[Name, Number]),
         Word::GoalCount => (&[b"", b" / ", b""], &[Number, Number]),
         Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
         Word::GoalNeedsYou => (&[b"needs you"], &[]),

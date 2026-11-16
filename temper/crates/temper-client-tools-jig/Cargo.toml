@@ -14,6 +14,7 @@ skein-ui.workspace = true
 jig-client.workspace = true
 jig-client-protocol-wire.workspace = true
 settings-form.workspace = true
+temper-client-domain-forge.workspace = true
 
 [lints]
 workspace = true

@@ -7,30 +7,92 @@ use skein_lib::{List, Queue, Wall};
 /// The open project's goal fact across pages (temper/docs/design/client/view.md, 3).
 #[derive(Debug)]
 pub(super) struct HasGoals {
-    query: Option<c::TaskQuery>,
-    ended: bool,
+    goals: Fact,
+    milestones: Option<Fact>,
 }
-
 impl HasGoals {
     pub(super) fn new() -> Self {
-        Self { query: None, ended: false }
+        Self { goals: Fact::new(), milestones: None }
     }
-    fn live() -> Handle {
-        handle(u64::MAX.checked_sub(1).expect("reserved goal watch handle"))
+    pub(super) fn configure(
+        &mut self,
+        me: Option<&c::Me>,
+        project: Option<u32>,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        self.goals.configure(me, project, out);
+        let offered = match (me, project) {
+            (Some(me), Some(project)) => super::milestones::query(me, project).is_some(),
+            (Some(_), None) | (None, Some(_) | None) => false,
+        };
+        if offered && self.milestones.is_none() {
+            let live = handle(*next);
+            *next = next.checked_add(1).expect("page handles fit");
+            let read = handle(*next);
+            *next = next.checked_add(1).expect("page handles fit");
+            self.milestones = Some(Fact { live, read, milestone: true, query: None, ended: false });
+        }
+        if let Some(fact) = &mut self.milestones {
+            fact.configure(me, project, out);
+        }
     }
-    fn read_handle() -> Handle {
-        handle(u64::MAX.checked_sub(2).expect("reserved goal read handle"))
+    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
+        if self.goals.told(told, out) {
+            return true;
+        }
+        match &mut self.milestones {
+            Some(fact) => fact.told(told, out),
+            None => false,
+        }
+    }
+    pub(super) fn has(&self, client: &Client, project: u32) -> bool {
+        self.goals.has(client, project)
+            || match &self.milestones {
+                Some(fact) => fact.has(client, project),
+                None => false,
+            }
+    }
+    pub(super) fn leave(&mut self, out: &mut Queue<Request>) {
+        self.goals.leave(out);
+        if let Some(fact) = &mut self.milestones {
+            fact.leave(out);
+        }
+    }
+}
+#[derive(Debug)]
+struct Fact {
+    query: Option<c::TaskQuery>,
+    ended: bool,
+    live: Handle,
+    read: Handle,
+    milestone: bool,
+}
+
+impl Fact {
+    fn new() -> Self {
+        Self {
+            query: None,
+            ended: false,
+            milestone: false,
+            live: handle(u64::MAX.checked_sub(1).expect("reserved goal watch handle")),
+            read: handle(u64::MAX.checked_sub(2).expect("reserved goal read handle")),
+        }
     }
     pub(super) fn leave(&mut self, out: &mut Queue<Request>) {
         if self.query.take().is_some() {
-            for handle in [Self::live(), Self::read_handle()] {
+            for handle in [self.live, self.read] {
                 out.push(Request::Client(jig_client::Event::Unwatch { handle }));
             }
         }
         self.ended = false;
     }
     pub(super) fn configure(&mut self, me: Option<&c::Me>, project: Option<u32>, out: &mut Queue<Request>) {
-        let next = if let (Some(me), Some(project)) = (me, project) { query(me, project) } else { None };
+        let next = if let (Some(me), Some(project)) = (me, project) {
+            if self.milestone { super::milestones::query(me, project) } else { query(me, project) }
+        } else {
+            None
+        };
         if self.query == next {
             return;
         }
@@ -38,11 +100,16 @@ impl HasGoals {
         self.query = next;
         if let Some(query) = next {
             out.push(Request::Client(jig_client::Event::Watch {
-                handle: Self::live(),
+                handle: self.live,
                 subject: Watchable::Jig(c::Subject::Tasks { query, window: 1 }),
             }));
+            self.read_ended(out);
+        }
+    }
+    fn read_ended(&self, out: &mut Queue<Request>) {
+        if let Some(query) = self.query {
             out.push(Request::Client(jig_client::Event::Read {
-                handle: Self::read_handle(),
+                handle: self.read,
                 read: Readable::Jig(c::Read::Tasks {
                     query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
                     live: None,
@@ -51,9 +118,9 @@ impl HasGoals {
             }));
         }
     }
-    pub(super) fn told(&mut self, told: &Told) -> bool {
+    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
         match told {
-            Told::Page { handle, page } if *handle == Self::read_handle() => {
+            Told::Page { handle, page } if *handle == self.read => {
                 if self.query.is_some() {
                     self.ended = match page {
                         Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => match &page.ended {
@@ -68,8 +135,15 @@ impl HasGoals {
                 }
                 true
             }
-            Told::Changed { handle } | Told::Ended { handle, .. } => *handle == Self::live(),
-            Told::Link { .. }
+            Told::Changed { handle } if *handle == self.live => {
+                if self.milestone {
+                    self.read_ended(out);
+                }
+                true
+            }
+            Told::Ended { handle, .. } => *handle == self.live,
+            Told::Changed { .. }
+            | Told::Link { .. }
             | Told::Pending { .. }
             | Told::Answered { .. }
             | Told::Kept { .. }
@@ -86,7 +160,7 @@ impl HasGoals {
         if self.ended {
             return true;
         }
-        if let Some(document) = client.document(Self::live())
+        if let Some(document) = client.document(self.live)
             && document.state != jig_client::State::Ended
             && let Some(Latest::Jig(c::Delivery::Tasks(tasks))) = document.latest
         {

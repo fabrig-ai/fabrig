@@ -1,6 +1,38 @@
 //! A milestone's task facts (temper/docs/design/domain/milestones.md, 3 and 7).
 use alloc::boxed::Box;
-use jig_client::contract;
+use jig_client::{contract, shapes};
+
+/// The stock milestone template (client/pages/milestone.md, 1).
+pub const TEMPLATE: u32 = 8;
+
+#[must_use]
+pub fn is(chip: &contract::Chip) -> bool {
+    chip.details.details.executor
+        == (contract::Executor::Procedure { connector: shapes::RECURRING, code: shapes::GATHERING })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Lineage<'a> {
+    pub milestone: &'a contract::Chip,
+    pub goal: &'a contract::Chip,
+}
+
+/// Jig serves ancestors root first (`jig-domain-core`, `documents/task_tree.rs`).
+#[must_use]
+pub fn lineage(task: &contract::Task) -> Option<Lineage<'_>> {
+    let mut ancestors = task.lineage_chips.iter();
+    for chip in ancestors.by_ref() {
+        if is(chip) {
+            let goal = match ancestors.next() {
+                Some(goal) => goal,
+                None if task.requester == contract::Requester::Task(chip.task) => &task.chip,
+                None => return None,
+            };
+            return Some(Lineage { milestone: chip, goal });
+        }
+    }
+    None
+}
 use skein_lib::{Wall, bytes};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -6,6 +6,21 @@ pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
 }
 
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_STRIP: Style = Style { owner: owner(), token: 794 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_DONE: Style = Style { owner: owner(), token: 795 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_LIVE: Style = Style { owner: owner(), token: 796 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_NEEDS: Style = Style { owner: owner(), token: 797 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_WAITS: Style = Style { owner: owner(), token: 798 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_FAILED: Style = Style { owner: owner(), token: 799 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_TAG: Style = Style { owner: owner(), token: 800 };
+
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
 /// The goal heading (client/web/look.md).
@@ -1529,6 +1544,13 @@ pub const NAMES: Names<'static> = Names {
         b"temper-group-card",
         b"temper-finding-title",
         b"temper-goals-state-waits",
+        b"temper-ms-strip",
+        b"temper-ms-done",
+        b"temper-ms-live",
+        b"temper-ms-needs",
+        b"temper-ms-waits",
+        b"temper-ms-failed",
+        b"temper-ms-tag",
     ],
     regions: &[b"temper-link"],
 };

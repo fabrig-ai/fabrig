@@ -2523,6 +2523,20 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goal-report > .temper-goal-title { line-height: 1.75; }
 #app:has(> .temper-rail) .temper-goal-report strong { font-weight: 600; }
 #app:has(> .temper-rail) .temper-goal-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 36px; }
+/* Shared milestone strip and tag (client/pages/milestone.md, 2). */
+#app .temper-ms-strip { display: flex; gap: 3px; margin: 4px 0 2px; }
+#app .temper-ms-strip > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font: 10.5px/1 var(--gf-mono); font-style: normal; color: var(--gf-faint); }
+#app .temper-ms-strip > span::before { content: ''; height: 6px; border-radius: 3px; background: var(--gf-line); }
+#app .temper-ms-strip > span > span { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+#app .temper-ms-strip > .temper-ms-done::before { background: var(--gf-ink); }
+#app .temper-ms-strip > .temper-ms-live::before { background: var(--gf-goal-running); }
+#app .temper-ms-strip > .temper-ms-needs::before { background: var(--gf-signal); }
+#app .temper-ms-strip > .temper-ms-waits::before { background: transparent; box-shadow: inset 0 0 0 1px var(--gf-line-2); }
+#app .temper-ms-strip > .temper-ms-failed::before { background: linear-gradient(var(--gf-line) 0 2.5px, var(--gf-ink-2) 2.5px 3.5px, var(--gf-line) 3.5px); }
+#app .temper-ms-strip > .temper-ms-failed { text-decoration: line-through; color: var(--gf-ink-2); }
+#app .temper-ms-strip > :is(.temper-ms-live, .temper-ms-needs) > span { color: var(--gf-ink); }
+#app .temper-ms-strip > .temper-ms-needs > span { color: var(--gf-signal); }
+#app .temper-ms-tag { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 4px; background: var(--gf-ink); color: var(--gf-paper); font: 500 11px/1.7 var(--gf-sans); letter-spacing: .02em; }
 #app:has(> .temper-rail) .temper-goal-bar { display: flex; gap: 3px; margin: 0 0 10px; }
 #app:has(> .temper-rail) .temper-goal-bar > * { flex: 1; height: 6px; border-radius: 3px; background: var(--gf-line); }
 #app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-landed { background: var(--gf-ink); }

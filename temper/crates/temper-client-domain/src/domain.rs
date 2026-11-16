@@ -105,7 +105,7 @@ impl Domain {
                 None => false,
             }
     }
-    /// The open project's live or ended goals (temper/docs/design/client/view.md, 3).
+    /// The open project's live or ended goals or milestones (temper/docs/design/client/pages/milestone.md, 1).
     #[must_use]
     pub fn has_goals(&self, project: u32) -> bool {
         self.pages.has_goals(&self.client, project)
