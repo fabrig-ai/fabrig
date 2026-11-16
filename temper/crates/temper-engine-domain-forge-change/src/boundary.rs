@@ -90,12 +90,16 @@ pub enum Repair {
     LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
 }
 
-/// The green prefix and its members below a blamed unit (domain/landing-search.md, 7).
+/// The green context of a blamed unit (domain/landing-search.md, 7; landing-search-by-test.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Below {
     pub green: Commit,
     /// Members in stack order, followed by empty slots.
     pub changes: [Option<Landed>; 4],
+    /// The boundary was found by selected tests rather than whole gates.
+    pub by_test: bool,
+    /// The blamed unit was the round's top.
+    pub top: bool,
 }
 
 /// A change landing in the green prefix, in stack order (domain/landing-search.md, 7).

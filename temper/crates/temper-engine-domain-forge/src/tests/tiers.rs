@@ -165,6 +165,47 @@ fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome) {
     crate::tiers::outcome(d, entry, outcome, &mut out);
     d.entries.remove(&entry);
 }
+#[test]
+fn a_tier_waits_for_a_gate_and_restored_tiers_reserve_the_workflow() {
+    let mut d = configured(None);
+    baseline(&mut d);
+    attach(&mut d, 1, TIER_TASK);
+    settled_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
+    let gate_key =
+        ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [8; 32] };
+    let mut gate = runs::follow();
+    gate.workflow = b"tier.yml".as_slice().into();
+    gate.commit = BASE;
+    gate.inputs = landing::inputs(BASE, gate_key.key, None, false);
+    let gate_inputs = gate.inputs.clone();
+    d.landing.flights.insert(gate_key.clone(), gate).unwrap();
+    let out = tier_step(&mut d, DISPATCH, false);
+    assert_eq!(choice(&out), Some(&TierDecision::Wait { until: None }));
+    assert!(!d.entries.contains_key(&DISPATCH), "no dispatch effect while the gate is live");
+    let poll = row(&d).flight.as_ref().unwrap().next.expect("the waiter has its own poll");
+    assert!(!crate::runs::busy(&d, REPO, b"tier.yml", BASE, &gate_inputs), "an unsent tier reserves nothing");
+    let mut later = env();
+    later.now = poll;
+    let mut out = Queue::uncapped();
+    crate::tiers::fire(&mut d, &later, &mut out);
+    assert!(out.iter().any(|request| matches!(request, Request::WakeProcedure { task } if *task == TIER_TASK)));
+    d.landing.flights.get_mut(&gate_key).unwrap().outcome = Some(keys::Verdict::Passed);
+    tier_step(&mut d, DISPATCH + 1, false);
+    assert!(matches!(d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write, api::Write::Dispatch { .. }));
+    let saved = row(&d).clone();
+    let mut restored = restoring(None);
+    outputs(&mut restored, Event::Restore { record: Stored::Tier(saved) });
+    assert!(restored.tier_ops.follows.is_empty());
+    assert!(
+        crate::runs::busy(&restored, REPO, b"tier.yml", BASE, &gate_inputs),
+        "a restored dispatch counts before tier restart reconstructs its follower"
+    );
+    made(&mut d, DISPATCH + 1, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    assert!(!crate::runs::busy(&d, REPO, b"tier.yml", BASE, &gate_inputs), "an ended tier releases its workflow");
+}
+
 fn dispatching() -> Domain {
     let mut d = configured(None);
     baseline(&mut d);

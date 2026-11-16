@@ -1,5 +1,5 @@
-//! The observed red boundary, its green turn and the remaining member's round
-//! (temper/docs/design/domain/landing-search.md, 3–5 and 8).
+//! The selected boundary and the remaining members' whole next round
+//! (temper/docs/design/domain/landing-search-by-test.md, 6–8).
 use super::{Judge, Phase, Process, Proof, Script, Turn, Value, gate_runs, get, hold, member_branch, members, sha};
 use skein_fake_llm_domain::api::Finish;
 
@@ -62,12 +62,30 @@ impl Judge<'_> {
         } else {
             (self.probes[0], sha(&members(&first.panel)?[0]["candidate"])?)
         };
-        if !self.receipt(previous, prefix, verdict)? {
-            return Ok(());
+        if self.probes.is_empty() {
+            if !self.receipt(previous, prefix, verdict)? {
+                return Ok(());
+            }
+        } else {
+            let actual = get(self.forge, &format!("actions/runs/{previous}"));
+            if actual["commit_sha"] != prefix {
+                return Err("selected probe at its prefix".into());
+            }
+            if actual["status"] != verdict {
+                return Ok(());
+            }
+            // A green by test is no whole receipt or published gate proof.
+            let statuses = get(self.forge, &format!("commits/{prefix}/status"));
+            if gate_status(&statuses, "success")? {
+                return Err("a selected pass is no whole proof".into());
+            }
         }
         let Some(run) = self.barrier.waiting(Some(previous)) else { return Ok(()) };
         let member = &members(&first.panel)?[boundary - 1];
         self.dispatched(run, sha(&member["candidate"])?)?;
+        if self.barrier.selection(run) != b"batch-red\n" {
+            return Err("each probe gets only the failing case".into());
+        }
         let branch = member_branch(first.panel["task"].as_u64().ok_or(String::from("landing task"))?, boundary);
         {
             let (left, right) =
@@ -86,43 +104,6 @@ impl Judge<'_> {
         Ok(())
     }
 
-    fn green_turn(&self, task: u64, prepared: &Value) -> Result<(), String> {
-        // The next round replaces round.pull. Find the first turn by its member
-        // branch, not by the candidate pull closed during the search.
-        let branch = member_branch(task, 1);
-        let pulls = get(self.forge, "pulls?state=all&limit=50");
-        if pulls.as_array().ok_or(String::from("pulls"))?.len() >= 50 {
-            return Err(String::from("one page holds every pull"));
-        }
-        let turns: Vec<_> = pulls
-            .as_array()
-            .ok_or(String::from("pulls"))?
-            .iter()
-            .filter(|pull| pull["head"]["ref"] == branch && pull["merged"] == true)
-            .collect();
-        if turns.len() != 1 {
-            return Err(String::from("one merged landing pull from the green member's branch"));
-        }
-        let prefix = sha(&prepared["candidate"])?;
-        {
-            let (left, right) = (&(turns[0]["base"]["ref"]), &("main"));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        {
-            let (left, right) = (&(turns[0]["head"]["sha"]), &(prefix));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        if turns[0]["merge_commit_sha"] != prefix {
-            return Err(String::from("fast-forward only, no extra merge commit"));
-        }
-
-        Ok(())
-    }
-
     fn boundary(&mut self) -> Result<(), String> {
         let first = self.first.as_ref().ok_or(String::from("top proof"))?;
         let red = self.probes[1];
@@ -132,12 +113,23 @@ impl Judge<'_> {
         let Some(run) = self.barrier.waiting(Some(self.probes[1])) else { return Ok(()) };
         let task = first.panel["task"].as_u64().ok_or(String::from("landing task"))?;
         let panel = self.landing(task)?;
-        if !self.member_landed(&members(&panel)?[0], &members(&first.panel)?[0])? {
-            return Ok(());
+        if !members(&panel)?[0]["landed"].is_null() {
+            return Err("a selected green prefix cannot land in the searched round".into());
         }
-        self.green_turn(task, &members(&first.panel)?[0])?;
+        let base = sha(&members(&first.panel)?[0]["base"])?;
+        if get(self.forge, "branches/main")["commit"]["id"] != base {
+            return Err("nothing lands on a selected probe".into());
+        }
+        let number = first.panel["round"]["pull"]["number"].as_u64().ok_or("first round pull")?;
+        let closed = get(self.forge, &format!("pulls/{number}"));
+        if closed["state"] != "closed" || closed["merged"] != false {
+            return Err("the searched round closes unlanded".into());
+        }
         let prefix = super::candidate(&panel)?;
         self.dispatched(run, prefix)?;
+        if !self.barrier.selection(run).is_empty() {
+            return Err("the next top proves whole".into());
+        }
         let branch = panel["round"]["branch"].as_str().ok_or("next round branch")?;
         if get(self.forge, &format!("branches/{branch}"))["commit"]["id"] != prefix {
             return Err("the round branch names its top".into());
@@ -150,6 +142,16 @@ impl Judge<'_> {
         let pull = get(self.forge, &format!("pulls/{number}"));
         if pull["head"]["ref"] != branch || pull["head"]["sha"] != prefix {
             return Err(String::from("the next round's pull uses its held branch and proved prefix"));
+        }
+        let expected = format!(
+            "Search by test: red at {}, change {} blamed; green at {}.",
+            sha(&members(&first.panel)?[1]["candidate"])?,
+            members(&first.panel)?[1]["change"],
+            sha(&members(&first.panel)?[0]["candidate"])?,
+        );
+        let body = pull["body"].as_str().ok_or("round body")?;
+        if body.matches(&expected).count() != 1 || !body.trim_end().ends_with(&expected) {
+            return Err(format!("the next pull names the search once: {expected}: {body}"));
         }
         self.barrier.release(run);
         self.second = Some(Proof { panel, run });

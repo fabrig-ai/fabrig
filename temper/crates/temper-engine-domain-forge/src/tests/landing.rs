@@ -293,6 +293,7 @@ fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
         job: None,
         landing: policy::Landing {
             last_left: None,
+            searched: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task,
@@ -2272,9 +2273,13 @@ fn failed_receipt_jobs_keep_ids_attempts_and_bounded_names_in_run_order() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one failed run preserves repair evidence and probe ids from its single report read"
+)]
 fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
     use skein_forge::api::{self, Answer};
-    use temper_engine_domain_forge_tiers::Format;
+    use temper_engine_domain_forge_tiers::{Failures, Format};
     let xml = br#"<testsuite name="skein-lib::suite"><testcase name="fuzzy::a" classname="skein-lib::suite"><failure/></testcase><testcase name="b" classname="skein-lib::suite"><failure/></testcase></testsuite>"#;
     let tests = ReceiptReport::Tests(Box::new([
         ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
@@ -2288,8 +2293,18 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
             }
         }
     }
-    for (format, bytes, truncated, error, expected) in [
-        (Format::Junit, xml.as_slice(), false, None, tests),
+    for (format, bytes, truncated, error, expected, failures) in [
+        (
+            Format::Junit,
+            xml.as_slice(),
+            false,
+            None,
+            tests,
+            Some(Failures::Tests(Box::new([
+                b"skein-lib::suite.b".as_slice().into(),
+                b"skein-lib::suite.fuzzy::a".as_slice().into(),
+            ]))),
+        ),
         (
             Format::Lines,
             b"test binary fuzzy::a\ntest binary b\n".as_slice(),
@@ -2299,11 +2314,29 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
                 ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
                 ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
             ])),
+            Some(Failures::Tests(Box::new([
+                b"test binary b".as_slice().into(),
+                b"test binary fuzzy::a".as_slice().into(),
+            ]))),
         ),
-        (Format::Lines, lines.as_slice(), false, None, ReceiptReport::Many { bound: LIMITS.tiers.failing_tests }),
-        (Format::Junit, b"cut".as_slice(), true, None, ReceiptReport::Many { bound: LIMITS.tiers.failing_tests }),
-        (Format::Junit, b"not XML".as_slice(), false, None, ReceiptReport::Unread),
-        (Format::Junit, b"".as_slice(), false, Some(api::Error::Missing), ReceiptReport::Unread),
+        (
+            Format::Lines,
+            lines.as_slice(),
+            false,
+            None,
+            ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
+            Some(Failures::Many),
+        ),
+        (
+            Format::Junit,
+            b"cut".as_slice(),
+            true,
+            None,
+            ReceiptReport::Many { bound: LIMITS.tiers.failing_tests },
+            Some(Failures::Many),
+        ),
+        (Format::Junit, b"not XML".as_slice(), false, None, ReceiptReport::Unread, None),
+        (Format::Junit, b"".as_slice(), false, Some(api::Error::Missing), ReceiptReport::Unread, None),
     ] {
         let (mut d, key, run) = reporting_failed_gate(format);
         let mut reads = 0_u32;
@@ -2369,7 +2402,7 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
         let receipt = d.receipt(&key).expect("failed receipt");
         assert!(!receipt.passed);
         assert_eq!(receipt.report, expected);
-        assert_eq!(receipt.failures, None, "tiers' failures are untouched");
+        assert_eq!(receipt.failures, failures, "the same artifact also supplies safe probe ids");
         assert_eq!((receipt.run.id, receipt.base, receipt.jobs[0].job), (run.id, Some(fixtures::BASE), 9));
         assert!(!d.landing.flights.contains_key(&key), "no retry for a missing report");
     }

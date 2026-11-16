@@ -77,7 +77,7 @@ fn run(seed: u64) -> Replay {
             pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b"")),
         );
         let next = &world.landing(LANDING).landing;
-        if let Some(search) = next.round.search {
+        if let Some(search) = &next.round.search {
             if prior.round.search.is_none() {
                 probed.clear();
                 search_round = next.preparation;
