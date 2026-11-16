@@ -9,7 +9,8 @@ way, what crosses as bytes of another owner and where smith's are
 decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
 is tested; `wires.md` holds the wires its opening states, and
-`bridges.md` how the channel speaks them across versions. An application with no workers has no channel: its
+`bridges.md` how the channel speaks them across versions, and
+`figures.md` what the engine sends a worker at its opening. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 
@@ -158,7 +159,9 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   - the wires it speaks, jig's and the application's, each by version
     and layout (`wires.md`, 2), in place of a payload version;
   - the worker's output room in bytes, its `io.output`, taken from the
-    worker component's stream room.
+    worker component's stream room;
+  - what the opening is for: a link, or the worker's figures alone
+    (`figures.md`, 3).
 - **The engine's side checks, in order,** before its domain hears
   anything:
   - the name and the secret, the secret compared in constant time with
@@ -176,8 +179,9 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     has a channel always has room, since it replaces that channel (4.2).
 - **jig's reasons,** from 256 as skein's channel reserves them:
   *unauthorized*, *wires*, *busy*, *replaced* (4.2), *not admitted*
-  (the fleet refused the worker's hello, 4.3) and *stopping* (the engine
-  is shutting down). Their numbers are the schema's.
+  (the fleet refused the worker's hello, 4.3), *stopping* (the engine
+  is shutting down) and *starting* (the engine has no figures to send
+  yet, `figures.md`, 3). Their numbers are the schema's.
 - **Terms.** Each side states the largest body it takes of each kind,
   from its own limits, as the agreed version encodes it (`wires.md`, 5);
   each checks the other's against the largest it may

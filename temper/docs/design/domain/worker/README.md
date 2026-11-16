@@ -531,10 +531,11 @@ process has exited and its tree is empty. temper's choices:
   ), smith's agent shell. temper builds no code into it.
 - **Pinned at the worker's start,** so an agent is always its worker's
   build and smith's channel never spans two (`../../draft/redeploys.md`,
-  4.4). As it starts, before its loop, the worker reads the agent's
-  configuration once, checks it and takes its bounds from it
-  (`../../protocol/configuration/README.md`, section 4), then writes
-  those same bytes, and a copy of the program its `agent` member names,
+  4.4). As it starts, before its loop, the worker writes the agent's
+  configuration from its engine's figures, checks it and takes its
+  bounds from it (`../../protocol/configuration/README.md`, section 4;
+  `../../protocol/configuration/figures.md`, section 6), then writes
+  those same bytes, and a copy of its derived agent program,
   into `agent/` under its root directory (`../../protocol/git.md`,
   section 2), afresh at each start, the previous copies removed first.
   The program's copy keeps its file name and is executable by the

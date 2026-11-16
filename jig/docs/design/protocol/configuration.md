@@ -424,6 +424,11 @@ no `ended_by` key.
 | programs | `check_interval_ms`, a positive interval for the host's local login checks. The executable and private source-directory base are the agent configuration's `programs.claude_code.path` and `directory` (smith's `protocol/agent.md`, section 4), supplied with its explicit command environment below the worker root; no directory under a person's home is invented. Without `claude_code`, each source reports failed, no program configured. A model on an endpoint naming `program` takes a program source there, and a credential source on its provider's `direct` endpoint where the provider names one (section 3); one on an endpoint without it takes a credential source |
 | limits | a profile, and overrides |
 
+`agent` and `limits` may be absent. An application whose worker takes
+its figures from its engine names neither, and refuses them by name
+(`channel/figures.md`). jig's reference binary requires both, and
+refuses a worker part without them, naming the member.
+
 The worker's workspace's configuration is the application's. Workers are
 alike: every worker's configuration is the same but for its name and
 secret, and every credential its runs need comes with their assignments

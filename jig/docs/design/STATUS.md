@@ -212,6 +212,7 @@ Design documents:
 - [`protocol/channel/README.md`](protocol/channel/README.status.md)
 - [`protocol/channel/wires.md`](protocol/channel/wires.status.md)
 - [`protocol/channel/bridges.md`](protocol/channel/bridges.status.md)
+- [`protocol/channel/figures.md`](protocol/channel/figures.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)
