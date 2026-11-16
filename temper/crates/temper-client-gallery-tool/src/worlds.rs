@@ -1967,6 +1967,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
     {
         return Some(value);
     }
+    if let c::Read::Task { task: number } = what {
+        for facts in goal_facts(w) {
+            if facts.number == *number {
+                let mut task = base_task(*number, facts.title);
+                task.chip = goal_line(w, facts).chip;
+                task.label = 2;
+                task.priority = Some(1);
+                return Some(c::ReadValue::Task(Box::new(task)));
+            }
+        }
+    }
     match what {
         c::Read::Tasks { query, .. } if query.tracked == Some(true) && query.requester.is_some() => {
             let mut rows = List::with_capacity(1);
@@ -2847,6 +2858,25 @@ impl GoalPage {
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch answers the goal’s related read documents")]
     fn read(&self, w: World, what: &c::Read) -> Option<c::ReadValue> {
+        if let c::Read::Task { task: number } = what {
+            if *number == self.facts.number {
+                return Some(c::ReadValue::Task(Box::new(self.document(w))));
+            }
+            if self.document(w).requester == c::Requester::Task(*number) {
+                let mut chat = base_task(*number, "The goal's chat");
+                chat.label = CHAT_LABEL;
+                return Some(c::ReadValue::Task(Box::new(chat)));
+            }
+            for index in 0..self.delegates.len() {
+                let line = self.delegate(w, index);
+                if line.chip.task == *number {
+                    let mut task = base_task(*number, "");
+                    task.chip = line.chip;
+                    task.requester = c::Requester::Task(self.facts.number);
+                    return Some(c::ReadValue::Task(Box::new(task)));
+                }
+            }
+        }
         match what {
             c::Read::Tasks { query, .. }
                 if *query == temper_client_domain::pages::goal::own_line_query(&self.document(w)) =>
@@ -3791,7 +3821,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_703_100_000_000_000,
         },
-        _ => panic!("task absent from this world step"),
+        _ => panic!("task {number} absent from world {w:?}"),
     }
 }
 fn activity(w: World, task: u64) -> c::ActivityPage {

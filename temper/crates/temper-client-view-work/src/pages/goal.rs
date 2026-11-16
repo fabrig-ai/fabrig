@@ -48,6 +48,7 @@ pub(crate) fn main(
                         names: super::goals::Names::dependencies(task, root.pages().me(root.client())),
                         report: goal.report.as_ref(),
                         draft: &goal.draft,
+                        chat: goal.requester_chat(root.pages().me(root.client())),
                         counts: goal.counts(task, ended),
                         state: goal.state(task, ended, !bands.is_empty()),
                     };
@@ -213,6 +214,7 @@ struct Page<'a> {
     names: super::goals::Names<'a>,
     report: Option<&'a Report>,
     draft: &'a (Option<Box<[u8]>>, Option<u64>),
+    chat: Option<u64>,
     counts: Counts,
     state: State,
 }
@@ -235,7 +237,27 @@ impl Page<'_> {
         {
             chat_link(b, *task, &words.say(Word::GoalDraft, &[]), bindings);
         }
-        if let c::Requester::Task(task) = self.task.requester {
+        let milestone = match temper_client_domain::milestones::lineage(self.task) {
+            Some(lineage)
+                if self.task.requester == c::Requester::Task(lineage.milestone.task)
+                    && lineage.goal.task == self.task.chip.task =>
+            {
+                Some(lineage.milestone)
+            }
+            Some(_) | None => None,
+        };
+        if let Some(milestone) = milestone {
+            let label = words.say(Word::GoalIn, &[Hole::Name(milestone.title.bytes().into())]);
+            crate::bindings::link(
+                b,
+                &label,
+                bindings.insert(Act::Go { address: Address::Task { task: milestone.task } }),
+            );
+            b.style(look::GOAL_BTN);
+            b.style(look::GOAL_SMALL);
+            b.text(Run::Plain, &label);
+            b.close();
+        } else if let Some(task) = self.chat {
             chat_link(b, task, &words.say(Word::GoalChat, &[Hole::Number(task)]), bindings);
         }
         self.acts(b, words, bindings);

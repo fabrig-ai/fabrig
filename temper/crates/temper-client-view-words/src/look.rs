@@ -39,6 +39,8 @@ pub const MS_ROW: Style = Style { owner: owner(), token: 801 };
 pub const GOALS_GROUP: Style = Style { owner: owner(), token: 802 };
 /// Goals inset beneath their milestone (client/pages/work.md, 1).
 pub const GOALS_GROUP_ROWS: Style = Style { owner: owner(), token: 803 };
+/// A milestone in a need's from line (client/pages/needs-you.md, 1).
+pub const MS_FROM: Style = Style { owner: owner(), token: 830 };
 
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
@@ -1579,6 +1581,27 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ms-landed",
         b"temper-ms-change",
         b"temper-ms-mark",
+        b"temper-reserved-810",
+        b"temper-reserved-811",
+        b"temper-reserved-812",
+        b"temper-reserved-813",
+        b"temper-reserved-814",
+        b"temper-reserved-815",
+        b"temper-reserved-816",
+        b"temper-reserved-817",
+        b"temper-reserved-818",
+        b"temper-reserved-819",
+        b"temper-reserved-820",
+        b"temper-reserved-821",
+        b"temper-reserved-822",
+        b"temper-reserved-823",
+        b"temper-reserved-824",
+        b"temper-reserved-825",
+        b"temper-reserved-826",
+        b"temper-reserved-827",
+        b"temper-reserved-828",
+        b"temper-reserved-829",
+        b"temper-ms-from",
     ],
     regions: &[b"temper-link"],
 };

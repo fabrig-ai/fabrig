@@ -1865,6 +1865,34 @@ fn needs_act(root: &mut d::Domain, act: d::pages::needs::Act) {
     drive(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Needs(act)) });
 }
 #[test]
+fn home_cards_prefix_the_milestone_and_goal() {
+    let root = f::needs::with_task(super::needs::milestone_task(true), d::address::Filter::ALL);
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    for words in [f::browser_words(), f::words()] {
+        let mut builder = skein_ui::Builder::new(&f::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(128);
+        crate::pages::home_cards::cards(
+            &mut builder,
+            &root,
+            &[d::pages::needs::Need::Card(card)],
+            true,
+            &words,
+            &mut bindings,
+            &mut crate::words::Times::new(f::NOW),
+        );
+        let tree = builder.finish();
+        let from = styled(&tree, crate::look::NEED_FROM);
+        let text = f::nodes_text(subtree(&tree, from.id));
+        contains(&text, "Store shape › S7 history in task logs › Keep task history · a question");
+        let milestone = styled(&tree, crate::look::MS_FROM);
+        assert_eq!(
+            bindings.decode(milestone.binding.unwrap().token, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Task { task: 700 } }))
+        );
+    }
+}
+
+#[test]
 fn parsed_home_card_prints_choices_and_opens_needs_for_words() {
     use d::pages::needs::Act as N;
     let root = everyday(false, &[PARSED, QUESTIONS[0]], false, true);
@@ -3278,6 +3306,18 @@ fn limits_goes_to_settings() {
             crate::act(&mut view, node, act),
             Some(d::Action::Pages(d::pages::Act::Away(d::pages::away::Act::Limits { project: f::PROJECT })))
         );
+    }
+}
+
+#[test]
+fn decided_row_names_its_tasks_milestone() {
+    let mut away = away_fixture(1);
+    away.lineage = super::needs::milestone_task(false).lineage_chips;
+    let root = default_away(away);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let row = styled(view.tree(), crate::look::DECISION);
+        contains(&f::nodes_text(subtree(view.tree(), row.id)), "Store shape › welcome-stall · Sun 23:05");
     }
 }
 

@@ -61,6 +61,58 @@ fn the_inbox_watches_inbox_and_reads_each_entrys_object() {
     }
 }
 #[test]
+fn a_cards_task_is_read_once_while_it_shows_and_held_tasks_need_no_read() {
+    let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
+    let entries = rows(ObjectKey::Question { task: TASK, message: MESSAGE }, InboxGroup::Questions, PROJECT);
+    fixtures::inbox_entries(&mut root, watch, entries.clone());
+    let handle = root.pages().inbox().unwrap().cards.get(0).unwrap().handle;
+    let mut out = Queue::uncapped();
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(fixtures::acts::question())),
+        },
+        &mut out,
+    );
+    assert_eq!(reads(&mut out).as_ref(), [Read::Task { task: TASK }]);
+    let task_handle = root.pages().inbox().unwrap().cards.get(0).unwrap().task.as_ref().unwrap().handle;
+    for read in reads(&mut fixtures::inbox_entries(&mut root, watch, entries)) {
+        assert_ne!(read, Read::Task { task: TASK }, "a refresh keeps the in-flight task read");
+    }
+    let mut task = fixtures::chat::task();
+    task.chip.task = TASK;
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page {
+            handle: task_handle,
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Task(Box::new(
+                task.clone(),
+            )))),
+        },
+        &mut out,
+    );
+    assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().document().unwrap(), &task);
+    fixtures::inbox_entries(&mut root, watch, rows(ObjectKey::Escalation(TASK), InboxGroup::Escalations, PROJECT));
+    let handle = root.pages().inbox().unwrap().cards.get(0).unwrap().handle;
+    out.clear();
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Escalation(Box::new(
+                contract::Escalation { task: Box::new(task), acts: List::uncapped() },
+            )))),
+        },
+        &mut out,
+    );
+    assert!(reads(&mut out).is_empty(), "the held task is already its document");
+}
+
+#[test]
 fn a_cut_person_question_reads_its_words() {
     for (cut, in_words) in [(true, true), (false, true), (true, false)] {
         let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
@@ -88,16 +140,28 @@ fn a_cut_person_question_reads_its_words() {
             },
             &mut out,
         );
-        let expected = if cut && in_words {
-            Box::<[Read]>::from([Read::TaskText { task: TASK, field: contract::TaskTextField::Specification, from: 0 }])
-        } else {
-            Box::<[Read]>::from([])
-        };
-        assert_eq!(reads(&mut out).as_ref(), expected.as_ref());
+        let mut expected = List::uncapped();
+        if cut && in_words {
+            expected
+                .push(Read::TaskText { task: TASK, field: contract::TaskTextField::Specification, from: 0 })
+                .unwrap();
+        }
+        let source = if in_words { person_requester() } else { TASK };
+        expected.push(Read::Task { task: source }).unwrap();
+        assert_eq!(reads(&mut out).as_ref(), expected.as_slice());
         assert!(root.pages().inbox().unwrap().known(), "a whole read does not delay known");
     }
 }
 
+fn person_requester() -> u64 {
+    let contract::ReadValue::PersonTask(person) = fixtures::acts::person(contract::ActKind::Answer) else {
+        panic!("person")
+    };
+    match person.requester {
+        contract::Requester::Task(task) => task,
+        contract::Requester::Person(_) | contract::Requester::Deployment { .. } => TASK,
+    }
+}
 fn text_page(task: u64, from: u64, total: u64, next: Option<u64>, words: &[u8]) -> contract::ReadResult {
     contract::ReadResult::Value(contract::ReadValue::TaskText(Box::new(contract::TaskText {
         task,
@@ -178,7 +242,10 @@ fn whole_question_pages_validate_finish_and_retry_on_refresh() {
         );
         assert_eq!(
             reads(&mut out).as_ref(),
-            [Read::TaskText { task: TASK, field: contract::TaskTextField::Specification, from: 0 }],
+            [
+                Read::TaskText { task: TASK, field: contract::TaskTextField::Specification, from: 0 },
+                Read::Task { task: person_requester() }
+            ],
             "{name}"
         );
         let Some(QuestionWords::Reading(words)) = root.pages().inbox().unwrap().cards.get(0).unwrap().question_words()

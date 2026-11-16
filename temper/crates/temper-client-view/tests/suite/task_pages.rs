@@ -592,8 +592,14 @@ mod tests {
         ));
         assert!(root.pages().task().expect("tracked page").cards.is_empty());
         for request in &requests {
-            if let jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { .. }), .. } = request {
-                panic!("tracked page must not read task cards: {requests:?}");
+            if let jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { task: number }), .. } =
+                request
+            {
+                assert_eq!(
+                    c::Requester::Task(*number),
+                    task.requester,
+                    "only the requester is read, not own or delegate held cards"
+                );
             }
         }
     }

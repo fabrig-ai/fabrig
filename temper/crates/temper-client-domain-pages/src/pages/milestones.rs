@@ -87,6 +87,7 @@ pub struct Milestone {
     reading_ended: bool,
     refresh_ended: bool,
     ended_more: bool,
+    watching_goals: bool,
 }
 impl Milestone {
     #[must_use]
@@ -113,6 +114,7 @@ impl Milestone {
             reading_ended: false,
             refresh_ended: false,
             ended_more: false,
+            watching_goals: false,
         }
     }
     fn query(&self) -> c::TaskQuery {
@@ -138,11 +140,7 @@ impl Milestone {
         let opening = self.key.is_none();
         self.key = Some(key);
         if opening {
-            out.push(Request::Client(jig_client::Event::Watch {
-                handle: self.live,
-                subject: Watchable::Jig(c::Subject::Tasks { query: self.query(), window: limits.client.domain.rows }),
-            }));
-            self.refresh_ended = true;
+            self.configure_goals(client, limits, out);
         }
         if ending {
             self.refresh_ended = true;
@@ -159,6 +157,19 @@ impl Milestone {
                 self.totals_at = self.reading_totals.take();
                 self.totals = None;
             }
+        }
+        self.refresh(out);
+        self.merge(client);
+    }
+    /// A milestone filter needs its merged goals, not its totals or another document read.
+    pub fn configure_goals(&mut self, client: &Client, limits: &Limits, out: &mut Queue<Request>) {
+        if !self.watching_goals {
+            self.watching_goals = true;
+            out.push(Request::Client(jig_client::Event::Watch {
+                handle: self.live,
+                subject: Watchable::Jig(c::Subject::Tasks { query: self.query(), window: limits.client.domain.rows }),
+            }));
+            self.refresh_ended = true;
         }
         self.refresh(out);
         self.merge(client);

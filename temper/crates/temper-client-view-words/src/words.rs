@@ -491,6 +491,10 @@ pub enum Word {
     GoalByAt,
     GoalDraft,
     GoalChat,
+    GoalIn,
+    MilestoneFilter,
+    NeedsDependency,
+    DependencyClosed,
     GoalReportTitle,
     GoalReadingDraft,
     GoalReadingAsked,
@@ -2208,7 +2212,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2756;
+const PHRASES: u32 = 2760;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2235,10 +2239,10 @@ const PHRASES: u32 = 2756;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5108;
+const SEGMENTS: u32 = 5122;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65187;
-const ALL: [Word; 2035] = [
+const ENGLISH_BYTES: u32 = 65295;
+const ALL: [Word; 2039] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2675,6 +2679,10 @@ const ALL: [Word; 2035] = [
     Word::GoalByAt,
     Word::GoalDraft,
     Word::GoalChat,
+    Word::GoalIn,
+    Word::MilestoneFilter,
+    Word::NeedsDependency,
+    Word::DependencyClosed,
     Word::GoalReportTitle,
     Word::GoalReadingDraft,
     Word::GoalReadingAsked,
@@ -4651,6 +4659,10 @@ impl Word {
             Self::GoalByAt => 3578,
             Self::GoalDraft => 3579,
             Self::GoalChat => 3580,
+            Self::GoalIn => 9830,
+            Self::MilestoneFilter => 9831,
+            Self::NeedsDependency => 9832,
+            Self::DependencyClosed => 9833,
             Self::GoalReportTitle => 3581,
             Self::GoalReadingDraft => 3582,
             Self::GoalReadingAsked => 3583,
@@ -7171,6 +7183,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalByAt => (&[b"By its agent at ", b""], &[Name]),
         Word::GoalDraft => (&[b"Draft"], &[]),
         Word::GoalChat => (&[b"Chat T", b""], &[Number]),
+        Word::GoalIn => (&[b"in ", b""], &[Name]),
+        Word::MilestoneFilter => (&[b"Milestone \xc2\xb7 ", b""], &[Name]),
+        Word::NeedsDependency => (&[b"", b" is held: ", b", which it waits on, ", b". Drop or replace that dependency, then release it."], &[Name, Name, Name]),
+        Word::DependencyClosed => (&[b"was closed"], &[]),
         Word::GoalReportTitle => (&[b"Report"], &[]),
         Word::GoalReadingDraft => (&[b"Reading ", b" and the designs it cites, to propose its tasks."], &[Name]),
         Word::GoalReadingAsked => (&[b"Reading what was asked, to propose its tasks."], &[]),

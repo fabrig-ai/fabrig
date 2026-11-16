@@ -1489,6 +1489,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     }
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
+        inbox.configure(client, &env.limits, out);
+        pages.next = pages.next.max(inbox.next);
     }
     if let Some(changes) = &mut pages.changes {
         changes.reserve(pages.next);
@@ -2356,7 +2358,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             return match &mut pages.inbox {
                 Some(inbox) => {
                     inbox.next = inbox.next.max(chat.next);
-                    let handled = inbox.told(client, told, out);
+                    let handled = inbox.told(client, told, &env.limits, out);
                     chat.next = chat.next.max(inbox.next);
                     handled
                 }
@@ -2390,12 +2392,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     if let Some(chats) = &mut pages.chats {
         if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
-                Some(inbox) => inbox.told(client, told, out),
+                Some(inbox) => inbox.told(client, told, &env.limits, out),
                 None => false,
             };
         }
     } else if !match &mut pages.inbox {
-        Some(inbox) => inbox.told(client, told, out),
+        Some(inbox) => inbox.told(client, told, &env.limits, out),
         None => false,
     } {
         return false;
@@ -2485,7 +2487,7 @@ fn task_told(
         }
         let inbox = inbox.as_mut().expect("tracked page inbox");
         inbox.next = inbox.next.max(task.next);
-        let handled_inbox = if handled { false } else { inbox.told(client, told, out) };
+        let handled_inbox = if handled { false } else { inbox.told(client, told, &env.limits, out) };
         task.next = task.next.max(inbox.next);
         return handled || handled_inbox;
     }

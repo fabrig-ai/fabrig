@@ -299,7 +299,18 @@ mod tests {
     // jig's client/domain/contract/README.md 5.2: an ended subject is read for its end.
     #[test]
     fn goal_watch_end_reads_and_keeps_the_final_document() {
-        let (mut root, watch, _, _) = opened(goal());
+        let (mut root, watch, _, mut opening) = opened(goal());
+        while let Some(request) = opening.pop() {
+            if let jig_client::Down::Read { read, what: jig_client::Readable::Jig(_) } = request {
+                opening.extend(up(
+                    &mut root,
+                    jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+                    },
+                ));
+            }
+        }
         let requests = up(&mut root, jig_client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
         let terminal = reads(&requests).into_iter().find(|(_, what)| *what == c::Read::Task { task: TASK });
         let (read, _) = terminal.expect("watch ending requests final task");

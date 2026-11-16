@@ -1116,6 +1116,7 @@ impl Task {
         self.cards
             .push(Card {
                 whole: None,
+                task: None,
                 object,
                 group: c::InboxGroup::Escalations,
                 project: None,

@@ -323,7 +323,21 @@ fn draft_and_chat_links() {
         let mut task = document();
         task.spec.specification.words = text(spec);
         task.requester = requester;
-        let root = root(task, DONE, TOTAL, None, false);
+        let baseline = root(task.clone(), DONE, TOTAL, None, false);
+        let mut side = Side::empty();
+        if let c::Requester::Task(number) = requester {
+            let mut chat = document();
+            chat.chip.task = number;
+            chat.label = jig_client::shapes::template(
+                baseline.pages().me(baseline.client()).unwrap(),
+                chat.project,
+                jig_client::shapes::CHAT,
+            )
+            .unwrap()
+            .label;
+            side.requester = Some(chat);
+        }
+        let root = root_with_side(task, DONE, TOTAL, None, false, side);
         for words in [fixtures::browser_words(), fixtures::words()] {
             let (tree, bindings, _) = draw(&root, &words);
             let mut links = List::uncapped();
@@ -342,6 +356,60 @@ fn draft_and_chat_links() {
                     Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Chat { task: *task } }))
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn acts_name_a_milestone_but_only_a_read_chat_is_a_chat_link() {
+    for kind in [0_u8, 1, 2, 3] {
+        let mut task = document();
+        task.spec.specification.words = text(b"Build it.");
+        task.requester = c::Requester::Task(2);
+        let mut requester = document();
+        requester.chip.task = 2;
+        requester.chip.title = text(b"Store shape");
+        let baseline = root(task.clone(), DONE, TOTAL, None, false);
+        let template = jig_client::shapes::template(
+            baseline.pages().me(baseline.client()).unwrap(),
+            task.project,
+            jig_client::shapes::CHAT,
+        )
+        .unwrap();
+        requester.label = if kind == 1 { template.label } else { template.label.checked_add(1).unwrap() };
+        if kind == 0 {
+            requester.chip.details.details.executor = c::Executor::Procedure {
+                connector: jig_client::shapes::RECURRING,
+                code: jig_client::shapes::GATHERING,
+            };
+            task.lineage_chips = List::from_boxed(Box::new([requester.chip.clone()]));
+        }
+        let mut side = Side::empty();
+        if kind != 3 {
+            side.requester = Some(requester);
+        }
+        let root = root_with_side(task, DONE, TOTAL, None, false, side);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings, _) = draw(&root, &words);
+            let mut links = List::uncapped();
+            for node in tree.nodes() {
+                if node.role == Role::Link {
+                    links.push(node).unwrap();
+                }
+            }
+            if kind >= 2 {
+                assert_eq!(links.len(), 0);
+                continue;
+            }
+            assert_eq!(links.len(), 1);
+            let link = links.get(0).unwrap();
+            assert_eq!(link.name.as_deref(), Some(if kind == 0 { b"in Store shape".as_slice() } else { b"Chat T2" }));
+            assert_eq!(
+                bindings.decode(link.binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(Act::Go {
+                    address: if kind == 0 { Address::Task { task: 2 } } else { Address::Chat { task: 2 } }
+                }))
+            );
         }
     }
 }
@@ -1394,7 +1462,7 @@ fn the_acts_in_order_by_offer() {
     let root = root(task, DONE, TOTAL, None, false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         let (tree, bindings, _) = draw(&root, &words);
-        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Chat T2", b"Amend", b"Pause", b"Close"]);
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Amend", b"Pause", b"Close"]);
         for (name, act) in [(b"Amend".as_slice(), Act::Amend), (b"Pause", Act::Pause), (b"Close", Act::Close)] {
             let node = tree.nodes().get(named_index(&tree, Role::Button, name)).unwrap();
             assert!(node.styles.as_slice().contains(&look::GOAL_BTN));

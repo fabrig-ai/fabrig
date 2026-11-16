@@ -1487,6 +1487,9 @@ fn goal() -> (Task, f::Fixture) {
     (page, fixture)
 }
 fn opening_goal_reads(out: &mut Queue<Request>) {
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Task { .. }), .. })) = out.pop() else {
+        panic!("the goal's requester read");
+    };
     let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Notes { .. }), .. })) = out.pop() else {
         panic!("the goal's report read");
     };
@@ -1499,8 +1502,8 @@ fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     let (page, mut fixture) = goal();
     let ended = page.ended.as_ref().unwrap();
     assert_eq!(page.shape, Shape::Tracked);
-    // The ended page is followed by the report and own-line handles.
-    assert_eq!(page.next, ended.handle.number + 3);
+    // The ended page is followed by the report, own-line and requester handles.
+    assert_eq!(page.next, ended.handle.number + 4);
     assert_ne!(ended.handle, page.document);
     assert_ne!(ended.handle, page.tree);
     assert_ne!(ended.handle, page.activity);
