@@ -118,6 +118,7 @@ struct Judge {
     renew: bool,
     calls: usize,
     answers: usize,
+    context_cursor: usize,
     handed: bool,
     initial: bool,
     refreshed: bool,
@@ -265,7 +266,12 @@ impl skein_world::Referee<Proc> for Judge {
         for proc in procs {
             if let Proc::Peer(peer) = proc {
                 observer::context(peer)?;
-                self.read |= peer.observations().iter().any(|seen| matches!(seen, skein_fake_peers::llm::Observation::Query { query, .. } if query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"Scope fixture".len()).any(|part| part == b"Scope fixture")))));
+                let observations = peer.observations();
+                let added = observations
+                    .get(self.context_cursor..)
+                    .ok_or_else(|| String::from("LLM observations are a prefix"))?;
+                self.read |= added.iter().any(|seen| matches!(seen, skein_fake_peers::llm::Observation::Query { query, .. } if query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"Scope fixture".len()).any(|part| part == b"Scope fixture")))));
+                self.context_cursor = observations.len();
             }
         }
         let mut forge = self.forge.borrow_mut();
@@ -339,7 +345,7 @@ pub fn delivery(renew: bool) -> observer::Counts {
     let (forge, mut peer) =
         github::peer_with_ci(if renew { TOKEN_LIFE } else { skein_fake_forge_github::installations::TOKEN_LIFE });
     let (app, files) = observer::input(&mut peer);
-    let transport = stories::forge(Story::Adopt);
+    let transport = temper_fake_git_hosted::Typed::new(forge.clone(), &stories::forge_table());
     let mut disk = temper_playground::machine::fresh();
     let input = disk.lay(&files);
     disk.close(input);
@@ -361,6 +367,7 @@ pub fn delivery(renew: bool) -> observer::Counts {
                 renew,
                 calls: 0,
                 answers: 0,
+                context_cursor: 0,
                 handed: false,
                 initial: false,
                 refreshed: false,
