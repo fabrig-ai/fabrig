@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use fabrig_boundary::{Tree, module_tree};
+use fabrig_boundary::{Tree, Trees, module_tree};
 use serde_json::Value;
 use skein_scratch::Scratch;
 
@@ -32,10 +32,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception {
         what: "jig-protocol-store",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1); G2 moves only generated record code",
-    },
-    Exception {
-        what: "temper-client-tools",
-        until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
     },
     Exception {
         what: "jig-client-view",
@@ -232,6 +228,28 @@ fn reached(tree: &Tree, scratch: &Scratch) -> BTreeMap<String, usize> {
 
 fn expected(files: &[(&str, usize)]) -> BTreeMap<String, usize> {
     files.iter().map(|(path, lines)| ((*path).to_owned(), *lines)).collect()
+}
+
+#[test]
+fn reader_keeps_package_relative_children_and_failures_in_every_tree() {
+    let scratch = scratch(&[
+        ("shared.rs", "include!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/part.rs\")); include!(\"missing.rs\");"),
+        ("one/part.rs", "// one"),
+        ("two/part.rs", "// two"),
+    ]);
+    let mut trees = Trees::default();
+    let root = scratch.path().join("shared.rs");
+    for package in ["one", "two", "one"] {
+        let directory = scratch.path().join(package);
+        let tree = trees.tree(&directory, &root);
+        let fresh = module_tree(&directory, &root);
+        assert_eq!(tree.files, fresh.files);
+        assert_eq!(tree.failures, fresh.failures);
+        assert_eq!(reached(&tree, &scratch), expected(&[("shared.rs", 1), (&format!("{package}/part.rs"), 1)]));
+        assert_eq!(tree.failures.len(), 1);
+        assert!(tree.failures[0].starts_with(&format!("{}:", scratch.path().join("missing.rs").display())));
+    }
+    assert_eq!(trees.read, 4);
 }
 
 #[test]

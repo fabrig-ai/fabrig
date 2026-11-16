@@ -119,8 +119,11 @@ landed by one fast-forward of the landing's own pull request; a red
 round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
 next round, each probe's gates given `temper_probe` so that they may
-stop at their first red (`domain/landing-search.md`). Its process stories and
-staging walks follow landing (`draft/merge-queue.status.md`).
+stop at their first red (`domain/landing-search.md`). Its behaviours are
+checked in the engine's worlds; the process tier keeps two stories on
+the fake forge and two on the owned Forgejo, run by choice
+(`testing/process-tier.md`); its staging walks follow landing
+(`draft/merge-queue.status.md`).
 
 The landing history's milestone H1, goal 2474, keeps each change's and
 each landing's steps as events after their rows go
@@ -281,10 +284,16 @@ the place (`client/tui/pages/README.md`, 3). The requests `tui-15` to
 `tui-19` of the same day, goal 3597, add blank rows around temper's
 line when the terminal is lent, draw the header and the welcome as
 their mockups (a blank row on top, the mark at column 1, the link at
-"Welcome."'s column, "In the browser" on one line), put the caret after
-"/change " and start nothing on a command's name alone, go back to the
+"Welcome."'s column, "In the browser" on one line), go back to the
 launchpad once `/close` is done, and give each recording run its own
-file, the last ten kept (`client/tui/journeys.md`, 3.1).
+file, the last ten kept (`client/tui/journeys.md`, 3.1). The requests
+`tui-20` and `tui-21` of the same day, goal 4172, take `/ask`,
+`/change`, `/draft` and `/tell` alone to a chat not yet started, its
+box empty with a placeholder, started by the first words sent and left
+by Esc, in the place of `tui-17`'s name left in the box
+(`client/tui/pages/README.md`, 2, *Not yet started*), and put the
+link's state first on every screen's bottom row, at its first column
+(`client/tui/pages/README.md`, *The link's state*).
 
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
@@ -337,6 +346,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/ctl/tools-crates.md`](client/ctl/tools-crates.status.md)
 - [`client/domain-crates.md`](client/domain-crates.status.md)
 - [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
@@ -503,6 +513,7 @@ Drafts:
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/design-economy.md`](draft/design-economy.status.md)
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
+- [`draft/early-start-checked.md`](draft/early-start-checked.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
@@ -524,6 +535,7 @@ Drafts:
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
@@ -533,6 +545,7 @@ Drafts:
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
+- [`draft/probes-by-test.md`](draft/probes-by-test.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)

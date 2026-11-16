@@ -327,9 +327,14 @@ fn check_ci(ran: &Ran) -> (u64, u64, u64) {
 fn check_repair(ran: &Ran, first: u64) {
     let repair = document(ran, REPAIRED);
     assert_eq!(repair["requester"]["task"], CHANGE);
+    let change = document(ran, LANDED);
+    let request = change["spec"]["specification"]["words"]["bytes"].as_str().expect("change request");
     let opening = format!(
         "Repair CI at {}: / changes (pull_request)\n{}. Preserve the requested change and unrelated base content, \
-         including both independent appended lines and existing blank lines; do not remove content to make a check pass.",
+         including both independent appended lines and existing blank lines, and do not remove content to make a check pass, \
+         unless the change's request as revised, or an answer given on it, says otherwise.\n\n\
+         What this change is asked now: its request as revised and the answers given on it. Where they differ from its title, \
+         its original request or the preservation rule, they come first.\nIts request, at spec revision 0:\n{request}",
         &hex(first)[..12],
         CUES[3]
     );

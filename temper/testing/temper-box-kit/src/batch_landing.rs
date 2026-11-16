@@ -1,7 +1,6 @@
-//! A queue that lands green and a red narrowed on real git and the owned runner
+//! Dispatch-only probes and merged pull heads on the owned runner
 //! (temper/docs/design/testing/process-tier.md; domain/landing.md, 5, 8–10 and 14;
 //! domain/landing-search.md, 3–5 and 8).
-pub mod deployment;
 mod narrowed;
 use super::{
     ChatJudge, ChatPhase, Ending, LANDING, Process, ctl,
@@ -19,40 +18,6 @@ use std::{cell::RefCell, collections::BTreeMap, fs, path::Path};
 // Hello is task 1, the landing chat 2. Its one delegate batch makes these
 // siblings before any producer starts. The latch is a report, not a change.
 const CHANGES: [u64; 3] = [3, 4, 5];
-const FOURTH: u64 = 6;
-#[derive(Clone, Copy)]
-enum Story {
-    Green,
-    Narrowed,
-    Repaired,
-    DeploymentGreen,
-    Conflict,
-    MidProof,
-    NarrowedFour,
-}
-impl Story {
-    fn changes(self) -> u64 {
-        match self {
-            Self::Green | Self::NarrowedFour => 4,
-            Self::Narrowed => 3,
-            Self::Repaired | Self::DeploymentGreen | Self::MidProof => 1,
-            Self::Conflict => 2,
-        }
-    }
-    fn ready(self) -> &'static [u64] {
-        match self {
-            Self::Green | Self::Narrowed => &CHANGES,
-            Self::Repaired | Self::DeploymentGreen => &[3],
-            Self::Conflict => &[3, 4],
-            Self::MidProof => &[4],
-            Self::NarrowedFour => &[3, 4, 5, 6],
-        }
-    }
-    fn latch(self) -> u64 {
-        self.changes() + 3
-    }
-}
-
 pub(super) fn call(name: &[u8], value: &Value) -> Turn {
     Turn {
         lines: Box::new([Line::Call {
@@ -68,40 +33,34 @@ pub(super) fn hold(name: &[u8]) -> Line {
     Line::Pieces { pieces: Box::new([Piece { text: b"Waiting.".as_slice().into(), hold: Some(name.into()) }]) }
 }
 
-fn scripts(root: &Path, forge: &Throwaway, story: Story) -> Box<[Script]> {
-    if let Story::MidProof = story {
-        return deployment::goal_scripts(forge);
-    }
+fn scripts(root: &Path, forge: &Throwaway) -> Box<[Script]> {
     let value: Value =
         serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration")).expect("JSON");
     let engine = temper_real_loop_world::settings::configuration(&value);
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend, story)
+    scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend)
 }
 
-fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Script]> {
-    // Four runs per change and one for the latch fit the chat's stock 24-run budget.
+fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
+    // Three changes and their latch fit the chat's stock 24-run budget.
     let mut owner = shared.remove(0);
     let Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
     let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     let mut batch = Vec::new();
     let mut scripts = Vec::new();
-    for number in 1..=story.changes() {
+    for number in 1..=3 {
         let words = format!("@batch-code-{number} Add batch-{number}.txt");
         let mut change = delegate["batch"][0].clone();
         change["spec"]["words"] = words.clone().into();
         change["tracked"] = json!({"priority":number});
         change["authority"]["budget"]["spend"] = (4 * run).into();
         batch.push(change);
-        let path = if let Story::Conflict = story { "shared.txt".into() } else { format!("batch-{number}.txt") };
-        let mut turns = vec![
+        let path = format!("batch-{number}.txt");
+        let turns = vec![
             call(b"read", &json!({"path":path})),
             call(
                 b"write",
-                &json!({"path":path,"content":match (story, number) {
-                    (Story::Narrowed | Story::NarrowedFour, 2) | (Story::Repaired, 1) => "red\n".to_owned(),
-                    _ => format!("Change {number}\n"),
-                }}),
+                &json!({"path":path,"content":if number == 2 { "red\n".to_owned() } else { format!("Change {number}\n") }}),
             ),
             call(
                 b"finish",
@@ -109,12 +68,6 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
                 "title":format!("Batch change {number}"),"body":format!("Add {path}.")}}),
             ),
         ];
-        if matches!(story, Story::NarrowedFour) {
-            turns[0].lines = Box::new([hold(b"batch-coders"), turns[0].lines[0].clone()]);
-        }
-        if number == 4 && !matches!(story, Story::NarrowedFour) {
-            turns[0].lines = Box::new([hold(b"batch-fourth"), turns[0].lines[0].clone()]);
-        }
         scripts.push(Script {
             cue: format!("## Task\n\n{words}").into_bytes().into_boxed_slice(),
             turns: turns.into_boxed_slice(),
@@ -159,19 +112,11 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         .iter_mut()
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("shared review");
-    if !matches!(story, Story::NarrowedFour) {
-        review.turns[0].lines =
-            [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
-    }
+    review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
     // The shared coder is replaced by disjoint files, so every head merges cleanly.
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     scripts.extend(shared);
-    match story {
-        Story::Narrowed | Story::NarrowedFour => narrowed::hold_repair(&mut scripts),
-        Story::Repaired => deployment::repair_script(&mut scripts),
-        Story::Conflict => deployment::resolution_script(&mut scripts),
-        Story::Green | Story::DeploymentGreen | Story::MidProof => {}
-    }
+    narrowed::hold_repair(&mut scripts);
     scripts.into_boxed_slice()
 }
 
@@ -185,7 +130,7 @@ pub fn configure(root: &Path, repository: u64) {
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();
     }
-    // Three readiness gathers run beside repository polls and the held fourth producer.
+    // Three readiness gathers run beside repository polls and the held latch.
     let limits = &mut value["application"]["limits"]["overrides"];
     limits["forge.client.pending"] = 16.into();
     limits["forge.client.calls"] = 8.into();
@@ -197,7 +142,7 @@ pub fn configure(root: &Path, repository: u64) {
 
 /// Hold the prepare job and the batch call under the standard engine profile.
 pub fn message_room(root: &Path, value: &mut Value) {
-    // The one model call carries four independent change authorities and a latch.
+    // The one model call carries three independent change authorities and a latch.
     let agent_path = root.join("agent.json");
     let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
@@ -256,9 +201,6 @@ fn get(forge: &Throwaway, route: &str) -> Value {
 }
 fn sha(value: &Value) -> Result<&str, String> {
     Ok({ value.as_str().ok_or(String::from("commit"))?.get(..40).ok_or(String::from("commit"))? })
-}
-fn main(forge: &Throwaway) -> Result<String, String> {
-    Ok({ get(forge, "branches/main")["commit"]["id"].as_str().ok_or(String::from("main tip"))?.into() })
 }
 fn members(panel: &Value) -> Result<&[Value], String> {
     Ok({ panel["members"].as_array().ok_or(String::from("members"))? })
@@ -323,7 +265,6 @@ pub mod tests {
         let scripts = super::scripted_batch(
             super::super::forgejo::native_scripts(b"hello", api, 1, b"README").into_vec(),
             stock.rules.maximum_run_spend,
-            super::Story::Green,
         );
         let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
         let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
@@ -373,19 +314,7 @@ enum Phase {
     Keeping,
     Gates,
     Batch,
-    Fourth,
-    Next,
-    Landed,
-    Ending,
     Search(narrowed::Step),
-    Repair,
-    Repaired,
-    SingleLanded,
-    Conflict,
-    Resolved,
-    StartGoal,
-    GoalGates,
-    Moved,
 }
 // One sample reads each panel through the world's Calls actor. A missing panel
 // yields the sample until its response arrives, keeping the fake peer runnable.
@@ -409,15 +338,12 @@ enum PeerStop {
 struct Judge<'a> {
     failed: Option<String>,
     chat: ChatJudge<'a>,
-    root: &'a Path,
     forge: &'a Throwaway,
     barrier: &'a JobBarrier,
     phase: Phase,
     poll: Time,
-    base: String,
     first: Option<Proof>,
     second: Option<Proof>,
-    story: Story,
     probes: Vec<u64>,
     reads: RefCell<Reads>,
     amends: usize,
@@ -505,11 +431,7 @@ impl Judge<'_> {
         self.read(&["landing", "show", &task.to_string()])
     }
     fn landings(&self) -> Result<Value, String> {
-        let mut list = self.read(&["landing", "list", "--project", "1", "--ended"])?;
-        if matches!(self.story, Story::MidProof) {
-            list["landings"].as_array_mut().ok_or("landings")?.retain(|row| row["train"]["branch"] == "main");
-        }
-        Ok(list)
+        self.read(&["landing", "list", "--project", "1", "--ended"])
     }
     fn drive_reads(&self, procs: &mut [Process]) -> Result<bool, String> {
         let mut reads = self.reads.borrow_mut();
@@ -541,7 +463,7 @@ impl Judge<'_> {
             return Err(format!("batch owner held: {}", owner["hold"]));
         }
         Ok({
-            self.story.ready().iter().copied().try_fold(true, |all, task| {
+            CHANGES.as_slice().iter().copied().try_fold(true, |all, task| {
                 if !all {
                     return Ok(false);
                 }
@@ -551,24 +473,16 @@ impl Judge<'_> {
                     Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(false),
                     Err(why) => return Err(why),
                 };
-                Ok::<_, String>(
-                    matches!(self.story, Story::NarrowedFour)
-                        || (change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"),
-                )
+                Ok::<_, String>(change["step"] == "gating" && change["gates"][0]["verdict"] == "pending")
             })?
         })
     }
     fn keep_together(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        if !self.landings()?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
-            return Err(String::from(
-                "assertion failed: self.landings()?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
-            ));
-        }
         // The same dependency is lifted in one durable completion. This makes
         // three independent units eligible at quiescence, not a joined unit or
         // a race between three separately released reviews (landing.md, 9).
         self.amends = calls(procs)?.ends().len();
-        for task in self.story.ready() {
+        for task in CHANGES.as_slice() {
             calls(procs)?.push(ctl::Step::Run(
                 ctl::Call::new(&[
                     "task",
@@ -577,7 +491,7 @@ impl Judge<'_> {
                     "--rev",
                     "0",
                     "--dependency",
-                    &self.story.latch().to_string(),
+                    &6.to_string(),
                     "Become ready with the other two changes",
                     "--key",
                     &format!("batch-keep-{task}"),
@@ -589,117 +503,22 @@ impl Judge<'_> {
 
         Ok(())
     }
-    fn proof_changes(&self, expected: &[u64]) -> Result<Vec<u64>, String> {
-        if !matches!(self.story, Story::MidProof) {
-            return Ok(expected.to_vec());
-        }
+    fn proof(&self) -> Result<Option<Proof>, String> {
+        let Some(run) = self.barrier.waiting(None) else { return Ok(None) };
         let list = self.landings()?;
-        let Some(row) = list["landings"].as_array().ok_or("landings")?.last() else { return Ok(Vec::new()) };
-        let changes = row["changes"]
-            .as_array()
-            .ok_or("changes")?
-            .iter()
-            .map(|task| task.as_u64().ok_or("change"))
-            .collect::<Result<Vec<_>, _>>()?;
-        if changes.len() != 1 {
-            return Err("one goal landing change".into());
+        let Some(row) = list["landings"].as_array().ok_or("landing list")?.iter().find(|row| row["phase"] == "proving")
+        else {
+            return Ok(None);
+        };
+        let panel = self.landing(row["task"].as_u64().ok_or("landing task")?)?;
+        if members(&panel)?.iter().any(|member| member["candidate"].is_null()) {
+            return Ok(None);
         }
-        Ok(changes)
-    }
-    fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Result<Option<Proof>, String> {
-        Ok({
-            let main_changes = self.proof_changes(expected)?;
-            if main_changes.is_empty() {
-                return Ok(None);
-            }
-            let expected = main_changes.as_slice();
-            let count = if previous.is_none() {
-                1
-            } else if matches!(self.story, Story::Conflict) {
-                3
-            } else {
-                2
-            };
-            let formed = self.landings()?;
-            for row in formed["landings"].as_array().ok_or("landing list")? {
-                let task = row["task"].as_u64().ok_or("landing task")?;
-                let owner = self.read(&["task", "show", &task.to_string()])?;
-                if !owner["hold"].is_null() {
-                    return Err(format!("landing {task} held: {}", owner["hold"]));
-                }
-            }
-            if let Some(rows) = formed["landings"].as_array()
-                && let Some(row) = rows.iter().find(|row| row["phase"] == "proving")
-                && rows.len() == count
-                && row["changes"] != json!(expected)
-            {
-                return Err(format!("sealed in queue order: {}", row["changes"]));
-            }
-            let Some(run) = self.barrier.waiting(previous) else {
-                return Ok(None);
-            };
-            let list = self.landings()?;
-            let rows = list["landings"].as_array().ok_or(String::from("landing list"))?;
-            if rows.len() != count {
-                return Err(String::from("one landing per batch"));
-            }
-            if let Some(row) = rows.iter().find(|row| row["phase"] == "held") {
-                let task = row["task"].as_u64().ok_or("held landing")?;
-                return Err(format!(
-                    "landing held: {}; task: {}",
-                    self.landing(task)?,
-                    self.read(&["task", "show", &task.to_string()])?
-                ));
-            }
-            let Some(row) = rows.iter().find(|row| row["phase"] == "proving") else {
-                return Ok(None);
-            };
-            let task = row["task"].as_u64().ok_or(String::from("landing task"))?;
-            if row["changes"] != json!(expected) {
-                return Err(format!("sealed in queue order: {}", row["changes"]));
-            }
-            let panel = self.landing(task)?;
-            if members(&panel)?.iter().any(|member| member["candidate"].is_null()) {
-                return Ok(None);
-            }
-            {
-                let (left, right) = (&(panel["phase"]), &("proving"));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            {
-                let (left, right) = (&(panel["round"]["number"]), &(1));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            {
-                let (left, right) = (&(panel["train"]["branch"]), &("main"));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            {
-                let (left, right) = (
-                    &(members(&panel)?
-                        .iter()
-                        .map(|member| member["change"].as_u64().ok_or(String::from("change")))
-                        .collect::<Result<Vec<_>, _>>()?),
-                    &(expected),
-                );
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            self.dispatched(run, candidate(&panel)?)?;
-            let runs = gate_runs(self.forge)?;
-            if runs.len() != if previous.is_some() { 2 } else { 1 } {
-                return Err(String::from("no push, member or merge runs"));
-            }
-            self.stack(&panel)?;
-            Some(Proof { panel, run })
-        })
+        self.dispatched(run, candidate(&panel)?)?;
+        if gate_runs(self.forge)?.len() != 1 {
+            return Err("only the top's dispatch, no push runs".into());
+        }
+        Ok(Some(Proof { panel, run }))
     }
     fn dispatched(&self, run: u64, prefix: &str) -> Result<(), String> {
         let actual = get(self.forge, &format!("actions/runs/{run}"));
@@ -710,7 +529,7 @@ impl Judge<'_> {
             }
         }
         {
-            let (left, right) = (&(actual["workflow_id"]), &("gate.yaml"));
+            let (left, right) = (&(actual["workflow_id"]), &("gate.yml"));
             if left != right {
                 return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
             }
@@ -739,59 +558,10 @@ impl Judge<'_> {
 
         Ok(())
     }
-    fn stack(&self, panel: &Value) -> Result<(), String> {
-        let task = panel["task"].as_u64().ok_or(String::from("landing task"))?;
-        let mut below = sha(&members(panel)?[0]["base"])?.to_owned();
-        for (index, member) in members(panel)?.iter().enumerate() {
-            let number = index + 1;
-            let branch = member_branch(task, number);
-            let prefix = sha(&member["candidate"])?;
-            let actual = get(self.forge, &format!("branches/{branch}"));
-            if actual["commit"]["id"] != prefix {
-                return Err(String::from("a branch for each member's prefix"));
-            }
-            let commit = get(self.forge, &format!("git/commits/{prefix}"));
-            if commit["parents"].as_array().ok_or(String::from("parents"))?.len() != 2 {
-                return Err(String::from("no-fast-forward merge"));
-            }
-            if commit["parents"][0]["sha"] != below {
-                return Err(String::from("main's first-parent line preserves queue order"));
-            }
-            {
-                let (left, right) = (&(commit["parents"][1]["sha"]), &(sha(&member["head"])?));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            let change = self.change(member["change"].as_u64().ok_or(String::from("change"))?)?;
-            if sha(&change["head"])? != sha(&member["head"])? {
-                return Err(String::from("no member head rewritten"));
-            }
-            below = prefix.into();
-        }
-        {
-            let (left, right) = (&(panel["round"]["branch"]), &(member_branch(task, members(panel)?.len())));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-
-        Ok(())
-    }
 }
 
 impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        eprintln!("batch checking history at {:?}", Clock::new().now().now);
-        let mut checked = Vec::new();
-        for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
-            let task = proof.panel["task"].as_u64().ok_or(String::from("landing task"))?;
-            if !checked.contains(&task) {
-                super::landing_by_turn::check_history(self.root, 1, &self.landing(task)?, Some("private"))?;
-                checked.push(task);
-            }
-        }
-        eprintln!("batch history checked at {:?}", Clock::new().now().now);
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
@@ -800,99 +570,17 @@ impl Judge<'_> {
 
         Ok(())
     }
-    fn landed(&self, proof: &Proof) -> Result<bool, String> {
-        Ok({
-            let panel = self.landing(proof.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
-            if panel["phase"] != "landed" {
-                return Ok(false);
-            }
-            {
-                let (left, right) = (&(members(&panel)?.len()), &(members(&proof.panel)?.len()));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            for (member, prepared) in members(&panel)?.iter().zip(members(&proof.panel)?) {
-                if !self.member_landed(member, prepared)? {
-                    return Ok(false);
-                }
-            }
-            let pull = get(
-                self.forge,
-                &format!("pulls/{}", panel["round"]["pull"]["number"].as_u64().ok_or(String::from("landing pull"))?),
-            );
-            {
-                let (left, right) = (&(pull["merged"]), &(true));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            {
-                let (left, right) = (&(pull["head"]["sha"]), &(candidate(&proof.panel)?));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            if pull["merge_commit_sha"] != candidate(&proof.panel)? {
-                return Err(String::from("one fast-forward, no extra merge commit"));
-            }
-            let run = get(self.forge, &format!("actions/runs/{}", proof.run));
-            {
-                let (left, right) = (&(run["status"]), &("success"));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            true
-        })
-    }
     fn member_landed(&self, member: &Value, prepared: &Value) -> Result<bool, String> {
-        Ok({
-            {
-                let (left, right) = (&(member["change"]), &(prepared["change"]));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            if member["landed"].is_null() {
-                self.observe(
-                    200 + member["change"].as_u64().ok_or(String::from("change"))?,
-                    serde_json::json!({"member":member,"prepared":prepared}),
-                );
-                return Ok(false);
-            }
-            if member["landed"] != prepared["candidate"] {
-                return Err(String::from("each member lands at its own prefix"));
-            }
-            let change = self.change(member["change"].as_u64().ok_or(String::from("change"))?)?;
-            if change["merge"].is_null() {
-                return Ok(false);
-            }
-            {
-                let (left, right) = (&(sha(&change["merge"])?), &(sha(&member["landed"])?));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            let number = member["pull"]["number"].as_u64().ok_or(String::from("member pull"))?;
-            let pull = get(self.forge, &format!("pulls/{number}"));
-            if pull["merged"] != true {
-                self.observe(
-                    number + 100,
-                    serde_json::json!({"pull":number,"state":pull["state"],"merged":pull["merged"],"head":pull["head"]["sha"],"merge":pull["merge_commit_sha"]}),
-                );
-                return Ok(false);
-            }
-            {
-                let (left, right) = (&(pull["merge_commit_sha"]), &(sha(&member["landed"])?));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
-            }
-            true
-        })
+        let number = member["pull"]["number"].as_u64().ok_or("member pull")?;
+        let pull = get(self.forge, &format!("pulls/{number}"));
+        if pull["merged"] != true {
+            return Ok(false);
+        }
+        if pull["merge_commit_sha"] != sha(&prepared["candidate"])? {
+            return Err("the member pull is merged at its prefix".into());
+        }
+        Ok(true)
     }
-    #[expect(clippy::too_many_lines, reason = "the batch phases return their findings in causal order")]
     fn sample(&mut self, procs: &mut [Process]) -> Result<(), String> {
         match self.phase {
             Phase::Reviews => {
@@ -904,7 +592,7 @@ impl Judge<'_> {
                 let calls = calls(procs)?;
                 if calls.foreground_idle() {
                     {
-                        let (left, right) = (&(calls.ends().len()), &(self.amends + self.story.ready().len()));
+                        let (left, right) = (&(calls.ends().len()), &(self.amends + CHANGES.as_slice().len()));
                         if left != right {
                             return Err(format!(
                                 "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
@@ -920,9 +608,8 @@ impl Judge<'_> {
                 }
             }
             Phase::Gates => {
-                release(procs, b"batch-coders")?;
                 release(procs, b"batch-reviews")?;
-                if self.story.ready().iter().copied().try_fold(true, |all, task| {
+                if CHANGES.as_slice().iter().copied().try_fold(true, |all, task| {
                     if !all {
                         return Ok(false);
                     }
@@ -933,208 +620,19 @@ impl Judge<'_> {
                             && row["delegates"].as_array().is_some_and(Vec::is_empty),
                     )
                 })? {
-                    if !self.landings()?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
-                        return Err(String::from(
-                            "assertion failed: self.landings()?[\"landings\"].as_array().ok_or(String::from(\"landings\"))?.len() == 0",
-                        ));
-                    }
                     release(procs, b"batch-ready")?;
                     self.phase = Phase::Batch;
                 }
             }
             Phase::Batch => {
                 release(procs, b"batch-ready")?;
-                if matches!(self.story, Story::MidProof) {
-                    release(procs, b"batch-reviews")?;
-                }
-                if let Some(proof) =
-                    self.proof(None, if let Story::Conflict = self.story { &[3] } else { self.story.ready() })?
-                {
-                    if main(self.forge)? != self.base {
-                        return Err(String::from("main stays at the base throughout proof"));
-                    }
-                    self.first = Some(proof);
-                    match self.story {
-                        Story::Green => {
-                            release(procs, b"batch-fourth")?;
-                            self.phase = Phase::Fourth;
-                        }
-                        Story::MidProof => {
-                            release(procs, b"goal-midproof")?;
-                            self.phase = Phase::Moved;
-                        }
-                        Story::Conflict => {
-                            self.barrier.release(self.first.as_ref().ok_or("top proof")?.run);
-                            self.phase = Phase::Conflict;
-                        }
-                        Story::Repaired | Story::DeploymentGreen => {
-                            self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
-                            self.phase =
-                                if let Story::Repaired = self.story { Phase::Repair } else { Phase::SingleLanded };
-                        }
-                        Story::Narrowed | Story::NarrowedFour => {
-                            self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
-                            self.phase = Phase::Search(narrowed::Step::One);
-                        }
-                    }
-                }
-            }
-            Phase::Fourth => {
-                release(procs, b"batch-fourth")?;
-                release(procs, b"batch-reviews")?;
-                let fourth = self.change(FOURTH)?;
-                if fourth["step"] == "ready" {
-                    let first = self.first.as_ref().ok_or(String::from("first proof"))?;
-                    let list = self.landings()?;
-                    {
-                        let (left, right) =
-                            (&(list["landings"].as_array().ok_or(String::from("landings"))?.len()), &(1));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
-                    let panel = self.landing(first.panel["task"].as_u64().ok_or(String::from("landing"))?)?;
-                    if panel["phase"] != "proving" {
-                        return Err(String::from("fourth ready while the batch proves"));
-                    }
-                    if members(&panel)?.len() != CHANGES.len() {
-                        return Err(String::from("a formed batch is sealed"));
-                    }
-                    for (member, prepared) in members(&panel)?.iter().zip(members(&first.panel)?) {
-                        {
-                            let (left, right) = (&(member["change"]), &(prepared["change"]));
-                            if left != right {
-                                return Err(format!(
-                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                                ));
-                            }
-                        }
-                        {
-                            let (left, right) = (&(member["candidate"]), &(prepared["candidate"]));
-                            if left != right {
-                                return Err(format!(
-                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                                ));
-                            }
-                        }
-                    }
-                    {
-                        let (left, right) =
-                            (&(get(self.forge, &format!("actions/runs/{}", first.run))["status"]), &("running"));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
-                    {
-                        let (left, right) = (&(main(self.forge)?), &(self.base));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
-                    self.barrier.release(first.run);
-                    self.phase = Phase::Next;
-                }
-            }
-            Phase::Next => {
-                let first = self.first.as_ref().ok_or(String::from("first proof"))?;
-                if self.landed(first)?
-                    && let Some(proof) = self.proof(Some(first.run), &[FOURTH])?
-                {
-                    {
-                        let (left, right) = (&(main(self.forge)?), &(candidate(&first.panel)?));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
-                    {
-                        let (left, right) = (&(sha(&members(&proof.panel)?[0]["base"])?), &(candidate(&first.panel)?));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
+                if let Some(proof) = self.proof()? {
                     self.barrier.release(proof.run);
-                    self.second = Some(proof);
-                    self.phase = Phase::Landed;
+                    self.first = Some(proof);
+                    self.phase = Phase::Search(narrowed::Step::One);
                 }
             }
-            Phase::Landed => {
-                let second = self.second.as_ref().ok_or(String::from("second proof"))?;
-                if self.landed(second)? {
-                    {
-                        let (left, right) = (&(main(self.forge)?), &(candidate(&second.panel)?));
-                        if left != right {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                            ));
-                        }
-                    }
-                    let runs = gate_runs(self.forge)?;
-                    if runs.len() != 2 {
-                        return Err(String::from("one dispatched proof per landing, none after merging"));
-                    }
-                    for proof in [self.first.as_ref().ok_or(String::from("first"))?, second] {
-                        let prefix = candidate(&proof.panel)?;
-                        let runs: Vec<_> = runs.iter().filter(|run| run["commit_sha"] == prefix).collect();
-                        {
-                            let (left, right) = (&(runs.len()), &(1));
-                            if left != right {
-                                return Err(format!(
-                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                                ));
-                            }
-                        }
-                        {
-                            let (left, right) = (&(runs[0]["id"]), &(proof.run));
-                            if left != right {
-                                return Err(format!(
-                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                                ));
-                            }
-                        }
-                        {
-                            let (left, right) = (&(runs[0]["status"]), &("success"));
-                            if left != right {
-                                return Err(format!(
-                                    "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
-                                ));
-                            }
-                        }
-                    }
-                    self.phase = Phase::Ending;
-                }
-            }
-            Phase::Search(step) => {
-                release(procs, b"batch-reviews")?;
-                self.search(step, procs)?;
-            }
-            Phase::Repair
-            | Phase::Repaired
-            | Phase::SingleLanded
-            | Phase::Conflict
-            | Phase::Resolved
-            | Phase::StartGoal
-            | Phase::GoalGates
-            | Phase::Moved => self.deployment_step(procs)?,
-            Phase::Ending => {
-                let owner = self.read(&["task", "show", "2"])?;
-                let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
-                if person.finished
-                    && person.client.as_ref().is_some_and(Host::is_empty)
-                    && owner["chip"]["phase"] == "ended"
-                {
-                    self.stop(procs)?;
-                }
-            }
+            Phase::Search(step) => self.search(step, procs)?,
         }
 
         Ok(())
@@ -1160,7 +658,7 @@ impl Referee<Process> for Judge<'_> {
                 self.peer_stop = PeerStop::Stopped;
             }
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
-                if calls(procs)?.ends().len() < deployment::setup_count(self.root) {
+                if calls(procs)?.ends().len() < turn_restart::SETUP_CALLS {
                     return Ok(());
                 }
                 self.chat.act(now, procs);
@@ -1235,19 +733,19 @@ impl Referee<Process> for Judge<'_> {
     }
 }
 
-fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
+fn peer(root: &Path, forge: &Throwaway) -> super::llm::Listening {
     let mut recipe = temper_real_loop_world::llm::scripted(Box::new([]));
-    // Three reviews, the fourth coder, the latch and the owner may be held
+    // Three reviews, the latch and the owner may be held
     // together. The transport and script domain admit the same concurrent calls.
     recipe.limits.connections = 8;
     recipe.limits.io.sockets = 16;
     recipe.domain_limits.calls = 8;
     // The single-agent observation room scales with the independent producers.
-    let producers = u32::try_from(story.changes()).expect("scripted producers");
+    let producers = 3;
     recipe.limits.observations = recipe.limits.observations.checked_mul(producers).expect("batch observations");
     recipe.limits.observation_bytes =
         recipe.limits.observation_bytes.checked_mul(producers).expect("batch observation bytes");
-    let scripts = temper_real_loop_world::llm::cued(scripts(root, forge, story));
+    let scripts = temper_real_loop_world::llm::cued(scripts(root, forge));
     let rules = Rules {
         cued: scripts
             .cued
@@ -1278,20 +776,10 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
     super::llm_recipe(recipe).without_records()
 }
 
-/// One world drives the native person, ctl Steps, fake model and shipped binary.
-/// The referee's polls and the whole story are bounded by the landing deadline.
-pub fn run(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
-    run_story(root, forge, barrier, Story::Green);
-}
-
-/// The same owned-turn world, with a red second member and held repair delegate.
+/// Three changes on the owned runner, with a red second member and held repair.
 pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
-    run_story(root, forge, barrier, Story::Narrowed);
-}
-
-fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
     forge.detect_manual_merges();
-    let peer = peer(root, forge, story);
+    let peer = peer(root, forge);
     peer.configure(root);
     let clock = Clock::new();
     let mut binary = super::serve(root);
@@ -1310,15 +798,12 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
             poll: clock.now().now,
             merged: false,
         },
-        root,
         forge,
         barrier,
-        phase: if let Story::MidProof = story { Phase::StartGoal } else { Phase::Reviews },
+        phase: Phase::Reviews,
         poll: clock.now().now,
-        base: main(forge).expect("main tip"),
         first: None,
         second: None,
-        story,
         probes: Vec::new(),
         reads: RefCell::new(Reads::default()),
         amends: 0,
@@ -1335,7 +820,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     let ctl_root = skein_shell::open_root(root).expect("ctl root");
     fds.push(ctl_root);
     world.spawn_with_fds(fds, || {
-        let mut calls = ctl::Calls::new(ctl_root, deployment::setup(root), Some(&streams), None);
+        let mut calls = ctl::Calls::new(ctl_root, turn_restart::setup(root), Some(&streams), None);
         calls.hold();
         Process::Calls(Box::new(calls))
     });
@@ -1344,9 +829,4 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     assert!(outcome.procs.iter().all(Host::is_empty), "nothing of the tree remains after Terminate");
     let Process::Binary(binary) = &outcome.procs[0] else { panic!("serve") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(binary.stderr()));
-}
-
-/// A four-member search with the shipped worker slots and current stock policy.
-pub fn run_narrowed_four(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
-    run_story(root, forge, barrier, Story::NarrowedFour);
 }

@@ -210,6 +210,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             ready_since: None,
             owns_turn: false,
             last_head: head,
+            last_checked: None,
         },
         pull,
         pending: None,

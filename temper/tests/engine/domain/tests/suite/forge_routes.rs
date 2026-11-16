@@ -61,6 +61,7 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+mod asked_now;
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
 mod producer_words;
@@ -917,7 +918,11 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
 
 #[test]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
-    let (mut world, _chat, producer, branch) = change_world(false, 0, None);
+    let mut brief = World::configured_policy(true, true, false, 0, Gate::default(), None).env.limits.brief;
+    // The longer preservation words leave the runner account and pull identity their room.
+    brief.brief_bytes = 896;
+    let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief));
+    let (mut world, _chat, producer, branch) = change_world_in(world, Change::default());
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
     let words = ci_words(&repair);

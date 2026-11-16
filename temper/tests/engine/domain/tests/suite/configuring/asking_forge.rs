@@ -30,6 +30,7 @@ fn an_asking_chat_reads_the_forge() {
                         ignored: Box::new([b"docs".as_slice().into()]),
                         blocking: true,
                         base: false,
+                        report: None,
                     }]),
                     tiers: Box::new([]),
                 }]),

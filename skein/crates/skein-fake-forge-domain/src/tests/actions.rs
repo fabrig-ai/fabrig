@@ -422,6 +422,7 @@ fn ci_run(id: u64, number: u64, commit: u64) -> Run {
         workflow: None,
         event: crate::api::RunEvent::Push,
         user: ENGINE,
+        cancelled_by: None,
         state: crate::api::RunState::Completed,
         conclusion: Some(crate::api::Conclusion::Failure),
         created: Time::ZERO,
@@ -517,6 +518,65 @@ fn a_dispatch_runs_its_workflow_at_the_branch_head() {
         unreachable!("statuses")
     };
     assert!(statuses.is_empty(), "a rerun also publishes no commit status");
+}
+
+#[test]
+fn a_person_cancels_only_the_unfinished_jobs_of_a_dispatch() {
+    let mut h = dispatch_harness(calm(), &[b"ci", b"fmt"]);
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    let job = run_jobs(&h, run)[0].id;
+    let id = h.domain.id(REPOSITORY);
+    crate::dispatch::report(&mut h.domain, &h.env, id, run, job);
+    h.domain.timers.cancel(crate::domain::Alarm::Workflow { repository: id, run, job });
+    let completed = run_jobs(&h, run)[0].clone();
+    assert_eq!(completed.conclusion, Some(crate::api::Conclusion::Success));
+    assert_eq!(h.call(MAINTAINER, write(Write::Cancel { run })), Ok(Answer::Done));
+    let Answer::Run(cancelled) = h.inspect(&Read::Run { run }).unwrap() else { panic!("run") };
+    assert_eq!(cancelled.state, crate::api::RunState::Completed);
+    assert_eq!(cancelled.conclusion, Some(crate::api::Conclusion::Cancelled));
+    assert_eq!(cancelled.cancelled_by, Some(MAINTAINER));
+    assert_eq!(h.call(ENGINE, write(Write::Cancel { run })), Err(Error::Refused));
+    let jobs = run_jobs(&h, run);
+    assert_eq!(jobs[0], completed, "a completed job is unchanged");
+    assert_eq!(jobs[1].state, crate::api::RunState::Completed);
+    assert_eq!(jobs[1].conclusion, Some(crate::api::Conclusion::Cancelled));
+    assert_eq!(jobs[1].wait, None);
+    for step in &jobs[1].steps {
+        assert_ne!(step.status, StepStatus::Failure);
+    }
+    h.settle();
+    assert_eq!(h.inspect(&Read::Run { run }), Ok(Answer::Run(cancelled.clone())), "no timer undoes cancellation");
+    assert_eq!(run_jobs(&h, run), jobs);
+    let image = h.domain.image().unwrap();
+    let restored = Domain::from_image(&h.env.limits, &image).unwrap();
+    assert_eq!(restored.inspect(&h.env.limits, REPOSITORY, &Read::Run { run }), Ok(Answer::Run(cancelled)));
+    assert_eq!(restored.inspect(&h.env.limits, REPOSITORY, &Read::Jobs { run }), Ok(Answer::Jobs(jobs)));
+}
+
+#[test]
+fn a_completed_dispatch_refuses_cancellation_without_changing_it() {
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
+    h.ok(ENGINE, dispatch());
+    h.settle();
+    let run = workflow_runs(&h)[0].id;
+    let before = h.inspect(&Read::Run { run });
+    let jobs = run_jobs(&h, run);
+    assert_eq!(h.call(MAINTAINER, write(Write::Cancel { run })), Err(Error::Refused));
+    assert_eq!(h.inspect(&Read::Run { run }), before);
+    assert_eq!(run_jobs(&h, run), jobs);
+}
+
+#[test]
+fn cancelling_a_dispatch_requires_write_permission() {
+    let mut h = dispatch_harness(calm(), &[b"ci"]);
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    let before = h.inspect(&Read::Run { run });
+    let jobs = run_jobs(&h, run);
+    assert_eq!(h.call(PERSON, write(Write::Cancel { run })), Err(Error::Forbidden));
+    assert_eq!(h.inspect(&Read::Run { run }), before);
+    assert_eq!(run_jobs(&h, run), jobs);
 }
 
 #[test]

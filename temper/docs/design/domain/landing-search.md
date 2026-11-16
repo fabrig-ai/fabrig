@@ -227,8 +227,11 @@ top dispatches, reads and writes for it as for the round's top.
   base, ` Changes landing below it: C1 (#N1), C2 (#N2).`, C the change
   tasks and N their pull requests, then ` The CI section gives its run,
   base and failed jobs.` and the preservation words, as the candidate's
-  repair ends (`forge/change/repairs.md`). A brief too small for the
-  list keeps the opening and cuts the list from its end.
+  repair ends (`forge/change/repairs.md`), then the failure's lines, the
+  run, the red prefix and the base, its failed tests and jobs, from the
+  red prefix's failed receipt (`forge/change/repairs.md`, *A landing's
+  repair*). A spec bound too small for the list keeps the opening and
+  those lines, and cuts the list from its end.
 - **Its result's account** is the candidate's, the landing's gate
   failed; it waits for a later landing, first in line by its kept time
   (`landing.md`, section 3).
@@ -306,9 +309,10 @@ own cases and its fuzzy stories:
 - **the fallback gone:** no change marked to land alone, and a batch
   forming whole after a red.
 
-In the process tier, the story of a red narrowed
-(`../testing/process-tier.md`), written and compiled, run in that tier
-after landing.
+On the owned Forgejo, by choice, the story of a red narrowed, trimmed
+to its probes' dispatch-only runs and a merged pull's head as Forgejo
+keeps it (`../testing/process-tier.md`), run by name, in no budgeted
+run.
 
 ## 11. Later
 

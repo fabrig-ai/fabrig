@@ -151,6 +151,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         task_release: None,
         job: None,
@@ -209,6 +210,9 @@ fn observations(repository: Repository, project: u32) -> Vec<Record> {
                 key: [4; 32],
             },
             receipt: forge::Receipt {
+                report: forge::ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 passed: true,
                 logs: Box::new([]),
                 failures: None,

@@ -536,6 +536,27 @@ impl PatchSets {
   pending whose block names a registered family is refused `Set`,
   naming the patch: its values' heads are layout ids, which no patch
   reads (skein's `data/codec/command.md`, 2).
+- **One check per open.** An open checks its sets once. The check is
+  this section's whole judgement of the sets as data: one set per
+  owner, the manifest's bounds, the families' value types
+  (`layouts.md`, 2), the jobs (`jobs.md`, 1), the frames' families and
+  the holds, each kept text it reads parsed for it alone. Whichever step
+  of the open needs it first runs it: a first start before anything is
+  written (1.2), the rehearsal's plan (5), the plan of the open's
+  patches, the registry's (`layouts.md`, 5) or readiness before the
+  open serves. Its verdict, passed or the `Set` it refuses with its
+  owner and patch, is that open's: kept through the copy, its check and
+  the reopen at the binary's levels (2), and read by each later step in
+  place of a fresh check. Each step therefore refuses where it did,
+  with the same `Set`, and no kept text is parsed again for the check.
+  The verdict is a few bytes beside the open's state, not a parsed
+  text: dropped when the open settles, served (`Opened`) or refused,
+  and whenever the shell hands new sets (`Store::patch_sets`), so an
+  open's start finds none and no verdict outlives the open it was made
+  in. A plan is made only with the open's passed verdict, never from
+  sets no check has passed. The jobs' check the open makes alone at its
+  first step (`jobs.md`, 1), before reading the format row, is cheap
+  and stays where it is.
 - **One sequence per owner,** numbered in one crate, its store crate
   (jig's `jig-protocol-store`, temper's `temper-protocol-store`): an
   owner whose families another crate of its keeps (jig's `jig-accounts`

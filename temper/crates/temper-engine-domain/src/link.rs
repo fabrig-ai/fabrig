@@ -878,6 +878,7 @@ mod tests {
                 ready_since: None,
                 owns_turn: false,
                 last_head: Some([7; 32]),
+                last_checked: None,
             },
             pull: Some(7),
             pending: None,

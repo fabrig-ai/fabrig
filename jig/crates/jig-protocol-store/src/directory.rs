@@ -83,6 +83,8 @@ pub(crate) struct Swept {
 }
 #[derive(Debug)]
 pub(crate) struct Directory {
+    /// The open's verdict survives the copy and its reopen (protocol/store/opening.md, 3).
+    pub checked: Option<Result<crate::patching::plan::Checked, crate::patching::plan::Unplanned>>,
     pub disk: bool,
     pub patch: Option<Box<Pending>>,
     pub active: Option<Active>,
@@ -102,6 +104,7 @@ pub(crate) struct Directory {
 impl Directory {
     pub fn new() -> Directory {
         Directory {
+            checked: None,
             disk: false,
             patch: None,
             active: None,
@@ -136,6 +139,7 @@ pub(crate) fn open(
         store.installation = installation;
     }
     if !store.directory.disk {
+        reset_checked(store);
         store.directory.transcripts = Some(root);
         open::open(store, owner, above, below);
         return;
@@ -144,9 +148,15 @@ pub(crate) fn open(
     if store.phase != Phase::Closed || store.directory.root.is_some() {
         return refuse(store, above);
     }
+    reset_checked(store);
     store.directory.root = Some(root);
     store.directory.opening = Opening::Locking;
     below.store.push(file::Request::Lock { owner: OWNER, root: root.token });
+}
+fn reset_checked(store: &mut Store) {
+    store.directory.checked = None;
+    #[cfg(test)]
+    crate::patching::plan::counting::reset();
 }
 fn refuse(store: &mut Store, above: &mut Queue<Event>) {
     refusal(store, OpenRefusal::Failed, above);
@@ -485,7 +495,7 @@ fn read_active(store: &mut Store, below: &mut Below) {
 fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
         // A first start writes the manifest's counts: its sets fit them first.
-        if let Err(why) = crate::patching::plan::bounds(&store.patch_sets) {
+        if let Err(why) = crate::patching::plan::checked(store) {
             return refusal(store, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
         }
         survey(store, Survey::Top, below);

@@ -3322,6 +3322,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                     ignored: ignored.into_boxed(),
                     blocking: true,
                     base: false,
+                    report: None,
                 })
                 .expect("test gates");
         }

@@ -1,6 +1,6 @@
 # Bridges
 
-Provisional, 2026-11-13. How a family that crosses a wire is spoken in
+Provisional, 2026-11-13, revised 2026-11-15. How a family that crosses a wire is spoken in
 several versions at once: each patch's reverse, which takes a record
 down a version; the floor, the lowest version a build speaks; the
 breaking declaration, for a change no reverse carries; and the bridge,
@@ -288,13 +288,21 @@ pub enum Halt { /* patches.md, 6's, and: */
   `schema/wires` lists:
   - `kept::<family>::FLOOR: u16`, its floor, its current for a
     per-build wire;
+  - `kept::<family>::LAYOUTS: &[[u8; 32]]`, each version's family
+    fingerprint (`README.md`, section 9) from `FLOOR` to the current,
+    oldest first, so its count is the current less the floor plus one;
+    a per-build wire's holds its current's alone. It is what
+    `layouts(TEXTS, FLOOR)` (5.1) returns, computed when the module is
+    generated, so a reader of a wire's spoken range or of its current
+    layout parses no text at run time;
   - `kept::<family>::bridge(capacity: Capacity) -> Result<Bridge,
     BridgeError>`, made from `TEXTS`, `PATCHES`, `FLOOR` and `sites`;
 
   and, once for the crate, `pub fn sites(site, old, new, at) ->
   Result<(), Halt>`, the dispatch `written` with a `Context::default()`.
   It is generated from the kept texts, the patches and `schema/wires`,
-  and `current` holds it so, so the floor in code is the file's.
+  and `current` holds it so, so the floor and the layouts in code are
+  the files'.
 - **The skeleton** (`command.md`, 3) writes a function for each down site
   as for a forward one, named by its target in snake case with `_down`
   after it (`task_down`, `task_title_down`), its doc comment naming the
@@ -355,6 +363,11 @@ Step tests in skein-codec and skein-codegen, the story in
   `Unbridged` and its absence; a per-build wire moving freely; the
   skeleton's down functions; `asked` naming the three ways; the goldens
   down written, checked and failing on a stale file.
+- **The generated layouts:** a wire's `LAYOUTS` equal to `layouts` over
+  its `TEXTS` and `FLOOR`, and to `Bridge::layout` of each version it
+  speaks, for a wire whose floor is below its current and for a
+  per-build wire; `current` refusing a module whose table no longer
+  matches its texts.
 - **A property,** in the fuzzy suite: values drawn from the `every`
   fixture's newest text (`README.md`, 8.3's seeded generator) through a
   derived reverse: each one either comes back up as itself or is refused

@@ -1,0 +1,9 @@
+# Home for a person: the mockups
+
+Drawn 2026-11-15 with the user, for `../../../draft/home-for-a-person.md` and `../../../draft/milestones.md`, whose pages they draw. They are the target where they differ from the whole story's mockups (`../whole-story/README.md`), for what those drafts name.
+
+- **The pages:** `home.html`, a project's Home; `work.html`, its Work; `milestone.html`, a milestone's page; `needs.html`, Needs you with a question from a goal in a milestone.
+- **Opening them:** from a checkout, as files. Each loads `../journeys/skein-ui.css`, then the client's `temper.css` and `task-pages.css` from `temper/crates/temper-client-shell-web/`, as the journeys do (`../journeys.md`, 5.3), then `pages.css` here, which draws what the client doesn't yet: the strip, the milestone tag and the folds. Home's page also holds its own rules in its head, for severity, the finding rows and the goals' bars.
+- **Recorded:** fabrig's Home on its deployment, Sunday 2026-11-15 at 11:49, its rail, its kicker and counts, its decisions' facts, its findings' titles and ages, its goals' states and lines, and its landing line, written for a person.
+- **From the drafts on main:** the milestones are `store-shape.md`'s, `gate-compile.md`'s and `focused-pyramid.md`'s execution files, each a milestone whose goals are their rows, named short.
+- **Illustrative:** the brief; the findings' groups, their questions, choices and kinds (one finding's kind and severity were recorded); every landing time, spend, budget and task number; two goals waiting for room, drawn as if the project bounded its goals in flight (`../../../draft/milestones.md`, section 11); S7's question, which Needs you and the milestone's page draw at about 12:05, so they count 12 where Home counts 11; the change titles in the goals' cards; the draft's card; Landed this week's rows; the filters' counts; the person, "Owner".

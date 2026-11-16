@@ -374,6 +374,43 @@ fn tier(
         description: description?,
     })
 }
+fn gate_report(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<temper_engine_domain_forge::GateReport> {
+    let mut object = read::object(document, at, "gate-report", path, problems)?;
+    let artifact = checked_text(&mut object, document, b"artifact", 32, path, problems);
+    if let Some(artifact) = &artifact {
+        read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
+    }
+    let format = read::text(&mut object, document, b"format", path, problems);
+    let format = match format.as_deref() {
+        Some(b"junit") => Some(Format::Junit),
+        Some(b"lines") => Some(Format::Lines),
+        Some(_) => {
+            read::form(false, path.member(b"format"), problems);
+            None
+        }
+        None => None,
+    };
+    let fuzzy = match object.member(document, b"fuzzy") {
+        Some(at) => match config::read::text(document, at, 64) {
+            Ok(value) => {
+                read::form(!value.is_empty(), path.member(b"fuzzy"), problems);
+                Some(value)
+            }
+            Err(what) => {
+                problems.push(path.member(b"fuzzy"), What::Jig(what));
+                None
+            }
+        },
+        None => None,
+    };
+    read::finish(object, document, path, problems);
+    Some(temper_engine_domain_forge::GateReport { artifact: artifact?, format: format?, fuzzy })
+}
 fn repository_checks(
     document: &Document,
     at: u32,
@@ -404,6 +441,10 @@ fn repository_checks(
                 },
                 None => Some(false),
             };
+            let report = match object.member(document, b"report") {
+                Some(at) => gate_report(document, at, &path.member(b"report"), problems),
+                None => None,
+            };
             read::finish(object, document, &path, problems);
             if let Some(check) = check
                 && let Some(blocking) = blocking
@@ -422,6 +463,7 @@ fn repository_checks(
                         ignored: check.ignored,
                         blocking,
                         base,
+                        report,
                     })
                     .expect("bounded gates");
             }

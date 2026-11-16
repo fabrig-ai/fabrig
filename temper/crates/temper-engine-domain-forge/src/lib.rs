@@ -181,7 +181,8 @@ pub use panel::{
 };
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{
-    Combine as LandingCombine, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase, Round as LandingRound,
+    Combine as LandingCombine, GateReport, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase,
+    Round as LandingRound,
 };
 pub use verification::LandingRed;
 pub use views::{

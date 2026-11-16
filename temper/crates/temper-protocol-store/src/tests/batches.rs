@@ -231,3 +231,11 @@ fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
     };
     assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));
 }
+
+#[test]
+fn old_receipts_acquire_no_base_and_no_failed_jobs() {
+    let bytes = current_layout(b"Receipt", kept_golden(25, "record_receipt_full.bin"));
+    let after = v25::Receipt::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(after.base(), &None);
+    assert!(after.jobs().is_empty());
+}

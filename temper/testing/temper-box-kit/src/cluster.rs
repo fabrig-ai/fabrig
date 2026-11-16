@@ -477,24 +477,6 @@ pub struct Member {
     submissions: Queue<Submit>,
 }
 impl Member {
-    /// Observe a separately rendered owned-story process with the cluster's stdout drain.
-    pub(super) fn observing(mut binary: Binary) -> Self {
-        let Streams::Pipes { input, output } = binary.take_streams().expect("member pipes") else { panic!("pipes") };
-        Self { binary: Some(binary), stdout: Some(StdoutReader::new(input, output)), ..Self::idle() }
-    }
-    pub(super) fn descriptors(&self) -> Vec<skein_io::kernel::Fd> {
-        self.binary()
-            .descriptors()
-            .into_iter()
-            .chain(self.stdout.as_ref().into_iter().flat_map(|reader| reader.input.into_iter().chain(reader.output)))
-            .collect()
-    }
-    pub(super) fn binary(&self) -> &Binary {
-        self.binary.as_ref().expect("started member")
-    }
-    pub(super) fn binary_mut(&mut self) -> &mut Binary {
-        self.binary.as_mut().expect("started member")
-    }
     fn idle() -> Self {
         Self {
             command: None,

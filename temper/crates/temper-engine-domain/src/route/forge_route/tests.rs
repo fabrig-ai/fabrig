@@ -15,6 +15,77 @@ const COMMITS: &[([u8; 32], &[u8])] = &[
     (SHA256, b"abababababababababababababababababababababababababababababababab"),
 ];
 
+const START_LINES: &[u8] = b"[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at abababababababababababababababababababababababababababababababab, not landed]\n";
+
+fn started_heads() -> Box<[super::forge_change::StartedFrom]> {
+    Box::new([
+        super::forge_change::StartedFrom { task: 12, head: SHA1 },
+        super::forge_change::StartedFrom { task: 13, head: SHA256 },
+    ])
+}
+
+fn producer_words(words: &[u8], early: &super::forge_change::Early, room: usize) -> Box<[u8]> {
+    let base = b"main";
+    let branch = b"temper/change";
+    super::produce_words(
+        words,
+        super::started_from(early),
+        base,
+        branch,
+        u32::try_from(room.checked_add(base.len()).unwrap().checked_add(branch.len()).unwrap()).unwrap(),
+    )
+}
+
+fn word_parts(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut words = super::List::uncapped();
+    for part in parts {
+        super::append(&mut words, part);
+    }
+    words.into_boxed()
+}
+
+#[test]
+fn producer_words_without_started_dependencies_stay_byte_for_byte() {
+    use super::forge_change::Early;
+    let words = b"Fix the parser\n## Goal\n...";
+    let scoped = word_parts(&[words.as_slice(), b"\n\n", super::PRODUCE_SCOPE]);
+    for early in [Early::None, Early::Started(Box::new([])), Early::Spent(started_heads())] {
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), words);
+    }
+}
+
+#[test]
+fn producer_start_lines_follow_the_title_in_record_order_and_precede_the_optional_scope() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let required = word_parts(&[b"Fix the parser\n", START_LINES, rest]);
+        let scoped = word_parts(&[required.as_ref(), b"\n\n", super::PRODUCE_SCOPE]);
+        assert_eq!(producer_words(words, &early, scoped.len()).as_ref(), scoped.as_ref());
+        assert_eq!(producer_words(words, &early, scoped.len() - 1).as_ref(), required.as_ref());
+        assert_eq!(producer_words(words, &early, required.len()).as_ref(), required.as_ref());
+    }
+}
+
+#[test]
+fn producer_start_lines_are_cut_from_the_end_without_cutting_change_words() {
+    let early = super::forge_change::Early::Started(started_heads());
+    for (words, rest) in [
+        (b"Fix the parser\n## Goal\n...".as_slice(), b"## Goal\n...".as_slice()),
+        (b"Fix the parser".as_slice(), b"".as_slice()),
+    ] {
+        let cut = "[Started from change 12 at abcdef0123456789abcdef0123456789abcdef01, not landed]\n[Started from change 13 at …\n".as_bytes();
+        let expected = word_parts(&[b"Fix the parser\n", cut, rest]);
+        assert_eq!(producer_words(words, &early, expected.len()).as_ref(), expected.as_ref());
+        let minimum = word_parts(&[b"Fix the parser\n", "…\n".as_bytes(), rest]);
+        assert_eq!(producer_words(words, &early, minimum.len()).as_ref(), minimum.as_ref());
+        assert_eq!(producer_words(words, &early, words.len()).as_ref(), words);
+    }
+}
+
 #[test]
 fn commit_text_uses_lowercase_digits_at_the_identifier_width() {
     for (commit, digits) in COMMITS {
@@ -1246,6 +1317,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         pull,
         pending: None,
@@ -1431,13 +1503,28 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
 }
 
 #[test]
-fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
+fn repair_section_order_puts_every_repairs_reason_before_its_pull() {
     use super::forge_change::{Delegate, Repair};
     use crate::boundary::Work;
     use jig_domain_brief::{GatherEvent, Planned};
     use skein_lib::{List, Queue};
 
-    for (why, kinds) in [(Repair::Ci, [3, 1]), (Repair::Semantic, [1, 3]), (Repair::Review { head: [7; 32] }, [3, 2])] {
+    for (why, kinds) in [
+        (Repair::Ci, [1, 3]),
+        (Repair::Semantic, [1, 3]),
+        (Repair::Landing { gate: 1 }, [1, 3]),
+        (Repair::LandingAt { gate: 1, candidate: SHA1, below: None }, [1, 3]),
+        (
+            Repair::LandingAt {
+                gate: 1,
+                candidate: SHA1,
+                below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+            },
+            [1, 3],
+        ),
+        (Repair::Gate(1), [2, 3]),
+        (Repair::Review { head: [7; 32] }, [2, 3]),
+    ] {
         let (mut domain, env) = two_forges();
         let mut row = change_row(Some(7));
         row.change.last_head = Some(SHA1);
@@ -1499,6 +1586,12 @@ fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
 
 #[test]
 fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context() {
+    let brief = planned_ci_repair(super::forge_change::Repair::Ci);
+    assert_eq!(brief.sections[6].title.as_ref(), b"CI");
+    assert_eq!(brief.sections[7].title.as_ref(), b"Pull request");
+}
+
+fn planned_ci_repair(why: super::forge_change::Repair) -> smith_domain_run::Brief {
     use crate::boundary::Work;
     use jig_domain_brief::{Core, GatherEvent, Planned};
     use skein_lib::{List, Queue, Writer};
@@ -1510,7 +1603,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     env.limits.brief = domain.limits.brief;
     let mut row = change_row(Some(7));
     row.change.last_head = Some(SHA1);
-    row.delegate = Some((8, super::forge_change::Delegate::Repair(super::forge_change::Repair::Ci)));
+    row.delegate = Some((8, super::forge_change::Delegate::Repair(why)));
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
@@ -1551,7 +1644,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     let failure = b"Failed check: / changes (pull_request)\nDescription: CI failed\nLink: /actions/runs/2/jobs/1\nFailed step: 1 changes\nEnd of its log:\n";
     let end = b"\nMissing changes/2.md\nRepair the failed check.\n";
     ci.put(failure).unwrap();
-    for _ in failure.len()..4096 - end.len() {
+    for _ in failure.len()..4096_usize.checked_sub(end.len()).unwrap() {
         ci.put(b"l").unwrap();
     }
     ci.put(end).unwrap();
@@ -1561,9 +1654,8 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             *size = u32::try_from(if *kind == 3 { pull.len() } else { ci.len() }).unwrap();
         }
     }
-    let Planned::Connector { kind: 3, .. } = sections[6] else { panic!("pull precedes its reason") };
-    let Planned::Connector { kind: 1, .. } = sections[7] else { panic!("CI follows the pull") };
     let plan = jig_domain_brief::plan(&sections, budget).expect("bounded repair");
+    let mut rendered = List::with_capacity(8);
     for placed in &plan.order {
         let section = &sections[usize::try_from(placed.index).unwrap()];
         match section {
@@ -1577,8 +1669,101 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
             Planned::Core { limit, .. } => assert_eq!(placed.size, *limit, "other context still fits"),
             Planned::Connector { .. } => panic!("two repair sections"),
         }
+        let (title, text): (&[u8], &[u8]) = match section {
+            Planned::Connector { kind: 1, .. } => (b"CI", &ci),
+            Planned::Connector { kind: 3, .. } => (b"Pull request", &pull),
+            Planned::Core { text, .. } => (b"Task", text),
+            Planned::Connector { .. } => panic!("two repair sections"),
+        };
+        rendered
+            .push(smith_domain_run::Section {
+                title: title.into(),
+                text: text[..usize::try_from(placed.size).unwrap()].into(),
+            })
+            .unwrap();
     }
     assert_eq!(plan.size, budget);
+    smith_domain_run::Brief { sections: rendered.into_boxed() }
+}
+
+#[test]
+fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
+    use skein_lib::Duration;
+    use smith_domain_run as run;
+
+    let brief = planned_ci_repair(super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None });
+    let mut ci = None;
+    let mut pull = None;
+    for section in &brief.sections {
+        match section.title.as_ref() {
+            b"CI" => ci = Some(section.text.clone()),
+            b"Pull request" => pull = Some(section.text.clone()),
+            _ => {}
+        }
+    }
+    let ci = ci.expect("CI section");
+    let pull = pull.expect("pull section");
+    let why = super::forge_change::Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(super::forge_change::Below { green: SHA256, changes: [None; 4] }),
+    };
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let instructions = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    let mut charter = run::Charter {
+        mode: run::Mode::Finite,
+        resume: false,
+        waiting: Duration::ZERO,
+        instructions: instructions.clone(),
+        brief,
+        conventions: None,
+        grants: run::charter::Grants {
+            contract: 1,
+            wait: false,
+            deliver: None,
+            save: false,
+            tools: run::charter::Tools { inspect: true, modify: true, shell: true },
+            agents: false,
+            host_tools: Box::new([]),
+        },
+        outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
+        budget: run::Budget { turns: 1, spend: 100, time: Duration::from_secs(60) },
+        reserve: run::charter::Reserve { turns: 0, time: Duration::ZERO },
+        llm: run::charter::Llm {
+            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+            dialect: 1,
+            account: None,
+            endpoint: run::charter::Endpoint(0),
+            model: b"model".as_slice().into(),
+            effort: None,
+            window: 65_536,
+            output: 256,
+        },
+        models: Box::new([]),
+        check_timeout: None,
+    };
+    let bound = charter.owned_bytes().unwrap().checked_sub(1024).unwrap();
+    temper_protocol_brief::fit_brief_bytes(&mut charter, bound);
+    assert!(charter.owned_bytes().unwrap() <= bound);
+    assert_eq!(charter.brief.sections.len(), 8, "no section is omitted");
+    assert_eq!(charter.instructions, instructions);
+    assert!(
+        skein_lib::bytes::find(&charter.instructions, b"Failed test: test skein-lib::suite fuzzy::a (fuzzy)").is_some()
+    );
+    for section in &charter.brief.sections {
+        match section.title.as_ref() {
+            b"CI" => assert!(section.text == ci, "the failed step and log end survive charter fitting whole"),
+            b"Pull request" => {
+                assert!(section.text.len() < pull.len(), "pull contents yield to the charter bound");
+                assert!(section.text.starts_with(b"Pull request: #7\n"));
+                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+            }
+            _ => {}
+        }
+    }
 }
 
 #[test]
@@ -2085,10 +2270,20 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let reason = b"Repair the failed landing gate. The landing's gates passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
     let list = b" Changes landing below it: 2341 (#7), 2342 (#8).";
     let ci = b" The CI section gives its run, base and failed jobs.";
-    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION]);
-    assert_eq!(super::repair_words(&row, why, &[], 1024).unwrap(), expected);
+    let failure = repair_failure(red, Some(green));
+    let lines = concat(&[
+        b"\nGate run: 4211 at ",
+        &commit_text(&red),
+        b", base ",
+        &commit_text(&green),
+        b": https://forge.example/o/r/actions/runs/998\nFailed tests: not known (the gate names no report)\nFailed job: gate: read_job head=",
+        &commit_text(&red),
+        b" run=4211 job=9001 attempt=1",
+    ]);
+    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION, &lines]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), expected);
     let bound = u32::try_from(expected.len() - 6).unwrap();
-    let cut = super::repair_words(&row, why, &[], bound).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
     assert!(cut.starts_with(opening));
     assert!(cut.starts_with(&concat(&[opening.as_slice(), reason, b" Changes landing below it: 2341 (#7)"])));
     let mut last_kept = false;
@@ -2096,15 +2291,77 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
         last_kept |= part == b"2342 (#8)";
     }
     assert!(!last_kept);
-    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION])));
+    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION, &lines])));
     assert!(cut.len() <= usize::try_from(bound).unwrap());
     let base = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes: [None; 4] }) };
     assert_eq!(
-        super::repair_words(&row, base, &[], 1024).unwrap(),
-        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION])
+        super::repair_words(&row, base, Some(&failure), &[], 4096).unwrap(),
+        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION, &lines])
     );
     let candidate = Repair::LandingAt { gate: 1, candidate: red, below: None };
-    assert_eq!(super::repair_words(&row, candidate, &[], 1024).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION]));
+    assert_eq!(super::repair_words(&row, candidate, Some(&failure), &[], 4096).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION, &lines]));
+}
+
+fn repair_failure(prefix: [u8; 32], base: Option<[u8; 32]>) -> super::forge::LandingFailure {
+    super::forge::LandingFailure {
+        report: super::forge::ReceiptReport::Unset,
+        gate: b"gate".as_slice().into(),
+        run: super::forge::ReceiptRun {
+            id: 4211,
+            number: 998,
+            url: b"https://forge.example/o/r/actions/runs/998".as_slice().into(),
+        },
+        prefix,
+        base,
+        jobs: Box::new([super::forge::ReceiptJob { job: 9001, attempt: 1, name: b"gate".as_slice().into() }]),
+    }
+}
+
+#[test]
+fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
+    use super::forge_change::Repair;
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.jobs = Box::new([
+        failure.jobs[0].clone(),
+        super::forge::ReceiptJob { job: 9002, attempt: 3, name: b"lint".as_slice().into() },
+    ]);
+    let prefix = commit_text(&SHA1);
+    let gate = skein_lib::bytes::concat(&[
+        b"\nGate run: 4211 at ",
+        &prefix,
+        b", base unknown: https://forge.example/o/r/actions/runs/998",
+    ]);
+    let job =
+        skein_lib::bytes::concat(&[b"\nFailed job: gate: read_job head=", &prefix, b" run=4211 job=9001 attempt=1"]);
+    let lint =
+        skein_lib::bytes::concat(&[b"\nFailed job: lint: read_job head=", &prefix, b" run=4211 job=9002 attempt=3"]);
+    let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
+    let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
+    let report = b"\nFailed tests: not known (the gate names no report)";
+    let full = skein_lib::bytes::concat(&[&required, &gate, report, &job, &lint]);
+    assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
+    for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
+        let expected = skein_lib::bytes::concat(&[
+            &required,
+            &gate,
+            report,
+            kept,
+            b"\n[",
+            skein_lib::Decimal::of(omitted).as_bytes(),
+            b" more failed tests and jobs: read_checks names them]",
+        ]);
+        let bound = u32::try_from(expected.len()).unwrap();
+        assert_eq!(super::repair_words(&row, why, Some(&failure), &[], bound).unwrap(), expected);
+    }
+    for why in [why, Repair::Landing { gate: 1 }] {
+        assert_eq!(
+            super::repair_words(&row, why, None, &[], 4096).unwrap(),
+            skein_lib::bytes::concat(&[&required, b"\nGate run: the landing no longer keeps its failure"])
+        );
+    }
 }
 
 fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
@@ -2118,15 +2375,15 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = Box::from(b"/ check (pull_request), / changes (pull_request)".as_slice());
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert_repair_instruction(&words, b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
     // A client cuts contexts, keeping the complete opening and pinned head.
     row.result.failed.bytes = Box::from([b'x'; 200]);
-    let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Ci, None, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));
     for why in [super::forge_change::Repair::Ci, super::forge_change::Repair::Semantic] {
-        assert!(super::repair_words(&row, why, &[], 64).is_none());
+        assert!(super::repair_words(&row, why, None, &[], 64).is_none());
     }
 }
 
@@ -2140,10 +2397,10 @@ fn a_ci_repair_with_no_failed_check_known_says_so() {
             row.change.last_head = Some(SHA1);
             row.result.head = observed;
             row.result.failed.bytes = failed.into();
-            let words = super::repair_words(&row, why, &[], 512).unwrap();
+            let words = super::repair_words(&row, why, None, &[], 512).unwrap();
             assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
             for bound in 0..512 {
-                if let Some(words) = super::repair_words(&row, why, &[], bound) {
+                if let Some(words) = super::repair_words(&row, why, None, &[], bound) {
                     assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
                 }
             }
@@ -2208,7 +2465,7 @@ fn a_clean_updates_red_opens_with_its_head_and_failed_check() {
     row.change.last_head = Some(SHA1);
     row.result.head = Some(SHA1);
     row.result.failed.bytes = b"build".as_slice().into();
-    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
+    let words = super::repair_words(&row, super::forge_change::Repair::Semantic, None, &[], 512).unwrap();
     assert_repair_instruction(
         &words,
         b"Repair CI at abcdef012345: build\nCI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
@@ -2227,9 +2484,9 @@ fn a_persons_request_repair_words_open_with_its_head() {
     );
     let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
     let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len()).unwrap();
-    let words = super::repair_words(&row, why, &parameters, bound).unwrap();
+    let words = super::repair_words(&row, why, None, &parameters, bound).unwrap();
     assert_eq!(words.as_ref(), skein_lib::bytes::concat(&[expected.as_bytes(), super::REPAIR_PRESERVATION]).as_ref());
-    assert!(super::repair_words(&row, why, &parameters, 64).is_none());
+    assert!(super::repair_words(&row, why, None, &parameters, 64).is_none());
 }
 
 #[test]
@@ -2255,10 +2512,13 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
             Box::new([Gate { number: 7, kind, blocking: true, freshness: Freshness::Exact, eager: false }]);
         let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
         let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len() + 1).unwrap();
-        assert_repair_instruction(&super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap(), expected);
-        assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
+        assert_repair_instruction(
+            &super::repair_words(&row, Repair::Gate(7), None, &parameters, bound).unwrap(),
+            expected,
+        );
+        assert!(super::repair_words(&row, Repair::Gate(7), None, &parameters, 64).is_none());
     }
-    assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
+    assert!(super::repair_words(&row, Repair::Gate(8), None, &[], 512).is_none(), "an unknown gate cannot be named");
 }
 
 fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
@@ -2918,7 +3178,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
             None => None,
         };
         let expected = match expected {
-            Some(route) => Some(forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) }),
+            Some(route) => Some(forge_change::Questions { route, ..forge_change::Questions::default() }),
             None => None,
         };
         assert_eq!(made, expected);
@@ -3173,6 +3433,199 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     }
 }
 
+const ASKED_OPENING: &str = "\n\nWhat this change is asked now: its request as revised and the answers given on it. Where they differ from its title, its original request or the preservation rule, they come first.";
+
+fn kept_answer(asker: u64, line: &[u8], answer: &[u8]) -> super::forge_change::Answered {
+    super::forge_change::Answered { asker, number: 3, line: line.into(), answer: answer.into() }
+}
+
+/// questions.md, 1, What later work is told: exact lines, optional label and newest first.
+#[test]
+#[expect(clippy::disallowed_macros, reason = "unit fixtures spell the block's exact design lines")]
+fn asked_now_carries_the_design_lines_and_newest_answers_first() {
+    let request = b"Add a file holding the line a.";
+    let first = kept_answer(7, b"Question: keep both lines?", b"keep both lines");
+    let expected = format!(
+        "{ASKED_OPENING}\nAnswers given on it, newest first:\nTask 7 asked: Question: keep both lines?\nAnswer: keep both lines\nIts request, at spec revision 2:\nAdd a file holding the line a."
+    );
+    assert_eq!(super::asked_now(request, 2, core::slice::from_ref(&first), 4096).as_ref(), expected.as_bytes());
+    let expected = format!("{ASKED_OPENING}\nIts request, at spec revision 0:\nAdd a file holding the line a.");
+    assert_eq!(super::asked_now(request, 0, &[], 4096).as_ref(), expected.as_bytes());
+    let second = kept_answer(9, b"Question: blank lines?", b"keep blank lines");
+    let expected = format!(
+        "{ASKED_OPENING}\nAnswers given on it, newest first:\nTask 9 asked: Question: blank lines?\nAnswer: keep blank lines\nTask 7 asked: Question: keep both lines?\nAnswer: keep both lines\nIts request, at spec revision 2:\nAdd a file holding the line a."
+    );
+    assert_eq!(super::asked_now(request, 2, &[first, second], 4096).as_ref(), expected.as_bytes());
+}
+
+/// questions.md, 1: the specified split and cut, with UTF-8 straddling each cut.
+#[test]
+#[expect(clippy::disallowed_macros, reason = "unit fixtures independently spell the split UTF-8 texts")]
+fn asked_now_shares_room_and_cuts_each_text_on_a_utf8_boundary() {
+    let label = "\nAnswers given on it, newest first:";
+    let request_label = "\nIts request, at spec revision 2:\n";
+    let fixed = ASKED_OPENING.len() + label.len() + request_label.len();
+    let question = b"Question: keep both lines?";
+    let request = "€".repeat(100);
+    let answer = "€".repeat(100);
+    let kept = [kept_answer(7, question, answer.as_bytes())];
+    // The first 50 answer bytes are its question and Answer label. One euro
+    // straddles the cut after the marker is reserved in the 54-byte share.
+    let room = fixed + 108;
+    let answer_text = format!("\nTask 7 asked: Question: keep both lines?\nAnswer: {answer}");
+    let cut = |text: &str, bound: usize| {
+        let mut end = bound - "…".len();
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}…", &text[..end])
+    };
+    let expected = format!("{ASKED_OPENING}{label}{}{request_label}{}", cut(&answer_text, 54), cut(&request, 54));
+    let block = super::asked_now(request.as_bytes(), 2, &kept, room);
+    assert_eq!(block.as_ref(), expected.as_bytes());
+    assert!(block.len() <= room);
+    // A six-byte request leaves 102 bytes for the answers, not merely half.
+    let expected = format!("{ASKED_OPENING}{label}{}{request_label}short!", cut(&answer_text, 102));
+    let block = super::asked_now(b"short!", 2, &kept, room);
+    assert_eq!(block.as_ref(), expected.as_bytes());
+    assert!(block.len() <= room);
+    // Answers needing less than half leave the remainder for the request.
+    let kept = [kept_answer(7, b"?", b"yes")];
+    let answer_text = "\nTask 7 asked: ?\nAnswer: yes";
+    let expected =
+        format!("{ASKED_OPENING}{label}{answer_text}{request_label}{}", cut(&request, 108 - answer_text.len()));
+    assert_eq!(super::asked_now(request.as_bytes(), 2, &kept, room).as_ref(), expected.as_bytes());
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "unit fixtures validate every bounded block as UTF-8")]
+fn asked_now_keeps_its_fixed_lines_whole_or_gives_nothing() {
+    let cases: [Box<[super::forge_change::Answered]>; 2] = [Box::new([]), Box::new([kept_answer(7, b"?", b"yes")])];
+    for answered in cases {
+        let fixed = super::asked_now(b"", 2, &answered, 4096).len()
+            - if answered.is_empty() { 0 } else { b"\nTask 7 asked: ?\nAnswer: yes".len() };
+        assert!(super::asked_now(b"request", 2, &answered, fixed - 1).is_empty());
+        let block = super::asked_now(b"request", 2, &answered, fixed);
+        assert_eq!(block.len(), fixed);
+        assert!(block.ends_with(b"Its request, at spec revision 2:\n"));
+        for room in 0..fixed + 110 {
+            let block = super::asked_now("€€€€".as_bytes(), 2, &answered, room);
+            assert!(block.len() <= room);
+            core::str::from_utf8(&block).expect("the bounded block is UTF-8");
+        }
+    }
+}
+
+/// repairs.md, A repair and A resolution: preservation yields to the ruling.
+#[test]
+fn preservation_words_yield_to_the_current_request_and_answers() {
+    assert_eq!(super::REPAIR_PRESERVATION, b" Preserve the requested change and unrelated base content, including both independent appended lines and existing blank lines, and do not remove content to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise.");
+    assert_eq!(super::resolution_words(None, &[], 4096).unwrap().as_ref(), b"Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.");
+    let compact = b"Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; say in your result which you kept or restored, and why.";
+    assert_eq!(super::resolution_words(None, &[], u32::try_from(compact.len()).unwrap()).unwrap().as_ref(), compact);
+    assert!(super::resolution_words(None, &[], u32::try_from(compact.len() - 1).unwrap()).is_none());
+}
+
+#[test]
+fn later_delegates_end_with_the_current_request_and_answers_within_the_spec_bound() {
+    use super::{forge, forge_change as change, tasks};
+    use change::{Delegate, Freshness, Gate, GateKind, Repair, State};
+    for judging in [false, true] {
+        let (mut domain, mut env, task) =
+            crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+        env.limits.tasks.parameters = 5;
+        env.limits.tasks.spec_bytes = 4096;
+        let mut row = change_row(Some(7));
+        row.task = task;
+        row.change.task = task;
+        row.change.last_head = Some(SHA1);
+        row.questions.answered = Box::new([kept_answer(71, b"Question: drop the file?", b"drop it")]);
+        row.change.gates = Box::new([
+            Gate { number: 1, kind: GateKind::Agent, blocking: true, freshness: Freshness::Clean, eager: true },
+            Gate { number: 2, kind: GateKind::Check, blocking: true, freshness: Freshness::Clean, eager: true },
+            Gate { number: 3, kind: GateKind::Person, blocking: true, freshness: Freshness::Clean, eager: true },
+        ]);
+        row.change.state = if judging {
+            State::Judging {
+                head: SHA1,
+                ready_since: skein_lib::Wall::EPOCH,
+                target: change::Judgement {
+                    landing: 81,
+                    round: 1,
+                    pull: 9,
+                    branch: b"round".as_slice().into(),
+                    base: b"goal".as_slice().into(),
+                    prefix: SHA256,
+                },
+                asked: Box::new([]),
+            }
+        } else {
+            State::Gating { head: SHA1, asked: Box::new([]) }
+        };
+        row.merge_result = Some(b"merge result".as_slice().into());
+        let request = domain.core.tasks.task(task).unwrap();
+        let block = super::asked_now(&request.spec.words, request.revisions.spec, &row.questions.answered, 4096);
+        domain.forge.restore_begin(env.wall);
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        for kind in [
+            Delegate::Gate { number: 1, head: SHA1 },
+            Delegate::Gate { number: 2, head: SHA1 },
+            Delegate::Gate { number: 3, head: SHA1 },
+            Delegate::Repair(Repair::Ci),
+            Delegate::Repair(Repair::Semantic),
+            Delegate::Repair(Repair::Gate(1)),
+            Delegate::Repair(Repair::Review { head: SHA1 }),
+            Delegate::Repair(Repair::Landing { gate: 1 }),
+            Delegate::Repair(Repair::LandingAt { gate: 1, candidate: SHA256, below: None }),
+            Delegate::Repair(Repair::LandingAt {
+                gate: 1,
+                candidate: SHA256,
+                below: Some(change::Below {
+                    green: SHA1,
+                    changes: [Some(change::Landed { change: 12, pull: 3 }), None, None, None],
+                }),
+            }),
+            Delegate::Resolve { base: SHA1 },
+        ] {
+            let delegate = super::change_delegate(&domain, &env, task, kind).unwrap();
+            assert!(delegate.spec.words.ends_with(&block), "{kind:?}, judging {judging}");
+            assert!(
+                delegate.spec.words.len()
+                    <= usize::try_from(super::parameter_word_room(
+                        &delegate.spec.parameters,
+                        env.limits.tasks.spec_bytes
+                    ))
+                    .unwrap()
+            );
+            match kind {
+                Delegate::Gate { .. } => {
+                    assert!(delegate.spec.words.starts_with(b"Review this change at the named head\n"));
+                }
+                Delegate::Repair(repair) => {
+                    let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
+                    let preservation = match repair {
+                        Repair::Landing { .. } | Repair::LandingAt { .. } => before
+                            .strip_suffix(b"\nGate run: the landing no longer keeps its failure")
+                            .expect("a landing repair names its missing failure before the current request"),
+                        Repair::Ci | Repair::Semantic | Repair::Gate(_) | Repair::Review { .. } => before,
+                    };
+                    assert!(preservation.ends_with(super::REPAIR_PRESERVATION));
+                }
+                Delegate::Resolve { .. } => {
+                    let before = &delegate.spec.words[..delegate.spec.words.len() - block.len()];
+                    assert!(before.ends_with(b"merge result"));
+                }
+                Delegate::Produce | Delegate::Merge { .. } | Delegate::Close => unreachable!(),
+            }
+        }
+    }
+}
+
 /// temper/docs/design/domain/forge/change/repairs.md: required words stay whole before an optional result.
 #[test]
 fn resolution_words_keep_deletions_with_or_without_a_merge_result() {
@@ -3184,13 +3637,13 @@ fn resolution_words_keep_deletions_with_or_without_a_merge_result() {
         "an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a ",
         "file deleted on the head or renamed on either side stays so, the other side's edits carried where they still ",
         "apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a ",
-        "check pass; keeping an intended deletion removes none. In your result, say for each file deleted or renamed ",
+        "check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed ",
         "on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes ",
         "the resolved merge.",
     )
     .as_bytes();
     let compact = concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames. Restore a file the base ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
         "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
         "kept or restored, and why.",
     )
@@ -4051,9 +4504,9 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
         Parameter::Bytes { name: 3, value: Box::from(b"temper/1/c2".as_slice()) },
         Parameter::Bytes { name: 6, value: commit_text(&SHA1) },
     ];
-    let words = super::resolution_words(Some(b"merge job result"), &parameters, 294).unwrap();
+    let words = super::resolution_words(Some(b"merge job result"), &parameters, 352).unwrap();
     assert_eq!(words.as_ref(), concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames. Restore a file the base ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. Restore a file the base ",
         "deleted only if the change needs it, after reading the commit that deleted it; say in your result which you ",
         "kept or restored, and why.",
     )
@@ -4064,7 +4517,7 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
             bytes += value.len();
         }
     }
-    assert_eq!(bytes, 294, "resolution and pinned parameters need {bytes} spec bytes");
+    assert_eq!(bytes, 352, "resolution and pinned parameters need {bytes} spec bytes");
     assert!(
         super::resolution_words(Some(b"merge job result"), &parameters, u32::try_from(bytes - 1).unwrap()).is_none()
     );
@@ -4080,7 +4533,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
     use skein_lib::Queue;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap().clone();
-    for (registered, repository, base, executor, head, kept, expected) in [
+    for (registered, repository, base, executor, checked, kept, expected) in [
         (
             true,
             3,
@@ -4088,7 +4541,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             Some(SHA1),
             false,
-            change::PendingKind::Change { head: Some(SHA1), kept: false },
+            change::PendingKind::Change { checked: Some(SHA1), kept: false },
         ),
         (
             true,
@@ -4097,7 +4550,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             true,
-            change::PendingKind::Change { head: None, kept: true },
+            change::PendingKind::Change { checked: None, kept: true },
         ),
         (
             true,
@@ -4133,7 +4586,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             tasks::Executor::Procedure { connector: 0, code: 2 },
             None,
             false,
-            change::PendingKind::Change { head: None, kept: false },
+            change::PendingKind::Change { checked: None, kept: false },
         ),
     ] {
         let (mut domain, env) = two_forges();
@@ -4171,6 +4624,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         upstream.repository.forge = repository;
         upstream.base = base.into();
         upstream.branch = b"temper/8".as_slice().into();
+        upstream.change.last_checked = checked;
         if registered {
             forge::step(
                 &mut domain.forge,
@@ -4179,7 +4633,8 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
                 &mut Queue::uncapped(),
             );
         }
-        if let Some(commit) = head {
+        {
+            let commit = [9; 32];
             forge::step(
                 &mut domain.forge,
                 &forge_env,
@@ -4279,7 +4734,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     upstream.task = 8;
     upstream.change.task = 8;
     upstream.branch = b"temper/8".as_slice().into();
-    for row in [change_row(None), upstream] {
+    for row in [change_row(None), upstream.clone()] {
         forge::step(
             &mut domain.forge,
             &forge_env,
@@ -4292,7 +4747,7 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     let forge::Event::StepChange { pending, .. } = stale else { panic!("change step") };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: None, kept: false } }]
     );
     forge::step(
         &mut domain.forge,
@@ -4304,20 +4759,27 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
                     repository: 1,
                     what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
                 },
-                commit: SHA1,
+                commit: [9; 32],
                 owned: true,
             }),
         },
         &mut Queue::uncapped(),
     );
-    // A head notification must update the outstanding step, not send an idle-only wake.
+    upstream.change.last_checked = Some(SHA1);
+    forge::step(
+        &mut domain.forge,
+        &forge_env,
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(upstream)) },
+        &mut Queue::uncapped(),
+    );
+    // A checked-head notification must update the outstanding step, not send an idle-only wake.
     forge_request(&mut domain, &env, forge::Request::StepDependents { task: 8 });
     let Some(Work::Forge(forge::Event::StepChange { task: 7, pending, .. })) = domain.work.pop() else {
         panic!("a dependency wake refreshes the already-due step");
     };
     assert_eq!(
         pending.as_ref(),
-        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { checked: Some(SHA1), kept: false } }]
     );
     assert!(domain.work.is_empty());
 }
@@ -5349,4 +5811,59 @@ fn a_prepare_intent_and_an_earlier_suffix_are_not_an_admitted_job() {
     check(&mut domain, &row, Preparation::Idle);
     row.landing.preparation = 2;
     check(&mut domain, &row, Preparation::Absent);
+}
+
+fn report_tests() -> super::forge::ReceiptReport {
+    super::forge::ReceiptReport::Tests(Box::new([
+        super::forge::ReceiptTest { key: b"test skein-lib::suite fuzzy::a".as_slice().into(), fuzzy: true },
+        super::forge::ReceiptTest { key: b"test skein-lib::suite b".as_slice().into(), fuzzy: false },
+    ]))
+}
+
+#[test]
+fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
+    use super::forge_change::{Below, Landed, Repair};
+    use skein_lib::bytes::{concat, find};
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = Repair::LandingAt {
+        gate: 1,
+        candidate: SHA1,
+        below: Some(Below {
+            green: SHA256,
+            changes: [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None],
+        }),
+    };
+    let mut failure = repair_failure(SHA1, Some(SHA256));
+    failure.report = report_tests();
+    let whole = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    let tests =
+        b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
+    let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
+    let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
+    let job_at = find(&whole, b"\nFailed job: gate: read_job head=").unwrap();
+    assert!(run_at < tests_at && tests_at < job_at);
+    let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
+    let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
+    assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
+    assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
+    let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
+    let marker = b"\n[2 more failed tests and jobs: read_checks names them]";
+    let bound = u32::try_from(
+        usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
+    )
+    .unwrap();
+    let bounded = super::repair_words(&row, why, Some(&failure), &[], bound).unwrap();
+    assert!(bounded.ends_with(&concat(&[first_test, marker])), "whole test lines precede the combined omitted count");
+    for (report, line) in [
+        (super::forge::ReceiptReport::Many { bound: 16 }, b"\nFailed tests: more than 16".as_slice()),
+        (super::forge::ReceiptReport::Unset, b"\nFailed tests: not known (the gate names no report)".as_slice()),
+        (super::forge::ReceiptReport::Unread, b"\nFailed tests: not known (its report could not be read)".as_slice()),
+    ] {
+        failure.report = report;
+        let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+        let at = find(&words, line).unwrap();
+        assert!(find(&words[..at], b"\nGate run:").is_some());
+        assert!(words[at + line.len()..].starts_with(b"\nFailed job:"));
+    }
 }

@@ -338,9 +338,17 @@ plan (`jobs.md`, 4).
 
 ## 7. Bounds
 
-- **In memory, at open:** the registry's rows and texts, a text parsed
-  while its family (or a family holding it) is planned, and one plan
-  derived at a time (skein's `data/codec/layouts.md`, 5). While serving:
+- **In memory, at open:** the registry's rows and texts; each family's
+  `current` parsed once in the open and kept until its plans are made
+  (5.3), since its binary layout, its check and every family holding
+  it read it: parsed where the open checks the binary's texts before
+  the seed (2, and the third item below) and kept as that check parsed
+  it, or, a text the registry already holds, parsed where it is first
+  planned; any other text, a kept text the seed reads or one only rows
+  name, parsed while its family (or a family holding it) is planned and
+  dropped with it; and one plan derived at a time (skein's
+  `data/codec/layouts.md`, 5). Holding the `current` texts costs at most
+  the binary's own families' parsed schemas, never a store's. While serving:
   per value type its key ranges, version, binary id, the ids whose plan
   keeps, and a plan per held layout that converts. Rows, texts and parsed
   schemas are dropped when the open ends, after its registry writes and
@@ -390,6 +398,13 @@ plan (`jobs.md`, 4).
   adds a value type in a new key range, opens with no refusal; the seed
   has no row for the new type, the registration adds its row at the
   family's version, and a value put at its key reads back.
+- **The open's parses** (7), a step test: through the seed, the
+  registration and each family's check, each family's `current` keeps
+  the schema parsed when the open checked it (or first planned it, a
+  text the registry held), while any other text (a kept text the seed
+  reads, a text only rows name) is dropped with its family; none is
+  held once the plans are made. The refusals and their order are
+  unchanged.
 
 ## 9. Open questions
 

@@ -174,6 +174,15 @@ Shape: `gate-check`. Paths: `application.landing.projects[].gates[].gates[]`. A 
 - `ignored`: list of text, at most forge.ignored_paths; each at most forge.name_bytes; optional; init leaves it out. Whole paths the check ignores, with no empty, dot or parent segment.
 - `blocking`: true or false; required; init leaves it out. Whether a failing gate blocks landing.
 - `base`: true or false, false when absent; optional; init leaves it out. Whether the gate reads the round’s base, given as temper_base and included in its key.
+- `report`: gate-report, none when absent; optional; init leaves it out. The artifact naming failed tests for a landing repair.
+
+## application.landing.projects[].gates[].gates[].report
+
+Shape: `gate-report`. Paths: `application.landing.projects[].gates[].gates[].report`. A failed gate’s test report and fuzzy name prefix.
+
+- `artifact`: text, 1 to 32 bytes; no slash; required; init leaves it out. The failed run’s test report artifact.
+- `format`: text, junit or lines; required; init leaves it out. The format of the failing-tests artifact.
+- `fuzzy`: text, 1 to 64 bytes; optional; init leaves it out. The prefix of fuzzy test names; other tests are focused.
 
 ## application.landing.projects[].gates[].tiers[]
 

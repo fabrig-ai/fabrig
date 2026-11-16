@@ -308,6 +308,7 @@ impl Store {
 
     /// Supplies the owners' static patch data (protocol/store/opening.md 3).
     pub fn patch_sets(&mut self, sets: PatchSets) {
+        self.directory.checked = None;
         self.patch_sets = sets;
     }
 

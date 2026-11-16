@@ -401,6 +401,10 @@ pub enum Write {
         branch: Box<[u8]>,
         inputs: Box<[WorkflowInput]>,
     },
+    /// Cancels a dispatched run in flight. Needs write permission.
+    Cancel {
+        run: u64,
+    },
     /// Runs one completed run's job at its next attempt.
     Rerun {
         job: u64,

@@ -804,6 +804,18 @@ pair = "process-temper"
 package = "temper-box"
 filter = "binary(=process)"
 
+# cluster_turn/mod.rs and its focused shared-setup contracts.
+[[fixture]]
+paths = ["temper/bin/temper-box/tests/fixtures/cluster-turn/*"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-box"
+filter = "binary(=suite) & test(/support_tests::cluster_turn_/)"
+[[fixture.reader]]
+pair = "process-temper"
+package = "temper-box"
+filter = "binary(=process) & test(/^cluster_turn::/)"
+
 # fixtures/b2.rs: suite/b2.rs calls the B2 builders.
 [[fixture]]
 paths = ["temper/tests/client/src/fixtures/*.rs"]

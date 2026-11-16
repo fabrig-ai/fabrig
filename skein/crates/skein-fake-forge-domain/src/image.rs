@@ -69,7 +69,8 @@ impl Domain {
         }
         let mut input = Reader::new(bytes);
         let format = input.bytes(8);
-        let job_state = format == Some(b"FORGEIM2".as_slice());
+        let cancellations = format == Some(b"FORGEIM3".as_slice());
+        let job_state = cancellations || format == Some(b"FORGEIM2".as_slice());
         require(job_state || format == Some(b"FORGEIMG".as_slice()), "image format")?;
         let mut domain = Domain::new(config, 0);
         let limits = &config.limits;
@@ -120,12 +121,34 @@ impl Domain {
             require(extension == Some(b"JOBST001".as_slice()), "trailing bytes")?;
             job_state::get(&mut input, &mut domain, limits)?;
         }
+        if cancellations {
+            require(input.bytes(8) == Some(b"CANCEL01".as_slice()), "cancellation table")?;
+            let rows = count(&mut input, limits.repositories, "cancel repositories")?;
+            require(rows == domain.repositories.len(), "cancel repositories")?;
+            for index in 0..rows {
+                let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("bounded repository");
+                let repository = domain.repositories.get_mut(id).expect("retained repository");
+                let runs = count(&mut input, limits.workflow_runs, "cancel runs")?;
+                require(runs == repository.dispatched.len(), "cancel runs")?;
+                for position in 0..runs {
+                    let (&run, _) =
+                        repository.dispatched.iter().nth(skein_lib::usize_of(position)).expect("bounded run");
+                    let by = optional_u64(&mut input)?;
+                    let kept = repository.dispatched.get_mut(&run).expect("retained run");
+                    require(
+                        by.is_none() || kept.run.conclusion == Some(crate::actions::Conclusion::Cancelled),
+                        "cancelled run",
+                    )?;
+                    kept.run.cancelled_by = by;
+                }
+            }
+        }
         require(input.is_empty(), "trailing bytes")?;
         Ok(domain)
     }
 }
 fn put(out: &mut Sink, domain: &Domain) {
-    out.put(b"FORGEIM2");
+    out.put(b"FORGEIM3");
     out.u32(domain.repositories.len());
     for (_, r) in &domain.repositories {
         repositories::put(out, r);
@@ -168,6 +191,14 @@ fn put(out: &mut Sink, domain: &Domain) {
         }
     }
     job_state::put(out, domain);
+    out.put(b"CANCEL01");
+    out.u32(domain.repositories.len());
+    for (_, repository) in &domain.repositories {
+        out.u32(repository.dispatched.len());
+        for (_, kept) in &repository.dispatched {
+            out.optional_u64(kept.run.cancelled_by);
+        }
+    }
 }
 fn retained(alarm: Alarm) -> bool {
     match alarm {

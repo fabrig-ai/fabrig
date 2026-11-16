@@ -21,4 +21,4 @@
 
 
 
- Ctrl+C to quit                                                    ● Signed out
+ ● Signed out                                                    Ctrl+C to quit

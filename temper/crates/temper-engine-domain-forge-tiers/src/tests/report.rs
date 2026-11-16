@@ -138,3 +138,28 @@ fn failed_run_with_named_or_many_tests_is_red() {
         assert_eq!(failed(Some(Ok(failures.clone()))), Outcome::Failed(failures));
     }
 }
+
+#[test]
+fn repair_keys_keep_the_case_name_separate_and_lines_verbatim() {
+    use crate::{Limits, NamedFailures, NamedTest, named_report};
+    let limits = Limits { failing_tests: 4, test_id_bytes: 256 };
+    let file = br#"<testsuite name="skein-lib::suite"><testcase name="fuzzy::a with space" classname="skein-lib::suite"><failure/></testcase><testcase name="fuzzy::alone"><error/></testcase><testcase name="b" classname="skein-lib::suite"><failure/></testcase></testsuite>"#;
+    assert_eq!(
+        named_report(Format::Junit, file, &limits),
+        Ok(NamedFailures::Tests(Box::new([
+            NamedTest { key: b"test fuzzy::alone".as_slice().into(), name: b"fuzzy::alone".as_slice().into() },
+            NamedTest { key: b"test skein-lib::suite b".as_slice().into(), name: b"b".as_slice().into() },
+            NamedTest {
+                key: b"test skein-lib::suite fuzzy::a with space".as_slice().into(),
+                name: b"fuzzy::a with space".as_slice().into()
+            },
+        ])))
+    );
+    assert_eq!(
+        named_report(Format::Lines, b"test binary\tfuzzy::line  \r\n", &limits),
+        Ok(NamedFailures::Tests(Box::new([NamedTest {
+            key: b"test binary\tfuzzy::line  ".as_slice().into(),
+            name: b"fuzzy::line".as_slice().into()
+        },])))
+    );
+}

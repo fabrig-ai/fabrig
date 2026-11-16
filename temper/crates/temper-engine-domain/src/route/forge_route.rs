@@ -2592,6 +2592,7 @@ pub(super) fn start_recovered_change(
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
+                    last_checked: None,
                 },
                 pull: None,
                 pending: None,
@@ -2613,7 +2614,7 @@ pub(super) fn start_recovered_change(
                 review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
-                questions: forge_change::Questions { route, taken: 0, open: Box::new([]), waiting: Box::new([]) },
+                questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -3686,7 +3687,7 @@ fn change_delegate(
         kind: 2,
         words: env.limits.tasks.result_bytes,
     };
-    let (executor, words, contract, llm) = match kind {
+    let (executor, mut words, contract, llm) = match kind {
         forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
@@ -3696,7 +3697,13 @@ fn change_delegate(
         ),
         forge_change::Delegate::Repair(why) => (
             tasks::Executor::Agent { charter: row.producing_charter },
-            repair_words(row, why, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
+            repair_words(
+                row,
+                why,
+                domain.forge.landing_failure(task, why).as_ref(),
+                parameters.as_slice(),
+                env.limits.tasks.spec_bytes,
+            )?,
             change_contract,
             row.producing_llm.clone(),
         ),
@@ -3748,6 +3755,25 @@ fn change_delegate(
             )
         }
     };
+    match kind {
+        forge_change::Delegate::Gate { .. }
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => {
+            let change = domain.core.tasks.task(task)?;
+            let room = usize::try_from(parameter_word_room(parameters.as_slice(), env.limits.tasks.spec_bytes)).ok()?;
+            let block = asked_now(
+                &change.spec.words,
+                change.revisions.spec,
+                &row.questions.answered,
+                room.saturating_sub(words.len()),
+            );
+            let mut out = List::with_capacity(u32::try_from(room).ok()?);
+            append(&mut out, &words);
+            append(&mut out, &block);
+            words = out.into_boxed();
+        }
+        forge_change::Delegate::Produce | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {}
+    }
     Some(super::Delegate {
         deadline: tasks::Deadline::Named,
         tracked: None,
@@ -3907,7 +3933,7 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
         "A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted ",
         "unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, ",
         "the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. ",
-        "Do not remove content just to make a check pass; keeping an intended deletion removes none. ",
+        "Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. ",
         "In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, ",
         "and why. The worker commits and pushes the resolved merge."
     )
@@ -3915,7 +3941,7 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
     let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
     // The coding charter carries the full preservation rule when the spec is small.
     let compact = concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames. ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. ",
         "Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; ",
         "say in your result which you kept or restored, and why."
     )
@@ -3941,6 +3967,39 @@ fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], boun
     Some(out.into_boxed())
 }
 
+/// temper/docs/design/domain/forge/change/questions.md, 1, What later work is told:
+/// its fixed lines, room split and UTF-8 cut.
+fn asked_now(request: &[u8], revision: u64, answered: &[forge_change::Answered], room: usize) -> Box<[u8]> {
+    let opening = b"\n\nWhat this change is asked now: its request as revised and the answers given on it. Where they differ from its title, its original request or the preservation rule, they come first.";
+    let answers_label: &[u8] = if answered.is_empty() { b"" } else { b"\nAnswers given on it, newest first:" };
+    let mut request_label = List::uncapped();
+    append(&mut request_label, b"\nIts request, at spec revision ");
+    append(&mut request_label, skein_lib::Decimal::of(revision).as_bytes());
+    append(&mut request_label, b":\n");
+    let fixed = opening.len().saturating_add(answers_label.len()).saturating_add(request_label.as_slice().len());
+    let Some(left) = room.checked_sub(fixed) else { return Box::new([]) };
+    let mut answers = List::uncapped();
+    for answer in answered.iter().rev() {
+        append(&mut answers, b"\nTask ");
+        append(&mut answers, skein_lib::Decimal::of(answer.asker).as_bytes());
+        append(&mut answers, b" asked: ");
+        append(&mut answers, &answer.line);
+        append(&mut answers, b"\nAnswer: ");
+        append(&mut answers, &answer.answer);
+    }
+    let half = left.checked_div(2).expect("two is nonzero");
+    let answer_room = answers.as_slice().len().min(half.max(left.saturating_sub(request.len())));
+    let answers = forge::text::fit(answers.as_slice(), answer_room, "…".as_bytes());
+    let request = forge::text::fit(request, left.saturating_sub(answer_room), "…".as_bytes());
+    let mut out = List::uncapped();
+    append(&mut out, opening);
+    append(&mut out, answers_label);
+    append(&mut out, &answers);
+    append(&mut out, request_label.as_slice());
+    append(&mut out, &request);
+    out.into_boxed()
+}
+
 fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
     let mut room = bound;
     for parameter in parameters {
@@ -3953,7 +4012,8 @@ fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
 
 const REPAIR_PRESERVATION: &[u8] = concat!(
     " Preserve the requested change and unrelated base content, including both ",
-    "independent appended lines and existing blank lines; do not remove content to make a check pass."
+    "independent appended lines and existing blank lines, and do not remove content to make a check pass, ",
+    "unless the change's request as revised, or an answer given on it, says otherwise."
 )
 .as_bytes();
 
@@ -3961,11 +4021,12 @@ const REPAIR_PRESERVATION: &[u8] = concat!(
 fn repair_words(
     row: &forge::ChangeRow,
     why: forge_change::Repair,
+    failure: Option<&forge::LandingFailure>,
     parameters: &[tasks::Parameter],
     bound: u32,
 ) -> Option<Box<[u8]>> {
     if let forge_change::Repair::LandingAt { candidate, below: Some(below), .. } = why {
-        return blamed_repair_words(row, why, candidate, below, parameters, bound);
+        return blamed_repair_words(row, why, candidate, below, failure, parameters, bound);
     }
     let previous: &[u8] = match why {
         forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
@@ -4022,6 +4083,8 @@ fn repair_words(
     append(&mut words, b"\n");
     append(&mut words, previous);
     append(&mut words, REPAIR_PRESERVATION);
+    let lines = repair_failure_lines(why, failure, words.room())?;
+    append(&mut words, &lines);
     Some(words.into_boxed())
 }
 
@@ -4031,6 +4094,7 @@ fn blamed_repair_words(
     why: forge_change::Repair,
     red: skein_forge::api::Commit,
     below: forge_change::Below,
+    failure: Option<&forge::LandingFailure>,
     parameters: &[tasks::Parameter],
     bound: u32,
 ) -> Option<Box<[u8]>> {
@@ -4060,7 +4124,9 @@ fn blamed_repair_words(
         required = required.checked_add(part.len())?;
     }
     let room = parameter_word_room(parameters, bound);
-    let list_room = usize::try_from(room).ok()?.checked_sub(required)?;
+    let lines_room = room.checked_sub(u32::try_from(required).ok()?)?;
+    let lines = repair_failure_lines(why, failure, lines_room)?;
+    let list_room = usize::try_from(lines_room).ok()?.checked_sub(lines.len())?;
     // Four u64 pairs and their punctuation fit here even at their greatest values.
     let mut list = List::with_capacity(256);
     let mut separator = b" Changes landing below it: ".as_slice();
@@ -4083,12 +4149,132 @@ fn blamed_repair_words(
     append(&mut words, &list);
     append(&mut words, ci);
     append(&mut words, REPAIR_PRESERVATION);
+    append(&mut words, &lines);
     Some(words.into_boxed())
+}
+
+/// Required failure lines take room before the optional changes below a blamed unit.
+fn repair_failure_lines(
+    why: forge_change::Repair,
+    failure: Option<&forge::LandingFailure>,
+    room: u32,
+) -> Option<Box<[u8]>> {
+    match why {
+        forge_change::Repair::Landing { .. } | forge_change::Repair::LandingAt { .. } => {}
+        forge_change::Repair::Ci
+        | forge_change::Repair::Semantic
+        | forge_change::Repair::Gate(_)
+        | forge_change::Repair::Review { .. } => return Some(Box::new([])),
+    }
+    let mut words = List::with_capacity(room);
+    let Some(failure) = failure else {
+        let line = b"\nGate run: the landing no longer keeps its failure";
+        if skein_lib::len_u64(line.len()) > u64::from(room) {
+            return None;
+        }
+        append(&mut words, line);
+        return Some(words.into_boxed());
+    };
+    let prefix = commit_text(&failure.prefix);
+    let base = match failure.base {
+        Some(base) => commit_text(&base),
+        None => Box::from(b"unknown".as_slice()),
+    };
+    let run = skein_lib::Decimal::of(failure.run.id);
+    let gate = skein_lib::bytes::concat(&[
+        b"\nGate run: ",
+        run.as_bytes(),
+        b" at ",
+        &prefix,
+        b", base ",
+        &base,
+        b": ",
+        &failure.run.url,
+    ]);
+    if skein_lib::len_u64(gate.len()) > u64::from(room) {
+        return None;
+    }
+    append(&mut words, &gate);
+    let mut lines = report_lines(&failure.report);
+    for job in &failure.jobs {
+        let line = skein_lib::bytes::concat(&[
+            b"\nFailed job: ",
+            &job.name,
+            b": read_job head=",
+            &prefix,
+            b" run=",
+            run.as_bytes(),
+            b" job=",
+            skein_lib::Decimal::of(job.job).as_bytes(),
+            b" attempt=",
+            skein_lib::Decimal::of(u64::from(job.attempt)).as_bytes(),
+        ]);
+        lines.push(line).expect("receipt tests and jobs bounded");
+    }
+    let mut total = 0_u32;
+    for line in &lines {
+        total = total.checked_add(u32::try_from(line.len()).ok()?)?;
+    }
+    let mut left = lines.len();
+    for line in lines.into_boxed() {
+        if total > words.room() {
+            let after = left.checked_sub(1)?;
+            let marker = failed_jobs_overflow(after);
+            let needed = u32::try_from(line.len().checked_add(marker.len())?).ok()?;
+            if after == 0 || needed > words.room() {
+                let marker = failed_jobs_overflow(left);
+                if skein_lib::len_u64(marker.len()) > u64::from(words.room()) {
+                    return None;
+                }
+                append(&mut words, &marker);
+                return Some(words.into_boxed());
+            }
+        }
+        append(&mut words, &line);
+        total = total.checked_sub(u32::try_from(line.len()).ok()?)?;
+        left = left.checked_sub(1)?;
+    }
+    Some(words.into_boxed())
+}
+
+fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
+    let mut lines = List::with_capacity(1040);
+    match report {
+        forge::ReceiptReport::Unset => lines
+            .push(Box::from(b"\nFailed tests: not known (the gate names no report)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Unread => lines
+            .push(Box::from(b"\nFailed tests: not known (its report could not be read)".as_slice()))
+            .expect("one report line"),
+        forge::ReceiptReport::Many { bound } => lines
+            .push(skein_lib::bytes::concat(&[
+                b"\nFailed tests: more than ",
+                skein_lib::Decimal::of(u64::from(*bound)).as_bytes(),
+            ]))
+            .expect("one report line"),
+        forge::ReceiptReport::Tests(tests) => {
+            for test in tests {
+                let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
+                lines
+                    .push(skein_lib::bytes::concat(&[b"\nFailed test: ", &test.key, b" (", profile, b")"]))
+                    .expect("receipt tests bounded");
+            }
+        }
+    }
+    lines
+}
+
+fn failed_jobs_overflow(left: u32) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[
+        b"\n[",
+        skein_lib::Decimal::of(u64::from(left)).as_bytes(),
+        b" more failed tests and jobs: read_checks names them]",
+    ])
 }
 
 fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::ChangeRow) -> Option<Box<[u8]>> {
     let words = &domain.core.tasks.task(task)?.spec.words;
-    Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
+    Some(produce_words(words, started_from(&row.change.early), &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
 fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
@@ -4102,18 +4288,66 @@ fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32)
     forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }
 
-fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
+fn started_from(early: &forge_change::Early) -> &[forge_change::StartedFrom] {
+    match early {
+        forge_change::Early::Started(heads) => heads,
+        forge_change::Early::None | forge_change::Early::Spent(_) => &[],
+    }
+}
+
+/// Early-start facts follow the title; the scope gives way before them
+/// (temper/docs/design/domain/forge/change/questions.md, 1, Early starts).
+fn produce_words(
+    words: &[u8],
+    heads: &[forge_change::StartedFrom],
+    base: &[u8],
+    branch: &[u8],
+    bound: u32,
+) -> Box<[u8]> {
     let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
-    let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
-    let length = title.len().saturating_add(2).saturating_add(PRODUCE_SCOPE.len());
-    if length > room {
-        return title.into();
+    let mut lines = List::uncapped();
+    for head in heads {
+        if !lines.is_empty() {
+            append(&mut lines, b"\n");
+        }
+        append(&mut lines, b"[Started from change ");
+        append(&mut lines, skein_lib::Decimal::of(head.task).as_bytes());
+        append(&mut lines, b" at ");
+        append(&mut lines, &commit_text(&head.head));
+        append(&mut lines, b", not landed]");
     }
-    let mut writer = skein_lib::Writer::new(length);
-    for part in parts {
-        writer.put(part).expect("measured brief");
+    let mut first_break = None;
+    for (index, byte) in words.iter().enumerate() {
+        if *byte == b'\n' {
+            first_break = Some(index);
+            break;
+        }
     }
-    writer.finish()
+    let (first, rest) = words.split_at_checked(first_break.unwrap_or(words.len())).expect("first break within words");
+    // The existing first line break belongs to the change's words. A one-line
+    // change needs both the break before the facts and their final break.
+    let separators = if rest.is_empty() { 2 } else { 1 };
+    let lines =
+        forge::text::fit(lines.as_slice(), room.saturating_sub(words.len()).saturating_sub(separators), "…".as_bytes());
+    let mut rendered = List::uncapped();
+    if lines.is_empty() {
+        append(&mut rendered, words);
+    } else {
+        append(&mut rendered, first);
+        append(&mut rendered, b"\n");
+        append(&mut rendered, &lines);
+        if rest.is_empty() {
+            append(&mut rendered, b"\n");
+        } else {
+            append(&mut rendered, rest);
+        }
+    }
+    let length = rendered.as_slice().len().saturating_add(2).saturating_add(PRODUCE_SCOPE.len());
+    if length <= room {
+        append(&mut rendered, b"\n\n");
+        append(&mut rendered, PRODUCE_SCOPE);
+    }
+    rendered.into_boxed()
 }
 
 /// Keep the decision's messages first, then fill its remaining room with inbox replies.

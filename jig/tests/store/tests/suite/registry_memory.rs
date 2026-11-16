@@ -5,8 +5,8 @@ use skein_fake_machine::Item;
 use skein_heap::Meter;
 
 // Each ceiling is its measured bytes plus a quarter, rounded up to two significant digits.
-// Empty: peak 806,140, registry and read workspace retained 7,905 bytes.
-const EMPTY_PEAK: u64 = 1_100_000;
+// Empty: peak 1,232,458, registry and read workspace retained 8,751 bytes.
+const EMPTY_PEAK: u64 = 1_600_000;
 const EMPTY_REGISTRY: u64 = 9_900;
 // Seeded at the last kept texts: peak 5,594,881, retained share 1,894,877 bytes.
 // Log-held conversion plans retain their fitted workspace and value buffer.

@@ -797,6 +797,7 @@ fn conclusion_in(conclusion: Option<forge::Conclusion>) -> Option<client::Conclu
     match conclusion {
         Some(forge::Conclusion::Success) => Some(client::Conclusion::Success),
         Some(forge::Conclusion::Failure) => Some(client::Conclusion::Failure),
+        Some(forge::Conclusion::Cancelled) => Some(client::Conclusion::Cancelled),
         None => None,
     }
 }

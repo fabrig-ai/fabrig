@@ -172,7 +172,8 @@ temper-client-shell-web         the browser: temper's shell, a library for wasm3
 temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/README.md, 2.1)
 
 for agents
-temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4)
+temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4): temper's part, the tools' root, and jig's part under its path (ctl/tools-crates.md)
+└── temper-client-tools-jig     jig's part of the tools: the table, a call, the runner, digests and conditions, the rendering
 temper-client-shell-cli         `temper ctl`, over jig-client-shell-native, and its start (ctl/README.md, section 6)
 
 for tests

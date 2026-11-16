@@ -185,10 +185,11 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   its page (`README.md`, section 2, *The TUI's own commands*).
 - **The quiet line,** on a chat whose pane can show (`README.md`, section 1, *The
   quiet line*):
-  - *at its left,* in a design session: the project's name, " · ",
-    "drafter" (`tui-hint`), " · " and the closed line, "Opus `../../pages/accounts.md`, 2 ·
-    xhigh"; the link's state after them, " · ● Offline", only while it
-    is not Live; in any other chat, as before;
+  - *at its left,* in a design session: "●" and the link's state first,
+    Live included, as on every screen (`README.md`, *The link's state*),
+    then " · ", the project's name, " · ", "drafter" (`tui-hint`), " · "
+    and the closed line, the model and its effort: "● Live · cowsql ·
+    drafter · Opus · xhigh"; in any other chat, as before;
   - *at its right,* after "paused · a message resumes it" where the
     person paused the chat: the pane's state, "pane: folded", "pane:
     half" or "pane: all", as shown; " · " and what the next Ctrl-P does,
@@ -221,7 +222,8 @@ at 80 by 24, the drafter's choices set aside by the "1" typed):
   - the quiet line at half says "Ctrl-P widens", where the mockup has
     "Ctrl-P folds", since its words say what the next press does; at 80
     columns the goal's part is left out, which the mockup's 110 hold;
-    and the link's state shows while it is not Live, which the mockup,
-    live, leaves out;
+    and the link's state stands first, Live included, which the mockup,
+    live, leaves out: the user's request `tui-21` of 2026-11-15 has it
+    in one place on every screen;
   - the halves split the window evenly, 55 and 55 columns at 110,
     where the mockup gives the conversation 56 and the pane 54.

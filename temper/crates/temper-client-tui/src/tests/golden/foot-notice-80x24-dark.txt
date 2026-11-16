@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Demo · model · high · ● Live          Unknown command /qiut · /help lists them
+ ● Live · Demo · model · high          Unknown command /qiut · /help lists them
 --
 ................................................................................
 ..abbb...cccccc.................................................................
@@ -46,7 +46,7 @@
 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 ggffffffffffffffffffffffffffffffffffffffffffffffff..............................
 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-.eeeefffeeeeeeeeeeeefffhhhhhh..........gggggggggggggggggggggggggggggggggggggggg.
+.hhhhhhfffeeeefffeeeeeeeeeeee..........gggggggggggggggggggggggggggggggggggggggg.
 --
 a: fore #1B76FD
 b: fore #00C4FE
