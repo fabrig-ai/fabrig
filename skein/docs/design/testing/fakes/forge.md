@@ -917,8 +917,8 @@ peers host theirs. The real loop hosts the same one.
   and refused versions and scratches need no binary and run in the focused
   suite; those that need one are ignored unless the caller names it. The
   tool itself runs outside both suites.
-- **Budgets:** the focused suite's 40 CPU seconds and the fuzzy suite's
-  120 (../README.md, section 7) bind these tests.
+- **Budgets:** the focused and fuzzy suites' budgets for their layers
+  (../README.md, section 7) bind these tests.
 
 ## 7. Open questions
 

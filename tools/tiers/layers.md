@@ -100,9 +100,9 @@ The check passes with no finding. Its findings are computed from the metadata's 
 ## 8. Who reads it
 
 - **The boundary check** (section 7).
-- **The suites' summaries,** once `tools/tiers/one-process` sums CPU by tree, suite and layer (`temper/docs/design/draft/test-budgets.md`, 3 and 4): it reads the layers and their order from the file and applies section 4's rules as the check does.
+- **The suites' summaries:** `tools/tiers/one-process` places each binary it runs by the file and section 4's rules, as the check does, and sums CPU by tree, suite and layer (`tools/tiers/budgets.md`, 3 and 4).
+- **The budgets:** `tools/tiers/budgets.toml`'s gate tables name their layers from the file's `layers` list (`tools/tiers/budgets.md`, 2).
 
 ## 9. Later
 
-- **Budgets by layer:** each layer's CPU budget, ideal and per-test reference, and the summaries that judge them, in `tools/tiers/budgets.toml` and `tools/tiers/design.md`, 7.3 and 11 (`temper/docs/design/draft/test-budgets.execution.md`, B2 to B4).
 - **Splitting binaries** that span two layers, where the table's comments name them.

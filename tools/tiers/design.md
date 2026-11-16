@@ -427,24 +427,12 @@ seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
 limits, with comments distinguishing the user's approved limits from
 provisional figures whose interpretation stays open; absent tables have
 no limits set here. `[tools]`
-reserves the suite namespace in section 7.5. `[gate.<tree>.<profile>]`
-reserves a tree's share of a gate suite, such as `[gate.hearth.default]`,
-with the same three keys and no `auto_reap`. It is no pair: no tier reads
-it, and whatever measures that share reads its verdict there, recording
-a run that goes over rather than refusing it.
-Smith's and Skein's `default` and `fuzzy` entries use `cpu_suite_s` alone,
-Smith's at 30 and 120 CPU seconds and Skein's at 40 and 120. Jig's and
-Temper's `default` and `fuzzy` entries use `cpu_suite_s` alone, Jig's at
-215 and 120 CPU seconds and Temper's at 1250 and 180. These figures are the
-strategy's section 8 figures (`skein/docs/foundation/testing-strategy.md`),
-by the user's word of 11-07, but for Skein's `default`, 40 by the user's
-word of 11-08; Temper's `fuzzy`, the strategy's 120 raised by half by
-the user's word of 11-08, for now, to be revisited; and Jig's and Temper's
-`default`, 1.5 times the development machine's focused run of main at 11-14
-11:42Z (Jig 143 CPU seconds, Temper 832), the rule the file's first comment
-cites, set on the user's word of 11-14. Each is recorded beside its entry.
-Temper's entries follow Jig's, as do their comments, and set no
-`wall_hard_s`.
+reserves the suite namespace in section 7.5. `gate` holds the focused and
+fuzzy suites' budgets by layer, each layer's per-test reference and the
+ideals, in `tools/tiers/budgets.md`'s form (section 2 there). It is no
+pair: no tier reads it, and one-process judges a run by it, red where its
+caller asks for the gate's verdict and a warning otherwise
+(`tools/tiers/budgets.md`, 4 and 5).
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -696,14 +684,14 @@ hold their options in their own words, and read no list: whether they read
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
 
-Temper's fuzzy 180 (7.3), and the 217.5, 127.5 and 540 CPU seconds of
-`browser-skein`, `browser-temper` and `process-temper`, are 120, 145, 85
-and 360 raised by half by the user's word of 11-08, for now, as
-`budgets.toml`'s comments say: revisiting them is the user's.
+The 217.5, 127.5 and 540 CPU seconds of `browser-skein`, `browser-temper`
+and `process-temper` are 145, 85 and 360 raised by half by the user's word
+of 11-08, for now, as `budgets.toml`'s comments say: revisiting them is the
+user's.
 
-`budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
-beyond that (7.3): what measures a tree's share of a gate suite and records
-a run over it is left for later.
+The gate's budgets by layer, the ledger that judges a partial run whole
+and each test's reference held are `tools/tiers/budgets.md`'s, its section
+7 for what is left for later.
 
 `run` and `cpu-run` take no hold (section 3): nextest runs their tests under
 the cargo command that built them, but a prerequisite's built tool that the
@@ -779,12 +767,14 @@ change to the build command a caller wraps changes none of them.
   and 7).
 - `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
   (7.5).
-- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--json]`:
+- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--gate] [--json]`:
   prints `summary`'s result (10.2) as text, or with `--json` as one JSON
   object, and exits 0 for a valid run within its CPU budgets or with none
   set, 1 over a CPU budget, and 2 for invalid input or unverified
   coverage (7.3). A one-process run's directory reads the same way (11).
-- `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] PROFILE [NEXTEST_ARGS...]`
+  `--gate` asks for the gate's verdict on its layers
+  (`tools/tiers/budgets.md`, 5).
+- `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 
 ### 10.2 `cpu.py`
@@ -793,10 +783,12 @@ A caller loads `tools/tiers/cpu.py` with `runpy.run_path` and calls these
 functions from the namespace it returns; the file is no importable module.
 Relative paths are the caller's working directory's, the checkout root.
 
-- `budgets(path, pairs=None)`: the budgets file at `path`, in 7.3's form,
-  as a dictionary: each pair's table by its name, under `tools` each
-  suite's table by its ID (7.5), and under `gate` each tree's table of its
-  profiles' tables (7.3). With `pairs`, a set of pair names, a table for
+- `budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml'))`: the
+  budgets file at `path`, in 7.3's form, as a dictionary: each pair's table
+  by its name, under `tools` each suite's table by its ID (7.5), and under
+  `gate` each profile's table (`tools/tiers/budgets.md`, 2), whose layer
+  names it checks against the `layers` file's list, read only when there is
+  a `gate` table. With `pairs`, a set of pair names, a table for
   any other pair is refused; `tools` and `gate` are no pairs. A refused
   key, value or pair raises
   `ValueError`. The result is the `limits` of `execute` and `summary`; an
@@ -822,20 +814,23 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
-- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None)`:
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False)`:
   runs the selection of `command`, the caller's nextest command as it would
   give `execute` without `prepare`'s arguments, a binary's tests in one
   process (section 11), into `directory`, fresh as `prepare` makes one, which
   it makes itself. `walls`, a walls file's path or none, gives the run's
-  `global-timeout` (11.7). It holds `wall_hard_s` from `limits` as `execute` does,
+  `global-timeout` (11.7). `gate` is given to `summary`: true asks for the
+  gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). It holds `wall_hard_s` from `limits` as `execute` does,
   writes 11.8's files, prints the summary as text and returns as `execute`
   does: 1 over a CPU budget; otherwise 100 when a failure stands; otherwise 0
   when the run was starved or its only blemishes are starved tests; otherwise
   the empty selection's status (4 for nextest's default) or 0. A refusal
   (11.1), an invalid run or summary raises `ValueError`; an interruption stops
   the lanes (11.7) and is raised again.
-- `summary(directory, limits=None, pair=None, expected=None)`: the verdict
-  on a finished run directory, as the dictionary below. A run nextest's
+- `summary(directory, limits=None, pair=None, expected=None, gate=False)`: the verdict
+  on a finished run directory, as the dictionary below. With `gate`, a
+  one-process run's layer over its budget is red; without, a warning
+  (`tools/tiers/budgets.md`, 4). A run nextest's
   `global-timeout` cancelled is starved as one past the hard wall is (7.3):
   `summary` reads that from `command-output.txt`, so a caller never writes
   `run.json` itself. `pair` defaults to
@@ -857,12 +852,14 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one line for each CPU budget passed, naming its test or suite |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt |
+| `over_budget` | one line for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
-| `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`; empty for a nextest run and for tools |
+| `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
+| `layers` | for each tree and layer with a process in a one-process run: `tree`, `layer`, `cpu_s`, `budget_s`, `ideal_s`, `reference_s`, `over` (`tools/tiers/budgets.md`, 4); empty for a nextest run and for tools |
+| `trees` | for each tree with a process in a one-process run: `tree`, `cpu_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4); empty for a nextest run and for tools |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where
@@ -950,7 +947,9 @@ run the mode. Its body is `tools/tiers/one_process.py`, loaded with
 runs one suite into a fresh, private `directory` (mode 0700, refused when it
 holds anything) and writes 11.8's files; `execute_one_process` adds the
 summary and the exit status. `walls`, a walls file's path or none, gives the
-profile's `global-timeout` in place of `config`'s (11.7).
+profile's `global-timeout` in place of `config`'s (11.7). A further argument,
+`layers=Path('tools/tiers/layers.toml')`, is the layers file by which it
+places each binary in its tree and layer (`tools/tiers/budgets.md`, 3).
 
 `command` is the caller's nextest command, as it would pass it to `execute`
 without `prepare`'s arguments: its first element whose basename is `cargo`
@@ -1057,7 +1056,7 @@ The lanes are `PREFIX python3 -I -B tools/tiers/one_process.py lanes
 DIR/plan.json`, started once in a session and process group of its own as
 `execute` starts a command (7.3), with stdin closed. `plan.json`, written
 before the lanes start, holds every binary to run: its path, `cwd`,
-environment, selected tests in libtest's order (by name) with their
+environment, `tree` and `layer` (`tools/tiers/budgets.md`, 3), selected tests in libtest's order (by name) with their
 priorities, groups and kept times, the test groups' `max-threads` and the
 profile's `global-timeout`. The lanes start, read, reap and stop the
 processes, and report each event as one line of their stdout beginning
@@ -1262,7 +1261,8 @@ In the directory `run` made, once it has returned:
   `system-out`. An unobserved test has no case;
 - `results.json`, written once after the lanes end: each process with a record
   (binary ID, kind, its tests in the order they ran, user and system seconds,
-  wall, exit status or signal, leaked) and each test (outcome, wall, its
+  wall, exit status or signal, leaked, and its binary's `tree` and `layer`,
+  `tools/tiers/budgets.md`, 3), the layers file's `layers` list, and each test (outcome, wall, its
   process, none where a forced kill left that process without a record (11.7),
   the tests before it and its alone result where it failed, its output where it
   did not pass), the unobserved tests, the selection's count and the
@@ -1284,9 +1284,11 @@ from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
 prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
 `tiers-one-process/runs/<UTC time>-<pid>` beneath Cargo metadata's target
-directory, printed first; `--budgets`' limits (`budgets`) apply, none by
-default; `--walls` names a walls file (11.7), passed to
-`execute_one_process` as `walls`, none by default.
+directory, printed first; `--budgets`' limits (`budgets`) apply,
+`tools/tiers/budgets.toml` by default where it exists and none otherwise;
+`--walls` names a walls file (11.7), passed to `execute_one_process` as
+`walls`, none by default; `--gate` asks for the gate's verdict on the
+run's layers, passed as `gate` (`tools/tiers/budgets.md`, 5).
 It exits as `execute_one_process` returns, 2 for an invalid invocation or
 run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
 
@@ -1312,9 +1314,9 @@ keeps. It writes `DIR`'s `plan.json`, `run.json`, `results.json`,
 times; `DIR` defaults as above and is printed first. It exits 0 when every
 name passed, 100 when one did not, and 2 for an invalid invocation or run:
 no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
-tests or given twice, no names, or a `DIR` not fresh; `--budgets` or
-`--walls` with `--again` is an invalid invocation too, since the plan holds
-its run's bound. The hold is as
+tests or given twice, no names, or a `DIR` not fresh; `--budgets`,
+`--walls` or `--gate` with `--again` is an invalid invocation too, since
+the plan holds its run's bound. The hold is as
 above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`.
 
 ### 11.10 Offline proof

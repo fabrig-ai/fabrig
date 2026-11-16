@@ -51,11 +51,12 @@ is still open (`README.md`, section 6).
 - **No fake of temper's own components:** the system world runs the real
   engine and worker.
 - **Two suites, and two tiers outside them.** The focused and the fuzzy
-  suites keep their 30 s and 180 s, which nextest enforces; the process
+  suites have a CPU budget for each layer, held at the gate
+  (`checks.md`, 1; `tools/tiers/budgets.md`); the process
   and live tiers run by their scripts, never at the gate. The process
   tier holds only what processes show, within its 540 CPU s (`process-tier.md`). The
-  180 and the 540 are the strategy's 120 and the tier's 6-minute aim,
-  raised by half by the user's word of 11-08, for now, to be revisited.
+  540 is the tier's 6-minute aim, raised by half by the user's word of
+  11-08, for now, to be revisited.
 
 ## 2. temper's tiers
 
@@ -787,9 +788,9 @@ scripts/proof-live.sh               the live tier
   further evidence. Budgets and enforcement settings remain separate
   user decisions.
 
-- **The budgets raised for now** (1, `process-tier.md`, `checks.md`, 1): the fuzzy suite's 180 s
-  and the process tier's 540 CPU s are the strategy's 120 and the tier's
-  6-minute aim raised by half by the user's word of 11-08, for now.
+- **The budgets raised for now** (1, `process-tier.md`): the process
+  tier's 540 CPU s is the tier's 6-minute aim raised by half by the user's
+  word of 11-08, for now.
   Revisiting them, and to what, is the user's, as it is for the browser
   tier's 127.5 (`../client/web/README.md`, 3).
 
