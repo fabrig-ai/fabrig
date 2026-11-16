@@ -29,7 +29,7 @@ pub(super) fn provider() -> skein_fake_peers::llm::Peer {
         .as_array_mut()
         .expect("lines")
         .insert(0, serde_json::json!({"text":"upgrade-tail-marker"}));
-    coding["turns"].as_array_mut().expect("coding turns").insert(1, serde_json::json!({"lines":[{"call":"effect_forge", "arguments":{"repository":{"forge":1,"repository":1},"resource":{"kind":"repository"},"write":{"kind":"create_issue","key":"upgrade-write","title":"Upgrade once","body":"kept across starts"}}}],"finish":"tool_calls","tokens":7}));
+    coding["turns"].as_array_mut().expect("coding turns").insert(1, serde_json::json!({"lines":[{"pieces":[{"text":"Write after the remembered message.","hold":"upgrade-write"}]},{"call":"effect_forge", "arguments":{"repository":{"forge":1,"repository":1},"resource":{"kind":"repository"},"write":{"kind":"create_issue","key":"upgrade-write","title":"Upgrade once","body":"kept across starts"}}}],"finish":"tool_calls","tokens":7}));
     if STATE.with(|s| s.borrow().upgrade) {
         coding["turns"] = serde_json::json!([{"lines":[{"call":"finish","arguments":{"form":"report","text":"Fresh after upgrade","fields":{}}}],"finish":"tool_calls","tokens":1}]);
     }
