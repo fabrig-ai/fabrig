@@ -1,9 +1,11 @@
 //! Named people refusal and outcome fixtures (protocol/store/records.md, 1).
 use jig_domain_people as domain;
 use skein_lib::{Token, Wall};
+#[must_use]
 pub fn again_values() -> Box<[domain::Again]> {
     Box::new([domain::Again::Busy, domain::Again::NotReady])
 }
+#[must_use]
 pub fn failure_class_values() -> Box<[domain::FailureClass]> {
     Box::new([
         domain::FailureClass::Transient,
@@ -15,6 +17,7 @@ pub fn failure_class_values() -> Box<[domain::FailureClass]> {
         domain::FailureClass::Infrastructure,
     ])
 }
+#[must_use]
 pub fn hold_reason_values() -> Box<[domain::HoldReason]> {
     Box::new([
         domain::HoldReason::Exceeded(domain::Exceeded { bound: domain::Bound::Reasoning, value: u64::MAX }),
@@ -44,6 +47,7 @@ pub fn hold_reason_values() -> Box<[domain::HoldReason]> {
         domain::HoldReason::Procedure,
     ])
 }
+#[must_use]
 pub fn moved_values() -> Box<[domain::Moved]> {
     Box::new([
         domain::Moved::Hold { revision: 2, reason: domain::HoldReason::Budget },
@@ -52,9 +56,11 @@ pub fn moved_values() -> Box<[domain::Moved]> {
         domain::Moved::Note { revision: 2 },
     ])
 }
+#[must_use]
 pub fn party_values() -> Box<[domain::Party]> {
     Box::new([domain::Party::Person(2), domain::Party::Task(2), domain::Party::Deployment { project: 2 }])
 }
+#[must_use]
 pub fn ending_values() -> Box<[domain::Ending]> {
     Box::new([
         domain::Ending::Done,
@@ -64,6 +70,7 @@ pub fn ending_values() -> Box<[domain::Ending]> {
         domain::Ending::Deleted,
     ])
 }
+#[must_use]
 pub fn lack_values() -> Box<[domain::Lack]> {
     Box::new([
         domain::Lack::Approver,
@@ -90,6 +97,7 @@ pub fn lack_values() -> Box<[domain::Lack]> {
         domain::Lack::Unguarded { connector: 2, kind: 3 },
     ])
 }
+#[must_use]
 pub fn limit_kind_values() -> Box<[domain::LimitKind]> {
     Box::new([
         domain::LimitKind::Operations,
@@ -137,6 +145,7 @@ pub fn limit_kind_values() -> Box<[domain::LimitKind]> {
         domain::LimitKind::SettingsProposals,
     ])
 }
+#[must_use]
 pub fn refusal_values() -> Box<[domain::Refusal]> {
     Box::new([
         domain::Refusal::NotWellFormed { at: 0, why: domain::Malformed::Cycle },
@@ -166,6 +175,7 @@ pub fn refusal_values() -> Box<[domain::Refusal]> {
         domain::Refusal::SignInRedirect { why: domain::SignInRedirectWhy::TooMany },
     ])
 }
+#[must_use]
 pub fn proposal_choice_values() -> Box<[domain::ProposalChoice]> {
     Box::new([
         domain::ProposalChoice::Accepted,
@@ -175,9 +185,11 @@ pub fn proposal_choice_values() -> Box<[domain::ProposalChoice]> {
         domain::ProposalChoice::Stale,
     ])
 }
+#[must_use]
 pub fn escalation_choice_values() -> Box<[domain::EscalationChoice]> {
     Box::new([domain::EscalationChoice::Released, domain::EscalationChoice::Rejected, domain::EscalationChoice::Passed])
 }
+#[must_use]
 pub fn outcome_values() -> Box<[domain::Outcome]> {
     Box::new([
         domain::Outcome::Compound { project: 1, operations: 6, first_message: 17 },
@@ -230,6 +242,7 @@ pub fn outcome_values() -> Box<[domain::Outcome]> {
         }),
     ])
 }
+#[must_use]
 pub fn answered(outcome: domain::Outcome) -> domain::Stored {
     domain::Stored::Answer {
         models: Box::new([]),

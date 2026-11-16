@@ -81,6 +81,8 @@ section 11.
   over skein-kv's in-memory mode, with an in-memory stand-in for
   transcripts' files, and the store's own world crashes it on skein's
   simulated disk (section 9).
+- **Two crates:** the component above its records' translation,
+  `jig-protocol-store-records`, which it re-exports as `codec` (`crates.md`).
 
 ## 2. Where it sits
 
@@ -99,8 +101,8 @@ skein-io                        files: the ring, or the simulator's disk
 - **A component of the engine's protocol layer,** step code under the
   subset (skein/docs/foundation/programming-model.md, section 10), with its limits, worst case,
   deadlines and most outputs per entry point. It depends on skein-lib,
-  skein-kv, io's file vocabulary, skein-codec and its generated codecs,
-  and the core's vocabulary (its keys, records, ranges and reads). It
+  skein-kv, io's file vocabulary, skein-codec, its generated codecs and
+  its records' translation, and the core's vocabulary (its keys, records, ranges and reads). It
   depends on no application's crate, and links no smith crate: turns are
   bytes to it.
 - **On disk,** in the deployment's directory (`../configuration.md`,

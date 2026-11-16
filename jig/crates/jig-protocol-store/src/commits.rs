@@ -181,7 +181,7 @@ pub(crate) fn operations(
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Floor, store.limits.store.key)
                 .ok_or(Refusal::Check(CommitCheck::Encoding))?,
-            value: codec::component::floor(store.build_name),
+            value: crate::rows::floor(store.build_name),
         })
         .ok()
         .ok_or(Refusal::Check(CommitCheck::Capacity))?;
@@ -236,12 +236,12 @@ fn operation(store: &mut Store, write: Write) -> Result<skein_kv::Op, CommitChec
     match write {
         Write::Wires => Ok(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Wires, limit).ok_or(CommitCheck::Encoding)?,
-            value: codec::component::wires(store.wires),
+            value: crate::rows::wires(store.wires),
         }),
         Write::Opening(opening) => {
             let key =
                 keys::encode_own(&keys::Own::Opening(opening.worker.clone()), limit).ok_or(CommitCheck::Encoding)?;
-            let value = codec::openings::encode(opening).ok_or(CommitCheck::Encoding)?;
+            let value = crate::rows::openings::encode(opening).ok_or(CommitCheck::Encoding)?;
             store.opening_keys.insert(key.clone(), ()).or(Err(CommitCheck::Capacity))?;
             Ok(skein_kv::Op::Put { key, value })
         }
