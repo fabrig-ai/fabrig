@@ -1,11 +1,12 @@
-//! The upgrade tool's engine and report over a copy of the baseline's fake disk.
+//! The upgrade tool's engine and report over a copy of the floor's fake disk.
 use crate::{fixtures, golden};
-use skein_fake_machine::{How, Is, Machine, Opened};
+use jig_protocol_store::{Event, KeptMap, Older, OpenRefusal, Undecoded};
+
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{List, Queue, Time, Wall};
 use skein_oauth_accounts as accounts;
 use skein_shell::Host;
-use std::{collections::BTreeMap, path::Path};
+use std::path::Path;
 use temper_playground::machine::{self, SignalHost};
 
 struct Tool(temper_service::Service, Time);
@@ -138,47 +139,24 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
 }
 
-type Contents = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
-fn contents(disk: &mut Machine, index: u32) -> Contents {
-    let root = disk.reopen_root(index);
-    let mut found = BTreeMap::new();
-    collect(disk, root, &[], &mut found);
-    disk.close(root);
-    found
-}
-fn collect(disk: &mut Machine, root: Opened, prefix: &[u8], found: &mut Contents) {
-    loop {
-        let page = disk.list(root, 32, 4096).expect("fixture directory");
-        if page.is_empty() {
-            break;
-        }
-        for (kind, name) in page {
-            let path = [prefix, name.as_ref()].concat();
-            let how = match kind {
-                Is::Directory => How::DirectoryNoFollow,
-                Is::File => How::ReadNoFollow,
-                other => panic!("fixture {other:?}"),
-            };
-            let child = disk.open(root, &name, how).expect("fixture child");
-            match kind {
-                Is::Directory => {
-                    found.insert(path.clone(), None);
-                    collect(disk, child, &[path.as_slice(), b"/"].concat(), found);
-                }
-                Is::File => {
-                    let size = u32::try_from(disk.stat(child).size).expect("fixture size");
-                    found.insert(path, Some(disk.read(child, 0, size).expect("fixture bytes")));
-                }
-                other => panic!("fixture {other:?}"),
-            }
-            disk.close(child);
-        }
-    }
+/// Every floor record decodes and restores, without pending patches or jobs.
+pub fn golden_check(directory: &Path) {
+    golden_check_with(directory, golden::read_configuration(directory), Copy::Whole);
 }
 
-/// Rehearse the production sets; the floor refuses before records are decoded.
-pub fn golden_check(directory: &Path) {
-    golden_check_with(directory, golden::read_configuration(directory));
+/// A malformed value is named before any plan or restore.
+pub fn broken_check(directory: &Path) {
+    golden_check_with(directory, golden::read_configuration(directory), Copy::Broken);
+}
+/// A floorless copy refuses before the decoding walk.
+pub fn floorless_check(directory: &Path) {
+    golden_check_with(directory, golden::read_configuration(directory), Copy::Floorless);
+}
+#[derive(Clone, Copy)]
+enum Copy {
+    Whole,
+    Broken,
+    Floorless,
 }
 
 /// A deployment's remote workers and owned Forgejo must stay unstarted.
@@ -186,6 +164,7 @@ pub fn deployment_check(directory: &Path) {
     golden_check_with(
         directory,
         serde_json::to_vec(&deployment_document(directory)).expect("deployment configuration"),
+        Copy::Whole,
     );
 }
 
@@ -215,8 +194,8 @@ pub fn accounts_check(directory: &Path) {
         {"number":1,"kind":"link"}, {"number":2,"kind":"deployment"}, {"number":3,"kind":"application"}
     ]);
     document["engine"]["acts"] = serde_json::json!([{"connector":1,"may":["remove_account","adopt"]}]);
-    // The second endpoint and third identity provider add two settings versions.
-    document["engine"]["limits"]["overrides"]["core.settings.versions"] = 10.into();
+    // The configured endpoints and identity providers coexist with the floor's kept settings versions.
+    document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
     let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
     endpoint["name"] = "second".into();
     endpoint["number"] = 2.into();
@@ -234,12 +213,20 @@ pub fn accounts_check(directory: &Path) {
             "redirect_path":"callback"
         }});
     }
-    golden_check_with(directory, serde_json::to_vec(&document).expect("accounts configuration"));
+    golden_check_with(directory, serde_json::to_vec(&document).expect("accounts configuration"), Copy::Whole);
 }
 
-fn golden_check_with(directory: &Path, configuration: Vec<u8>) {
+fn golden_check_with(directory: &Path, configuration: Vec<u8>, copy: Copy) {
     let mut disk = golden::files::load(directory);
-    let before = contents(&mut disk, 0);
+    let broken =
+        jig_protocol_store::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), 64)
+            .expect("deployment key");
+    match copy {
+        Copy::Whole => {}
+        Copy::Broken => golden::files::change_record(&mut disk, &broken, Some(&[0])),
+        Copy::Floorless => golden::files::change_record(&mut disk, &[0, 13], None),
+    }
+    let before = golden::files::image_root(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
     CONFIGURATION.with(|bytes| *bytes.borrow_mut() = configuration);
     let mut world = skein_world::World::new(
@@ -260,19 +247,46 @@ fn golden_check_with(directory: &Path, configuration: Vec<u8>) {
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let (lines, code) = render(&tool.0);
     eprintln!("{lines}");
-    assert_eq!(code, 1, "{lines}");
+    let report = tool.0.upgrade_report().expect("completed report");
+    assert!(report.done, "report complete: {lines}");
     assert!(
-        lines.contains("holds a store older than this build opens: it has no floor, or one below this build's"),
-        "{lines}"
+        !report.events.iter().any(|event| matches!(event, Event::Patched { .. } | Event::Ran { .. })),
+        "no pending work: {lines}"
     );
-    assert!(
-        !lines.contains("decoded ")
-            && !lines.contains("record not decodable:")
-            && !lines.contains("patched ")
-            && !lines.contains("patches and restores pass"),
-        "{lines}"
-    );
+    match copy {
+        Copy::Whole => {
+            assert_eq!(code, 0, "{lines}");
+            assert!(report.restored, "{lines}");
+            assert!(
+                report.events.iter().any(|event| matches!(event, Event::Decoded { records: 293, .. })),
+                "literal record count: {lines}"
+            );
+            assert!(lines.contains("patches and restores pass"), "{lines}");
+        }
+        Copy::Broken => {
+            assert_eq!(code, 1, "{lines}");
+            assert!(!report.restored);
+            assert!(report.events.iter().any(|event| matches!(event, Event::Undecodable { family, version: 0, at: Undecoded::Record { map: KeptMap::Store, key }, .. } if family.as_ref() == "jig-store-core" && key.as_ref() == broken.as_ref())), "broken record named: {lines}");
+            assert!(!report.events.iter().any(|event| matches!(event, Event::Decoded { .. })), "{lines}");
+        }
+        Copy::Floorless => {
+            assert_eq!(code, 1, "{lines}");
+            assert!(!report.restored);
+            assert_eq!(
+                report.end,
+                Some(temper_service::EngineEnd::Stopped(temper_service::EngineStop::StoreOpen {
+                    why: OpenRefusal::OlderBuild { why: Older::Floor }
+                })),
+                "{lines}"
+            );
+            assert!(lines.contains(jig_protocol_store::FLOOR_BRIDGE), "{lines}");
+            assert!(
+                !report.events.iter().any(|event| matches!(event, Event::Decoded { .. } | Event::Undecodable { .. })),
+                "floor before decoding: {lines}"
+            );
+        }
+    }
     let mut disk = outcome.machine.0.borrow_mut();
-    assert_eq!(contents(&mut disk, 0), before, "every source path and byte unchanged");
-    assert!(contents(&mut disk, 2).is_empty(), "close emptied scratch");
+    golden::files::unchanged(&before, &golden::files::image_root(&mut disk, 0));
+    assert!(golden::files::image_root(&mut disk, 2).len() == 1, "close emptied scratch");
 }

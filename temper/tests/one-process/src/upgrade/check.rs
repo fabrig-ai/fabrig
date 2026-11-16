@@ -1,10 +1,10 @@
 //! Rehearsal and rollback on the one-process world's disk, service and configuration.
 use super::{FIXTURE_SETS, maps::Maps};
-use crate::{fixtures, referee, stories, world};
+use crate::{fixtures, referee, world};
 use jig_protocol_store::{Owner, PatchSets};
 use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 type Patches = Vec<(Owner, u32, jig_protocol_store::Counts)>;
 #[derive(Clone, Copy, Debug)]
@@ -277,41 +277,4 @@ pub fn rehearsal_then_start_and_back() {
     let (back, code, _) = drive(&mut disk, &document, FIXTURE_SETS, Until::Back);
     assert_eq!(code, 1, "{back}");
     assert!(back.contains("past its first commit; going back is restoring a backup"), "{back}");
-}
-
-pub fn golden(directory: &Path) {
-    stories::set(world::Story::PlaygroundA);
-    stories::setup_settings(world::Phase::Story);
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
-            .expect("golden JSON");
-    let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
-    *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
-    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
-        panic!("world defaults")
-    };
-    for (name, count) in [
-        ("tasks.charters", jig.charters.len()),
-        ("core.templates", jig.templates.len()),
-        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
-    ] {
-        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("count override");
-        *bound = bound.as_u64().expect("count").max(u64::try_from(count).expect("default count")).into();
-    }
-    let mut disk = crate::golden::files::load(directory);
-    let before = image(&mut disk);
-    let (report, code, patches) = drive(
-        &mut disk,
-        &serde_json::to_vec(&document).expect("configuration"),
-        temper_engine_service::store::PATCH_SETS,
-        Until::Check,
-    );
-    assert_eq!(code, 1, "{report}");
-    assert!(patches.is_empty(), "refusal precedes every patch");
-    assert!(
-        report.contains("holds a store older than this build opens: it has no floor, or one below this build's"),
-        "{report}"
-    );
-    assert!(!report.contains("patches and restores pass"), "{report}");
-    assert_eq!(image(&mut disk), before);
 }

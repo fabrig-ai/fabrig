@@ -50,6 +50,7 @@ pub fn golden_ranges(directory: &Path) {
         (keys::encode_own(&keys::Own::Format, 64).expect("format key"), "format"),
         (keys::encode_own(&keys::Own::Layouts, 64).expect("layouts key"), "layouts"),
         (keys::encode_own(&keys::Own::Wires, 64).expect("wires key"), "wires"),
+        (keys::encode_own(&keys::Own::Floor, 64).expect("floor key"), "floor"),
         (keys::installation(64).expect("installation key"), "installation"),
     ];
     let mut seen = BTreeSet::new();
@@ -78,7 +79,23 @@ pub fn golden_ranges(directory: &Path) {
             let own = (map == KeptMap::Store)
                 .then(|| reserved.iter().find(|(reserved, _)| reserved.as_ref() == key.as_slice()))
                 .flatten();
-            if let Some((_, name)) = own {
+            let component = (map == KeptMap::Store).then(|| keys::decode_own(key)).flatten();
+            if map == KeptMap::Store && key.starts_with(&[0, 9]) {
+                assert!(families.is_empty(), "reserved log extent {key:02x?} in {families:?}");
+                assert_eq!(key.len(), 10, "extent's log number");
+                let _: [u8; 8] = value.as_slice().try_into().expect("extent's length");
+                seen.insert("log extent");
+            } else if let Some(keys::Own::History { .. } | keys::Own::TurnLog { .. } | keys::Own::LogAttempt { .. }) =
+                component
+            {
+                assert!(families.is_empty(), "reserved log place {key:02x?} in {families:?}");
+                let name = log_place(component.as_ref().expect("log place"), value);
+                seen.insert(name);
+            } else if let Some(keys::Own::Layout { .. } | keys::Own::Text(_) | keys::Own::Job { .. }) = component {
+                assert_eq!(families, ["jig-store-registry"], "component registry key {key:02x?}");
+                let name = registry(component.as_ref().expect("registry key"), value);
+                seen.insert(name);
+            } else if let Some((_, name)) = own {
                 seen.insert(*name);
                 assert!(families.is_empty(), "reserved {name} key {key:02x?} in {families:?}");
                 match *name {
@@ -87,6 +104,14 @@ pub fn golden_ranges(directory: &Path) {
                     }
                     "layouts" => {
                         codec::component::Layouts::decode(value).expect("layouts at their own key");
+                    }
+                    "floor" => {
+                        let floor = jig_protocol_store::component_v3::Floor::decode(
+                            &jig_protocol_store::component_v3::CEILINGS,
+                            &mut skein_lib::Reader::new(value),
+                        )
+                        .expect("floor at its own key");
+                        assert_eq!(floor.number(), 1);
                     }
                     "wires" => {
                         jig_protocol_store::component_v3::Wires::decode(
@@ -105,9 +130,57 @@ pub fn golden_ranges(directory: &Path) {
             }
         }
     }
-    assert_eq!(seen, reserved.iter().map(|(_, name)| *name).collect(), "all component-owned rows present");
+    assert_eq!(
+        seen,
+        reserved
+            .iter()
+            .map(|(_, name)| *name)
+            .chain(["registry layout", "registry text", "done job", "log extent", "history", "turn log", "log attempt"])
+            .collect(),
+        "all component-owned rows present"
+    );
     assert!(bad.is_empty(), "keys in none or multiple ranges:\n{}", bad.join("\n"));
-    eprintln!("golden ranges: {} store keys (4 reserved), {} secrets keys", maps.store.len(), maps.secrets.len());
+    eprintln!("golden ranges: {} store keys, {} secrets keys", maps.store.len(), maps.secrets.len());
+}
+
+fn log_place(component: &keys::Own, value: &[u8]) -> &'static str {
+    match component {
+        keys::Own::History { .. } => {
+            codec::component::HistoryLog::decode(value).expect("history place");
+            "history"
+        }
+        keys::Own::TurnLog { .. } => {
+            codec::component::TurnLog::decode(value).expect("turns place");
+            "turn log"
+        }
+        keys::Own::LogAttempt { .. } => {
+            codec::component::LogAttempt::decode(value).expect("attempt place");
+            "log attempt"
+        }
+        _ => unreachable!("log place"),
+    }
+}
+
+fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
+    let reader = &mut skein_lib::Reader::new(value);
+    match component {
+        keys::Own::Layout { .. } => {
+            jig_protocol_store::registry_v1::Layout::decode(&jig_protocol_store::registry_v1::CEILINGS, reader)
+                .expect("registry layout");
+            "registry layout"
+        }
+        keys::Own::Text(_) => {
+            jig_protocol_store::registry_v1::Text::decode(&jig_protocol_store::registry_v1::CEILINGS, reader)
+                .expect("registry text");
+            "registry text"
+        }
+        keys::Own::Job { .. } => {
+            jig_protocol_store::registry_v1::Job::decode(&jig_protocol_store::registry_v1::CEILINGS, reader)
+                .expect("done job");
+            "done job"
+        }
+        _ => unreachable!("registry key"),
+    }
 }
 
 fn assert_levels(maps: &maps::Maps, sets: &PatchSets) {
