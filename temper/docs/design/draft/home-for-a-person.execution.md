@@ -6,7 +6,7 @@
 
 | Milestone | Draft parts | Needs | Its walk | State |
 |---|---|---|---|---|
-| H1, Home's parts for a person: Needs you first; findings in the headline; severities counted and drawn; a finding's row; the cards' order; "One more" with its line; the why line of a finding the person holds, said once where every card has the same; Decided for you's shorter words and ticks; goals' rows with their bars, number words and cut titles | `home-for-a-person.md`, 3 | none | Home against `home.html` at 1366 and 390 px, by day and by night | not started |
+| H1, Home's parts for a person: Needs you first; findings in the headline; severities counted and drawn; a finding's row; the cards' order; "One more" with its line; the why line of a finding the person holds, said once where every card has the same; Decided for you's shorter words and ticks; goals' rows with their bars, number words and cut titles | `home-for-a-person.md`, 3 | none | Home against `home.html` at 1366 and 390 px, by day and by night | landed by goal 4272; its walk follows |
 | A1, agents write for a person: a goal's title as a short first line in the chat's `goal` and `change` calls and in `temper ctl goal start`'s help; one sentence and one line in every charter's `decided`; report headlines with no numbers | `home-for-a-person.md`, 4 | none | a goal started from a chat, its title and its headline on Home | not started |
 | B1, the brief reads findings: the open findings in the status agent's words; a run when they change; its instructions | `home-for-a-person.md`, 6 | none | a brief that names findings | not started |
 | N1, people by name: a brief's requester named, and the charters writing the name | `home-for-a-person.md`, 7 | none | a decision naming who asked | not started |

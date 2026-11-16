@@ -207,7 +207,13 @@
       keeps*): "Nothing needs you.", "One thing needs you.", "Two things
       need you." and so on in number words to "Nine", digits after,
       "N+ things need you." where the read is cut, the
-      project's name until its needs have answered. With N as `landed`
+      project's name until its needs have answered. Where every open card
+      concerns findings (1, **Findings, drawn**, *Counted*) and the read
+      is not cut, "finding" stands for "thing": "One finding needs you.",
+      "Two findings need you.", "11 findings need you."
+      (`../../draft/home-for-a-person.md`, 3). The needs sentence is one
+      function's (`common::home::needs_sentence`) wherever it is said:
+      Home on All projects and Needs you's intro say it so too. With N as `landed`
       less `seen`, and a brief new to the person where its `landed` is above
       `seen` or its `at` is after `previous`, the landed sentence is a new
       brief's `sentence`; else "One change landed since you last looked." or
@@ -223,26 +229,29 @@
       agent at 07:42", its `at` by `../view.md`, 6's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
-  - *Decided for you,* the first region after the intro while a row of the
-    project's shows, whether or not the person was away (1, **Decided for
-    you**, which also gives the intro's form for an Away spell).
-  - *Needs you,* a region named "Needs you", drawn while an open card
+  - *Needs you,* the first region after the intro, a region named "Needs you", drawn while an open card
     waits (1, *A page's parts*): what needs the person in this
     project, the groups of `Inbox` but its updates, read as `Inbox` reads
     them filtered by the project, with the project's changes waiting on a
     review on the forge (`needs-you.md`, 1, *An approval*). With none
     open the region is left out, the headline above having said "Nothing
     needs you." (`../../draft/surfaces.md`, 14: no part is drawn empty). Its
-    head is the level-2 heading "Needs you · N", N in the signal colour,
-    and at its right "All needs", to that filtered *Needs you*.
+    head is the level-2 heading "Needs you · N", N in the signal colour;
+    then, while an open card concerns findings, their severities counted,
+    `temper-home-sevs`, "2 high · 4 medium · 5 low", each its glyph then
+    its count and word (1, **Findings, drawn**, *The head's counts*); and
+    at its right "All needs", to that filtered *Needs you*.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (`needs-you.md`, 1, *What the client keeps*): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
       the right "Undo" while its answer is held. They show while the
       region does.
     - *The cards,* the first three open cards in their order (`needs-you.md`, 1, *What the
-      client keeps*), oldest first as the inbox orders them, each a
-      `temper-need-card` (the whole story's `home.html`, `.card.need`):
+      client keeps*: a card about findings by its highest severity, high
+      first, any other card with high's, then the oldest first), each a
+      `temper-need-card` (the whole story's `home.html`, `.card.need`). A
+      finding the person holds is a card of its own, drawn as 1,
+      **Findings, drawn**, *A finding's own card* says; any other card has:
       - *its from line,* mono: on Home on All projects (1) the
         project's chip, `temper-chip`, its name; the asked task's link as
         the inbox's card has it; its kind and age ("Add a README · a
@@ -254,7 +263,8 @@
         `pair/home.html` draws it; none without one;
       - *its reason line,* under the question, as *Needs you*'s on the
         signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
-        *Why it reached you* and *Stop asking*);
+        *Why it reached you* and *Stop asking*), unless said once (*One
+        why*, below);
       - *its acts* in a row, min-height 40, the recommended one first and
         primary, the others quiet: a question's choices, the recommended
         one first as *Needs you* orders them, then "Tell it something
@@ -266,9 +276,33 @@
         in no line form has "Tell it something else" alone, primary.
         A choice answers in place, as on *Needs you*, with its held send
         and its Undo.
-    - *More,* with more than three open, a line under the cards: "One
-      more" or "N more", N in number words to "Nine", digits after, a
-      link to that filtered *Needs you*.
+    - *More,* with more than three open, a line under the cards,
+      `temper-home-more`, 13.5 px and muted: with four open, "One more", a
+      link to that filtered *Needs you*, then on the same line the fourth
+      card's severity glyph where it is a finding's (1, **Findings,
+      drawn**), and its short line: a finding's "TITLE · KIND · AGE",
+      "temper store patches near the 60,000-line bound · review · 1 d";
+      any other card's SHORT (`needs-you.md`, 1, *SHORT*), then " · ",
+      its kind and age as its from line words them, "Keep the old rows
+      for one release? · a question · 16 min". With more, "N more" alone,
+      the link, N in number words to "Nine", digits after: "Two more",
+      "12 more". The terminal prints the line's words, a finding's
+      severity word after its title: "One more: TITLE · high · review ·
+      1 d".
+    - *One why* (`../../draft/home-for-a-person.md`, 3): where two cards
+      or more are drawn and every one of them has the same reason line, it
+      is said once, under the cards and the *More* line, in `temper-why`,
+      in its plural form (`needs-you.md`, 1, *Why it reached you*, *In the
+      plural*), with its "Stop asking" where the cards' line has one: "These
+      reached you as fabrig’s triager: findings that no area owns come to
+      you.", and no card draws its own. Two lines are the same where the
+      domain's reasons are equal (`pages::needs::Why`, with a finding's
+      by `pages::findings::why`: `needs-you.md`, 1, *Why it reached you*),
+      so a line of a reach in two projects is two lines. Otherwise
+      each card says its own. Said once, its Stop asking is the first
+      card's, by that card's object (`needs-you.md`, 1, *What the client
+      keeps*, *Stop asking*); its offers and Keep asking act on the
+      reason's subject and project, the same for every card.
     - *On a phone* (the whole story's `phone-home.html`) each card keeps
       its from line and its question; its recommended act is a
       full-width button, at least 44 pixels tall, then "More", quiet,
@@ -278,6 +312,13 @@
       no chip's border or ground, its files' words, " in N files", in an
       element of their own that the phone's width hides. The browser's
       alone.
+  - *Decided for you,* after *Needs you*, while a row of the project's
+    shows, whether or not the person was away (1, **Decided for you**,
+    which also gives the intro's form for an Away spell): what waits for
+    the person comes before what was done for them, in the order
+    `../../draft/surfaces.md`, section 3 gives
+    (`../../draft/home-for-a-person.md`, 3). Without *Needs you*, it is
+    the first region after the intro.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -524,6 +565,85 @@
   temper is no card either: it counts nowhere a card does. An Only you item is no
   card: it is counted nowhere a card is. A need's why is its card's own
   line (`needs-you.md`, 1, *Why it reached you*), no part of the page's.
+- **Findings, drawn** (`../../draft/home-for-a-person.md`, 3; the mockup
+  `../web/home-for-a-person/home.html`, whose head's rules draw these):
+  what Home draws of the findings that need the person, so that their
+  weight reads before their words. Each part is drawn wherever Home's
+  *Needs you* is, on a project's Home and on Home on All projects (1).
+  The TUI's launchpad (`../tui/pages/launchpad.md`) keeps its own lines.
+  - *Severity, drawn:* a glyph of three bars, a `temper-severity` span
+    with `temper-severity-low`, `temper-severity-medium` or
+    `temper-severity-high`, holding three empty spans, 3 px wide and 5,
+    8 and 11 px tall, bottom-aligned, gap 1.5 px: one filled for low, two
+    for medium, three for high, the rest at .28 opacity, in `--gf-faint`
+    for low, `--temper-amber` for medium and `--gf-signal` for high. The
+    mockup's `data-severity` is a class here, since a view node holds no
+    data attribute. Its name and its hint, so its label and its tooltip,
+    are its word: "low severity", "medium severity", "high severity".
+    It is the browser's alone: in the terminal it prints nothing, and a
+    part that draws it says the severity's word there where its own words
+    don't already (*A finding's row*; 1, *More*). One view function draws
+    it, `findings::severity(b: &mut Builder, words: &Words, severity:
+    w::Severity)`, `pub(crate)` in `temper-client-view-work`'s
+    `pages::findings`, for every part here and for the triager's groups
+    after them (`../../draft/home-for-a-person.md`, 5).
+  - *A chip of findings,* `temper-chip` with `temper-chip-low`,
+    `temper-chip-medium` or `temper-chip-high`, takes its highest
+    severity's ground: low `--gf-hover`; medium `--temper-amber-pale`, its
+    ink `--temper-amber`, its border that amber at 35%; high
+    `--gf-signal-pale`, its ink `--gf-signal-ink`, its border
+    `--gf-signal-line`; medium and high in weight 500. It holds the glyph,
+    then its words. `findings::chip(b: &mut Builder, words: &Words,
+    severity: w::Severity, label: &[u8])`, beside `severity`.
+  - *Counted,* `pages::findings::counted(open: &[findings::Need<'_>]) ->
+    findings::Counted`, `Counted { high: u32, medium: u32, low: u32, only:
+    bool }`, of the domain's: over the open cards, how many findings of
+    each severity they concern, each finding once, and `only` where every
+    open card concerns findings and one does at least. A finding's own
+    card concerns its finding; no other card concerns any until the
+    triager's groups (`../../draft/home-for-a-person.md`, 5). A card's own
+    severity, `findings::Need::severity(self) -> Option<w::Severity>`,
+    is its finding's, and none for any other card; the cards' order reads
+    it (`needs-you.md`, 1, *What the client keeps*). The needs sentence's
+    "findings" (1, *Home on any project*) is `only`.
+  - *The head's counts,* `temper-home-sevs`, in Needs you's head after
+    its heading and before "All needs" at the right, 13 px, muted, gap
+    14 px between counts and 6 px between a count's glyph and words: a
+    count for each severity with one finding at least, high first, its
+    glyph then "2 high", "4 medium", "5 low"; none without a finding. On a
+    phone the counts wrap under the heading. In the terminal they print
+    after the heading, "2 high · 4 medium · 5 low".
+  - *A finding's row,* in `temper-finding-rows`, a list with a rule above
+    it, a row an item with a rule under it, padding 9 px 0, gap 12 px,
+    14.5 px: its glyph; its title, a link opening the finding, the act
+    the Home card's "Open" sent (`findings::Act::Open`); its kind, only
+    where the rows' findings are of more than one kind; and its age, its
+    span since it was filed, at the right in `temper-finding-when`, 12 px
+    in the mono face, faint: "qa · 1 d", or "1 d". In the terminal:
+    "TITLE · high · qa · 1 d". `findings::row(b, root, card, words,
+    bindings, times, kind: bool)`, `pub(crate)` beside `severity`, draws
+    one item, in a list its caller opens, so that a group's card draws its
+    rows with it (`../../draft/home-for-a-person.md`, 5).
+  - *A finding's own card,* a finding the person holds (`needs-you.md`,
+    1, *A finding that is the person's*), a `temper-need-card` on Home in
+    its place among the cards:
+    - *its from line,* mono, `temper-need-from`: on Home on All projects
+      the project's chip; then its chip of findings, its kind's word,
+      "review"; then "in AREA", or "no area" where it has none;
+    - *its row,* the one finding's, its kind left to the chip;
+    - *its context,* in `temper-ask-context`, as Needs you's card says
+      them: the last hand-off's why, quoted, with who handed it; a
+      refusal; its waiting words while an act is out;
+    - *its reason line,* `needs-you.md`, 1, *Why it reached you*'s for a
+      finding, unless said once (1, *One why*);
+    - *its acts,* as on Needs you, quiet, in `temper-need-acts`: "Hand
+      on", with its area's menu and its line of why; "Route to a goal",
+      with the project's live goals' menu; "Backlog"; and "Drop with
+      reason", each opening its form in place as there. The card's state
+      is the domain's one `findings::Card`, so a form opened on Home is
+      open on Needs you, and an act sent from either answers on both.
+    - *On a phone,* its from line, its row, then "More", quiet, which
+      opens Needs you at its card, as another card's "More" does.
 - **Decided for you** (`../../draft/what-reaches-you.md`, section 6;
   `../../domain/forge/attention.md`, 5): what agents decided for the person, any task's,
   a goal's, a chat's or a delegate's, whether or not the person was away.
@@ -553,12 +673,15 @@
     kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
     `../view.md`, 6's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
     01:05"; muted, the question; `temper-decision-took` (500), what it took;
-    `temper-decision-allowed` (13.5 px, muted), what allowed it (below);
-    `temper-decision-why` (14 px, muted, none on a phone), the agent's why. At
+    `temper-decision-allowed` (13.5 px, muted), what allowed it (below).
+    The agent's why is left to the task's page, which keeps its call
+    whole (`../../draft/home-for-a-person.md`, 3): no row draws it. At
     the right, by the first that holds:
-    - the task ended: `temper-decision-late` (`.late`), "landed 03:12 · a new
-      goal can undo it", its ended time, "ended 03:12 · a new goal can undo
-      it" for one that did not end done;
+    - the task ended: `temper-decision-late` (`.late`), "landed Sat 19:01",
+      its ended time, or "ended Sat 21:22" for one that did not end done.
+      A landed one takes `temper-decision-landed` too, whose `::before`
+      draws a tick, "✓" in `--gf-good`, before "landed", by style alone,
+      so the terminal prints "landed Sat 19:01";
     - overturned: `.late`, "Overturned: it asks you again";
     - the task live: "Overturn" (`.btn.small`);
     - its read not delivered, or refused: nothing, TITLE reading "Task N".
@@ -567,15 +690,17 @@
     (`temper-decision-overturned`), ended or not. Each shown row's task is
     read (`Read::Task`), as the inbox reads its cards, within `reads`, a read
     kept from one page to the next while its row shows.
-  - *What allowed it,* one sentence from the row's reach: "Allowed: OBJECT
-    are decided and listed." for a reach of class `decide`, and "Allowed:
-    OBJECT are decided while you’re away." for `ask` with `away`, OBJECT the
-    reason's subject as Stop asking names it (`needs-you.md`, 1): so
-    "Allowed: test-only changes are decided and listed." A set's name is the
+  - *What allowed it,* one sentence from the row's reach, the object
+    alone: "Allowed: OBJECT." for a reach of class `decide`, and for `ask`
+    with `away`, OBJECT the reason's subject as Stop asking names it
+    (`needs-you.md`, 1): so "Allowed: test-only changes." and "Allowed:
+    wording choices." The kicker and the headline of an Away spell say
+    that the person was away, so the row doesn't. A set's name is the
     project's classes' (`settings.md`, 2), "a path set" until they are read. A reach that
     does not decode draws no sentence.
-  - *On Home* (1, *Home on any project*), the first region after the
-    intro. While the party's Away row there is on, or its spell ended less
+  - *The same row everywhere:* these parts are the row's, one function's
+    (`decided::decision`), on Home, Home on All projects and Needs you.
+  - *On Home* (1, *Home on any project*), after *Needs you*. While the party's Away row there is on, or its spell ended less
     than 24 hours before the wall, the intro takes the spell's form, in the
     intro's one function, whether or not a row shows:
     - *the kicker:* "While you were away · 23:10 to now", or "· 23:10 to

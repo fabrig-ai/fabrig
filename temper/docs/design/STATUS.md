@@ -50,6 +50,16 @@ talk is filed with the area the role holds, any other with none and the
 page in its body, for the triager to hand on; the terminal's `/tell` sends
 its screen. What became of a word in the brief waits for a design
 (`client/pages/needs-you.status.md`; `draft/surfaces.status.md`, 9).
+Home for a person's milestone H1, goal 4272, draws Home's parts for a
+person: Needs you before Decided for you; "findings" in the headline
+where every open card is one; severity as a glyph of three bars and a
+chip's ground, counted in Needs you's head; a finding's row, and a
+finding the person holds as a card with its acts and its why line;
+the cards by severity, then the oldest; "One more" with its line; one
+why line said once in the plural where every card has it; Decided for
+you's rows with the object alone, a tick and no agent's why; goals'
+rows with a bar, number words and titles cut at 80. Its walk follows
+landing (`draft/home-for-a-person.status.md`; `client/pages/home.md`, 1).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -529,6 +539,7 @@ Drafts:
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/goal-start-flags.md`](draft/goal-start-flags.status.md)
 - [`draft/held-landing-recovery.md`](draft/held-landing-recovery.status.md)
+- [`draft/home-for-a-person.md`](draft/home-for-a-person.status.md)
 - [`draft/kept-change-answers.md`](draft/kept-change-answers.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
