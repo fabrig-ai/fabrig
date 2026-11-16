@@ -50,19 +50,37 @@ fn patched_with(
 // (jig/docs/design/protocol/store/layouts.md, 5.1 and 8).
 pub(super) fn current_layout(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let old = kept_schema(u16::try_from(crate::STORE_VERSION).expect("family version fits"));
+    convert_layout(&old, &binary_schema(), root, None, bytes)
+}
+fn binary_schema() -> Schema {
     let mut text = None;
     for family in crate::PATCH_SET.families {
         if family.name == "temper-store" {
             text = Some(family.current);
         }
     }
-    let new = skein_codec::schema::parse(text.expect("application family").as_bytes()).expect("current schema");
+    skein_codec::schema::parse(text.expect("application family").as_bytes()).expect("current schema")
+}
+
+pub(super) fn current_row(variant: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+    row_layout(variant, bytes, true)
+}
+pub(super) fn kept_row(variant: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+    row_layout(variant, bytes, false)
+}
+fn row_layout(variant: &[u8], bytes: Box<[u8]>, current: bool) -> Box<[u8]> {
+    let kept = kept_schema(u16::try_from(crate::STORE_VERSION).unwrap());
+    let binary = binary_schema();
+    let (from, to) = if current { (&kept, &binary) } else { (&binary, &kept) };
+    convert_layout(from, to, b"Row", Some(variant), bytes)
+}
+fn convert_layout(old: &Schema, new: &Schema, root: &[u8], variant: Option<&[u8]>, bytes: Box<[u8]>) -> Box<[u8]> {
     let plan = skein_codec::layout::Plan::derive(
-        &old,
-        old.root(root, None).expect("kept root"),
+        old,
+        old.root(root, variant).expect("kept root"),
         &[],
-        &new,
-        new.root(root, None).expect("current root"),
+        new,
+        new.root(root, variant).expect("current root"),
         &[],
     )
     .expect("registered additions derive");

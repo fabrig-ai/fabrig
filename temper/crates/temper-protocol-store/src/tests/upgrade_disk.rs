@@ -57,6 +57,38 @@ impl Disk {
         self.machine.close(root);
         bytes
     }
+    pub fn contents(&mut self) -> Vec<(Vec<u8>, u32, Vec<u8>)> {
+        let root = self.machine.reopen_root(0);
+        let mut found = Vec::new();
+        self.walk(root, b"", &mut found);
+        self.machine.close(root);
+        found.sort();
+        found
+    }
+    fn walk(&mut self, root: skein_fake_machine::Opened, path: &[u8], found: &mut Vec<(Vec<u8>, u32, Vec<u8>)>) {
+        use skein_fake_machine::{How, Is};
+        let dir = self.machine.open(root, if path.is_empty() { b"." } else { path }, How::DirectoryNoFollow).unwrap();
+        loop {
+            let entries = self.machine.list(dir, 32, 8192).unwrap();
+            if entries.is_empty() {
+                break;
+            }
+            for (kind, name) in entries {
+                let path = if path.is_empty() { name.to_vec() } else { [path, b"/", &name].concat() };
+                let file = self.machine.open(root, &path, How::ReadNoFollow).unwrap();
+                let mode = self.machine.stat(file).mode;
+                let bytes = if kind == Is::File { self.machine.read(file, 0, u32::MAX).unwrap() } else { vec![] };
+                self.machine.close(file);
+                if kind != Is::File || !bytes.is_empty() {
+                    found.push((path.clone(), mode, bytes));
+                }
+                if kind == Is::Directory {
+                    self.walk(root, &path, found);
+                }
+            }
+        }
+        self.machine.close(dir);
+    }
     pub fn restart(&mut self) {
         self.machine.crash(1);
         let handle = self.machine.reopen_root(0);

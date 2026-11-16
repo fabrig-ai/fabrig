@@ -1,10 +1,7 @@
-//! History records and the v20 patch (landing-history.md, 2, 4 and 7).
-use super::{
-    catch_up::{current_layout, kept_golden, kept_schema, kept_value, patched},
-    fixtures,
-};
+//! History records (landing-history.md, 2, 4 and 7).
+use super::fixtures;
 use crate::{keys, records, v25};
-use skein_lib::{Reader, Wall};
+use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary::{Stored, history::*};
 
 fn check(row: Stored) {
@@ -137,7 +134,7 @@ fn history_records_round_trip_every_kind_and_interval() {
             head: None,
             written: false,
         });
-        check(Stored::Change(Box::new(change)));
+        check(fixtures::change_hot(change));
     }
     for ask in [Ask::Resolution, Ask::Repair, Ask::Judgement] {
         check(Stored::HistoryEvent(event(What::Asked { ask, task: 29, gate: None })));
@@ -191,37 +188,6 @@ fn history_records_round_trip_every_kind_and_interval() {
     );
 }
 
-#[test]
-fn the_v20_change_patch_adds_no_backdated_history() {
-    use crate::patches::kept::temper_store::v20 as kept;
-    let before = kept_golden(20, "record_change_row_full.bin");
-    let bytes = patched(20, 9, b"ChangeRow", before.clone());
-    let (job, rest) = bytes.as_ref().split_first().unwrap();
-    assert_eq!(*job, 0, "no pending job");
-    assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
-    let bytes = patched(
-        24,
-        13,
-        b"ChangeRow",
-        patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
-    );
-    let bytes = current_layout(b"ChangeRow", bytes);
-    let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert!(after.questions().waiting().is_empty());
-    assert!(after.history().is_none());
-    assert!(after.job().is_none());
-    let schema = kept_schema(20);
-    let (value, old) = kept_value(&schema, b"ChangeRow", before);
-    assert_eq!(after.task(), value.uint(value.field(old, kept::change_row::TASK).unwrap()).unwrap());
-    let repository = value.field(old, kept::change_row::REPOSITORY).unwrap();
-    assert_eq!(
-        u64::from(after.repository().forge()),
-        value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
-    );
-    assert_eq!(crate::STORE_VERSION, 25);
-    assert_eq!(crate::patches::PATCHES.len(), 14);
-}
-
 fn check_change_history_rows() {
     let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
     for history in [
@@ -246,7 +212,7 @@ fn check_change_history_rows() {
         }),
     ] {
         change.history = history;
-        check(Stored::Change(Box::new(change.clone())));
+        check(fixtures::change_hot(change.clone()));
     }
 }
 

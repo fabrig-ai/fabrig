@@ -181,7 +181,7 @@ fn a_changes_follow_workflow_progress_round_trips_with_its_allocated_bytes() {
             report: Some(d::ReceiptRun { id: 71, number: 7, url: b"https://forge.example/run/71".as_slice().into() }),
         }),
     });
-    let record = d::Stored::Change(Box::new(row));
+    let record = fixtures::change_hot(row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("bounds");
     assert_eq!(records::decode(&records::encode(&record), &bounds), Ok(record.clone()));
     let meter = skein_world::domain::heap::Meter::new();

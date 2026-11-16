@@ -10,14 +10,6 @@ use fixture::LIMITS;
 fn record(bytes: &[u8], bounds: &Bounds) {
     if let Ok(row) = records::decode(bytes, bounds) {
         assert_eq!(records::encode(&row).as_ref(), bytes, "durable row");
-        if let forge::Stored::Change(change) = &row {
-            let (cold, hot) = change.clone().split();
-            assert_eq!(forge::ChangeRow::join(cold.clone(), hot.clone()), **change);
-            for part in [forge::Stored::ChangeCold(Box::new(cold)), forge::Stored::ChangeHot(Box::new(hot))] {
-                let bytes = records::encode(&part);
-                assert_eq!(records::decode(&bytes, bounds), Ok(part));
-            }
-        }
         let key = forge::stored_key(&row);
         let encoded = keys::encode(&key, u32::MAX).expect("a decoded row's key fits");
         assert_eq!(keys::decode(&encoded, &LIMITS), Some(key));

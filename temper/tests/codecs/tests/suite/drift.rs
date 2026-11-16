@@ -40,6 +40,19 @@ fn check_goldens(directory: &Path, goldens: Vec<skein_codegen::Golden>, write: b
     if write {
         fs::create_dir_all(directory).expect("create golden directory");
     }
+    for entry in fs::read_dir(directory).expect("golden directory") {
+        let entry = entry.expect("golden entry");
+        // Other readers keep their own goldens beside the generated records and enums.
+        let name = entry.file_name();
+        let generated = name.to_str().is_some_and(|name| name.starts_with("record_") || name.starts_with("enum_"));
+        if generated && !goldens.iter().any(|golden| name == golden.name.as_str()) {
+            if write {
+                fs::remove_file(entry.path()).expect("remove obsolete golden");
+            } else {
+                panic!("{}: obsolete golden; {AGAIN}", entry.path().display());
+            }
+        }
+    }
     for golden in goldens {
         let path = directory.join(golden.name);
         if write {

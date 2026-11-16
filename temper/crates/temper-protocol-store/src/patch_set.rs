@@ -1,6 +1,6 @@
 //! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType};
+use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, Retired, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
@@ -9,13 +9,6 @@ use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchS
 )]
 pub const PATCH_SET: PatchSet = PatchSet {
     jobs: &[
-        Job {
-            settles: false,
-            counts: &[],
-            name: "change-parts",
-            keys: &[KeyRange { from: &[12], to: &[13] }],
-            converts: None,
-        },
         Job {
             settles: false,
             name: "deleted-repository-forge-rows",
@@ -44,6 +37,14 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 "Names",
             ],
         },
+        Job { name: "settle-layouts", keys: &[], converts: None, settles: true, counts: &[] },
+        Job {
+            name: "round-branches",
+            keys: &[KeyRange { from: &[23], to: &[24] }],
+            converts: None,
+            settles: false,
+            counts: &["empty", "named"],
+        },
     ],
     owner: Owner::Application,
     name: "temper",
@@ -52,7 +53,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
-            retired: &[],
+            retired: &[Retired { number: 12, keys: &[KeyRange { from: &[12], to: &[13] }] }],
             current: include_str!("../schema/store-v25.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
@@ -111,12 +112,6 @@ pub const PATCH_SET: PatchSet = PatchSet {
                     root: "Row",
                     variant: Some("client"),
                     keys: &[KeyRange { from: &[11], to: &[12] }],
-                },
-                ValueType {
-                    number: 12,
-                    root: "Row",
-                    variant: Some("change"),
-                    keys: &[KeyRange { from: &[12], to: &[13] }],
                 },
                 ValueType {
                     number: 13,

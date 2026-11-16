@@ -8,7 +8,7 @@
 )]
 use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
 use jig_protocol_store::{self as store, Event, Get, KeptFamily, PatchSet, PatchSets, Request, Row, Store, Write};
-use skein_lib::{Reader, Token};
+use skein_lib::Token;
 #[path = "upgrade_disk.rs"]
 pub(super) mod disk;
 use disk::Disk;
@@ -61,7 +61,7 @@ pub(super) fn component(disk: &Disk, sets: PatchSets) -> Store {
     store.patch_sets(sets);
     store
 }
-fn header(number: u64) -> Record {
+pub(super) fn header(number: u64) -> Record {
     Record::Core(CoreRecord::Deployment(Deployment {
         id: [7; 16],
         tasks: 1,
@@ -76,10 +76,6 @@ fn header(number: u64) -> Record {
         commits: number,
     }))
 }
-fn golden(text: &str, name: &str) -> Box<[u8]> {
-    let schema = skein_codegen::parse(text).unwrap();
-    skein_codegen::generate(&schema).goldens.into_iter().find(|g| g.name == name).unwrap().bytes.into()
-}
 fn put(key: Box<[u8]>, value: Box<[u8]>) -> skein_kv::Op {
     skein_kv::Op::Put { key, value }
 }
@@ -89,7 +85,6 @@ fn kv_get(disk: &mut Disk, map: &mut skein_kv::Store, key: Box<[u8]>) -> Option<
     value.clone()
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one open story checks both landed patches, readback and the durable seed")]
 fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let mut disk = Disk::new();
     let old = old_sets();
@@ -107,38 +102,20 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     format.tasks = 12;
     format.levels =
         store::codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(5), application: Some(12) };
-    // The smallest golden change names task zero.
-    let change_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::Change(0), 1024).unwrap();
-    let tagged_change = store::keys::application(&change_key, disk.limits().store.key).unwrap();
-    let change_text = old.sets.last().unwrap().families.iter().find(|f| f.name == "temper-store").unwrap().current;
-    let change = [&[0, 23, 12][..], &golden(change_text, "record_change_row_smallest.bin")].concat().into_boxed_slice();
     let codec = store::codec::limits(&disk.limits().core).unwrap();
-    // The smallest change names repository 0/0; keep its owner in the fixture too.
-    let repository_key = crate::keys::encode(
-        &temper_engine_domain_forge_vocabulary::Key::Repository(skein_forge::api::Repository {
-            forge: 0,
-            repository: 0,
-        }),
-        1024,
-    )
-    .unwrap();
-    let repository =
-        [&[0, 23, 2][..], &golden(change_text, "record_repository_smallest.bin")].concat().into_boxed_slice();
     let ops = vec![
-        put(store::keys::application(&repository_key, 1024).unwrap(), repository),
         put(store::keys::encode_own(&store::keys::Own::Format, 1024).unwrap(), format.encode().unwrap()),
         put(
             store::keys::encode(&header(2).key(), 1024).unwrap(),
             store::codec::encode(&header(2), &codec, &[]).unwrap(),
         ),
-        put(tagged_change.clone(), change),
     ];
     let events = disk.kv(&mut map, skein_kv::Request::Commit { owner: Token::new(1), ops: ops.into() });
     let [skein_kv::Event::Committed { number: 2, .. }] = events.as_slice() else { panic!("plant: {events:?}") };
     let layout_key = |family: &str, number, id| {
         store::keys::encode_own(&store::keys::Own::Layout { family: family.into(), number, id }, 1024).unwrap()
     };
-    assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 12, 25)).is_none());
+    assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 20, 25)).is_none());
     disk.kv(&mut map, skein_kv::Request::Close { owner: Token::new(1) });
 
     drop(map);
@@ -170,46 +147,10 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     }
     assert!(opened);
     assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6), (store::Owner::Application, 14)]);
-    let events = disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(change_key) });
-    let [Event::Got { row: None, .. }] = events.as_slice() else { panic!("legacy change erased: {events:?}") };
-    let hot_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::ChangeHot(0), 1024).unwrap();
-    let tagged_hot = store::keys::application(&hot_key, disk.limits().store.key).unwrap();
-    let events = disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(hot_key) });
-    let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = events.as_slice() else {
-        panic!("change: {events:?}")
-    };
-    let change = crate::v25::Row::decode(&crate::v25::CEILINGS, &mut Reader::new(value)).unwrap();
-    let crate::v25::Value::ChangeHot(change) = change.into_parts().value else { panic!("change row") };
-    assert_eq!(change.task_release(), &None);
-    assert!(!change.change().released_resolution());
     let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
     let [Event::Switched { .. }] = switched.as_slice() else { panic!("switch: {switched:?}") };
     drop(current);
     disk.restart();
-
-    let mut map = disk.map(2);
-    {
-        let (family, number, id, key, binary) = ("temper-store", 48, 25, Some(tagged_hot), true);
-        let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
-        let layout =
-            store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-        let family = SETS.sets.iter().flat_map(|s| s.families).find(|f| f.name == family).unwrap();
-        let expected_text = if binary { family.current } else { family.texts.last().unwrap() };
-        let schema = skein_codec::schema::parse(expected_text.as_bytes()).unwrap();
-        let ty = family.types.iter().find(|t| t.number == number).unwrap();
-        let expected = schema
-            .layout(schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap(), &[])
-            .unwrap()
-            .digest();
-        assert_eq!(*layout.layout(), expected);
-        let text_key = store::keys::encode_own(&store::keys::Own::Text(*layout.text()), 1024).unwrap();
-        let text = kv_get(&mut disk, &mut map, text_key).unwrap();
-        let text = store::registry_v1::Text::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&text)).unwrap();
-        assert_eq!(text.text(), expected_text.as_bytes());
-        if let Some(key) = key {
-            assert_eq!(&kv_get(&mut disk, &mut map, key).unwrap()[..2], &id.to_be_bytes());
-        }
-    }
 }
 
 fn without_deleted_repository_job() -> PatchSets {
@@ -219,7 +160,7 @@ fn without_deleted_repository_job() -> PatchSets {
                 .iter()
                 .map(
                     |set| {
-                        if set.name == "temper" { PatchSet { jobs: &crate::PATCH_SET.jobs[..1], ..*set } } else { *set }
+                        if set.name == "temper" { PatchSet { jobs: &crate::PATCH_SET.jobs[1..], ..*set } } else { *set }
                     },
                 )
                 .collect::<Vec<_>>()
@@ -319,7 +260,7 @@ fn deleted_repository_job_runs_over_directory_pages_once_and_preserves_present_a
                 assert_eq!(&*job, JOB);
                 ran += 1;
                 let names: Vec<_> = counts.iter().map(|c| &*c.name).collect();
-                assert_eq!(names, crate::PATCH_SET.jobs[1].counts);
+                assert_eq!(names, crate::PATCH_SET.jobs[0].counts);
                 let counts: Vec<_> = counts.iter().map(|c| c.count).collect();
                 assert_eq!(counts, [u64::from(orphans + 2), 0, u64::from(orphans), 0, 0, 0, 0, 0, 0, 1, 1]);
             }

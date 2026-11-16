@@ -1017,3 +1017,11 @@ filter = "binary(=suite)"
 [[fixture]]
 paths = ["tools/tiers/fixtures/one-process/*"]
 reader = [{ suite = "tools/tiers/test_one_process.py" }]
+
+# Dev's registered temper text before F0 drops the whole change variant.
+[[fixture]]
+paths = ["temper/crates/temper-protocol-store/src/tests/cb429613c6-store-v25.schema"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-protocol-store"
+filter = "kind(lib) & test(/tests::store_floor::/)"

@@ -504,7 +504,16 @@ fn evidence() {
     for (label, rows, raw, limits, expected) in cases {
         let mut encoded: Vec<Row> = rows
             .iter()
-            .map(|row| (keys::encode(&d::stored_key(row), u32::MAX).unwrap(), records::encode(row)))
+            .cloned()
+            .flat_map(|row| {
+                if let d::Stored::Change(row) = row {
+                    let (cold, hot) = row.split();
+                    vec![d::Stored::ChangeCold(Box::new(cold)), d::Stored::ChangeHot(Box::new(hot))]
+                } else {
+                    vec![row]
+                }
+            })
+            .map(|row| (keys::encode(&d::stored_key(&row), u32::MAX).unwrap(), records::encode(&row)))
             .collect();
         if let Some(raw) = raw {
             encoded.push(raw);

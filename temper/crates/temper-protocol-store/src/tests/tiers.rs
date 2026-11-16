@@ -92,7 +92,7 @@ fn v24_rows_start_with_no_posting() {
             row.record.run = None;
             row.probe = None;
         }
-        let bytes = patched(24, 13, b"Row", before_controls(&row, 24));
+        let bytes = super::catch_up::current_row(b"tier", patched(24, 13, b"Row", before_controls(&row, 24)));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.posting.is_none());
         assert_eq!(decoded, row);
@@ -162,7 +162,7 @@ fn before_controls(row: &d::TierRow, version: u8) -> Box<[u8]> {
     use super::catch_up::{kept_schema, kept_value};
     use crate::patches::kept::temper_store::p0014::new as fields;
     let schema = kept_schema(25);
-    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let bytes = super::catch_up::kept_row(b"tier", records::encode(&d::Stored::Tier(row.clone())));
     let (value, root) = kept_value(&schema, b"Row", bytes);
     let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
     let mut omitted = skein_lib::List::with_capacity(5);
@@ -224,7 +224,7 @@ fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
         // An old row cannot carry a person's hold, even when all its other fields are present.
         row.hold = None;
         let before = before_controls(&row, 23);
-        let bytes = patched(24, 13, b"Row", patched(23, 12, b"Row", before));
+        let bytes = super::catch_up::current_row(b"tier", patched(24, 13, b"Row", patched(23, 12, b"Row", before)));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.hold.is_none(), "v23 has no person's hold");
         if part >= 3 {

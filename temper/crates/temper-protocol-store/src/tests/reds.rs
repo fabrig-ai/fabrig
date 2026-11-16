@@ -1,5 +1,8 @@
 //! A goal's red families and their patch (protocol/store.md, 2).
-use super::{catch_up::patched, fixtures};
+use super::{
+    catch_up::{current_row, patched},
+    fixtures,
+};
 use crate::{Undecodable, keys, records, v25};
 use skein_lib::{List, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -30,7 +33,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
         let stored = d::Stored::Red(d::Red { by, ..red.clone() });
         // Literal field framing, independent of the generated codec.
         let mut golden = Writer::new(83);
-        golden.put(&[0, 25, 44]).unwrap();
+        golden.put(&[0, 25, 43]).unwrap();
         golden.put(&7_u64.to_be_bytes()).unwrap();
         golden.put(b"\0\0\0\x0btest a::t x").unwrap();
         golden.put(b"\0\0\0\x14").unwrap();
@@ -51,7 +54,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
     let key = keys::encode(&d::stored_key(&number), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), &[45]);
     assert_eq!(keys::decode(&key, &fixtures::LIMITS), Some(d::Key::RedNumber));
-    let golden = b"\0\x19\x2d\xff\xff\xff\xff\xff\xff\xff\xff";
+    let golden = b"\0\x19\x2c\xff\xff\xff\xff\xff\xff\xff\xff";
     assert_eq!(records::encode(&number).as_ref(), golden);
     assert_eq!(records::row(&key, golden, &bounds), Ok(number));
 }
@@ -121,7 +124,7 @@ fn the_red_patch_keeps_old_rows_without_making_a_red_or_counter() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let bytes = patched(23, 12, b"Row", bytes);
     let bytes = patched(24, 13, b"Row", bytes);
-    assert_eq!(records::decode(&bytes, &bounds), Ok(d::Stored::ForgeNumber { last: 3 }));
+    assert_eq!(records::decode(&current_row(b"forge_number", bytes), &bounds), Ok(d::Stored::ForgeNumber { last: 3 }));
     assert_eq!(crate::STORE_VERSION, 25);
 }
 
@@ -236,7 +239,7 @@ fn red_passes_have_golden_keys_and_bytes_and_admit_only_bounded_matching_keys() 
     let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), b"\x2e\0\0\0\0\0\0\0\x07key\0\0");
     let golden =
-        skein_lib::bytes::concat(&[b"\0\x19\x2e", &7_u64.to_be_bytes(), b"\0\0\0\x03key", &5_u64.to_be_bytes()]);
+        skein_lib::bytes::concat(&[b"\0\x19\x2d", &7_u64.to_be_bytes(), b"\0\0\0\x03key", &5_u64.to_be_bytes()]);
     assert_eq!(records::encode(&row), golden);
     assert_eq!(records::row(&key, &golden, &bounds), Ok(row));
     let wrong = keys::encode(&d::Key::RedPass { change: 8, key: b"key".as_slice().into() }, u32::MAX).unwrap();
@@ -300,7 +303,7 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x26", &old_finding(), options]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &old_finding(), options]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));
@@ -352,7 +355,7 @@ fn the_pass_and_flake_patch_restores_old_findings_without_either_option_or_inven
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let after = patched(23, 12, b"Row", after);
     let after = patched(24, 13, b"Row", after);
-    assert_eq!(records::decode(&after, &bounds), Ok(d::Stored::Finding(finding())));
+    assert_eq!(records::decode(&current_row(b"finding", after), &bounds), Ok(d::Stored::Finding(finding())));
     let before = b"\0\x16\x16\0\x03".as_slice().into();
     assert_eq!(patched(22, 11, b"Row", before).as_ref(), b"\0\x17\x16\0\x03");
 }

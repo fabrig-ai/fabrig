@@ -179,10 +179,10 @@ fn landing_repair_context_round_trips_and_old_rows_have_none() {
         row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
-        let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Repairing {
+        let row = fixtures::change_hot(fixtures::change_row(State::Repairing {
             requested: true,
             why: Repair::LandingAt { gate: 1, candidate: [0xaa; 32], below },
-        })));
+        }));
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
     // Rows of the preceding version acquire no boundary, whether the ask or repair is kept.

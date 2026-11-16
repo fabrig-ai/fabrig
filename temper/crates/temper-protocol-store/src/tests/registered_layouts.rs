@@ -28,6 +28,10 @@ fn questions_from_a_layout_without_waiting_words_default_to_none() {
 
 #[test]
 fn real_registered_families_derive_from_latest_kept_to_current() {
+    let family = crate::PATCH_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let current = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    assert!(current.root(b"Row", Some(b"change")).is_none());
+    assert!(!family.types.iter().any(|ty| ty.number == 12));
     let sets = [
         jig_protocol_store::SKEIN_PATCH_SET,
         jig_protocol_store::SMITH_PATCH_SET,
