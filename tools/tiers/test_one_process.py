@@ -349,10 +349,10 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(code, 0)
         ledger = cpu['ledger'](self.directory / 'ledger.json')
         result = cpu['summary'](self.directory)
-        self.assertEqual(ledger, dict(ledger=1, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=2, profile='default', budgets={}, moves=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu_s=sum(p['cpu_s'] for p in result['processes']),
-                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']})}))
+                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={})}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
 
     def test_walls_replace_the_profiles_global_timeout(self):

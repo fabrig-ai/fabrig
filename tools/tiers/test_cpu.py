@@ -100,9 +100,9 @@ class OneProcessTests(unittest.TestCase):
         CPU['save'](self.directory / 'run.json', self.run)
         CPU['save'](self.directory / 'results.json', self.results)
 
-    def summary(self, limits=None, gate=False, ledger=None):
+    def summary(self, limits=None, gate=False, ledger=None, base=None):
         self.write()
-        return CPU['summary'](self.directory, limits, gate=gate, ledger=ledger)
+        return CPU['summary'](self.directory, limits, gate=gate, ledger=ledger, base=base)
 
     def cli(self, *arguments):
         return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'),
@@ -482,13 +482,197 @@ class OneProcessTests(unittest.TestCase):
             self.assertEqual(result['processes'], [])
             self.assertEqual(result['layers'], [])
             self.assertEqual(result['trees'], [])
+            self.assertEqual(result['references'], [])
             self.assertEqual(result['suite']['cpu_s'], 1.5)
 
-    def ledger_entry(self, cpu, tree='temper', layer='domain', tests=None):
-        return dict(tree=tree, layer=layer, cpu_s=cpu, tests=tests or {})
+    def reference_case(self, why='new', cpu=0.05):
+        self.limits = {'gate': {'default': {'references': {'step': 0.04},
+                       'temper': {'ideal_s': 100, 'step': {'cpu_s': 253}}}}}
+        self.results['processes'][0]['layer'] = 'step'
+        self.results['workspace'][0]['layer'] = 'step'
+        self.results['references'] = [self.reference('z', why=why, cpu_s=cpu)]
+        self.main = dict(ledger=2, profile='default', binaries={'pkg::suite':
+            self.ledger_entry(1.5, layer='step', tests={'z': [0.03, 0.01, 0.02]},
+                              alone={'z': [0.02, 0.03, 0.025]})}, budgets={}, moves=[])
+
+    def reference(self, name, **fields):
+        return dict(dict(binary_id='pkg::suite', test_name=name, why='new', outcome='passed',
+                         process=None, empty_process=None, cpu_s=0.03), **fields)
+
+    def base(self, cpu):
+        base = self.root / 'base'
+        base.mkdir(exist_ok=True)
+        CPU['save'](base / 'results.json', dict(profile='default', processes=[], tests=[], unobserved=[],
+                    references=[self.reference('z', why='base', cpu_s=cpu,
+                                               outcome='missing' if cpu is None else 'passed')]))
+        return base
+
+    def test_reference_new_gate_line_and_cli(self):
+        self.reference_case()
+        message = 'test over its reference: pkg::suite z: 0.050 CPU s alone, limit 0.040 s'
+        for gate in (False, True):
+            with self.subTest(gate=gate):
+                result = self.summary(self.limits, gate=gate)
+                self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
+                self.assertEqual(result['over_budget'], [message] if gate else [])
+                self.assertEqual(result['warnings'], [] if gate else [message])
+                self.assertEqual(result['references'][0]['limit_s'], 0.04)
+                self.assertTrue(result['references'][0]['over'])
+        path = self.root / 'budgets.toml'
+        path.write_text(CPU['toml_config'](self.limits))
+        cli = self.cli('--budgets', str(path), '--gate')
+        self.assertEqual(cli.returncode, 1, cli.stdout + cli.stderr)
+        self.assertIn(message, cli.stdout)
+        self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.1, why='story')]
+        result = self.summary(self.limits, gate=True)
+        row = result['references'][0]
+        self.assertEqual((row['line_s'], row['limit_s'], row['over']), (0.1, 0.1, False))
+        self.assertEqual((result['verdict'], result['over_budget']), ('within budget', []))
+        self.results['references'][0]['cpu_s'] = 0.1
+        self.assertFalse(self.summary(self.limits, gate=True)['references'][0]['over'])
+
+    def test_reference_flagged_base_precedes_ledger(self):
+        self.reference_case('flagged', 0.12)
+        base = self.base(0.1)
+        for cpu, over in ((0.12, False), (0.16, True)):
+            with self.subTest(cpu=cpu):
+                self.results['references'][0]['cpu_s'] = cpu
+                result = self.summary(self.limits, gate=True, ledger=self.main, base=base)
+                row = result['references'][0]
+                self.assertEqual((row['main_cpu_s'], row['main_from'], row['main_wall_s']), (0.1, 'base', 0.02))
+                self.assertAlmostEqual(row['limit_s'], 0.15)
+                self.assertEqual(row['over'], over)
+                self.assertEqual(bool(result['over_budget']), over)
+        path = self.root / 'budgets.toml'
+        path.write_text(CPU['toml_config'](self.limits))
+        cli = self.cli('--budgets', str(path), '--base', str(base), '--gate', '--json')
+        self.assertEqual(cli.returncode, 1, cli.stdout + cli.stderr)
+        self.assertEqual(json.loads(cli.stdout)['references'][0]['main_from'], 'base')
+        # A line replaces R, not the base's growth allowance.
+        self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.2, why='story')]
+        row = self.summary(self.limits, base=base)['references'][0]
+        self.assertEqual((row['limit_s'], row['over']), (0.2, False))
+        self.limits['gate']['default']['reasons'][0]['cpu_s'] = 0.05
+        self.assertAlmostEqual(self.summary(self.limits, base=base)['references'][0]['limit_s'], 0.15)
+        self.reference_case('new')
+        row = self.summary(self.limits, ledger=self.main, base=base)['references'][0]
+        self.assertEqual((row['main_cpu_s'], row['main_from'], row['main_wall_s']), (None, None, None))
+        self.assertEqual(row['limit_s'], 0.04)
+
+    def test_reference_flagged_ledger_fallback(self):
+        self.reference_case('flagged')
+        for base in (None, self.base(None)):
+            with self.subTest(base=base):
+                result = self.summary(self.limits, gate=True, ledger=self.main, base=base)
+                row = result['references'][0]
+                self.assertEqual((row['main_cpu_s'], row['main_from'], row['limit_s'], row['over']),
+                                 (0.025, 'ledger', 0.04, True))
+                self.assertEqual(result['verdict'], 'over budget')
+        self.main['binaries']['pkg::suite']['alone']['z'] = [0.04]
+        row = self.summary(self.limits, ledger=self.main)['references'][0]
+        self.assertEqual(row['limit_s'], 0.06)
+        # Zero at the base is a measured figure, not a missing one.
+        row = self.summary(self.limits, ledger=self.main, base=self.base(0))['references'][0]
+        self.assertEqual((row['main_cpu_s'], row['main_from'], row['limit_s']), (0, 'base', 0.04))
+
+    def test_reference_missing_main_and_measurement_warn_only(self):
+        self.reference_case('flagged')
+        result = self.summary(self.limits, gate=True)
+        row = result['references'][0]
+        self.assertEqual((row['main_cpu_s'], row['main_from'], row['limit_s'], row['over']), (None, None, None, False))
+        self.assertEqual(result['warnings'], [
+            'test flagged without its figure at main: pkg::suite z: 0.050 CPU s alone, reference 0.040 s'])
+        self.assertEqual((result['verdict'], result['over_budget']), ('within budget', []))
+        for cpu in (0.03, 0.04):
+            self.results['references'][0]['cpu_s'] = cpu
+            self.assertEqual(self.summary(self.limits, gate=True)['warnings'], [])
+        self.results['references'][0].update(cpu_s=None, outcome='crashed')
+        result = self.summary(self.limits, gate=True)
+        self.assertEqual(result['warnings'], ['test not measured alone: pkg::suite z: crashed'])
+        self.assertEqual(result['over_budget'], [])
+        self.results['references'][0].update(cpu_s=0.12, outcome='passed')
+        self.limits['gate']['default']['reasons'] = [dict(binary='pkg::suite', test='z', cpu_s=0.1, why='story')]
+        result = self.summary(self.limits, gate=True)
+        self.assertEqual(result['warnings'], [])
+        self.assertTrue(result['references'][0]['over'])
+        self.assertEqual(result['references'][0]['limit_s'], 0.1)
+
+    def test_reference_rows_order_placement_and_print(self):
+        self.reference_case()
+        self.results['references'] += [self.reference('a'), self.reference('remote', binary_id='other'),
+                                       self.reference('unknown', binary_id='unplaced'), self.reference('base', why='base')]
+        self.results['workspace'] += [dict(binary_id='other', tree='temper', layer='step', listed=False)]
+        # Suite placement wins over workspace placement; then workspace, then null.
+        self.results['workspace'][0]['layer'] = 'io'
+        self.limits['gate']['default']['temper']['step']['reference_s'] = 0.06
+        result = self.summary(self.limits)
+        self.assertEqual(result['references'], [
+            dict(binary_id='pkg::suite', test_name=name, tree='temper', layer='step', why='new',
+                 wall_s=0.25, main_wall_s=None, cpu_s=cpu, main_cpu_s=None, main_from=None,
+                 reference_s=0.06, line_s=None, limit_s=0.06, over=False) for name, cpu in [('z', 0.05), ('a', 0.03)]] + [
+            dict(binary_id='other', test_name='remote', tree='temper', layer='step', why='new',
+                 wall_s=None, main_wall_s=None, cpu_s=0.03, main_cpu_s=None, main_from=None,
+                 reference_s=0.06, line_s=None, limit_s=0.06, over=False)])
+        self.limits['gate']['default']['reasons'] = [dict(binary='unplaced', test='unknown', cpu_s=0.1, why='story')]
+        row = self.summary(self.limits)['references'][-1]
+        self.assertEqual((row['tree'], row['layer'], row['reference_s'], row['limit_s']), (None, None, None, 0.1))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        printed = [line for line in output.getvalue().splitlines() if line.startswith('reference ')]
+        self.assertEqual(len(printed), 3)
+        for line, row in zip(printed, result['references']):
+            self.assertIn(f"{row['binary_id']} {row['test_name']}", line)
+            self.assertIn(str(row['limit_s']), line)
+        self.results['references'] = []
+        self.assertEqual(self.summary(self.limits)['references'], [])
+
+    def test_reference_base_refusals(self):
+        self.reference_case()
+        base = self.base(0.1)
+        CPU['save'](base / 'results.json', {})
+        with self.assertRaisesRegex(ValueError, 'base.*references'):
+            self.summary(base=base)
+        cli = self.cli('--base', str(base))
+        self.assertEqual(cli.returncode, 2, cli.stdout + cli.stderr)
+        del self.run['mode']
+        self.run['returncode'] = 4
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'base.*one-process'):
+            CPU['summary'](self.directory, base=self.base(0.1))
+        cli = self.cli('--base', str(base))
+        self.assertEqual(cli.returncode, 2, cli.stdout + cli.stderr)
+        with self.assertRaisesRegex(ValueError, 'base.*one-process'):
+            CPU['summary'](self.directory, pair='tools', expected=['tool'], base=base)
+
+    def test_ledger_fold_alone_history(self):
+        self.reference_case()
+        old = self.main['binaries']['pkg::suite']
+        old['tests'].update(a=[0.1], gone=[0.2])
+        old['alone'] = {'z': [0.01, 0.02, 0.025], 'a': [0.01], 'gone': [0.2]}
+        for cpu in (0.03, None, 'absent'):
+            with self.subTest(cpu=cpu):
+                self.results['references'] = [] if cpu == 'absent' else [self.reference('z', cpu_s=cpu)]
+                folded = self.folded(self.main)
+                self.assertEqual(folded['ledger'], 2)
+                self.assertEqual(folded['binaries']['pkg::suite']['alone'],
+                    {'z': [0.02, 0.025, 0.03] if cpu == 0.03 else [0.01, 0.02, 0.025], 'a': [0.01]})
+                self.assertNotIn('gone', folded['binaries']['pkg::suite']['tests'])
+        self.results['references'] = [self.reference('z', cpu_s=0)]
+        self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['alone']['z'], [0.02, 0.025, 0])
+        self.results['cancelled'] = 'wall-hard'
+        self.results['tests'][0]['outcome'] = 'starved'
+        self.run['starved'] = True
+        self.assertEqual(self.folded(self.main)['binaries']['pkg::suite']['alone'], old['alone'])
+        path = self.root / 'folded.json'
+        CPU['save'](path, self.folded(self.main))
+        self.assertEqual(CPU['ledger'](path)['ledger'], 2)
+
+    def ledger_entry(self, cpu, tree='temper', layer='domain', tests=None, alone=None):
+        return dict(tree=tree, layer=layer, cpu_s=cpu, tests=tests or {}, alone=alone or {})
 
     def ledger_case(self):
-        self.main = dict(ledger=1, profile='default', binaries={
+        self.main = dict(ledger=2, profile='default', binaries={
             'temper-a::domain': self.ledger_entry(50, tests={'z': [1, 2, 3], 'removed': [8]}),
             'temper-b::domain': self.ledger_entry(70),
             'temper-d::domain': self.ledger_entry(7),
@@ -528,7 +712,7 @@ class OneProcessTests(unittest.TestCase):
         valid = json.dumps(self.main)
         cases = [
             (valid[:-1] + ', "other": 0}', 'keys'),
-            (valid.replace('"ledger": 1', '"ledger": 2'), 'version'),
+            (valid.replace('"ledger": 2', '"ledger": 3'), 'version'),
             (valid.replace('"default"', '"slow"'), 'profile'),
             (valid.replace('"temper"', '"tools"'), 'group'),
             (valid.replace('"cpu_s": 50', '"cpu_s": -1'), 'finite nonnegative'),
@@ -548,6 +732,31 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(text=text):
                 path.write_text(text)
                 with self.assertRaisesRegex(ValueError, words):
+                    CPU['ledger'](path)
+
+    def test_ledger_v1_normalizes_and_v2_checks_alone(self):
+        self.ledger_case()
+        path = self.root / 'ledger.json'
+        version1 = copy.deepcopy(self.main)
+        version1['ledger'] = 1
+        for entry in version1['binaries'].values():
+            del entry['alone']
+        CPU['save'](path, version1)
+        self.assertEqual(CPU['ledger'](path), dict(self.main, ledger=1))
+        self.main['binaries']['temper-a::domain']['alone'] = {'z': [0, 0.02, 0.025]}
+        CPU['save'](path, self.main)
+        self.assertEqual(CPU['ledger'](path), self.main)
+        invalid = [None, [], {'z': []}, {'z': [1, 2, 3, 4]}, {'gone': [1]},
+                   {'z': [-1]}, {'z': [True]}, {'z': [float('inf')]}]
+        for alone in invalid:
+            with self.subTest(alone=alone):
+                data = copy.deepcopy(self.main)
+                if alone is None:
+                    del data['binaries']['temper-a::domain']['alone']
+                else:
+                    data['binaries']['temper-a::domain']['alone'] = alone
+                path.write_text(json.dumps(data))
+                with self.assertRaises(ValueError):
                     CPU['ledger'](path)
 
     def test_ledger_head_main_and_placement(self):
@@ -1161,6 +1370,32 @@ class CollectorTests(unittest.TestCase):
                 path.write_text(content)
                 with self.assertRaises(ValueError):
                     CPU['budgets'](path, layers=layers)
+
+    def test_gate_reasons_preserved_and_refused(self):
+        path = self.root / 'budgets.toml'
+        layers = self.root / 'layers.toml'
+        layers.write_text('layers = ["step"]')
+        prefix = '[gate.default]\nreferences = {step = 0.04}\n'
+        line = ('[[gate.default.reasons]]\nbinary = "pkg::suite"\ntest = "one"\n'
+                'cpu_s = 0.1\nwhy = "whole story"\n')
+        path.write_text(prefix + line)
+        self.assertEqual(CPU['budgets'](path, layers=layers)['gate']['default']['reasons'],
+                         [dict(binary='pkg::suite', test='one', cpu_s=0.1, why='whole story')])
+        invalid = [line + 'other = 1\n', line.replace('why = "whole story"\n', ''),
+                   line.replace('"pkg::suite"', '""'), line.replace('"one"', '""'),
+                   line.replace('"whole story"', '""'), line.replace('"one"', 'true'),
+                   *[line.replace('cpu_s = 0.1', f'cpu_s = {value}') for value in ('0', '-1', 'inf', 'nan', 'true')],
+                   line + line, 'reasons = 1\n', 'reasons = [1]\n']
+        for text in invalid:
+            with self.subTest(text=text):
+                path.write_text(prefix + text)
+                with self.assertRaises(ValueError):
+                    CPU['budgets'](path, layers=layers)
+        # Different tests, binaries and profiles are independent pairs.
+        text = (prefix + line + line.replace('"one"', '"two"') + line.replace('"pkg::suite"', '"other"')
+                + '[gate.fuzzy]\nreferences = {step = 10}\n' + line.replace('default', 'fuzzy'))
+        path.write_text(text)
+        self.assertEqual(CPU['budgets'](path, layers=layers), tomllib.loads(text))
 
     def test_gate_moves_preserved_and_ceilings_composed(self):
         path = self.root / 'budgets.toml'
