@@ -12,7 +12,7 @@ pub(super) fn new(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         }
         for index in 0..membership.templates.len() {
             let template = membership.templates.get_mut(index).expect("template index");
-            if template.number != 8 {
+            if template.number != temper_client_domain_forge::milestones::TEMPLATE {
                 continue;
             }
             let budget =
@@ -53,7 +53,7 @@ pub(super) fn new(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         },
         llm: None,
     };
-    match shapes::set_goal_from(&offered, project, 8, draft, empty(limits)) {
+    match shapes::set_goal_from(&offered, project, temper_client_domain_forge::milestones::TEMPLATE, draft, empty(limits)) {
         shapes::Judged::Create(ask) => Ok((Request::Ask(ask), None)),
         shapes::Judged::Propose { ask, to } => Ok((Request::Ask(ask), Some(to))),
         shapes::Judged::Refused(why) => Err(super::goal::refused(&why, limits)),

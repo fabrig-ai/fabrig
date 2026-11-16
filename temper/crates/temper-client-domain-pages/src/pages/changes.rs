@@ -200,6 +200,16 @@ impl Changes {
         }
         None
     }
+    /// The task document already read for a listed change.
+    #[must_use]
+    pub fn document(&self, task: u64) -> Option<&c::Task> {
+        for row in &self.reads {
+            if row.task == task {
+                return row.document.as_deref();
+            }
+        }
+        None
+    }
     /// Where a listed task came from, once its read has arrived.
     #[must_use]
     pub fn from<'a>(&'a self, client: &Client, task: u64) -> Option<From<'a>> {

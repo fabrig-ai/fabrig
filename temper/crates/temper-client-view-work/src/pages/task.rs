@@ -38,6 +38,13 @@ pub fn main(
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(page) = root.pages().task()
+        && page.shape == Shape::Milestone
+        && page.document(root.client()).is_some()
+    {
+        super::milestone::main(b, root, words, bindings, rows, times, sign_in);
+        return;
+    }
+    if let Some(page) = root.pages().task()
         && page.shape == Shape::Agent
         && page.document(root.client()).is_some()
     {

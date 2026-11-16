@@ -16,8 +16,7 @@ pub(super) fn beneath(call: &Call, document: &c::ReadValue, me: &c::Me, limits: 
         Some((task, _))
             if task.chip.task == number
                 && task.project == project
-                && task.chip.details.details.executor
-                    == c::Executor::Procedure { connector: shapes::RECURRING, code: shapes::GATHERING } =>
+                && temper_client_domain_forge::milestones::is(&task.chip) =>
         {
             task
         }
