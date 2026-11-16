@@ -149,7 +149,70 @@ of the reader's is under it; the view words them.
   milestone's page share; the client's `temper.css` takes the strip's
   and the tag's rules from the mockups' `pages.css`.
 
-## 3. Open questions
+## 3. Its page
+
+`Task { task }` of a milestone (`../../draft/milestones.md`, 5.4; the
+mockup `../web/home-for-a-person/milestone.html`): a page shape of its
+own, the task page's `Shape::Milestone`, which the task's document
+dispatches by its chip (`milestones::is`) before any other shape, where a
+procedure's task otherwise gets its header and plan (`task.md`, 3). It
+borrows the goal page's header and two columns, their classes and look
+(`goal.md`, 2).
+
+- **What it reads,** beside the task's document and tree as any task
+  page reads them: its own `Milestone` (section 1), its goals' reports,
+  one at a time as `Goals` reads a row's, for their headlines; and its
+  needs, the inbox's `Filter { project, goal: Some(task) }` as a goal's
+  page opens it, which, the filter taking a root, holds every need under
+  its goals, its read's `selection` saying which goal each is under.
+- **The header,** `temper-goal-head`:
+  - its meta, mono, items separated by "·": its name, bold; its state's
+    word in its token (section 2); "7 of 8 goals done", its count; "212
+    spent of 400", its totals' `spent` and its line's `budget`, left out
+    with no budget or before its totals are read; "since " and its `made`
+    in the clock form (`../view.md`, 6);
+  - its headline (section 2) as the level-1 heading;
+  - while live, its acts, `task.md`, 4's: "Pause" or "Resume", then
+    "Close", with Close's confirmation. No Amend, no byline, no composer
+    and no Chat link: a milestone runs no agent, so words go to one of its
+    goals.
+- **Needs you bands,** as a goal's page draws its own (`goal.md`, 2,
+  *Needs you bands*), one per need under it, the first question whole and
+  the rest by their first line; a band's QUESTION follows the goal it is
+  under, its title and ": ", where its `selection` names one.
+- **Goals,** in the report's place, `temper-goal-report`, headed "Goals":
+  - a row per goal not ended, in the order they joined,
+    `temper-ms-goal`: its line, `temper-goal-line`, its title a link to
+    its `Task` and its state's word, a waiting goal's being what it waits
+    on, "waits on S6" (`work.md`, 1, *Goals*), in its token; under it its
+    headline, `temper-goal-facts`, its report's where read or its row's;
+  - its ended goals in folds, `Role::Disclosure` and
+    `temper-goal-landed-fold`, folded: "N done", "N failed" and "N
+    closed", each while above zero, each holding its goals' lines, newest
+    end first: the title, a link, and its state's word, "landed Sat
+    21:40", read from its ended goals even after the milestone has ended;
+  - "No goals yet." while open with none; "No goals." once whole with
+    none; "More of its goals are not shown." as `temper-goal-facts` while
+    its goals' read has `more`.
+- **The side,** `temper-goal-side`, its sections headed as the goal
+  page's are:
+  - its strip, headed by its name, "7 done of 8" (section 2);
+  - "What it is for": its words, where it has any;
+  - "Landing": "Each goal lands on its own, once done.";
+  - "Its goals": "Open: more goals may join." or "Whole: all its goals are
+    in.", then "Made by NAME.", NAME "you" where the maker is the reader,
+    else as Work names who signed (`work.md`, 1, *Who signed*), from the
+    project's people where a read of them serves, else "person N", "task
+    N" or "the deployment".
+- **Before its reads answer,** it claims nothing: no count, state or
+  headline before its line, goals and totals are held; the header shows
+  its name once the document is read.
+- **The terminal:** the view is shared and keeps its meaning: the header,
+  the needs, "Goals" and its rows, each fold's rows under its name, then
+  the side's sections, the strip as its line, "■■■■■■▒■ 7 done of 8".
+- **On a phone:** the two columns wrap by the goal page's flex basis.
+
+## 4. Open questions
 
 - **Room** (`../../draft/milestones.md`, section 11): no project names a
   capacity yet, so a goal held for its resources says "waits for its

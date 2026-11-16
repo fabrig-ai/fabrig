@@ -59,8 +59,14 @@ an open need on it, whether it has a report, and its direct delegates' total.
   - `p.byline`: "Written by its agent at " and the note's `changed` in the
     clock form. No byline with no report.
   - `.acts`: "Draft" (`.btn.small`), when the goal's words name a draft and a
-    chat: to that `Chat`. "Chat T2", when the requester is a task: to that
-    chat. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Close",
+    chat: to that `Chat`. "in Store shape", when the requester is a
+    milestone, the goal its delegate by its document's lineage
+    (`milestones::lineage`, `milestone.md`, 1): the milestone's name, a link
+    to its `Task` (`../../draft/milestones.md`, 5.5). "Chat T2", when the
+    requester is a chat: to that chat; a task requester that is neither, its
+    document read once by number and told a chat by the project's chat
+    template's label as `Task::chat` tells one, gives none, and until that
+    read none is drawn. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Close",
     `task.md`, 4's. Ended, none of the three.
 - **Needs you bands,** one `section.band` named "Needs you" per open need of
   the goal, in the inbox's order, between the header and the report:

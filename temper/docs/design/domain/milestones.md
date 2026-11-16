@@ -7,9 +7,8 @@ goal lands on its own, by its own way. temper offers the primitive and
 nothing around it: a person or their scripts make milestones through
 `temper ctl` (`../client/ctl/milestones.md`). Underneath, a milestone
 is jig's gathering (jig's `domain/tasks/gatherings.md`). What the pages
-draw of it, the states of section 4 of the draft and its section 5,
-is designed in the pages' documents as milestone M3 of
-`../draft/home-for-a-person.execution.md` carries them out.
+read and draw of it, the states of section 4 of the draft and its
+section 5, is `../client/pages/milestone.md` and the pages it names.
 
 ## 1. In one page
 
@@ -324,5 +323,3 @@ Focused stories, each where its owner's are:
 - **The forge's rows past 256 a project.** Default: an ended
   milestone's dropped first, read again from jig's ended record without
   its landing.
-- **The pages' milestone state** (the draft's section 4) and its
-  headline: designed with the pages, milestone M3.

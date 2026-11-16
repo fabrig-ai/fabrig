@@ -16,7 +16,11 @@
   focused: no act of its own), then
   its filters as folded menus, in order: projects (only with two or more),
   goals, then Kind. Each menu names its choice: "All projects" or the
-  project's name; "All goals" or "Goal · TN"; "Kind" or "Kind · Question".
+  project's name; "All goals" or "Goal · TN", or "Milestone · Store shape"
+  where the filter's task is a milestone (`../../draft/milestones.md`, 5.3),
+  its document read once by number and `milestones::is` of its chip
+  (`milestone.md`, 1); "Kind" or "Kind · Question". The goal filter takes a
+  root, so a milestone's holds every need under its goals.
   The project menu holds All projects and each project; the goal menu holds
   All goals and the Goal field; Kind holds All kinds and each kind. A choice
   moves to the filtered inbox's address and folds its menu (`../web/README.md`, 2.3).
@@ -183,7 +187,20 @@
       "held", "a person task", "an approval", or "funds" for a held task
       whose reason is `HoldReason::Budget`. The goal or the role a need
       comes from and who asked it join the line as their reads come
-      (`../../draft/surfaces.md`, 4);
+      (`../../draft/surfaces.md`, 4). *Its milestone* (`../../draft/milestones.md`,
+      5.3): where the card's task is under a milestone, the milestone and
+      the goal come before TITLE, after the chip: the milestone's name, a
+      link to its `Task` (`temper-ms-from`), " › ", the goal's title, a link
+      to its `Task`, and, where the card's task is not that goal, " › " and
+      TITLE: "fabrig · Store shape › S7 history in task logs · a question ·
+      16 min". They are its task's document's lineage (`milestones::lineage`,
+      `milestone.md`, 1): the document the card holds where it is that
+      task's, else that task's read once by number while the card shows, as
+      Decided for you reads its rows' tasks (`home.md`, 1, **Decided for
+      you**); until it is read, and for a proposal, which names no task's
+      title, the line is as without one. Home's cards and the terminal's
+      inbox name them the same, the terminal's "PROJECT › Store shape › TN
+      TITLE";
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 19px on a
       phone;
     - `.ctx`, `--gf-ink-2`, if it has a context;
@@ -219,7 +236,14 @@
     the terminal's card), through the confirmation they have (`../README.md`, 3.6). A
     held task: its title and its words, its facts as the terminal's card
     has them, then Release (primary) and Leave held (plain, its reason's
-    textarea as Reject's). A funds card: "S of L used." as the
+    textarea as Reject's). A task held because a task it waits on failed or
+    was cancelled (jig's `HoldReason::Dependency { task, how }`) says which
+    and what releasing needs as its question (`../../draft/milestones.md`,
+    5.3): "S6 is held: S5, which it waits on, failed. Drop or replace that
+    dependency, then release it.", "was closed" for a cancelled one, and
+    "ended" where the card holds no ending; each named by its id or title
+    as a wait names it (`work.md`, 1, *A wait's names*), "task N" where its
+    title is not held. A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
     owner, then Release and Leave held; there is no "Add $10". Its hold's
     words say what a person can do: accept a proposal for more budget, if one
@@ -249,7 +273,8 @@
     first, in its order, then the rows in theirs, and those marked later last,
     then ordered by severity as *What the client keeps* says (1).
     A filter by project takes the project's rows, one by goal the rows of the
-    changes under that goal, and one by kind none, since no kind of the
+    changes under that goal, one by a milestone the rows whose goal is one of
+    its goals, as its `Milestone` reads them (`milestone.md`, 1), and one by kind none, since no kind of the
     inbox's is theirs. They join once the inbox has answered, and until the
     `approvals` watch has delivered there are none. On the terminal's inbox
     there are none either.
