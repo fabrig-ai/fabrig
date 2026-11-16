@@ -45,5 +45,4 @@ mod fuzzy {
 }
 
 mod adoption_hold;
-mod github_repair;
 mod plan_chat;

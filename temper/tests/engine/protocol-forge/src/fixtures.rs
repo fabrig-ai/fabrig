@@ -199,6 +199,26 @@ pub fn github_settings() -> Settings {
     settings
 }
 
+/// The protocol world's GitHub log origin, resolved to the layer's blob listener.
+#[must_use]
+pub fn github_protocol_settings() -> Settings {
+    let mut settings = github_settings();
+    let forge = settings.forges.get_mut(0).expect("forge");
+    forge.log_origins = List::with_capacity(limits().log_origins);
+    forge
+        .log_origins
+        .push(skein_forge_connection::settings::LogOrigin {
+            origin: skein_forge::github::redirect::Origin {
+                tls: false,
+                host: Box::from(b"logs.example.test".as_slice()),
+                port: skein_forge_kit::github::BLOB_ADDRESS.port(),
+            },
+            address: skein_io::Addr::Ip(skein_forge_kit::github::BLOB_ADDRESS),
+        })
+        .expect("one log origin");
+    settings
+}
+
 /// The joint's repository path and API/git writer for each dialect.
 #[derive(Clone, Copy)]
 pub struct Fixture {
@@ -217,7 +237,7 @@ impl Fixture {
     pub fn settings(self) -> Settings {
         match self.kind {
             Kind::Forgejo => writer_settings(),
-            Kind::GitHub => github_settings(),
+            Kind::GitHub => github_protocol_settings(),
         }
     }
 }

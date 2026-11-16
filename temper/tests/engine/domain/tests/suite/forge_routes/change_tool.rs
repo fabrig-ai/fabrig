@@ -962,9 +962,22 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
     );
 }
 
+const PULL_DIAGNOSTIC: &[u8] = b"Missing changes/1.md with the line: opened 2026-11-02T14:01:43Z\n";
+
+fn pull_repair_log() -> Box<[u8]> {
+    let mut log = vec![b'\n'; 4_096 - PULL_DIAGNOSTIC.len()];
+    log.extend_from_slice(PULL_DIAGNOSTIC);
+    log.into_boxed_slice()
+}
+
 fn pull_request_ci_world() -> World {
     let small =
         temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let mut brief = small.root.brief;
+    // CI reserves one fifth per failed job: retain 4 KiB plus framing.
+    brief.read_bytes = 5 * 4_608;
+    brief.budgets.ci = brief.read_bytes;
+    brief.brief_bytes = 32_768;
     let mut world = World::configured_limits(
         true,
         true,
@@ -972,8 +985,14 @@ fn pull_request_ci_world() -> World {
         0,
         Gate::default(),
         None,
-        StoryLimits { brief: Some(small.root.brief), result_bytes: Some(512), ..StoryLimits::default() },
+        StoryLimits {
+            brief: Some(brief),
+            forge_answer_bytes: Some(4_608),
+            result_bytes: Some(512),
+            ..StoryLimits::default()
+        },
     );
+    world.fake_env.limits.limits.content_bytes = 4_096;
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     let checks = raw::Checks {
         contexts: Box::new([Box::from(*b"build")]),
@@ -984,10 +1003,10 @@ fn pull_request_ci_world() -> World {
         passes: 0,
         reruns: 0,
         cue: Some(raw::Cue::PullFile {
-            path: Box::from(*b"changes/{pull}"),
-            no_pull: raw::Check::Skipped,
+            path: Box::from(*b"changes/{pull}.md"),
+            no_pull: raw::Check::Passed,
             step: Box::from(*b"changes"),
-            log: Box::from(*b"missing changes/{pull}"),
+            log: pull_repair_log(),
         }),
     };
     let setup = raw::Setup {
@@ -1021,8 +1040,7 @@ fn pull_request_ci_world() -> World {
     world
 }
 
-#[test]
-fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt() {
+pub(super) fn pull_request_ci_repair() -> (World, engine::Assignment, u64) {
     let (mut world, _chat, producer, branch) = change_world_in(pull_request_ci_world(), Change::default());
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"first", 1)
@@ -1043,6 +1061,23 @@ fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt(
         }
     }
     let repair = world.assigned.get(2).expect("CI repair assigned").clone();
+    (world, repair, head)
+}
+
+pub(super) fn check_pull_repair_brief(repair: &engine::Assignment) {
+    let brief = ci_words(repair);
+    assert!(contains(brief, b"Failed step: 1 changes\nEnd of its log:\n"), "{}", String::from_utf8_lossy(brief));
+    assert!(
+        contains(brief, &pull_repair_log()),
+        "the complete 4,096-byte diagnostic fits in the brief ({} bytes): {}",
+        brief.len(),
+        String::from_utf8_lossy(brief)
+    );
+}
+
+#[test]
+fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt() {
+    let (mut world, repair, head) = pull_request_ci_repair();
     let raw::Answer::Runs(runs) = world.external(
         1,
         raw::Op::Read(raw::Read::Runs { workflow: None, commit: Some(head), number: None, page: 1, limit: 2 }),
@@ -1053,9 +1088,7 @@ fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt(
     let run = &runs[0];
     assert_eq!((run.commit, run.event), (head, raw::RunEvent::PullRequest));
     assert_ne!(run.id, run.number);
-    let brief = std::str::from_utf8(ci_words(&repair)).expect("CI brief");
-    assert!(brief.contains("Failed step: 1 changes\nEnd of its log:\n"), "{brief}");
-    assert!(brief.contains("missing changes/1\n"), "{brief}");
+    check_pull_repair_brief(&repair);
     let digits = engine::commit_text(&translate::commit(head));
     let digits = std::str::from_utf8(&digits).expect("head");
     let checks = named_read(&mut world, &repair, 195, b"read_checks", format!(r#"{{"commit":"{digits}"}}"#).as_bytes());
@@ -1069,12 +1102,14 @@ fn a_pull_request_ci_repair_carries_the_failed_step_and_reads_its_named_attempt(
     assert_eq!(fields[2], digits);
     assert_eq!(fields[4], run.id.to_string());
     assert_ne!(fields[6], "0", "the link's index is not the job id");
-    let input =
-        format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+    let input = format!(
+        r#"{{"head":"{}","run":{},"job":{},"attempt":{},"max_bytes":4608}}"#,
+        fields[2], fields[4], fields[6], fields[8]
+    );
     let job = named_read(&mut world, &repair, 196, b"read_job", input.as_bytes());
     let rendered = temper_engine_smith::answer(&job);
     assert!(!rendered.error());
-    assert!(rendered.text().ends_with(b"missing changes/1\n"));
+    assert!(contains(rendered.text(), &pull_repair_log()), "read_job returns the complete diagnostic");
     world.close();
 }
 

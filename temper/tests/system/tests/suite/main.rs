@@ -1,3 +1,4 @@
+mod absence;
 mod accounts;
 mod brief;
 mod composed;
@@ -16,3 +17,5 @@ mod supplied_instructions;
 mod merge_job;
 
 mod close_job;
+
+mod notes;

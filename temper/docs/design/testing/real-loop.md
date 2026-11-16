@@ -41,7 +41,10 @@ in the lower world that owns it, never here.
   and a signed-in DIRECTORY private to its user (../client/ctl/testing.md,
   3); a repository adopted, a hooked repository's webhook delivered,
   and a chat's change cloned, pushed and landed on the fake git program
-  (below); a chat adding a landing dependency to its live report delegate,
+  (below); a chat's document written, and rewritten whole once its
+  person's follow-up reaches its run (`suite::notes`;
+  `../domain/agent/agents.md`, 3), a long one built in parts and found
+  by a fresh run being the system world's; a chat adding a landing dependency to its live report delegate,
   kept until the change lands and started after Met (`suite::fuzzy::landing`); the
   first run's green light, a question answered in the person's inbox before
   the change it holds (`suite::fuzzy::green_light`, below); the first run's
@@ -335,7 +338,11 @@ in the lower world that owns it, never here.
   - **Its smoke:** the person opens the terminal by the printed link,
     starts a chat from Chats with its words, and reads the committed
     reply on the chat's page; closing exits 0, and the credential stays
-    in the terminal's DIRECTORY, private to its user.
+    in the terminal's DIRECTORY, private to its user. A run of calls'
+    line as the shell prints it, and the conversation read back by
+    `up`, `down` and the page-up line, are the joint world's
+    (`../client/testing.md`), on the terminal's bounds, as skein's text
+    shell prints and reads them.
   - **The peers are fakes:** skein's fake LLM, the fake forge and the
     fake git program (`fakes.md`, 1 to 3), as for the tier's other stories.
   - **The terminal is the real loop's test surface.** People use the
@@ -462,8 +469,12 @@ in the lower world that owns it, never here.
     routing, GitHub's routes and Google's sign-in on the clients'
     listener in `temper-service`'s own tests (../protocol/forge/README.md,
     section 9; ../client/forge/served.md, 1; ../protocol/sign-in.md, section
-    8), the connector's state, picker and queue in the system worlds
-    (`README.md`, 2.1).
+    8), a seeded App's start among the routing's, the connector's state,
+    picker and queue in the system worlds (`README.md`, 2.1); a check
+    run's failure read from its job's log and repaired at a new head that
+    lands once, in the forge's protocol world, and the repair's brief and
+    a released repair's replacement in the engine's world
+    (`../domain/root.md`, 11).
 
 - **The cluster's services,** one story (../protocol/cluster.md, 6):
   an engine alone and two workers alone, three `temper-service`
@@ -474,7 +485,11 @@ in the lower world that owns it, never here.
   the fake LLM peer and the fake git program, one placed on each worker,
   each run to its end. It shares the standalone stories' hosts, fakes
   and checks; the shapes' checks are step tests, and placement, a lost
-  worker and its grace the engine's domain world's.
+  worker and its grace the engine's domain world's. An engine restarted
+  within the worker's engine-away bound, after refused starts and past
+  the bound, and a worker stopped before its run's first turn, are the
+  system world's (`../domain/worker/README.md`, 9); the link's grace
+  across refused hellos is jig's worker link's.
 - **The case library's stories** (`reference-case.md`): its act 1, one story for each
   step's slice that temper can run, on the case's cast, scripts and
   oracle. The cluster's runner hosts them too: the case's fixture and
