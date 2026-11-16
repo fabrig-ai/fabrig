@@ -14,11 +14,6 @@
   [in flight: change 839].
 - **Not yet:** 4: a question read once and still open is shown in no later
   run's brief [in flight: change 838].
-- **Not yet:** 7: the system world's story of a goal's design delivery
-  checks no run branch ever written, the landing branch kept, the goal's
-  report or the delivery's answer. [in flight: change 4723]
-- **Not yet:** 7: the system world has no story of a person's words
-  during a turn. [in flight: change 4724]
 
 `tools.md`'s `decided`, `agents.md`, 1, and `ask-temper.md`, 1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone

@@ -160,6 +160,4 @@ that proof remains with the after-landing runs (11).
   a turn gap, and the port chooser panics on a narrow range; their
   tests are `#[should_panic]`. [in flight: change 3251]
 
-- **Not yet:** 2.5: the one-process world has no story of a stop while a
-  program's turn runs. [in flight: change 4727]
 

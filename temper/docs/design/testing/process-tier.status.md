@@ -102,6 +102,3 @@ the logged turn-away is the fake's own process story.
   [in flight: change 2876]
   the whole document: `Members::passed` panics on a member's failure.
   [in flight: change 2882]
-- **Not yet:** the whole document: *The fake box keeps two walks*'s held
-  issuer sockets have no story in temper-fake's tests yet.
-  [in flight: change 4725]

@@ -2,8 +2,6 @@
 
 2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 2: `tests/client` has no story of `chat show --before` at
-  an activity cursor after a message's second reply. [in flight: change 4724]
 
 - **Not yet:** 2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and
