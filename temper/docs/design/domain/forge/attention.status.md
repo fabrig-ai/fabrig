@@ -122,5 +122,3 @@ table holds the reference's two tiers described
   brief's own, so a member's first spend or the forge's repairs can take it and the
   brief falls back to the computed sentence, because a shared project's owners can
   fund their period (`README.md`, section 11).
-- **Not yet:** 3: the status agent's milestones, a goal named by its milestone, and the instructions' sentence on them [in flight: change 4867].
-- **Not yet:** 5, *The caller's person*: a goal whose requester is a milestone judged for the milestone's requester [in flight: change 4858].

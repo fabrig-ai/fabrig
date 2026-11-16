@@ -138,4 +138,3 @@ Linux and macOS, is `../README.md`, section 5's after-landing work, owned by tem
 
 - **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
 - **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].
-- **Not yet:** *A milestone's totals, the read `Milestone`*: the read, its answer and the version it moves [in flight: change 4862].
