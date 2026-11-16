@@ -1,10 +1,10 @@
-//! Stopped-deployment tools over fixture patch sets (protocol/store/opening.md 5).
+//! Stopped-deployment tools over fixture sets (protocol/store/opening.md 5).
 use jig_protocol_store::{
-    BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, PatchSet, PatchSets, Request, Undecoded, Wire, Write,
+    BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, PatchSets, Request, Undecoded, Wire, Write,
 };
 use jig_store_world::{
     World,
-    patches::{self, BASE, Records, SETS, flights},
+    patches::{self, BASE, Records, SETS},
     root,
 };
 use skein_lib::Token;
@@ -12,22 +12,13 @@ use skein_lib::Token;
 const SEED: u64 = 0x5245_4845;
 const OWNER: Token = Token::new(900);
 const WIRES: &[Wire] = &[Wire { name: "fixture-worker", version: 7 }];
-const MID: PatchSets = PatchSets {
-    sets: &[
-        PatchSet {
-            families: &[SETS.sets[0].families[0], BASE.sets[0].families[1], BASE.sets[0].families[2]],
-            level: Some(1),
-            patches: &[jig_test_patches::patches::PATCHES[0]],
-            ..SETS.sets[0]
-        },
-        BASE.sets[1],
-    ],
-};
+const MID: PatchSets = SETS;
+const AFTER: PatchSets = patches::NEXT;
 
-fn lower() -> World {
+fn previous() -> World {
     let mut world = Records::story().committed(SEED, BASE);
     world.patch_sets(MID);
-    let last = world.open_switched().expect("level one start");
+    let last = world.open_switched().expect("first job upgrade");
     assert!(world.wires(WIRES));
     assert_eq!(world.commit(Box::new([Write::Save(root::header(last + 1)), Write::Wires])), Some(last + 1));
     world.crash(SEED);
@@ -36,9 +27,9 @@ fn lower() -> World {
 fn without_wires(records: &Records) -> World {
     let mut world = World::unopened_observed(SEED, patches::limits(), None);
     world.patch_sets(BASE);
-    world.open().expect("lower start");
+    world.open().expect("source start");
     let writes =
-        records.writes(1).into_vec().into_iter().filter(|write| !matches!(write, Write::Wires)).collect::<Vec<_>>();
+        records.writes().into_vec().into_iter().filter(|write| !matches!(write, Write::Wires)).collect::<Vec<_>>();
     world.commit(writes.into_boxed_slice()).expect("source without start mark");
     world.crash(SEED);
     world
@@ -58,23 +49,23 @@ fn rehearsal_lines(events: &[Event], wires: Option<&[KeptWire]>, fresh: bool) {
 }
 
 #[test]
-fn rehearsal_reports_kept_wires_and_patch_counts_without_writing_source() {
-    let mut world = lower();
-    world.patch_sets(SETS);
+fn rehearsal_reports_kept_wires_and_job_counts_without_writing_source() {
+    let mut world = previous();
+    world.patch_sets(AFTER);
     let before = world.contents();
     let events = world.rehearse();
     rehearsal_lines(&events, Some(&[KeptWire { name: "fixture-worker".into(), version: 7 }]), false);
-    assert!(matches!(events.get(1), Some(Event::Decoded { owner: OWNER, records: 10 })), "{events:?}");
-    assert!(events.iter().any(|event| matches!(event, Event::Patched { of: Owner::Application, patch: 2, counts, .. } if counts.records == u64::from(patches::STORY_SHELVES) + patches::STORY_TOKENS && counts.commits == 3)), "{events:?}");
+    assert!(events.iter().any(|event| matches!(event, Event::Decoded { owner: OWNER, records: 10 })), "{events:?}");
+    assert!(events.iter().any(|event| matches!(event, Event::Ran { of: Owner::Application, job, rows: 3, commits: 2, .. } if job.as_ref() == patches::NEXT.sets[0].jobs[1].name)), "{events:?}");
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
-    Records::story().check_public(&mut world, 2, &"rehearsed copy");
+    Records::story().check_public(&mut world, &"rehearsed copy");
     assert_eq!(world.contents(), before, "every source path and byte unchanged");
     close(&mut world);
     assert_eq!(world.contents(), before, "close only empties scratch");
 }
 
 #[test]
-fn equal_rehearsal_opens_its_own_generation_without_wires_or_patches() {
+fn equal_rehearsal_opens_its_own_generation_without_wires_or_pending_job() {
     let mut world = without_wires(&Records::story());
     let before = world.contents();
     let events = world.rehearse();
@@ -97,23 +88,23 @@ fn equal_rehearsal_opens_its_own_generation_without_wires_or_patches() {
 
 #[test]
 fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() {
-    let mut world = lower();
+    let mut world = previous();
     let last = world.open().expect("equal source start");
     let relative = b"l/1";
     assert_eq!(
         world.commit(Box::new([
             Write::Save(root::header(last + 1)),
-            Write::Put { key: Box::from(relative.as_slice()), value: Box::from(b"refused".as_slice()) },
+            Write::Put { key: Box::from(relative.as_slice()), value: Box::from(b"\x00\x01refused".as_slice()) },
         ])),
         Some(last + 1)
     );
     world.crash(SEED);
-    world.patch_sets(SETS);
+    world.patch_sets(AFTER);
     let before = world.contents();
     let events = world.rehearse();
     let [
         Event::Rehearsing { .. },
-        Event::Undecodable { owner: OWNER, family, version: 2, at: Undecoded::Record { map: KeptMap::Store, key } },
+        Event::Undecodable { owner: OWNER, family, version: 1, at: Undecoded::Record { map: KeptMap::Store, key } },
     ] = events.as_slice()
     else {
         panic!("{events:?}")
@@ -127,54 +118,25 @@ fn rehearsal_decodes_unchanged_families_before_planning_but_start_never_walks() 
     close(&mut world);
     assert_eq!(world.contents(), before, "failed walk and close leave source unchanged");
     world.crash(SEED);
-    world.patch_sets(SETS);
+    world.patch_sets(AFTER);
     assert!(
         world.open_switched().is_some(),
-        "start patches without decoding the unchanged label: {:?}",
+        "start upgrades without decoding the unchanged label: {:?}",
         world.refusal()
     );
 }
 
 #[test]
-fn rehearsal_refusals_leave_every_source_file_unchanged() {
-    let mut records = Records::story();
-    records.shelves[2].books = 0;
-    let mut world = without_wires(&records);
-    world.patch_sets(SETS);
+fn job_rehearsal_reads_shared_transcripts_without_cutting_them() {
+    let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
+    world.patch_sets(patches::FRAME_JOBS);
     let before = world.contents();
     let events = world.rehearse();
     rehearsal_lines(&events, None, false);
-    assert!(
-        matches!(
-            events.last(),
-            Some(Event::OpenRefused { why: OpenRefusal::Patch { owner: Owner::Application, patch: 2, .. }, .. })
-        ),
-        "{events:?}"
-    );
-    assert_eq!(world.contents(), before);
-    close(&mut world);
-
-    let mut world = flights::committed(1);
-    world.patch_sets(flights::CHANGES_FLIGHT);
-    let before = world.contents();
-    let events = world.rehearse();
-    rehearsal_lines(&events, None, false);
-    assert!(matches!(events.last(), Some(Event::OpenRefused { why: OpenRefusal::InFlight { .. }, .. })), "{events:?}");
-    assert_eq!(world.contents(), before);
-    close(&mut world);
-}
-
-#[test]
-fn fresh_rehearsal_reads_shared_transcripts_without_cutting_them() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
-    world.patch_sets(patches::FRESH_AFTER);
-    let before = world.contents();
-    let events = world.rehearse();
-    rehearsal_lines(&events, None, true);
     assert!(matches!(events.last(), Some(Event::Opened { pending: true, .. })), "{events:?}");
     assert_eq!(
         world.get(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(root::LIVE))),
-        patches::fresh_proof(root::LIVE, true, true)
+        patches::frame_proof(root::LIVE, true, false)
     );
     let turns =
         world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
@@ -185,8 +147,8 @@ fn fresh_rehearsal_reads_shared_transcripts_without_cutting_them() {
 
 #[test]
 fn rehearsal_refuses_switch_and_close_is_only_for_rehearsals() {
-    let mut world = lower();
-    world.patch_sets(SETS);
+    let mut world = previous();
+    world.patch_sets(AFTER);
     let _ = world.rehearse();
     let before = world.contents();
     let events = world.request(Request::Switch { owner: OWNER });
@@ -202,8 +164,8 @@ fn rehearsal_refuses_switch_and_close_is_only_for_rehearsals() {
 
 #[test]
 fn next_rehearsal_empties_crashed_scratch_and_close_drains_an_open() {
-    let mut world = lower();
-    world.patch_sets(SETS);
+    let mut world = previous();
+    world.patch_sets(AFTER);
     let _ = world.rehearse();
     let old = world.scratch_contents();
     assert!(old.keys().any(|path| path.starts_with(b"generations/3")));
@@ -221,17 +183,17 @@ fn next_rehearsal_empties_crashed_scratch_and_close_drains_an_open() {
 
 fn switched() -> (World, u64) {
     let mut world = Records::story().committed(SEED, BASE);
-    world.patch_sets(SETS);
-    let last = world.open_switched().expect("patched and switched");
+    world.patch_sets(AFTER);
+    let last = world.open_switched().expect("upgraded and switched");
     world.crash(SEED);
     (world, last)
 }
 #[test]
 fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
+    let mut world = patches::frame_committed(SEED, patches::FRAME_WINDOWS, false);
     let before = world.contents();
-    world.patch_sets(patches::FRESH_AFTER);
-    world.open_switched().expect("fresh patch switched");
+    world.patch_sets(patches::FRAME_JOBS);
+    world.open_switched().expect("frame fixture job switched");
     world.crash(SEED);
     let (path, bytes) = before
         .iter()
@@ -245,7 +207,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.patch_sets(patches::FRESH_BEFORE);
+    world.patch_sets(patches::FRAME_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -260,8 +222,12 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     }
     let turns =
         world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
-    let stored = patches::fixture_turn(1, patches::FRESH_SAID, patches::FRESH_REPLAY, 0);
-    assert_eq!(turns, [root::turn(root::LIVE, 1, 1, &stored), root::turn(root::LIVE, 1, 2, &stored)]);
+    // Going back preserves the stored bytes; the equal-level binary still
+    // patches each frame at read, without changing the previous log.
+    let tokens =
+        u32::try_from(crate::frame_reads::FRAME_KEY_BYTES + patches::FRAME_REPLAY.len()).expect("fixture tokens");
+    let expected = patches::fixture_turn(2, patches::FRAME_SAID, &[], tokens);
+    assert_eq!(turns, [root::turn(root::LIVE, 1, 1, &expected), root::turn(root::LIVE, 1, 2, &expected)]);
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
 }
 
@@ -334,11 +300,11 @@ fn back_durable_replace_cuts_open_one_whole_generation() {
         if active == b"1\n" {
             world.patch_sets(BASE);
             world.open().expect("old generation whole");
-            Records::story().check_public(&mut world, 1, &cut);
+            Records::story().check_public(&mut world, &cut);
         } else {
             assert_eq!(active, b"2\n");
-            world.open().expect("patched generation whole");
-            Records::story().check_public(&mut world, 2, &cut);
+            world.open().expect("upgraded generation whole");
+            Records::story().check_public(&mut world, &cut);
         }
     }
 }
