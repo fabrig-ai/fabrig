@@ -181,6 +181,28 @@ fn ctl_surfaces_areas_and_box_place_kinds_are_accepted() {
 }
 
 #[test]
+fn kinds_supply_scratch_fresh_pinned_agent_and_drive_arguments() {
+    use std::ffi::OsString;
+    use temper_qa_tool::Kind;
+    let root = Path::new("passes/1/setups/root");
+    for (kind, scratch, fresh, pinned, arguments) in [
+        (Kind::Box, "box", true, "data/box/fake-backends/data/workspaces/agent", Vec::new()),
+        (
+            Kind::Deployment,
+            "deployment",
+            false,
+            "data/worker/workspaces/agent",
+            vec![OsString::from("--deployment"), root.join("config").into()],
+        ),
+    ] {
+        assert_eq!(kind.name(), scratch);
+        assert_eq!(kind.offers_fresh(), fresh);
+        assert_eq!(kind.pinned(), pinned);
+        assert_eq!(kind.drive_arguments(Some(root)), arguments);
+    }
+}
+
+#[test]
 fn deployment_places_require_ports_and_keep_their_kind() {
     use temper_qa_tool::Kind;
     let mut value = configuration();

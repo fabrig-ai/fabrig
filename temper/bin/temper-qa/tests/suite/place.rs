@@ -66,7 +66,9 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
         .expect("ledger operations");
     let place = PlacePaths::new(&home.directory.join("places/1"), temper_qa_tool::Kind::Box);
     place.ensure().expect("place");
-    fs::create_dir_all(home.directory.join("passes/1/setups")).expect("setups");
+    let welcome = home.directory.join("passes/1/setups/welcome");
+    fs::create_dir_all(&welcome).expect("setups");
+    fs::write(welcome.join("recipe"), "recipe 1\nweb see \"Welcome\"\n").expect("local recipe");
     fs::create_dir_all(home.directory.join("test-bin")).expect("commands");
     script(&home.directory.join("test-bin/git"), "#!/bin/sh\nexit 0\n");
     script(

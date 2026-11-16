@@ -263,7 +263,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let Some(landing) = ledger.next_landing().cloned() else { return Ok(()) };
         let build =
             ledger.triage_build(landing.number).map_or_else(|| landing.commit.clone(), |build| build.commit.clone());
-        let inputs = Inputs::read(&mut self.git, &landing, &self.home.configuration.surfaces, &build)?;
+        let configuration = &self.home.configuration;
+        let kinds: Vec<_> = configuration.places.iter().map(|place| configuration.place_kind(place)).collect();
+        let inputs = Inputs::read(&mut self.git, &landing, &configuration.surfaces, &kinds, &build)?;
         let number = ledger.start_session(
             landing.number,
             &self.home.configuration.agent.triage,

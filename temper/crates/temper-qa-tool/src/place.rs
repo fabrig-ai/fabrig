@@ -10,9 +10,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// A box worker pins this directory afresh at each start (qa/places.md, 4).
-const BOX_PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
-
 /// Shared with the holder and the loop. Only the holder keeps drive.lock held.
 #[derive(Clone, Debug)]
 pub struct PlacePaths {
@@ -99,10 +96,6 @@ pub struct PassPlace<D, A> {
     ledger: Ledger,
     ctl_only: bool,
 }
-struct CatalogueEntry {
-    parent: Option<String>,
-    refusal: Option<String>,
-}
 struct Recipe {
     name: String,
     hash: String,
@@ -144,7 +137,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     pub fn setup(&mut self, name: &str, output: &mut impl Write) -> Result<u8, Refusal> {
         self.available()?;
         if name == "fresh" {
-            self.check_kind(name, Kind::Box)?;
+            self.paths.kind.check_fresh()?;
             remove(&self.paths.setup)?;
             self.empty()?;
             self.write_setup("fresh\n")?;
@@ -153,7 +146,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         }
         self.restore(name, output)
     }
-    fn catalogue(&mut self) -> Result<BTreeMap<String, CatalogueEntry>, Refusal> {
+    fn catalogue(&mut self) -> Result<BTreeMap<String, Option<String>>, Refusal> {
         let text = self.drive.list(&self.paths, &self.setups)?;
         let mut catalogue = BTreeMap::new();
         for line in text.lines() {
@@ -169,14 +162,11 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             if !recipe_name(name) || parent.as_ref().is_some_and(|parent| !recipe_name(parent)) {
                 return Err(refused(format!("recipe list: invalid name {head}")));
             }
-            catalogue.insert(
-                name.into(),
-                CatalogueEntry { parent, refusal: description.strip_prefix("refused: ").map(str::to_owned) },
-            );
+            catalogue.insert(name.into(), description.strip_prefix("refused: ").map(str::to_owned));
         }
         Ok(catalogue)
     }
-    fn check_name(&self, name: &str, catalogue: &BTreeMap<String, CatalogueEntry>) -> Result<(), Refusal> {
+    fn check_name(&self, name: &str, catalogue: &BTreeMap<String, Option<String>>) -> Result<(), Refusal> {
         if name != "fresh" && !catalogue.contains_key(name) {
             let names =
                 std::iter::once("fresh").chain(catalogue.keys().map(String::as_str)).collect::<Vec<_>>().join(", ");
@@ -188,17 +178,13 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let setup = name;
         let catalogue = self.catalogue()?;
         self.check_name(name, &catalogue)?;
-        self.check_setup_kind(name, &catalogue)?;
-        let mut chain: Vec<Recipe> = Vec::new();
-        let mut next = Some(name.to_owned());
-        while let Some(name) = next.take() {
-            if chain.len() >= 9 || chain.iter().any(|recipe| recipe.name == name) {
-                return Err(refused(format!("recipe {name}: cycle or more than eight parents")));
-            }
+        let local = crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Setup)?;
+        self.check_kind(name, local.kind())?;
+        let mut chain = Vec::new();
+        for member in local.members.into_iter().rev() {
+            let name = member.name;
             if self.ctl_only {
-                let path = self.setups.join(&name).join("recipe");
-                let recipe = io(&path, fs::read_to_string(&path))?;
-                for (index, line) in recipe.lines().enumerate() {
+                for (index, line) in member.recipe.lines().enumerate() {
                     if let Some(surface @ ("web" | "tui")) = line.split_whitespace().next() {
                         return Err(refused(format!(
                             "setup {setup}: recipe {name}:{} has a {surface} line; the pass's surfaces take ctl and forge lines alone",
@@ -209,36 +195,23 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             let hash = self.drive.hash(&self.paths, &self.setups, &name)?;
             let entry = catalogue.get(&name).ok_or_else(|| refused(format!("recipe {name}: missing parent")))?;
-            if let Some(why) = &entry.refusal {
+            if let Some(why) = entry {
                 return Err(refused(format!("recipe {name}: {why}")));
             }
-            next.clone_from(&entry.parent);
             chain.push(Recipe { name, hash });
         }
         chain.reverse();
         Ok(chain)
     }
-    fn check_setup_kind(&self, name: &str, catalogue: &BTreeMap<String, CatalogueEntry>) -> Result<(), Refusal> {
+    fn check_setup_kind(&self, name: &str) -> Result<(), Refusal> {
         if name == "fresh" {
-            return self.check_kind(name, Kind::Box);
+            return self.paths.kind.check_fresh();
         }
-        let kind = crate::kind::chain_kind(name, |name| {
-            Ok(catalogue.get(name).map(|entry| crate::kind::Setup {
-                parent: entry.parent.clone(),
-                config: self.setups.join(name).join("config").is_dir(),
-            }))
-        })?;
-        if let Some(kind) = kind {
-            self.check_kind(name, kind)?;
-        }
-        Ok(())
+        self.check_kind(name, crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Setup)?.kind())
     }
     fn check_kind(&self, name: &str, kind: Kind) -> Result<(), Refusal> {
         if self.paths.kind == kind {
             return Ok(());
-        }
-        if name == "fresh" {
-            return Err(refused("a deployment's place has no fresh setup: its setups start from their root's config/"));
         }
         Err(refused(format!(
             "setup {name} is a {}'s; {} is a {}'s place",
@@ -286,7 +259,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let temporary = directory.join("copy.tmp");
         remove(&temporary)?;
         private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
-        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary, &[BOX_PINNED_AGENT]) {
+        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary, &[self.paths.kind.pinned()]) {
             remove(&temporary)?;
             return Err(why);
         }
@@ -394,7 +367,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             self.empty()?;
             if let Some((_, copy)) = &source {
-                self.archive.extract(&copy.path, &self.paths.scratch, &[BOX_PINNED_AGENT])?;
+                self.archive.extract(&copy.path, &self.paths.scratch, &[self.paths.kind.pinned()])?;
             }
             let start =
                 source.as_ref().map_or(0, |(index, _)| if index + 1 == chain.len() { *index } else { index + 1 });
@@ -464,7 +437,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         }
         let catalogue = self.catalogue()?;
         self.check_name(&input.after, &catalogue)?;
-        self.check_setup_kind(&input.after, &catalogue)?;
+        self.check_setup_kind(&input.after)?;
         if input.after == name {
             return Err(refused(format!("recipe {name}: cannot be its own parent")));
         }
@@ -526,7 +499,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         Ok(0)
     }
 }
-fn recipe_name(name: &str) -> bool {
+pub(crate) fn recipe_name(name: &str) -> bool {
     (1..=64).contains(&name.len())
         && name.bytes().next().is_some_and(|byte| byte.is_ascii_lowercase())
         && name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')

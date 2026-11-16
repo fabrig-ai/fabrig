@@ -104,7 +104,7 @@ fn write_resume(text: &mut String, ledger: &Ledger, session: &Session, cases: &[
 
 fn write_setups(git: &mut impl GitFace, text: &mut String, home: &Home, pass: &Pass) -> Result<(), Refusal> {
     writeln!(text, "\n## Setups\n\nDirectory: {}", pass_files::setups(home, pass.number).display()).expect("string");
-    if pass.kind == Kind::Box {
+    if pass.kind.offers_fresh() {
         text.push_str("- fresh: an empty box\n");
     }
     for (name, kind) in crate::brief::setup_names(git, &pass.build, &home.configuration.surfaces)? {
