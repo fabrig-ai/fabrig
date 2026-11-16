@@ -699,6 +699,58 @@ fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
     kept
 }
 #[test]
+fn a_seeded_github_apps_records_start_one_connected_forge_as_its_bot_and_serve_a_call() {
+    use jig_client_protocol_wire::v24::SignInAnswer;
+    use skein_lib::{List, Secret};
+    use temper_engine_domain_forge as domain;
+    use temper_github_app::APP;
+
+    let origin = ([127, 0, 0, 1], 3000).into();
+    let mut record = fixtures::forge_record(1);
+    record.kind = domain::Kind::GitHub;
+    record.place.api.host = b"127.0.0.1".as_slice().into();
+    record.place.git = b"http://127.0.0.1:3000".as_slice().into();
+    record.place.web = Some(record.place.git.clone());
+    record.bot.login = b"x-access-token".as_slice().into();
+    let mut store = fixtures::records_store();
+    fixtures::commit(
+        &mut store,
+        2,
+        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) })]),
+    );
+    assert!(store.host.above.pop().is_some());
+    for (number, bytes) in temper_github_app::records(&APP, 1, &[1], origin) {
+        assert!(store.secrets(Token::new(123), fixtures::application_request(number, Secret::new(bytes))).is_none());
+        assert!(store.host.above.pop().is_some());
+    }
+    let mut settings = fixtures::engine();
+    fixtures::fill_files(&mut settings);
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.store = fixtures::reopened_store(store, &engine.env.limits);
+    let mut face = fixtures::ForgeFace::new();
+    face.connected(&mut service);
+    face.answer(&mut service, &forge_ok(b"[]"));
+
+    let rows = service.engine.as_ref().expect("engine").domain.forges().rows;
+    let [forge] = rows.as_ref() else { panic!("one restored forge: {rows:?}") };
+    assert_eq!(
+        forge.connection,
+        domain::Connection::Connected { id: APP.bot, login: b"temper-test[bot]".as_slice().into() }
+    );
+    assert_eq!(service.end(), None);
+
+    fixtures::turn(&mut service);
+    let link = service.links().pop().expect("started service's sign-in link");
+    let engine = service.engine.as_mut().expect("engine");
+    let body = fixtures::http::link_body(engine, &link);
+    let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    peer.pump(engine, true);
+    let SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("started service answers") };
+    assert_eq!(answer.party(), 1, "the deployment's owner signs in after the seeded start");
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary routing tests inspect store requests and HTTP fixture bytes")]
 #[expect(
     clippy::too_many_lines,

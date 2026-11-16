@@ -6550,6 +6550,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-forge-setup",
+ "temper-github-app",
  "temper-init",
  "temper-protocol-records",
  "temper-protocol-records-forge",

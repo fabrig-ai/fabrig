@@ -293,6 +293,9 @@ impl State {
         config.limits.calls = protocol_limits().calls;
         config.limits.title_bytes = 512;
         config.limits.body_bytes = 2048;
+        // Mergeability settles on the smoke story's clock, not the checkout world's two seconds.
+        config.settle_min = Duration::ZERO;
+        config.settle_max = Duration::ZERO;
         (fixture.configure_domain)(&mut config);
         assert!(skein_fake_forge_http::git::fits(&protocol_limits().git(), &config.limits), "bounded git trees fit");
         let clock = skein_shell::Clock::new().now();
@@ -601,4 +604,67 @@ pub fn scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Scr
         arguments: br#"{"words":"@coding Fix","repository":"acme/app"}"#.as_slice().into(),
     }]);
     scripts
+}
+
+/// Scan scratch files and client output for tokens and the supplied fake App key.
+/// Return the scanned paths so callers can inspect local git objects without another walk.
+#[must_use]
+pub fn check_secrets(ran: &Ran, pem: &[u8], downloaded: Option<&Path>) -> Vec<std::path::PathBuf> {
+    use skein_lib::{
+        Writer,
+        base64::{self, Alphabet},
+    };
+    use std::os::unix::fs::PermissionsExt;
+    let secrets = ran.path().join("state/generations/1/secrets");
+    assert!(secrets.is_dir(), "the excluded directory is jig's secrets store");
+    if let Some(downloaded) = downloaded {
+        // The person's original download is the sole deliberate plaintext input.
+        assert_eq!(std::fs::metadata(downloaded).expect("download").permissions().mode() & 0o777, 0o600);
+    } else {
+        assert!(!ran.path().join("github-app.pem").exists(), "manifest flow has no downloaded paste input");
+    }
+    // Walk once for both checks, never following a symlink into the secrets store.
+    let mut files = Vec::new();
+    let mut pending = vec![ran.path().to_path_buf()];
+    while let Some(path) = pending.pop() {
+        if path == secrets || downloaded == Some(path.as_path()) {
+            continue;
+        }
+        let metadata = std::fs::symlink_metadata(&path).expect("scratch metadata");
+        if metadata.is_dir() {
+            pending.extend(
+                std::fs::read_dir(path).expect("scratch directory").map(|entry| entry.expect("scratch entry").path()),
+            );
+        } else if metadata.is_file() {
+            files.push(path);
+        }
+    }
+    let text = std::str::from_utf8(pem).expect("PEM text");
+    let compact: String = text.lines().filter(|line| !line.starts_with("-----")).collect();
+    let key = base64::decode(Alphabet::Standard, compact.as_bytes(), 4096).expect("converted key DER");
+    let size = base64::encoded_len(Alphabet::Standard, u32::try_from(key.len()).expect("test key length"))
+        .expect("base64 length");
+    let mut encoded = Writer::new(usize::try_from(size).expect("base64 size"));
+    base64::encode(Alphabet::Standard, &key, &mut encoded).expect("base64 key");
+    let encoded = encoded.finish();
+    let clean = |bytes: &[u8]| {
+        assert!(
+            !bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)),
+            "minted-token pattern outside jig's secrets store"
+        );
+        assert!(skein_lib::bytes::find(bytes, pem).is_none(), "App PEM outside jig's secrets store");
+        assert!(skein_lib::bytes::find(bytes, &key).is_none(), "App DER outside jig's secrets store");
+        assert!(skein_lib::bytes::find(bytes, &encoded).is_none(), "App base64 outside jig's secrets store");
+    };
+    for path in &files {
+        clean(&std::fs::read(path).expect("scratch file"));
+    }
+    for visit in ran.browsed() {
+        clean(&visit.body);
+    }
+    for call in ran.calls() {
+        clean(&call.stdout);
+        clean(&call.stderr);
+    }
+    files
 }
