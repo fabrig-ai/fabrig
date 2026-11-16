@@ -29,7 +29,7 @@ and deployment lines alone; the web client and the TUI reach it in Q7.
   values, and `deployment patch`, which changes a document between two
   starts, so a project's landing reaches what the recipe made.
 - **A newer build** (section 8): every process from the place's `bin/`,
-  the store patched forward, the fakes' state back.
+  the store's registry and jobs upgraded as needed, the fakes' state back.
 
 ## 2. Its documents
 
@@ -275,10 +275,11 @@ instead.
   The documents name the place's `bin/` and directories, never a kept
   build's, so a copy restores only at the place that made it, as a
   box's does.
-- **Patched forward:** the engine patches its store as it starts, as a
-  redeploy does (`../../protocol/store.md`, 5; `../../redeploy.md`); a
-  store it has no patch for is refused by name, status 3, and the place
-  makes the copy again. The fake Forgejo restores its state; a state it
+- **Upgraded at open:** the engine plans the store's registry and runs
+  pending jobs in a copy before restoring and switching, as a redeploy
+  does (`../../protocol/store.md`, 4 and 5; `../../redeploy.md`). A
+  store below the floor is refused by name (`../../protocol/floor.md`,
+  4), status 3, and the place makes the copy again. The fake Forgejo restores its state; a state it
   cannot read is refused by name, status 3, too.
 
 ## 9. Its code and tests

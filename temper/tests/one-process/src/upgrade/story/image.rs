@@ -1,4 +1,4 @@
-//! The current build's settled stop (temper/docs/design/protocol/baseline.md, 8).
+//! The current build's settled stop (temper/docs/design/protocol/floor.md, 7).
 use super::{Maps, STATE, State, fixtures, golden, mutations, referee, runner::World, stories};
 use skein_fake_forge_domain::{Observation, promises::Recorded};
 use skein_fake_forge_forgejo::observations;

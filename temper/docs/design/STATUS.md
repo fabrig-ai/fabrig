@@ -1,6 +1,6 @@
 # Status
 
-2026-11-14. The first milestone stands in the code. The wires between
+2026-11-16. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening; each build speaks each wire from its floor, and jig's channel
@@ -348,8 +348,11 @@ shared shells, and `--version` reads `temper-version`. Its ctl story signs
 in to a `temper-engine` and runs after landing. Its closure is held by the
 boundary test's row, with five shared vocabulary crates as named
 exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
-The compiled `commands` page renders the client's table first
-(`protocol/documentation.status.md`).
+The compiled `commands` page renders the client's table first.
+The upgrade commands and a start's job lines are built; the help walk
+`upgrade` is not written (`protocol/documentation.status.md`). The
+check reports whole rehearsal/tool time, but each job's time is
+unavailable (`protocol/binaries.status.md`).
 
 temper's command lines, `draft/cli.execution.md`'s C2, C3, C4 and C6: the box's
 binary is `temper-box`, a package under `bin/` whose crate is
@@ -495,7 +498,7 @@ Design documents:
 - [`domain/worker/jobs.md`](domain/worker/jobs.status.md)
 - [`playground.md`](playground.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
-- [`protocol/baseline.md`](protocol/baseline.status.md)
+- [`protocol/floor.md`](protocol/floor.status.md) — floor 1, dev.fabrig.ai's settled store; explicit owner levels, registered layouts converted at read, fixed formats outside the registry and named refusals below the floor. The one-process floor deployment opens and serves; its floorless copy refuses. Upgrade stories use a registry change and a job, with a current settled image. No gap.
 - [`protocol/binaries.md`](protocol/binaries.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/cluster.md`](protocol/cluster.status.md)
@@ -524,7 +527,7 @@ Design documents:
 - [`protocol/setup/reconcile.md`](protocol/setup/reconcile.status.md)
 - [`protocol/setup/testing.md`](protocol/setup/testing.status.md)
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
-- [`protocol/store.md`](protocol/store.status.md)
+- [`protocol/store.md`](protocol/store.status.md) — the current registered schema is v25, with no map patch history; `temper-secrets` is fixed at v1. Other implementation gaps are listed in its status.
 - [`protocol/tooling.md`](protocol/tooling.status.md)
 - [`protocol/wires.md`](protocol/wires.status.md)
 - [`redeploy.md`](redeploy.status.md)

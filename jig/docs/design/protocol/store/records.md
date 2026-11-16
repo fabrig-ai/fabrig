@@ -278,7 +278,7 @@ settings (decided 2026-11-03).
   its registry and its jobs (`layouts.md`; `jobs.md`), and a format
   outside the registry is fixed (temper's `draft/store-floor.md`, section 5). The row is
   the levels and the versions they imply.
-- **The row at open** (temper's `protocol/baseline.md`):
+- **The row at open** (temper's `protocol/floor.md`):
   - **Written** by the first commit, with the binary's levels, and by
     an upgrade's last commit (`opening.md`, 2), with the same levels;
     by no other commit.

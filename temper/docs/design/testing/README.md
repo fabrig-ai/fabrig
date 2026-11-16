@@ -284,52 +284,53 @@ terminal client, the captures and the faults.
     project, a person and an account; a goal's change landed; a chat
     paused and a task mid-run on the in-process worker; a forge write
     left uncertain by a fault; then a settled stop, and a start of the
-    same build handed the fixture sets (`../protocol/baseline.md`, 8:
-    the real sets, temper's extended by a patch that changes no family
-    and carries `fresh-windows`; `temper-service`'s `Service::patch_sets`
-    hands them): patched in a copy, every live window closed, restored
-    before the switch, switched, its wires committed, and on. No
-    fixture names a family it changes;
+    same build handed `CURRENT_SETS` after the story used `first_sets()`
+    (`../protocol/floor.md`, 7): the production levels unchanged, a
+    registered receipt layout gaining its defaulted `report` and the
+    job `deleted-repository-forge-rows` pending. `temper-service`'s
+    `Service::owner_sets` hands them. The open commits the registry
+    and runs the job in a copy, restores before the switch, switches
+    and commits its wires. No fresh mark closes the live windows;
   - the same start rehearsed first (jig's `protocol/store/opening.md`, 5),
-    reporting each patch and the restores whole and leaving the
+    reporting the job and the restores whole and leaving the
     directory as it was, then made; and a start failed by the world
     after `Switched` and before its wires are durable, gone back from
     (`Store::back`), the build before it opening the generation as it
     was;
   - the stop unsettled instead, the service killed with the forge write
-    in flight: the upgrade's start patches (the fixture patch changes no
-    family), and the new build recovers the write as after any stop,
+    in flight: the upgrade's start registers the layout and runs the
+    job, and recovers the write as after any stop,
     made once;
   - power lost at a drawn moment of that start, from the copy to the
     wires' commit: the next start finds one whole generation and goes
     on as above. Focused draws one moment; fuzzy sweeps drawn moments
-    and the cuts at the copy's first write, the patch's commit, the
+    and the cuts at the copy's first write, the upgrade's seal commit, the
     switch's rename and the wires' commit, each a whole story. The
     store's own cuts there are jig's store world's (jig's
     `domain/testing.md`, 9). These cases and the settled stop start
-    from the settled image (`../protocol/baseline.md`, 8).
+    from the settled image (`../protocol/floor.md`, 7).
 
   The upgrade's referee compares the history at the stop with the
   history once the start's wires are durable, before anything acts:
   record by record (people, projects, accounts, tasks live and ended,
   landings, kept outcomes, each forge's records, each forge's secrets),
-  equal but for what the patches and the mark say (windows closed,
-  claims crossed), what any restore writes (expired rows erased, the
-  accounts' wants, the release's settings revision) and the wires. Then,
-  as the world goes on: the crossed claims settled; no forge write made
+  equal but for the registry's new receipt layout, the job's done row,
+  the commit position and the start's wires clearing the previous
+  worker opening. No receipt or deleted-repository row is written by
+  this story. Then, as the world goes on: claims settle; no forge write made
   twice, by the fake forge's ledger, kept across the service's
   restarts; a request sent again under its key answered from its record;
   every number given above every number kept; the mid-run task's next
-  attempt fresh, with the closed window's tail; the paused chat resumed.
+  attempt continues without a mark closing its window; the paused chat resumed.
 
-  The world's seams for it: `Service::patch_sets`; a fault the world
+  The world's seams for it: `Service::owner_sets`; a fault the world
   injects between `Switched` and the wires' commit; the fake forge's
   ledger outliving a restart. Of the draft's section 13, the faults
   below the store (a full disk, a short write, a failed sync, a
-  malformed or refused record, a limit too small, an effect in flight
-  in a patched family) are jig's store world's (jig's
-  `protocol/store/README.md`, section 9); the baseline's golden store
-  is `../protocol/baseline.md`, 6's, kept here; the engine alone (its
+  malformed or refused record, a limit too small) are jig's store
+  world's (jig's `protocol/store/README.md`, section 9). An effect in
+  flight is not an upgrade refusal. The floor's golden store
+  is `../protocol/floor.md`, 5's, kept here; the engine alone (its
   workers kept across the engine's upgrade) waits for wires that can
   differ.
 - **Faults:** kills and power loss at drawn submissions; the fake
@@ -349,7 +350,7 @@ terminal client, the captures and the faults.
   - no git identity's value or API token in a domain's state, a store
     record or an agent process's environment.
 - **Budget:** a story aims at 2 s (`checks.md`, 1); sweeps of drawn kills are fuzzy
-  tests. The upgrade module's tests are placed as `../protocol/baseline.md`, 8
+  tests. The upgrade module's tests are placed as `../protocol/floor.md`, 7
   lists.
   Each story, each run above among them, is a test of its own;
   Anthropic's keys through `ctl` are `tests/client`'s

@@ -482,7 +482,7 @@ impl OwnerSets {
   and the shell's versions line) reads `level`. temper's store shell
   hands the four real sets, `SKEIN_SET` and `SMITH_SET` of this crate,
   `JIG_SET` of `jig-protocol-accounts` and temper's `OWNER_SET`
-  (temper's `protocol/baseline.md`, 4). This crate owns
+  (temper's `protocol/floor.md`, 3). This crate owns
   `STORE_FAMILIES` and `JIG_STORE_SET`: its families' metadata,
   registered value types and written jobs. Accounts builds `JIG_SET`
   from that set, appending its own `jig-accounts` family; the store

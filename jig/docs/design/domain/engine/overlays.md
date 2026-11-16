@@ -148,7 +148,7 @@ its parts, `../tasks/messages.md`, 6.
 - **Stored:** a charter version is one registered root,
   `CharterVersion`, with an optional overlay
   (`../../protocol/store/layouts.md`, 2). A charter with no overlay
-  keeps its fields alone (`temper/docs/design/protocol/baseline.md`, 7).
+  keeps its fields alone (`temper/docs/design/protocol/floor.md`, 6).
   Schema changes use defaults, former names or a written job, not a
   version move (`../../protocol/store/layouts.md`, 4 and 6). The
   client's wire follows its own version rule
