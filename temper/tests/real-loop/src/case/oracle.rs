@@ -9477,7 +9477,7 @@ const QA_MESSAGE: Promise = Promise::Must("A1 messages its requester the exact t
 const QA_NEXT: Promise =
     Promise::Must("A delegates M2's sub-owner on that message, beside live A1 and T, and passes it on");
 const QA_AUTHORITY: Promise = Promise::Must(
-    "a tester without forge effects or delegation is answered beyond authority and writes nothing to the forge",
+    "a tester without forge effects or delegation has its status call refused as undeclared and writes nothing to the forge",
 );
 const QA_ADD: Promise = Promise::Add("the tester's tests land only through A1's change");
 const QA_ENDED: Promise =
@@ -9592,8 +9592,7 @@ fn qa_authority(observed: &Observed) -> bool {
                 && args["resource"] == serde_json::json!({"kind":"repository"})
                 && args["write"]["kind"] == "status"
                 && args["write"]["context"] == STATUS_CONTEXT
-                && contains(out, "Authority refused:")
-                && contains(out, "tool family")
+                && out.as_slice() == b"Error: unknown tool"
         })
         && waiting_raw_tools(observed, Read::QaTesterEnded)
             .iter()
@@ -9756,7 +9755,7 @@ pub fn step_6_8(observed: &Observed) -> Vec<Miss> {
         (
             qa_authority(observed),
             QA_AUTHORITY,
-            "T's narrowed authority, one denied status and no forge write/pull/push",
+            "T's narrowed authority, one undeclared status call and no forge write/pull/push",
         ),
         (
             qa_landing(observed),
@@ -9851,7 +9850,7 @@ mod milestone_tests {
         done.documents.get_mut(&Read::QaSubownerBefore).expect("live")["task"]["chip"]["phase"] = json!("ended");
         assert!(!qa_message(&done));
     }
-    fn authority() -> Observed {
+    fn authority(denial: &str) -> Observed {
         let mut o = empty();
         o.documents.insert(
             Read::QaTesterEnded,
@@ -9873,15 +9872,16 @@ mod milestone_tests {
                     "repository":{"forge":1,"repository":crate::forge::ID},"resource":{"kind":"repository"},
                     "write":{"kind":"status","context":STATUS_CONTEXT}
                 }),
-                "Authority refused: tool family",
+                denial,
             ),
         ));
         o
     }
     #[test]
     fn tester_authority_and_denial_are_both_required_and_a_forge_write_is_rejected() {
-        let o = authority();
+        let o = authority("Error: unknown tool");
         assert!(qa_authority(&o));
+        assert!(!qa_authority(&authority("Authority refused: tool family")));
         for (field, value) in [("tools", json!(1)), ("grants", json!([{"kind":8}]))] {
             let mut wide = o.clone();
             wide.documents.get_mut(&Read::QaTesterEnded).expect("tester")["task"]["authority"]["authority"][field] =

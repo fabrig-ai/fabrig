@@ -146,220 +146,134 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 40);
+    assert_eq!(charter.grants.host_tools.len(), 7);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
 
-fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = crate::calls::tools_for(
-        timeout,
-        engine::RunPolicy::EVERY_FAMILY,
-        tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0),
-    );
-    for tool in &mut expected {
-        tool.reserve = tool.name.as_ref() == b"message";
+#[expect(clippy::manual_find, reason = "step fixtures use loops rather than iterator closures")]
+fn declaration_named<'a>(tools: &'a [run::HostTool], name: &[u8]) -> Option<&'a run::HostTool> {
+    for tool in tools {
+        if tool.name.as_ref() == name {
+            return Some(tool);
+        }
     }
-    expected
+    None
 }
 
 #[test]
-fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    // Without the charter's delegate family, message and settings add one and two declarations.
-    const WITHOUT_SETTINGS: usize = 35;
-    const WITH_SETTINGS: usize = 37;
-    let settings = jig_domain_core::ToolFamilies::JIG.settings;
-    let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
-    for (charter, authority, allowed, count) in [
-        (0, authority, false, WITHOUT_SETTINGS),
-        (0, authority | settings, false, WITHOUT_SETTINGS),
-        (settings, authority, false, WITHOUT_SETTINGS),
-        (settings, authority | settings, true, WITH_SETTINGS),
-    ] {
-        let mut assignment = assignment();
-        assignment.run.policy.tools = tasks::Tools(charter);
-        assignment.run.authority.tools = tasks::Tools(authority);
-        let charter = crate::charter(&assignment);
-        assert_eq!(charter.grants.host_tools.len(), count);
-        for name in [b"settings".as_slice(), b"propose_settings"] {
-            let mut found = false;
-            for tool in &charter.grants.host_tools {
-                if tool.name.as_ref() == name {
-                    found = true;
-                }
-            }
-            assert_eq!(found, allowed);
-        }
-        for tool in goal_tools(Duration::from_secs(10)) {
-            if tool.name.as_ref() != b"settings"
-                && tool.name.as_ref() != b"propose_settings"
-                && tool.name.as_ref() != b"read_task"
-                && tool.name.as_ref() != b"goal"
-                && tool.name.as_ref() != b"change"
-                && tool.name.as_ref() != b"delegate"
-                && tool.name.as_ref() != b"finding"
-                && tool.name.as_ref() != b"red"
-                && tool.name.as_ref() != b"follow"
-            {
-                assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
-            }
-        }
-    }
-}
-
-#[test]
-#[expect(clippy::too_many_lines, reason = "one table checks asking schemas and both charter-family gates")]
-fn settings_and_delegate_tools_need_the_charters_family() {
-    type AskingNames = Option<&'static [&'static [u8]]>;
-    let stock = 1_539;
-    let mut assignment = assignment();
-    assignment.run.policy.tools = tasks::Tools(512);
-    assignment.run.authority.tools = tasks::Tools(stock | 1024);
-    let charter = crate::charter(&assignment);
-    let mut offered = charter.grants.host_tools.iter();
-    for tool in goal_tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"settings"
-            && tool.name.as_ref() != b"propose_settings"
-            && tool.name.as_ref() != b"goal"
-            && tool.name.as_ref() != b"change"
-            && tool.name.as_ref() != b"delegate"
-            && tool.name.as_ref() != b"finding"
-            && tool.name.as_ref() != b"red"
-            && tool.name.as_ref() != b"follow"
-        {
-            assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
-        }
-    }
-    assert_eq!(offered.next(), None, "no settings, delegate or additional tools");
-    let timeout = Duration::from_secs(13);
-    let rows: [(u64, u64, AskingNames); 8] = [
-        (u64::MAX, u64::MAX, None),
-        (3_584, 3_584, None),
-        (3_072, 3_072, Some(&[b"see", b"document", b"remember", b"propose_settings"])),
-        (2_048, 3_072, Some(&[b"see", b"document", b"remember"])),
-        (3_072, 1_024, Some(&[b"propose_settings"])),
-        (1_023, u64::MAX, None),
-        (1_920, u64::MAX, None),
-        (1_022, u64::MAX, None),
+fn each_family_needs_both_charter_and_authority() {
+    let f = jig_domain_core::ToolFamilies::JIG;
+    let rows: &[(u64, &[&[u8]])] = &[
+        (f.delegate.0, &[b"finding", b"red", b"follow", b"goal", b"change", b"delegate"]),
+        (f.message.0, &[b"message", b"introduce"]),
+        (f.control.0, &[b"decided", b"amend", b"cancel", b"release"]),
+        (f.decide.0, &[b"decide", b"decide_escalation", b"withdraw"]),
+        (f.propose.0, &[b"propose"]),
+        (f.subscribe.0, &[b"subscribe", b"unsubscribe", b"subscribe_forge"]),
+        (f.effect.0, &[b"effect_forge"]),
+        (f.note.0, &[b"note"]),
+        (f.recall.0, &[b"recall"]),
+        (
+            f.read.0,
+            &[
+                b"read_task",
+                b"read_items",
+                b"read_item",
+                b"read_pull",
+                b"read_pull_for",
+                b"read_reviews",
+                b"read_statuses",
+                b"read_remarks",
+                b"read_branch",
+                b"read_branches",
+                b"read_pull_files",
+                b"read_compare",
+                b"read_checks",
+                b"read_file",
+                b"read_job",
+                b"read_protection",
+                b"read_settings",
+                b"read_collaborators",
+                b"read_permission",
+            ],
+        ),
+        (f.settings, &[b"settings", b"propose_settings"]),
     ];
-    for (charter, authority, asking_names) in rows {
-        let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
-        if charter == 1_022 {
-            for (name, declared) in [
-                (b"goal".as_slice(), false),
-                (b"change", false),
-                (b"delegate", false),
-                (b"note", true),
-                (b"recall", true),
-                (b"read_branch", true),
-                (b"read_file", true),
-            ] {
-                let mut found = false;
-                for tool in &offered {
-                    if tool.name.as_ref() == name {
-                        found = true;
-                    }
+    let all = engine::RunPolicy::EVERY_FAMILY;
+    for &(family, names) in rows {
+        let family = tasks::Tools(family);
+        for (charter, authority, allowed) in
+            [(family, all, true), (family, tasks::Tools(all.0 & !family.0), false), (tasks::Tools(0), all, false)]
+        {
+            let offered = crate::calls::tools_for(Duration::from_secs(1), charter, authority);
+            let mut offered = offered.iter();
+            if allowed {
+                for name in names {
+                    assert_eq!(offered.next().expect("family tool").name.as_ref(), *name);
                 }
-                assert_eq!(found, declared, "drafter: {name:?}");
             }
+            assert_eq!(offered.next().expect("read_docs for non-asking runs").name.as_ref(), b"read_docs");
+            assert_eq!(offered.next(), None, "only this family's tools: {family:?}");
+        }
+    }
+}
+
+#[test]
+fn asking_charters_keep_their_own_forms_and_require_authority() {
+    let timeout = Duration::from_secs(13);
+    let rows: &[(u64, u64, &[&[u8]])] = &[
+        (3_072, 3_072, &[b"see", b"document", b"remember", b"propose_settings"]),
+        (2_048, 3_072, &[b"see", b"document", b"remember"]),
+        (3_072, 1_024, &[b"propose_settings"]),
+        (2_048, 1_024, &[]),
+    ];
+    for &(charter, authority, names) in rows {
+        let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
+        assert_eq!(offered.len(), names.len());
+        for (tool, name) in offered.iter().zip(names) {
+            assert_eq!(tool.name.as_ref(), *name);
         }
         for tool in &offered {
             assert_eq!(tool.timeout, timeout);
-        }
-        if let Some(names) = asking_names {
-            assert_eq!(offered.len(), names.len(), "charter {charter}");
-            for (tool, name) in offered.iter().zip(names) {
-                assert_eq!(tool.name.as_ref(), *name, "charter {charter}");
+            if tool.name.as_ref() == b"propose_settings" {
+                let schema = crate::json::parse(&tool.schema).unwrap();
+                let properties = schema.required(b"properties").unwrap();
+                assert!(properties.field(b"note").unwrap().is_none());
+                assert!(properties.field(b"more").unwrap().is_some());
             }
-            for tool in &offered {
-                if tool.name.as_ref() == b"propose_settings" {
-                    let schema = crate::json::parse(&tool.schema).unwrap();
-                    let properties = schema.required(b"properties").unwrap();
-                    assert!(properties.field(b"note").unwrap().is_none());
-                    assert!(properties.field(b"more").unwrap().is_some());
-                    assert_eq!(
-                        schema.required(b"required").unwrap(),
-                        &crate::json::Value::Array(Box::new([
-                            crate::json::Value::String(b"against".as_slice().into()),
-                            crate::json::Value::String(b"reason".as_slice().into()),
-                            crate::json::Value::String(b"items".as_slice().into()),
-                        ]))
-                    );
-                }
-            }
-        } else {
-            let expected = crate::calls::tools_for(
-                timeout,
-                engine::RunPolicy::EVERY_FAMILY,
-                tasks::Tools(authority & if charter & 1_024 == 0 { !1_024 } else { u64::MAX }),
-            );
-            let mut declarations = offered.iter();
-            for tool in &expected {
-                if charter & 1 == 0
-                    && (tool.name.as_ref() == b"goal"
-                        || tool.name.as_ref() == b"change"
-                        || tool.name.as_ref() == b"delegate"
-                        || tool.name.as_ref() == b"finding"
-                        || tool.name.as_ref() == b"red"
-                        || tool.name.as_ref() == b"follow")
-                {
-                    continue;
-                }
-                assert_eq!(declarations.next(), Some(tool), "unchanged declarations for charter {charter}");
-            }
-            assert_eq!(declarations.next(), None, "no additional tools for charter {charter}");
-            let mut proposal = false;
-            for tool in &offered {
-                assert!(
-                    tool.name.as_ref() != b"see"
-                        && tool.name.as_ref() != b"document"
-                        && tool.name.as_ref() != b"remember"
-                );
-                if tool.name.as_ref() == b"propose_settings" {
-                    proposal = true;
-                    assert!(
-                        crate::json::parse(&tool.schema)
-                            .unwrap()
-                            .required(b"properties")
-                            .unwrap()
-                            .field(b"note")
-                            .unwrap()
-                            .is_some()
-                    );
-                }
-            }
-            assert_eq!(proposal, charter & authority & 1_024 != 0);
         }
     }
+    let all = engine::RunPolicy::EVERY_FAMILY;
+    assert!(!engine::asking(all));
+    let offered = crate::calls::tools_for(timeout, all, all);
+    for name in [b"see".as_slice(), b"document", b"remember"] {
+        assert!(declaration_named(&offered, name).is_none());
+    }
+    let proposal = declaration_named(&offered, b"propose_settings").unwrap();
+    assert!(
+        crate::json::parse(&proposal.schema)
+            .unwrap()
+            .required(b"properties")
+            .unwrap()
+            .field(b"note")
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]
-fn message_is_offered_only_with_the_runs_message_family() {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    for settings in [false, true] {
-        for (role, authority, message) in [
-            ("coder", families.read.0 | families.effect.0, false),
-            ("repairer", families.read.0 | families.effect.0, false),
-            ("reviewer", families.read.0, false),
-            ("chat", families.read.0 | families.message.0, true),
-            ("goal", families.delegate.0 | families.message.0, true),
-        ] {
-            let mut assignment = assignment();
-            assignment.run.authority.tools = tasks::Tools(authority | if settings { families.settings } else { 0 });
-            let charter = crate::charter(&assignment);
-            let expected = goal_tools(Duration::from_secs(10));
-            let mut offered = charter.grants.host_tools.iter();
-            for tool in &expected {
-                if (!settings && (tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings"))
-                    || (!message && tool.name.as_ref() == b"message")
-                    || (authority & families.read.0 == 0 && tool.name.as_ref() == b"read_task")
-                {
-                    continue;
-                }
-                assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
-            }
-            assert_eq!(offered.next(), None, "{role}: no additional tools");
-        }
+fn stock_coder_and_goal_offers_follow_their_family_intersection() {
+    let coder = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(514), tasks::Tools(514));
+    assert_eq!(coder.len(), 22);
+    for tool in &coder {
+        assert!(
+            tool.name.as_ref() == b"message" || tool.name.as_ref() == b"introduce" || tool.name.starts_with(b"read_")
+        );
+    }
+    let goal = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(1_023), tasks::Tools(4_007));
+    for name in [b"decide".as_slice(), b"decide_escalation", b"withdraw", b"propose", b"effect_forge"] {
+        assert!(declaration_named(&goal, name).is_none(), "{name:?}");
     }
 }
 
@@ -381,7 +295,13 @@ fn declarations_name_no_asking_tool_the_caller_lacks() {
             read = Some(tool);
         }
     }
-    let decided = decided.expect("decided declared");
+    assert!(decided.is_none(), "read authority lacks control");
+    let control = crate::calls::tools_for(
+        Duration::from_secs(10),
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(jig_domain_core::ToolFamilies::JIG.control.0),
+    );
+    let decided = declaration_named(&control, b"decided").expect("control declaration");
     assert_eq!(decided.description.as_ref(), b"Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.");
     let schema = crate::json::parse(&decided.schema).expect("schema");
     let under = schema.required(b"properties").unwrap().required(b"under").unwrap().required(b"description").unwrap();

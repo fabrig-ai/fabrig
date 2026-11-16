@@ -8,7 +8,8 @@ pub(crate) const SPEC: Spec = Spec {
     description: b"A red is a failure a goal's branch carries that no live change owns. record: key at why; end: key why; list",
     schema: br#"{"type":"object","properties":{"act":{"enum":["record","end","list"]},"key":{"type":"string"},"at":{"type":"string","description":"40 or 64 lowercase hex digits of the check's base."},"why":{"type":"string"}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
-    offer: crate::calls::Offer::Delegate,
+    whole: None,
+    offer: crate::calls::Offer::Family(jig_domain_core::ToolFamilies::JIG.delegate),
 };
 
 pub(crate) fn decode(value: &Value) -> Result<RedCall, Problem> {

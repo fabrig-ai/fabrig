@@ -40,22 +40,26 @@ pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpo
             table.asking = table.asking.plus(cost);
         }
     }
-    for mut tool in crate::calls::tools_for(
-        Duration::from_secs(1),
-        temper_engine_domain::RunPolicy::EVERY_FAMILY,
-        temper_engine_domain::RunPolicy::EVERY_FAMILY,
-    ) {
-        let family = match tool.name.as_ref() {
-            b"delegate" | b"goal" | b"change" | b"finding" | b"red" | b"follow" => Some(0),
-            b"settings" | b"propose_settings" => Some(10),
-            _ => None,
+    let widest = temper_engine_domain::RunPolicy::EVERY_FAMILY;
+    for spec in crate::calls::SPECS {
+        use crate::calls::Offer;
+        if !spec.offer.allows(widest, widest) {
+            continue;
+        }
+        let family = match spec.offer {
+            Offer::Every => None,
+            Offer::Family(family) => Some(family.0),
+            Offer::Settings { asking: _ } => Some(jig_domain_core::ToolFamilies::JIG.settings),
+            Offer::Asking => unreachable!("asking tools are measured separately"),
         };
+        let mut tool = crate::calls::declaration(spec, Duration::from_secs(1), true);
         // Charter 1's finite runs carry the reserved message and its wind-down words.
         tool.reserve = tool.name.as_ref() == b"message";
         charter.grants.host_tools = Box::new([tool]);
         let cost = difference(measure(&charter, limits, &endpoints), fixed);
         match family {
-            Some(index) => {
+            Some(family) => {
+                let index = usize::try_from(family.trailing_zeros()).expect("JIG family bit index");
                 let slot = table.families.get_mut(index).expect("JIG family slot");
                 *slot = slot.plus(cost);
             }

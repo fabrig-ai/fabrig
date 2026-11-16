@@ -112,7 +112,7 @@ fn decode_review(assignment: host::Assignment, bound: u64) -> smith_host_domain:
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the regression verifies the retained UTF-8 prefix")]
 fn a_large_pull_review_fits_before_assignment_admission() {
-    let assignment = review_assignment(41_473);
+    let assignment = review_assignment(65_536);
     let original = temper_engine_smith::charter(&assignment);
     let start = admitted_review(assignment, 65_536);
     let charter = start.charter.value();
@@ -146,8 +146,8 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     let mut assignment = review_assignment(10_000);
     let mut sections = assignment.sections.into_vec();
-    for kind in [ForgeBriefKind::Home, ForgeBriefKind::Ci] {
-        sections.push(BriefSection { kind: BriefKind::Forge(kind), body: BriefBody::Text(vec![b'x'; 20_000].into()) });
+    for (kind, bytes) in [(ForgeBriefKind::Home, 20_000), (ForgeBriefKind::Ci, 35_000)] {
+        sections.push(BriefSection { kind: BriefKind::Forge(kind), body: BriefBody::Text(vec![b'x'; bytes].into()) });
     }
     assignment.sections = sections.into();
     let original = temper_engine_smith::charter(&assignment);
@@ -169,7 +169,7 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
 fn review_fitting_uses_the_configured_assignment_envelope() {
     // Measured CPU: 0.023 s for both envelopes and the reference's large sections.
     for bound in [49_152, 98_304] {
-        let assignment = review_assignment(41_473);
+        let assignment = review_assignment(65_536);
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
         let pull = &start.charter.value().brief.sections[1];

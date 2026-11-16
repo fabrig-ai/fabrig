@@ -371,12 +371,13 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let charter = temper_engine_smith::charter(run);
-    assert_eq!(charter.grants.host_tools.len(), 35);
+    assert_eq!(charter.grants.host_tools.len(), 20);
     for tool in &charter.grants.host_tools {
         assert!(
             tool.name.as_ref() != b"settings"
                 && tool.name.as_ref() != b"propose_settings"
                 && tool.name.as_ref() != b"message"
+                && tool.name.as_ref() != b"introduce"
         );
     }
 }

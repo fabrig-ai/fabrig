@@ -259,7 +259,7 @@ fn a_start_without_an_agent_measures_and_refuses_an_unfit_default() {
     let mut expected = None;
     for charter in &mut defaults.charters {
         if charter.number == 4 {
-            let mut instructions = skein_lib::bytes::zeroed(40_000);
+            let mut instructions = skein_lib::bytes::zeroed(usize::try_from(measured.allowance).unwrap());
             instructions.fill(b'x');
             charter.policy.instructions = instructions;
             expected = Some(measured.check_fixed(charter).unwrap_err().words());

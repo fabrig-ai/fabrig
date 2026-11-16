@@ -477,46 +477,14 @@ fn an_assignment_that_cannot_encode_is_answered_invalid_through_the_link() {
 
 #[test]
 fn a_first_goal_over_its_room_is_answered_with_its_fixed_ownership() {
-    // temper/docs/design/draft/tools-by-role.md, 9: first wake joins the first three parts.
-    let mut settings = fixtures::engine();
-    let mut subagent = fixtures::small_model();
-    subagent.number = 2;
-    subagent.model.name = b"small-subagent".as_slice().into();
-    settings.jig.llm.models = Box::new([fixtures::small_model(), subagent]);
+    let settings = fixtures::engine();
     let mut assignment = fixtures::assignment_with_settings(fixtures::repository(7, b"acme", b"shop"), &settings);
     assignment.charter = 5;
-    for charter in &settings.jig.charters {
-        if charter.number == 5 {
-            assignment.run.policy = charter.policy.clone();
-        }
-    }
-    assignment.run.policy.alternatives = Box::new([settings.jig.llm.models[1].model.clone()]);
-    assignment.run.sources = Box::new([Some(1), Some(1)]);
-    assignment.run.authority.tools = tasks::Tools(settings.jig.policies[0].policy.ceiling.tools.0);
-    let shared = Box::new([b's'; 9_910]);
-    let parts: [Box<[u8]>; 4] =
-        [Box::new([b'a'; 11_031]), Box::new([b'b'; 3_655]), Box::new([b'c'; 1_597]), Box::new([b'd'; 649])];
-    let mut size = shared.len();
-    for part in parts.iter().take(3) {
-        size = size.checked_add(2).unwrap().checked_add(part.len()).unwrap();
-    }
-    let mut instructions = skein_lib::Writer::new(size);
-    instructions.put(shared.as_slice()).unwrap();
-    for part in parts.iter().take(3) {
-        instructions.put(b"\n\n").unwrap();
-        instructions.put(part).unwrap();
-    }
-    assignment.run.policy.instructions = instructions.finish();
-    assignment.run.policy.modify = true;
-    assignment.workspace.repositories[0].delivers = true;
-    assignment.sections = Box::new([root::BriefSection {
-        kind: root::BriefKind::Core(jig_domain_brief::Core::Task),
-        body: root::BriefBody::Text(Box::new([b't'; 2_342])),
-    }]);
+    assignment.run.policy.tools = tasks::Tools(0);
+    assignment.run.policy.instructions = skein_lib::bytes::zeroed(65_536);
     let mut charter = temper_engine_smith::charter(&assignment);
-    assert_eq!(charter.grants.host_tools.len(), 42, "stock goal's first offer");
-    assert_eq!(charter.models.len(), 1, "one sub-agent beside the task's main model");
-    assert!(charter.grants.deliver.is_some());
+    assert_eq!(charter.grants.host_tools.len(), 1);
+    assert_eq!(charter.grants.host_tools[0].name.as_ref(), b"read_docs");
     charter.brief.sections = Box::new([]);
     let owned = charter.owned_bytes().unwrap();
     let mut workers = fixtures::workers();

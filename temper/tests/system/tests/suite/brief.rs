@@ -141,9 +141,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
 
 #[test]
 fn a_large_pull_review_reaches_smith_and_lands() {
-    for (seed, bytes) in [(931, 47_148), (932, 41_473), (933, 128)] {
-        large_pull_review(seed, bytes);
-    }
+    large_pull_review(931, 47_148);
 }
 
 fn large_pull_review(seed: u64, bytes: usize) {
@@ -173,13 +171,7 @@ fn large_pull_review(seed: u64, bytes: usize) {
     assert_eq!(fitted.instructions, uncut.instructions);
     assert_eq!(fitted.grants, uncut.grants);
     assert_eq!(fitted.outcome, uncut.outcome);
-    let pull =
-        fitted.brief.sections.iter().find(|section| section.title.as_ref() == b"Pull request").expect("pull retained");
-    if bytes > 128 {
-        assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
-    } else {
-        assert_eq!(fitted, uncut, "an already fitting brief is unchanged");
-    }
+    assert_eq!(fitted, uncut, "the reviewer's read-family offer leaves room for the whole gathered brief");
     assert!(
         matches!(world.reviewed_change().change.state, temper_engine_domain_forge_change::State::Landed { .. }),
         "{:?}",
