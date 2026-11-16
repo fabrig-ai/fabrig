@@ -64,7 +64,6 @@ struct Flight {
 pub(crate) struct Proxy {
     pub(super) config: ProxyConfig,
     pub counts: ProxyCounts,
-    pub forwarded: Vec<Box<[u8]>>,
     wire: Wire,
     copies: BTreeMap<Key, Copy>,
     addresses: BTreeMap<IpAddr, Address>,
@@ -77,7 +76,6 @@ impl Proxy {
         Self {
             config,
             counts: ProxyCounts::default(),
-            forwarded: Vec::new(),
             wire: Wire::new(Some(address)),
             copies: BTreeMap::new(),
             addresses: BTreeMap::new(),
@@ -184,7 +182,6 @@ impl Proxy {
                     skein_http::server::Body::Chunked => unreachable!("world requests use Content-Length"),
                 }..end],
         );
-        self.forwarded.push(forward.clone().into());
         let connection = self.wire.start(self.config.upstreams[upstream].address, call.method, forward.into());
         if public {
             self.public += 1;
