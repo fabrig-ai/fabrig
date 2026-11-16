@@ -288,7 +288,9 @@ settings (decided 2026-11-03).
   (temper's `draft/upgrades.md`, 4.1), and the layouts tell an older
   build's store apart (`Older::Layout`). None is an owner before its
   baseline: a build whose shell hands no set for it writes none. A level is
-  its owner's count of landed patches from its baseline. The row is the
+  its owner's set's `level`, held explicitly (`opening.md`, 3): its
+  count of landed patches from its baseline, jig's 6 and temper's 14,
+  which stay when the patches go (temper's `draft/store-floor.md`, section 3). The row is the
   table of applied patches: the levels and the versions they imply.
 - **The baseline** (temper's `protocol/baseline.md`): the store temper's
   `main` wrote at `bc23255eb7`, before any shell handed a set, so its
@@ -372,6 +374,33 @@ settings (decided 2026-11-03).
   row's versions of the registered families stay as they are, and the
   layouts' row is the baseline's comparison alone: what a store's
   values are at is the registry's.
+- **The floor,** in a row of its own beside it (`Floor`, the
+  component's, added to `component-v3.schema` in place as its other
+  rows are, at `00 0d`): the oldest store this build's code still
+  serves, by number, and the build that wrote the row (temper's
+  `draft/store-floor.md`, section 3):
+
+```
+# 00 0d: the store's floor
+versioned record Floor { number: u32 build: text 64 }
+```
+
+  - **The binary's floor** is the store's constant `FLOOR`, 1 since
+    store-floor's F0, moved only by a landing that drops a whole older
+    form (temper's `draft/store-floor.md`, section 6). The build is the
+    name the shell hands the store beside its sets (`opening.md`, 3),
+    at most 64 bytes: temper's its build's commit, as its version line
+    names it; a shell that hands none has an empty one written.
+  - **Written** by the first commit, with the format row, and by an
+    upgrade's last commit (`opening.md`, 2) where the store has no
+    floor row or one below the binary's: so dev.fabrig.ai's store gets
+    its row in the open that runs F0's jobs, and every store made since
+    has one. By no other commit; a reopen at the same floor leaves the
+    row, and its build, as they are.
+  - **Read** by the census and the rehearsal's decoding as the
+    component's other rows are. The open refuses no store by it
+    (temper's `draft/store-floor.md`, section 3, whose status records
+    the lag).
 - **The wires,** in a row of their own beside it (`Wires`, the
   component's): the versions the engine that last started on the store
   speaks to its workers, so that the next binary can say before it

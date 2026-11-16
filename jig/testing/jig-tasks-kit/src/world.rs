@@ -1096,7 +1096,6 @@ impl World {
                 | Stored::EndedDelegate(_)
                 | Stored::Delegate(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::PersonProposal(_)
@@ -1140,7 +1139,6 @@ impl World {
                 | Stored::ClosedLedger(_)
                 | Stored::DecidedProposal(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::History(_)
@@ -1215,7 +1213,6 @@ impl World {
             | Stored::Stub(_)
             | Stored::Ledger(_)
             | Stored::Activity(_)
-            | Stored::Milestone(_)
             | Stored::Attempt(_)
             | Stored::Hold(_)
             | Stored::History(_)
@@ -1249,7 +1246,6 @@ impl World {
                 | Key::LiveCold(_)
                 | Key::Stub(_)
                 | Key::Ledger(_)
-                | Key::Milestone { .. }
                 | Key::Attempt { .. }
                 | Key::Hold { .. }
                 | Key::Activity { .. }
@@ -1356,7 +1352,6 @@ impl World {
                 | Stored::LiveCold { .. }
                 | Stored::Stub(_)
                 | Stored::Activity(_)
-                | Stored::Milestone(_)
                 | Stored::Attempt(_)
                 | Stored::Hold(_)
                 | Stored::History(_)
@@ -1703,7 +1698,6 @@ fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
         | Stored::PlacedHold(_)
         | Stored::PersonProposal(_)
         | Stored::History(_)
-        | Stored::Milestone(_)
         | Stored::Attempt(_)
         | Stored::Hold(_)
         | Stored::Activity(_)

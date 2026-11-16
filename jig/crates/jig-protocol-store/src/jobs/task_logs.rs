@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_lib::List;
 
 pub(crate) const JOB: Job = Job {
+    settles: false,
     name: "task-logs",
     keys: &[
         KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] },

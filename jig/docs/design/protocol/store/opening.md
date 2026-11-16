@@ -170,7 +170,9 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   it again, or a later build whose schema converts that layout, by its
   defaults and former names or by a written job." The shell names the
   family, the value type, the layout's id, why and how many values hold
-  it after it (`layouts.md`, 5.3).
+  it after it (`layouts.md`, 5.3). For a retired value type's value
+  (`Retired`), why is "the value type is retired, and its keys hold a
+  value".
 - `Job`: "A job this build runs at open refused a record while this
   start upgraded the store in `<deployment>`, and the generation it
   upgraded from stays active, unchanged. Every start of this build
@@ -196,7 +198,7 @@ pub enum OpenRefusal {
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3; the family as its row's key names it, which may be one the binary lacks
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
-pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not
+pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2)
 pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
 pub enum Check { Large { key }, Load { key }, Private { name } }
@@ -322,7 +324,8 @@ registry's commit and the jobs alone. From the active generation `A` to
    `A`'s levels left it.
    The store's
    last commit, one of its own after the last page's and the last job's, writes the format
-   row's levels and versions and the layouts, the binary's (`records.md`, 3), and
+   row's levels and versions and the layouts, the binary's (`records.md`, 3), the
+   floor row where the store has none or one below the binary's floor (`records.md`, 3), and
    the deployment's header as patched, naming that commit's number
    (`README.md`, section 5). The commits before it leave the header naming `A`'s
    last, which nothing reads: a cut removes `A + 1` (4), and the
@@ -422,7 +425,8 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
 ## 3. Patch sets, the plan and written sites
 
 - **Patch sets are data,** handed to the component's open by its shell
-  beside the limits: for each owner whose records it keeps, the
+  beside the limits and its build's name, a `&'static str` the floor row
+  records (`records.md`, 3): for each owner whose records it keeps, the
   generated module's constants (skein's `data/codec/command.md`, 3), no function:
 
 ```rust
@@ -435,6 +439,7 @@ pub struct PatchSet {
     pub patches: &'static [&'static str], // `patches::PATCHES`, in number order
     pub fresh: Option<&'static str>,      // the mark across which windows start fresh, as its owner spells it
     pub jobs: &'static [Job],             // its jobs at open, in the order they run (`jobs.md`, 1)
+    pub level: Option<u32>,               // its level (`records.md`, 3): none for an owner before its baseline
 }
 pub enum KeptMap { Store, Secrets }       // the map its records live in (section 9)
 pub struct KeptFamily {
@@ -486,8 +491,13 @@ impl PatchSets {
   among the accounts', the settings' records among the core's): jig's
   from the component's own table (`README.md`, 4.4), the application's from its
   keys' encoders (`README.md`, section 7). A set with no kept text is an owner
-  before its baseline, level none; otherwise its level is its patches'
-  count. From the baseline, temper's store shell hands the four real
+  before its baseline, level none; otherwise its level is its `level`,
+  held explicitly: today its patches' count, which admission checks
+  while its patch array is not empty, and kept once the array empties
+  (temper's `draft/store-floor.md`, section 3). Every writer and reader of a
+  level (the first commit, the seal, the comparison at open, the
+  manifest, the rehearsal and the shell's versions line) reads `level`,
+  never the array's length. From the baseline, temper's store shell hands the four real
   sets, `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` of this crate,
   `JIG_PATCH_SET` of `jig-protocol-accounts` and temper's own
   (temper's `protocol/baseline.md`, 4), each kept

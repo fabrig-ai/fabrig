@@ -593,25 +593,6 @@ pub fn read_person_proposal(
     Ok(domain::PersonProposal { number, proposer, project, action, reason, state: read_person_state(state)? })
 }
 
-/// Translate `Milestone` to its store record.
-pub fn milestone(source: &domain::Milestone, limits: &wire::Limits) -> Result<wire::Milestone, wire::Problem> {
-    let domain::Milestone { task, position, phase, at } = source;
-    wire::Milestone::new(
-        limits,
-        wire::MilestoneParts {
-            task: *task,
-            position: *position,
-            phase: phase::phase(phase, limits)?,
-            at: at.as_nanos(),
-        },
-    )
-}
-/// Read `Milestone` from its store record.
-pub fn read_milestone(source: wire::Milestone, limits: &wire::Limits) -> Result<domain::Milestone, wire::Problem> {
-    let wire::MilestoneParts { task, position, phase, at } = source.into_parts();
-    Ok(domain::Milestone { task, position, phase: phase::read_phase(phase, limits)?, at: Wall::from_nanos(at) })
-}
-
 fn batch(source: &[domain::New], limits: &wire::Limits, moved: Option<&[u64; 64]>) -> Result<Box<[u8]>, wire::Problem> {
     super::pieces::creations(source, limits, limits.proposed_batch_members, wire::Path::ProposedBatchMembers, moved)
 }

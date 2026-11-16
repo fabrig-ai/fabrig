@@ -414,12 +414,6 @@ fn borrowed_stored_bytes_matches_allocator_for_every_retained_row() {
     record.escalation = tasks::Escalation::Rejected { revision: 1, by: 1, reason: Box::new([6, 7, 8, 9]) };
     let mut rows = world.records.values().cloned().collect::<Vec<_>>();
     rows.push(Stored::Live(Box::new(record.clone())));
-    rows.push(Stored::Milestone(tasks::Milestone {
-        task: 1,
-        position: 1,
-        phase: record.phase.clone(),
-        at: skein_lib::Wall::EPOCH,
-    }));
     let mut preparation = record.clone();
     preparation.retry_notice =
         Some(tasks::RetryNotice::Refused { count: 1, reason: Some(b"brief: no slot is free".as_slice().into()) });

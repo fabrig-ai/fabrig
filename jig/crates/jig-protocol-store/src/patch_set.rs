@@ -1,10 +1,11 @@
 //! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
-use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType, patches};
+use crate::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, Retired, ValueType, patches};
 
 /// The store's part of jig's owner set; accounts adds its kept family.
 pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     jobs: &[
         Job {
+            settles: false,
             counts: &[],
             name: "charter-versions",
             keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
@@ -18,39 +19,32 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
             }),
         },
         Job {
-            counts: &[],
-            name: "milestones",
-            keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }],
-            converts: None,
-        },
-        Job {
-            counts: &[],
-            name: "live-task-parts",
-            keys: &[KeyRange { from: &[1, 1, 0], to: &[1, 1, 1] }],
-            converts: None,
-        },
-        Job {
-            counts: &[],
-            name: "projection-parts",
-            keys: &[KeyRange { from: &[1, 0, 1, 0], to: &[1, 0, 1, 2] }],
-            converts: None,
-        },
-        Job {
+            settles: false,
             counts: &[],
             name: "retention-rows",
             keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }],
             converts: None,
         },
         Job {
+            settles: false,
             counts: &[],
             name: "retention-proposals",
             keys: &[KeyRange { from: &[1, 0, 6, 1], to: &[1, 0, 6, 2] }],
             converts: None,
         },
+        Job { name: "settle-layouts", keys: &[], converts: None, settles: true, counts: &[] },
+        Job {
+            name: "ended-talk",
+            keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }],
+            converts: None,
+            settles: false,
+            counts: &["ended", "ended-talk"],
+        },
         crate::jobs::task_logs::JOB,
     ],
     owner: Owner::Jig,
     name: "jig",
+    level: Some(6),
     patches: patches::PATCHES,
     fresh: None,
     families: &STORE_FAMILIES,
@@ -63,6 +57,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
 )]
 pub const STORE_FAMILIES: [KeptFamily; 10] = [
     KeptFamily {
+        retired: &[],
         current: patches::kept::jig_store_component::TEXTS.last().expect("kept text"),
         types: &[],
         name: "jig-store-component",
@@ -76,6 +71,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: patches::kept::jig_store_openings::TEXTS.last().expect("kept text"),
         types: &[],
         name: "jig-store-openings",
@@ -86,6 +82,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: patches::kept::jig_store_registry::TEXTS.last().expect("kept text"),
         types: &[],
         name: "jig-store-registry",
@@ -100,6 +97,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: include_str!("../schema/core-v6.schema"),
         types: &[
             ValueType {
@@ -159,6 +157,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[Retired { number: 10, keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }] }],
         current: include_str!("../schema/tasks-v13.schema"),
         types: &[
             ValueType { number: 0, root: "Row", variant: None, keys: &[KeyRange { from: &[1, 1], to: &[1, 1, 1] }] },
@@ -210,12 +209,6 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 root: "Row",
                 variant: Some("history"),
                 keys: &[KeyRange { from: &[1, 1, 9], to: &[1, 1, 10] }],
-            },
-            ValueType {
-                number: 10,
-                root: "Row",
-                variant: Some("milestone"),
-                keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }],
             },
             ValueType {
                 number: 11,
@@ -304,6 +297,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: include_str!("../schema/people-v17.schema"),
         types: &[
             ValueType {
@@ -387,6 +381,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: include_str!("../schema/notes-v1.schema"),
         types: &[
             ValueType {
@@ -410,6 +405,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: include_str!("../schema/accounts-v2.schema"),
         types: &[
             ValueType {
@@ -454,6 +450,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: include_str!("../schema/settings-v3.schema"),
         types: &[
             ValueType {
@@ -523,6 +520,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         flights: &[],
     },
     KeptFamily {
+        retired: &[],
         current: patches::kept::jig_store_secrets::TEXTS.last().expect("kept text"),
         types: &[],
         name: "jig-store-secrets",

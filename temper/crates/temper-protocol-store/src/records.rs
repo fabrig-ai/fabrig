@@ -8,7 +8,6 @@ mod api;
 mod application;
 mod away;
 mod change;
-pub(crate) use change::decode_change_row as decode_legacy_change;
 mod client;
 mod closer;
 mod drafts;
@@ -120,7 +119,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
         d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
         d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
-        d::Stored::Change(value) => w::Value::Change(Box::new(change::encode_change_row(value))),
+        d::Stored::Change(_) => unreachable!("whole changes are saved as two parts"),
         d::Stored::Issue(value) => w::Value::Issue(Box::new(issues::encode(value))),
     };
     let row = w::Row::new(&w::CEILINGS, w::RowParts { value }).expect("admitted row fits the schema");
@@ -168,7 +167,6 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
         w::Value::ChangeCold(value) => d::Stored::ChangeCold(Box::new(change::decode_change_cold(*value))),
         w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
-        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value)?)),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
@@ -280,10 +278,6 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         change_cold_base: forge.name_bytes,
         change_hot_verdicts: forge.change_policy.gates,
         change_hot_gate_remarks: forge.change_policy.gates,
-        change_row_branch: forge.name_bytes,
-        change_row_base: forge.name_bytes,
-        change_row_verdicts: forge.change_policy.gates,
-        change_row_gate_remarks: forge.change_policy.gates,
         gate_remark_words: forge.client.answer_bytes,
         live_branch_branch: forge.name_bytes,
         live_record_comments: forge.client.inbox,

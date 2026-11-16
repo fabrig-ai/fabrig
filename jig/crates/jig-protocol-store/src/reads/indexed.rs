@@ -30,7 +30,6 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
             | tasks::Key::ClosedLedger(_)
             | tasks::Key::DecidedProposal(_)
             | tasks::Key::History { .. }
-            | tasks::Key::Milestone { .. }
             | tasks::Key::Attempt { .. }
             | tasks::Key::Hold { .. }
             | tasks::Key::Activity { .. }
@@ -123,7 +122,6 @@ fn update(value: &core::Record) -> Option<tasks::Update> {
             | tasks::Stored::ClosedLedger(_)
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)
@@ -158,7 +156,6 @@ fn delegate(value: &core::Record) -> Option<tasks::Edge> {
             | tasks::Stored::ClosedLedger(_)
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)

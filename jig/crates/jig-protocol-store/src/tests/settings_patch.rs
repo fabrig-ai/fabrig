@@ -12,6 +12,7 @@ const SETS: PatchSets = PatchSets {
         name: "jig",
         fresh: None,
         families: &[KeptFamily {
+            retired: &[],
             current: patches::kept::jig_store_settings::TEXTS.last().expect("kept text"),
             types: &[],
             name: "jig-store-settings",
@@ -21,6 +22,7 @@ const SETS: PatchSets = PatchSets {
             frames: None,
             flights: &[],
         }],
+        level: Some(6),
         patches: patches::PATCHES,
     }],
 };
@@ -116,7 +118,7 @@ fn patched() -> Box<[u8]> {
 fn u1_patches_a_v1_model_then_open_restores_its_catalogue() {
     let bytes = patched();
     // Planted at the binary's jig level, the store opens current and reads its catalogue.
-    let level = u32::try_from(patches::PATCHES.len()).expect("jig's level fits u32");
+    let level = crate::JIG_STORE_PATCH_SET.level.expect("jig has a level");
     let mut store = store(&bytes, level);
     let events = open(&mut store);
     let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {

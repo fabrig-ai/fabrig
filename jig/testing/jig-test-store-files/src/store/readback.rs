@@ -245,6 +245,13 @@ impl Store {
                         codec::component::Layouts::decode(value)
                             .map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
                     }
+                    keys::Own::Floor => {
+                        protocol::component_v3::Floor::decode(
+                            &protocol::component_v3::CEILINGS,
+                            &mut Reader::new(value),
+                        )
+                        .map_err(|failure| inventory(key, format!("floor row: {failure:?}")))?;
+                    }
                     keys::Own::Wires => {
                         protocol::component_v3::Wires::decode(
                             &protocol::component_v3::CEILINGS,

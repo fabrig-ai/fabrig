@@ -1343,7 +1343,7 @@ fn the_components_census_is_handed_to_the_root_whole() {
 }
 
 #[test]
-fn change_parts_job_routes_to_the_application_at_open() {
+fn round_branches_job_routes_to_the_application_at_open() {
     let mut routes = fixtures::routes();
     let mut out = Queue::uncapped();
     route::up(
@@ -1351,7 +1351,7 @@ fn change_parts_job_routes_to_the_application_at_open() {
         store::Event::Job {
             owner: fixtures::OWNER,
             of: store::Owner::Application,
-            job: "change-parts".into(),
+            job: "round-branches".into(),
             page: store::JobPage {
                 rows: Box::new([]),
                 end: true,
@@ -1362,10 +1362,11 @@ fn change_parts_job_routes_to_the_application_at_open() {
         &mut out,
     );
     let Some(Up::Ask(store::Request::Job { owner, answer: Ok(answer) })) = out.pop() else {
-        panic!("change-parts answer")
+        panic!("round-branches answer")
     };
     assert_eq!(owner, fixtures::OWNER);
     assert!(answer.writes.is_empty());
     assert_eq!(answer.through, None);
+    assert_eq!(answer.counts.as_ref(), [0, 0]);
     assert!(out.is_empty());
 }

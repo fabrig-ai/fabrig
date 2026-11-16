@@ -1317,8 +1317,6 @@ pub enum Stored {
     Delegate(crate::Edge),
     /// Earlier activity loaded on demand, never restored as live state.
     Activity(crate::ActivityLine),
-    /// One immutable lifecycle milestone, loaded on demand.
-    Milestone(crate::Milestone),
     Attempt(crate::AttemptRow),
     Hold(crate::HoldRow),
     /// Pending person-origin goal proposal.
@@ -1378,7 +1376,6 @@ impl Stored {
             Stored::ClosedLedger(row) => Key::ClosedLedger(row.funder),
             Stored::History(row) => Key::History { task: row.task, revision: row.revision },
             Stored::Activity(row) => Key::Activity { task: row.task, position: row.position },
-            Stored::Milestone(row) => Key::Milestone { task: row.task, position: row.position },
             Stored::Attempt(row) => Key::Attempt { task: row.task, attempt: row.attempt },
             Stored::Hold(row) => Key::Hold { task: row.task, position: row.position },
             Stored::Live(record) => Key::Live(record.number),

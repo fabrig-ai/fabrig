@@ -80,11 +80,6 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.u64(*task);
             writer.u64(*revision);
         }
-        Key::Milestone { task, position } => {
-            writer.tag(10);
-            writer.u64(*task);
-            writer.u64(*position);
-        }
         Key::Activity { task, position } => {
             writer.tag(11);
             writer.u64(*task);
@@ -149,7 +144,6 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
         7 => Key::ClosedLedger(read_funder(reader)?),
         8 => Key::DecidedProposal(reader.u64()?),
         9 => Key::History { task: reader.u64()?, revision: reader.u64()? },
-        10 => Key::Milestone { task: reader.u64()?, position: reader.u64()? },
         11 => Key::Activity { task: reader.u64()?, position: reader.u64()? },
         12 => Key::Update {
             party: reader.u64()?,
