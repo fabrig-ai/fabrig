@@ -264,7 +264,7 @@ store keeps its row until the first patch it meets writes the levels.
   change landed, a chat paused, a task mid-run, a forge write left
   uncertain, then the settled stop), kept so that each settled case
   starts from it rather than running the story again
-  (`../draft/focused-pyramid.md`, 5.4). Kept in
+  (`../draft/focused-pyramid.md`, 5, its fourth item). Kept in
   `tests/one-process/golden/settled/`: the machine's four roots in
   `golden/baseline/`'s layout (6), and beside them what the world keeps
   outside the machine, which no disk holds:
