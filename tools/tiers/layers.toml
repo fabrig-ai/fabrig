@@ -1,0 +1,78 @@
+# Each test binary's layer (tools/tiers/layers.md). A library's own tests, a binary's own and a
+# crate's generated codec tests are step tests, and the repository's checks a group of their own,
+# by rule, with no line.
+layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
+
+[skein]
+
+[smith]
+"smith-agent-process-world::live" = "end-to-end" # Real program processes and provider, not the simulated service.
+"smith-agent-process-world::live_input" = "simulated"
+"smith-agent-process-world::live_text" = "simulated"
+"smith-agent-process-world::suite" = "simulated" # step + simulated: profile derivations and whole agent service.
+"smith-agent-service::suite" = "step"
+"smith-agent-shell::suite" = "step"
+"smith-agent-world::suite" = "domain" # step + domain: referee controls and agent stories.
+"smith-bench::suite" = "end-to-end" # step + end-to-end: offline harness checks and replay command processes.
+"smith-channel-world::live" = "protocol"
+"smith-channel-world::suite" = "protocol" # step + protocol: referee controls and both channel halves.
+"smith-codecs-world::suite" = "step"
+"smith-fake-claude::suite" = "end-to-end" # step + simulated + end-to-end: encodings, hosted fake and executable.
+"smith-host-world::suite" = "domain" # step + domain: parent-referee controls and host stories.
+"smith-hosts-world::suite" = "simulated" # step + simulated: referee controls and host spawning an agent.
+"smith-local-process-world::suite" = "simulated" # step + simulated: configuration controls and whole local service.
+"smith-local-protocol::suite" = "real-loop" # Store/FileIo over a real directory and kernel, scripted owner.
+"smith-local-shell::suite" = "simulated" # Local library over simulated io and a fake provider.
+"smith-local-world::suite" = "system" # step + system: referee controls and local host with real agent domains.
+"smith-machine-world::suite" = "real-loop" # step + simulated + real-loop: fixtures also use real file io, jobs and synchronous rg children.
+"smith-protocol-llm-world::suite" = "protocol" # step + protocol: codec/referee controls and composed LLM peers.
+"smith-real-world::suite" = "real-loop"
+"smith-run-world::suite" = "domain" # step + domain: direct memory fixtures and run stories.
+"smith-session-world::suite" = "domain" # step + domain: prefix-referee controls and session stories.
+"smith-tools-world::suite" = "domain" # step + domain: direct memory fixtures and tools stories.
+"smith::end_to_end" = "end-to-end"
+"smith::live" = "end-to-end"
+"smith::live_configuration" = "end-to-end" # step + end-to-end: offline controls and the shipped smith check.
+
+[jig]
+"jig-accounts-world::suite" = "domain" # step + domain: direct memory fixtures and account stories.
+"jig-brief-world::suite" = "domain" # step + domain: budget-referee controls and brief stories.
+"jig-channel-world::suite" = "simulated" # step + simulated: referee controls; documented protocol world runs whole services on simulated io.
+"jig-client-browser-world::browser_attacks" = "end-to-end" # Chromium on the shipped reference application.
+"jig-client-browser-world::browser_jig_stories" = "end-to-end" # Chromium on the shipped reference application.
+"jig-client-browser-world::browser_skein_stories" = "end-to-end" # Chromium on the shipped reference application.
+"jig-client-browser-world::browser_tier" = "end-to-end" # Chromium on the shipped reference application.
+"jig-client-browser-world::suite" = "step" # Shell mount translated to an HTTP request, no browser.
+"jig-client-protocol-world::suite" = "simulated" # step + protocol + simulated: referee controls, byte stories and native client/service over simulated io.
+"jig-client-shell-native::suite" = "simulated" # Native shell over simulated sockets and a scripted HTTP engine.
+"jig-client-test-kit::suite" = "step" # Referee transitions and connector-value admission/pricing.
+"jig-client-views-world::suite" = "domain" # step + domain: retained-run fixtures and views stories.
+"jig-client-wire-world::suite" = "step" # Codecs, goldens, schema drift and decoder bounds.
+"jig-client-world::b_shared" = "protocol" # domain + protocol: joint stories run shipping link/clients components, not only domains.
+"jig-client-world::suite" = "protocol" # domain + protocol: joint stories run shipping link/clients components, not only domains.
+"jig-conformance-world::settings_proposals_wire" = "protocol" # domain + protocol: core decisions and HTTP settings carriage.
+"jig-conformance-world::suite" = "protocol" # step + domain + protocol: referee controls, conformance stories and HTTP settings carriage.
+"jig-core-world::suite" = "simulated" # step + domain + simulated: referee controls, core stories and store cuts over simulated disk.
+"jig-engine-clients-world::suite" = "real-loop" # machine + protocol + real-loop: scripted peers, both HTTP ends and synchronous openssl children.
+"jig-engine-workers-world::suite" = "machine" # step + machine: prepared fixtures and worker-channel component against scripted peers.
+"jig-fleet-world::suite" = "domain" # step + domain: referee controls and fleet stories.
+"jig-host-world::suite" = "domain" # step + domain: saturated step fixtures and scripted host stories.
+"jig-notes-world::suite" = "domain" # step + domain: index-referee controls and notes stories.
+"jig-one-process-world::suite" = "simulated" # Whole service, native clients and hosted agents over the simulator.
+"jig-ops-world::suite" = "protocol" # domain + protocol: connector worlds and joint clients/engine through real HTTP machines.
+"jig-people-world::suite" = "domain" # step + domain: referee controls and people stories.
+"jig-protocol-accounts-world::suite" = "simulated" # step + simulated: codec drift and account driver/store against a fake issuer over simulated io.
+"jig-store-codecs-world::drift" = "step" # Schema, generated codecs, goldens and layout fingerprints.
+"jig-store-codecs-world::suite" = "step" # Codec bounds, round trips and fuzzy decodes.
+"jig-store-world::frame_limits" = "step" # Profile-derived read-room arithmetic, no store world.
+"jig-store-world::suite" = "simulated" # step + simulated: serving-machine controls and store/file drivers on a crashing disk.
+"jig-tasks-world::suite" = "domain" # step + domain: referee controls and task stories.
+"jig-test-connector-world::suite" = "domain"
+"jig-test::live" = "end-to-end" # step + end-to-end: offline startup checks and real-account service processes.
+"jig-test::process" = "end-to-end" # Shipped service and agent on real processes and durable files.
+"jig-worker-link-world::suite" = "protocol" # step + machine + protocol: prepared fixtures, scripted engine and both real channel components.
+"jig-worker-wire-world::suite" = "step" # Schema drift and bounded record decoders.
+
+[temper]
+
+[hearth]
