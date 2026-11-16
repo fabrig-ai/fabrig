@@ -64,17 +64,14 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
 }
 fn made(
     layouts: &mut Layouts,
-    binary: &texts::Binary,
+    binary: &mut texts::Binary,
     family: &KeptFamily,
     ty: &ValueType,
     current: bool,
 ) -> Option<wire::Layout> {
     let text = binary.text(family.name, current)?;
     let held = binary.held(layouts, text, current)?;
-    let schema = layouts.texts.get(&text)?.schema.as_ref()?;
-    let root = schema.root(ty.root.as_bytes(), super::variant(ty.variant))?;
-    let schemas = texts::schemas(layouts, &held, false)?;
-    let layout = schema.layout(root, schemas.as_slice()).ok()?.digest();
+    let layout = binary.layout(layouts, text, ty.root.as_bytes(), super::variant(ty.variant), &held)?;
     wire::Layout::new(
         &wire::CEILINGS,
         wire::LayoutParts {
@@ -120,7 +117,6 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
                     .insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false })
                     .expect("uncapped seed");
             }
-            texts::clear(layouts);
         }
     }
     Ok(())
@@ -200,7 +196,6 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                     layouts.ranges.insert(from, Range { to, ty: index }).expect("uncapped ranges");
                 }
             }
-            texts::clear(layouts);
         }
     }
     Ok(changed)

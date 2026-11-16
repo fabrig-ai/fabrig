@@ -1,4 +1,5 @@
-//! Currents kept through planning; other texts dropped with each family (protocol/store/layouts.md, 7).
+//! Each text parsed, layout computed and text's held texts found once in planning,
+//! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7).
 use super::{Digest, Layouts, Text};
 use crate::{OpenRefusal, PatchSets};
 use alloc::boxed::Box;
@@ -14,9 +15,12 @@ pub(super) fn digest(bytes: &[u8]) -> Digest {
 pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> {
     Some(Box::from(core::str::from_utf8(bytes).ok()?))
 }
+type LayoutKey = (Digest, Box<[u8]>, Option<Box<[u8]>>, Box<[Digest]>);
 #[derive(Debug)]
 pub(super) struct Binary {
     names: Map<&'static str, (Digest, Digest)>,
+    held: Map<(Digest, bool), List<Digest>>,
+    layouts: Map<LayoutKey, Digest>,
 }
 impl Binary {
     pub(super) fn new(sets: &PatchSets, layouts: &mut Layouts) -> Result<Self, OpenRefusal> {
@@ -36,13 +40,10 @@ impl Binary {
                         held.current |= current;
                     } else {
                         // Keep Set's syntax refusal even for families with no value types.
+                        #[cfg(test)]
+                        super::counting::parsed(digest);
                         let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
-                        let schema = if current {
-                            Some(parsed)
-                        } else {
-                            drop(parsed);
-                            None
-                        };
+                        let schema = Some(parsed);
                         layouts
                             .texts
                             .insert(digest, Text { bytes: Box::from(text.as_bytes()), schema, stored: false, current })
@@ -55,13 +56,18 @@ impl Binary {
                     .expect("uncapped names");
             }
         }
-        Ok(Self { names })
+        Ok(Self { names, held: Map::uncapped(), layouts: Map::uncapped() })
     }
     pub(super) fn text(&self, family: &str, current: bool) -> Option<Digest> {
         let &(seed, binary) = self.names.get(family)?;
         Some(if current { binary } else { seed })
     }
-    pub(super) fn held(&self, layouts: &mut Layouts, text: Digest, current: bool) -> Option<List<Digest>> {
+    pub(super) fn held(&mut self, layouts: &mut Layouts, text: Digest, current: bool) -> Option<List<Digest>> {
+        if let Some(held) = self.held.get(&(text, current)) {
+            return Some(held.clone());
+        }
+        #[cfg(test)]
+        super::counting::held(text, current);
         let mut held = List::with_capacity(crate::registry_v1::CEILINGS.layout_held);
         let mut pending = List::uncapped();
         pending.push(text).ok()?;
@@ -85,7 +91,37 @@ impl Binary {
                 }
             }
         }
+        self.held.insert((text, current), held.clone()).expect("uncapped held texts");
         Some(held)
+    }
+    pub(super) fn layout(
+        &mut self,
+        layouts: &Layouts,
+        text: Digest,
+        root: &[u8],
+        variant: Option<&[u8]>,
+        held: &List<Digest>,
+    ) -> Option<Digest> {
+        let key = (
+            text,
+            Box::from(root),
+            match variant {
+                Some(variant) => Some(Box::from(variant)),
+                None => None,
+            },
+            Box::from(held.as_slice()),
+        );
+        if let Some(digest) = self.layouts.get(&key) {
+            return Some(*digest);
+        }
+        let schema = layouts.texts.get(&text)?.schema.as_ref()?;
+        let root = schema.root(root, variant)?;
+        let held = schemas(layouts, held, false)?;
+        #[cfg(test)]
+        super::counting::layout();
+        let digest = schema.layout(root, held.as_slice()).ok()?.digest();
+        self.layouts.insert(key, digest).expect("uncapped computed layouts");
+        Some(digest)
     }
 }
 #[expect(clippy::disallowed_methods, reason = "schema family tokens are ASCII names")]
@@ -118,6 +154,8 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
         if self::digest(&text.bytes) != digest {
             return None;
         }
+        #[cfg(test)]
+        super::counting::parsed(digest);
         text.schema = Some(schema::parse(&text.bytes).ok()?);
     }
     Some(())

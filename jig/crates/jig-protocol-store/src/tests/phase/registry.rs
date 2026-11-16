@@ -489,6 +489,89 @@ fn missing_text_and_undeclared_stored_families_are_layout_refusals_without_write
     }
 }
 #[test]
+fn stored_text_bytes_must_give_their_digest_without_writes() {
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, SET);
+    let text = crate::registry_v1::Text::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::TextParts { text: [KEPT.as_bytes(), b"\n"].concat().into_boxed_slice() },
+    )
+    .expect("fixture text fits");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure()));
+    text.encode(&mut writer).expect("fixture text encodes");
+    raw(
+        &mut disk,
+        &mut store,
+        vec![
+            old_row(9, FAMILY.name, 0),
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(&crate::keys::Own::Text(hash(KEPT)), 1024).expect("text key"),
+                value: writer.finish(),
+            },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42]) },
+        ],
+    );
+    assert_text_refusal_without_writes(&mut disk);
+}
+
+#[test]
+fn stored_fingerprint_must_match_the_reused_registration_layout_without_writes() {
+    let mut disk = Disk::new(&[]);
+    let mut store = fresh(&mut disk, SET);
+    let binary = row(&mut store, 0, 2).expect("binary row");
+    let value = crate::registry_v1::Layout::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::LayoutParts {
+            root: Box::from(binary.root()),
+            variant: binary.variant().clone(),
+            layout: [0; 32],
+            text: *binary.text(),
+            held: binary.held().clone(),
+        },
+    )
+    .expect("fixture row fits");
+    assert_ne!(value.layout(), binary.layout());
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
+    value.encode(&mut writer).expect("fixture row encodes");
+    raw(
+        &mut disk,
+        &mut store,
+        vec![
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(
+                    &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 9 },
+                    1024,
+                )
+                .expect("layout key"),
+                value: writer.finish(),
+            },
+            skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42, 7]) },
+        ],
+    );
+    assert_text_refusal_without_writes(&mut disk);
+}
+
+fn assert_text_refusal_without_writes(disk: &mut Disk) {
+    let mut disk = Disk::new(&disk.items());
+    let before = snapshot(&mut disk);
+    let mut store = store(&disk, SET);
+    let events = disk.open(&mut store);
+    let [
+        Event::OpenRefused {
+            why: OpenRefusal::Layout { family, value_type: 0, id: 9, values: Some(1), why: Unplanned::Text },
+            ..
+        },
+    ] = events.as_ref()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(family.as_ref(), FAMILY.name);
+    assert_eq!(snapshot(&mut disk), before);
+    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+    assert!(!disk.tree().iter().any(|(path, ..)| path.as_ref() == b"generations/2"));
+}
+
+#[test]
 fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
     for shared in [true, false] {
         let mut disk = Disk::new(&[]);

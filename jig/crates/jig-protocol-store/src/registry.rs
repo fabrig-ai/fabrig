@@ -7,6 +7,8 @@ use skein_codec::{
 };
 use skein_lib::{Buffer, List, Map, Queue};
 mod check;
+#[cfg(test)]
+mod counting;
 pub(crate) mod rehearsal;
 mod rows;
 #[cfg(test)]
@@ -251,6 +253,8 @@ fn whole(owner: Owner, key: &[u8], bound: u32) -> Option<Box<[u8]>> {
 }
 /// Plan before any writes, including before linking the new generation.
 pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> {
+    #[cfg(test)]
+    counting::reset();
     let mut layouts = Layouts::new();
     rows::load(store, &mut layouts)?;
     let seeded = !layouts.rows.is_empty();
@@ -277,7 +281,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     }
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
-    check::plans(store, &mut layouts, &binary, &mut work)?;
+    check::plans(store, &mut layouts, &mut binary, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store, &mut layouts)?;
     if !writing && store.directory.patch.is_none() {
