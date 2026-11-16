@@ -999,8 +999,8 @@ fn deployment_world() -> World {
 }
 
 #[test]
-fn deployment_walks_save_and_restore_their_private_scratch_without_bundle() {
-    if under_umasks("place::deployment_walks_save_and_restore_their_private_scratch_without_bundle", &["022", "000"]) {
+fn deployment_walks_save_and_restore_their_private_scratch_with_bundle() {
+    if under_umasks("place::deployment_walks_save_and_restore_their_private_scratch_with_bundle", &["022", "000"]) {
         return;
     }
     let mut world = deployment_world();
@@ -1014,8 +1014,9 @@ fn deployment_walks_save_and_restore_their_private_scratch_without_bundle() {
     assert_eq!(
         world.walks()[0],
         format!(
-            "recipe walk welcome --bin {} --scratch {} --setups {} --strict --ports 31001,31002,31003,31004,31005,31006,31007,31008,31009",
+            "recipe walk welcome --bin {} --bundle {} --scratch {} --setups {} --strict --ports 31001,31002,31003,31004,31005,31006,31007,31008,31009",
             paths.bin.display(),
+            paths.bundle.display(),
             paths.scratch.display(),
             world.place.setups.display()
         )
