@@ -17,6 +17,7 @@ pub(crate) fn step<P: Processes>(
     now: u64,
 ) -> Result<(), Refusal> {
     let environment = environment(home, captured);
+    let mut failures = Vec::new();
     let mut unfiled: Vec<_> = ledger
         .passes
         .iter()
@@ -29,60 +30,83 @@ pub(crate) fn step<P: Processes>(
         .collect();
     unfiled.sort_unstable();
     for (_, pass, request) in unfiled {
-        let record = ledger.passes.iter().find(|record| record.number == pass).expect("unfiled pass");
-        let ask = record.requests.iter().find(|record| record.number == request).expect("unfiled request");
-        let directory = directory(home, pass, request);
-        prepare(home, ledger, record, ask, &directory)?;
-        let answer = processes
-            .run(&command(home.configuration.request.command.clone(), &directory, "output", &environment), 600)?;
-        if answer.exit != Exit::Code(0) {
-            return Err(refused(format!("pass {pass}, request {request}: command exited {:?}", answer.exit)));
-        }
-        let goal = if ask.findings.is_empty() {
-            None
-        } else {
-            Some(
-                answer
-                    .last_stdout
-                    .as_deref()
-                    .and_then(goal_number)
-                    .ok_or_else(|| refused(format!("pass {pass}, request {request}: expected goal N on stdout")))?,
-            )
-        };
-        ledger.file_request(pass, request, goal, now)?;
-    }
-    file_gaps(home, ledger, processes, &environment, now)?;
-    let Some(arguments) = &home.configuration.request.state else { return Ok(()) };
-    let waiting: Vec<_> = ledger
-        .passes
-        .iter()
-        .filter(|pass| pass.state == PassState::Waiting)
-        .filter_map(|pass| {
-            let request = pass.requests.last()?;
-            let goal = request.goal?;
-            (request.ended.is_none() && !ledger.landings.iter().any(|landing| landing.goal == goal)).then_some((
-                pass.number,
-                request.number,
-                goal,
-            ))
-        })
-        .collect();
-    for (pass, request, goal) in waiting {
-        let directory = directory(home, pass, request);
-        fs::create_dir_all(&directory).map_err(io)?;
-        let mut arguments = arguments.clone();
-        arguments.push(goal.to_string());
-        let answer = processes.run(&command(arguments, &directory, "state-output", &environment), 60)?;
-        if answer.exit != Exit::Code(0) {
-            return Err(refused(format!("goal {goal}: state command exited {:?}", answer.exit)));
-        }
-        match answer.last_stdout.as_deref() {
-            Some("live") => (),
-            Some("ended") => ledger.end_goal(goal, now)?,
-            other => return Err(refused(format!("goal {goal}: expected live or ended on stdout, got {other:?}"))),
+        if let Err(why) = file_request(home, ledger, processes, &environment, pass, request, now) {
+            failures.push(format!("pass {pass}, request {request}: {why}"));
         }
     }
-    Ok(())
+    if let Err(why) = file_gaps(home, ledger, processes, &environment, now) {
+        failures.push(why.to_string());
+    }
+    if let Some(arguments) = &home.configuration.request.state {
+        let waiting: Vec<_> =
+            ledger
+                .passes
+                .iter()
+                .filter(|pass| pass.state == PassState::Waiting)
+                .filter_map(|pass| {
+                    let request = pass.requests.last()?;
+                    let goal = request.goal?;
+                    (request.ended.is_none() && !ledger.landings.iter().any(|landing| landing.goal == goal))
+                        .then_some((pass.number, request.number, goal))
+                })
+                .collect();
+        for (pass, request, goal) in waiting {
+            let directory = directory(home, pass, request);
+            if let Err(why) = check_goal(ledger, processes, arguments, &directory, &environment, goal, now) {
+                failures.push(format!("goal {goal}: {why}"));
+            }
+        }
+    }
+    if failures.is_empty() { Ok(()) } else { Err(refused(failures.join("; "))) }
+}
+
+fn file_request(
+    home: &Home,
+    ledger: &mut Ledger,
+    processes: &mut impl Processes,
+    environment: &Environment,
+    pass: u64,
+    request: u64,
+    now: u64,
+) -> Result<(), Refusal> {
+    let record = ledger.passes.iter().find(|record| record.number == pass).expect("unfiled pass");
+    let ask = record.requests.iter().find(|record| record.number == request).expect("unfiled request");
+    let directory = directory(home, pass, request);
+    prepare(home, ledger, record, ask, &directory)?;
+    let answer =
+        processes.run(&command(home.configuration.request.command.clone(), &directory, "output", environment), 600)?;
+    if answer.exit != Exit::Code(0) {
+        return Err(refused(format!("command exited {:?}", answer.exit)));
+    }
+    let goal = if ask.findings.is_empty() {
+        None
+    } else {
+        Some(answer.last_stdout.as_deref().and_then(goal_number).ok_or_else(|| refused("expected goal N on stdout"))?)
+    };
+    ledger.file_request(pass, request, goal, now)
+}
+
+fn check_goal(
+    ledger: &mut Ledger,
+    processes: &mut impl Processes,
+    arguments: &[String],
+    directory: &Path,
+    environment: &Environment,
+    goal: u64,
+    now: u64,
+) -> Result<(), Refusal> {
+    fs::create_dir_all(directory).map_err(io)?;
+    let mut arguments = arguments.to_vec();
+    arguments.push(goal.to_string());
+    let answer = processes.run(&command(arguments, directory, "state-output", environment), 60)?;
+    if answer.exit != Exit::Code(0) {
+        return Err(refused(format!("state command exited {:?}", answer.exit)));
+    }
+    match answer.last_stdout.as_deref() {
+        Some("live") => Ok(()),
+        Some("ended") => ledger.end_goal(goal, now),
+        other => Err(refused(format!("expected live or ended on stdout, got {other:?}"))),
+    }
 }
 
 fn environment(home: &Home, captured: &Environment) -> Environment {
