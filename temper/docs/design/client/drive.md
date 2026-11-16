@@ -1,6 +1,6 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12, revised 2026-11-14. QA's hands on ctl, the web
+Provisional, 2026-11-12, revised 2026-11-16. QA's hands on ctl, the web
 client and the TUI (`../draft/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
@@ -147,6 +147,35 @@ While any step waits, the box's exit, or a line on its stderr saying a
 step is restarting or the box gives up (`../protocol/setup/box.md`, 2),
 ends the wait as the box's failure.
 
+**The page's trouble.** The browser's harness reports each trouble the
+browser kit sees in the page as the kit gives it, its kind, its text
+and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
+2), and the session judges it:
+
+- **The spent link's refusal is expected.** Opening the spent first
+  link, the shell `POST`s its secret to the link's route,
+  `/v1/sign-in/link` (jig's `protocol/client/default-http.md`, 1), which
+  refuses it, 401, as a link a sign-in spent (jig's
+  `protocol/client/sign-in.md`, its printed link); that refusal is what makes serve
+  print the fresh link. Chromium logs it as a `Log` trouble, `Failed to
+  load resource: the server responded with a status of 401
+  (Unauthorized)`, at that route's URL. From the spent link's opening
+  until `ready`, such a trouble is never counted: it may come in any of
+  step 3's waits, before or after the fresh link's line, since the
+  browser's log and the box's stdout are not ordered.
+- **Any other trouble at the start** ends the wait as the box's failure,
+  `box failed: WHY` (2.5), WHY the trouble as `KIND: TEXT (RESOURCE)`:
+  its kind as the kit names it, its text, which for a refused resource
+  holds its status, and the resource, its URL with the query and the
+  fragment dropped, since a link's URL carries its secret
+  (`/v1/sign-in/link?secret=…`) and a link is never in an answer (step
+  2). For example `Log: Failed to load resource: the server responded
+  with a status of 404 (Not Found) (http://127.0.0.1:8367/app.js)`. A
+  trouble with no URL is `KIND: TEXT`.
+- **After `ready`,** a trouble fails the line being carried out (3.7)
+  with the same words, and one that comes between lines is not
+  counted.
+
 ### 2.4 Its end
 
 At a line `end`, or at stdin's end: the TUI ended, its process group
@@ -162,7 +191,7 @@ directory stays until the next session.
 |---|---|---|
 | 0 | the session reached its end and the box stopped cleanly, whatever its lines answered | `ended` |
 | 3 | the box's store was refused by name: serve's log, under the box's logs (`../protocol/setup/box.md`, 2), holds a line starting `temper serve: ` that names a directory under the scratch directory, as every refusal of a store does (`../protocol/store.md`, 5; jig's `protocol/store/records.md`, 3); or a fake forge's log there holds a line starting `temper-box fake forge: state ` that names a file under the scratch directory, its kept state refused (`../testing/fakes.md`, 2) | `refused: ` and that line |
-| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
+| 4 | the box did not start or stop otherwise: it exited, gave up or panicked, a link or the page did not come within its bound, the page showed a trouble at the start that 2.3 counts, ctl's sign-in failed, or its stop took past its 60 seconds | `box failed: WHY`, then the last 20 lines of `session/box.log` and of serve's log, each prefixed `\| ` |
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
@@ -454,6 +483,15 @@ Focused, with no browser, no box and no Chromium:
   line the box has not printed fails the line.
 - **Its exits:** a serve log holding a store's refusal ends with status
   3 and its line; a box that exits before its link, with 4.
+- **The browser's start and the page's trouble** (2.3): the logic given
+  the box's links and the faces' answers in order; the 401 `Log`
+  trouble at the link's route, given in any of step 3's waits, before
+  or after the fresh link's line, is not counted and the start reaches
+  `ready`; a 401 at another resource, a 404, or an exception fails the
+  box, status 4, its `box failed: ` line naming the trouble's kind, its
+  text and its URL with the query dropped; a trouble at the link's own
+  URL names no secret; a trouble during a web line fails that line with
+  the same words.
 - **ctl from a file:** the box's first link written to `session/link`,
   0o600, ctl given its path and no stdin, the file gone once ctl has
   answered; the link in no answer and no program's argument.
