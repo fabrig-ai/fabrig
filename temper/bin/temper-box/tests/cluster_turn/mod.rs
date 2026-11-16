@@ -202,6 +202,17 @@ impl Judge {
                     "--key",
                     "turn-adopt",
                 ])),
+                Step::Run(self.api_request(
+                    "/collaborators/temper-admin",
+                    &[
+                        "--request",
+                        "PUT",
+                        "--header",
+                        "Content-Type: application/json",
+                        "--data",
+                        r#"{"permission":"admin"}"#,
+                    ],
+                )?),
                 Step::Run(Call::new(&[
                     "account",
                     "add-key",
@@ -243,29 +254,44 @@ impl Judge {
         Ok(())
     }
     fn api(&self, suffix: &str) -> Result<Call, String> {
+        self.api_request(suffix, &[])
+    }
+    fn api_request(&self, suffix: &str, extra: &[&str]) -> Result<Call, String> {
         let address = self.members.capture("forge", "address").ok_or("forge address")?;
-        Ok(Call::command(
-            Path::new("/usr/bin/curl"),
-            &[
-                "--fail",
-                "--silent",
-                "--show-error",
-                "--header",
-                &format!("@{}", self.root.join("person.header").display()),
-                &format!("http://{address}/api/v1/repos/fake/widget{suffix}"),
-            ],
-        ))
+        let header = format!("@{}", self.root.join("person.header").display());
+        let url = format!("http://{address}/api/v1/repos/fake/widget{suffix}");
+        let mut arguments = vec![
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--write-out",
+            "%{stderr}%{onerror}%{url_effective}\\n",
+            "--header",
+            &header,
+            &url,
+        ];
+        arguments.extend_from_slice(extra);
+        Ok(Call::command(Path::new("/usr/bin/curl"), &arguments))
+    }
+    fn candidate_sha1(&self) -> Result<&str, String> {
+        // Landing panels pad commits to 32 bytes; this fake forge spells SHA-1 objects in 40 digits.
+        self.candidate.as_str().and_then(|s| s.get(..40)).ok_or_else(|| "candidate SHA-1".into())
     }
     fn verify(&mut self, host: &mut Root) -> Result<(), String> {
         self.stage = Stage::Verify;
+        let candidate = self.candidate_sha1()?;
+        let member = self.changed["pull"]["number"].as_u64().ok_or("change pull")?;
+        let round = self.panel["round"]["pull"]["number"].as_u64().ok_or("round pull")?;
         self.calls(
             host,
             vec![
                 Call::new(&["landing", "list", "--project", "1", "--ended", "--json"]),
                 self.api("/branches/main")?,
-                self.api("/pulls?state=all&limit=100&page=1")?,
-                self.api("/actions/runs?limit=100&page=1")?,
-                self.api("/contents/NOTICE?ref=main")?,
+                self.api("/issues?state=all&limit=32&page=1")?,
+                self.api(&format!("/pulls/{member}"))?,
+                self.api(&format!("/pulls/{round}"))?,
+                self.api(&format!("/actions/runs?workflow_id=gate.yml&head_sha={candidate}&limit=32&page=1"))?,
+                self.api(&format!("/raw/NOTICE?ref={candidate}"))?,
             ],
         )
     }
@@ -360,7 +386,9 @@ impl Judge {
     }
 
     fn completed(&mut self, now: Time, host: &mut Root, calls: &[support::Ended]) -> Result<(), String> {
-        self.last = json(calls.last().ok_or("last call")?)?;
+        // Verification ends with raw file bytes, not a ctl document.
+        let document = if self.stage == Stage::Verify { calls.first() } else { calls.last() };
+        self.last = json(document.ok_or("last document")?)?;
         match self.stage {
             Stage::Created => {
                 self.chat = self.last["outcome"]["done"]["document"]["created"]["first"]
@@ -392,7 +420,8 @@ impl Judge {
                     return Err(format!("change held: {}", self.last));
                 }
                 if self.last["step"] == "landed" {
-                    if self.last["merge"] != self.candidate {
+                    let candidate = self.candidate_sha1()?;
+                    if self.last["merge"] != candidate {
                         return Err(format!("change at candidate: {}", self.last));
                     }
                     self.changed = self.last.clone();
@@ -478,8 +507,8 @@ impl Judge {
         self.calls(host, vec![Call::new(&["change", "show", &self.change, "--json"])])
     }
     fn forge_read(&mut self, host: &mut Root, calls: &[support::Ended]) -> Result<(), String> {
-        let [list, main, pulls, runs, content] = calls else {
-            return Err("final five reads".into());
+        let [list, main, pulls, member_pull, round_pull, runs, content] = calls else {
+            return Err("final seven reads".into());
         };
         let list = json(list)?;
         let row = one(&list, "landings")?;
@@ -487,17 +516,24 @@ impl Judge {
             return Err(format!("one ended, landed landing: {list}"));
         }
         let main = json(main)?;
-        if main["commit"]["id"] != self.candidate {
+        let candidate = self.candidate_sha1()?;
+        if main["commit"]["id"] != candidate {
             return Err(format!("main at candidate: {main}"));
         }
         let pulls = json(pulls)?;
         let pulls = pulls.as_array().ok_or("pulls")?;
         let member = &self.changed["pull"]["number"];
         let round = &self.panel["round"]["pull"]["number"];
+        let member_pull = json(member_pull)?;
+        let round_pull = json(round_pull)?;
         if pulls.len() != 2
             || member == round
-            || pulls.iter().filter(|pull| pull["number"] == *member && pull["merged"] == true).count() != 1
-            || pulls.iter().filter(|pull| pull["number"] == *round && pull["merged"] == true).count() != 1
+            || pulls.iter().filter(|pull| pull["number"] == *member && !pull["pull_request"].is_null()).count() != 1
+            || pulls.iter().filter(|pull| pull["number"] == *round && !pull["pull_request"].is_null()).count() != 1
+            || member_pull["number"] != *member
+            || member_pull["merged"] != true
+            || round_pull["number"] != *round
+            || round_pull["merged"] != true
         {
             return Err(format!(
                 "one change PR and one round PR, both merged: {pulls:?}; member={member}, round={round}"
@@ -506,19 +542,15 @@ impl Judge {
         let runs = json(runs)?;
         let run = one(&runs, "workflow_runs")?;
         if run["workflow_id"] != "gate.yml"
-            || run["head_sha"] != self.candidate
+            || run["commit_sha"] != candidate
+            || run["trigger_event"] != "workflow_dispatch"
             || run["status"] != "success"
             || self.run.is_some_and(|id| run["id"] != id)
         {
             return Err(format!("one successful gate.yml run at the candidate: {runs}"));
         }
-        let content = json(content)?;
-        let encoded: Vec<_> =
-            content["content"].as_str().ok_or("main content")?.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
-        let bytes = skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, &encoded, 1024)
-            .map_err(|why| format!("main base64: {why:?}"))?;
-        if bytes.as_ref() != setup::CONTENT {
-            return Err(format!("both lines at main: {}", String::from_utf8_lossy(&bytes)));
+        if content.stdout != setup::CONTENT {
+            return Err(format!("both lines at main: {}", String::from_utf8_lossy(&content.stdout)));
         }
         let run_id = run["id"].as_u64().ok_or("run id")?;
         self.stage = Stage::Jobs;

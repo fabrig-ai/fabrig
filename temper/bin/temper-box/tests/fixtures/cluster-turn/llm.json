@@ -212,7 +212,7 @@
                         "depth": 2
                       }},
                       "budget": {{
-                        "spend": 10
+                        "spend": {story.change_spend}
                       }},
                       "notes": 0
                     }}

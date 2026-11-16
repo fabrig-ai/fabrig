@@ -112,7 +112,7 @@ fn cluster_turn_wrapper_holds_delivery_not_the_saved_push() {
     let waiting = script.find("while [ -f '/story/delivery.hold' ]").expect("wait on the hold file");
     assert!(entered < waiting);
     assert!(
-        script.ends_with("exec '/story/git' \"$@\"\n"),
+        script.ends_with("exec /usr/bin/env -u PWD -u SHLVL -u _ '/story/git' \"$@\"\n"),
         "the wrapper always invokes fake git with the same arguments"
     );
 }
@@ -120,6 +120,7 @@ fn cluster_turn_wrapper_holds_delivery_not_the_saved_push() {
 #[test]
 fn cluster_turn_proof_cut_refuses_to_pass_after_proving() {
     use serde_json::json;
+    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"waiting"})), Ok(None));
     assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"preparing"})), Ok(None));
     assert_eq!(
         cluster_turn_setup::proof_cut(&json!({"phase":"proving","members":[{"gates":[{"proof":{

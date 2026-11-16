@@ -321,10 +321,19 @@ impl Peer {
         self.github_deliveries.iter().filter_map(github_delivery::deadline).chain(visible).min()
     }
 
+    // Forgejo's HTTP Date and document times use its clock, not the host's wall origin.
+    fn protocol_env(&self, now: Time, wall: Wall) -> Env<protocol::Limits> {
+        let wall = match self.protocol {
+            protocol::Limits::Forgejo(_) => Wall::from_nanos(domain::time(&self.forge.borrow().config, now).as_nanos()),
+            protocol::Limits::Github(_) => wall,
+        };
+        Env { now, wall, limits: self.protocol }
+    }
+
     fn event(&mut self, event: io::Event, now: Time, wall: Wall) {
         let Some(event) = self.delivery_event(event) else { return };
         let Some(event) = self.github_delivery_event(event, now, wall) else { return };
-        let env = Env { now, wall, limits: self.protocol };
+        let env = self.protocol_env(now, wall);
         match event {
             io::Event::Listening { owner, listener, addr } => {
                 if owner == BLOB_LISTENER {
@@ -503,7 +512,7 @@ impl Peer {
     fn progress(&mut self, now: Time, wall: Wall) {
         self.clock = (now, wall);
         self.github_progress(now, wall);
-        let env = Env { now, wall, limits: self.protocol };
+        let env = self.protocol_env(now, wall);
         // Moving the Rc, rather than borrowing through self, keeps the one pass borrow explicit.
         let shared = Rc::clone(&self.forge);
         let mut forge = shared.borrow_mut();
