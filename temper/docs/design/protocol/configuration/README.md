@@ -296,6 +296,18 @@ deployment whose engine takes longer to start raises it, and the
 engine's grace with it (below). The playground's worker document
 writes the same.
 
+**The restart wait** is jig's engine override `fleet.restart_wait_ms`
+(jig's `domain/engine/fleet.md`, *A restart said holds its runs*): how
+long the engine's settled stop asks its workers to keep their runs after
+their links drop, 1,200,000, twenty minutes, in both of jig's profiles
+(`../../draft/redeploys.md`, 5.3 and 12), with room over every engine
+restart measured so far. `temper-box init` writes none. One setting
+serves every worker, each of which keeps its runs for the longer of it
+and its own grace (`../../domain/worker/README.md`, section 2); the
+engine holds their claims as long at its next start. It bounds a lost
+link, not a stop, so the worker's stop bound and its service manager's
+stop timeout are unchanged.
+
 - **The drain's bound** is jig's worker member `graces.drain_ms`: how
   long a worker told to stop lets its runs end their turns before it
   cancels them (`../../domain/worker/README.md`, section 2). It may be
