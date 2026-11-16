@@ -6706,3 +6706,5 @@ fn a_producer_amendment_cuts_a_long_reason_at_its_end() {
 pub(crate) use follow_route::make_refused as follow_make_refused;
 
 mod milestones;
+
+pub(super) use milestones::saved as milestone_saved;

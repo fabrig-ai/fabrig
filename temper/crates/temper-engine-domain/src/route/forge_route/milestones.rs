@@ -55,6 +55,23 @@ pub(super) fn project(domain: &mut Domain, feed: &jig_domain_core::ProjectionFee
     }
     true
 }
+
+/// The final task record carries counts, spend and wall that the feed omits.
+pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
+    let jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)) = record else { return };
+    if !tasks::gathering::executor(row.executor) {
+        return;
+    }
+    domain.work.push(Work::Forge(forge::Event::Milestone {
+        row: forge::MilestoneRow {
+            project: row.project,
+            task: row.number,
+            name: name(&row.spec.words),
+            last_landing: None,
+            ended: end(row),
+        },
+    }));
+}
 // The final task record carries counts, spend and wall that the feed omits.
 fn end(row: &tasks::TaskRecord) -> Option<forge::MilestoneEnd> {
     let outcome = match row.phase {

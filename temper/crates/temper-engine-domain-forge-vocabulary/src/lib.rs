@@ -34,7 +34,7 @@ pub mod landing_log;
 pub mod limits;
 pub mod make;
 pub mod milestones;
-pub use milestones::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow};
+pub use milestones::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow, MilestoneTotals};
 pub mod making;
 pub mod panel;
 pub mod preparation;

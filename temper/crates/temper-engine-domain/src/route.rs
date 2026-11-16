@@ -22,6 +22,7 @@ mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
+mod milestones;
 mod now;
 mod panels;
 pub(crate) mod policy_translate;
@@ -411,6 +412,7 @@ fn route_core_with_job(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);

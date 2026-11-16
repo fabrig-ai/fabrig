@@ -2,6 +2,19 @@
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
+/// Totals composed at the root (temper/docs/design/domain/milestones.md, 7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct MilestoneTotals {
+    pub task: u64,
+    pub done: u32,
+    pub failed: u32,
+    pub closed: u32,
+    pub live: u32,
+    pub ended: Option<Wall>,
+    pub last_landing: Option<MilestoneLanding>,
+    pub spent: u64,
+}
+
 pub const MILESTONES_PER_PROJECT: u32 = 256;
 pub const MILESTONE_NAME_BYTES: u32 = 256;
 

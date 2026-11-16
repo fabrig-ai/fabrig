@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:46263                                     │
+│ Sign in this terminal to 127.0.0.1:42307                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ HHGS-RFBH, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:46263/terminal?code=HHGS-RFBH                  │
+│ JXPK-HQLK, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42307/terminal?code=JXPK-HQLK                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:46263/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:42307/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
