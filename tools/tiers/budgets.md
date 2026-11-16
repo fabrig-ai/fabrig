@@ -13,7 +13,7 @@ Provisional, 2026-11-16. What the focused and fuzzy suites may cost, by layer of
 - **A partial run judged whole** (section 8): a layer's figure is what the run measured plus the ledger's for the binaries it didn't run; a layer over its budget is the change's red where main is within it or the change adds more than the noise, and its line names the binaries and tests that grew.
 - **The held budget** (section 9): the lower of the user's ceiling and the layer's lowest figure at main since the ceiling was set, plus a tenth, so a budget only falls.
 - **Moves down** (section 10): a line beside the budgets moves CPU seconds from one layer to a layer below it, with the tests a change moves; the gate checks that it goes down.
-- **What follows** (section 11): each test held to its reference (B4), in this document as it is designed.
+- **Each test held to its reference** is `tools/tiers/references.md`'s: new and flagged tests run alone, outside every sum here, their CPU in the ledger beside their walls (section 7), and the reasons' lines beside the budgets.
 
 ## 2. The budgets file's gate tables
 
@@ -42,17 +42,18 @@ ideal_s = 30
 cpu_s = 72
 ```
 
-- **A profile's table** holds `references`, `moves` where it has any (section 10), and one table for each **group**. A group is one of the five trees by name (`skein`, `smith`, `jig`, `temper`, `hearth`), or `repository` for the repository's checks (`tools/tiers/layers.md`, 4).
+- **A profile's table** holds `references`, `moves` where it has any (section 10), `reasons` where it has any (`tools/tiers/references.md`, 2), and one table for each **group**. A group is one of the five trees by name (`skein`, `smith`, `jig`, `temper`, `hearth`), or `repository` for the repository's checks (`tools/tiers/layers.md`, 4).
 - **`references`** is an inline table that maps a layer's name to the per-test reference of a test in that layer, in CPU seconds (`temper/docs/design/draft/test-budgets.md`, 6). It names layers from `tools/tiers/layers.toml`'s `layers` list, and `checks` for the repository's checks.
 - **A group's table** holds `ideal_s`, the group's ideal for the suite, and a table for each layer it has: for a tree, layers named in `layers`; for `repository`, `checks` alone.
 - **A layer's table** holds `cpu_s`, the layer's budget for the suite. That figure is the user's ceiling: raising it is the user's (`skein/docs/foundation/testing-strategy.md`, 8.1). The table may also hold `ideal_s`, the layer's share of the group's ideal, where the draft gives one, and `reference_s`, the tree's own per-test reference for the layer, which replaces the profile's.
-- **Every value** is a finite positive number, never a boolean. Nothing else is allowed in these tables. The moves have their own form (section 10).
+- **Every value** is a finite positive number, never a boolean. Nothing else is allowed in these tables. The moves have their own form (section 10), and the reasons' lines theirs (`tools/tiers/references.md`, 2).
 - **`budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml'))`** (`tools/tiers/design.md`, 10.2) reads the layers' names from the `layers` file's `layers` list. It reads that file only when the budgets file has a `gate` table. It raises `ValueError` on:
   - a key or value outside the form above;
   - a group that isn't one of the six;
   - a layer the list doesn't name, `checks` under a tree, or any other layer under `repository`;
   - a group without `ideal_s`, or a layer without `cpu_s`;
-  - a layer with no reference: neither its own `reference_s` nor an entry in its profile's `references`.
+  - a layer with no reference: neither its own `reference_s` nor an entry in its profile's `references`;
+  - a reasons' line outside its form, or two naming the same binary and test (`tools/tiers/references.md`, 2).
 
   Its result's `gate` is the table as read: by profile, then `references` and the groups, then each group's `ideal_s` and layer tables. The form `[gate.<tree>.<profile>]` with `cpu_suite_s`, a tree's one figure for a suite, is gone and is refused.
 
@@ -80,7 +81,7 @@ cpu_s = 72
 
 - **`layers`:** one row for each tree and layer that has a process in the run, with these keys:
   - `tree` and `layer`, the layer null for an unplaced binary;
-  - `cpu_s`, the sum of its processes' CPU, of every kind (`tests`, `fresh`, `alone`), as the suite's sum counts them;
+  - `cpu_s`, the sum of its processes' CPU, of the suite's kinds (`tests`, `fresh`, `alone`), as the suite's sum counts them. A `reference` or `empty` process, which measures one test alone after the suite (`tools/tiers/references.md`, 4), counts in no sum: neither a layer's, nor the suite's, nor a binary's figure at the head (section 8), nor the ledger's (section 7);
   - `ceiling_s`, the layer's ceiling for the run's profile: its table's `cpu_s` with the moves applied (section 10), or null where it has none;
   - `budget_s`, the budget the run holds it to: its ceiling, or with a ledger its held budget (section 9); null where it has no ceiling;
   - `ideal_s`, its layer table's, or null;
@@ -115,8 +116,8 @@ cpu_s = 72
   - **`--gate`:** asks for the gate's verdict. It is passed to `execute_one_process` as `gate`, and a layer over its budget then exits 1, as a CPU budget passed does.
   - **With `--again`,** `--gate` is an invalid invocation, as `--budgets`, `--walls` and `--ledger` are.
 - **`execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None)`:** gives `gate` and `ledger`, the ledger as `ledger()` read it or none, to `summary`, and writes the run's `ledger.json` (section 7) once the summary is made.
-- **`tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--gate] [--json]`:** gives `gate`, and the ledger `--ledger` names as `ledger()` reads it, to `summary`. It writes no ledger. Its exit status keeps its rule: 1 when `over_budget` holds a line; 2 for a ledger refused.
-- **The gate** passes `--gate` in both suites' commands, and `--ledger` with main's ledger for the suite where its runner keeps one (`.config/gate/README.md`, item 4; section 7). The gate's runner, outside this repository, takes them up when it follows (`temper/docs/design/draft/test-budgets.execution.md`, 2). Until then the comparison prints and holds nothing.
+- **`tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--ledger PATH] [--base DIR] [--gate] [--json]`:** gives `gate`, the ledger `--ledger` names as `ledger()` reads it, and the base's run directory `--base` names (`tools/tiers/references.md`, 5 and 6), to `summary`. It writes no ledger. Its exit status keeps its rule: 1 when `over_budget` holds a line; 2 for a ledger refused.
+- **The gate** passes `--gate` in both suites' commands, and `--ledger` with main's ledger for the suite where its runner keeps one (`.config/gate/README.md`, item 4; section 7). Where its run flagged a test, the runner runs it alone at the base and judges again with `--base` (`tools/tiers/references.md`, 5). The gate's runner, outside this repository, takes them up when it follows (`temper/docs/design/draft/test-budgets.execution.md`, 2). Until then the comparison prints and holds nothing.
 - **Every other run** passes no `--gate` and no `--ledger`: the delivery check (`tools/pre-pr/design.md`, 4), a builder's run and anyone's own. Each prints the same rows, and a layer over its budget appears as a warning in its output.
 
 ## 6. The starting figures
@@ -141,29 +142,31 @@ cpu_s = 72
 
 ## 7. The ledger
 
-- **What it is:** main's figures for one suite, from the gate runs whose candidates landed (`temper/docs/design/draft/test-budgets.md`, 5): each binary's CPU, each test's last walls, each layer's held state (section 9) and the moves its held budgets have taken (section 10). The gate's runner, outside this repository, keeps one for each profile beside its reports (`temper/docs/design/draft/test-budgets.execution.md`, 2). The repository holds none.
+- **What it is:** main's figures for one suite, from the gate runs whose candidates landed (`temper/docs/design/draft/test-budgets.md`, 5): each binary's CPU, each test's last walls and, where a gate ran it alone, its last CPU figures alone (`tools/tiers/references.md`, 4), each layer's held state (section 9) and the moves its held budgets have taken (section 10). The gate's runner, outside this repository, keeps one for each profile beside its reports (`temper/docs/design/draft/test-budgets.execution.md`, 2). The repository holds none.
 - **Its form:** one JSON object, written as `cpu.py`'s `save` writes a file:
 
 ```json
-{"ledger": 1, "profile": "default",
+{"ledger": 2, "profile": "default",
  "binaries": {"temper-engine::domain": {"tree": "temper", "layer": "domain", "cpu_s": 61.2,
-                                        "tests": {"forge::opens": [0.011, 0.012, 0.010]}}},
+                                        "tests": {"forge::opens": [0.011, 0.012, 0.010]},
+                                        "alone": {"forge::opens": [0.008]}}},
  "budgets": {"temper": {"domain": {"ceiling_s": 141, "lowest_s": 118.4}}},
  "moves": [{"from": "temper.simulated", "to": "temper.domain", "cpu_s": 12, "why": "..."}]}
 ```
 
-  - `ledger`, the form's version, 1;
+  - `ledger`, the form's version, 2;
   - `profile`, `default` or `fuzzy`;
-  - `binaries`, by binary id: `tree`, one of section 2's six groups; `layer`, a name of the `layers` list, `checks`, or null, as section 3 placed it in the run that wrote the ledger; `cpu_s`, the CPU of its processes, of every kind, in the last run that measured it whole (below); `tests`, by test name, a list of one to three walls, that test's in the last runs that measured it, oldest first;
+  - `binaries`, by binary id: `tree`, one of section 2's six groups; `layer`, a name of the `layers` list, `checks`, or null, as section 3 placed it in the run that wrote the ledger; `cpu_s`, the CPU of its processes, of the suite's kinds (section 4), in the last run that measured it whole (below); `tests`, by test name, a list of one to three walls, that test's in the last runs that measured it, oldest first; `alone`, by test name, a list of one to three CPU figures, that test's alone (`tools/tiers/references.md`, 4) in the last runs that ran it alone, oldest first, for tests some landed gate ran alone: every name in `alone` is in `tests`;
   - `budgets`, by group, then by layer, for each layer with a ceiling at main: `ceiling_s`, that ceiling (section 10), and `lowest_s`, the layer's lowest figure at main since the ceiling was set (section 9);
   - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it.
 
   Every figure is a finite number at least 0, never a boolean. Nothing else is allowed.
-- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a test with no wall or more than three, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A form that changes moves `ledger` by one, and its reader reads the form before it too, since the runner's ledger outlives the landing that changes it.
+- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1 or 2, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a test with no wall or more than three, an `alone` entry with no figure or more than three, or for a name not in `tests`, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A form that changes moves `ledger` by one, and its reader reads the form before it too, since the runner's ledger outlives the landing that changes it.
+  - **Version 1,** B3's, is version 2 without `alone`: each binary has exactly the four other keys, and `ledger()` returns it with `alone` empty for each binary, so its callers read one form. Every run writes version 2.
 - **Who passes it:** the gate, as `--ledger PATH` (section 5): main's ledger for the suite, at the candidate's base. Every other run passes none, and its selection is judged as it stands (section 4).
 - **Every run writes its own.** A one-process run that reaches its summary writes `ledger.json` in its directory (`tools/tiers/design.md`, 11.8): main's ledger as it will stand once the run's candidate lands. It is the given ledger, or an empty one, with the run's figures folded in:
-  - **a binary the run measured whole,** every one of its selected tests `passed`, `failed` or `crashed` and none `starved`, `cancelled` or unobserved: its `tree` and `layer` as the run placed it, its `cpu_s` as the run measured it, and its `tests` as the run ran them, each with the ledger's last two walls for it, then the run's own. A test the ledger had and the run didn't run leaves;
-  - **a binary the run cut short:** its ledger entry as it was, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial;
+  - **a binary the run measured whole,** every one of its selected tests `passed`, `failed` or `crashed` and none `starved`, `cancelled` or unobserved: its `tree` and `layer` as the run placed it, its `cpu_s` as the run measured it, and its `tests` as the run ran them, each with the ledger's last two walls for it, then the run's own. Its `alone`, for each test the run ran: the ledger's last two figures for it, then the run's own, where the run's `references` (`tools/tiers/references.md`, 4) give it a `cpu_s` that isn't null; otherwise the ledger's figures as they were, where it has any. A test the ledger had and the run didn't run leaves, from both;
+  - **a binary the run cut short:** its ledger entry as it was, `alone` included, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial;
   - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. It leaves where `workspace` lacks it (its target is gone), and where the listing named it and the run selected none of its tests;
   - **`budgets`** as section 9 folds them, and **`moves`** the run's budgets file's for the profile, an empty list without one.
 - **The runner keeps** the `ledger.json` of the gate run whose candidate landed as main's ledger for that suite, and passes it to the next gate on top of that landing. Its first ledger is the `ledger.json` of a whole run of its own on main, with no `-p` and no `--ledger`: until then no selection is judged whole and no budget is held below its ceiling (draft, 5). The gate selects by package alone; a run that also filters tests writes a ledger that isn't main's.
@@ -172,7 +175,7 @@ cpu_s = 72
 
 `summary`'s `ledger` (section 4) is main's ledger as `ledger()` read it, or none. With one, `summary` refuses (`ValueError`) a nextest run, tools, a ledger whose `profile` isn't the run's, and a `results.json` without `workspace`.
 
-- **A binary's figure at the head** is the CPU of its processes where the run ran it; the ledger's `cpu_s` where the run's `workspace` has it with `listed` false; nothing where the listing named it and the run ran none of its tests, or where `workspace` lacks it. It counts in the tree and layer the run places it in: its processes', or its `workspace` entry's.
+- **A binary's figure at the head** is the CPU of its processes of the suite's kinds (section 4) where the run ran it; the ledger's `cpu_s` where the run's `workspace` has it with `listed` false; nothing where the listing named it and the run ran none of its tests, or where `workspace` lacks it. It counts in the tree and layer the run places it in: its processes', or its `workspace` entry's.
 - **A layer's figure at the head** is the sum of its binaries' figures there. **Its figure at main** is the sum of the ledger's `cpu_s` for the binaries the ledger places there.
 - **The rows** (section 4's `layers`) are one for each tree and layer with a binary at the head or at main, in section 4's order, and gain these keys:
   - `cpu_s`, its figure at the head;
@@ -227,7 +230,6 @@ why = "the store's own mechanics placed below the one-process world"
 
 ## 11. Later
 
-- **Each test's reference held** (`temper/docs/design/draft/test-budgets.md`, 6; B4): new and flagged tests run alone, their CPU in the ledger beside their walls, and the reasons' lines with their figures.
 - **The suites run through nextest** (`tools/tiers/run`, section 7's collector in `tools/tiers/design.md`) are not summed by layer. The focused and fuzzy suites run through one-process (`tools/tiers/design.md`, 11).
 
 ## 12. Open questions

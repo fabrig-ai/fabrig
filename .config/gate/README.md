@@ -34,6 +34,12 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
    where the gate's runner keeps one; omit `--ledger LEDGER` until it does.
    The run writes `ledger.json` with its figures folded in, which the runner
    keeps for the next gate when the candidate lands (`tools/tiers/budgets.md`, 7).
+   With a ledger, the run also runs each new and flagged test alone after the
+   suite and holds it to its reference. Where its `results.json` has a
+   flagged test, the runner runs `tools/tiers/one-process --alone RUN_DIR`
+   from a checkout of the candidate's base, then `tools/tiers/cpu-summary
+   RUN_DIR --ledger LEDGER --base BASE_RUN_DIR --gate`, whose exit status is
+   the verdict with the base's figures (`tools/tiers/references.md`, 5 and 6).
    Rules:
    `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: a CPU budget for
    each layer of each tree, and the repository's checks', over budget is
