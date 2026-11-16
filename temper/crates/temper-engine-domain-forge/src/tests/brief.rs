@@ -1141,6 +1141,7 @@ fn kept_landing_failure(d: &mut Domain) {
         job: None,
         landing: policy::Landing {
             last_left: None,
+            searched: None,
             round,
             task: 61,
             project: 5,

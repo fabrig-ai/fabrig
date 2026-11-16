@@ -268,9 +268,11 @@ fn queues(
                 &[Hole::Number(flight.task()), Hole::Number(flight.member()), Hole::Number(u64::from(flight.round()))],
             );
             let status = if let Some(prefix) = flight.probe()
-                && *flight.step() == w::LandingStep::Probing
+                && (*flight.step() == w::LandingStep::Probing || *flight.step() == w::LandingStep::ProbingByTest)
             {
-                super::change::say(words, W::ProbingAt, &[Hole::Name(crate::public::short(prefix).as_slice().into())])
+                let phrase =
+                    if *flight.step() == w::LandingStep::ProbingByTest { W::ProbingByTestAt } else { W::ProbingAt };
+                super::change::say(words, phrase, &[Hole::Name(crate::public::short(prefix).as_slice().into())])
             } else {
                 super::change::say(words, step_word(flight.step()), &[])
             };
@@ -406,6 +408,7 @@ pub(crate) fn step_word(step: &w::LandingStep) -> W {
         w::LandingStep::Preparing => W::HeldPreparing,
         w::LandingStep::Proving => W::Checking,
         w::LandingStep::Probing => W::Probing,
+        w::LandingStep::ProbingByTest => W::ProbingByTest,
         w::LandingStep::Proved => W::Proved,
         w::LandingStep::Turn => W::HeldLanding,
         w::LandingStep::Landed => W::Landed,

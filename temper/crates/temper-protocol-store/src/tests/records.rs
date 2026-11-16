@@ -1399,6 +1399,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                     }),
                     landing: l::Landing {
                         last_left: Some(0),
+                        searched: None,
                         round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                         task: 61,
@@ -1480,6 +1481,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                     round: None,
                     own_hold: own.then_some(v25::LandingOwnHold::Turn),
                     last_left: None,
+                    searched: None,
                 },
             )
             .expect("landing state");
@@ -1493,8 +1495,8 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                 },
             )
             .expect("landing row");
-            let wire =
-                v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(row) }).expect("landing row");
+            let wire = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) })
+                .expect("landing row");
             let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
             wire.encode(&mut writer).expect("measured room");
             let bytes = writer.finish();

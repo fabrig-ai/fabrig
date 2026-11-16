@@ -2,3 +2,5 @@
 mod key;
 pub(crate) mod step;
 mod verdict;
+
+pub(crate) mod search_tests;

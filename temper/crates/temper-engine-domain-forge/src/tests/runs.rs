@@ -36,6 +36,44 @@ pub(super) fn follow() -> runs::Follow {
     follow
 }
 #[test]
+fn workflow_reservations_compare_repository_commit_and_inputs_through_fault_retries() {
+    let mut d = super::domain();
+    let key = crate::ReceiptKey {
+        project: 5,
+        repository: super::REPO,
+        check: crate::Check::Gate(Box::from(b"gate".as_slice())),
+        key: [8; 32],
+    };
+    let inputs =
+        Box::new([a::Input { name: Box::from(b"temper_key".as_slice()), value: Box::from(b"other".as_slice()) }]);
+    d.landing.flights.insert(key.clone(), follow()).expect("flight room");
+    assert!(runs::busy(&d, super::REPO, b"gate.yml", COMMIT, inputs.as_ref()));
+    assert!(!runs::busy(&d, super::REPO, b"gate.yml", COMMIT, &[]), "same inputs still share a flight");
+    assert!(!runs::busy(&d, a::Repository { repository: 3, ..super::REPO }, b"gate.yml", COMMIT, inputs.as_ref()));
+    assert!(!runs::busy(&d, super::REPO, b"other.yml", COMMIT, inputs.as_ref()));
+    assert!(!runs::busy(&d, super::REPO, b"gate.yml", [4; 32], inputs.as_ref()));
+    let mut flight = d.landing.flights.remove(&key).expect("known flight");
+    flight.outcome = Some(policy::Verdict::Failed);
+    d.landing.flights.insert(key.clone(), flight.clone()).expect("flight room");
+    assert!(!runs::busy(&d, super::REPO, b"gate.yml", COMMIT, inputs.as_ref()), "an ended run releases its window");
+    d.landing.flights.remove(&key);
+    flight.outcome = Some(policy::Verdict::Fault(policy::Fault::Cancelled));
+    d.landing.faults.insert((flight.task, 0, 0), flight.clone()).expect("fault room");
+    assert!(
+        runs::busy(&d, super::REPO, b"gate.yml", COMMIT, inputs.as_ref()),
+        "a fault waiting for retry still owns its window"
+    );
+    d.landing.faults.remove(&(flight.task, 0, 0));
+    runs::retry(&mut flight, 2);
+    assert!(flight.start.is_none());
+    d.landing.flights.insert(key, flight).expect("retry room");
+    assert!(
+        runs::busy(&d, super::REPO, b"gate.yml", COMMIT, inputs.as_ref()),
+        "a fresh dispatch retry keeps its inputs reserved"
+    );
+}
+
+#[test]
 fn only_our_dispatch_at_the_commit_after_start_is_followed() {
     let mut follow = follow();
     let valid = run();

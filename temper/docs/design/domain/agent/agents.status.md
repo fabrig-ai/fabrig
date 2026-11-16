@@ -1,8 +1,14 @@
 # agents: status
 
-2026-11-12. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-16. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
+- **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`
+  draw a flow only where a sequence says more drawn, with no example and
+  no word on one path a flow or options in a table; `ask.txt`'s
+  *Showing* opens "Show a picture when it explains better than words",
+  sketches nothing, and its document line asks for no drawing [in flight:
+  change 4459].
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a

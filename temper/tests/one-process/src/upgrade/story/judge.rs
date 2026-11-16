@@ -15,6 +15,7 @@ pub(super) struct Judge {
     stopped: bool,
     released: bool,
     client_started: bool,
+    write_released: bool,
     ledger: Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>,
     finished: bool,
     epoch: u32,
@@ -38,6 +39,7 @@ impl Judge {
             stopped: false,
             released: false,
             client_started: false,
+            write_released: false,
             ledger,
             finished: false,
             epoch: 0,
@@ -75,7 +77,7 @@ impl Judge {
 
         Ok(())
     }
-    fn arm_write(&mut self, others: &mut [Proc]) {
+    fn advance_write(&mut self, others: &mut [Proc]) -> Result<(), String> {
         if !self.upgrade
             && !STATE.with(|s| s.borrow().armed)
             && golden::in_flight(&self.store.borrow()).is_some()
@@ -109,6 +111,20 @@ impl Judge {
             self.transport.forge.borrow_mut().config.timeouts = 1000;
             STATE.with(|s| s.borrow_mut().faulted = true);
         }
+        // The message's kept answer precedes the uncertain write, so the stop can
+        // observe both without waiting for a later client response to arrive.
+        if !self.upgrade
+            && !self.write_released
+            && others.iter().any(|p| matches!(p, Proc::Other(HarnessProcess::Calls(c)) if c.answers.len() == 1))
+        {
+            for proc in others {
+                if let Proc::Peer(peer) = proc {
+                    peer.release(b"upgrade-write").map_err(|why| format!("write hold released: {why:?}"))?;
+                }
+            }
+            self.write_released = true;
+        }
+        Ok(())
     }
     fn start_client(&mut self, others: &mut [Proc]) {
         for proc in others.iter_mut() {
@@ -203,7 +219,7 @@ impl Judge {
                 }
             }
         }
-        self.arm_write(others);
+        self.advance_write(others)?;
         let checked = STATE.with(|s| s.borrow().checked);
         if self.upgrade && checked && !self.client_started {
             self.start_client(others);
