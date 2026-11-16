@@ -4,7 +4,7 @@ Provisional, 2026-11-14. The read that says what a job not yet ended is
 doing: waiting for a runner, blocked by the jobs it needs, or running at
 a step. A service reads it when a wait on CI has passed its bound, to
 say why in the hold it makes (temper's
-`domain/forge/change/repairs.md`, *A stall's hold says where*;
+`domain/forge/change/stalls.md`, 3 and 4;
 `domain/landing.md`, 4.2). It is a call of the vocabulary (README.md,
 3.2), rendered by each dialect (forgejo.md, github.md), and the fake
 forge models the states it reads (../testing/fakes/forge.md, 2.3).

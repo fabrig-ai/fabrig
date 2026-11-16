@@ -37,7 +37,7 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait counts the stall as the producing phase does (`repairs.md`). A
+  open the pull. This wait counts the stall as the producing phase does (`stalls.md`, 1). A
   failed producer supplies none, and holds whatever it pushed (`repairs.md`).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
@@ -272,7 +272,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the branch's tip opens as any head does, and takes its base where
    checking and its turn say (steps 3 and 6). What the change reads or
    waits on before it takes that step is bounded as every wait is: the
-   stall counts, or a named exemption stands (`repairs.md`, *Stalls*).
+   stall counts, or a named exemption stands (`stalls.md`, 1).
    An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks/holds.md`, 3), and a
@@ -325,7 +325,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    than the branch's, while the branch is at the head the change
    expects (the head it entered this step with), is the forge catching
    up. The change waits for the pull request to name its head, its
-   stall counting (`repairs.md`, *Stalls*), and goes on from there.
+   stall counting (`stalls.md`, 1), and goes on from there.
    Only its branch found at another head than the change expects is
    drift (3).
 3. **Checking:** CI runs on its head, where its landing branch's rules

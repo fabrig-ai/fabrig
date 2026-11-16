@@ -5,8 +5,7 @@
 No gap: the design carries all four of its wants, and nothing was dropped.
 A landing's own update is its own in `../domain/forge/change/README.md`,
 section 3, *Its own writes are its own*, `../domain/forge/README.md`,
-section 6, and `../domain/forge/change/repairs.md`, *Stalls* and *A stall's
-hold says where*, the bound being the existing stall,
+section 6, and `../domain/forge/change/stalls.md`, 1 and 3, the bound being the existing stall,
 `forge.change_policy.stall_ms`. The first keeps the queue in
 `../domain/forge/queues.md`, *The first owns the queue*. A runner's fault
 runs again in `../domain/forge/change/README.md`, section 2, step 3, *The
