@@ -10,6 +10,105 @@ pub(super) use super::fixtures::home::{
 
 const UNKNOWN: u32 = 99;
 
+pub(super) fn group_view(root: &d::Domain, browser: bool) -> crate::View {
+    let words = if browser { f::browser_words() } else { f::words() };
+    let domain = home_limits();
+    let limits = crate::Limits::of(&domain, &words).unwrap();
+    let mut view = crate::View::new(&limits, &domain, words, f::FORGE);
+    crate::build(&mut view, root, f::groups::NOW, &mut Queue::uncapped());
+    view
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the count scenarios assemble finding rows and inspect semantic heads")]
+fn group_counts_agree_on_homes_and_needs_intro() {
+    let mut rows = f::groups::bugs().into_vec();
+    for (number, severity) in [
+        (3, w::Severity::High),
+        (4, w::Severity::Medium),
+        (5, w::Severity::Medium),
+        (6, w::Severity::Low),
+        (7, w::Severity::Low),
+        (9, w::Severity::Low),
+        (12, w::Severity::Low),
+    ] {
+        rows.push(f::groups::row(number, "Flake", severity, w::FindingKind::Flake, 16));
+    }
+    let mut own = f::groups::row(11, "My finding", w::Severity::Medium, w::FindingKind::Review, 24).into_parts();
+    own.holder = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+    let mine = [w::FindingRow::new(&w::CEILINGS, own).unwrap()];
+    let groups = [
+        f::groups::QUESTION,
+        "CI?\nFindings: 2/3 2/4 2/5\nChoice: A",
+        "Flakes?\nFindings: 2/6 2/7 2/9 2/12\nChoice: A",
+    ];
+    for (questions, cut, sentence, head, needs_head, counts) in [
+        (
+            groups.to_vec(),
+            false,
+            "11 findings need you.",
+            "Needs you · 11",
+            "Needs you · 4",
+            ["2 high", "4 medium", "5 low"],
+        ),
+        (
+            [groups.as_slice(), &["Plain?\nChoice: A"]].concat(),
+            false,
+            "Five things need you.",
+            "Needs you · 5",
+            "Needs you · 5",
+            ["2 high", "4 medium", "5 low"],
+        ),
+        (
+            [f::groups::QUESTION, "Again?\nFindings: 2/2\nChoice: A"].to_vec(),
+            false,
+            "Four findings need you.",
+            "Needs you · 4",
+            "Needs you · 3",
+            ["1 high", "2 medium", "1 low"],
+        ),
+        (
+            groups.to_vec(),
+            true,
+            "4+ things need you.",
+            "Needs you · 4+",
+            "Needs you · 4+",
+            ["2 high", "4 medium", "5 low"],
+        ),
+    ] {
+        for (address, is_needs) in [
+            (Address::Home { project: f::groups::PROJECT }, false),
+            (Address::AllHome, false),
+            (
+                Address::Inbox {
+                    filter: d::address::Filter { project: Some(f::groups::PROJECT), ..d::address::Filter::ALL },
+                },
+                true,
+            ),
+        ] {
+            let root = f::groups::at(&questions, &rows, &mine, cut, address);
+            for browser in [false, true] {
+                if is_needs && !browser {
+                    continue;
+                }
+                let view = group_view(&root, browser);
+                let text = f::main_text(view.tree());
+                contains(&text, sentence);
+                if is_needs {
+                    main_find(view.tree(), Role::Heading { level: 2 }, needs_head.as_bytes());
+                } else {
+                    main_find(view.tree(), Role::Heading { level: 2 }, head.as_bytes());
+                    let sevs = styled(view.tree(), crate::look::HOME_SEVS);
+                    let sevs = f::nodes_text(subtree(view.tree(), sevs.id));
+                    for count in counts {
+                        contains(&sevs, count);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Home's try survives leaving Ready (temper/docs/design/domain/trial.md, 6.3).
 fn trial_home(beginning: bool) -> d::Domain {
     let (mut root, accounts) = home_root(forge_rows(true), !beginning, !beginning);

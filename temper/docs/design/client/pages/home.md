@@ -209,9 +209,10 @@
       "N+ things need you." where the read is cut, the
       project's name until its needs have answered. Where every open card
       concerns findings (1, **Findings, drawn**, *Counted*) and the read
-      is not cut, "finding" stands for "thing": "One finding needs you.",
-      "Two findings need you.", "11 findings need you."
-      (`../../draft/home-for-a-person.md`, 3). The needs sentence is one
+      is not cut, "finding" stands for "thing" and the number is the
+      findings', `Counted::total`, each once, not the cards': "One
+      finding needs you.", "Two findings need you.", "11 findings need
+      you." (`../../draft/home-for-a-person.md`, 3 and 5). The needs sentence is one
       function's (`common::home::needs_sentence`) wherever it is said:
       Home on All projects and Needs you's intro say it so too. With N as `landed`
       less `seen`, and a brief new to the person where its `landed` is above
@@ -236,7 +237,8 @@
     review on the forge (`needs-you.md`, 1, *An approval*). With none
     open the region is left out, the headline above having said "Nothing
     needs you." (`../../draft/surfaces.md`, 14: no part is drawn empty). Its
-    head is the level-2 heading "Needs you · N", N in the signal colour;
+    head is the level-2 heading "Needs you · N", N in the signal colour,
+    the findings' `Counted::total` where the headline's number is it;
     then, while an open card concerns findings, their severities counted,
     `temper-home-sevs`, "2 high · 4 medium · 5 low", each its glyph then
     its count and word (1, **Findings, drawn**, *The head's counts*); and
@@ -595,17 +597,24 @@
     `--gf-signal-line`; medium and high in weight 500. It holds the glyph,
     then its words. `findings::chip(b: &mut Builder, words: &Words,
     severity: w::Severity, label: &[u8])`, beside `severity`.
-  - *Counted,* `pages::findings::counted(open: &[findings::Need<'_>]) ->
-    findings::Counted`, `Counted { high: u32, medium: u32, low: u32, only:
-    bool }`, of the domain's: over the open cards, how many findings of
-    each severity they concern, each finding once, and `only` where every
-    open card concerns findings and one does at least. A finding's own
-    card concerns its finding; no other card concerns any until the
-    triager's groups (`../../draft/home-for-a-person.md`, 5). A card's own
-    severity, `findings::Need::severity(self) -> Option<w::Severity>`,
-    is its finding's, and none for any other card; the cards' order reads
-    it (`needs-you.md`, 1, *What the client keeps*). The needs sentence's
-    "findings" (1, *Home on any project*) is `only`.
+  - *Counted,* `pages::findings::counted(store: &findings::Store, open:
+    &[findings::Need<'_>]) -> findings::Counted`, `Counted { high: u32,
+    medium: u32, low: u32, only: bool }`, of the domain's: over the open
+    cards, how many findings of each severity they concern, each finding
+    once by its `findings::Id` however many cards name it, and `only`
+    where every open card concerns findings and one does at least. A
+    finding's own card concerns its finding; a group's card
+    (`needs-you.md`, 1, *A group of findings*) concerns its rows' findings;
+    no other card concerns any. `Counted::total(self) -> u32` is the
+    findings counted, `high + medium + low`. A card's own severity,
+    `findings::Need::severity(self, store: &findings::Store) ->
+    Option<w::Severity>`, is its finding's, its group's highest, and none
+    for any other card; the cards' order reads it (`needs-you.md`, 1,
+    *What the client keeps*). The needs sentence's "findings" (1, *Home
+    on any project*) is `only`, and where it holds the sentence and
+    Needs you's head count the findings, `total`, not the cards: four
+    cards, three groups of 3, 3 and 4 and a finding of the person's, say
+    "11 findings need you." and "Needs you · 11".
   - *The head's counts,* `temper-home-sevs`, in Needs you's head after
     its heading and before "All needs" at the right, 13 px, muted, gap
     14 px between counts and 6 px between a count's glyph and words: a
@@ -623,7 +632,10 @@
     "TITLE · high · qa · 1 d". `findings::row(b, root, card, words,
     bindings, times, kind: bool)`, public beside `severity`, draws
     one item, in a list its caller opens, so that a group's card draws its
-    rows with it (`../../draft/home-for-a-person.md`, 5).
+    rows with it (`../../draft/home-for-a-person.md`, 5). A group's row
+    is drawn from its `w::FindingRow` with the same parts, its title text
+    and no link (*A group's card*, below); one function or two, the
+    view's choice, so long as both forms share these parts.
   - *A finding's own card,* a finding the person holds (`needs-you.md`,
     1, *A finding that is the person's*), a `temper-need-card` on Home in
     its place among the cards:
@@ -644,6 +656,43 @@
       open on Needs you, and an act sent from either answers on both.
     - *On a phone,* its from line, its row, then "More", quiet, which
       opens Needs you at its card, as another card's "More" does.
+  - *A group's card,* a question about a group of the triager's findings
+    (`needs-you.md`, 1, *A group of findings*;
+    `../../draft/home-for-a-person.md`, 5), a `temper-need-card` on Home
+    in its place among the cards, as `home.html`'s first three draw it:
+    - *its from line,* mono, `temper-need-from`: on Home on All projects
+      the project's chip; then its chip of findings, "3 bugs", "3 CI
+      faults", on its highest severity's ground, its count its rows' in
+      digits and its noun, or "3 findings", "1 finding" with none; then
+      its phrase, " · " and "the oldest 1 d", its oldest row's span (`../view.md`, 6),
+      or its one row's span alone: "in temper · the oldest 1 d", or "the
+      oldest 23 h" with no phrase; " · later" on a card marked later;
+    - *its question,* in `temper-ask-question`, as a question's card has
+      it;
+    - *its rows,* in `temper-finding-rows`, a row a finding in its line's
+      order (*A finding's row*), each kind said only where the rows hold
+      more than one ("qa · 1 d" beside "review · 16 h"; "1 d" where all
+      are flakes); a row's title is text, no link (`needs-you.md`, 1, *A
+      group of findings*);
+    - *its context,* in `temper-ask-context` and `temper-group-context`,
+      14 px, muted, no margin, where it has one;
+    - *its reason line,* a question's (`needs-you.md`, 1, *Why it reached
+      you*), unless said once (1, *One why*);
+    - *its acts,* a question's: its choices, the recommended one first and
+      primary with "recommended", the others quiet, then "Tell it something
+      else", the link that opens *Needs you* at its card; a choice answers
+      in place, with its held send and its Undo.
+    - *On a phone,* as another question's card: its from line, its
+      question, its recommended act full width, then "More"; its rows,
+      context and reason line are left to *Needs you*.
+    - *In the terminal,* its parts print as words: the from line "3 bugs ·
+      in temper · the oldest 1 d", its question, a row a line "TITLE · high
+      · qa · 1 d", its context, then its choices and "Tell it something
+      else" as a question's.
+    - *More:* as the fourth of four open cards, *More*'s line draws its
+      glyph, its highest severity's, then its from line's words, "3 bugs
+      in temper · the oldest 1 d"; in the terminal "One more: 3 bugs · high
+      · in temper · the oldest 1 d".
 - **Decided for you** (`../../draft/what-reaches-you.md`, section 6;
   `../../domain/forge/attention.md`, 5): what agents decided for the person, any task's,
   a goal's, a chat's or a delegate's, whether or not the person was away.

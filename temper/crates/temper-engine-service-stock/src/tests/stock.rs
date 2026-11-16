@@ -843,6 +843,36 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
     );
 }
 
+// temper/docs/design/domain/areas.md, 6, Its groups; domain/agent/agents.md, 2.
+#[test]
+fn the_triager_is_told_to_group_findings_and_ask_once_a_group() {
+    let words = include_str!("../stock/triager.md");
+    let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
+    let mut paragraphs = shared.split("\n\n");
+    paragraphs.find(|paragraph| paragraph.starts_with("Before asking your person")).expect("asking paragraph");
+    let grouping = paragraphs.next().expect("grouping paragraph after asking");
+    assert!(grouping.starts_with("Group what you keep: the findings one act would settle, by what they are."));
+    assert!(grouping.contains("Ask your person one question a group, after `decided` says Ask as Before asking says, in the line form: the question in one sentence; then what the findings share and what the choices weigh;"));
+    assert!(
+        grouping.contains(
+            "a trailing `Findings:` line naming every finding of the group as P/N tokens, at most 16 findings"
+        )
+    );
+    assert!(grouping.contains("a trailing `Group:` line, at most 256 bytes, a plural noun, ` · ` and a phrase"));
+    assert!(grouping.contains(
+        "a trailing `Choice:` line for each act over the group, the one you would take first, marked ` (recommended)`"
+    ));
+    assert!(grouping.contains("`Findings: 2/2 2/8 2/10`, `Group: bugs · in temper`"));
+    assert!(
+        grouping.contains(
+            "`Choice: A goal for each (recommended)`, `Choice: One goal for all three`, `Choice: Backlog them`"
+        )
+    );
+    assert!(grouping.contains("Write each trailing line on its own line after the context."));
+    assert!(grouping.contains("Carry the answer out one act a finding, with the `finding` tool and the goals you start; a reply in words is your person's direction."));
+    assert!(grouping.contains("A finding no other shares an act with is a group of one, its noun singular."));
+}
+
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
     chat_and_goal_use_asking();

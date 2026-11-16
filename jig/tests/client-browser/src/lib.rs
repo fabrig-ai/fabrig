@@ -176,7 +176,7 @@ impl Tier {
     }
     #[must_use]
     pub fn states(&self) -> jig_client_fake_person_browser::States {
-        use jig_client_view::phrases::{english, jig::JigPhrase};
+        use jig_client_view_words::words::phrases::{english, jig::JigPhrase};
         use skein_fake_person::Find;
         const PHRASE_WORDS: u32 = 32;
         let book = english::english(PHRASE_WORDS).expect("English");
@@ -190,9 +190,9 @@ impl Tier {
     #[must_use]
     pub fn words(&self, name: &[u8]) -> Box<[u8]> {
         assert_eq!(name, b"inbox");
-        jig_client_view::phrases::english::english(32)
+        jig_client_view_words::words::phrases::english::english(32)
             .expect("English")
-            .say(0, jig_client_view::phrases::jig::JigPhrase::Inbox.id(), &[])
+            .say(0, jig_client_view_words::words::phrases::jig::JigPhrase::Inbox.id(), &[])
             .expect("inbox phrase")
             .text
     }

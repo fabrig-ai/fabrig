@@ -881,7 +881,7 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-view",
+ "jig-client-view-words",
  "jig-protocol-config",
  "serde_json",
  "skein-fake-person",
@@ -1102,7 +1102,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-link",
- "jig-client-view",
+ "jig-client-view-words",
  "skein-http",
  "skein-lib",
  "skein-ui",
@@ -1201,6 +1201,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-view-codec",
+ "jig-client-view-words",
  "skein-codec",
  "skein-lib",
  "skein-scratch",
@@ -1214,6 +1215,15 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "jig-client-view-words"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
 ]
 
 [[package]]
@@ -6123,6 +6133,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
+ "temper-client-shell-terminal",
  "temper-client-shell-tui",
  "temper-client-tools",
  "temper-client-tui",
@@ -6553,6 +6564,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-forge-setup",
+ "temper-github-app",
  "temper-init",
  "temper-protocol-records",
  "temper-protocol-records-forge",

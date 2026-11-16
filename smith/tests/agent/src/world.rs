@@ -92,6 +92,8 @@ impl HostReply {
 pub struct Settings {
     /// Usable context window shared by the model declaration and charter.
     pub window: u32,
+    /// The fake endpoint's admitted output tokens, independent of the supplied charter.
+    pub output: u32,
     /// Host selects supplied history explicitly; false starts fresh even if present.
     pub resume: bool,
     /// Positive idle threshold; independent run wall time never pauses.
@@ -130,6 +132,7 @@ impl Settings {
         let provider = smith_session_world::Settings::calm(seed).provider;
         Settings {
             window: 65_536,
+            output: 4096,
             resume: false,
             waiting: Duration::from_secs(30),
             seed,
@@ -457,7 +460,7 @@ impl<B: Backend> World<B> {
                 Job::Coding | Job::Delegating | Job::Wandering | Job::MidReport | Job::MidChange | Job::MarkerReport
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
-        let config = configuration(settings.window);
+        let config = configuration(settings.window, settings.output);
         let main_prices = charter.llm.prices;
         let mut model_prices = BTreeMap::new();
         model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
@@ -1979,7 +1982,7 @@ fn opening_observations(
     messages_seen
 }
 
-fn configuration(window: u32) -> agent::Config {
+fn configuration(window: u32, output: u32) -> agent::Config {
     agent::Config {
         programs: Box::new([]),
         endpoints: Box::new([run::charter::Endpoint(0)]),
@@ -1987,7 +1990,7 @@ fn configuration(window: u32) -> agent::Config {
             protocol_allowance: 0,
             endpoint: run::charter::Endpoint(0),
             window,
-            output: 4096,
+            output,
             head: Duration::from_secs(60),
             idle: Duration::from_secs(30),
         }]),

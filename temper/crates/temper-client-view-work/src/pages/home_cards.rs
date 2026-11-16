@@ -27,7 +27,11 @@ pub fn cards(
     }
     all(b, root, open.as_slice(), across, w, bindings, times);
 }
-#[expect(clippy::too_many_arguments, reason = "card placement keeps the first approval's context and shared reason")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "card placement shares question acts and reasons with groups and keeps the first approval's context"
+)]
 fn existing(
     b: &mut Builder,
     root: &Domain,
@@ -43,9 +47,21 @@ fn existing(
         if !needs::ready(root, *need) {
             continue;
         }
+        let group = root.pages().needs().findings().group(findings::Need::Existing(*need));
         b.open(Role::Slot);
         b.style(look::NEED_CARD);
-        from(b, root, *need, across, w, bindings, times);
+        if let Some(group) = &group {
+            b.style(look::GROUP_CARD);
+            b.open(Role::Paragraph);
+            b.style(look::NEED_FROM);
+            super::findings::group_from(b, root, group, w, times, across);
+            if root.pages().needs().later(need.object()) {
+                b.text(Run::Plain, &w.say(Word::NeedsLaterMeta, &[]));
+            }
+            b.close();
+        } else {
+            from(b, root, *need, across, w, bindings, times);
+        }
         let (_, mut question, _) = super::home::need_words(need, w);
         if let needs::Need::Card(card) = need
             && let ask::Kind::Funds { spent, limit } = ask::read(card, w).kind
@@ -53,6 +69,12 @@ fn existing(
             question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
+        if let Some(group) = &group {
+            super::findings::group_rows(b, group, w, bindings, times);
+            if let needs::Need::Card(card) = need {
+                super::findings::group_context(b, &ask::read(card, w));
+            }
+        }
         match need {
             needs::Need::Card(card) => {
                 if own_reason {
@@ -71,11 +93,7 @@ fn existing(
         match need {
             needs::Need::Card(card) => {
                 let mut asked = ask::read(card, w);
-                if let Some(parsed) = &mut asked.parsed
-                    && let Some(primary) = parsed.primary()
-                {
-                    parsed.choices.get_mut(..=primary).expect("primary is a choice").rotate_right(1);
-                }
+                ask::primary_first(&mut asked);
                 if let Some(outcome) = root.pages().needs().refused(card.object) {
                     crate::confirm::outcome_words(b, w, outcome);
                 }
@@ -99,6 +117,7 @@ fn existing(
                                 Some(parsed) => parsed.choices.is_empty(),
                                 None => true,
                             },
+                            group.is_some(),
                         ),
                         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {}
                     }
@@ -116,7 +135,7 @@ fn existing(
                     b.text(Run::Plain, &label);
                     b.close();
                 }
-                tell(b, need, w, bindings, false);
+                tell(b, need, w, bindings, false, false);
             }
         }
         b.close();
@@ -144,14 +163,17 @@ fn person_task(b: &mut Builder, source: Option<u64>, w: &Words, bindings: &mut B
         );
     }
 }
-fn tell(b: &mut Builder, need: &needs::Need<'_>, w: &Words, bindings: &mut Bindings, primary: bool) {
-    ask::button(
-        b,
-        bindings,
-        &w.say(Word::HomeCardTell, &[]),
-        Act::Needs(needs::Act::Open { object: need.object() }),
-        if primary { look::RECOMMENDED } else { look::ASK_QUIET },
-    );
+fn tell(b: &mut Builder, need: &needs::Need<'_>, w: &Words, bindings: &mut Bindings, primary: bool, linked: bool) {
+    let label = w.say(Word::HomeCardTell, &[]);
+    let act = Act::Needs(needs::Act::Open { object: need.object() });
+    if linked {
+        crate::bindings::link(b, &label, bindings.insert(act));
+        b.text(Run::Plain, &label);
+        b.style(if primary { look::RECOMMENDED } else { look::ASK_QUIET });
+        b.close();
+    } else {
+        ask::button(b, bindings, &label, act, if primary { look::RECOMMENDED } else { look::ASK_QUIET });
+    }
 }
 fn from(
     b: &mut Builder,
@@ -305,6 +327,11 @@ fn more(
                 b.text(Run::Plain, &super::findings::short(card, w, times, true));
             }
             findings::Need::Existing(need) => {
+                if let Some(group) = root.pages().needs().findings().group(findings::Need::Existing(*need)) {
+                    super::findings::group_short(b, &group, w, times);
+                    b.close();
+                    return;
+                }
                 let (_, short, _) = super::home::need_words(need, w);
                 b.text(Run::Plain, &short);
                 b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));

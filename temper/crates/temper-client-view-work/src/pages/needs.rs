@@ -234,7 +234,10 @@ fn card_main(
     rows: u32,
 ) {
     let session = root.pages().needs();
-    let asked = ask::read(card, w);
+    let mut asked = ask::read(card, w);
+    ask::primary_first(&mut asked);
+    let group =
+        session.findings().group(temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)));
     b.open(Role::Slot);
     b.style(look::ASK);
     from(b, root, needs::Need::Card(card), w, bindings, times, true);
@@ -247,6 +250,9 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    if let Some(group) = &group {
+        super::findings::group_rows(b, group, w, bindings, times);
+    }
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     why_line(b, root, w, bindings, needs::Need::Card(card), WhyForm::Rule);
@@ -328,6 +334,35 @@ fn from(
     times: &mut Times,
     linked: bool,
 ) {
+    if linked
+        && let Some(group) =
+            root.pages().needs().findings().group(temper_client_domain::pages::findings::Need::Existing(need))
+    {
+        b.open(Role::Paragraph);
+        b.style(look::NEED_FROM);
+        super::findings::group_from(
+            b,
+            root,
+            &group,
+            w,
+            times,
+            root.pages().inbox().expect("from inbox").filter.project.is_none(),
+        );
+        if let needs::Need::Card(card) = need {
+            let asked = ask::read(card, w);
+            b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+            if let Some(task) = asked.source {
+                ask::link(b, bindings, &asked.title, Address::Task { task });
+            } else {
+                b.text(Run::Plain, &asked.title);
+            }
+        }
+        if root.pages().needs().later(need.object()) {
+            b.text(Run::Plain, &w.say(Word::NeedsLaterMeta, &[]));
+        }
+        b.close();
+        return;
+    }
     let (title, source, project, when) = match need {
         needs::Need::Card(card) => {
             let asked = ask::read(card, w);
@@ -438,7 +473,7 @@ fn intro(
         temper_client_domain::pages::home::Needs::Count {
             count: u32::try_from(open.len()).expect("bounded inbox"),
             cut,
-            findings: temper_client_domain::pages::findings::counted(open),
+            findings: temper_client_domain::pages::findings::counted(root.pages().needs().findings(), open),
         },
         b"",
     );
@@ -477,9 +512,7 @@ pub(crate) fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindin
             b.bind(
                 bindings.insert(Act::Needs(needs::Act::Choose { object: card.object, words: choice.words.clone() })),
             );
-            if parsed.primary() == Some(i) {
-                b.style(look::RECOMMENDED);
-            }
+            b.style(if parsed.primary() == Some(i) { look::RECOMMENDED } else { look::ASK_QUIET });
             if choice.recommended {
                 if w.shell == crate::words::Shell::Terminal {
                     b.text(Run::Plain, &choice.words);

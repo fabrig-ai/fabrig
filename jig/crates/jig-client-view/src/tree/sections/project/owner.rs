@@ -997,7 +997,7 @@ fn review_form(
     if let Some(request) = state.pending
         && let Some(intent) = client.intents().get(skein_lib::Id::from_token(request))
     {
-        words.progress(b, intent.progress);
+        cards::common::progress(b, words, intent.progress);
     }
 }
 

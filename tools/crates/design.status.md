@@ -1,6 +1,8 @@
 # design: status
 
-2026-11-15. Where the repository lags or departs from [design.md](design.md).
+2026-11-16. Where the repository lags or departs from [design.md](design.md).
+
+- **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-client-view` until its split [in flight: change 4395].
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-client-tools` until its split [in flight: change 4087].
 

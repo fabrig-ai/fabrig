@@ -14,7 +14,7 @@ pub(crate) mod frame_facts;
 pub(crate) mod history;
 pub(crate) mod instructions;
 pub(crate) mod lifecycle;
-pub(crate) mod outcome;
+pub(crate) use crate::words::fragments::outcome;
 pub(crate) mod person_task;
 pub(crate) mod policy_edit;
 pub(crate) mod proposal;

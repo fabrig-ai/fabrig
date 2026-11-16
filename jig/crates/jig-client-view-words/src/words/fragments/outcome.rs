@@ -13,7 +13,7 @@ use jig_client::contract::{
 use skein_lib::Wall;
 
 // Region + named status + title + confirmation, then a reason and whole name per host.
-pub(crate) const MAX_NODES: u32 = 4 + 128 * 2;
+pub const MAX_NODES: u32 = 4 + 128 * 2;
 
 fn header(value: &DocumentOutcome) -> P {
     match value {

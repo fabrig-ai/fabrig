@@ -174,7 +174,7 @@ impl Words {
             Malformed::ProposedAsAllowed => self.text(b, JigPhrase::MalformedProposedAsAllowed, &position),
         }
     }
-    pub(crate) fn held_role(&self, b: &mut Builder, held: Option<HeldRole>) {
+    pub fn held_role(&self, b: &mut Builder, held: Option<HeldRole>) {
         match held {
             None => self.text(b, JigPhrase::NoHeldRole, &[]),
             Some(HeldRole::Owner) => self.text(b, JigPhrase::HeldOwner, &[]),
