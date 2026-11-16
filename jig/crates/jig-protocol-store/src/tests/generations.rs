@@ -131,8 +131,10 @@ fn a_manifest_encodes_levels_counts_map_commits_and_write_time_without_growth() 
     // counts 4 + two (name length 4 + 13 name bytes + two u64s 16),
     // store 8 + secrets 9 + written 8. Writer allocates exactly the measure.
     const FULL: usize = 154;
-    let before = crate::patching::plan::Levels { skein: Some(1), smith: Some(2), jig: Some(3), application: Some(4) };
-    let after = crate::patching::plan::Levels { skein: Some(2), smith: Some(3), jig: Some(4), application: Some(5) };
+    let before =
+        crate::upgrade::admission::Levels { skein: Some(1), smith: Some(2), jig: Some(3), application: Some(4) };
+    let after =
+        crate::upgrade::admission::Levels { skein: Some(2), smith: Some(3), jig: Some(4), application: Some(5) };
     let counts = fixtures::manifest_counts(&[("fixture-label", 3, 3), ("fixture-shelf", 7, 9)]);
     let bytes = generations::manifest(
         8,

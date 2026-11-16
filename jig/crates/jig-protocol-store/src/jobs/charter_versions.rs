@@ -16,7 +16,7 @@ pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     // kept layout that this job's `from` fingerprint pins.
     let text = match &page.layout {
         Some(layout) => layout.text.as_ref(),
-        None => crate::patches::kept::jig_store_settings::TEXTS.last().expect("settings kept text").as_bytes(),
+        None => return Err(refusal(None, "missing charter-version layout")),
     };
     let Ok(schema) = schema::parse(text) else {
         return Err(refusal(None, "invalid charter-version layout"));

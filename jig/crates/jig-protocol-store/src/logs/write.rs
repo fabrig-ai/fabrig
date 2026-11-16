@@ -9,7 +9,7 @@ pub(crate) fn enabled(store: &mut Store, ops: &[skein_kv::Op]) -> Result<bool, C
     if store.history_routing {
         return Ok(true);
     }
-    if let Some(crate::patching::phase::Patching::Jobs(running)) = crate::directory::patching(store)
+    if let Some(crate::upgrade::phase::Patching::Jobs(running)) = crate::directory::patching(store)
         && running.writes_history()
     {
         return Ok(true);

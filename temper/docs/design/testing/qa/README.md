@@ -41,8 +41,8 @@ first deployment setup, are Q6's.
   loop deletes a build once no pass can need it.
 - **Triage** (`triage.md`): one landing at a time, in main's order, an
   agent session at a lower effort, given the landing's draft, diff and
-  the surfaces, ctl's first; it answers no QA or cases, and a case for a
-  page or ctl group a queued case covers joins it.
+  the surfaces, ctl's first; it answers no QA, cases or a gap, and a
+  case for a page or ctl group a queued case covers joins it.
 - **Places and copies** (`places.md`): a place is a fixed directory with
   its own `bin/`, where one box runs, or one deployment's processes
   (`deployment.md`); a pass installs its build there,
@@ -59,6 +59,9 @@ first deployment setup, are Q6's.
   reproduce it, linked to an open one it matches; a pass's open findings
   go back as one request, put on main by the deployment's command, and
   one goal started on it; two goals at most, then handed on.
+- **Gaps** (`gaps.md`): what QA should judge and cannot yet, recorded by
+  triage or a pass, filed as documents with no goal, and closed by a
+  landing carrying `QA-gap: N`.
 - **Its own faults are lines for its owner** (section 5), never findings
   against temper.
 
@@ -77,6 +80,9 @@ first deployment setup, are Q6's.
   | `temper-qa wake` | the deployment's after-landing work | section 4 |
   | `temper-qa build keep COMMIT DIR` | the deployment's after-landing work | `builds.md`, 3 |
   | `temper-qa triage none WHY` | a triage session's agent | `triage.md`, 4 |
+  | `temper-qa triage gap KIND WHY` | a triage session's agent | `gaps.md`, 2 |
+  | `temper-qa pass gap CASE KIND WHY` | a pass session's agent | `gaps.md`, 3 |
+  | `temper-qa gaps [--open]` | anyone | `gaps.md`, 5 |
   | `temper-qa triage case FILE` | a triage session's agent | `triage.md`, 4 |
   | `temper-qa pass setup NAME` | a pass session's agent | `places.md`, 4 |
   | `temper-qa pass open [--ctl]` | a pass session's agent | `places.md`, 5 |
@@ -128,6 +134,7 @@ sessions/N/        each agent session's brief, diff and output (triage.md, 2; pa
 trees/triage/      triage's kept tree (triage.md, 2)
 trees/PLACE/       each place's kept pass tree, numbered in configuration order (passes.md, 4)
 passes/P/          each pass's setups, reports and requests (passes.md, 2)
+gaps/requests/N/   each gaps request, numbered by its first gap (gaps.md, 6)
 evidence/F/        each finding's evidence (findings.md, 2)
 places/1/          the place, unless qa.json names others (places.md, 2)
 ```
@@ -148,6 +155,7 @@ taken from the home.
   "places": ["places/1"],
   "surfaces": ["ctl", "web", "tui"],
   "areas": { "ctl": "AREA", "web": "AREA", "tui": "AREA" },
+  "gaps": { "fake": "AREA" },
   "request": { "command": ["PROGRAM", "ARG"], "state": ["PROGRAM", "ARG"], "area": "AREA" },
   "notify": ["PROGRAM", "ARG"]
 }
@@ -186,11 +194,14 @@ taken from the home.
   `temper-qa tune` suggests it (`ledger.md`, 6).
 - **`surfaces`:** the surfaces a pass takes cases of, each `ctl`, `web`
   or `tui`, `["ctl", "web", "tui"]` when absent; a case of another
-  surface stays queued (`passes.md`, 3). Triage records cases of all
-  three, ctl's first (`../../draft/landed-qa.md`, 4).
+  surface stays queued (`passes.md`, 3). Triage records cases of the
+  configured surfaces alone, ctl's first (`triage.md`, 3–4).
 - **`areas`:** each surface's area, `ctl`, `web` and `tui` each
   optional; a finding on a surface with none takes `owner`
   (`findings.md`, 2).
+- **`gaps`,** optional: `{"fake": "AREA"}` names the owner of fake
+  gaps; absent, `owner` takes them too. Ctl gaps take `areas.ctl`,
+  else `owner`; QA gaps take `owner` (`gaps.md`, 4).
 - **`request`,** required: `command`, required, the deployment's command
   that puts a request on main and starts its goal (`findings.md`, 5);
   `state`, the command that says whether a goal has ended without
@@ -234,7 +245,9 @@ older home are removed and their worktree registrations pruned.
      pass resumed where it may (`passes.md`, 7), else a pass started
      (`passes.md`, 3).
   4. **Requests:** each request not yet filed given to `request.command`
-     (`findings.md`, 5); each waiting pass's goal asked of
+     (`findings.md`, 5); every open gap not yet filed together as one
+     request with no `goal` (`gaps.md`, 6), never starting work;
+     each waiting pass's goal asked of
      `request.state` (`findings.md`, 6).
   5. **Waiting cases:** each case past `bounds.build_wait` with no kept
      build for it becomes a line (`ledger.md`, 4.7).

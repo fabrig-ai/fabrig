@@ -159,6 +159,11 @@ installs another build.
   box's; PLACE is a deployment's place`; `fresh` at a deployment's
   place, `a deployment's place has no fresh setup: its setups start
   from their root's config/`, exit 1.
+- **The pass's surfaces:** when neither `web` nor `tui` is configured,
+  a setup whose chain holds a web or tui line is refused before any
+  restore or walk, naming the recipe, line and surface: the pass's
+  surfaces take ctl and forge lines alone. The brief lists the same
+  walkable chains as triage (`passes.md`, 4; `triage.md`, 3).
 - **`fresh`:** the box's `config/` and `data/` removed, `setup` written
   `fresh`; it prints `setup fresh: an empty box`, exit 0. The drive
   session then prepares a new sandbox (`../../client/drive.md`, 2.2).
@@ -299,7 +304,7 @@ reached has run (`../../draft/landed-qa.md`, 5):
 - **Written** to `passes/P/setups/NAME/`: `recipe`, `recipe 1`, then
   `after PARENT` unless `fresh`, then the lines; `README.md`;
   `scripts.json` where given; never `config/`, a root's alone; and
-  `files/`, where its `forge commit` or `deployment patch`
+  `files/`, where its `forge commit`, `forge push` or `deployment patch`
   lines name any, each PATH they name copied from the pass's `files/`
   (`passes.md`, 2) to `files/PATH`, so that the recipe holds all it
   gives (`../../client/recipe.md`, 2). A PATH the pass's `files/` lacks

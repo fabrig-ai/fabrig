@@ -193,7 +193,7 @@ fn a_changes_follow_workflow_progress_round_trips_with_its_allocated_bytes() {
 }
 
 #[test]
-fn follow_question_relays_round_trip_and_older_rows_have_no_relay() {
+fn follow_question_relays_round_trip() {
     for answer in [None, Some(b"A loop, as C does.".as_slice().into())] {
         let mut row = row();
         row.questions = Box::new([d::follows::FollowQuestion {
@@ -206,10 +206,4 @@ fn follow_question_relays_round_trip_and_older_rows_have_no_relay() {
         }]);
         round_trip(row);
     }
-    let old = super::catch_up::kept_golden(16, "record_follow_question_full.bin");
-    let bytes = super::catch_up::patched(16, 5, b"FollowQuestion", old);
-    let question = crate::v25::FollowQuestion::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes))
-        .expect("old question");
-    assert_eq!(question.relayed(), &None);
-    assert_eq!(question.number(), u64::MAX);
 }

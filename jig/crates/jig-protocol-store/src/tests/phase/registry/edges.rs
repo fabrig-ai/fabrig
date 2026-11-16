@@ -4,9 +4,9 @@ use crate::{Load, Restore};
 use skein_codec::{schema, value::Value};
 
 fn opened() -> (Disk, Store) {
-    let mut disk = Disk::new(&base(false, true));
+    let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, SET);
-    assert_opened(&disk.open(&mut store), 4);
+    assert_opened(&disk.open(&mut store), 3);
     switch(&mut disk, &mut store);
     (disk, store)
 }
@@ -47,14 +47,13 @@ fn alias(store: &mut Store, number: u16, from: u16, to: u16) -> skein_kv::Op {
 }
 
 #[test]
-fn new_value_types_register_at_the_seed_and_read_back() {
+fn new_value_types_register_and_read_back() {
     const KEPT_NEW: &str = "family fixture-layouts 2\nenum Value { stable }\nversioned record Row { value: Value }\n";
     const CURRENT_NEW: &str = "family fixture-layouts 2\nrecord Payload { n: u8 }\nenum Value { stable, added: Payload }\nversioned record Row { value: Value }\nversioned record Added { n: u8 }\n";
     const NEW_FAMILY: KeptFamily = KeptFamily {
-        texts: &[KEPT_NEW],
         current: CURRENT_NEW,
         keys: &[Keys { from: b"a", to: b"c", root: "Row" }, Keys { from: b"c", to: b"d", root: "Added" }],
-        // New types occupy census-distinct prefixes so the seed can prove their ranges empty.
+        // Each value type occupies its own prefix.
         types: &[
             ValueType { number: 0, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"a", to: b"b" }] },
             ValueType { number: 1, root: "Row", variant: Some("added"), keys: &[KeyRange { from: b"b", to: b"c" }] },
@@ -62,12 +61,15 @@ fn new_value_types_register_at_the_seed_and_read_back() {
         ],
         ..FAMILY
     };
-    const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], level: Some(0), patches: &[], ..SET };
+    const NEW_SET: OwnerSet = OwnerSet { families: &[NEW_FAMILY], level: Some(0), ..SET };
+    const OLD_FAMILY: KeptFamily = KeptFamily {
+        current: KEPT_NEW,
+        keys: &[Keys { from: b"a", to: b"b", root: "Row" }],
+        types: &[NEW_FAMILY.types[0]],
+        ..NEW_FAMILY
+    };
     let mut disk = Disk::new(&[]);
-    let mut before = fresh(
-        &mut disk,
-        PatchSet { families: &[KeptFamily { current: KEPT_NEW, types: &[], ..NEW_FAMILY }], ..NEW_SET },
-    );
+    let mut before = fresh(&mut disk, OwnerSet { families: &[OLD_FAMILY], ..NEW_SET });
     raw(
         &mut disk,
         &mut before,
@@ -82,12 +84,12 @@ fn new_value_types_register_at_the_seed_and_read_back() {
     for number in [1, 2] {
         let ty = NEW_FAMILY.types.iter().find(|ty| ty.number == number).unwrap();
         let registered = row(&mut store, number, 2).unwrap();
-        assert_eq!(*registered.text(), hash(CURRENT_NEW), "only the binary's row, not a seed row");
+        assert_eq!(*registered.text(), hash(CURRENT_NEW), "the new type registers its binary text");
         assert_eq!(registered.root(), ty.root.as_bytes());
         assert_eq!(registered.variant().as_deref(), ty.variant.map(str::as_bytes));
         let root = current.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap();
         assert_eq!(*registered.layout(), current.layout(root, &[]).unwrap().digest());
-        assert!(row(&mut store, number, 3).is_none(), "no seed row consumed the family's version id");
+        assert!(row(&mut store, number, 3).is_none(), "new types start at the family's version id");
     }
     assert_eq!(app(&mut store, b"a/2").unwrap().as_ref(), &[0, 2, 0]);
     switch(&mut disk, &mut store);
@@ -248,7 +250,7 @@ fn a_copy_reads_the_sources_layout_and_stores_the_destinations_id() {
         ..FAMILY
     };
     let (mut disk, mut store) = opened();
-    store.patch_sets(sets(PatchSet { owner: Owner::Jig, families: &[FAMILY_AT_JIG], ..SET }));
+    store.owner_sets(sets(OwnerSet { owner: Owner::Jig, families: &[FAMILY_AT_JIG], ..SET }));
     crate::registry::open(&mut store, false).unwrap();
     for _ in 0_u32..10 {
         let ops = store.registry.batch(&store.limits).unwrap();
@@ -286,7 +288,6 @@ fn ended_joins_restore_the_family_version_before_its_decoder() {
         format!("family fixture-layouts {version}\nversioned record Growing {{ n: u16 }}\n").into_boxed_str(),
     );
     let family = KeptFamily {
-        texts: Box::leak(Box::new([text])),
         current: text,
         keys: &[Keys { from: &[1, 1, 6], to: &[1, 1, 7], root: "Growing" }],
         types: &[ValueType {
@@ -297,8 +298,7 @@ fn ended_joins_restore_the_family_version_before_its_decoder() {
         }],
         ..FAMILY
     };
-    let set =
-        PatchSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET };
+    let set = OwnerSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), level: Some(0), ..SET };
     let mut store = fresh(&mut disk, set);
     let layout = alias(&mut store, 0, version, 99);
     bytes[..2].copy_from_slice(&99_u16.to_be_bytes());

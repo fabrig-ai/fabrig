@@ -108,6 +108,61 @@ fn cases_fit_the_session_and_refuse_unknown_fields_without_mutation() {
     );
 }
 
+fn ctl_session() -> (Ledger, u64) {
+    let mut ledger = Ledger::default();
+    landing(&mut ledger, 1);
+    let pages = [("ctl".into(), vec!["task".into()])].into();
+    let number =
+        ledger.start_session(1, "low", pages, vec!["fresh".into(), "ctl-chain".into()], 0).expect("ctl triage");
+    (ledger, number)
+}
+
+#[test]
+fn triage_cases_refuse_surfaces_and_setups_outside_the_session() {
+    let (mut ledger, number) = ctl_session();
+    for (surface, page, setup, words) in [
+        ("web", "work", "fresh", "surface web is not configured; triage takes surfaces: ctl"),
+        ("tui", "chat", "fresh", "surface tui is not configured; triage takes surfaces: ctl"),
+        (
+            "ctl",
+            "task",
+            "web-chain",
+            "setup web-chain is not in the catalogue; ctl-only triage takes fresh and recipe chains with no web or tui lines; setups: fresh, ctl-chain",
+        ),
+        (
+            "ctl",
+            "task",
+            "tui-chain",
+            "setup tui-chain is not in the catalogue; ctl-only triage takes fresh and recipe chains with no web or tui lines; setups: fresh, ctl-chain",
+        ),
+    ] {
+        let mut input = case();
+        input.surface = surface.into();
+        input.page = page.into();
+        input.setup = setup.into();
+        let before = ledger.clone();
+        assert_eq!(
+            ledger.add_case(number, &input, 1).expect_err("outside session").to_string(),
+            format!("case refused: {words}")
+        );
+        assert_eq!(ledger, before);
+    }
+}
+
+#[test]
+fn ctl_only_triage_records_fresh_and_ctl_chain_cases() {
+    let (mut ledger, number) = ctl_session();
+    for setup in ["fresh", "ctl-chain"] {
+        let mut input = case();
+        input.surface = "ctl".into();
+        input.page = "task".into();
+        input.setup = setup.into();
+        ledger.add_case(number, &input, 1).expect("ctl setup accepted");
+    }
+    assert_eq!(ledger.cases[0].asks.iter().map(|ask| ask.setup.as_str()).collect::<Vec<_>>(), ["fresh", "ctl-chain"]);
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
+}
+
 #[test]
 fn one_answer_kind_and_nonempty_why_and_repeated_none_replaces_why() {
     let mut ledger = Ledger::default();

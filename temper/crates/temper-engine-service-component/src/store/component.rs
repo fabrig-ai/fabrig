@@ -1,5 +1,5 @@
 //! The component's deployment store (protocol/services.md, 4.2).
-use super::{KERNEL_HANDOFF_ENTRIES, PATCH_SETS, WIRES, route};
+use super::{KERNEL_HANDOFF_ENTRIES, OWNER_SETS, WIRES, route};
 use jig_protocol_store as protocol;
 use protocol::host::{Hosted, Lane, NotReady};
 use route::Up;
@@ -55,7 +55,7 @@ impl Store {
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
         let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
-        host.component.patch_sets(PATCH_SETS);
+        host.component.owner_sets(OWNER_SETS);
         host.component.keyspaces(temper_protocol_store::KEYSPACES);
         Self {
             #[cfg(test)]
@@ -82,8 +82,8 @@ impl Store {
         self.host.component.build_name(name);
     }
     /// Replace the binary's sets before adopting its deployment directory.
-    pub(crate) fn patch_sets(&mut self, sets: protocol::PatchSets) {
-        self.host.component.patch_sets(sets);
+    pub(crate) fn owner_sets(&mut self, sets: protocol::OwnerSets) {
+        self.host.component.owner_sets(sets);
     }
     /// Whether the component has reported that its deployment opened.
     #[must_use]

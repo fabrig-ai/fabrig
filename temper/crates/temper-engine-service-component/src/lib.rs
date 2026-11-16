@@ -244,11 +244,6 @@ pub enum Note {
         commits: u64,
         counts: Box<[jig_protocol_store::JobCount]>,
     },
-    Patched {
-        of: jig_protocol_store::Owner,
-        patch: u32,
-        counts: jig_protocol_store::Counts,
-    },
     /// A bounded reset diagnostic (temper/docs/design/protocol/setup/playground.md).
     Playground {
         line: Box<[u8]>,

@@ -132,17 +132,25 @@ def members(data):
     return {p['name']: p for p in data['packages'] if p['id'] in data['workspace_members']}
 
 
+def package_directories(packages):
+    return {Path(p['manifest_path']).parent.parts: name for name, p in packages.items()}
+
+
+def owner(path, directories):
+    """The longest leading run of whole path components (section 3), lexically."""
+    parts = path.parts
+    for length in range(len(parts), -1, -1):
+        name = directories.get(parts[:length])
+        if name is not None:
+            return name
+    return None
+
+
 def select(data, changed, always):
     """C, direct D and prefixed R, sorted by package name (section 3)."""
     packages = members(data)
-    directories = sorted(((Path(p['manifest_path']).parent, name) for name, p in packages.items()),
-                         key=lambda entry: len(entry[0].parts), reverse=True)
-    changed_packages = set()
-    for path in changed:
-        for directory, name in directories:
-            if path.is_relative_to(directory):
-                changed_packages.add(name)
-                break
+    directories = package_directories(packages)
+    changed_packages = {name for path in changed if (name := owner(path, directories)) is not None}
     tests = changed_packages.copy()
     for name, package in packages.items():
         if any(d.get('path') and d['name'] in changed_packages for d in package['dependencies']):
@@ -184,7 +192,7 @@ def documentation(path):
 
 def code_inputs(paths, data, root):
     """Use package ownership and the gate's declared readers (section 3)."""
-    directories = [Path(p['manifest_path']).parent for p in members(data).values()]
+    directories = package_directories(members(data))
     globs = lines(root, '.config/gate/read-by-tests.txt')
     registry = root / '.config/fixture-readers.toml'
     if registry.exists():
@@ -208,7 +216,7 @@ def code_inputs(paths, data, root):
                 or path == '.temper/pre-pr'
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
-                or any((root / path).is_relative_to(directory) for directory in directories)
+                or owner(root / path, directories) is not None
                 or any(path in (f'{tree}/scripts/old_forms.py', f'{tree}/scripts/old-forms.txt')
                        for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')))):
             selected.append(path)

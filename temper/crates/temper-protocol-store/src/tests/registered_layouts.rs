@@ -1,35 +1,32 @@
-//! Registered application layouts stay readable from their latest kept text (jig protocol/store/layouts.md, 8).
-#![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary Rust schema contract tests")]
+//! Registered layouts derive field defaults (jig protocol/store/layouts.md, 4 and 5).
+#![expect(clippy::disallowed_methods, reason = "ordinary Rust schema contract tests")]
+
 #[test]
-fn questions_from_a_layout_without_waiting_words_default_to_none() {
-    let family = crate::PATCH_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let old = skein_codec::schema::parse(family.texts.last().unwrap().as_bytes()).unwrap();
-    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+fn a_registered_layout_defaults_an_added_list() {
+    let old = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 }\n").unwrap();
+    let new = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 waiting: list 16 u64 = [] }\n")
+        .unwrap();
     let plan = skein_codec::layout::Plan::derive(
         &old,
-        old.root(b"Questions", None).unwrap(),
+        old.root(b"Item", None).unwrap(),
         &[],
         &new,
-        new.root(b"Questions", None).unwrap(),
+        new.root(b"Item", None).unwrap(),
         &[],
     )
     .expect("the registry derives the added field's default at open");
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    // Up, four questions taken, none open: the pre-words Questions record.
-    plan.convert(&[2, 0, 0, 0, 4, 0, 0, 0, 0], &mut out, &mut work).unwrap();
-    let decoded =
-        crate::v25::Questions::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
-    assert_eq!(decoded.route(), &crate::v25::Route::Up);
-    assert_eq!(decoded.taken(), 4);
-    assert!(decoded.waiting().is_empty());
+    plan.convert(&4_u32.to_be_bytes(), &mut out, &mut work).unwrap();
+    // The retained count, followed by an empty waiting list.
+    assert_eq!(out.as_slice(), &[0, 0, 0, 4, 0, 0, 0, 0]);
 }
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "registered layout fixtures read their committed codec goldens")]
 fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
-    let family = crate::PATCH_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
     for field in ["source: option ChangeSource = none ", "kept: option fixed 32 = none "] {
         before = before.replacen(field, "", 1);
@@ -68,45 +65,9 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
 }
 
 #[test]
-fn real_registered_families_derive_from_latest_kept_to_current() {
-    let family = crate::PATCH_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+fn the_current_layout_has_no_whole_change_value_type() {
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let current = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     assert!(current.root(b"Row", Some(b"change")).is_none());
     assert!(!family.types.iter().any(|ty| ty.number == 12));
-    let sets = [
-        jig_protocol_store::SKEIN_PATCH_SET,
-        jig_protocol_store::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-        crate::PATCH_SET,
-    ];
-    let families: Vec<_> = sets.iter().flat_map(|set| set.families).filter(|family| !family.texts.is_empty()).collect();
-    let old: Vec<_> = families
-        .iter()
-        .map(|family| skein_codec::schema::parse(family.texts.last().unwrap().as_bytes()).unwrap())
-        .collect();
-    let new: Vec<_> =
-        families.iter().map(|family| skein_codec::schema::parse(family.current.as_bytes()).unwrap()).collect();
-    let old_held: Vec<_> = old.iter().collect();
-    let new_held: Vec<_> = new.iter().collect();
-    let mut types = 0_usize;
-    let mut added = Vec::new();
-    for ((family, old), new) in families.iter().zip(&old).zip(&new) {
-        if !crate::PATCH_SET.families.iter().any(|own| own.name == family.name) {
-            continue;
-        }
-        for ty in family.types {
-            let variant = ty.variant.map(str::as_bytes);
-            let old_root = old.root(ty.root.as_bytes(), variant);
-            let new_root = new.root(ty.root.as_bytes(), variant).unwrap();
-            let Some(old_root) = old_root else {
-                added.push(ty.number);
-                continue;
-            };
-            let plan = skein_codec::layout::Plan::derive(old, old_root, &old_held, new, new_root, &new_held);
-            assert!(plan.is_ok(), "{} type {}: {plan:?}", family.name, ty.number);
-            types += 1;
-        }
-    }
-    assert_ne!(types, 0);
-    assert_eq!(added, [47, 48]);
 }

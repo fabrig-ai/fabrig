@@ -1,4 +1,4 @@
-//! The permanent baseline refuses at F0, before switching generations.
+//! The permanent baseline is unleveled and refused before switching generations.
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,
@@ -9,7 +9,7 @@ use super::unseeded_upgrade::{SETS, component, disk::Disk};
 use jig_protocol_store::{self as store, Event, Request};
 
 #[test]
-fn baseline_store_refuses_retired_milestones_without_switching_active() {
+fn baseline_store_refuses_unleveled_without_switching_active() {
     fn load(directory: &std::path::Path, prefix: &str, items: &mut Vec<skein_fake_machine::Item>) {
         for entry in std::fs::read_dir(directory).unwrap() {
             let entry = entry.unwrap();
@@ -50,14 +50,10 @@ fn baseline_store_refuses_retired_milestones_without_switching_active() {
                 pending.extend(disk.request(&mut current, Request::Job { owner, answer }));
             }
             Event::OpenRefused { why, .. } => refusal = Some(why),
-            Event::Patched { .. } | Event::Ran { .. } => {}
+            Event::Ran { .. } => {}
             other => panic!("{other:?}"),
         }
     }
-    let Some(store::OpenRefusal::Layout { family, value_type: 10, why: store::Unplanned::Retired, .. }) = &refusal
-    else {
-        panic!("{refusal:?}; {:?}", current.start_open_failure());
-    };
-    assert_eq!(family.as_ref(), "jig-store-tasks");
+    assert_eq!(refusal, Some(store::OpenRefusal::OlderBuild { why: store::Older::Unleveled }));
     assert_eq!(disk.active(), active);
 }
