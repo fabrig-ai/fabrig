@@ -122,11 +122,6 @@ use of `remember` and the walk follow landing (`README.md`, section 8).
 
 - **Design departs:** from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (`README.md`, section 8 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
 
-- **Design departs:** from the request `ui-away` of 2026-11-05, decided by its
-  plan's cut: `decided` is declared to every run, where the request has it charter
-  1's, because the host part declares its fixed tools whatever a charter says
-  (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from a task whose question reaches no person
-  answers ask, or is refused for want of the control family (`../forge/attention.status.md`, 5).
+- **Not yet:** the whole document: each host tool declared by its family: temper offers by a charter's `tools` the `settings` and delegate families alone, and an asking charter its own tools (`temper-engine-smith/src/calls.rs`, `tools_for`), declaring every other host tool to every other charter whatever it names, `decided` among them, `message` and `read_task` by authority alone [in flight: change 5660].
 
-- **Not yet:** the whole document: a charter's host families: each stock charter's `tools` reaches its runs (jig's `RunPolicy`), but temper offers by it the `settings` and delegate families alone, and an asking charter its own tools (`temper-engine-smith/src/calls.rs`, `tools_for`), declaring every other host tool to every other charter whatever it names, as `tools.md` has it, so charter 2 is not held to the read and message families, nor charters 4 and 6 to the read family; whether temper holds them is that document's open question (`../../protocol/configuration/README.md`, section 8).
+- **Not yet:** *The forge's reads are three tools*: the forge's reads are 18 tools, one per read, `read_file`'s, `read_pull_files`' and `read_job`'s commit named `head`, `read_pull_for`'s branch `head` and `read_item`'s comment `after`, and the answers' words name them (`temper-engine-smith/src/calls.rs`, `forge.rs`, `answers.rs`) [in flight: change 5669].

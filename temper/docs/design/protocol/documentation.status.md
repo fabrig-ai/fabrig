@@ -18,6 +18,7 @@ gives an unknown address's line and each answer's `see:` line.
 
 ## Gaps and departures
 
+- **Not yet:** 8: the `host-tools` page renders each declared schema's top-level members, and its offer lines are the six of the former rule [in flight: change 5660]; it lists no `what` of the forge's reads [in flight: change 5669].
 - **Not yet:** 2.4: the concepts `finding` and `qa`: nothing they describe is built, no finding, mark or QA pass and no ctl group `finding` or `qa` (`../domain/findings.status.md`). Each joins the table with the part that builds it.
 - **Not yet:** 2.4: the walk `upgrade`: `temper-box upgrade --check` and `--back` and a start's patch lines are not built (`binaries.status.md`). On `main` a new build reaches a server by the walk `server`'s redeploy, which resets the store.
 - **Not yet:** 9: every area's errors brought to the rule, each with its remedy: the forge's connect refusals that ctl renders still say a bare `busy` or `no key` (`temper-client-domain/src/forge/forges.rs`, `connect_refusal`).
