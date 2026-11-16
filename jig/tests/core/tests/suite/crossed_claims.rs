@@ -1,10 +1,10 @@
-//! domain/engine/README.md, 9: a fresh mark stops a live resumed claim before retrying.
+//! domain/engine/executors.md, 2: a crossed live claim is settled before retrying.
 
-use crate::fresh_windows;
+use crate::closed_proofs;
 use jig_core_world::world::Setup;
 use jig_domain_link::{Hosting, Phase};
 
-use fresh_windows::{AFTER, BEFORE, SEED, TAIL};
+use closed_proofs::{SEED, SETS, TAIL};
 use jig_core_world::fixtures;
 use jig_core_world::world::World;
 use jig_domain_core as core;
@@ -17,16 +17,12 @@ const GRACE: Duration = Duration::from_secs(5);
 const TICK: Duration = Duration::from_nanos(1);
 const BEFORE_GRACE: Duration = Duration::from_nanos(4_999_999_999);
 const WAKE: u8 = 87;
-const AFTER_SECOND: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
-    sets: &[jig_protocol_store::PatchSet { level: Some(2), patches: fresh_windows::MARKS, ..AFTER.sets[0] }],
-};
-
 fn live_resumed() -> (World, u64, u64) {
-    let mut world = fresh_windows::parked();
+    let mut world = closed_proofs::parked();
     let read = world.say(WAKE);
     // A real committed turn in the resumed attempt, with no additional said
     // text: the closed window's rendered tail stays the named TAIL fixture.
-    world.turn(1, 1, Some(read), &fresh_windows::turn(b""));
+    world.turn(1, 1, Some(read), &closed_proofs::turn(b""));
     // Hold time through restart and peer traffic so the grace's two sides
     // are exact; the ordinary scripted drain advances a millisecond per step.
     let (now, wall) = world.clocks();
@@ -43,41 +39,43 @@ fn hosting(world: &World) -> Hosting {
 
 fn lost_once_then_fresh(world: &mut World, task: u64, attempt: u64) {
     assert_eq!(
-        fresh_windows::tries(world),
+        closed_proofs::tries(world),
         tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 1, invalid: 0, infrastructure: 0 }
     );
     assert_eq!(fixtures::live_row(world, task).refusals, 0);
     world.retry_due();
-    fresh_windows::fresh(world);
-    assert_eq!(fresh_windows::tail(world), Some(TAIL));
-    assert!(fresh_windows::proof(world).attempt > attempt);
+    closed_proofs::fresh(world);
+    assert_eq!(closed_proofs::tail(world), Some(TAIL));
+    assert!(closed_proofs::proof(world).attempt > attempt);
 }
 
 fn next_fresh_claim() -> (World, u64, u64) {
     let (mut world, task, _) = live_resumed();
-    fresh_windows::restart(&mut world, AFTER);
+    closed_proofs::close(&mut world);
+    closed_proofs::restart(&mut world);
     world.advance(GRACE);
     world.retry_due();
-    let next = fresh_windows::proof(&world).attempt;
+    let next = closed_proofs::proof(&world).attempt;
     (world, task, next)
 }
 
 #[test]
 fn a_crossed_claim_listed_at_hello_is_stopped_and_lost() {
     let (mut world, task, attempt) = live_resumed();
-    world.restart_with_patch_sets(SEED, false, AFTER);
-    let proof = fresh_windows::proof(&world);
+    closed_proofs::close(&mut world);
+    world.restart(SEED, false);
+    let proof = closed_proofs::proof(&world);
     assert!(proof.crossed);
     assert_eq!(proof.window, Some(core::CurrentWindow { attempt: 2, turn: 1, closed: true }));
     let hosted = hosting(&world);
-    fresh_windows::hello_hosting(&mut world, Box::new([hosted]));
+    closed_proofs::hello_hosting(&mut world, Box::new([hosted]));
     world.grant_account(1);
     assert_eq!(world.cancellations, [(task, attempt)]);
-    assert_eq!(fresh_windows::tries(&world).lost, 0, "cancelling waits for the worker's answer");
+    assert_eq!(closed_proofs::tries(&world).lost, 0, "cancelling waits for the worker's answer");
     assert_eq!(world.assignments.last(), Some(&(task, attempt)), "the next run still waits");
 
     let last_turn = fixtures::live_row(&world, task).turn;
-    world.turn(2, 2, None, &fresh_windows::turn(b"late crossed turn"));
+    world.turn(2, 2, None, &closed_proofs::turn(b"late crossed turn"));
     let late = root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, attempt, turn: 2 }));
     assert!(!world.store.rows.contains_key(&late));
     assert_eq!(fixtures::live_row(&world, task).turn, last_turn);
@@ -91,11 +89,12 @@ fn a_crossed_claim_listed_at_hello_is_stopped_and_lost() {
 #[test]
 fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
     let (mut world, task, attempt) = live_resumed();
-    fresh_windows::restart(&mut world, AFTER);
-    assert!(fresh_windows::proof(&world).crossed);
+    closed_proofs::close(&mut world);
+    closed_proofs::restart(&mut world);
+    assert!(closed_proofs::proof(&world).crossed);
     assert_eq!(jig_test_profile::limits().core.fleet.grace, GRACE);
     world.advance(BEFORE_GRACE);
-    assert_eq!(fresh_windows::tries(&world).lost, 0);
+    assert_eq!(closed_proofs::tries(&world).lost, 0);
     assert_eq!(world.assignments.last(), Some(&(task, attempt)));
     world.advance(TICK);
     lost_once_then_fresh(&mut world, task, attempt);
@@ -103,11 +102,11 @@ fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
 
 #[test]
 fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
-    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
+    let mut world = World::new(Setup { seed: SEED, patch_sets: SETS, ..Setup::default() });
     let (task, attempt) = (world.task(), world.attempt());
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
-    world.store.patch_sets(AFTER);
+    closed_proofs::close(&mut world);
     let mut config = jig_core_world::world::fixture(SEED, false).0;
     config.core.workers_in_process = true;
     world.restart_with(config);
@@ -115,66 +114,71 @@ fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
     assert_eq!(fixtures::live_row(&world, task).refusals, 1);
     assert_eq!(fixtures::live_row(&world, task).tries.lost, 0);
     assert_eq!(world.clocks(), (now, wall), "settlement waits for no grace");
-    fresh_windows::hello(&mut world);
+    closed_proofs::hello(&mut world);
     world.grant_account(1);
     world.advance(Duration::from_millis(100));
-    assert!(fresh_windows::proof(&world).attempt > attempt, "retry must place a new claim");
-    fresh_windows::fresh(&world);
-    assert_eq!(fresh_windows::tail(&world), None);
+    assert!(closed_proofs::proof(&world).attempt > attempt, "retry must place a new claim");
+    closed_proofs::fresh(&world);
+    assert_eq!(closed_proofs::tail(&world), None);
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
 #[test]
-fn a_crash_after_the_switch_ends_the_crossed_claim_at_the_next_restart() {
+fn a_crash_before_adoption_ends_the_crossed_claim_at_the_next_restart() {
     let (mut world, task, attempt) = live_resumed();
-    world.switch_patch_sets(SEED, AFTER);
-    assert!(fresh_windows::proof(&world).crossed, "crossing survives before adoption");
-    // Crash the new root before the durable mark is acknowledged.
+    closed_proofs::close(&mut world);
+    world.hold_switch = true;
+    world.restart(SEED, false);
+    world.store.fault(jig_test_store_files::Fault::Hold { commits: 1 });
+    world.finish_switch();
+    assert!(closed_proofs::proof(&world).crossed, "crossing survives before adoption");
+    // Crash the root before its durable wires commit is acknowledged.
     // No worker has listed this attempt, and no grace has elapsed.
-    fresh_windows::restart(&mut world, AFTER);
-    assert!(fresh_windows::proof(&world).crossed);
-    assert_eq!(fresh_windows::tries(&world).lost, 0);
+    closed_proofs::restart(&mut world);
+    assert!(closed_proofs::proof(&world).crossed);
+    assert_eq!(closed_proofs::tries(&world).lost, 0);
     world.advance(BEFORE_GRACE);
-    assert_eq!(fresh_windows::tries(&world).lost, 0);
+    assert_eq!(closed_proofs::tries(&world).lost, 0);
     world.advance(TICK);
     lost_once_then_fresh(&mut world, task, attempt);
     world.advance(GRACE);
-    assert_eq!(fresh_windows::tries(&world).lost, 1, "the old claim is counted once");
+    assert_eq!(closed_proofs::tries(&world).lost, 1, "the old claim is counted once");
 }
 
 #[test]
 fn the_next_attempt_restarted_before_its_first_turn_is_adopted() {
     let (mut world, task, attempt) = next_fresh_claim();
     let hosted = hosting(&world);
-    world.restart_with_patch_sets(SEED, false, AFTER);
-    fresh_windows::hello_hosting(&mut world, Box::new([hosted]));
+    world.restart(SEED, false);
+    closed_proofs::hello_hosting(&mut world, Box::new([hosted]));
     world.grant_account(1);
     assert_eq!(fixtures::live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt }));
-    assert!(!fresh_windows::proof(&world).crossed);
-    assert_eq!(fresh_windows::tries(&world).lost, 1);
+    assert!(!closed_proofs::proof(&world).crossed);
+    assert_eq!(closed_proofs::tries(&world).lost, 1);
     assert_eq!(world.cancellations.len(), 0);
     world.advance(GRACE);
-    assert_eq!(fresh_windows::tries(&world).lost, 1);
+    assert_eq!(closed_proofs::tries(&world).lost, 1);
     assert_eq!(world.assignments.last(), Some(&(task, attempt)));
 }
 
 #[test]
-fn a_second_mark_before_the_next_attempts_first_turn_crosses_it_again() {
+fn a_crossed_successor_before_its_first_turn_starts_fresh_without_a_tail() {
     let (mut world, task, attempt) = next_fresh_claim();
-    fresh_windows::restart(&mut world, AFTER_SECOND);
-    assert!(fresh_windows::proof(&world).crossed);
-    assert_eq!(fresh_windows::proof(&world).window, None);
+    closed_proofs::close(&mut world);
+    closed_proofs::restart(&mut world);
+    assert!(closed_proofs::proof(&world).crossed);
+    assert_eq!(closed_proofs::proof(&world).window, None);
     let refusals = fixtures::live_row(&world, task).refusals;
     world.advance(GRACE);
     assert_eq!(fixtures::live_row(&world, task).tries.lost, 1);
     assert_eq!(fixtures::live_row(&world, task).refusals, refusals + 1);
     world.advance(Duration::from_millis(100));
-    fresh_windows::fresh(&world);
-    assert!(fresh_windows::proof(&world).attempt > attempt);
+    closed_proofs::fresh(&world);
+    assert!(closed_proofs::proof(&world).attempt > attempt);
     // domain/engine/README.md, 10's default: no current window was committed by the
     // intervening fresh attempt, so its successor loses the old tail.
-    assert_eq!(fresh_windows::tail(&world), None);
+    assert_eq!(closed_proofs::tail(&world), None);
 }
 
 fn writer_slot(world: &World, task: u64, attempt: u64) -> Option<&tasks::WriterSlot> {
@@ -191,10 +195,10 @@ fn writer_slot(world: &World, task: u64, attempt: u64) -> Option<&tasks::WriterS
 
 #[test]
 fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
-    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
+    let mut world = World::new(Setup { seed: SEED, patch_sets: SETS, ..Setup::default() });
     fixtures::configure_resources(&mut world);
     let parent = (world.task(), world.attempt());
-    let spec = fixtures::resource_member(&world, 1, b"writer across a fresh mark");
+    let spec = fixtures::resource_member(&world, 1, b"writer with a crossed proof");
     let task = fixtures::delegate(&mut world, parent, 1, spec);
     // Leave only the writer running. Its caller waits for the delegate.
     world.send(root::Event::Answer {
@@ -210,13 +214,14 @@ fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
     world.hold_lost_reads = true;
+    closed_proofs::close(&mut world);
     let hosted = hosting(&world);
-    world.restart_with_patch_sets(SEED, false, AFTER);
-    fresh_windows::hello_hosting(&mut world, Box::new([hosted]));
+    world.restart(SEED, false);
+    closed_proofs::hello_hosting(&mut world, Box::new([hosted]));
     world.grant_account(1);
     let reads = world.systems[0].reads().len();
     let assignments = world.assignments.len();
-    assert!(fresh_windows::proof(&world).crossed);
+    assert!(closed_proofs::proof(&world).crossed);
     assert_eq!(world.cancellations, [(task, attempt)]);
     world.end(tasks::End::Failed(tasks::Class::Agent), 0);
     assert_eq!(fixtures::live_row(&world, task).tries.lost, 1);
@@ -234,5 +239,5 @@ fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
     assert_eq!(world.task(), task);
     assert!(world.attempt() > attempt, "the replacement is placed after the fresh read");
     assert!(writer_slot(&world, task, world.attempt()).is_some());
-    fresh_windows::fresh(&world);
+    closed_proofs::fresh(&world);
 }

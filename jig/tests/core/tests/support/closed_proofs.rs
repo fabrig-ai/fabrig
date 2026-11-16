@@ -20,19 +20,16 @@ const TURN: KeptFamily = KeptFamily {
     keys: &[],
     frames: Some(fixture::ROOT),
 };
-const SMITH: PatchSet = PatchSet {
+const FIXTURE: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Smith,
     name: fixture::NAME,
     families: &[TURN],
     level: Some(0),
     patches: &[],
-    fresh: Some(fixture::FRESH),
+    fresh: None,
 };
-pub const BEFORE: PatchSets = PatchSets { sets: &[SMITH] };
-pub const MARKS: &[&str] =
-    &["patch 1\nowner fixture-smith 1\nmark fresh-windows\n", "patch 1\nowner fixture-smith 2\nmark fresh-windows\n"];
-pub const AFTER: PatchSets = PatchSets { sets: &[PatchSet { level: Some(1), patches: &[MARKS[0]], ..SMITH }] };
+pub const SETS: PatchSets = PatchSets { sets: &[FIXTURE] };
 // The fixture binary renders the said field of each loaded v1 turn.
 pub const TAIL: &[u8] = b"closed windowwindow continuation";
 
@@ -62,7 +59,7 @@ pub fn turn(said: &[u8]) -> Box<[u8]> {
 }
 
 pub fn parked() -> World {
-    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
+    let mut world = World::new(Setup { seed: SEED, patch_sets: SETS, ..Setup::default() });
     world.store.transcript_text(turn_text);
     world.turn(1, 1, None, &turn(b"earlier window"));
     world.park_for_message(1);
@@ -73,8 +70,31 @@ pub fn parked() -> World {
     world
 }
 
-pub fn restart(world: &mut World, sets: PatchSets) {
-    world.restart_with_patch_sets(SEED, false, sets);
+// protocol/store/opening.md, 2, step 4: plant the walk's result through
+// numbered store commits before the restart, leaving every other field alone.
+pub fn close(world: &mut World) {
+    let rows = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = row {
+                let mut proof = proof.clone();
+                proof.crossed = true;
+                if let Some(window) = &mut proof.window {
+                    window.closed = true;
+                }
+                Some(root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    world.seed(rows.into_boxed_slice());
+}
+
+pub fn restart(world: &mut World) {
+    world.restart(SEED, false);
     hello(world);
     world.grant_account(1);
 }

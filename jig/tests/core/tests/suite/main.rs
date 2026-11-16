@@ -1,8 +1,8 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
-#[path = "../support/fresh_windows.rs"]
-mod fresh_windows;
+#[path = "../support/closed_proofs.rs"]
+mod closed_proofs;
 #[path = "../settings/support.rs"]
 mod settings_support;
 
