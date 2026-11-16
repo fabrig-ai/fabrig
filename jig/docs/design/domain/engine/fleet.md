@@ -229,13 +229,19 @@ The fleet child domain knows the hosts and the runs they host:
   limits, for the deployment's document, and start empty after a
   restart.
 
-Workers are known by their delivery channel and by the configured worker
-position that channel authenticated as. A hello naming an unconfigured
-position or one held by a live channel is refused as `Position`, naming that
-position separately from capacity refusals. Program login answers and
-deployment facts name the configured worker, whose name is supplied at startup, never
-from a worker message. A sign-out targets every configured worker; one not in
-contact is unconfirmed at once. An old channel's result cannot change a new
+Workers are known by their delivery channel and by the worker position
+that channel authenticated as: a worker setting's number less one
+(`workers.md`, 4). The fleet's membership is the current workers, given
+at the start's restore and replaced in each decision that changes one. A
+hello at a position with no worker, a withdrawn one, or one held by a live
+channel is refused as `Position`, naming that position separately from
+capacity refusals, and an admitted worker's slots are the smaller of its
+setting's places and its hello's. Program login answers and deployment
+facts name the worker its setting names, never a worker message. A
+sign-out targets every worker not withdrawn; one not in contact is
+unconfirmed at once. The fleet keeps, per worker, whether an admitted
+channel holds it and since when, for the deployment document
+(`workers.md`, 6). An old channel's result cannot change a new
 channel's inventory or complete a later operation. Cleanup of issued names
 after reconnect is a separate operation, and its login restrictions remain
 until the host establishes absence.

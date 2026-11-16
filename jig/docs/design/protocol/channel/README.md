@@ -153,7 +153,8 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   version in common is refused with skein's *version*; each build's
   floor is its current version, and nothing is translated.
 - **A worker's credential** is a record of `jig-protocol-worker-wire`'s:
-  - the worker's name, which the engine's configuration lists;
+  - the worker's name, which a worker setting names
+    (`../../domain/engine/workers.md`);
   - its secret;
   - the wires it speaks, jig's and the application's, each by version
     and layout (`wires.md`, 2), in place of a payload version;
@@ -162,9 +163,12 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **The engine's side checks, in order,** before its domain hears
   anything:
   - the name and the secret, the secret compared in constant time with
-    the digest the configuration holds for that name; an unknown name and
-    a wrong secret are one refusal, *unauthorized*, so names cannot be
-    probed;
+    the digest that name's worker setting holds, from the table the core
+    gives the component (`../../domain/engine/workers.md`, 4); an unknown
+    name, a withdrawn one and a wrong secret are one refusal, *not
+    admitted*, so names cannot be probed; a worker with no digest is
+    accepted on an in-process listener alone; a credential that does not
+    decode is *unauthorized*;
   - the wires, each the engine speaks stated alike, or *wires*, naming
     the first that is not (`wires.md`, 3);
   - the worker's `io.output`, equal to the engine's stream room, or
@@ -176,7 +180,8 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     has a channel always has room, since it replaces that channel (4.2).
 - **jig's reasons,** from 256 as skein's channel reserves them:
   *unauthorized*, *wires*, *busy*, *replaced* (4.2), *not admitted*
-  (the fleet refused the worker's hello, 4.3) and *stopping* (the engine
+  (no worker setting takes the credential, above, or the fleet refused
+  the worker's hello, 4.3) and *stopping* (the engine
   is shutting down). Their numbers are the schema's.
 - **Terms.** Each side states the largest body it takes of each kind,
   from its own limits, as the agreed version encodes it (`wires.md`, 5);
@@ -208,7 +213,7 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   refused during its opening, or lost before its hello, is never
   announced. Nothing but the hello is taken before it.
 - **The fleet may refuse the hello:** no room for another host; a worker
-  position that is not configured or is held by a live channel; a stop
+  position with no worker setting, a withdrawn one, or one held by a live channel; a stop
   bound not strictly shorter than the engine's grace; or an agent whose
   bounds cannot run the engine's charters, an endpoint it serves among
   them held with a smaller window or output than a charter's model's
@@ -987,9 +992,9 @@ ones in the fuzzy suite.
   for the engine's listener (skein's `net/channel.md`, section 12; skein's
   `net/tls.md`, section 8). Its channel, codecs and generator serve as they
   are.
-- **Configuration owes** (`../configuration.md`): the workers' names and the
-  digests of their secrets, the listener's addresses and certificate, on
-  the engine; the engine's address, trust, the worker's name and secret,
+- **Configuration owes** (`../configuration.md`): the listener's
+  addresses and certificate, on the engine, whose workers are settings
+  (`../../domain/engine/workers.md`); the engine's address, trust, the worker's name and secret,
   its slots and its graces, and its agent's configuration, whose
   endpoints the worker's charters are decoded against, on a worker.
 

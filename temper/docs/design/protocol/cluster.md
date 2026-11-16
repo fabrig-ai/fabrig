@@ -22,10 +22,18 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 
 | Shape | `engine` | `workers` | `application` |
 |---|---|---|---|
-| standalone | jig's engine part; `hosts.listener` `[{"in_process": "workers"}]` | one, whose `engine` is `{"in_process": "workers"}` | every member; `workers`, one entry |
-| engine alone | jig's engine part; `hosts.listener` one socket address on loopback, in plaintext, its port 0 or fixed; `hosts.workers` the cluster's workers, each with its digest | `[]` | every member; `workers` `[]` |
+| standalone | jig's engine part; `hosts.listener` `[{"in_process": "workers"}]` | one, named `local`, whose `engine` is `{"in_process": "workers"}` | every member; `workers`, one entry |
+| engine alone | jig's engine part; `hosts.listener` one socket address on loopback, in plaintext, its port 0 or fixed | `[]` | every member; `workers` `[]` |
 | worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext | `workers`, one entry, and `limits`, alone |
 
+- **Workers are settings** (jig's `domain/engine/workers.md`): no shape's
+  document lists one, and `engine.hosts.workers` is refused by name,
+  "workers are settings in the store". The box passes its own worker as
+  the default setting `local`: number 1, 4 places and no digest, since
+  it opens on the in-process listener. Its document's worker is named
+  `local`, and one named otherwise is refused, naming
+  `workers[0].name`. An engine alone passes none, and an owner adds
+  each of its workers (2).
 - **Never mixed.** A document of none of these shapes is refused, naming
   the path that departs from the nearest: an engine with both a worker
   and a socket listener, a listener list with an in-process name and a
@@ -48,7 +56,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
   store (`README.md`, sections 4 and 5; jig's `protocol/service.md`, section 6).
 - **Three directories for each process,** its own (configuration/directories.md
   ): an engine alone's data holds the deployment's directory,
-  the store and the secrets' store among it, and each worker's digest; a
+  the store and the secrets' store among it; a
   worker alone's, its secret, its root, where its workspaces are, and
   its programs directory. No two processes share one.
 - **Memory by its service:** `engine.memory_bytes` meters the engine's
@@ -81,12 +89,12 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   The engine's document names the fakes' addresses as their ready lines
   gave them, and each worker's names the engine's workers' listener as
   its `listening workers` line gave it.
-- **Workers are the engine's configured positions,**
-  `engine.hosts.workers`, each with its own name and secret (jig's
-  `domain/engine/fleet.md`). A worker started later is a position
-  the engine knows from its start, empty until that worker links; a
-  position added is a new engine document, so the cluster's restart
-  (4).
+- **Workers are the engine's settings,** each with its own name, places
+  and digest (jig's `domain/engine/workers.md`). The description's
+  settings file, which its stories apply through ctl after sign-in,
+  holds each worker's setting; a worker that dials before it is applied
+  is refused *not admitted* and redials until it links. A worker added
+  later is a setting added while the engine runs, with no restart.
 - **The fakes are setup/playground.md's,** each a process of its own with its
   ready line. A worker's git is the program an assignment's repositories
   name, `temper-box fake git` for a fake forge (channel.md, section 4): the
@@ -98,13 +106,15 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
 - **jig's link, in plaintext over loopback** (jig's
   `protocol/channel/README.md`, section 9): the worker dials the engine's
   workers' listener; the engine takes its name and its secret against
-  that worker's digest, then its hello: its capability, its configured
-  position, its capacity and a stop bound strictly below the engine's
-  grace, `fleet.grace_ms`. The worker redials, jittered and doubling,
-  until it links.
-- **Secrets are the description's fixtures:** each worker's secret, and
-  its digest in the engine's data, a fixed pair the description holds
-  and renders into each process's directories (5); a test's, never a
+  its setting's digest (jig's `domain/engine/workers.md`, 4), then its
+  hello: its capability, its position, its capacity and a stop bound
+  strictly below the engine's grace, `fleet.grace_ms`, and admits it at
+  the smaller of its setting's places and its hello's slots. A name with
+  no setting, a withdrawn one and a wrong secret are refused alike, *not
+  admitted*. The worker redials, jittered and doubling, until it links.
+- **Secrets are the description's fixtures:** each worker's secret,
+  rendered into its process's directories (5), and its digest in the
+  description's settings file; a fixed pair, a test's, never a
   deployment's, and never copied from one.
 - **Short graces:** the description's are seconds, each worker's stop
   bound below the engine's grace, so a lost worker's runs are placed

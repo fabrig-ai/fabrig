@@ -142,7 +142,7 @@ LLM account: a person adds one from the client once the deployment has
 started (../credentials.md, section 3). Beside it are the files it names
 that hold no secret: the agent's configuration, `agent.json`, and the
 charters, `charters/`, short texts a person edits. The files that hold
-a secret, the worker's secret and its digest, are data paths and never
+a secret, the worker's secret, is a data path and never
 shipped: the walk `box` (`temper help box`) says how each is made in the data
 directory. A person, a test or QA's host starts from a copy, edits the
 agent's absolute paths to the copy's, and `temper box --config COPY`
@@ -349,7 +349,7 @@ playground and no Forgejo on this machine.
   flag later changes no format (`README.md`, section 9).
 - **Refused,** exit 1, before it writes anything, naming the file: when
   the configuration directory holds `temper.json`, or the data
-  directory holds `worker.secret`, `worker.digest` or, with `--box`,
+  directory holds `worker.secret` or, with `--box`,
   `demo/llm.key` or `demo/bin/git`. It never replaces a file; a person
   who starts again removes them.
 - **Its directories:** the data and cache directories made and checked
@@ -365,7 +365,6 @@ playground and no Forgejo on this machine.
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
@@ -458,8 +457,8 @@ playground and no Forgejo on this machine.
   the facts, checks the refusals and writes the files, on skein-io.
 - **Checked:** temper-init's step tests check that the box's `engine.llm` is the
   owned example's with the scripted provider (3), that the bare
-  document is the box's less its parts, that the digest is
-  the secret's, the files' names, directories and order, and the
+  document is the box's less its parts, that its worker is named
+  `local` and its document names no `engine.hosts.workers` (`../cluster.md`, 1), the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
   passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with

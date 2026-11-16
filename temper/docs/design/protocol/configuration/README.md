@@ -66,7 +66,7 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **No secret in the document,** and no forge credential in a file the
   document names. Each forge's credentials are records in jig's secrets'
   store under temper's tag (../credentials.md, 2.1). The private files the
-  document names are jig's, a worker's secret and its digest, read at
+  document names are jig's, a worker's secret, read at
   start, and the scripted model's key, read at the playground's start;
   an owned or fake forge's handover is in its directory (section 5).
 - **LLM providers, never accounts.** jig's `engine.llm` names the LLM
@@ -158,10 +158,12 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   ), and the owned example is a whole document (../setup/init.md, 1).
 - **What standalone requires of jig's parts,** each checked at start, a
   failure naming its path:
-  - `workers` has exactly one entry, whose `engine` is `{"in_process":
-    "workers"}`;
+  - `workers` has exactly one entry, named `local`, whose `engine` is
+    `{"in_process": "workers"}`: the box's worker, the setting `local`
+    the box passes as its default (`../cluster.md`, 1);
   - `engine.hosts.listener` is `[{"in_process": "workers"}]`, and
-    `engine.hosts.workers` names that one worker;
+    `engine.hosts.workers` is refused by name: workers are settings
+    (jig's `domain/engine/workers.md`);
   - `engine.connectors` is exactly `[1]`: the forge connector, temper's
     one connector, whose number both ends of the client's wire fix as
     `temper-client-protocol-wire`'s `FORGE` (`../../client/forge/records.md`);
@@ -175,12 +177,11 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   | Shape | `engine` | `workers` | `application` |
   |---|---|---|---|
   | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `workers` one entry |
-  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; `hosts.workers` one or more | `[]` | every member, `workers` `[]` |
+  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member, `workers` `[]` |
   | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `workers`, one entry, and `limits`; no other member |
 
-  - an engine alone is checked as standalone is, but for its listener
-    and its workers, by the table, each worker's `digest` a data path
-    of its own;
+  - an engine alone is checked as standalone is, but for its listener,
+    by the table, and its workers, which it has none of by default;
   - a worker alone is checked for its worker part, its entry of
     `application.workers` (section 3), its agent's configuration
     (section 4) and the limits its side takes (`limits.md`), and for
@@ -416,7 +417,7 @@ writes the same.
 | File | Named by | Holds | Read by |
 |---|---|---|---|
 | an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (../setup/README.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (../setup/owned.md, 5); a fake forge, before binding (../setup/playground.md) |
-| a worker's secret, its digest | jig's parts, data paths: `worker.secret` and `worker.digest` in the data directory as `temper-box init` writes them (../setup/init.md, 2) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
+| a worker's secret | jig's worker part, a data path: `worker.secret` in the data directory as `temper-box init` writes it (../setup/init.md, 2); its digest is the worker's setting's, no file (jig's `domain/engine/workers.md`, 1) | jig's formats (jig's `protocol/configuration.md`, sections 6 and 9) | jig's components |
 | Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper-box serve`, once, at start, within `sign_in.secret_bytes` |
 | the OpenID provider's signing key, and each of its confidential clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper-box forge sign-in` (../setup/owned.md, 8) or a box's first run (`../openid-provider.md`, 9) | `temper-box serve`, once, at start, for jig's helper that builds the issuer (`../openid-provider.md`, 2) |
 | the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper-box init` writes it (../setup/init.md, 2) | the key's bytes | the fake LLM, at its start; `temper-box serve`, at the playground's start, which makes the scripted account with it (../setup/playground.md) |
@@ -696,7 +697,6 @@ not itself valid JSON):
     "charters": [{"number": 1, ...}, {"number": 2, ...}],
     "templates": [{"number": 1, ...}, {"number": 2, ...}],
     "hosts": {
-      "workers": [{"name": "worker", "digest": "worker.digest"}],
       "listener": [{"in_process": "workers"}]
     },
     "llm": ...,
@@ -707,7 +707,7 @@ not itself valid JSON):
   },
   "workers": [{
     "engine": {"in_process": "workers"},
-    "name": "worker",
+    "name": "local",
     "secret": "worker.secret",
     "slots": ..., "graces": ...,
     "programs": {"check_interval_ms": ...},
