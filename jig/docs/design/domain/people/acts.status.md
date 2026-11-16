@@ -1,6 +1,10 @@
 # acts: status
 
-2026-11-11. Where the tree's code lags or departs from [acts.md](acts.md).
+2026-11-16. Where the tree's code lags or departs from [acts.md](acts.md).
+
+- **Not yet:** 1: *Where a party reaches*: a `Create`'s dependency on an ended task, refused unknown where one done adds no wait and one failed or cancelled refuses naming it [in flight: change 4307].
+- **Not yet:** 1: `Conclude`, a gathering's requester's word [in flight: change 4309].
+- **Not yet:** 1: `Delegate`, a party's batch beneath a task [in flight: change 4313].
 
 - **Not yet:** 1 and 2: an owner's `RemoveProject` of a project with live tasks is admitted and cancels them, where it is refused *live tasks*, naming its live roots [in flight: change 628].
 - **Not yet:** 2: no mark outlives a deletion, so a deleted project's read answers unknown, not gone, and an owner's removal answer goes with the deletion's row, a resend after it answered unknown [in flight: change 629].

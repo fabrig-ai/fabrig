@@ -1,6 +1,10 @@
 # requests: status
 
-2026-11-11. Where the tree's code lags or departs from [requests.md](requests.md).
+2026-11-16. Where the tree's code lags or departs from [requests.md](requests.md).
+
+- **Not yet:** 2: *Where a party may reach*: a `Create`'s dependency on an ended task [in flight: change 4307].
+- **Not yet:** 2: `Conclude` [in flight: change 4309].
+- **Not yet:** 2: `Delegate` [in flight: change 4313].
 
 - **Not yet:** 2: `RemoveProject` of a project with a live task is admitted, not refused *live tasks* [in flight: change 628].
 - **Not yet:** 2: `RemoveProject` sent again under its key after the deletion ended is answered unknown, not removed, and the deleted project's read unknown, not gone [in flight: change 629].

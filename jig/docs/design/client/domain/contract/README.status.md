@@ -1,6 +1,9 @@
 # contract: status
 
-2026-11-14. Where jig's code lags or departs from [README.md](README.md).
+2026-11-16. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3: *dependency* for a party's batch naming a task that failed or was cancelled [in flight: change 4307].
+- **Not yet:** 3: *concluded*, and *not well formed* (`EndedBy`) for a `Conclude` of a task that is not a gathering [in flight: change 4309].
 
 - **Not yet:** 3: the refusal *live tasks*, absent from the contract's `Refusal`, the client wire and jig's words [in flight: change 628].
 - **Not yet:** 4: a deleted project's read answers unknown, not gone [in flight: change 629].

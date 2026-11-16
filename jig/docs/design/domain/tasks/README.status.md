@@ -1,6 +1,10 @@
 # tasks: status
 
-2026-11-14. Where jig's code lags or departs from [README.md](README.md).
+2026-11-16. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 4: a party's batch naming an ended dependency, judged on its stored row: refused unknown today [in flight: change 4307].
+- **Not yet:** 5: the gathering (`gatherings.md`) [in flight: change 4309].
+- **Not yet:** 4: a party's batch beneath a task, `Delegate` [in flight: change 4313].
 
 - **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
 - **Not yet:** 3: a standing task's session (`standing.md`, 5.1).

@@ -1,7 +1,8 @@
 # lifecycle: status
 
-2026-11-14. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-16. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
+- **Not yet:** 9: a gathering its requester ends by `Conclude` [in flight: change 4309].
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1).
