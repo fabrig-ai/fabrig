@@ -775,14 +775,11 @@ def write_junit(directory, results):
     ET.ElementTree(root).write(directory / 'junit.xml', encoding='utf-8', xml_declaration=True)
 
 
-def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
-        layers=Path('tools/tiers/layers.toml'), ledger=None):
-    """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
-    directory = Path(directory).resolve()
-    if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
-        raise ValueError('run directory must be empty')
+def listed_plan(command, env, profile, limits, config, walls, layers, picks=None):
+    """Build and plan a listing; base picks use any filter match (references.md, 5)."""
     prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
-    settings, overrides, default_filter, groups = configuration(config, profile, env, limits, caller_filter)
+    settings, overrides, default_filter, groups = configuration(
+        config, profile, env, limits, caller_filter or picks is not None)
     if walls is not None:
         settings['global-timeout'] = profile_wall(walls, profile)
     try:
@@ -793,8 +790,6 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     if table is not None and (not isinstance(table.get('layers'), list)
                               or any(not isinstance(layer, str) for layer in table['layers'])):
         raise ValueError('layers: expected a list of strings')
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory.chmod(0o700)
     output = bytearray()
 
     def forward(text):
@@ -820,8 +815,70 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     listing = json_listing(listing_output.decode('utf-8', 'backslashreplace'))
     metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
                                                 env=env, stdin=subprocess.DEVNULL, text=True))
-    plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings, table)
+    if picks is not None:
+        wanted = {(binary, name) for binary, name, _ in picks}
+        listing['rust-suites'] = {
+            binary: dict(suite, testcases={
+                name: dict(case, **{'filter-match': {'status': 'matches'}})
+                for name, case in suite.get('testcases', {}).items() if (binary, name) in wanted})
+            for binary, suite in listing['rust-suites'].items() if suite.get('status') == 'listed'}
+    plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
+                     caller_filter or picks is not None, groups, settings, table)
+    return plan, prefix, no_tests, output
+
+
+def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
+        layers=Path('tools/tiers/layers.toml'), ledger=None):
+    """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
+    directory = Path(directory).resolve()
+    if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
+        raise ValueError('run directory must be empty')
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory.chmod(0o700)
+    plan, prefix, no_tests, output = listed_plan(command, env, profile, limits, config, walls, layers)
     execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger)
+
+
+def alone_at_base(head_directory, command, env, directory, config=Path('.config/nextest.toml'),
+                  layers=Path('tools/tiers/layers.toml')):
+    """Run a head's flagged tests at this checkout, with no suite (references.md, 5)."""
+    head = json.loads((Path(head_directory) / 'results.json').read_text())
+    picks = sorted((entry['binary_id'], entry['test_name'], 'base')
+                   for entry in head['references'] if entry['why'] == 'flagged')
+    profile = head['profile']
+    directory = Path(directory).resolve()
+    if directory.exists():
+        raise ValueError('base run directory must be fresh')
+    directory.mkdir(mode=0o700, parents=True)
+    output = bytearray()
+    prefix = []
+    plan = dict(profile=profile, binaries=[], groups={}, layers=[], workspace=[],
+                global_timeout=None, lanes=LANES, term_grace_s=TERM_GRACE_S,
+                wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S)
+    present = set()
+    if picks:
+        packages = sorted({binary.split('::', 1)[0] for binary, _, _ in picks})
+        prefix, cargo, selection, _, _ = arguments(command, profile)
+        command = [*prefix, cargo, 'nextest', 'run', '--profile', profile,
+                   *(argument for package in packages for argument in ('-p', package)), *selection]
+        plan, prefix, _, output = listed_plan(command, env, profile, {}, config, None, layers, picks)
+        names = {(binary['binary_id'], test['name']) for binary in plan['binaries'] for test in binary['tests']}
+        present = {pick for pick in picks if pick[:2] in names}
+    results = execute_plan(reference_plan(plan, present), prefix, env, directory, {},
+                           output=output, keep_times=False, junit=False)
+    missing = [dict(binary_id=binary, test_name=name, why=why, outcome='missing',
+                    process=None, empty_process=None, cpu_s=None)
+               for binary, name, why in picks if (binary, name, why) not in present]
+    if missing:
+        results['references'] = sorted(results['references'] + missing,
+                                       key=lambda entry: (entry['binary_id'], entry['test_name']))
+        save(directory / 'results.json', results)
+        with (directory / 'command-output.txt').open('a') as log:
+            for entry in missing:
+                text = f"REFERENCE {entry['binary_id']} {entry['test_name']}: base, missing, CPU unmeasured s\n"
+                print(text, end='', flush=True)
+                log.write(text)
+    return 0
 
 
 def pick_references(tests, ledger):
@@ -905,7 +962,8 @@ def again(plan, prefix, env, directory):
     return 100 if results['unobserved'] or any(t['outcome'] != 'passed' for t in results['tests']) else 0
 
 
-def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', output=None, keep_times=True, ledger=None):
+def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', output=None, keep_times=True, ledger=None,
+                 junit=True):
     """Collect the lanes' events into the run directory (design.md, 11.8)."""
     profile = plan['profile']
     output = bytearray() if output is None else output
@@ -1085,7 +1143,8 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
                 results['unobserved'].append(dict(binary_id=binary['binary_id'], test_name=test['name']))
     results['references'] = reference_rows(picks, final=True)
     save(directory / 'results.json', results)
-    write_junit(directory, results)
+    if junit:
+        write_junit(directory, results)
     (directory / 'command-output.txt').write_bytes(output)
     end = max((p['start_s'] + p['wall_s'] for p in results['processes']), default=0.0)
     end = max(end, forced_at or 0.0, cancelled_at or 0.0)

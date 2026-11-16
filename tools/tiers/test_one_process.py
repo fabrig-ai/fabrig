@@ -562,6 +562,179 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(json.loads((self.directory / 'results.json').read_text())['selected'], 0)
 
 
+class BaseTests(RunnerFixture):
+    """The head's flagged tests measured at the base (references.md, 5)."""
+
+    def head(self, references=(), profile='default'):
+        self.directory.mkdir(exist_ok=True)
+        (self.directory / 'results.json').write_text(json.dumps(dict(profile=profile, references=references)))
+
+    def flagged(self, name='b', binary='fixture::suite', why='flagged'):
+        return dict(binary_id=binary, test_name=name, why=why)
+
+    def invoke_base(self, *, directory=None, default_out=False, extra=(), hold=None):
+        self.prepare()
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'))
+        if hold is not None:
+            env['TIERS_HOLD'] = hold
+        command = [str(HERE / 'one-process'), '--alone', str(self.directory)]
+        if not default_out:
+            command += ['--out', str(directory or self.root / 'base output')]
+        return subprocess.run([*command, *extra], cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                              capture_output=True, text=True, timeout=10)
+
+    def test_head_base_and_judgement_meet(self):
+        self.env['FIXTURE_CASE'] = 'slow'
+        ledger = dict(profile='default', budgets={}, moves=[], binaries={'fixture::suite': dict(
+            tree='repository', layer='checks', cpu_s=1.0,
+            tests={'a': [10], 'b': [0], 'c': [10]}, alone={'b': [100]})})
+        head = self.invoke(ledger=ledger)
+        self.assertEqual([(r['test_name'], r['why']) for r in head['references']], [('b', 'flagged')])
+        times = self.root / 'target/tiers-one-process/times.json'
+        times_before = times.read_bytes()
+        (self.root / 'cargo-argv.jsonl').unlink()
+        (self.root / 'prefix-argv.jsonl').unlink()
+        self.env['FIXTURE_CASE'] = 'pass'
+        result = self.invoke_base(extra=('-E', 'test(=b)', '--no-fail-fast'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = self.root / 'base output'
+        self.assertEqual(result.stdout.splitlines()[0], str(base))
+        self.assertEqual({p.name for p in base.iterdir()},
+                         {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual((results['tests'], results['unobserved']), ([], []))
+        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'])
+        self.assertEqual(results['processes'][0]['tests'], ['b'])
+        row, = results['references']
+        self.assertEqual((row['binary_id'], row['test_name'], row['why'], row['outcome']),
+                         ('fixture::suite', 'b', 'base', 'passed'))
+        self.assertIsInstance(row['cpu_s'], (int, float))
+        self.assertGreaterEqual(row['cpu_s'], 0)
+        self.assertEqual(times.read_bytes(), times_before)
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[0], ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
+                                   '--config-file', str(self.config), '-p', 'fixture', '-E', 'test(=b)'])
+        prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(len(prefixed), 2)
+        self.assertEqual(prefixed[0][1:], calls[0])
+        self.assertEqual(prefixed[1][-2:], ['lanes', str(base / 'plan.json')])
+        summary = self.module['CPU']['summary'](
+            self.directory, {'gate': {'default': {'references': {'checks': 1}}}}, ledger=ledger, base=base)
+        judged, = summary['references']
+        self.assertEqual((judged['main_from'], judged['main_cpu_s']), ('base', row['cpu_s']))
+
+    def test_no_flagged_builds_nothing(self):
+        self.head([self.flagged(why='new')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = self.root / 'base output'
+        self.assertEqual({p.name for p in base.iterdir()},
+                         {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual((results['references'], results['processes'], results['tests'], results['unobserved']),
+                         ([], [], [], []))
+        self.assertFalse((self.root / 'cargo-argv.jsonl').exists())
+        self.assertFalse((self.root / 'target').exists())
+
+    def test_missing_and_filtered_names_at_base(self):
+        self.head([self.flagged('gone'), self.flagged(binary='absent::bin/tool'), self.flagged(),
+                   self.flagged('a', why='new')])
+        self.listing['rust-suites']['fixture::suite']['testcases']['b']['filter-match'] = {
+            'status': 'mismatch', 'reason': 'default-filter'}
+        self.config.write_text('[profile.default]\ndefault-filter="none()"\n')
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = self.root / 'base output'
+        results = json.loads((base / 'results.json').read_text())
+        self.assertEqual([(r['binary_id'], r['test_name'], r['why'], r['outcome'])
+                          for r in results['references']],
+                         [('absent::bin/tool', 'b', 'base', 'missing'),
+                          ('fixture::suite', 'b', 'base', 'passed'),
+                          ('fixture::suite', 'gone', 'base', 'missing')])
+        for row in results['references']:
+            if row['outcome'] == 'missing':
+                self.assertEqual((row['cpu_s'], row['process'], row['empty_process']), (None, None, None))
+                self.assertIn(f"{row['binary_id']} {row['test_name']}: base, missing",
+                              (base / 'command-output.txt').read_text())
+        self.assertEqual([p['tests'] for p in results['processes']], [['b'], []])
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[0][-4:], ['-p', 'absent', '-p', 'fixture'])
+        self.assertFalse((self.root / 'target/tiers-one-process/times.json').exists())
+
+    def test_all_missing_has_no_process(self):
+        self.head([self.flagged(binary='absent')])
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        results = json.loads((self.root / 'base output/results.json').read_text())
+        self.assertEqual(results['processes'], [])
+        row, = results['references']
+        self.assertEqual((row['outcome'], row['cpu_s']), ('missing', None))
+
+    def test_nonpasses_still_exit_zero_and_use_head_profile_bound(self):
+        for scenario, name, native, outcome in (
+                ('pass', 'b_fails', 'again', 'failed'), ('crash', 'b', 'tests', 'crashed'),
+                ('starved', 'a', 'tests', 'starved'), ('hang', 'b', 'tests', 'cancelled')):
+            with self.subTest(scenario=scenario):
+                self.head([self.flagged(name)], profile='candidate')
+                self.binary(names=(name,), native=native)
+                self.env['FIXTURE_CASE'] = scenario
+                self.config.write_text('[profile.default]\nglobal-timeout="10s"\n'
+                                       '[profile.candidate]\nglobal-timeout="100ms"\n')
+                base = self.root / f'base-{scenario}'
+                result = self.invoke_base(directory=base)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                results = json.loads((base / 'results.json').read_text())
+                row, = results['references']
+                self.assertEqual((row['outcome'], row['cpu_s']), (outcome, None))
+                plan = json.loads((base / 'plan.json').read_text())
+                self.assertEqual((plan['profile'], plan['global_timeout']), ('candidate', 0.1))
+                self.assertEqual(results['cancelled'], 'global-timeout' if scenario == 'hang' else None)
+
+    def test_invalid_invocations_exit_two(self):
+        self.head()
+        valid = (self.directory / 'results.json').read_bytes()
+        fresh = self.root / 'empty directory'
+        fresh.mkdir()
+        occupied = self.root / 'occupied'
+        occupied.write_text('not a directory')
+        for label, head, out, extra, message in (
+                ('missing', None, None, (), 'results.json'),
+                ('no references', b'{"profile":"default"}', None, (), 'references'),
+                ('existing empty', valid, fresh, (), 'fresh'),
+                ('existing file', valid, occupied, (), 'fresh'),
+                ('budgets', valid, None, ('--budgets', 'unused'), '--budgets'),
+                ('walls', valid, None, ('--walls', 'unused'), '--walls'),
+                ('ledger', valid, None, ('--ledger', 'unused'), '--ledger'),
+                ('gate', valid, None, ('--gate',), '--gate'),
+                ('again', valid, None, ('--again', 'unused'), '--again')):
+            with self.subTest(label=label):
+                path = self.directory / 'results.json'
+                if head is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(head)
+                result = self.invoke_base(directory=out, extra=extra)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(message, result.stderr)
+                self.assertFalse((self.root / 'cargo-argv.jsonl').exists())
+                self.assertFalse((self.root / 'base output').exists())
+
+    def test_default_output_and_hold_cover_metadata_and_reference_phase(self):
+        self.head([self.flagged()])
+        self.metadata['target_directory'] = str(self.root / 'target')
+        result = self.invoke_base(default_out=True, hold=str(self.root / 'hold'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = Path(result.stdout.splitlines()[0])
+        self.assertEqual(base.parent, self.root / 'target/tiers-one-process/runs')
+        self.assertTrue((base / 'results.json').is_file())
+        events = [json.loads(line) for line in (self.root / 'hold-events.jsonl').read_text().splitlines()]
+        self.assertEqual(events[0], ['hold-start', [], os.getpgrp(), os.getsid(0)])
+        self.assertEqual(events[1][0:2], ['cargo', ['metadata', '--format-version', '1', '--no-deps']])
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
+
+
 class AgainTests(RunnerFixture):
     def prepare_again(self):
         self.binary(names=('a_passes', 'b_fails', 'c_reads'), native='again')
