@@ -154,12 +154,13 @@ and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
 
 - **The spent link's refusal is expected.** Opening the spent first
   link, the shell `POST`s its secret to the link's route,
-  `/v1/sign-in/link` (jig's `protocol/client/default-http.md`, 1), which
-  refuses it, 401, as a link a sign-in spent (jig's
-  `protocol/client/sign-in.md`, its printed link); that refusal is what makes serve
-  print the fresh link. Chromium logs it as a `Log` trouble, `Failed to
-  load resource: the server responded with a status of 401
-  (Unauthorized)`, at that route's URL. From the spent link's opening
+  `<prefix>/v1/sign-in/link` (jig's `protocol/client/default-http.md`,
+  1), at the box's `/jig/v1/sign-in/link`, which refuses it, 401, as a
+  link a sign-in spent (jig's `protocol/client/sign-in.md`, its printed
+  link); that refusal is what makes serve print the fresh link. Chromium
+  logs it as a `Log` trouble, `Failed to load resource: the server
+  responded with a status of 401 (Unauthorized)`, its URL the route's on
+  the box's origin, with no query. From the spent link's opening
   until `ready`, such a trouble is never counted: it may come in any of
   step 3's waits, before or after the fresh link's line, since the
   browser's log and the box's stdout are not ordered.
@@ -168,7 +169,7 @@ and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
   its kind as the kit names it, its text, which for a refused resource
   holds its status, and the resource, its URL with the query and the
   fragment dropped, since a link's URL carries its secret
-  (`/v1/sign-in/link?secret=…`) and a link is never in an answer (step
+  (`/jig/v1/sign-in/link?secret=…`) and a link is never in an answer (step
   2). For example `Log: Failed to load resource: the server responded
   with a status of 404 (Not Found) (http://127.0.0.1:8367/app.js)`. A
   trouble with no URL is `KIND: TEXT`.
