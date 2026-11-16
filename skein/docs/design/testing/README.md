@@ -161,7 +161,7 @@ reproduced in skein's own tier, and fixed there.
 A service that works on a forge takes the forge's fakes from skein: the
 domain and the protocol layer in its protocol worlds, the forge peer in
 its real loop, and the throwaway Forgejo in its tools and process tiers
-(fakes/forge.md, sections 2 to 6). The peer serves plaintext on loopback
+(fakes/forge.md, sections 2 to 5, and fakes/throwaway.md, section 1). The peer serves plaintext on loopback
 over a forge the service may share with its own fake of git. Its
 transcripts of git stay its own.
 
@@ -349,6 +349,42 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     input's length, and the assertion that fails names the input in its
     message, which the runner prints. A sweep runs thousands of cases,
     and their inputs written whole would outweigh the cases themselves.
+- **It names each kill in the real loop.** A hosted child the real
+  world kills, at a `Kill` some host's `Op::Signal` sent it, is
+  recorded once its operations and descriptors settle, in the order
+  they settle, with who it was, who killed it, when and why:
+
+  ```rust
+  pub struct Killed {
+      /// Its admission index.
+      pub host: usize,
+      pub exit: Exit,
+      /// When the kill was submitted: the iteration's `now`, on the clock
+      /// `Outcome::start` and `end` read.
+      pub at: Time,
+      /// Its program and its arguments' first word, as admitted (lossy UTF-8).
+      pub program: String,
+      pub argument: Option<String>,
+      /// The host whose signal killed it, and that host's program as
+      /// admitted; `None` for a root.
+      pub requester: usize,
+      pub requester_program: Option<String>,
+      /// The signal's reason (../runtime/io/processes.md, 5).
+      pub reason: Reason,
+      peak: Option<u64>,
+  }
+  ```
+
+  Its `Display` is one line, with the reason in words:
+  `host 158 (/s/agent/temper-agent run) killed at 7134000000 ns by host
+  1 (a root): forced after its grace; exit Signal(9)`. The argument is
+  left out when there is none, and a hosted requester shows its program
+  where a root shows `a root`. The reasons' words are `no reason given`
+  (`Unknown`), `asked for` (`Asked`), `closed while running`
+  (`Closed`), `forced after its grace` (`Grace`), `at its deadline`
+  (`Deadline`) and `cancelled` (`Cancelled`). A test that fails on a
+  kill it didn't ask for prints its records with it. The simulated
+  world's `Killed` stays as it is.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,
@@ -474,8 +510,8 @@ testing/skein-fork              a run forked at a chosen moment of a test and wa
 testing/skein-rows              one table test's rows: each named as it runs, and the first failure ends the table (../../foundation/testing-strategy.md, 8)
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
-testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fakes/forge.md, 6)
-testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fakes/forge.md, 7)
+testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fakes/throwaway.md, 1)
+testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fakes/throwaway.md, 2)
 testing/skein-fake-channel      a scripted framed peer for a service's protocol worlds (channel.md)
 testing/skein-protocol-kit      what the protocol worlds share: a demand's reads and the draws below them, the sweep's tally, the transcript loader
 testing/skein-json-kit          what a second crate takes of the JSON world: the reference reader, the generator and their outcome types
@@ -513,7 +549,7 @@ tests/forge/protocol            the protocol world: the client and the component
 tests/forge/client              the client world: the client alone under a scripted parent, over the fake forge's domain (../forge/client.md, 10)
 tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (../forge/setup/README.md, 5)
 tests/forge/dialect             both dialects' documents, plans and bounds driven from outside, with their fuzzy mutations, skein-forge-dialect-tests
-tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fakes/forge.md, 7)
+tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fakes/throwaway.md, 2)
 tests/forge/github              GitHub's conformance tool, outside the suites: the hosted fake and owner fixtures (fakes/github.md, 2)
 tests/fake-forge                the fake forge's domain, its Forgejo layer and its GitHub service against the counting allocator, skein-fake-forge-tests
 tests/fail-stop                 a panic on any thread aborts the process after its report, through a fixture binary, skein-fail-stop-tests
@@ -654,8 +690,9 @@ Every tier follows ../../foundation/testing-strategy.md, 8.1: CPU budget, wall h
 starved warning and the three-question repair rule.
 
 The two gate suites use the root `.config/nextest.toml`'s `default` and
-`fuzzy` profiles, with CPU budgets of 40 s and 120 s in
-`tools/tiers/budgets.toml`, enforced at the merge gate under
+`fuzzy` profiles, with a CPU budget for each of skein's layers in
+`tools/tiers/budgets.toml` (`tools/tiers/budgets.md`, 2 and 6) and ideals of
+40 s and 120 s, enforced at the merge gate under
 ../../foundation/testing-strategy.md, 8.1. The browser kit against real
 Chromium and the UI example's browser tier use `browser-skein`
 (`tools/tiers/run skein browser`; browser.md, section 9; ../ui/web/testing.md,

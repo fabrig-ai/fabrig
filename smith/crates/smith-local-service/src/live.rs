@@ -181,6 +181,7 @@ impl Timing {
                     host::Down::Answer { .. }
                     | host::Down::Acknowledge { .. }
                     | host::Down::Grant { .. }
+                    | host::Down::Renewals { .. }
                     | host::Down::Cancel
                     | host::Down::Drain,
                 ..

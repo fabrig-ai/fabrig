@@ -56,6 +56,9 @@ impl Store {
         let name = name(path).expect("store generation").to_vec();
         let binary = self.binary();
         let generation = self.generations.entry(name.clone()).or_default();
+        if !snapshot && generation.snapshot.is_some_and(|kept| number <= kept) {
+            return false;
+        }
         if snapshot {
             // Copying can expose logs before their older snapshot. Preserve every
             // later write or erasure while filling in that snapshot's other rows.
@@ -71,7 +74,7 @@ impl Store {
                 }
                 skein_kv::Op::Put { key, .. } | skein_kv::Op::Erase { key } => key,
             };
-            if snapshot && generation.touched.get(key.as_ref()).is_some_and(|written| *written > number) {
+            if generation.touched.get(key.as_ref()).is_some_and(|written| *written > number) {
                 continue;
             }
             if !snapshot {

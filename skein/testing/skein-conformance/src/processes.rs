@@ -40,6 +40,10 @@ impl Check for Processes {
 /// `executable` is a fixture program that accepts `echo INPUT OUTPUT`,
 /// `exit CODE`, and `never`. The simulator's machine models the same fixture.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the process conformance sequence keeps its signal records beside their checks"
+)]
 pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     let mut run = Run::new(backend);
     let process = run.process();
@@ -87,7 +91,15 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     let never_waited = run.within(process, waiting, BRIEFLY).is_none();
     assert!(never_waited, "the never fixture stays alive until signalled");
     let signalled = run
-        .call(process, Op::Signal { pidfd: never_pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Child })
+        .call(
+            process,
+            Op::Signal {
+                pidfd: never_pidfd,
+                signal: Signal::Kill,
+                to: skein_io::kernel::Target::Child,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
+        )
         .result;
     let killed_exit = run.wait(process, waiting).result;
     let reaped = run.call(process, Op::Wait { pidfd: never_pidfd, reap: true });
@@ -97,7 +109,11 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
         let never = command(executable, root, &[b"never"], &[]);
         let (pidfd, _) = spawned(run.call(process, Op::Spawn { spawn: Box::new(never) }));
         assert_eq!(
-            run.call(process, Op::Signal { pidfd, signal: Signal::Interrupt, to }).result,
+            run.call(
+                process,
+                Op::Signal { pidfd, signal: Signal::Interrupt, to, reason: skein_io::kernel::Reason::Unknown }
+            )
+            .result,
             Ok(Done::Nothing),
             "the owner sends an interrupt through the pidfd"
         );
@@ -119,7 +135,8 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     let [input, output] = pipes.as_slice() else { unexpected("echo input and output", &pipes) };
     let to = skein_io::kernel::Target::Child;
     assert_eq!(
-        run.call(process, Op::Signal { pidfd, signal: Signal::Stop, to }).result,
+        run.call(process, Op::Signal { pidfd, signal: Signal::Stop, to, reason: skein_io::kernel::Reason::Unknown })
+            .result,
         Ok(Done::Nothing),
         "Stop succeeds"
     );
@@ -128,7 +145,11 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     let stopped = run.within(process, waiting, STOPPED_WAIT);
     assert!(stopped.is_none(), "a stopped child cannot exit on input EOF: {stopped:?}");
     assert_eq!(
-        run.call(process, Op::Signal { pidfd, signal: Signal::Continue, to }).result,
+        run.call(
+            process,
+            Op::Signal { pidfd, signal: Signal::Continue, to, reason: skein_io::kernel::Reason::Unknown }
+        )
+        .result,
         Ok(Done::Nothing),
         "Continue succeeds"
     );
@@ -204,7 +225,15 @@ pub fn groups<B: Backend>(backend: &mut B, executable: &[u8]) -> Groups {
     let output = *pipes.first().expect("the requested output pipe");
     let read = run.start(process, Op::PipeRead { fd: output, buf: Box::from([0_u8; 1]) });
     assert!(run.within(process, read, BRIEFLY).is_none(), "the descendant holds its leader's pipe after exit");
-    let signalled = run.call(process, Op::Signal { pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Group });
+    let signalled = run.call(
+        process,
+        Op::Signal {
+            pidfd,
+            signal: Signal::Kill,
+            to: skein_io::kernel::Target::Group,
+            reason: skein_io::kernel::Reason::Unknown,
+        },
+    );
     assert_eq!(signalled.result, Ok(Done::Nothing), "the retained leader names its group");
     assert_eq!(run.wait(process, read).result, Ok(Done::Count(0)), "group kill ends every writer");
     assert_eq!(

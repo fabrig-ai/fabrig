@@ -140,8 +140,12 @@ fn forms_round_trip_and_bad_fields_are_named() {
 #[test]
 fn ctl_box_values_are_bare_or_quoted_and_unknown_names_are_refused() {
     for source in [
+        "ctl account add-key 1 {model.key} --key qa-model",
+        r#"ctl account add-key 1 "{model.key}" --key qa-model"#,
         "ctl forge connect forgejo-admin {forgejo.admin} --api {forgejo.api} --git {forgejo.git} --git-program {git}",
         r#"ctl forge connect forgejo-admin "{forgejo.admin}" --api "{forgejo.api}" --git "{forgejo.git}" --git-program "{git}""#,
+        "ctl account add-key Model {model.key}",
+        r#"ctl account add-key Model "{model.key}""#,
     ] {
         let line = Line::parse(source.as_bytes()).expect("box values");
         assert_eq!(line.print(), source.as_bytes());
@@ -150,6 +154,51 @@ fn ctl_box_values_are_bare_or_quoted_and_unknown_names_are_refused() {
     for source in ["ctl {forgejo.nope}", r#"ctl "{forgejo.nope}""#] {
         let why = Line::parse(source.as_bytes()).expect_err("unknown box value");
         assert!(why.contains("{forgejo.nope}"), "{why}");
+    }
+}
+
+#[test]
+fn deployment_patch_round_trips_document_and_path_and_refuses_bad_fields() {
+    for (document, expected) in [("engine", Document::Engine), ("worker", Document::Worker), ("agent", Document::Agent)]
+    {
+        for path in ["a".to_owned(), "landing.json".to_owned(), r#""a b.json""#.to_owned(), "a".repeat(256)] {
+            let source = format!("deployment patch {document} {path}");
+            let line = Line::parse(source.as_bytes()).expect("deployment patch");
+            assert_eq!(line.print(), source.as_bytes());
+            assert!(line.kept());
+            let Record::Deployment(Deployment::Patch { document, path: parsed }) = line.record() else {
+                panic!("{line:?}")
+            };
+            assert_eq!(*document, expected);
+            assert_eq!(parsed.as_ref(), if path.starts_with('"') { b"a b.json" } else { path.as_bytes() });
+        }
+    }
+    let prefix = "deployment patch engine";
+    let mut bad = vec![
+        ("deployment".into(), "deployment record"),
+        ("deployment restart engine".into(), "restart"),
+        ("deployment patch".into(), "DOCUMENT"),
+        ("deployment patch other landing.json".into(), "other"),
+        ("deployment patch \"engine\" landing.json".into(), "DOCUMENT"),
+        (prefix.into(), "PATH"),
+        (format!("{prefix} landing.json extra"), "extra field"),
+    ];
+    for path in [
+        String::new(),
+        "/a".into(),
+        "a//b".into(),
+        "a/".into(),
+        ".".into(),
+        "..".into(),
+        "a/./b".into(),
+        "a/../b".into(),
+        "a".repeat(257),
+    ] {
+        bad.push((format!("{prefix} \"{path}\""), "relative PATH"));
+    }
+    for (source, expected) in bad {
+        let why = Line::parse(source.as_bytes()).expect_err("invalid patch line");
+        assert!(why.contains(expected), "{source}: {why}");
     }
 }
 

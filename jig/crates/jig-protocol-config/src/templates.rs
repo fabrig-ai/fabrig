@@ -197,10 +197,7 @@ fn template(
     };
     if !tasks::shaped(
         template.flags,
-        match template.executor {
-            TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
-            TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
-        },
+        jig_domain_core_vocabulary::settings::templates::shape_executor(template.flags, template.executor),
     ) || (template.flags.ended_by == tasks::EndedBy::Standing && template.tracked.is_some())
     {
         problems.push(path.member(b"ended_by"), What::Form);

@@ -628,7 +628,7 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
         Request::Output { stream, down } => output_request(io, env, stream, down, subs),
         Request::Spawn { owner, spawn } => process::spawn(io, owner, spawn, false, subs),
         Request::SpawnAlone { owner, spawn } => process::spawn(io, owner, spawn, true, subs),
-        Request::Signal { child, signal, to } => process::signal(io, child, signal, to, subs),
+        Request::Signal { child, signal, to, reason } => process::signal(io, child, signal, to, reason, subs),
         Request::Window { owner, stream } => {
             assert!(io.tables.window.is_none() && io.tables.gone.is_none(), "one Window request in flight");
             let fd = match io.entities.get(Id::from_token(stream)) {

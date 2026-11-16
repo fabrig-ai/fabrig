@@ -77,6 +77,7 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
     out.push_str("};\n\n");
     emit_names(schema, out);
     out.push_str("/// A field or tag that caused a codec problem.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub enum Path {\n");
+    let mut names = String::new();
     for declaration in schema.declarations {
         match declaration {
             Declaration::Record(record) => {
@@ -86,18 +87,36 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
                         "    /// The `{}` field of `{}`.\n    {variant},\n",
                         field.name, record.name
                     ));
+                    names.push_str(&format!("            Self::{variant} => \"{}.{}\",\n", record.name, field.name));
                 }
                 if record.versioned {
                     out.push_str(&format!("    /// The version of `{}`.\n    {}Version,\n", record.name, record.name));
+                    names.push_str(&format!(
+                        "            Self::{}Version => \"{} (version)\",\n",
+                        record.name, record.name
+                    ));
                 }
                 out.push_str(&format!("    /// Bytes after `{}`.\n    {}Tail,\n", record.name, record.name));
+                names.push_str(&format!("            Self::{}Tail => \"{} (tail)\",\n", record.name, record.name));
             }
             Declaration::Enum(enumeration) => {
                 out.push_str(&format!("    /// The tag of `{}`.\n    {}Tag,\n", enumeration.name, enumeration.name));
+                names.push_str(&format!(
+                    "            Self::{}Tag => \"{} (tag)\",\n",
+                    enumeration.name, enumeration.name
+                ));
             }
         }
     }
-    out.push_str("}\n\n/// A decoding or bound failure at a schema path.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub struct Problem {\n    pub path: Path,\n    pub reason: skein_codec::Reason,\n}\n\n");
+    out.push_str("}\n\nimpl Path {\n    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).\n    #[must_use]\n");
+    if names.lines().count() > 98 {
+        out.push_str(
+            "    #[expect(clippy::too_many_lines, reason = \"each schema path has one exhaustive naming arm\")]\n",
+        );
+    }
+    out.push_str("    pub const fn name(self) -> &'static str {\n        match self {\n");
+    out.push_str(&names);
+    out.push_str("        }\n    }\n}\n\n/// A decoding or bound failure at a schema path.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub struct Problem {\n    pub path: Path,\n    pub reason: skein_codec::Reason,\n}\n\n");
     emit_check(schema, out);
 }
 

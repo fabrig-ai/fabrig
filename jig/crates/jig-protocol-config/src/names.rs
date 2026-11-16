@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 246] = [
+pub static NAMES: [Name; 247] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -663,6 +663,12 @@ pub static NAMES: [Name; 246] = [
         unit: Unit::Milliseconds,
         line: "Bounds the wait for a lost worker to return or an unclaimed attempt to be adopted.",
         value: |limits| limits.core.fleet.grace.as_millis(),
+    },
+    Name {
+        name: "fleet.restart_wait_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the restart wait said to workers at a settled stop, from 0 to 86400000 milliseconds.",
+        value: |limits| limits.core.fleet.restart_wait.as_millis(),
     },
     Name {
         name: "fleet.facts",

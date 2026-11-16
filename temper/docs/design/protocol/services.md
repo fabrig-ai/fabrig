@@ -225,7 +225,7 @@ temper-engine-service                 the engine's start: a document read and ch
   - the system's configuration helpers that the startup names:
     `system::GITHUB_REMOTE`, `machine_config` and `playground_config`;
   - the store's sizing, constants and records: `store` but `Store`
-    itself and its methods (`store::limits`, `WIRES`, `PATCH_SETS`,
+    itself and its methods (`store::limits`, `WIRES`, `OWNER_SETS`,
     `route`, `ranges`, `unreadable`);
   - the startup's items that the component names: the application's
     settings types (`startup::application::Clients`, `Origin` with its

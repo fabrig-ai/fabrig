@@ -45,10 +45,71 @@ impl Gathered {
             return;
         }
         if self.first.is_none() {
+            let answer = match address {
+                Address::Goals { .. } => goal_rows(answer),
+                Address::Me
+                | Address::Project
+                | Address::Tasks
+                | Address::Task { .. }
+                | Address::Tree { .. }
+                | Address::Activity { .. }
+                | Address::Turn { .. }
+                | Address::Change { .. }
+                | Address::Changes
+                | Address::Inbox
+                | Address::Ways
+                | Address::Inventory
+                | Address::Setting(_)
+                | Address::Landing
+                | Address::Gates { .. }
+                | Address::Revisions
+                | Address::Revision { .. }
+                | Address::Proposal { .. }
+                | Address::Page { .. }
+                | Address::Search { .. }
+                | Address::File { .. }
+                | Address::Unknown => answer,
+            };
             self.first = Some(answer);
         } else {
             assert!(self.second.is_none(), "an address reads at most two parts");
             self.second = Some(answer);
+        }
+    }
+}
+
+/// Milestones use jig's tracked slots, but are not temper's goals (domain/milestones.md, 10).
+fn goal_rows(mut part: Part) -> Part {
+    match &mut part {
+        Part::Jig(Answer::Tasks(page)) => {
+            keep_goals(&mut page.live);
+            match &mut page.ended {
+                core::reads::EndedGroup::Rows { rows, .. } => {
+                    keep_goals(rows);
+                }
+                core::reads::EndedGroup::None => {}
+            }
+        }
+        Part::Jig(
+            Answer::TaskText(_)
+            | Answer::Setting(_)
+            | Answer::Revision(_)
+            | Answer::Revisions(_)
+            | Answer::Document(_)
+            | Answer::Ended(_)
+            | Answer::Page(_)
+            | Answer::None(_),
+        )
+        | Part::Forge(_) => {}
+    }
+    part
+}
+
+fn keep_goals(rows: &mut List<documents::TaskLine>) {
+    let all = ::core::mem::replace(rows, List::uncapped());
+    for row in all.into_boxed() {
+        if !jig_domain_tasks::gathering::executor(row.chip.details.executor) {
+            rows.push(row).expect("filtered goal rows fit");
         }
     }
 }

@@ -116,3 +116,44 @@ fn strict_document_fails_when_a_script_runs_out() {
     assert_eq!(failure.report.code.as_ref(), b"no_script");
     assert!(failure.message.starts_with(b"no script answers: past the 1 turns"));
 }
+
+#[test]
+fn joined_cued_and_asked_concatenate_in_source_order() {
+    let document = serde_json::to_vec(&llm_document()).expect("model");
+    let mut joined = llm::ScriptJoin::empty();
+    joined
+        .push(&document, br#"{"cued":[{"cue":"first","turns":["a"]}],"asked":[{"cue":"request one","turns":["one"]}]}"#)
+        .expect("first");
+    joined
+        .push(
+            &document,
+            br#"{"cued":[{"cue":"second","turns":["b"]}],"asked":[{"cue":"request two","turns":["two"]}]}"#,
+        )
+        .expect("second");
+    let value: Value = serde_json::from_slice(&joined.into_bytes()).expect("joined JSON");
+    assert_eq!(value["cued"], json!([{"cue":"first","turns":["a"]},{"cue":"second","turns":["b"]}]));
+    assert_eq!(value["asked"], json!([{"cue":"request one","turns":["one"]},{"cue":"request two","turns":["two"]}]));
+}
+#[test]
+fn joined_otherwise_last_present_wins_and_absence_keeps_it() {
+    let document = serde_json::to_vec(&llm_document()).expect("model");
+    let mut joined = llm::ScriptJoin::empty();
+    joined.push(&document, br#"{"otherwise":["old"]}"#).expect("first");
+    joined.push(&document, br#"{"otherwise":["new"]}"#).expect("replacement");
+    joined.push(&document, b"{}").expect("absent");
+    let value: Value = serde_json::from_slice(&joined.into_bytes()).expect("joined JSON");
+    assert_eq!(value["otherwise"], json!(["new"]));
+}
+#[test]
+fn script_join_checks_each_source_and_the_running_join() {
+    let document = serde_json::to_vec(&llm_document()).expect("model");
+    let mut joined = llm::ScriptJoin::empty();
+    let source = br#"{"cued":[{"cue":"same","turns":["yes"]}]}"#;
+    joined.push(&document, source).expect("first");
+    let duplicate = joined.push(&document, source).expect_err("joint cues must be unique");
+    assert_eq!(duplicate.line().as_ref(), b"cued[1].cue: must be unique\n");
+    let invalid = joined.push(&document, br#"{"unknown":[]}"#).expect_err("unknown member");
+    assert_eq!(invalid.line().as_ref(), b"unknown: unknown member\n");
+    let value: Value = serde_json::from_slice(&joined.into_bytes()).expect("previous join intact");
+    assert_eq!(value["cued"], json!([{"cue":"same","turns":["yes"]}]));
+}

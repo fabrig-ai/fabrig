@@ -1,8 +1,8 @@
-//! Engine log openings and bounded polls (temper/docs/design/redeploy.md, 4.7).
+//! Engine log stop notes and bounded opening polls (temper/docs/design/redeploy.md, 4.2, 4.7).
 use crate::{
     description::Description,
     hosts::{Hosts, Part, fill},
-    record::{Journal, Opening, Window},
+    record::{Journal, Opening, Told, Window},
     stage::part_name,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -49,6 +49,30 @@ pub fn parse(line: &str) -> Option<Event> {
     Some(Event::Refused { worker: worker.into(), text: text.into() })
 }
 
+/// The engine's settled-stop note, with any service manager prefix.
+#[must_use]
+pub fn parse_told(line: &str) -> Option<Told> {
+    let (_, rest) = line.trim_end_matches('\n').split_once("serve: worker ")?;
+    if let Some((worker, wait)) = rest.rsplit_once(" told the engine restarts: wait ")
+        && let Some(wait) = wait.strip_suffix(" ms").and_then(|wait| wait.parse::<u64>().ok())
+    {
+        return Some(Told { worker: worker.into(), wait_ms: Some(wait) });
+    }
+    let (worker, _) = rest.rsplit_once(" not told the engine restarts: ")?;
+    Some(Told { worker: worker.into(), wait_ms: None })
+}
+
+pub(crate) fn read_told(description: &Description, stop: u64, hosts: &mut dyn Hosts) -> Result<Vec<Told>, String> {
+    let since = (stop / SECOND).saturating_sub(1).to_string();
+    let text = log(hosts, &fill(&description.engine.log, &[("since", &since)]))?;
+    let notes: BTreeMap<_, _> = text.lines().filter_map(parse_told).map(|told| (told.worker, told.wait_ms)).collect();
+    Ok(description
+        .workers
+        .iter()
+        .map(|worker| Told { worker: worker.name.clone(), wait_ms: notes.get(&worker.name).copied().flatten() })
+        .collect())
+}
+
 pub(crate) struct Wait {
     line: String,
     seen: BTreeMap<String, usize>,
@@ -78,12 +102,12 @@ impl Wait {
             *seen.entry(line.into()).or_default() += 1;
         }
         let awaited: Vec<_> = awaited.iter().map(|part| part_name(description, *part).to_owned()).collect();
-        let grace = journal
+        let wait = journal
             .record
             .graces
             .iter()
             .filter(|grace| awaited.contains(&grace.worker))
-            .map(|grace| grace.grace_ms)
+            .map(|grace| journal.record.told_wait_ms(&grace.worker).unwrap_or(0).max(grace.grace_ms))
             .max()
             .unwrap_or(0);
         if awaited.len() == description.workers.len() {
@@ -98,7 +122,7 @@ impl Wait {
             awaited,
             opened: BTreeSet::new(),
             refused: None,
-            deadline: start.saturating_add(grace.saturating_mul(1_000_000)),
+            deadline: start.saturating_add(wait.saturating_mul(1_000_000)),
             last: start,
             window,
         })
@@ -153,7 +177,7 @@ impl Wait {
     pub(crate) fn expired(&self, at: u64) -> Option<String> {
         (at >= self.deadline).then(|| {
             format!(
-                "workers did not open within the largest grace: {}",
+                "workers did not open within the largest wait given: {}",
                 self.awaited
                     .iter()
                     .filter(|worker| !self.opened.contains(*worker))

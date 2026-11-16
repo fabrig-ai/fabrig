@@ -6,8 +6,6 @@ use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod edges;
 mod retired;
-mod settling;
-mod turns;
 
 const FAMILY: KeptFamily = KeptFamily {
     retired: &[],
@@ -224,7 +222,6 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let held = skein_codec::schema::parse(CHILD.as_bytes()).unwrap();
     let from = old.layout(old.root(b"Row", Some(b"changed")).unwrap(), &[&held]).unwrap().digest();
     let job = crate::Job {
-        settles: false,
         counts: &[],
         name: "held-written",
         keys: holder.types[0].keys,
@@ -351,7 +348,29 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     let number = store.stores.store.last() + 1;
     let Write::Save(record) = fixtures::header(number) else { panic!() };
     let key = crate::keys::encode(&record.key(), store.limits.store.key).unwrap();
-    let value = crate::codec::encode(&record, &store.codec_limits, &store.names).unwrap();
+    let mut value = crate::codec::encode(&record, &store.codec_limits, &store.names).unwrap();
+    // Raw fixture commits use the simulated binary's core text and layout id.
+    if let Some(family) =
+        store.owner_sets.sets.iter().flat_map(|set| set.families).find(|family| family.name == "jig-store-core")
+    {
+        let from = skein_codec::schema::parse(include_str!("../../../schema/core-v6.schema").as_bytes()).unwrap();
+        let to = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+        let plan = skein_codec::layout::Plan::derive(
+            &from,
+            from.root(b"Row", Some(b"deployment")).unwrap(),
+            &[],
+            &to,
+            to.root(b"Row", Some(b"deployment")).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = Buffer::with_capacity(1024);
+        plan.convert(&value, &mut out, &mut work).unwrap();
+        value = out.as_slice().into();
+    }
+    store.registry.write(&key, &mut value).unwrap();
     ops.push(skein_kv::Op::Put { key, value });
     let mut above = Queue::uncapped();
     let mut below =
@@ -584,13 +603,8 @@ fn a_shared_keyspace_or_folded_heads_cannot_clear_an_unplanned_layout() {
         assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     }
 }
-const NOOP: crate::Job = crate::Job {
-    settles: false,
-    counts: &[],
-    name: "noop",
-    keys: &[KeyRange { from: b"a", to: b"b" }],
-    converts: None,
-};
+const NOOP: crate::Job =
+    crate::Job { counts: &[], name: "noop", keys: &[KeyRange { from: b"a", to: b"b" }], converts: None };
 fn drive_empty(disk: &mut Disk, store: &mut Store, events: Box<[Event]>) -> Vec<Event> {
     let mut pending = alloc::collections::VecDeque::from(events.into_vec());
     let mut terminal = Vec::new();
@@ -699,7 +713,6 @@ fn written_jobs_filter_stored_heads_carry_the_layout_once_and_pass_pending_or_do
     let schema = skein_codec::schema::parse(KEPT.as_bytes()).unwrap();
     let from = schema.layout(schema.root(b"Growing", None).unwrap(), &[]).unwrap().digest();
     let job = crate::Job {
-        settles: false,
         counts: &[],
         name: "written",
         keys: FAMILY.types[0].keys,

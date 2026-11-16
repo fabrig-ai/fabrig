@@ -684,5 +684,5 @@ service's io.
 - **A kept GitHub forge whose base ends in `/`.** Its record keeps
   that place (section 6), so its remotes have two `/` after the host.
   Default: so, until it is removed and connected again (../forge/engine.md,
-  3); a patch of the record or a trimmed base would repair it in
+  3); a written job over the record or a trimmed base would repair it in
   place.

@@ -1,0 +1,11 @@
+milestone list --project PROJECT [--ended] [--after CURSOR]
+  --project PROJECT: a project's name or number; required. The project
+  --ended: a switch. Read the ended group instead of the live
+  --after CURSOR: a cursor, as a read prints it; optional. Read on from the printed cursor
+Read one group of the project's milestones
+Prints: Each milestone's number, name, D / N done and state; then read on with: or no more
+--json: the record milestone_list.
+Key: none.
+Reads tracked tasks by template 8's label. State is live, or
+complete, ended when some goal failed, or closed when cancelled.
+Cancelled goals are left out of both counts.

@@ -158,7 +158,7 @@ fn tree_cut(tree: &c::Tree, _project: Option<u32>, book: &Phrasebook, out: &mut 
         out.put(b"\n");
     }
 }
-pub(super) fn next(call: &Call, index: usize, cursor: Option<&c::Cursor>, out: &mut Text) {
+pub fn next(call: &Call, index: usize, cursor: Option<&c::Cursor>, out: &mut Text) {
     let Some(cursor) = cursor else {
         out.put(b"no more\n");
         return;
@@ -167,7 +167,8 @@ pub(super) fn next(call: &Call, index: usize, cursor: Option<&c::Cursor>, out: &
     continuation(call, index, cursor, out);
     out.put(b"\n");
 }
-pub(super) fn read_on(call: &Call, index: usize, cursor: &c::Cursor) -> Box<[u8]> {
+#[must_use]
+pub fn read_on(call: &Call, index: usize, cursor: &c::Cursor) -> Box<[u8]> {
     let mut measure = Text::measure();
     continuation(call, index, cursor, &mut measure);
     let mut out = Text::writing_exact(measure);
@@ -188,6 +189,7 @@ pub(super) fn write_call(call: &Call, out: &mut Text) {
         2 => &crate::jig::rows::TASKS,
         4 => &crate::jig::rows::CHAT,
         5 => &crate::jig::rows::ACTIVITY,
+        crate::jig::rows::MILESTONE_LIST_AT => &crate::jig::rows::MILESTONE_LIST,
         crate::jig::rows::ROLE_LIST_AT => &crate::jig::rows::ROLE_LIST,
         _ => unreachable!("paged read"),
     };

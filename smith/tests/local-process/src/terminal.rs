@@ -475,6 +475,7 @@ impl Host for Terminal {
                 child,
                 to: kernel::Target::Child,
                 signal: kernel::Signal::Terminate,
+                reason: kernel::Reason::Unknown,
             });
         }
         while self.io.takes() {

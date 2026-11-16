@@ -2435,6 +2435,18 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-work-rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
 .temper-work-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; }
 .temper-work-card .temper-work-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
+.temper-work-milestone { display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px; border-radius: 5px; font-weight: 500; white-space: nowrap; background: var(--gf-ink); color: var(--gf-paper); }
+.temper-ms-card .temper-ms-strip { margin: 2px 0 0; }
+.temper-ms-mark { font: 13px/1.6 var(--gf-mono); color: var(--gf-faint); }
+.temper-ms-landed .temper-ms-mark { color: var(--gf-good); }
+.temper-work-row.temper-ms-live .temper-ms-mark { color: var(--gf-goal-running); }
+.temper-work-row.temper-ms-live > p > a { font-weight: 500; }
+.temper-work-row.temper-ms-waits > p > a { color: var(--gf-muted) !important; }
+.temper-ms-fold { margin: 0; font-size: 13px; color: var(--gf-muted); }
+.temper-ms-fold > summary { cursor: pointer; width: fit-content; padding: 6px 0 2px; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+.temper-work-row.temper-ms-change { padding: 6px 0; font-size: 13.5px; }
+.temper-ms-change > p > a { padding-left: 18px; color: var(--gf-ink-2) !important; }
+.temper-ms-change .temper-ms-mark { visibility: hidden; }
 .temper-work-row > p { margin: 0; }
 .temper-work-row > a, .temper-work-row > p > a { color: inherit; text-decoration: none; }
 .temper-work-row > a:hover, .temper-work-row > p > a:hover { text-decoration: underline; }
@@ -2478,6 +2490,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goals-state-needs { color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goals-state-running, #app:has(> .temper-rail) .temper-goals-state-planning { color: var(--gf-good); }
 #app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-closed, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goals-state-waits { color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
 #app:has(> .temper-rail) .temper-goals-filters button { padding: 5px 12px; border: 0; border-radius: 7px; background: none; font-size: 13px; color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px var(--gf-selection-shadow); }
@@ -2522,6 +2535,31 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goal-report > .temper-goal-title { line-height: 1.75; }
 #app:has(> .temper-rail) .temper-goal-report strong { font-weight: 600; }
 #app:has(> .temper-rail) .temper-goal-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 36px; }
+/* Shared milestone strip and tag (client/pages/milestone.md, 2). */
+#app .temper-ms-goal { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--gf-line); }
+#app .temper-ms-goal .temper-goal-line a { color: var(--gf-ink); text-decoration: none; }
+#app .temper-ms-goal .temper-goal-line a:hover { text-decoration: underline; }
+#app .temper-goal-report .temper-goal-landed-fold > .temper-ms-goal:first-of-type { margin-top: 6px; }
+#app .temper-ms-from { color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app .temper-ms-strip { display: flex; gap: 3px; margin: 4px 0 2px; }
+#app .temper-ms-strip > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font: 10.5px/1 var(--gf-mono); font-style: normal; color: var(--gf-faint); }
+#app .temper-ms-strip > span::before { content: ''; height: 6px; border-radius: 3px; background: var(--gf-line); }
+#app .temper-ms-strip > span > span { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+#app .temper-ms-strip > .temper-ms-done::before { background: var(--gf-ink); }
+#app .temper-ms-strip > .temper-ms-live::before { background: var(--gf-goal-running); }
+#app .temper-ms-strip > .temper-ms-needs::before { background: var(--gf-signal); }
+#app .temper-ms-strip > .temper-ms-waits::before { background: transparent; box-shadow: inset 0 0 0 1px var(--gf-line-2); }
+#app .temper-ms-strip > .temper-ms-failed::before { background: linear-gradient(var(--gf-line) 0 2.5px, var(--gf-ink-2) 2.5px 3.5px, var(--gf-line) 3.5px); }
+#app .temper-ms-strip > .temper-ms-failed { text-decoration: line-through; color: var(--gf-ink-2); }
+#app .temper-ms-strip > :is(.temper-ms-live, .temper-ms-needs) > span { color: var(--gf-ink); }
+#app .temper-ms-strip > .temper-ms-needs > span { color: var(--gf-signal); }
+#app .temper-ms-row .temper-ms-strip { margin: 6px 0 4px; }
+#app .temper-ms-row .temper-goals-top > span:first-child { color: var(--gf-ink-2); }
+#app .temper-goals-group-rows { padding-left: 16px; border-left: 1px solid var(--gf-line); }
+@media (max-width: 760px) {
+  #app .temper-ms-row .temper-goals-line { display: none; }
+}
+#app .temper-ms-tag { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 4px; background: var(--gf-ink); color: var(--gf-paper); font: 500 11px/1.7 var(--gf-sans); letter-spacing: .02em; }
 #app:has(> .temper-rail) .temper-goal-bar { display: flex; gap: 3px; margin: 0 0 10px; }
 #app:has(> .temper-rail) .temper-goal-bar > * { flex: 1; height: 6px; border-radius: 3px; background: var(--gf-line); }
 #app:has(> .temper-rail) .temper-goal-bar .temper-goal-bar-landed { background: var(--gf-ink); }
@@ -2529,6 +2567,9 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app:has(> .temper-rail) .temper-goal-line { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 14px; }
 #app:has(> .temper-rail) .temper-goal-line > :last-child { flex: none; color: var(--gf-faint); }
 #app:has(> .temper-rail) .temper-goal-line.temper-goal-line-running > :last-child { color: var(--gf-good); }
+#app:has(> .temper-rail) .temper-ms-goal .temper-goals-state-needs { color: var(--gf-signal); }
+#app:has(> .temper-rail) .temper-ms-goal :is(.temper-goals-state-running, .temper-goals-state-planning) { color: var(--gf-good); }
+#app:has(> .temper-rail) .temper-ms-goal .temper-goals-state-waits { color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goal-sent { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
 #app:has(> .temper-rail) .temper-goal-sent p { font-size: 14.5px; }
 #app:has(> .temper-rail) .temper-goal-sent .temper-goal-you { align-self: flex-end; max-width: 85%; padding: 8px 14px; border-radius: 14px 14px 4px 14px; background: var(--gf-hover); }

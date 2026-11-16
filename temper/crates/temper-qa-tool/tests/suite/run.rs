@@ -494,7 +494,7 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
         .home
         .transact(|ledger| {
             ledger.record_landing(&id(2), 7, None, "landed", 0);
-            ledger.start_session(1, "cheap", super::pages(), vec!["fresh".into()], 0)?;
+            ledger.start_session(1, "cheap", super::pages(), vec!["fresh".into()], Vec::new(), 0)?;
             Ok(())
         })
         .expect("running session");
@@ -786,7 +786,9 @@ printf 'ended\n' >&2
         .home
         .transact(|ledger| {
             super::passes::build(ledger, &id(1), &[1], 100);
-            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 21).expect("resume allowed by ended");
+            let resumed = ledger
+                .resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 21)
+                .expect("resume allowed by ended");
             assert_eq!(resumed.build, id(1));
             Ok(())
         })
@@ -804,7 +806,8 @@ fn a_second_request_names_the_earlier_goal_that_carried_the_finding() {
         .home
         .transact(|ledger| {
             ledger.end_goal(41, 10)?;
-            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 11).expect("resume");
+            let resumed =
+                ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 11).expect("resume");
             ledger.record_check(resumed.session, 1, "holds", "still fails", 12)?;
             ledger.end_pass_session(resumed.session, Exit::Code(0), None, 13, "qa", &[])
         })
@@ -1113,7 +1116,7 @@ fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
         brief.split("## Setups\n\n").nth(1).expect("setups").split("\n## Queued cases").next().expect("section");
     assert_eq!(
         setups,
-        "- fresh: a fresh box at its welcome with nothing set up\n- ctl-chain: The ctl-chain state. (temper/docs/development/qa/setups/ctl-chain/README.md)\n- ctl-root: The ctl-root state. (temper/docs/development/qa/setups/ctl-root/README.md)\n"
+        "- fresh (box): a fresh box at its welcome with nothing set up\n- ctl-chain (box): The ctl-chain state. (temper/docs/development/qa/setups/ctl-chain/README.md)\n- ctl-root (box): The ctl-root state. (temper/docs/development/qa/setups/ctl-root/README.md)\n"
     );
     assert!(brief.contains("\"surface\":\"ctl\""));
     assert!(brief.contains(r#"Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#));
@@ -1252,4 +1255,110 @@ fn a_failed_triage_tree_move_removes_and_makes_it_again() {
     assert_eq!(run.git.prunes, 1);
     assert!(!world.home.triage_tree().join("leftover").exists());
     assert_eq!(world.ledger().sessions[1].exit, None);
+}
+
+#[test]
+fn triage_offers_only_the_configured_places_kinds() {
+    use temper_qa_tool::Kind;
+    for kinds in [vec![Kind::Box], vec![Kind::Deployment], vec![Kind::Box, Kind::Deployment]] {
+        let mut world = World::new();
+        world.home.configuration.places.clear();
+        world.home.configuration.kinds.clear();
+        for (index, kind) in kinds.iter().enumerate() {
+            let place = format!("places/{index}");
+            world.home.configuration.places.push(place.clone());
+            world.home.configuration.kinds.insert(place, *kind);
+        }
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        let setups = "temper/docs/development/qa/setups";
+        for name in ["ctl-hello", "turn-landing"] {
+            run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
+        }
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.tick();
+        let mut ledger = world.ledger();
+        let session = &ledger.sessions[0];
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        for (name, kind) in [("fresh", Kind::Box), ("ctl-hello", Kind::Box), ("turn-landing", Kind::Deployment)] {
+            let offered = kinds.contains(&kind);
+            assert_eq!(session.setups.contains(&name.into()), offered, "{name}: {kinds:?}");
+            assert_eq!(brief.contains(&format!("- {name} ({}):", kind.name())), offered, "{brief}");
+        }
+        assert_eq!(session.deployments, if kinds.contains(&Kind::Deployment) { vec!["turn-landing"] } else { vec![] });
+        let number = session.number;
+        let mut input = super::case();
+        input.setup = if kinds == [Kind::Deployment] { "ctl-hello" } else { "turn-landing" }.into();
+        if kinds.len() == 1 {
+            let why = ledger.add_case(number, &input, 1).expect_err("setup not offered").to_string();
+            assert_eq!(
+                why,
+                format!(
+                    "case refused: setup {} is not in the catalogue; setups: {}",
+                    input.setup,
+                    ledger.sessions[0].setups.join(", ")
+                )
+            );
+        } else {
+            ledger.add_case(number, &input, 1).expect("both kinds offered");
+            assert_eq!(ledger.cases[0].kind, Kind::Deployment);
+        }
+    }
+}
+
+#[test]
+fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_configuration() {
+    for surfaces in [vec!["ctl"], vec!["ctl", "web", "tui"], vec!["web"]] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = surfaces.iter().map(|surface| (*surface).into()).collect();
+        world.home.configuration.places.push("places/2".into());
+        world.home.configuration.kinds.insert("places/2".into(), temper_qa_tool::Kind::Deployment);
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        let setups = "temper/docs/development/qa/setups";
+        for (name, recipe) in [
+            ("root", "recipe 1\ncheck\nctl task list\n"),
+            ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
+            ("welcome", "recipe 1\ncheck\nctl task list\n"),
+            ("box-child", "recipe 1\nafter welcome\ncheck\nctl task list\n"),
+            ("cycle", "recipe 1\nafter cycle\ncheck\n"),
+            ("missing", "recipe 1\nafter absent\ncheck\n"),
+        ] {
+            run.git.file_at(2, &format!("{setups}/{name}/recipe"), recipe.as_bytes());
+        }
+        run.git.file_at(2, &format!("{setups}/root/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/box-child/config/engine/temper.json"), b"{}");
+        for depth in 1..=9 {
+            let parent = if depth == 1 { "root".into() } else { format!("depth-{}", depth - 1) };
+            run.git.file_at(
+                2,
+                &format!("{setups}/depth-{depth}/recipe"),
+                format!("recipe 1\nafter {parent}\ncheck\n").as_bytes(),
+            );
+        }
+        run.tick();
+        let ledger = world.ledger();
+        let session = &ledger.sessions[0];
+        assert!(session.deployments.contains(&"turn-landing".into()));
+        assert!(session.deployments.contains(&"depth-8".into()), "eight parents are allowed");
+        assert!(!session.deployments.contains(&"depth-9".into()), "a ninth parent is not followed");
+        assert!(!session.deployments.contains(&"box-child".into()), "only the root's config decides kind");
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        for line in ["- fresh (box):", "- turn-landing (deployment):", "- box-child (box):", "- depth-8 (deployment):"]
+        {
+            assert!(brief.contains(line), "{line}\n{brief}");
+        }
+        if surfaces == ["ctl"] {
+            assert!(!session.setups.contains(&"depth-9".into()));
+            assert!(!session.setups.contains(&"cycle".into()));
+            assert!(!session.setups.contains(&"missing".into()));
+        } else {
+            for name in ["depth-9", "cycle", "missing"] {
+                assert!(brief.contains(&format!("- {name} (box):")), "unfollowable chains default to box");
+            }
+        }
+        assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
+    }
 }

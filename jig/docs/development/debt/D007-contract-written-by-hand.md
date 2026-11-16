@@ -1,7 +1,7 @@
 # D007: The contract is written out by hand in four or five places
 
 - **Kind:** duplication
-- **Where:** `jig-protocol-engine-clients/src/translate`, `jig-client-protocol-link/src/translate`, `jig-client-domain/src/contract`, `jig-protocol-store/src/codec`, `testing/jig-client-scripted-engine/src/codec`
+- **Where:** `jig-protocol-engine-clients/src/translate`, `jig-client-protocol-link/src/translate`, `jig-client-domain/src/contract`, `jig-protocol-store-records/src/codec`, `testing/jig-client-scripted-engine/src/codec`
 - **Seen:** 2026-10-18 at `86971be`, in jig's tech-debt list ("Duplicated code": the piece-decoding loop)
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T3, A0 F5, A6 F1, A7 F3, F14, A8 F2, A12 F9; order of work, item 20)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list (item 20, out of the run's scope)
@@ -19,7 +19,7 @@ One record family is described in its schema, then again by hand:
 - the engine's translation, `jig-protocol-engine-clients/src/translate`: 10,475 lines, 675 `…Parts {` literals;
 - the link's translation, `jig-client-protocol-link/src/translate`: 11,010 lines;
 - the client domain's mirror, `jig-client-domain/src/contract`: 6,477 lines;
-- the store codec, `jig-protocol-store/src/codec`: 15,316 lines, mostly structural;
+- the store codec, `jig-protocol-store-records/src/codec`: 15,316 lines, mostly structural;
 - the scripted engine's codec values, and `ops`'s `infrastructure_values.rs` and `observability_values.rs`;
 - the link's `jig-client-protocol-link/src/limits.rs` lists each bound class's members by hand, once per class; bound classes in the schema would generate these lists;
 - `temper-settings-form/src/{lib,fields,kinds}.rs` holds its own limits map with 36 `.min(…CEILINGS` calls, and `jig-protocol-engine-clients/src/translate` narrows with 22 more at encoding.

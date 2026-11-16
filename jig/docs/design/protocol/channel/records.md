@@ -44,8 +44,9 @@ tags stay fixed (`../README.md`, 7).
   once, and no acknowledge follows it (`../../domain/hosts/hub.md`, 2;
   `../../domain/engine/fleet.md`).
 - **A call the run withdraws** ends on the worker: the hub answers the run
-  that it is withdrawn and drops the engine's answer if one comes
-  (`../../domain/hosts/hub.md`, 2). Nothing crosses for it. A call asked again
+  that it is withdrawn, or unsent where the link never carried it, and
+  drops the engine's answer if one comes (`../../domain/hosts/hub.md`, 2
+  and 6). Nothing crosses for it. A call asked again
   by the same name crosses again: the engine answers it busy while it is
   still deciding the first, so the run asks again, and from the record it
   kept once the first is decided, never deciding it twice
@@ -91,6 +92,7 @@ tags stay fixed (`../README.md`, 7).
 | read list | a read's number; an endpoint; a grant, as `grant`'s form and value, a credential alone (`README.md`, section 7): read this account's list once (`../../domain/hosts/README.md`, 5.1) | call, answered by `list read` |
 | wires | each wire the worker stated and the engine speaks, by name, with its agreed version (`bridges.md`, 3) | notice: once, the engine's first record, on a channel whose version has it |
 | asked | task, attempt; the ask's number; the application's answer, its bytes within the application's largest answer, or refused: the attempt is not its task's live one, or the application answers none (`../../domain/hosts/hub.md`, 10) | answer to an ask, best effort: a number the hub no longer holds is dropped |
+| restarting | the restart wait, in milliseconds: the engine restarts, and asks the worker to keep its runs that long after the link drops (`restart.md`) | notice: at the engine's settled stop, on a channel whose version has it |
 
 - **The fleet's refusals travel as the records above:** a turn answered
   busy, a relayed call answered busy or as an error, and an answer
@@ -100,11 +102,58 @@ tags stay fixed (`../README.md`, 7).
   It preserves the task, attempt and channel, sends no assignment to the
   worker, and returns one upward answer: invalid start, cause other,
   zero turns and spend, no read fence, refused messages or application
-  parts. Its diagnostic is ASCII `assignment cannot encode`, shortened
-  to the configured detail bound, empty at zero. The fleet settles this
+  parts. Its diagnostic is its reason's words (below), shortened to the
+  configured detail bound, empty at zero. The fleet settles this
   refusal through its usual answer route, releasing the reservation;
   the worker has no start to cancel. Other records that cannot encode
   are counted and discarded.
+- **A record that cannot encode says why.** `jig-protocol-engine-workers`'
+  `translate::down` and the records it builds return
+  `Result<_, Unencoded>`, never a bare none, and its component renders
+  the reason's words where it answers the record:
+
+  ```rust
+  /// Why a record cannot encode: what didn't fit, and the figures known.
+  #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+  pub struct Unencoded {
+      /// A codec path's name (`Assignment.charter`, skein's codec, 4), or
+      /// the encoder's own field in lower-case dotted form (`grant.value`).
+      pub field: &'static str,
+      /// The codec's reason, where a codec refused it.
+      pub reason: Option<skein_codec::Reason>,
+      /// The field's bytes or count, where the encoder measured it.
+      pub figure: Option<u64>,
+      /// The configured limit it was held to.
+      pub bound: Option<u64>,
+      /// The family's ceiling for it.
+      pub ceiling: Option<u64>,
+  }
+
+  impl Unencoded {
+      /// `WHAT cannot encode: FIELD`, then what is known.
+      pub fn words(&self, what: &[u8]) -> Box<[u8]>;
+  }
+  ```
+
+  - **Its words,** in step code, figures with thousands' commas: `WHAT
+    cannot encode: FIELD`, then ` REASON` where there is one, ` FIGURE`
+    where there is one, `, bound BOUND` and `, wire ceiling CEILING`
+    where they are known. `WHAT` is `assignment`, `job` or `record`. A
+    reason reads `too short`, `too large`, `bad tag`, `bad boolean`,
+    `not UTF-8`, `unknown version`, `trailing bytes` or `malformed`.
+    So `assignment cannot encode: Assignment.transcript 5,000,000,
+    bound 4,194,304, wire ceiling 134,217,728`, and `assignment cannot
+    encode: Message.words not UTF-8`.
+  - **Its figures.** Where the encoder measures a value before its
+    constructor (an assignment's charter and its framed transcript, a
+    list's count), it gives the figure, the configured limit and the
+    family's ceiling, and no reason, which they say; a constructor's
+    refusal alone gives its path and reason. A refusal with no codec path names the encoder's own field:
+    a missing part, a grant whose value doesn't match its form, a
+    program's sources that repeat a name.
+  - **One record for temper's too.** temper's translation fits a charter
+    before it builds the assignment and refuses with this record, naming
+    its fitting's fields (temper's `domain/agent/room.md`, 3).
 - **A start the link cannot carry ends there too** (`README.md`, section 8, *A start
   past the room fails its run, never the link*): an assignment or a job
   whose frame is past the room the engine's stream grants at once, or
@@ -116,8 +165,8 @@ tags stay fixed (`../README.md`, 7).
   names the record, its frame's bytes and the bound: `assignment of
   BYTES bytes past the link's room of ROOM bytes`, or `assignment of
   BYTES bytes refused by the channel: REASON`, `job` for a job. A job
-  that cannot encode is answered too, as its job's invalid start, `job
-  cannot encode`, rather than discarded.
+  that cannot encode is answered too, as its job's invalid start, its
+  reason's words (`job cannot encode: FIELD`), rather than discarded.
 - **Busy, sent again.** A turn answered busy is held by the worker's
   link component, which sends it again after a jittered backoff, as it
   keeps the grace's clock (`README.md`, 9.1); the hub arms no timers

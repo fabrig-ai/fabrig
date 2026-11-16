@@ -20,7 +20,7 @@ pub use boundary::{Action, Event, Fact, Request, Tab};
 pub use domain::{Domain, fire, new, next_deadline, shown, step, take, unlinked};
 pub use limits::{Limits, valid};
 pub use temper_client_domain_forge::{
-    address, amend, delegation, forge, key, limits, owner, public, question, sign_in, views, words,
+    address, amend, delegation, forge, key, limits, milestones, owner, public, question, sign_in, views, words,
 };
 pub use temper_client_domain_pages::{acts, pages};
 #[cfg(test)]

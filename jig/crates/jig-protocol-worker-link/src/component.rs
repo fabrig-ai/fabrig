@@ -313,6 +313,7 @@ impl Component {
                 wires: None,
                 stated: false,
                 version: wire::VERSION,
+                restart_wait: None,
             },
             until: now.saturating_add(self.limits.handshake),
         };
@@ -338,9 +339,9 @@ impl Component {
         let phase = mem::replace(&mut self.phase, Phase::Connecting);
         let at = match phase {
             Phase::Closing { retry, .. } => retry,
-            Phase::Open { .. } => {
+            Phase::Open { connection, .. } => {
                 self.busy.clear();
-                self.grace.lost(now, self.limits.grace);
+                self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
                 let span = self.redial_wait(now);
@@ -671,7 +672,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v14::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v15::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -708,6 +709,23 @@ impl Component {
             && connection.wires.is_none()
         {
             self.lose(now, Loss::Fault, out);
+            return;
+        }
+        if kind == wire::Kind::Restarting.number() {
+            match wire::Restarting::decode(&limits, &mut skein_lib::Reader::new(body)) {
+                Ok(record) => {
+                    let wait = Duration::from_millis(record.wait_ms());
+                    let Some(connection) = self.phase.connection() else { return };
+                    connection.restart_wait = Some(wait);
+                    self.admitted();
+                    out.push(Request::Restarting { wait });
+                    self.command(channel::Request::Read);
+                }
+                Err(_) => {
+                    self.command(channel::Request::Refuse { reason: REFUSED_FRAMING, text: Box::new([]) });
+                    self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
+                }
+            }
             return;
         }
         if kind == 0x0184 {
@@ -864,7 +882,7 @@ impl Component {
         self.phase = match phase {
             Phase::Open { mut connection, .. } => {
                 self.busy.clear();
-                self.grace.lost(now, self.limits.grace);
+                self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 connection.quiet();
                 connection.stall = None;
                 out.push(Request::Lost);
@@ -904,7 +922,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v14::Limits,
+        limits: &wire::v15::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

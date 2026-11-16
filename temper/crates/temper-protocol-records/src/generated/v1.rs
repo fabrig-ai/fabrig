@@ -130,6 +130,49 @@ pub enum Path {
     PastedTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::AdminTokenValue => "AdminToken.value",
+            Self::AdminTokenTail => "AdminToken (tail)",
+            Self::ApiTokenValue => "ApiToken.value",
+            Self::ApiTokenTail => "ApiToken (tail)",
+            Self::GitTokenValue => "GitToken.value",
+            Self::GitTokenTail => "GitToken (tail)",
+            Self::UserValue => "User.value",
+            Self::UserTail => "User (tail)",
+            Self::WebhookSecretValue => "WebhookSecret.value",
+            Self::WebhookSecretTail => "WebhookSecret (tail)",
+            Self::AppIdValue => "AppId.value",
+            Self::AppIdTail => "AppId (tail)",
+            Self::AppSlugValue => "AppSlug.value",
+            Self::AppSlugTail => "AppSlug (tail)",
+            Self::AppKeyValue => "AppKey.value",
+            Self::AppKeyTail => "AppKey (tail)",
+            Self::AcceptedValues => "Accepted.values",
+            Self::AcceptedTail => "Accepted (tail)",
+            Self::KindTag => "Kind (tag)",
+            Self::OriginKind => "Origin.kind",
+            Self::OriginApi => "Origin.api",
+            Self::OriginTail => "Origin (tail)",
+            Self::AppMadeValue => "AppMade.value",
+            Self::AppMadeTail => "AppMade (tail)",
+            Self::ItemTag => "Item (tag)",
+            Self::StoredItem => "Stored.item",
+            Self::StoredVersion => "Stored (version)",
+            Self::StoredTail => "Stored (tail)",
+            Self::PemValue => "Pem.value",
+            Self::PemTail => "Pem (tail)",
+            Self::PastedItemTag => "PastedItem (tag)",
+            Self::PastedItems => "Pasted.items",
+            Self::PastedVersion => "Pasted (version)",
+            Self::PastedTail => "Pasted (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

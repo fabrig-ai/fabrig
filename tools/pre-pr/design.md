@@ -225,7 +225,11 @@ delivery hears every failure; the verdict is section 6's.
    `skein/docs/foundation/testing-strategy.md`, 8, *A binary is a
    process*). The check passes no budgets and no configuration of its own:
    the repository's `.config/nextest.toml` is read as it stands, and the
-   profile's `global-timeout` is the run's only bound. The run's exit
+   profile's `global-timeout` is the run's only bound. one-process compares
+   each layer the run measured with `tools/tiers/budgets.toml`, and the check
+   passes no `--gate`: a layer over its budget is a warning in its output,
+   never a failure, since only the gate judges the budgets
+   (`tools/tiers/budgets.md`, 5). The run's exit
    decides:
    - **0:** passed, a starved run included (below);
    - **100:** test failures, each a `testcase` of the run directory's

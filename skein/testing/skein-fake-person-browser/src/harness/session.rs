@@ -4,7 +4,7 @@ use super::{BROWSER, PROCESS, capacity};
 use crate::BrowserFace;
 use skein_browser::{
     self as browser, Browser,
-    boundary::{Below, Down, Event, Request},
+    boundary::{Below, Down, Event, Request, Trouble},
 };
 use skein_io::{
     self as io, Io,
@@ -22,13 +22,22 @@ use std::{
 const PERSON: Token = Token::new(100_000);
 const PAGE: Token = Token::new(100);
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
+/// Page observations stay apart from transport failures (ui/web/testing.md, 2).
 #[derive(Debug)]
 pub enum Report {
     Io(io::Event),
     Opened,
     BrowserClosed,
+    Page { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
     Trouble(String),
 }
+fn page_report(event: Event) -> Result<Report, Event> {
+    match event {
+        Event::Trouble { trouble, text, url, .. } => Ok(Report::Page { trouble, text, url }),
+        event => Err(event),
+    }
+}
+
 // Each pop reserves the room for putting an ordinary completion back.
 fn take_root_close(complete: &mut Queue<Complete>, reports: &mut Vec<Report>) {
     for _ in 0..complete.len() {
@@ -317,6 +326,13 @@ impl Pump {
         }
     }
     fn browser_event(&mut self, event: Event) {
+        let event = match page_report(event) {
+            Ok(report) => {
+                self.reports.push(report);
+                return;
+            }
+            Err(event) => event,
+        };
         match event {
             Event::Ready { .. } => {
                 if let Opening::Starting(url) = std::mem::replace(&mut self.opening, Opening::Idle) {
@@ -338,9 +354,6 @@ impl Pump {
             }
             Event::Closed { owner: PERSON | PAGE } if !matches!(self.opening, Opening::Closing | Opening::Closed) => {
                 self.reports.push(Report::Trouble("browser could not open the session page".into()));
-            }
-            Event::Trouble { trouble, text, .. } => {
-                self.reports.push(Report::Trouble(format!("{trouble:?}: {}", String::from_utf8_lossy(&text))));
             }
             _ => {}
         }

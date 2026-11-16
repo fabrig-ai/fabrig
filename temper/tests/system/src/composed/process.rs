@@ -292,6 +292,7 @@ impl Process {
                         run::HostReply::Answered(run::HostAnswer::new(body, error).expect("bounded host answer"))
                     }
                     agent::Reply::Withdrawn => run::HostReply::Withdrawn,
+                    agent::Reply::Unsent => run::HostReply::Unsent,
                     agent::Reply::Unavailable => run::HostReply::Unanswered(run::Unanswered::Lost),
                     agent::Reply::Busy => run::HostReply::Busy,
                     agent::Reply::TooLarge => run::HostReply::TooLarge,
@@ -314,6 +315,10 @@ impl Process {
             agent::Down::Drain => {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.drain_at(agent.now());
+            }
+            agent::Down::Renewals { held } => {
+                let agent = self.agent.as_mut().expect("live agent");
+                agent.renewals_at(agent.now(), held);
             }
             agent::Down::Grant { .. } => {}
         }

@@ -51,11 +51,12 @@ is still open (`README.md`, section 6).
 - **No fake of temper's own components:** the system world runs the real
   engine and worker.
 - **Two suites, and two tiers outside them.** The focused and the fuzzy
-  suites keep their 30 s and 180 s, which nextest enforces; the process
+  suites have a CPU budget for each layer, held at the gate
+  (`checks.md`, 1; `tools/tiers/budgets.md`); the process
   and live tiers run by their scripts, never at the gate. The process
   tier holds only what processes show, within its 540 CPU s (`process-tier.md`). The
-  180 and the 540 are the strategy's 120 and the tier's 6-minute aim,
-  raised by half by the user's word of 11-08, for now, to be revisited.
+  540 is the tier's 6-minute aim, raised by half by the user's word of
+  11-08, for now, to be revisited.
 
 ## 2. temper's tiers
 
@@ -250,6 +251,9 @@ terminal client, the captures and the faults.
 - **Stories:**
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
+  - a provider's list read by the worker's hosted list program (jig's
+    `domain/engine/settings.md`, 12): asked once, no run, its new name
+    drawn in `me`, nothing spent;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
     expiry, and the deployment's sign-ins unchanged
@@ -266,7 +270,8 @@ terminal client, the captures and the faults.
     authenticated by the renewed token, as the layer's record of its git
     calls shows (../protocol/credentials.md, section 4);
   - a signal mid-run drains the engine, the worker ends, and the next
-    start settles the worker's claims at once;
+    start settles the worker's claims at once, on a chat's run and on a
+    coding run;
   - a stop while a chat's run holds a turn of smith's fake `claude` on a
     program's source: the turn interrupted, the engine drained, and no
     program left running (`../protocol/setup/box.md`, 2); a program's
@@ -274,56 +279,59 @@ terminal client, the captures and the faults.
   - the service is killed, or the machine's power lost, at a drawn
     moment, then started again on the same disk, an adoption pending
     among what it finds;
+  - those `../protocol/channel.md`, 9, `../client/testing.md` and
+    `../protocol/sign-in.md`, 2.5 place here;
   - **through an upgrade** (`../draft/upgrades.md`, section 13): a
     project, a person and an account; a goal's change landed; a chat
     paused and a task mid-run on the in-process worker; a forge write
     left uncertain by a fault; then a settled stop, and a start of the
-    same build handed the fixture sets (`../protocol/baseline.md`, 8:
-    the real sets, temper's extended by a patch that changes no family
-    and carries `fresh-windows`; `temper-service`'s `Service::patch_sets`
-    hands them): patched in a copy, every live window closed, restored
-    before the switch, switched, its wires committed, and on. No
-    fixture names a family it changes;
+    same build handed `CURRENT_SETS` after the story used `first_sets()`
+    (`../protocol/floor.md`, 7): the production levels unchanged, a
+    registered receipt layout gaining its defaulted `report` and the
+    job `deleted-repository-forge-rows` pending. `temper-service`'s
+    `Service::owner_sets` hands them. The open commits the registry
+    and runs the job in a copy, restores before the switch, switches
+    and commits its wires. No fresh mark closes the live windows;
   - the same start rehearsed first (jig's `protocol/store/opening.md`, 5),
-    reporting each patch and the restores whole and leaving the
+    reporting the job and the restores whole and leaving the
     directory as it was, then made; and a start failed by the world
     after `Switched` and before its wires are durable, gone back from
     (`Store::back`), the build before it opening the generation as it
     was;
   - the stop unsettled instead, the service killed with the forge write
-    in flight: the upgrade's start patches (the fixture patch changes no
-    family), and the new build recovers the write as after any stop,
+    in flight: the upgrade's start registers the layout and runs the
+    job, and recovers the write as after any stop,
     made once;
   - power lost at a drawn moment of that start, from the copy to the
     wires' commit: the next start finds one whole generation and goes
     on as above. Focused draws one moment; fuzzy sweeps drawn moments
-    and the cuts at the copy's first write, the patch's commit, the
+    and the cuts at the copy's first write, the upgrade's seal commit, the
     switch's rename and the wires' commit, each a whole story. The
     store's own cuts there are jig's store world's (jig's
     `domain/testing.md`, 9). These cases and the settled stop start
-    from the settled image (`../protocol/baseline.md`, 8).
+    from the settled image (`../protocol/floor.md`, 7).
 
   The upgrade's referee compares the history at the stop with the
   history once the start's wires are durable, before anything acts:
   record by record (people, projects, accounts, tasks live and ended,
   landings, kept outcomes, each forge's records, each forge's secrets),
-  equal but for what the patches and the mark say (windows closed,
-  claims crossed), what any restore writes (expired rows erased, the
-  accounts' wants, the release's settings revision) and the wires. Then,
-  as the world goes on: the crossed claims settled; no forge write made
+  equal but for the registry's new receipt layout, the job's done row,
+  the commit position and the start's wires clearing the previous
+  worker opening. No receipt or deleted-repository row is written by
+  this story. Then, as the world goes on: claims settle; no forge write made
   twice, by the fake forge's ledger, kept across the service's
   restarts; a request sent again under its key answered from its record;
   every number given above every number kept; the mid-run task's next
-  attempt fresh, with the closed window's tail; the paused chat resumed.
+  attempt continues without a mark closing its window; the paused chat resumed.
 
-  The world's seams for it: `Service::patch_sets`; a fault the world
+  The world's seams for it: `Service::owner_sets`; a fault the world
   injects between `Switched` and the wires' commit; the fake forge's
   ledger outliving a restart. Of the draft's section 13, the faults
   below the store (a full disk, a short write, a failed sync, a
-  malformed or refused record, a limit too small, an effect in flight
-  in a patched family) are jig's store world's (jig's
-  `protocol/store/README.md`, section 9); the baseline's golden store
-  is `../protocol/baseline.md`, 6's, kept here; the engine alone (its
+  malformed or refused record, a limit too small) are jig's store
+  world's (jig's `protocol/store/README.md`, section 9). An effect in
+  flight is not an upgrade refusal. The floor's golden store
+  is `../protocol/floor.md`, 5's, kept here; the engine alone (its
   workers kept across the engine's upgrade) waits for wires that can
   differ.
 - **Faults:** kills and power loss at drawn submissions; the fake
@@ -343,8 +351,11 @@ terminal client, the captures and the faults.
   - no git identity's value or API token in a domain's state, a store
     record or an agent process's environment.
 - **Budget:** a story aims at 2 s (`checks.md`, 1); sweeps of drawn kills are fuzzy
-  tests. The upgrade module's tests are placed as `../protocol/baseline.md`, 8
+  tests. The upgrade module's tests are placed as `../protocol/floor.md`, 7
   lists.
+  Each story, each run above among them, is a test of its own;
+  Anthropic's keys through `ctl` are `tests/client`'s
+  (`../client/ctl/testing.md`, 2).
 
 ### 2.8 macOS
 
@@ -778,9 +789,9 @@ scripts/proof-live.sh               the live tier
   further evidence. Budgets and enforcement settings remain separate
   user decisions.
 
-- **The budgets raised for now** (1, `process-tier.md`, `checks.md`, 1): the fuzzy suite's 180 s
-  and the process tier's 540 CPU s are the strategy's 120 and the tier's
-  6-minute aim raised by half by the user's word of 11-08, for now.
+- **The budgets raised for now** (1, `process-tier.md`): the process
+  tier's 540 CPU s is the tier's 6-minute aim raised by half by the user's
+  word of 11-08, for now.
   Revisiting them, and to what, is the user's, as it is for the browser
   tier's 127.5 (`../client/web/README.md`, 3).
 

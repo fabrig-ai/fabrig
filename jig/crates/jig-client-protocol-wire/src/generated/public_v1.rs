@@ -163,6 +163,64 @@ pub enum Path {
     PublicApplicationTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::PublicExecutorTag => "PublicExecutor (tag)",
+            Self::PublicPhaseTag => "PublicPhase (tag)",
+            Self::PublicHoldTag => "PublicHold (tag)",
+            Self::PublicCountsWorking => "PublicCounts.working",
+            Self::PublicCountsWaiting => "PublicCounts.waiting",
+            Self::PublicCountsHeld => "PublicCounts.held",
+            Self::PublicCountsClosing => "PublicCounts.closing",
+            Self::PublicCountsEnded => "PublicCounts.ended",
+            Self::PublicCountsTail => "PublicCounts (tail)",
+            Self::PublicLineTask => "PublicLine.task",
+            Self::PublicLineTitle => "PublicLine.title",
+            Self::PublicLineTitleCut => "PublicLine.title_cut",
+            Self::PublicLineParent => "PublicLine.parent",
+            Self::PublicLineGoal => "PublicLine.goal",
+            Self::PublicLinePriority => "PublicLine.priority",
+            Self::PublicLineExecutor => "PublicLine.executor",
+            Self::PublicLinePhase => "PublicLine.phase",
+            Self::PublicLineHold => "PublicLine.hold",
+            Self::PublicLineMade => "PublicLine.made",
+            Self::PublicLineChanged => "PublicLine.changed",
+            Self::PublicLineActive => "PublicLine.active",
+            Self::PublicLineEnded => "PublicLine.ended",
+            Self::PublicLineSpent => "PublicLine.spent",
+            Self::PublicLineDelegates => "PublicLine.delegates",
+            Self::PublicLineTail => "PublicLine (tail)",
+            Self::PublicProjectProject => "PublicProject.project",
+            Self::PublicProjectName => "PublicProject.name",
+            Self::PublicProjectTail => "PublicProject (tail)",
+            Self::PublicProjectsProjects => "PublicProjects.projects",
+            Self::PublicProjectsMaxAge => "PublicProjects.max_age",
+            Self::PublicProjectsTail => "PublicProjects (tail)",
+            Self::PublicGoalLine => "PublicGoal.line",
+            Self::PublicGoalTree => "PublicGoal.tree",
+            Self::PublicGoalFolded => "PublicGoal.folded",
+            Self::PublicGoalTail => "PublicGoal (tail)",
+            Self::PublicBoardProject => "PublicBoard.project",
+            Self::PublicBoardName => "PublicBoard.name",
+            Self::PublicBoardLive => "PublicBoard.live",
+            Self::PublicBoardLiveFolded => "PublicBoard.live_folded",
+            Self::PublicBoardEnded => "PublicBoard.ended",
+            Self::PublicBoardTail => "PublicBoard (tail)",
+            Self::PublicCardLine => "PublicCard.line",
+            Self::PublicCardLineage => "PublicCard.lineage",
+            Self::PublicCardDelegates => "PublicCard.delegates",
+            Self::PublicCardFolded => "PublicCard.folded",
+            Self::PublicCardTail => "PublicCard (tail)",
+            Self::PublicApplicationTasks => "PublicApplication.tasks",
+            Self::PublicApplicationRecord => "PublicApplication.record",
+            Self::PublicApplicationTail => "PublicApplication (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

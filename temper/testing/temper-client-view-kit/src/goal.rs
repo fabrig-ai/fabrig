@@ -52,6 +52,7 @@ pub fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: 
 }
 
 pub struct Side {
+    pub requester: Option<c::Task>,
     pub activity: Option<c::ActivityPage>,
     pub specification: Option<Box<[u8]>>,
     pub rows: List<c::TreeRow>,
@@ -64,6 +65,7 @@ impl Side {
     #[must_use]
     pub fn empty() -> Self {
         Self {
+            requester: None,
             activity: None,
             specification: None,
             rows: List::uncapped(),
@@ -85,7 +87,7 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
     if let Some(whole) = &side.specification {
         limits.client.domain.long_text = limits.client.domain.long_text.max(u32::try_from(whole.len()).unwrap());
     }
-    let (mut root, _, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
+    let (mut root, me_watch, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
         Address::Task { task: TASK },
         &limits,
         b"Shop",
@@ -96,6 +98,19 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
     );
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: NOW, limits };
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().templates =
+        List::from_boxed(Box::new([fixtures::goals::template(jig_client::shapes::CHAT, b"Chat", false)]));
+    temper_client_domain::step(
+        &mut root,
+        &env,
+        Event::Client {
+            event: ClientEvent::Up {
+                up: Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+            },
+        },
+        &mut out,
+    );
     temper_client_domain::step(
         &mut root,
         &env,
@@ -204,6 +219,10 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
 }
 
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture answers the goal, its requester and its side's independent reads"
+)]
 pub fn read_value(
     what: c::Read,
     task: &c::Task,
@@ -294,6 +313,9 @@ pub fn read_value(
             cut: false,
         }))),
         c::Read::Tasks { .. } => Some(c::ReadValue::Tasks(Box::new(side.ended.clone()))),
+        c::Read::Task { task: number } if side.requester.as_ref().is_some_and(|task| task.chip.task == number) => {
+            Some(c::ReadValue::Task(Box::new(side.requester.as_ref().unwrap().clone())))
+        }
         c::Read::Settings
         | c::Read::Setting(_)
         | c::Read::Revision(_)

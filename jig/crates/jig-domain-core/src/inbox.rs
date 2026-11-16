@@ -155,6 +155,17 @@ impl Core {
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
         }
     }
+    /// The person who answers questions sent to a conversation or gathering (people/README.md, 5).
+    pub(crate) fn question_requester(&self, row: &tasks::TaskRecord) -> Option<u64> {
+        if row.executor == (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING }) {
+            match row.requester {
+                tasks::Party::Person(person) => Some(person),
+                tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
+            }
+        } else {
+            self.conversation_requester(row)
+        }
+    }
     /// Keep whole committed archive facts only while the shared recent prefix may deliver them.
     pub(crate) fn cache_ended_chat(&mut self, limits: &Limits, row: &tasks::TaskRecord, seen: Option<u64>) {
         let party = match row.requester {
@@ -218,7 +229,7 @@ impl Core {
         match row.requester {
             tasks::Party::Person(person) => {
                 for line in &row.question_lines {
-                    if line.answer.is_some() || (self.person_answers && self.conversation_requester(row).is_none()) {
+                    if line.answer.is_some() || (self.person_answers && self.question_requester(row).is_none()) {
                         continue;
                     }
                     let mut at = None;

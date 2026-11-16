@@ -553,6 +553,57 @@ fn phone_bar_links_home_and_counts_answered_including_cut() {
     }
 }
 
+pub(super) fn milestone_task(change: bool) -> c::Task {
+    let mut task = f::task::document();
+    task.chip.task = f::INBOX_TASK;
+    task.chip.title = words(if change { "Keep task history" } else { "S7 history in task logs" });
+    let mut milestone = task.chip.clone();
+    milestone.task = 700;
+    milestone.title = words("Store shape");
+    milestone.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    task.lineage_chips = List::uncapped();
+    task.lineage_chips.push(milestone).unwrap();
+    task.requester = c::Requester::Task(700);
+    if change {
+        let mut goal = task.chip.clone();
+        goal.task = 701;
+        goal.title = words("S7 history in task logs");
+        task.lineage_chips.push(goal).unwrap();
+        task.requester = c::Requester::Task(701);
+    }
+    task
+}
+
+#[test]
+fn from_line_names_the_milestone_goal_and_change_with_task_links() {
+    for change in [false, true] {
+        let task = milestone_task(change);
+        let root = f::needs::with_task(task, d::address::Filter::ALL);
+        let mut view = f::browser_page_view(&root);
+        let expected = if change {
+            "Shop · Store shape › S7 history in task logs › Keep task history · a question · under 1 min"
+        } else {
+            "Shop · Store shape › S7 history in task logs · a question · under 1 min"
+        };
+        assert_eq!(styled(&view, look::ASK_META).name.as_deref(), Some(expected.as_bytes()));
+        let link = styled(&view, look::MS_FROM).id;
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: 700 } }))
+        );
+        let goal = f::find(view.tree(), Role::Link, b"S7 history in task logs").unwrap();
+        assert_eq!(
+            crate::act(&mut view, goal, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go {
+                address: Address::Task { task: if change { 701 } else { f::INBOX_TASK } }
+            }))
+        );
+        let terminal = f::page_view(&root);
+        assert!(skein_lib::bytes::find(&f::main_text(terminal.tree()), "Store shape › ".as_bytes()).is_some());
+    }
+}
+
 #[test]
 fn opened_card_and_later_order() {
     let (mut root, _, decided) = fixture_watched(
@@ -1105,6 +1156,47 @@ fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
         let asked = crate::pages::ask::read(card, &f::words());
         assert_eq!(asked.short.as_ref(), expected.map_or(asked.title.as_ref(), str::as_bytes), "{reason}");
         assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(asked.short.as_ref()));
+    }
+}
+
+#[test]
+fn dependency_hold_question_names_the_dependency_and_its_ending() {
+    for (ending, named, expected) in [
+        (
+            Some(c::ChipEnding::Failed(words("Checks failed"))),
+            true,
+            "S6 is held: S5, which it waits on, failed. Drop or replace that dependency, then release it.",
+        ),
+        (
+            Some(c::ChipEnding::Cancelled {
+                reason: words("Closed"),
+                result: None,
+                by: c::Requester::Person(73),
+                at: Wall::EPOCH,
+            }),
+            true,
+            "S6 is held: S5, which it waits on, was closed. Drop or replace that dependency, then release it.",
+        ),
+        (None, true, "S6 is held: S5, which it waits on, ended. Drop or replace that dependency, then release it."),
+        (
+            None,
+            false,
+            "S6 is held: task 5, which it waits on, ended. Drop or replace that dependency, then release it.",
+        ),
+    ] {
+        let mut held = held(Some(c::HoldCategory::Dependency { task: 5 }));
+        held.task.chip.title = words("S6 patch journal");
+        held.task.dependencies.clear();
+        if named {
+            let mut chip = held.task.chip.clone();
+            chip.task = 5;
+            chip.title = words("S5 journal records");
+            chip.details.details.ending = ending;
+            held.task.dependencies.push(c::TaskLink::Retained { chip, at: None }).unwrap();
+        }
+        let root = kinds(&[held_row(held)]);
+        assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(expected.as_bytes()));
+        assert!(has(&f::page_view(&root), expected.as_bytes()));
     }
 }
 

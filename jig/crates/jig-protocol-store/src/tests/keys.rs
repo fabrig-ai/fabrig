@@ -346,3 +346,54 @@ fn assert_census_name(key: &[u8]) {
     }
     assert_eq!(names, 1, "one name for the writer's prefix {prefix:?}");
 }
+
+fn core_limits() -> jig_domain_core_vocabulary::Limits {
+    fixtures::CORE_LIMITS
+}
+
+fn people_limits() -> crate::people_v17::Limits {
+    crate::codec::people::limits(&core_limits()).expect("within people's ceilings")
+}
+
+fn people_round_trip(row: jig_domain_people::Stored) {
+    let limits = people_limits();
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    let bytes = crate::codec::people::encode(&row, &limits, &names).expect("within people's bounds");
+    assert_eq!(crate::codec::people::decode(&bytes, &limits, &names), Ok(row));
+}
+
+#[test]
+fn a_deleted_mark_round_trips_with_its_number_only_key() {
+    for project in [0, 2, u32::MAX] {
+        people_round_trip(jig_domain_people::Stored::Deleted { project });
+        let key = Key::People(jig_domain_people::Key::Deleted(project));
+        assert!(jig_domain_people::Key::Deleted(project).live());
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).expect("mark key fits");
+        let mut expected = [1, 2, 11, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (target, byte) in expected.iter_mut().skip(3).zip(u64::from(project).to_be_bytes()) {
+            *target = byte;
+        }
+        assert_eq!(bytes.as_ref(), &expected);
+        assert_eq!(keys::decode(&bytes), Some(key));
+        let mut oversized = bytes;
+        *oversized.get_mut(6).expect("project high word") = 1;
+        assert_eq!(keys::decode(&oversized), None);
+    }
+}
+
+#[test]
+fn a_deletion_row_round_trips_at_each_step() {
+    use jig_domain_people::{DeletionStep, Stored};
+    for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
+        for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+            people_round_trip(Stored::Deletion { project: u32::MAX, step, grace });
+        }
+    }
+    let key = Key::People(jig_domain_people::Key::Deletion(u32::MAX));
+    let bytes = keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
+    assert_eq!(bytes.as_ref(), &[1, 2, 9, 0, 0, 0, 0, 255, 255, 255, 255]);
+    assert_eq!(keys::decode(&bytes), Some(key));
+    let mut oversized = bytes;
+    *oversized.get_mut(6).expect("project high word") = 1;
+    assert_eq!(keys::decode(&oversized), None);
+}

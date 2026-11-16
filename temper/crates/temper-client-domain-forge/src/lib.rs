@@ -9,6 +9,7 @@ pub mod delegation;
 pub mod forge;
 pub mod key;
 pub mod limits;
+pub mod milestones;
 pub mod owner;
 pub mod public;
 pub mod question;

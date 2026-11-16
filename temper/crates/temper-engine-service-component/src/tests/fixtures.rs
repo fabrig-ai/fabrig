@@ -10,7 +10,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -74,7 +74,10 @@ pub fn engine() -> settings::Engine {
         demo: None,
         welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
@@ -415,6 +418,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::Forge { .. }
                 | root::Request::Account(_)
                 | root::Request::Busy(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => panic!("first-start fixture output: {request:?}"),
             }
@@ -549,6 +553,7 @@ pub fn commit(store: &mut crate::store::Store, number: u64, writes: Box<[temper_
     };
     let mut header = header.unwrap_or(jig_domain_core::Deployment {
         id: [19; 16],
+        restart_wait_ms: None,
         projects: 0,
         tasks: 0,
         people: 0,
@@ -1057,6 +1062,7 @@ pub fn settle_root(
                 | root::Request::Forge { .. }
                 | root::Request::Busy(_)
                 | root::Request::Unsettled(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop => {
                     panic!("unexpected chat request")

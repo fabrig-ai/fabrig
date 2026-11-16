@@ -24,6 +24,7 @@ pub(super) fn component(disk: &Disk, sets: OwnerSets) -> Store {
 pub(super) fn header(number: u64) -> Record {
     Record::Core(CoreRecord::Deployment(Deployment {
         id: [7; 16],
+        restart_wait_ms: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,

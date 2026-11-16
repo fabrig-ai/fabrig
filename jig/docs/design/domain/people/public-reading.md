@@ -215,9 +215,10 @@ never named or counted; a delegate moved out of a goal's
 tree leaving its board, its counts and its card, and one moved in
 joining them; the project made private, and a public read answered
 unknown, as a project never made and a private one are, with the same
-work done before each answer; a conversation's delegate's card,
-unknown; a deleted public project, unknown from its deletion's
-decision; public reads past their rate, their bytes and their room
+work done before each answer; a conversation's delegate's card, a
+delegate's outside every goal's tree and a task of another public
+project read under this one's identifier, each unknown, as those are;
+a deleted public project, unknown from its deletion's decision; public reads past their rate, their bytes and their room
 answered busy, while signed-in reads at the same moment are all
 answered; the root's backlog past the public watermark, or the core's
 public reads at their limit, refusing a public read and admitting a

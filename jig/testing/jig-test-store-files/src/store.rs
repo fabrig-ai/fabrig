@@ -700,11 +700,11 @@ impl Store {
         self.drive(requests, Queue::uncapped());
     }
 }
-// The default memory worlds run the binary's jobs too; explicit sets describe upgrade fixtures.
+// Default memory worlds keep history ranges without registry planning; explicit sets describe upgrade fixtures.
 const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
     sets: &[protocol::OwnerSet {
         level: None,
-        jobs: &[*protocol::JIG_STORE_SET.jobs.last().expect("task-logs is last")],
+        jobs: &[],
         families: &[
             protocol::KeptFamily { retired: &[], types: &[], frames: None, ..protocol::STORE_FAMILIES[3] },
             protocol::KeptFamily { retired: &[], types: &[], ..protocol::STORE_FAMILIES[4] },

@@ -249,7 +249,7 @@ const CLOSE: Command = drive_command(
     &[""],
     "End the drive session and print its kept lines.",
     &[],
-    "Waits for the holder's exit; prints the session's end and kept lines: followed by box/session/lines. Exit 0: clean stop; 4: box failed; 1: no holder.",
+    "Waits for the holder's exit; prints the session's end and kept lines: followed by the place's box/session/lines or deployment/session/lines, by kind. Exit 0: clean stop; 4: box failed; 1: no holder.",
 );
 const HOLD: Command = drive_command(
     &["pass", "hold"],

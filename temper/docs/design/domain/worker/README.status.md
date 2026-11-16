@@ -35,7 +35,7 @@ the fit gives; everything at once crosses on `small`, and on `standard`
 it and the largest inbox fail with their numbers, every answer cut
 first; one byte past a part is refused
 before the link, `assignment cannot encode`, but a brief section, which
-the charter's fitting omits (`../agent/tools.md`). Its
+the charter's fitting omits (`../agent/room.md`, 2). Its
 `stock_profiles_make_both_links_and_fit_every_nonstart_frame` and
 `workers.rs`'s `refused_answer_reason_reaches_operator_once` hold the
 rest. Limits whose smallest resumed start passes the engine's room are

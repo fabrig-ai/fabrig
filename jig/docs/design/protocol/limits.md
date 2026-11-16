@@ -38,8 +38,7 @@
   the live tasks; and a batch's bytes, which hold five times the largest
   plan seen, every task of it at the largest spec seen. Its store's
   value, page and chunk are what those limits make of the largest row
-  (`store/records.md`, 4), since the store's formats change in place before
-  the first release (`store/records.md`); its map's budget, journal
+  (`store/records.md`, 4); its map's budget, journal
   and routes are a team's as they were. Its machine's concurrency (hub,
   fleet and worker slots, workers, clients' streams and calls) is a
   team's, which a deployment sets for its own machine.

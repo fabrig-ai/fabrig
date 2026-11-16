@@ -208,6 +208,15 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.tiers.capacity(),
             d.tiers.contains_key(&(row.repository, row.tier.clone())),
         ),
+        Stored::Milestone(row) => {
+            field(
+                K::Milestone,
+                RestoreSet::NameBytes,
+                count(row.name.len()),
+                u64::from(crate::milestone_rows::MILESTONE_NAME_BYTES),
+            )?;
+            Ok(())
+        }
         Stored::LandingLog(row) => {
             field(K::LandingLog, RestoreSet::LandingsKept, count(row.landings.len()), u64::from(l.landings_kept))?;
             for landing in &row.landings {
@@ -525,6 +534,23 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
 }
 
 fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
+    let mut projects = Map::uncapped();
+    for (_, row) in &d.milestones {
+        let (mut total, mut live) = projects.get(&row.project).copied().unwrap_or((0u32, 0u32));
+        total = total.saturating_add(1);
+        if row.ended.is_none() {
+            live = live.saturating_add(1);
+        }
+        projects.insert(row.project, (total, live)).expect("derived project counts");
+    }
+    for (_, (total, live)) in &projects {
+        field(
+            RecordKind::Milestone,
+            RestoreSet::Rows(RecordKind::Milestone),
+            u64::from(*total),
+            u64::from((*live).max(crate::milestone_rows::MILESTONES_PER_PROJECT)),
+        )?;
+    }
     let mut watches = Map::with_capacity(l.client.resources);
     for (_, names) in &d.names {
         for name in names {

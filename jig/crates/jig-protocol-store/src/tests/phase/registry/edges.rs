@@ -345,7 +345,7 @@ fn secrets_pages_and_component_rows_are_not_serving_layout_values() {
     let events = disk.request(&mut store, fixtures::commit(number, Box::new([fixtures::header(number), Write::Wires])));
     assert_committed(&events, number);
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key).unwrap();
-    let expected = crate::codec::component::wires(store.wires);
+    let expected = crate::rows::wires(store.wires);
     assert_eq!(fixtures::get_kv(&mut store, &key), Some(expected.clone()));
     assert_eq!(crate::open::get(&mut store, Token::new(0), key).unwrap(), Some(expected));
 }

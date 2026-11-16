@@ -13,4 +13,4 @@ A project's tiers after landing (`../domain/after-landing.md`) are how it learns
 
 A turn landing that is due and never runs (`turn-first-landing.md`, section 1). What a project's tiers or gates run. Batches. Webhooks.
 
-**Tests stay cheap:** a new case of one behaviour is a row of an existing table test. Failing tests first. **A plan runs the focused and fuzzy suites alone and is complete when it lands (`AGENTS.md`, 5).** If a fix needs a field no store keeps today, the store's version moves and its patch comes with it: upgrades are supported (`redeploys.md`). `walk = false`.
+**Tests stay cheap:** a new case of one behaviour is a row of an existing table test. Failing tests first. **A plan runs the focused and fuzzy suites alone and is complete when it lands (`AGENTS.md`, 5).** If a fix needs a field no store keeps today, the registered family gains a field with a default, with no version move or patch (jig's `protocol/store/layouts.md`). `walk = false`.

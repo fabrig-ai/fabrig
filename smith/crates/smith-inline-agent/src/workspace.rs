@@ -92,6 +92,7 @@ pub(crate) fn parent_answer(call: Call, reply: host::Reply) -> Option<smith::Eve
             | host::Reply::Busy
             | host::Reply::Unavailable
             | host::Reply::Withdrawn
+            | host::Reply::Unsent
             | host::Reply::TooLarge => None,
         },
     }

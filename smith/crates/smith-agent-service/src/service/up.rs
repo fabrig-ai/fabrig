@@ -471,6 +471,7 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         domain::Event::HostReturned { .. }
         | domain::Event::Acknowledge { .. }
         | domain::Event::Grant { .. }
+        | domain::Event::Renewals { .. }
         | domain::Event::Cancel { .. }
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }

@@ -1,8 +1,8 @@
 # Places and copies
 
 Provisional, 2026-11-12, revised 2026-11-16, from
-`../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4 and
-Q6 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
+`../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
+Q6 and Q7 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
 directory with its own `bin/`, of one kind; a setup's copy restored
 there, or made again from its recipe; and the drive session, held open
@@ -63,7 +63,9 @@ drive session are Q2's (`../../client/recipe.md`,
   its `ports`, and holds `deployment/` where a box's holds `box/`. Its
   scratch directory below is the one its kind holds. A place runs
   setups of its kind alone: a recipe's kind is its chain's root's
-  (`../../client/recipe.md`, 2), and `fresh` is a box's.
+  (`../../client/recipe.md`, 2), and `fresh` is a box's. What differs
+  between the kinds, here and in the drive session, is `kinds.md`, 3's
+  table, each value read from the kind (`kinds.md`, 6).
 - **Private, whatever the umask** the tool runs under
   (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
   place, `PLACE/` itself, its scratch directory, `copies/` and each
@@ -217,8 +219,11 @@ installs another build.
      with `--ports P` where the place has ports, P its nine joined by
      commas (`../../client/recipe.md`, 5.1); its output appended to
      `walk.log`. At a deployment's place, `--scratch deployment`, with
-     its ports and no `--bundle`: the walk starts the deployment from
-     the chain's root's `config/` (`deployment.md`, 4).
+     its ports and `--bundle bundle` as at a box's: the walk starts the
+     deployment from the chain's root's `config/` (`deployment.md`, 4),
+     its engine serving the place's bundle (`deployment.md`, 2), in a
+     ctl session or a full one by the chain's lines
+     (`../../client/recipe.md`, 5.1).
   3. **Each walk's exit:**
      - **0:** walked; for each Ri walked past a copy, its copy saved:
        `tar --create` of the scratch directory's `config` and `data`
@@ -256,8 +261,9 @@ holder keeps the session between them.
   restored at PLACE: temper-qa pass setup NAME first`) or while a holder
   lives. `--ctl` opens a ctl session (`../../client/drive.md`, 2.6), no
   browser started, for a pass's ctl cases, which run first
-  (`passes.md`, 4); at a deployment's place every session is one, with
-  or without it. It starts `temper-qa pass hold` (with `--ctl` where
+  (`passes.md`, 4), at a place of either kind; without it the session
+  is a full one, its browser and TUI on the box's origin or the
+  deployment's engine's (`deployment.md`, 5). It starts `temper-qa pass hold` (with `--ctl` where
   given) in a session and process group
   of its own, its stdin closed and its output to `drive.log`, with the
   command's own environment, then asks the holder for the session's
@@ -275,11 +281,12 @@ holder keeps the session between them.
   where the place has ports, as a walk is given
   them (section 4), and `--ctl` where `pass open` was given it. At a
   deployment's place it is `bin/temper-client-journeys drive
-  --deployment S/ROOT/config --bin bin --scratch deployment`, ROOT the
-  setup's chain's root in the pass's setups S, with the same scripts,
-  `--strict`, `--files` and `--ports`, and no `--bundle`: the restored
-  deployment is held, so its documents are its copy's
-  (`deployment.md`, 4). It listens on `drive.sock`, a Unix stream socket,
+  --deployment S/ROOT/config --bin bin --bundle bundle --scratch
+  deployment`, ROOT the setup's chain's root in the pass's setups S,
+  with the same scripts, `--strict`, `--files`, `--ports` and `--ctl`
+  where `pass open` was given it: the restored deployment is held, so
+  its documents are its copy's (`deployment.md`, 4), and its engine
+  serves the place's `bundle/`. It listens on `drive.sock`, a Unix stream socket,
   0o600, any old one removed first, since the lock is its.
   - **One request per connection:** one line, the start's, a drive line,
     or the end; the holder writes a drive line or `end` to the
@@ -310,8 +317,9 @@ holder keeps the session between them.
   `box/session/lines` on its own line, so a case's steps become a
   recipe's or a finding's reproduction (`../../client/drive.md`, 4); its
   exit the session's, 0 for a clean stop, 4 for the box's failure.
-- **Looks** stay in `box/session/looks/` until the next session; a
-  finding's evidence copies them (`findings.md`, 2).
+- **Looks** stay in the scratch directory's `session/looks/`,
+  `box/session/looks/` or `deployment/session/looks/`, until the next
+  session; a finding's evidence copies them (`findings.md`, 2).
 
 ## 6. A new recipe
 
@@ -375,7 +383,9 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
 ## 8. Its code and tests
 
 - **In `temper-qa-tool`,** a `place` module for sections 2 to 4 and 6
-  and a `hold` module for section 5, beside the ledger's.
+  and a `hold` module for section 5, beside the ledger's; a place's kind
+  answers its values, and one function reads a setup's chain for both
+  (`kinds.md`, 6).
 - **Its world behind faces:** the drive tool, run as a process from the
   place's `bin/`; the archive, `tar --create` and `tar --extract` run as
   processes with the captured environment; the holder's socket and its
@@ -398,9 +408,11 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
     exits, `pass close`'s kept lines, and the holder ending its session
     once the ledger ends the pass session;
   - `pass open --ctl` starting `drive --ctl`; at a deployment's place,
-    a restore walking with `--scratch deployment`, its ports and no
-    `--bundle`, its copy saved from that directory, and the holder
-    starting `drive --deployment` with the chain's root's `config/`;
+    a restore walking with `--scratch deployment`, its ports and
+    `--bundle bundle`, its copy saved from that directory, and the
+    holder starting `drive --deployment` with the chain's root's
+    `config/` and `--bundle bundle`, with `--ctl` for `pass open --ctl`
+    and without it for `pass open`;
     `fresh`, and a setup of the other kind, refused in their words.
 
 ## 9. Open questions

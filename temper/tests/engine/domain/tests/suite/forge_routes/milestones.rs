@@ -1,0 +1,256 @@
+//! The forge keeps milestone rows, never milestone issues (domain/milestones.md, 8).
+use super::goal_landing::{ended, finish_goal, mine, row};
+use super::*;
+const STEPS: u32 = 1000;
+
+fn ask(world: &mut World, key: u8, ask: people::Ask) -> people::Outcome {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner"),
+        key: [key; 16],
+        ask,
+    }));
+    world.until(Until::Ready);
+    world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Core(jig_domain_core::Record::People(people::Stored::Answer { key: request, outcome, .. }))
+                if request.key == [key; 16] =>
+            {
+                Some(outcome.clone())
+            }
+            _ => None,
+        })
+        .expect("party request answered")
+}
+fn created(outcome: &people::Outcome) -> u64 {
+    let people::Outcome::Created { first, last, .. } = outcome else { panic!("created: {outcome:?}") };
+    assert_eq!(first, last);
+    *first
+}
+fn milestone(world: &mut World, words: &[u8]) -> u64 {
+    let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("creation") };
+    let member = &mut batch[0];
+    member.executor =
+        people::TaskExecutor::Procedure { connector: jig_domain_core::RECURRING, code: jig_domain_core::GATHERING };
+    member.contract = people::Contract::Report { words: 128 };
+    member.flags = people::Flags { listed: true, ended_by: people::EndedBy::Requester, ..people::Flags::PLAIN };
+    member.tracked = Some(1);
+    member.label = 4;
+    member.authority.delegation.depth = 3;
+    member.budget = people::Budget::AsAllowed { cap: Some(400) };
+    created(&ask(world, 180, people::Ask::Create { project, batch }))
+}
+fn stored(world: &World, task: u64) -> &forge_top::MilestoneRow {
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Milestone(task))) else {
+        panic!("milestone {task} stored")
+    };
+    let forge_top::Stored::Milestone(row) = row.as_ref() else { panic!("milestone row") };
+    row
+}
+fn no_issue(world: &World, task: u64) {
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Issue(task))), "milestones have no issues");
+    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(subscription) if subscription.task == task))), "milestones have no topics");
+}
+fn goal(world: &mut World, milestone: u64) -> engine::Assignment {
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(world, true) else { panic!("goal") };
+    batch[0].authority.delegation.depth = 2;
+    batch[0].authority.delegation.tasks = 10;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(300) };
+    let task = created(&ask(world, 181, people::Ask::Delegate { project, task: milestone, batch }));
+    world.assigned.iter().find(|run| run.task == task).expect("goal assigned").clone()
+}
+fn world() -> World {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits { slots: Some(2), spec_bytes: Some(1024), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    world
+}
+#[test]
+fn a_milestones_first_projection_keeps_its_project_and_utf8_name_without_an_issue() {
+    for (words, name) in [
+        (b"Store shape\n\nIts words".to_vec(), b"Store shape".to_vec()),
+        (format!("{}€\nWords", "é".repeat(127)).into_bytes(), "é".repeat(127).into_bytes()),
+    ] {
+        let mut world = world();
+        let milestone = milestone(&mut world, &words);
+        assert_eq!(
+            stored(&world, milestone),
+            &forge_top::MilestoneRow {
+                project: 1,
+                task: milestone,
+                name: name.into_boxed_slice(),
+                last_landing: None,
+                ended: None
+            }
+        );
+        no_issue(&world, milestone);
+        assert!(world.writes.is_empty(), "no milestone issue is made or updated");
+        world.close();
+    }
+}
+fn land(world: &mut World, goal: &engine::Assignment, call: u64, landing: &str) -> u64 {
+    let before = world.assigned.len();
+    let input = format!("{{\"words\":\"Small fix\",\"landing\":\"{landing}\"}}");
+    let answer = mine(world, goal, call, input.as_bytes());
+    let Some(engine::CallAnswer::Delegated(made)) = answer else {
+        panic!(
+            "change {call}: {answer:?}; errors={:?}; replies={:?}; goal={:?}",
+            world.call_errors,
+            world.answers,
+            live_task(world, goal.task).phase
+        )
+    };
+    let task = made[0].task;
+    let producer = reviews::next_assignment(world, before);
+    let base = goal_branch::branch_tip(world, &row(world, task).base);
+    let head = early_start::push(world, &producer, base, format!("file-{call}").as_bytes());
+    goal_landing::status(world, head, raw::Check::Passed);
+    early_start::finish(world, &producer, b"Small fix");
+    for _ in 0..STEPS {
+        world.tick();
+        if ended(world, task).is_some() {
+            break;
+        }
+    }
+    assert!(
+        matches!(row(world, task).change.state, temper_engine_domain_forge_change::State::Landed { .. }),
+        "{:?}",
+        row(world, task)
+    );
+    world.until(Until::Ready);
+    task
+}
+#[test]
+fn only_a_goals_default_branch_landings_replace_its_milestones_landing_across_restart() {
+    let mut world = world();
+    let milestone = milestone(&mut world, b"Store shape");
+    let goal = goal(&mut world, milestone);
+    assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Issue(goal.task))), "the goal has its issue");
+    let first = land(&mut world, &goal, 101, "main");
+    assert_eq!((row(&world, first).goal, row(&world, first).milestone), (Some(goal.task), Some(milestone)));
+    let landing = stored(&world, milestone).last_landing.clone().expect("first landing");
+    let temper_engine_domain_forge_change::State::Landed { since, .. } = row(&world, first).change.state else {
+        panic!("landed")
+    };
+    assert_eq!(landing, forge_top::MilestoneLanding { at: since, goal: goal.task, change: first });
+    let keys = [
+        Key::Forge(forge_top::Key::Milestone(milestone)),
+        Key::Forge(forge_top::Key::ChangeCold(first)),
+        Key::Forge(forge_top::Key::ChangeHot(first)),
+        Key::Forge(forge_top::Key::ProjectFacts { project: 1 }),
+    ];
+    let rows = keys.each_ref().map(|key| world.store.rows.get(key).expect("coexisting restart rows").clone());
+    restart(&mut world);
+    world.until(Until::Ready);
+    assert!(world.root.ready(), "the mixed-family startup walk completes");
+    for (key, expected) in keys.iter().zip(&rows) {
+        assert_eq!(world.store.rows.get(key), Some(expected), "restart keeps {key:?}");
+    }
+    let second = land(&mut world, &goal, 102, "main");
+    let later = stored(&world, milestone).last_landing.clone().expect("later landing");
+    assert!(later.at > landing.at);
+    assert_eq!((later.goal, later.change), (goal.task, second));
+    let tip = goal_branch::branch_tip(&mut world, b"main");
+    assert_eq!(
+        world.external(1, raw::Op::Git(raw::Git::Create { branch: b"side".as_slice().into(), commit: tip })),
+        raw::Answer::Branch(raw::Created::Created)
+    );
+    let other = land(&mut world, &goal, 103, "side");
+    assert_eq!(row(&world, other).milestone, Some(milestone));
+    assert_eq!(stored(&world, milestone).last_landing, Some(later));
+    ask(&mut world, 182, people::Ask::Conclude { project: 1, task: milestone });
+    finish_goal(&mut world, &goal);
+    no_issue(&world, milestone);
+    world.close();
+}
+fn restart(world: &mut World) {
+    for _ in 0..STEPS {
+        if world.pending.is_empty() && world.events.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+        world.tick();
+    }
+    world.restart_same();
+}
+fn settled(world: &World, task: u64) {
+    use jig_domain_core::{CoreKey, Key as CoreKeyKind, ProjectionKey};
+    assert!(
+        !world.store.rows.contains_key(&Key::Core(CoreKeyKind::Core(CoreKey::Projection(ProjectionKey::Goal(task))))),
+        "milestone projection settled"
+    );
+}
+#[test]
+fn a_milestones_end_keeps_its_counts_outcome_spend_and_wall_without_an_issue() {
+    for outcome in
+        [forge_top::MilestoneOutcome::Complete, forge_top::MilestoneOutcome::Ended, forge_top::MilestoneOutcome::Closed]
+    {
+        let mut world = world();
+        let milestone = milestone(&mut world, b"Store shape");
+        let goal = goal(&mut world, milestone);
+        assert!(matches!(
+            ask(&mut world, 182, people::Ask::Conclude { project: 1, task: milestone }),
+            people::Outcome::Concluded { .. }
+        ));
+        assert!(stored(&world, milestone).ended.is_none(), "concluded waits for its last goal");
+        match outcome {
+            forge_top::MilestoneOutcome::Complete => finish_goal(&mut world, &goal),
+            forge_top::MilestoneOutcome::Ended => goal_landing::finish_run(
+                &mut world,
+                &goal,
+                tasks::TaskResult::Failure { reason: b"cannot finish".as_slice().into() },
+            ),
+            forge_top::MilestoneOutcome::Closed => {
+                ask(
+                    &mut world,
+                    183,
+                    people::Ask::Cancel {
+                        project: 1,
+                        task: milestone,
+                        reason: b"close".as_slice().into(),
+                        grace: None,
+                    },
+                );
+                goal_landing::finish_run(
+                    &mut world,
+                    &goal,
+                    tasks::TaskResult::Report { words: b"stopped".as_slice().into() },
+                );
+            }
+        }
+        world.until(Until::Ready);
+        let task = ended(&world, milestone).expect("milestone ended");
+        let end = stored(&world, milestone).ended.as_ref().expect("forge end");
+        assert_eq!(
+            end,
+            &forge_top::MilestoneEnd {
+                at: task.ended_at.expect("end wall"),
+                outcome,
+                done: u32::from(outcome == forge_top::MilestoneOutcome::Complete),
+                failed: u32::from(outcome == forge_top::MilestoneOutcome::Ended),
+                closed: u32::from(outcome == forge_top::MilestoneOutcome::Closed),
+                spent: task.numbers.spent + task.numbers.spent_below
+            }
+        );
+        assert!(end.spent > 0, "settled goal spend is retained");
+        settled(&world, milestone);
+        no_issue(&world, milestone);
+        let retained = stored(&world, milestone).clone();
+        restart(&mut world);
+        world.until(Until::Ready);
+        assert_eq!(stored(&world, milestone), &retained);
+        settled(&world, milestone);
+        world.close();
+    }
+}

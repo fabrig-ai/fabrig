@@ -27,6 +27,7 @@ const LIMITS: Limits = Limits {
     progress_bytes: 64,
     turns: 0,
     grace: Duration::from_secs(10),
+    restart_wait: Duration::from_millis(1_200_000),
     facts: 64,
     history: 4,
 };
