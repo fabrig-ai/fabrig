@@ -717,15 +717,24 @@ fn person_requested_charters_name_their_person_when_speaking_of_them() {
             .find(|paragraph| paragraph.contains("[Requested by person N, NAME]"))
             .expect("paragraph naming the person");
         for phrase in [
+            "name after their number",
+            "same person N",
             "ask and address them by number as before",
             "rather than to them",
+            "decided",
             "question and why",
+            "a report",
+            "a finding",
+            "a question to someone else",
+            "their name:",
             "Sam asked to reopen pull #1292",
             "never \"person N\" or \"the user\"",
             "A line with no name, or a requester that is a task, leaves",
         ] {
             assert!(paragraph.contains(phrase), "charter {number}: {phrase}");
         }
+        let fallback = if number == 5 { "\"your requester\"" } else { "\"your person\"" };
+        assert!(paragraph.contains(fallback), "charter {number}: {fallback}");
     }
 }
 
