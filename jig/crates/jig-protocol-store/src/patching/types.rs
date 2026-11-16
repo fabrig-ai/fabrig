@@ -8,7 +8,7 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
     for set in sets.sets {
         let refusal = Unplanned { owner: set.owner, patch: 0 };
         for family in set.families {
-            if family.types.is_empty() {
+            if family.types.is_empty() && family.retired.is_empty() {
                 continue;
             }
             if family.map != KeptMap::Store {
@@ -45,6 +45,41 @@ pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
                 first = Some(start);
                 let mut through = None;
                 for range in ty.keys {
+                    if range.from >= range.to {
+                        return Err(refusal);
+                    }
+                    if let Some(previous) = through
+                        && previous > range.from
+                    {
+                        return Err(refusal);
+                    }
+                    through = Some(range.to);
+                    if ranges.insert(range.from, range.to).expect("uncapped ranges").is_some() {
+                        return Err(refusal);
+                    }
+                }
+            }
+            let mut first = None;
+            for (index, retired) in family.retired.iter().enumerate() {
+                for ty in family.types {
+                    if ty.number == retired.number {
+                        return Err(refusal);
+                    }
+                }
+                for previous in family.retired.get(..index).expect("earlier retired types") {
+                    if previous.number == retired.number {
+                        return Err(refusal);
+                    }
+                }
+                let start = retired.keys.first().ok_or(refusal)?.from;
+                if let Some(previous) = first
+                    && previous >= start
+                {
+                    return Err(refusal);
+                }
+                first = Some(start);
+                let mut through = None;
+                for range in retired.keys {
                     if range.from >= range.to {
                         return Err(refusal);
                     }

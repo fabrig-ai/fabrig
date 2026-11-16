@@ -174,12 +174,13 @@ fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
 }
 
 fn batch_landing(case: &str) {
-    use support::{batch_landing, landing_by_turn, turn_restart};
+    use support::{batch_landing, turn_restart};
     let scratch = support::Scratch::new(case);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
     let forge = turn_restart::start(&scratch);
-    let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
+    let workflow = barrier.gate_workflow_by_test(batch_landing::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
+    forge.add_file("check.sh", batch_landing::CHECK.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
     batch_landing::configure(scratch.path(), forge.repository());
     batch_landing::run_narrowed(scratch.path(), &forge, &barrier);

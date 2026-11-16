@@ -264,13 +264,21 @@ section 2):
 A value in a log keeps the layout it was written at, and is converted
 as it is read (temper's `draft/store-shape.md`, section 3):
 
-- **A log-held value type's layouts never retire** (`layouts.md`, 5.4):
-  the census counts the map alone, and a log may hold any of them until
-  retention drops it.
+- **A log-held value type's layouts never retire** by the census
+  (`layouts.md`, 5.4): the census counts the map alone, and a log may
+  hold any of them until retention drops it.
 - **The open's check** takes each of them as held (`layouts.md`, 5.3):
   one with no plan to the binary's layout refuses the open, since no
   written job converts what a log holds. A change to a log-held value
   type is therefore one a plan derives.
+- **Before any log, a settling job** (`jobs.md`, 5) is the exception:
+  while `task-logs` is pending no log holds a value, so a settling job
+  pending before it takes a log-held layout that only dropped variants
+  keep from deriving, puts its values at the binary's layout, and
+  retires its other layouts at its end, as for any value type. jig's
+  `settle-layouts` runs before `task-logs` for this (temper's
+  `draft/store-floor.md`, section 2), so history enters the logs at the
+  binary's layouts and its older layouts are gone from the registry.
 
 ## 9. Retention
 

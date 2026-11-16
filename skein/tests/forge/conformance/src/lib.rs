@@ -59,6 +59,33 @@ pub fn run(binary: &Path, runner: Option<&Path>, scratch: &Path, out: &Path) -> 
     )?;
     fixture.instance.stop().map_err(|e| failure(&e))
 }
+/// Records dispatch input and artifact facts without the API, CLI or delivery groups.
+///
+/// # Errors
+/// Returns a refused binary, provisioning, exchange or secret-scan failure.
+pub fn dispatch_inputs(binary: &Path, runner: &Path, scratch: &Path, out: &Path) -> Result<()> {
+    let forgejo = Forgejo::from_path(binary).map_err(|e| format!("{e:?}"))?;
+    let fixture = fixture::Fixture::new(&forgejo, scratch)?;
+    let mut mask = mask::Mask::new(fixture.instance.port());
+    let mut secrets = write::Secrets::from_instance(&fixture.instance);
+    let (version, mut facts) = runner::run(Some(runner), &fixture, out, &mut mask, &mut secrets)?;
+    facts.retain(|fact| {
+        fact.name == "actions-dispatch-multiline-input-reaches-job-log"
+            || fact.name == "actions-dispatch-undeclared-input-is-ignored"
+            || fact.name.starts_with("actions-artifact")
+    });
+    let lines = facts.iter().map(facts::Fact::line).collect::<String>();
+    write::check("facts.txt", b"", lines.as_bytes(), &secrets)?;
+    std::fs::write(
+        out.join("facts.txt"),
+        format!("# forgejo {} sha256 {}\n# runner {version}\n{lines}", forgejo.version(), forgejo.sha256()),
+    )?;
+    std::fs::write(
+        out.join("transcripts/binary.txt"),
+        format!("version {}\nsha256 {}\n", forgejo.version(), forgejo.sha256()),
+    )?;
+    fixture.instance.stop().map_err(|e| failure(&e))
+}
 fn json(exchange: &Exchange) -> Result<json::Json> {
     json::Json::parse(&exchange.body)
 }

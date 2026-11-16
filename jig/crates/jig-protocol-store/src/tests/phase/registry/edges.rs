@@ -62,7 +62,7 @@ fn new_value_types_register_at_the_seed_and_read_back() {
         ],
         ..FAMILY
     };
-    const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], patches: &[], ..SET };
+    const NEW_SET: PatchSet = PatchSet { families: &[NEW_FAMILY], level: Some(0), patches: &[], ..SET };
     let mut disk = Disk::new(&[]);
     let mut before = fresh(
         &mut disk,
@@ -297,7 +297,8 @@ fn ended_joins_restore_the_family_version_before_its_decoder() {
         }],
         ..FAMILY
     };
-    let set = PatchSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), patches: &[], ..SET };
+    let set =
+        PatchSet { owner: Owner::Jig, families: Box::leak(Box::new([family])), level: Some(0), patches: &[], ..SET };
     let mut store = fresh(&mut disk, set);
     let layout = alias(&mut store, 0, version, 99);
     bytes[..2].copy_from_slice(&99_u16.to_be_bytes());

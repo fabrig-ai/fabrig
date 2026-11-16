@@ -1,6 +1,6 @@
 # redeploys: status
 
-2026-11-13. Where the design lags or departs from [redeploys.md](redeploys.md).
+2026-11-15. Where the design lags or departs from [redeploys.md](redeploys.md).
 
 Sections 3.1, 3.2, 3.3's interim and 3.4 are designed (`../protocol/wires.md`; jig's `protocol/channel/wires.md`; skein's `data/codec/command.md`, 2, the wire rule).
 
@@ -28,7 +28,7 @@ Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infr
 Section 7 is designed (milestone R6) in `../redeploy.md`: `temper-redeploy`, run by the deployments' operator from a description of the deployment it keeps, stages the build on every host, stops the engine settled, runs the new build's check over the stopped deployment, and does what it says: the engine alone, then the workers in turn when asked, or every part together; a build whose check patched is backed up before the swap. Its referee reports each worker's agreed versions, the window against the workers' grace, and the tries spent and tasks held since the redeploy began (7.5). The drills on dev.fabrig.ai and staging.fabrig.ai follow landing, each a redeploy its operator starts.
 
 - **Design lags:**
-  - None.
+  - 5.2, 5.3 and 7.5, the restart said and its wait (milestone R8): jig's `domain/engine/restart.md`, 1 closes the workers' links with no word; jig's `domain/hosts/hub.md`, 6 and `domain/engine/fleet.md` know only a lost link and the graces; the workers' wire carries no such message; `../protocol/configuration/README.md` has no restart wait; smith's run and session fail a relayed call's attempt and a completion without a grant as they do when the engine is up; `../redeploy.md` names no worker that will keep its grace alone, and its referee judges the window against the grace.
 - **Design departs:**
   - 4.2: a git identity's value is translated by jig's workers component at each send, by temper's bridge, rather than encoded by temper for each channel; the engine keeps its two newest generations in its current version alone (`../protocol/wires.md`, 6; `../protocol/channel.md`, 6). Because one place then translates everything an assignment carries, so one that cannot go down is refused whole before anything is sent (the designer, 2026-11-13).
   - 4.2: a call's name and a delivery's evidence, the family `smith-pieces`, have no reverse: every move of it is breaking, its floor its current (smith's `protocol/README.md`, section 8). Because the engine keeps a delivery's evidence as bytes without their version, so no reader could tell which version to translate from (the designer, 2026-11-13).

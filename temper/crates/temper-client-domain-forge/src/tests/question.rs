@@ -14,7 +14,14 @@ fn fallback(words: &[u8], question: &[u8], context: &[u8]) {
     let parsed = parse(words, false);
     assert_eq!(
         parsed,
-        Parsed { question: question.into(), context: context.into(), saw: None, choices: Box::from([]) }
+        Parsed {
+            question: question.into(),
+            context: context.into(),
+            saw: None,
+            choices: Box::from([]),
+            findings: Box::from([]),
+            group: None
+        }
     );
     assert_eq!(parsed.primary(), None);
 }
@@ -29,6 +36,8 @@ fn the_design_example_has_question_context_saw_and_choices() {
             context: CONTEXT.as_bytes().into(),
             saw: Some(Box::from(b"The box test reproduces it every time.".as_slice())),
             choices: Box::from([choice("In jig’s store".as_bytes(), true), choice(b"In temper serve", false)]),
+            findings: Box::from([]),
+            group: None,
         }
     );
     assert_eq!(parsed.primary(), Some(0));
@@ -107,7 +116,9 @@ fn a_cut_read_uses_the_whole_example_as_fallback() {
             question: QUESTION.as_bytes().into(),
             context: expected.as_bytes().into(),
             saw: None,
-            choices: Box::from([])
+            choices: Box::from([]),
+            findings: Box::from([]),
+            group: None,
         }
     );
     assert_eq!(parsed.primary(), None);
@@ -216,5 +227,139 @@ fn in_words() {
                 task.contract
             );
         }
+    }
+}
+
+#[test]
+fn findings_join_in_first_order_and_leave_context_and_choices() {
+    use crate::forge::findings::Id;
+    let parsed = parse("Three bugs in temper. Start a goal for each?\n\nNone blocks a landing.\n\nFindings: 2/2 2/8\nFindings: 2/10 2/2\nGroup: bugs · in temper\nChoice: A goal for each (recommended)\nChoice: Backlog them".as_bytes(), false);
+    assert_eq!(&*parsed.question, b"Three bugs in temper. Start a goal for each?");
+    assert_eq!(&*parsed.context, b"None blocks a landing.");
+    assert_eq!(
+        &*parsed.findings,
+        &[Id { project: 2, number: 2 }, Id { project: 2, number: 8 }, Id { project: 2, number: 10 }]
+    );
+    assert_eq!(
+        parsed.group,
+        Some(crate::question::Group { noun: b"bugs".as_slice().into(), phrase: b"in temper".as_slice().into() })
+    );
+    assert_eq!(&*parsed.choices, &[choice(b"A goal for each", true), choice(b"Backlog them", false)]);
+}
+
+#[test]
+fn malformed_findings_invalidate_the_list_not_the_question() {
+    for token in [
+        b"2/x".as_slice(),
+        b"2/",
+        b"/3",
+        b"+2/3",
+        b"2/+3",
+        b"2/3/4",
+        b"4294967296/3",
+        b"2/4294967296",
+        b"2/3\t2/4",
+        b"\xff/3",
+    ] {
+        let words = bytes::concat(&[
+            b"Q?\n\nContext\nFindings: 2/2 ",
+            token,
+            b"\nFindings: 2/8\nGroup: bugs\nSaw: Evidence\nChoice: A",
+        ]);
+        let parsed = parse(&words, false);
+        assert!(parsed.findings.is_empty(), "{token:?}");
+        assert_eq!(&*parsed.context, b"Context");
+        assert_eq!(&*parsed.group.unwrap().noun, b"bugs");
+        assert_eq!(parsed.saw.as_deref(), Some(b"Evidence".as_slice()));
+        assert_eq!(&*parsed.choices, &[choice(b"A", false)]);
+    }
+    assert!(parse(b"Q?\nFindings:  \nChoice: A", false).findings.is_empty());
+}
+
+#[test]
+fn distinct_findings_stop_at_sixteen() {
+    use crate::forge::findings::Id;
+    for count in [16_u32, 17] {
+        let header = b"Q?\nFindings: ";
+        let tail = b"\nFindings: 02/002\nChoice: A";
+        let mut size = header.len() + tail.len();
+        for number in 1..=count {
+            size += 3 + skein_lib::Decimal::of(u64::from(number)).as_bytes().len();
+        }
+        let mut words = Writer::new(size);
+        words.put(header).unwrap();
+        for number in 1..=count {
+            words.put(b"2/").unwrap();
+            words.put(skein_lib::Decimal::of(u64::from(number)).as_bytes()).unwrap();
+            words.put(b" ").unwrap();
+        }
+        words.put(tail).unwrap();
+        let parsed = parse(&words.finish(), false);
+        assert_eq!(parsed.findings.len(), if count == 16 { 16 } else { 0 });
+        if count == 16 {
+            assert_eq!(parsed.findings.first(), Some(&Id { project: 2, number: 1 }));
+            assert_eq!(parsed.findings.last(), Some(&Id { project: 2, number: 16 }));
+        }
+        assert_eq!(&*parsed.choices, &[choice(b"A", false)]);
+    }
+    let parsed = parse(b"Q?\nFindings: 0/0 4294967295/4294967295\nChoice: A", false);
+    assert_eq!(&*parsed.findings, &[Id { project: 0, number: 0 }, Id { project: u32::MAX, number: u32::MAX }]);
+}
+
+#[test]
+fn group_uses_first_line_and_bounds_the_trimmed_label() {
+    let bound = [b'a'; 256];
+    let beyond = [b'a'; 257];
+    for (label, expected) in [
+        (" bugs · in temper ".as_bytes(), Some((b"bugs".as_slice(), b"in temper".as_slice()))),
+        (b" bugs ", Some((b"bugs".as_slice(), b"".as_slice()))),
+        (bound.as_slice(), Some((bound.as_slice(), b"".as_slice()))),
+        (beyond.as_slice(), None),
+        (b" ", None),
+        (" · in temper".as_bytes(), None),
+    ] {
+        let words = bytes::concat(&[b"Q?\nGroup: ", label, "\nGroup: later · ignored\nChoice: A".as_bytes()]);
+        let parsed = parse(&words, false);
+        match expected {
+            Some((noun, phrase)) => {
+                let group = parsed.group.expect("valid label");
+                assert_eq!(&*group.noun, noun);
+                assert_eq!(&*group.phrase, phrase);
+            }
+            None => assert_eq!(parsed.group, None, "{label:?}"),
+        }
+    }
+}
+
+#[test]
+fn findings_above_trailing_block_are_context() {
+    let parsed = parse(b"Q?\n\nFindings: 2/2\nGroup: context\nOrdinary words.\n\nChoice: A", false);
+    assert!(parsed.findings.is_empty());
+    assert_eq!(parsed.group, None);
+    assert_eq!(&*parsed.context, b"Findings: 2/2\nGroup: context\nOrdinary words.");
+    assert_eq!(&*parsed.choices, &[choice(b"A", false)]);
+}
+
+#[test]
+fn fallback_has_no_findings_or_group() {
+    for (choice, cut) in [(b"".as_slice(), false), (b"\nChoice: A".as_slice(), true)] {
+        let context = bytes::concat(&[b"Context\nFindings: 2/2\nGroup: bugs", choice]);
+        let words = bytes::concat(&[b"Q?\n\n", &context]);
+        let parsed = parse(&words, cut);
+        assert!(parsed.findings.is_empty());
+        assert_eq!(parsed.group, None);
+        assert_eq!(&*parsed.question, b"Q?");
+        assert_eq!(parsed.context, context);
+    }
+}
+
+#[test]
+fn first_line_never_names_findings_or_group() {
+    for first in [b"Findings: 2/2".as_slice(), b"Group: bugs"] {
+        let words = bytes::concat(&[first, b"\nChoice: A"]);
+        let parsed = parse(&words, false);
+        assert_eq!(parsed.question.as_ref(), first);
+        assert!(parsed.findings.is_empty());
+        assert_eq!(parsed.group, None);
     }
 }

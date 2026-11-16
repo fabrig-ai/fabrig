@@ -78,6 +78,8 @@ fn make_before_ready_refuses() {
         &mut domain,
         &env,
         Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: super::super::revisions::to(),
             creator: Party::Person(PERSON),
             batch: Box::new([super::task(DUE, &[])]),

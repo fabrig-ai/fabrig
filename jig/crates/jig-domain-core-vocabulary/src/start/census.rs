@@ -57,7 +57,6 @@ impl Census {
                 | tasks::Key::Pool(_)
                 | tasks::Key::PersonProposal(_)
                 | tasks::Key::History { .. }
-                | tasks::Key::Milestone { .. }
                 | tasks::Key::Attempt { .. }
                 | tasks::Key::Hold { .. }
                 | tasks::Key::Update { .. }

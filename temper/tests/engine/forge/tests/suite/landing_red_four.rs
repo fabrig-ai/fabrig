@@ -155,6 +155,8 @@ fn a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later() {
                 gate,
                 candidate: red,
                 below: Some(change::Below {
+                    by_test: false,
+                    top: false,
                     green,
                     changes: [
                         Some(change::Landed { change: 51, pull: row.landing.members[0].pull }),

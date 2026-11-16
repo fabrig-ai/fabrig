@@ -5,15 +5,15 @@ use crate::JigBindings;
 use crate::words::Words;
 use crate::words::chip_words::ChipPhrase as P;
 use skein_ui::phrases::Hole;
-use skein_ui::{Builder, Role, Run};
+use skein_ui::{Builder, Role};
 
+use crate::words::fragments::chip::{document, number, text, wall};
+pub(crate) use crate::words::fragments::chip::{ending_summary, hold_failure, retry_reason};
 use crate::{Borrowed, Config};
 use jig_client::contract::{
-    ChipDetails, ChipEnding, ChipHold, ChipObservation, ChipWork, ClosingStage, DocumentText, EscalationHolder,
-    HoldCategory, HoldEscalation, HoldFailure, PersonWait, PriorPhase, Requester, ResourceLine, ResourceWriter,
-    ResultValue, RetryNotice, RunStage,
+    ChipDetails, ChipEnding, ChipHold, ChipObservation, ChipWork, ClosingStage, EscalationHolder, HoldCategory,
+    HoldEscalation, PersonWait, PriorPhase, ResourceLine, ResourceWriter, ResultValue, RetryNotice, RunStage,
 };
-use skein_lib::Wall;
 
 /// Whole bounded metadata, including one terminal result with brief follow-up chips.
 #[must_use]
@@ -24,23 +24,6 @@ pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u
         .checked_add(client.segments.checked_add(6)?.checked_mul(2)?)?
         .checked_add(client.rows.checked_mul(6)?)?
         .checked_add(crate::result_nodes(limits, client)?)
-}
-fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
-    let saying =
-        words.book().say(words.language(), phrase.id(), holes).expect("checked chip words and exact typed holes");
-    b.text(Run::Plain, &saying.text);
-}
-fn number(b: &mut Builder, words: &Words, phrase: P, value: u64) {
-    text(b, words, phrase, &[Hole::Number(value)]);
-}
-fn wall(b: &mut Builder, words: &Words, phrase: P, at: Wall) {
-    text(b, words, phrase, &[Hole::Wall(words.adjusted_wall(at))]);
-}
-fn document(b: &mut Builder, value: &DocumentText, words: &Words) {
-    crate::words::literal_segment::render(b, value.bytes());
-    if value.cut {
-        text(b, words, P::Cut, &[]);
-    }
 }
 pub(crate) fn resource(b: &mut Builder, value: &ResourceLine, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
@@ -75,18 +58,6 @@ fn person_wait(b: &mut Builder, value: &PersonWait, words: &Words) {
         wall(b, words, P::NoticeAt, notice.at);
         number(b, words, P::NoticeActivity, notice.activity);
     }
-}
-pub(crate) fn hold_failure(b: &mut Builder, value: HoldFailure, words: &Words) {
-    let phrase = match value {
-        HoldFailure::Transient => P::Transient,
-        HoldFailure::Permanent => P::Permanent,
-        HoldFailure::Run => P::RunFailure,
-        HoldFailure::Agent => P::AgentFailure,
-        HoldFailure::Lost => P::Lost,
-        HoldFailure::Invalid => P::InvalidFailure,
-        HoldFailure::Infrastructure => P::InfrastructureFailure,
-    };
-    text(b, words, phrase, &[]);
 }
 pub(crate) fn reason(b: &mut Builder, value: HoldCategory, words: &Words) {
     match value {
@@ -249,27 +220,6 @@ fn result_value(
         | ResultValue::Choice { .. } => crate::tree::cards::result::value_nodes(b, client, value, words, bindings),
     }
 }
-/// The departure caption and its supplied reason, author and time.
-/// The complete result payload is rendered by the document's content below this state.
-pub(crate) fn ending_summary(b: &mut Builder, value: &ChipEnding, words: &Words) {
-    match value {
-        ChipEnding::Done(_) => text(b, words, P::Done, &[]),
-        ChipEnding::Failed(reason) => {
-            text(b, words, P::Failed, &[]);
-            document(b, reason, words);
-        }
-        ChipEnding::Cancelled { reason, by, at, .. } => {
-            text(b, words, P::Cancelled, &[]);
-            document(b, reason, words);
-            match by {
-                Requester::Task(task) => number(b, words, P::RequesterTask, *task),
-                Requester::Person(person) => number(b, words, P::RequesterPerson, *person),
-                Requester::Deployment { project } => number(b, words, P::RequesterDeployment, u64::from(*project)),
-            }
-            wall(b, words, P::CancelledAt, *at);
-        }
-    }
-}
 pub(crate) fn ending(
     b: &mut Builder,
     value: &ChipEnding,
@@ -374,14 +324,4 @@ pub fn render(b: &mut Builder, value: &ChipDetails, client: &Borrowed<'_>, words
         None => text(b, words, P::Unobserved, &[]),
     }
     b.close();
-}
-
-/// A supplied retry reason follows the retry count in the selected language.
-pub(crate) fn retry_reason(b: &mut Builder, reason: Option<&DocumentText>, words: &Words) {
-    if let Some(reason) = reason {
-        words.text(b, crate::words::phrases::jig::JigPhrase::RunRetryReason, &[crate::words::name(reason.bytes())]);
-        if reason.cut {
-            words.text(b, crate::words::phrases::jig::JigPhrase::DocumentTextCut, &[]);
-        }
-    }
 }

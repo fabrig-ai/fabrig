@@ -130,6 +130,28 @@ fn phone_home_size_is_muted_without_chip_ground_or_files() {
     assert!(chip.contains("border: 1px solid var(--gf-line);") && chip.contains("background: var(--gf-surface);"));
 }
 
+#[test]
+fn phone_group_keeps_recommended_act_but_hides_rows_context_and_reason() {
+    let css = include_str!("../../temper.css");
+    let (_, phone) = css.split_once("/* ==== ui: phone ==== */").expect("phone area");
+    let (_, phone) = phone.split_once("@media (max-width: 760px) {").expect("phone width");
+    let (phone, _) = phone.split_once("\n}").expect("phone block");
+    let (_, own) = phone.split_once(".temper-need-card:has(.temper-finding-rows)").expect("own finding's rule");
+    let (own, _) = own.split_once('}').unwrap();
+    assert!(own.starts_with(":not(.temper-group-card)"), "a group's acts must not be hidden: {own}");
+    assert!(phone.contains(
+        ".temper-group-card > :is(.temper-finding-rows, .temper-ask-context, .temper-why) { display: none; }"
+    ));
+    let (_, primary) = phone.split_once(".temper-need-acts .temper-recommended {").expect("recommended act");
+    let (primary, _) = primary.split_once('}').unwrap();
+    assert!(
+        primary.contains("display: flex;") && primary.contains("width: 100%;") && primary.contains("min-height: 44px;")
+    );
+    assert!(phone.contains(".temper-need-acts :is(a, button, details, textarea) { display: none; }"));
+    let (_, more) = phone.split_once(".temper-need-card > .temper-need-more {").expect("More link");
+    assert!(more.split_once('}').unwrap().0.contains("display: flex;"));
+}
+
 mod welcome_copy;
 
 #[test]

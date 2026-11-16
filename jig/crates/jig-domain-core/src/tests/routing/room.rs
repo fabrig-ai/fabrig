@@ -11,6 +11,8 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
             creator: tasks::Party::Person(1),
             batch: Box::new([parent, blocker]),

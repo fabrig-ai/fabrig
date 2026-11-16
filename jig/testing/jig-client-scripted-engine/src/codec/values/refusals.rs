@@ -6,6 +6,9 @@ use super::{
 };
 pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::Refusal::Concluded { at } => {
+            w::Refusal::Concluded(w::RefusalConcluded::new(limits, w::RefusalConcludedParts { at: at.as_nanos() })?)
+        }
         c::Refusal::SignInRedirect { why } => w::Refusal::SignInRedirect(w::RefusalSignInRedirect::new(
             limits,
             w::RefusalSignInRedirectParts { why: wire_sign_in_redirect_why(why, limits)? },

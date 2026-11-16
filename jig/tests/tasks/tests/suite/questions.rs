@@ -687,8 +687,13 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         let mut world = World::new(882, limits);
         let mut new = task(REQUESTER, &[]);
         new.spec.asks = true;
-        let reply =
-            response(&mut world, |reply_to| Event::Make { reply_to, creator: PERSON_PARTY, batch: Box::new([new]) });
+        let reply = response(&mut world, |reply_to| Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to,
+            creator: PERSON_PARTY,
+            batch: Box::new([new]),
+        });
         assert_eq!(matches!(reply, Reply::Made(_)), accepted);
         assert_eq!(world.records.contains_key(&Key::Live(REQUESTER)), accepted);
         world.restart();

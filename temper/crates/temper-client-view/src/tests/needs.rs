@@ -25,6 +25,58 @@ pub(super) use super::fixtures::needs::{
     proposal, settings_owned, size_cases, stop_root, words,
 };
 
+#[test]
+fn group_open_card_adds_findings_but_keeps_question_controls_and_terminal_words() {
+    for project in [Some(f::groups::PROJECT), None] {
+        let root = f::groups::at(
+            &[f::groups::QUESTION],
+            &f::groups::bugs(),
+            &[],
+            false,
+            Address::Inbox { filter: d::address::Filter { project, ..d::address::Filter::ALL } },
+        );
+        let mut view = super::home::group_view(&root, true);
+        let tree = view.tree();
+        let from = super::inbox::subtree(tree, super::inbox::styled(tree, look::NEED_FROM));
+        let text = f::nodes_text(from);
+        let expected = if project.is_none() {
+            "Shop 3 bugs in temper · the oldest 1 d · Triager"
+        } else {
+            "3 bugs in temper · the oldest 1 d · Triager"
+        };
+        assert_eq!(text.as_ref(), expected.as_bytes());
+        assert!(from.iter().any(|n| n.styles.as_slice().contains(&look::CHIP_HIGH)));
+        let task = from.iter().find(|n| n.role == Role::Link).unwrap();
+        assert_eq!(task.name.as_deref(), Some(b"Triager".as_slice()));
+        let rows = super::inbox::subtree(tree, super::inbox::styled(tree, look::FINDING_ROWS));
+        assert_eq!(rows.iter().filter(|n| n.role == Role::Item).count(), 3);
+        assert!(!rows.iter().any(|n| n.role == Role::Link || n.binding.is_some()));
+        let position = |style| tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
+        assert!(position(look::FLOW_Q) < position(look::FINDING_ROWS));
+        assert!(position(look::FINDING_ROWS) < position(look::ASK_CONTEXT));
+        assert!(has(&view, b"None blocks a landing."));
+        assert!(f::find(tree, Role::Disclosure, b"What the agent saw").is_some());
+        assert!(f::find(tree, Role::TextArea, b"Or tell it something else").is_some());
+        let choices = super::inbox::subtree(tree, super::inbox::styled(tree, look::ASK_CHOICES));
+        let buttons: Vec<_> = choices.iter().filter(|n| n.role == Role::Button).collect();
+        assert_eq!(buttons[0].name.as_deref(), Some(b"A goal for each".as_slice()));
+        assert!(buttons[0].styles.as_slice().contains(&look::RECOMMENDED));
+        let button = buttons[0].id;
+        assert_eq!(
+            crate::act(&mut view, button, Act::Press),
+            Some(d::Action::Pages(pages::Act::Needs(needs::Act::Choose {
+                object: object(1),
+                words: b"A goal for each".as_slice().into(),
+            })))
+        );
+        let terminal = super::home::group_view(&root, false);
+        let text = f::main_text(terminal.tree());
+        assert!(skein_lib::bytes::find(&text, b"Findings: 2/2 2/8 2/10").is_some());
+        assert!(skein_lib::bytes::find(&text, "Group: bugs · in temper".as_bytes()).is_some());
+        assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::FINDING_ROWS)));
+    }
+}
+
 fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let reach = temper_protocol_reaches::Reach {
@@ -648,8 +700,8 @@ fn decided_head_and_rows_follow_the_project_filter() {
             assert_eq!(f::find(view.tree(), Role::Button, b"Limits").is_some(), project.is_some());
             assert!(has(&view, b"Which approach?"));
             assert!(has(&view, b"Fixed the harness."));
-            assert!(has(&view, b"Allowed: test-only changes are decided and listed."));
-            assert!(has(&view, b"Tests are its area."));
+            assert!(has(&view, b"Allowed: test-only changes."));
+            assert!(!has(&view, b"Tests are its area."));
             let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
             if project.is_some() {
                 assert!(has(&view, "Decided task · 01:05".as_bytes()));

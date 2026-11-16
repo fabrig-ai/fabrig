@@ -450,7 +450,13 @@ fn a_delegate_made_while_the_closer_lives_waits_the_closer() {
     let mut child = task(new_work, &[]);
     child.funder = tasks::Funder::Task(TASK);
     let reply_to = world.to();
-    world.stage(tasks::Event::Make { reply_to, creator: Party::Task(TASK), batch: Box::new([child]) });
+    world.stage(tasks::Event::Make {
+        maker: None,
+        places: Box::new([]),
+        reply_to,
+        creator: Party::Task(TASK),
+        batch: Box::new([child]),
+    });
     let staged = world.staged_requests();
     assert!(staged.iter().any(|request| matches!(request, tasks::Request::Save { record: tasks::Stored::Live(row) }
         if row.number == closer && row.waiting_on.as_ref() == [new_work])));

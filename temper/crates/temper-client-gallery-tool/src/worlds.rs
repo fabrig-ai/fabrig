@@ -4287,6 +4287,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        concluded: None,
         talk: None,
         session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),

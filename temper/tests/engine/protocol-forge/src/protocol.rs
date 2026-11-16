@@ -67,6 +67,32 @@ impl Protocol {
     pub fn github_with_checks(seed: u64, checks: raw::Checks) -> Self {
         Self::github_with_limits(seed, checks, &LIMITS)
     }
+    /// A GitHub content-cued repair with a 4 KiB job log in the fake's repository.
+    #[must_use]
+    pub fn github_with_check_log(seed: u64, checks: raw::Checks) -> Self {
+        let mut world = Self::github(seed);
+        let config = &mut world.joint.fake_env.limits;
+        config.limits.content_bytes = 4_096;
+        world.joint.domain = forge::Domain::new(config, seed);
+        forge::repository(
+            &mut world.joint.domain,
+            config,
+            raw::Setup {
+                id: 2,
+                name: Box::from(fixtures::GITHUB.path),
+                default: Box::from(b"main".as_slice()),
+                tree: Box::new([]),
+                labels: Box::new([]),
+                checks,
+                workflows: Box::new([]),
+                protection: None,
+                hooked: false,
+            },
+        );
+        forge::grant(&mut world.joint.domain, fixtures::GITHUB.path, fixtures::GITHUB.writer, raw::Permission::Admin);
+        forge::grant(&mut world.joint.domain, fixtures::GITHUB.path, 2, raw::Permission::Write);
+        world
+    }
     /// The same GitHub world with a story's explicit domain limits.
     #[must_use]
     pub fn github_with_limits(seed: u64, checks: raw::Checks, limits: &top::Limits) -> Self {
@@ -74,7 +100,7 @@ impl Protocol {
             seed,
             0,
             fixtures::protocol_limits(),
-            fixtures::github_settings(),
+            fixtures::github_protocol_settings(),
             fixtures::protocol_shared(),
             checks,
         );
@@ -357,7 +383,7 @@ impl Protocol {
         self.produce_file(branch, b"file", b"change");
     }
     pub fn produce_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
-        self.external(raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 }), 2);
+        self.external(raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: self.branch(b"main") }), 2);
         self.push_file(branch, path, content);
     }
     pub fn preload_history(&mut self, count: u32) {

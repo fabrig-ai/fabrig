@@ -6,9 +6,11 @@ pub const SKEIN_PATCH_SET: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Skein,
     name: "skein",
+    level: Some(0),
     patches: skein_oauth::patches::PATCHES,
     fresh: None,
     families: &[KeptFamily {
+        retired: &[],
         current: skein_oauth::patches::kept::skein_oauth::TEXTS.last().expect("kept text"),
         types: &[],
         name: "skein-oauth",
@@ -25,9 +27,11 @@ pub const SMITH_PATCH_SET: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Smith,
     name: smith_transcript::OWNER,
+    level: Some(0),
     patches: smith_transcript::patches::PATCHES,
     fresh: Some(smith_transcript::FRESH_WINDOWS),
     families: &[KeptFamily {
+        retired: &[],
         current: smith_transcript::patches::kept::smith_transcript::TEXTS.last().expect("kept text"),
         types: &[],
         name: smith_transcript::FAMILY,

@@ -188,8 +188,11 @@ pub struct ToolFamilies {
     pub ask: authority::Tools,
 }
 
-/// Connector number reserved for the core's recurring procedure (domain/tasks/README.md, 5).
+/// Connector number reserved for the core's recurring and gathering procedures (domain/tasks/README.md, 5).
 pub const RECURRING: u16 = u16::MAX;
+
+/// Gathering procedure code (jig/docs/design/domain/tasks/gatherings.md, section 2).
+pub const GATHERING: u32 = 2;
 
 impl ToolFamilies {
     /// Every offered family has one distinct authority bit.

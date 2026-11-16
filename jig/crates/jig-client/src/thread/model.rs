@@ -255,6 +255,7 @@ fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
         | DocumentOutcome::Adopted { .. }
         | DocumentOutcome::Left { .. }
         | DocumentOutcome::Stopped { .. }
+        | DocumentOutcome::Concluded { .. }
         | DocumentOutcome::Cancelled { .. }
         | DocumentOutcome::Lifted { .. }
         | DocumentOutcome::Released { .. }

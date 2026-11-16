@@ -216,8 +216,9 @@ fn the_document_is_the_asking_partys_own() {
         lede: Box::from(b"A change".as_slice()),
         at: BEFORE,
         landed: 3,
+        findings: None,
     };
-    let running = StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE };
+    let running = StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE, findings: None };
     let row = ProjectFacts { brief: Some(brief.clone()), running: Some(running), ..facts(PROJECT, 3) };
     restore(&mut d, &env(), Stored::ProjectFacts(row.clone()));
     assert_eq!(d.project_facts.get(&PROJECT), Some(&row));
@@ -367,6 +368,229 @@ fn a_repository_removed_counts_no_landing() {
     assert!(d.project_facts.is_empty());
 }
 
+const HIGH_A: &[u8] = b"Open findings: 1\n- qa: 1 high\nHigh ones, newest first:\n- A (qa)\n";
+
+fn finding(number: u32, kind: FindingKind, severity: Severity, title: &[u8], state: FindingState) -> Finding {
+    Finding {
+        project: PROJECT,
+        number,
+        kind,
+        severity,
+        state,
+        title: title.into(),
+        body: Box::new([]),
+        area: None,
+        filer: Filer::Party(PARTY),
+        at: BEFORE,
+        why: None,
+        hander: None,
+        goal: None,
+        reason: None,
+        signature: None,
+        seen: None,
+    }
+}
+fn high_a() -> Finding {
+    finding(1, FindingKind::Qa, Severity::High, b"A", FindingState::New)
+}
+fn run_findings(d: &mut Domain) -> Box<[u8]> {
+    for request in rows(look(d, PARTY, after(7200))) {
+        if let Request::StatusRun { findings, .. } = request {
+            return findings;
+        }
+    }
+    panic!("status run requested")
+}
+
+#[test]
+fn open_findings_words_count_only_open_rows_of_the_project_and_mark_their_bytes() {
+    let mut d = restored();
+    for row in [
+        high_a(),
+        finding(2, FindingKind::Flake, Severity::Low, b"B", FindingState::Backlog),
+        finding(3, FindingKind::Flake, Severity::Low, b"C", FindingState::New),
+        finding(4, FindingKind::Red, Severity::Medium, b"D", FindingState::New),
+        finding(5, FindingKind::Qa, Severity::High, b"E", FindingState::Routed),
+        finding(6, FindingKind::Review, Severity::Low, b"F", FindingState::Dropped),
+        Finding { project: PROJECT + 1, ..high_a() },
+    ] {
+        restore(&mut d, &env(), Stored::Finding(row));
+    }
+    let part = run_findings(&mut d);
+    assert_eq!(
+        part.as_ref(),
+        b"Open findings: 4\n- qa: 1 high\n- flake: 2 low\n- red: 1 medium\nHigh ones, newest first:\n- A (qa)\n"
+    );
+    assert_eq!(
+        d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings,
+        Some(skein_lib::sha256::digest(&part))
+    );
+
+    let mut d = restored();
+    for row in [Finding { project: PROJECT + 1, ..high_a() }, Finding { state: FindingState::Dropped, ..high_a() }] {
+        restore(&mut d, &env(), Stored::Finding(row));
+    }
+    assert_eq!(run_findings(&mut d).as_ref(), b"Open findings: none\n");
+    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings, None);
+}
+
+#[test]
+fn finding_kinds_and_severities_have_their_label_order() {
+    let mut d = restored();
+    for row in [
+        finding(1, FindingKind::Feedback, Severity::High, b"Feedback", FindingState::New),
+        finding(2, FindingKind::Review, Severity::Low, b"Review", FindingState::Backlog),
+        finding(3, FindingKind::Red, Severity::Low, b"Red", FindingState::New),
+        finding(4, FindingKind::Flake, Severity::Medium, b"Flake", FindingState::New),
+        finding(5, FindingKind::Qa, Severity::Low, b"Low", FindingState::New),
+        finding(6, FindingKind::Qa, Severity::Medium, b"Medium", FindingState::New),
+        finding(7, FindingKind::Qa, Severity::High, b"High", FindingState::New),
+    ] {
+        restore(&mut d, &env(), Stored::Finding(row));
+    }
+    assert_eq!(run_findings(&mut d).as_ref(), b"Open findings: 7\n- qa: 1 high, 1 medium, 1 low\n- flake: 1 medium\n- red: 1 low\n- review: 1 low\n- feedback: 1 high\nHigh ones, newest first:\n- High (qa)\n- Feedback (feedback)\n");
+}
+
+#[test]
+fn high_findings_titles_stop_at_twenty_newest() {
+    let mut d = restored();
+    for number in 1..=22 {
+        let title = skein_lib::Decimal::of(u64::from(number));
+        let row = Finding { number, title: title.as_bytes().into(), ..high_a() };
+        restore(&mut d, &env(), Stored::Finding(row));
+    }
+    assert_eq!(run_findings(&mut d).as_ref(), b"Open findings: 22\n- qa: 22 high\nHigh ones, newest first:\n- 22 (qa)\n- 21 (qa)\n- 20 (qa)\n- 19 (qa)\n- 18 (qa)\n- 17 (qa)\n- 16 (qa)\n- 15 (qa)\n- 14 (qa)\n- 13 (qa)\n- 12 (qa)\n- 11 (qa)\n- 10 (qa)\n- 9 (qa)\n- 8 (qa)\n- 7 (qa)\n- 6 (qa)\n- 5 (qa)\n- 4 (qa)\n- 3 (qa)\n- and 2 more\n");
+}
+
+#[test]
+fn findings_changes_start_runs_without_new_landings() {
+    let mark = Some(skein_lib::sha256::digest(HIGH_A));
+    for (state, severity, previous, expected) in [
+        (FindingState::New, Severity::High, mark, false),
+        (FindingState::Backlog, Severity::High, mark, false),
+        (FindingState::Routed, Severity::High, mark, true),
+        (FindingState::Dropped, Severity::High, mark, true),
+        (FindingState::New, Severity::Low, mark, true),
+        (FindingState::New, Severity::High, None, true),
+    ] {
+        let mut d = restored();
+        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(Brief { findings: previous, ..brief(BEFORE, 3) });
+        restore(&mut d, &env(), Stored::Finding(Finding { state, severity, ..high_a() }));
+        assert_eq!(
+            asks_run(look(&mut d, PARTY, after(7200))).is_some(),
+            expected,
+            "{state:?}, {severity:?}, {previous:?}"
+        );
+    }
+    let mut d = restored();
+    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(Brief { findings: mark, ..brief(BEFORE, 3) });
+    for row in [high_a(), Finding { number: 2, ..high_a() }] {
+        restore(&mut d, &env(), Stored::Finding(row));
+    }
+    assert!(asks_run(look(&mut d, PARTY, after(7200))).is_some(), "a newly filed finding changes the part");
+}
+
+#[test]
+fn findings_only_runs_obey_the_hour_and_the_run_in_flight() {
+    for (seconds, task, expected) in [
+        (3599, None, false),
+        (3600, None, false),
+        (3601, None, true),
+        (7200, Some(None), false),
+        (7200, Some(Some(TIER_TASK)), false),
+    ] {
+        let mut d = restored();
+        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 3));
+        restore(&mut d, &env(), Stored::Finding(high_a()));
+        if let Some(task) = task {
+            d.project_facts.get_mut(&PROJECT).unwrap().running =
+                Some(StatusRunning { task, landed: 3, since: after(seconds), findings: None });
+        }
+        assert_eq!(asks_run(look(&mut d, PARTY, after(seconds))).is_some(), expected, "{seconds}, {task:?}");
+    }
+}
+
+#[test]
+fn the_brief_keeps_the_mark_the_run_read() {
+    for changed_during_run in [false, true] {
+        let mut d = restored();
+        restore(&mut d, &env(), Stored::Finding(high_a()));
+        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 3));
+        assert_eq!(run_findings(&mut d).as_ref(), HIGH_A);
+        let mark = Some(skein_lib::sha256::digest(HIGH_A));
+        assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings, mark);
+        outputs(&mut d, Event::StatusTask { project: PROJECT, task: TIER_TASK });
+        if changed_during_run {
+            restore(&mut d, &env(), Stored::Finding(Finding { severity: Severity::Low, ..high_a() }));
+        }
+        let out = status_heard(&mut d, TIER_TASK, Some(b"One finding remains"));
+        let row = d.project_facts.get(&PROJECT).unwrap();
+        assert_eq!(row.brief.as_ref().unwrap().findings, mark);
+        assert!(out.contains(&Request::Save {
+            record: Stored::ProjectFacts(row.clone()),
+            release: None,
+            read_afresh: None
+        }));
+        assert_eq!(asks_run(look(&mut d, PARTY, after(14400))).is_some(), changed_during_run);
+    }
+}
+
+#[test]
+fn findings_make_facts_for_a_project_that_has_landed_nothing_only_with_room() {
+    for (open, full, expected) in [(true, false, true), (true, true, false), (false, false, false)] {
+        let mut d = configured_domain(&[]);
+        restore(&mut d, &env(), Stored::Looked(look_row(PARTY, PROJECT)));
+        if open {
+            restore(&mut d, &env(), Stored::Finding(high_a()));
+        }
+        if full {
+            for n in 1..=LIMITS.judge_projects {
+                restore(&mut d, &env(), Stored::ProjectFacts(facts(PROJECT + n, 1)));
+            }
+        }
+        let out = rows(look(&mut d, PARTY, after(7200)));
+        let mut runs = 0_usize;
+        let mut saves = 0_usize;
+        let mut marks = 0_usize;
+        for request in &out {
+            if let Request::StatusRun { .. } = request {
+                runs += 1;
+            }
+            if let Request::Save { record: Stored::ProjectFacts(_), .. } = request {
+                saves += 1;
+            }
+            if *request == marked() {
+                marks += 1;
+            }
+        }
+        assert_eq!(runs, usize::from(expected));
+        let row = d.project_facts.get(&PROJECT);
+        assert_eq!(row.is_some(), expected);
+        assert_eq!((view(&d, PARTY).landed, view(&d, PARTY).last_landed), (0, None));
+        if expected {
+            let initial =
+                ProjectFacts { project: PROJECT, landed: 0, last_landed: after(7200), brief: None, running: None };
+            assert!(out.contains(&Request::Save {
+                record: Stored::ProjectFacts(initial),
+                release: None,
+                read_afresh: None
+            }));
+            let row = row.unwrap();
+            assert_eq!(row.landed, 0);
+            assert_eq!(row.last_landed, after(7200));
+            assert!(row.running.is_some());
+            assert!(out.contains(&Request::Save {
+                record: Stored::ProjectFacts(row.clone()),
+                release: None,
+                read_afresh: None
+            }));
+            assert_eq!(marks, 2, "the look and row creation mark status");
+        } else {
+            assert_eq!(saves, 0);
+        }
+    }
+}
+
 fn asks_run(out: Queue<Request>) -> Option<Box<[u8]>> {
     for request in rows(out) {
         if let Request::StatusRun { project, words, .. } = request {
@@ -377,10 +601,11 @@ fn asks_run(out: Queue<Request>) -> Option<Box<[u8]>> {
     None
 }
 fn brief(at: Wall, landed: u64) -> Brief {
-    Brief { sentence: b"Earlier".as_slice().into(), lede: Box::new([]), at, landed }
+    Brief { sentence: b"Earlier".as_slice().into(), lede: Box::new([]), at, landed, findings: None }
 }
 fn running(d: &mut Domain, task: u64, since: Wall) {
-    d.project_facts.get_mut(&PROJECT).unwrap().running = Some(StatusRunning { task: Some(task), landed: 3, since });
+    d.project_facts.get_mut(&PROJECT).unwrap().running =
+        Some(StatusRunning { task: Some(task), landed: 3, since, findings: None });
 }
 fn status_heard(d: &mut Domain, task: u64, report: Option<&[u8]>) -> Box<[Request]> {
     outputs(
@@ -400,7 +625,7 @@ fn a_new_sitting_with_something_new_asks_a_run() {
     assert!(asks_run(look(&mut d, PARTY, after(1800))).is_some());
     assert_eq!(
         d.project_facts.get(&PROJECT).unwrap().running,
-        Some(StatusRunning { task: None, landed: 3, since: after(1800) })
+        Some(StatusRunning { task: None, landed: 3, since: after(1800), findings: None })
     );
     let out = outputs(&mut d, Event::StatusTask { project: PROJECT, task: TIER_TASK });
     let row = d.project_facts.get(&PROJECT).unwrap();
@@ -446,7 +671,8 @@ fn a_brief_under_an_hour_old_asks_none() {
 fn a_run_in_flight_asks_none() {
     for task in [None, Some(TIER_TASK)] {
         let mut d = restored();
-        d.project_facts.get_mut(&PROJECT).unwrap().running = Some(StatusRunning { task, landed: 3, since: BEFORE });
+        d.project_facts.get_mut(&PROJECT).unwrap().running =
+            Some(StatusRunning { task, landed: 3, since: BEFORE, findings: None });
         assert!(asks_run(look(&mut d, PARTY, after(3600))).is_none());
     }
 }
@@ -476,7 +702,10 @@ fn a_report_splits_into_sentence_and_lede() {
         d.project_facts.get_mut(&PROJECT).unwrap().landed = 4;
         let out = status_heard(&mut d, TIER_TASK, Some(report));
         let row = d.project_facts.get(&PROJECT).unwrap();
-        assert_eq!(row.brief, Some(Brief { sentence: sentence.into(), lede: lede.into(), at: env().wall, landed: 3 }));
+        assert_eq!(
+            row.brief,
+            Some(Brief { sentence: sentence.into(), lede: lede.into(), at: env().wall, landed: 3, findings: None })
+        );
         assert_eq!(row.running, None);
         assert!(out.contains(&marked()));
         assert!(out.contains(&Request::Save {
@@ -540,7 +769,7 @@ fn a_late_result_is_dropped() {
 fn a_restored_run_is_still_in_flight() {
     let mut d = restored();
     let row = ProjectFacts {
-        running: Some(StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE }),
+        running: Some(StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE, findings: None }),
         ..facts(PROJECT, 3)
     };
     restore(&mut d, &env(), Stored::ProjectFacts(row));

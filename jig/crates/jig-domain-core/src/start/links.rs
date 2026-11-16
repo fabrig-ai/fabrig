@@ -295,6 +295,7 @@ impl Core {
                 }
                 people::Outcome::Left { task }
                 | people::Outcome::Stopped { task }
+                | people::Outcome::Concluded { task }
                 | people::Outcome::Cancelled { task }
                 | people::Outcome::Released { task }
                 | people::Outcome::PersonTaken { task }

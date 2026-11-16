@@ -4,6 +4,8 @@ use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits) -> Result<w::HistoryLine, w::Problem> {
     let change = match value.change {
+        t::Change::Made => w::HistoryChange::Made,
+        t::Change::Concluded => w::HistoryChange::Concluded,
         t::Change::Cancelled => w::HistoryChange::Cancelled,
         t::Change::Released => w::HistoryChange::Released,
         t::Change::Amended => w::HistoryChange::Amended,

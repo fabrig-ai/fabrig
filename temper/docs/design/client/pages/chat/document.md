@@ -88,7 +88,8 @@
     Its line, `.temper-doc-path`: at its left `docs/design/draft/NAME.md`, or on an
     Ask temper chat "T7 · not proposed yet", "Proposal 12 · waits for an owner" or
     "Accepted at 14:03", from its proposal cards; at its right "edited 1 min ago",
-    `TimeForm::Ago`, lower case. The body is split at each `#` and `##` line, each
+    `TimeForm::Ago`, lower case, or, while the chat's run is live, what the run
+    is doing in its place (*What the run is doing*, below). The body is split at each `#` and `##` line, each
     section read by `skein_ui::markdown::read(.., 1, b)` into a slot, `.temper-doc-sec`, keyed
     by its heading and its place among its namesakes, so that a change keeps the others'
     nodes. `#`, level 2, is drawn as the mock's `.doc-inner h1`, and `##`, level 3, as its `h2`; the first section's first
@@ -102,18 +103,53 @@
     "Added by T4 3 min ago" or "Changed by T4 just now".
   - *Empty,* Split or Draft on a chat with no document: the pane, a region named
     "Draft"; its path's left, on an Ask temper chat "TN · no draft yet", on another
-    chat the mock's `untitled.md`; its right empty, or "writing" once the write-up
-    is asked; `.temper-doc-empty` "The draft appears here as you write it
+    chat the mock's `untitled.md`; its right empty, or, once the write-up is
+    asked and until its document arrives, what the run is doing (below);
+    `.temper-doc-empty` "The draft appears here as you write it
     together."; under it `.temper-doc-acts` with "Write it up from this chat",
     `.temper-doc-write-up`, while the chat hasn't ended and no write-up is asked.
     `NewChat { draft: true }` draws the empty pane as before, its path
-    `untitled.md` and "writing", with no button: its first message asks the
-    write-up (`README.md`, 2, *With a draft*).
+    `untitled.md` and its right empty, with no button: its first message asks the
+    write-up (`README.md`, 2, *With a draft*), and nothing runs before it.
+  - *What the run is doing* (the look request `draft-corner`, the person's
+    words of 2026-11-16): the path's right, in Split and in Draft, from the
+    write-up's ask until its document arrives, and on a chat with a document
+    while its run is live (`conversation.md`, 2, *while it runs*), in place
+    of "edited ...": what the run is doing, " · ", then the whole seconds
+    since the run was asked, "thinking · 2 s", "reading proposal t3/4 · 4 s",
+    "writing · 11 s", seconds however many, never minutes:
+    - *the draft's own call,* "writing": while the call under way, the run's
+      `call` (jig's `RunState`), is `document` or `note`, or while the run's
+      text names such a call being written, its `writing` (jig's
+      `RunText`, a `WritingCall`). A backend that delivers no input while
+      the model composes a call shows the word for the call itself, which
+      is the engine's and jig's, not the pane's;
+    - *another call under way,* its present form as the conversation's run
+      line words it while it runs (`conversation.md`, 2): "reading proposal
+      t3/4", "checking template 2", any other tool its name;
+    - *no call under way,* between calls and before the first, "thinking".
+
+    A call's words stay at least a second from when they first show, so
+    that a fast read can be seen; what follows sooner shows when that
+    second is out, the state the run is in then. The seconds count from the
+    person's words that asked the run: the press of "Write it up from this
+    chat" on this page, or, on a page opened later, the time of that
+    message's line; on a chat with a document, the line before the run's
+    first turn, as `conversation.md`, 2 measures a run. In a browser they
+    tick each second, the view asking to be built again at the next whole
+    second while the words show; there is no pulse, the ticking seconds
+    being the liveness, in the path's faint mono, and the line keeps both
+    its sides on one row. The terminal prints the same words after the
+    path and " · ", the seconds those at its print, and asks for no tick.
+    On a phone, Draft is the pane alone, with the same words. Once the
+    document has arrived and no run is live, the right is "edited ..."
+    again; a run that ends with no document leaves the right empty.
   - *"Write it up from this chat"* (the look request `chat-bar`): sends the
     chat the message "Write this up as a draft beside us.", the person's own,
     shown in the chat as any other: one act, one request (`../../README.md`,
     3.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
-    the pane's right says so and the button goes, the mode it was pressed in
+    the pane's right says what its run is doing (*What the run is doing*,
+    above) and the button goes, the mode it was pressed in
     kept (from Chat, the terminal look's "+ Draft", it goes to Split,
     `terminal.md`, 1, *The top line*); refused, nothing is writing, the button
     stays and the composer says why, as for a message. On a chat only this
@@ -144,6 +180,16 @@
   fallback (`../../web/README.md`, section 3). Default: skein's acceptance cases
   and temper's host test hold the scene's bytes; the rendered comparison
   follows landing.
+
+- **What the run is doing, after landing** (1, *What the run is doing*):
+  temper/ui compares the look request `draft-corner`'s pages with main at
+  1440, 1000 and 420 px (`../../web/look-requests.md`, 4): "thinking",
+  a call under way and "writing", each with its seconds, in Draft and in
+  Split, on a phone, and a live run once the document exists; the path's
+  line holding both its sides on one row; and the terminal's print. The
+  request's states are hand-made pages, no recording having caught a
+  write-up mid-run. Owner: temper/ui. Default: each difference a finding
+  filed back under the request's trailer.
 
 - **The fresh project's draft flow after landing** (`../README.md`, `../../view.md`, 3, `../settings.md`, 2):
   checking an Ask temper chat with drafts off, and a fresh chat's draft,

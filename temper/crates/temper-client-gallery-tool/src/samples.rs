@@ -117,17 +117,18 @@ impl Sample {
             _ => None,
         }
     }
-    /// Opens the rail menu through the page part in the static print (client/web/gallery.md).
+    /// Opens the named menu through the page part in the static print (client/web/gallery.md).
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
             "rail-new-menu" => Some(b"New draft or change"),
+            "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu" => Some(b"Stock ways"),
             "rail-person-menu" => Some(b"Robin"),
             _ => None,
         }
     }
 }
-pub const N: usize = 441;
+pub const N: usize = 445;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -243,6 +244,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "how-draft", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
         Sample {
             name: "how-yours",
+            world: FirstRun { step: 7 },
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "how-menu",
             world: FirstRun { step: 7 },
             address: Address::Settings { project: 1 },
             then: Shown,
@@ -724,6 +731,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "ask-typing", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
+            name: "ask-ways-menu",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
             name: "ask-ways-approve",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
@@ -749,6 +762,18 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "ask-ways-yours",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-yours-bare",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-yours-menu",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
             then: Shown,
@@ -1448,8 +1473,8 @@ fn special_mockup(name: &str) -> Option<String> {
         "home-step-team" => return Some("../whole-story/team/home.html".to_owned()),
         "how-team" | "night-how-team" => return Some("../web/whole-story/team/how.html".to_owned()),
         "how-approve" => return Some("../web/whole-story/pair/how.html".to_owned()),
-        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" | "how-reaches" | "night-how-reaches"
-        | "how-rules" | "how-rules-card" | "how-follows" | "night-how-follows" => {
+        "how" | "how-draft" | "how-yours" | "how-menu" | "how-card" | "night-how" | "how-reaches"
+        | "night-how-reaches" | "how-rules" | "how-rules-card" | "how-follows" | "night-how-follows" => {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),

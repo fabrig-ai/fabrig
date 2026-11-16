@@ -145,8 +145,8 @@ pub(crate) fn search(d: &mut Domain, wall: Wall, old: &LandingRow, row: &Landing
     if old.landing.preparation != row.landing.preparation || old.landing.round.search == row.landing.round.search {
         return;
     }
-    let Some(search) = row.landing.round.search else { return };
-    if let Some(previous) = old.landing.round.search {
+    let Some(search) = &row.landing.round.search else { return };
+    if let Some(previous) = &old.landing.round.search {
         if let Some(probe) = policy::probe(&old.landing) {
             let prefix = old.landing.members.get(usize::from(probe)).expect("probe").candidate;
             let event = step(old, history::What::ProbeEnded { green: search.green != previous.green }, prefix);

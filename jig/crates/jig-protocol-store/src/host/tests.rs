@@ -263,6 +263,7 @@ fn patching_world() -> World {
         owner: crate::Owner::Application,
         name: "fixture",
         families: &[crate::KeptFamily {
+            retired: &[],
             current: jig_test_patches::patches::kept::fixture_label::TEXTS[0],
             types: &[],
             name: "fixture-label",
@@ -272,12 +273,14 @@ fn patching_world() -> World {
             frames: None,
             flights: &[],
         }],
+        level: Some(0),
         patches: &[],
         fresh: Some("fresh"),
     };
     const BEFORE: crate::PatchSets = crate::PatchSets { sets: &[BASE] };
-    const AFTER: crate::PatchSets =
-        crate::PatchSets { sets: &[crate::PatchSet { patches: &["patch 1\nowner fixture 1\nmark fresh\n"], ..BASE }] };
+    const AFTER: crate::PatchSets = crate::PatchSets {
+        sets: &[crate::PatchSet { level: Some(1), patches: &["patch 1\nowner fixture 1\nmark fresh\n"], ..BASE }],
+    };
     let mut world = World::new();
     world.store.patch_sets(BEFORE);
     world.open();

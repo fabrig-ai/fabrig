@@ -146,6 +146,10 @@ impl Service {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.engine.as_ref()?.setup.page(forge, state, now)
     }
+    /// The binary's build name for the store floor (jig's protocol/store/records.md, 3).
+    pub fn build_name(&mut self, name: &'static str) {
+        self.engine.as_mut().expect("store build name has an engine").build_name(name);
+    }
     /// Test seam: replace this service's patch sets before `adopt_store`
     /// (protocol/baseline.md, 4). Production keeps the binary's sets.
     pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {

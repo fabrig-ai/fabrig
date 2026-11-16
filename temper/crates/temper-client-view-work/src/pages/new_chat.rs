@@ -165,7 +165,7 @@ pub fn main(
     b.close();
     if draft {
         let path = w.say(Word::DraftFile, &[Hole::Name(temper_client_domain::pages::chat::document::slug(b""))]);
-        super::document::empty(b, w, &path, &path, true, None);
+        super::document::empty(b, w, &path, &path, b"", None);
     }
     b.close();
 }

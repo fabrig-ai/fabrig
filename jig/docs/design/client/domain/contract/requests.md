@@ -75,6 +75,8 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
 | Operation | Names | Becomes |
 |---|---|---|
 | `Create` | a project; a batch: for each task its executor (an agent's charter, a procedure and its parameters, a person, or a role, which is the project's: roles are per project, `../../../domain/people/README.md`, section 1), spec, result contract (a report, a change or a verdict: an approval is a procedure's, `../../../domain/people/README.md`, section 7), authority, whose spend and deadline are the task's budget and deadline (`../../../domain/authority.md`, section 3), that budget as named there or `AsAllowed`, that deadline a wall or a span (below), wake policy, or none for its executor's default (`../../../domain/tasks/messages.md`, 3), as an agent's delegate may leave it, dependencies and inputs, the grants named after it (`../../../domain/authority.md`, section 4), tracked and priority, label and flags, and its LLM choice (its main model with its effort, the models its run's sub-agents may use with theirs, and an account, any of them left out for its charter's default, and optionally `later`, a main model with its effort and sub-agents with theirs for every run after its first activation's: `../../../domain/tasks/README.md`, section 3); and the dependencies among its tasks. The other resources a task will write are those its connectors name from its executor and spec (`../../../domain/tasks/README.md`, section 4) | the batch checked whole and made at once (`../../../domain/tasks/README.md`, section 4), its tasks numbered consecutively in the batch's order, the first and the last answered, and the `AsAllowed` task, if any, with what it was given |
+| `Delegate` | a project; a task, beneath which the batch is made; a batch, as `Create` names one (`../../../domain/tasks/README.md`, section 4) | the batch checked whole and made at once, the task's delegates: their requester and funder the task (`../../../domain/authority.md`, 8.4); answered as a `Create`'s |
+| `Conclude` | a project; a gathering (`../../../domain/tasks/gatherings.md`) | no delegate joins it from that decision, and it ends done once its delegates have ended (section 3 of it); answered done, also for one already concluded, which changes nothing |
 | `Propose` | a project; the action: a batch, or an amendment (a widening of a task's authority among them); a party makes no effect (`../../../domain/people/acts.md`, 1); or, in the deployment's scope, a change of settings, as `ChangeSettings` names it but for whether running work moves (`../../../domain/engine/settings.md`, 6); a reason | a proposal to whoever may accept it, its number answered (5) |
 | `Withdraw` | the party's own pending proposal | withdrawn |
 | `Message` | a task; the words | words in its inbox, their message number answered |
@@ -128,10 +130,11 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
   (`../../../domain/authority.md`, section 7), and the task keeps that
   wall. A request so carries no clock of its sender's, and is the same
   ask each time it is sent, under its key or its name (1).
-- **Where a party may reach.** A party's `Create` may depend on a live
-  task, or take an ended task's result as an input, in their tree, or
-  any task of the project for a maintainer; its tasks' requester is the
-  party. An agent reaches its
+- **Where a party may reach.** A party's `Create` or `Delegate` may depend on a live
+  task, or on one that has ended (one done adds no wait, one failed or
+  cancelled refuses it, *dependency*: `README.md`, section 3), or take an ended task's result as an input, in their tree, or
+  any task of the project for a maintainer; a `Create`'s tasks' requester is the
+  party, a `Delegate`'s the task it names. An agent reaches its
   delegates and the tasks it was introduced to (`../../../domain/tasks/messages.md`,
   5). An `Amend` that adds a dependency reaches as far as a `Create`
   would, and below the task it amends (`../../../domain/tasks/changes.md`

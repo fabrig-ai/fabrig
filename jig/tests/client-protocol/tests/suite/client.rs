@@ -268,7 +268,7 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, PROOF_WAIT));
     assert_eq!(story.answered(FAMILY_REQUEST), vec![]);
     story.restart_serving(jig_client_kit::test::list([
-        jig_protocol_engine_clients::Served { family: None, first: 24, last: 24 },
+        jig_protocol_engine_clients::Served { family: None, first: 26, last: 26 },
         jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
@@ -806,4 +806,101 @@ fn a_person_s_words_read_as_being_sent_then_sent_then_read() {
     };
     assert_eq!(thread.page((**page).clone()), None);
     assert_eq!(thread.words.rows.get(0).expect("read words").state, Words::Read { message: READ_MESSAGE });
+}
+
+#[test]
+fn conclude_crosses_the_wire_and_the_task_document_keeps_its_word() {
+    use skein_lib::List;
+    let mut story = Story::live_gathering(fixtures::SEED);
+    let mut task = fixtures::create_tasks().get(0).expect("root fixture").clone();
+    task.executor = contract::Executor::Procedure { connector: u16::MAX, code: 2 };
+    task.flags.ended_by = contract::EndedBy::Requester;
+    task.contract = contract::NewContract::Report { words: 128 };
+    let mut tasks = List::with_capacity(1);
+    tasks.push(task).expect("one gathering");
+    story.send(CREATE, Ask::Jig(Box::new(contract::Ask::Create { project: 1, tasks })));
+    assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
+    let answers = story.answered(CREATE);
+    let [
+        Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Created { first, .. },
+        )))),
+    ] = answers.as_slice()
+    else {
+        panic!("created gathering: {answers:?}")
+    };
+    let gathering = *first;
+    story.watch(PROJECT_PAGE, Watchable::Jig(contract::Subject::Task { task: gathering }));
+    assert!(story.run_until(
+        |s| {
+            s.client
+                .document(PROJECT_PAGE)
+                .is_some_and(|d| matches!(d.latest, Some(Latest::Jig(contract::Delivery::Task(_)))))
+        },
+        PROOF_WAIT
+    ));
+    let Some(Latest::Jig(contract::Delivery::Task(before))) =
+        story.client.document(PROJECT_PAGE).expect("watched task").latest
+    else {
+        panic!("task document")
+    };
+    assert_eq!(before.concluded, None);
+    story.send(SECOND_STOP, Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: gathering })));
+    assert!(story.run_until(|s| !s.answered(SECOND_STOP).is_empty(), PROOF_WAIT));
+    story.send(STOP, Ask::Jig(Box::new(contract::Ask::Conclude { project: 1, task: gathering })));
+    assert!(story.run_until(|s| !s.answered(STOP).is_empty(), PROOF_WAIT));
+    assert_eq!(
+        story.answered(STOP),
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Concluded { task: gathering }
+        ))))]
+    );
+    assert!(story.run_until(|s| matches!(s.client.document(PROJECT_PAGE).and_then(|d| d.latest), Some(Latest::Jig(contract::Delivery::Task(t))) if t.concluded.is_some()), PROOF_WAIT));
+    let Some(Latest::Jig(contract::Delivery::Task(after))) =
+        story.client.document(PROJECT_PAGE).expect("watched task").latest
+    else {
+        panic!("task document")
+    };
+    assert_eq!(after.concluded.expect("concluded").by, fixtures::FIRST_OWNER);
+}
+
+#[test]
+fn a_party_delegates_an_as_allowed_task_through_the_wire() {
+    use skein_lib::List;
+    const DELEGATE: Key = Key { asker: Asker::JIG, number: 180 };
+    let mut story = Story::live_gathering(fixtures::SEED);
+    let mut parent = fixtures::create_tasks().get(0).expect("root fixture").clone();
+    parent.executor = contract::Executor::Procedure { connector: u16::MAX, code: 2 };
+    parent.flags.ended_by = contract::EndedBy::Requester;
+    parent.contract = contract::NewContract::Report { words: 128 };
+    parent.budget = contract::NewBudget::Named;
+    parent.authority.spend = 30;
+    parent.authority.delegation.tasks = 1;
+    parent.authority.delegation.depth = 1;
+    parent.authority.delegation.kinds = List::with_capacity(1);
+    parent.authority.delegation.kinds.push(contract::AuthorityExecutor::Charter(1)).expect("one charter");
+    let mut tasks = List::with_capacity(1);
+    tasks.push(parent).expect("one gathering");
+    story.send(CREATE, Ask::Jig(Box::new(contract::Ask::Create { project: 1, tasks })));
+    assert!(story.run_until(|s| !s.answered(CREATE).is_empty(), PROOF_WAIT));
+    assert_eq!(story.task_budget(1), Some(30));
+    let mut member = fixtures::create_tasks().get(0).expect("member fixture").clone();
+    member.budget = contract::NewBudget::AsAllowed { cap: None };
+    let mut tasks = List::with_capacity(1);
+    tasks.push(member).expect("one delegate");
+    story.send(DELEGATE, Ask::Jig(Box::new(contract::Ask::Delegate { project: 1, task: 1, tasks })));
+    assert!(story.run_until(|s| !s.answered(DELEGATE).is_empty(), PROOF_WAIT));
+    assert_eq!(
+        story.answered(DELEGATE),
+        vec![Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+            contract::DocumentOutcome::Created {
+                first: 2,
+                last: 2,
+                given: Some(contract::CreatedGiven { task: 2, amount: 30 })
+            }
+        ))))]
+    );
+    assert_eq!(story.task_budget(2), Some(30));
+    assert!(story.run_until(|s| s.worker_budget(2).is_some(), PROOF_WAIT));
+    assert_eq!(story.worker_budget(2), Some(30));
 }

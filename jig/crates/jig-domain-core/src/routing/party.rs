@@ -4,6 +4,7 @@
 
 pub(crate) mod account_requests;
 pub(crate) mod amendment_reads;
+pub(crate) mod batch_reads;
 pub(crate) mod controls;
 pub(crate) mod create;
 pub(crate) mod decisions;

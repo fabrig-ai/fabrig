@@ -194,6 +194,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        concluded: None,
         session: None,
         talk: None,
         activation_open: false,

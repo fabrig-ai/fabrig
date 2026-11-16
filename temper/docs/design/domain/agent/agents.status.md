@@ -1,8 +1,14 @@
 # agents: status
 
-2026-11-12. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-16. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
+- **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`
+  draw a flow only where a sequence says more drawn, with no example and
+  no word on one path a flow or options in a table; `ask.txt`'s
+  *Showing* opens "Show a picture when it explains better than words",
+  sketches nothing, and its document line asks for no drawing [in flight:
+  change 4459].
 - **Not yet:** 1: a standing role's row: the stock's charter 13 and template 7 (`standing.md`, section 2).
 
 - **Not yet:** 1: nothing tells Ask temper's runs that a proposal of a
@@ -11,7 +17,7 @@
   has it, and the tools' declarations and `help settings` name the kind
   and its members alone; no story proposes one. Stage one's golden asks
   it of the reference's (`../../testing/checks.status.md`, 5.1).
-- **Not yet:** 3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The real loop's `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` (`temper/tests/real-loop/tests/suite/notes.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the story sets to `resume: false` where the stock one resumes, so a goal's later run has no such story. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
+- **Not yet:** 3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The system world's `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` (`temper/tests/system/tests/suite/notes.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the story sets to `resume: false` where the stock one resumes, so a goal's later run has no such story. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
 - **Departs:** 3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

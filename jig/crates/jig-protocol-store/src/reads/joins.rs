@@ -22,7 +22,6 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
             | tasks::Stored::ClosedLedger(_)
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
-            | tasks::Stored::Milestone(_)
             | tasks::Stored::Attempt(_)
             | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)

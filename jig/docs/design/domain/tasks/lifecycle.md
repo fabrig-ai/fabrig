@@ -479,9 +479,12 @@ batch per asker; the core numbers each notice once.
 A task is ended by its result, by its requester or by its closer (11),
 or it stands, ended only by a cancel (`standing.md`, section 2):
 its `ended_by`, fixed at its making. A result ends it by default. Its requester may end it
-only if it is an agent's conversation with a person, its requester;
+only if it is an agent's conversation with a person, its requester, or
+a gathering a person requested (`gatherings.md`);
 making it refuses any other shape, and a restart takes what was made
-(../engine/restart.md). It changes no right
+(../engine/restart.md). A gathering has no run, so what follows is an
+agent's: its requester's `Conclude` is its word, and it ends done once
+that is said and its delegates have ended (`gatherings.md`, section 3). It changes no right
 to cancel. It travels with the task from the client's making, through
 storage and preparation, to its run's charter (../hosts/charters.md, 1),
 whatever the charter the task's agent shares with others.
@@ -815,6 +818,13 @@ record HoldRow { task: u64 position: u64 held: Held at: u64 }
   rows.
 
 ### 12.4 From milestones
+
+Every store at or past dev.fabrig.ai's has run the job this section
+describes, so since store-floor's F0 (temper's `draft/store-floor.md`,
+section 2) the tasks' milestone variant is gone from the schema, its
+value type is retired with its range (`../../protocol/store/layouts.md`,
+2), and the job is no longer declared: a store that still holds a
+milestone is refused at open. What it did:
 
 A store written before this design holds a row per phase change,
 `Milestone { task, position, phase, at }` at `01 01 0a <task>

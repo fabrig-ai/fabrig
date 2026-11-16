@@ -14,6 +14,7 @@ const REAL: &str = include_str!("fixtures/smith-transcript-v7.schema");
 // Smith's real turn alone, as its set keeps it from the baseline on.
 const REAL_SETS: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
+        level: Some(0),
         patches: &[],
         fresh: None,
         families: &[crate::KeptFamily {

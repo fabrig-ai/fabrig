@@ -177,8 +177,10 @@ pub(super) fn make_service(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::Create { .. }
+        | Ask::Delegate { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
+        | Ask::Conclude { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
         | Ask::Lift { .. }

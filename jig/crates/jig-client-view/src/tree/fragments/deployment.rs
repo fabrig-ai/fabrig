@@ -2,7 +2,6 @@
 //! Supplied clocks, loss counters and identities stay independent.
 pub(crate) mod accounts;
 pub(crate) mod hello;
-pub(crate) use hello::refusal as hello_refusal;
 pub(crate) mod programs;
 use crate::words::Words;
 use crate::words::deployment_words::{AccountPhrase as A, DeploymentPhrase as P};
@@ -10,21 +9,16 @@ use crate::{JigBindings, Owner};
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Key, Role, Run};
 
+use crate::words::fragments::hello::duration;
+pub(crate) use crate::words::fragments::hello::{field_number, text};
 use crate::{Borrowed, Config};
 use hello::hello;
 use jig_client::contract::{
     AccountPlace, AccountState, AccountUnread, AdmissionLimit, AttemptState, Capacity, Deployment, Funder,
-    HelloRefusal, HelloRefusalLine, HostKind, HostRun, PersonCapacityAction, PersonCapacityCause, Proposer,
-    RunLocation, SeenThrough, TaskCapacityAction, TaskCapacityCause,
+    HelloRefusalLine, HostKind, HostRun, PersonCapacityAction, PersonCapacityCause, Proposer, RunLocation, SeenThrough,
+    TaskCapacityAction, TaskCapacityCause,
 };
 use skein_lib::{Duration, Wall};
-pub(crate) fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
-    let saying = words.book().say(words.language(), phrase.id(), holes).expect("deployment sayings checked");
-    b.text(Run::Plain, &saying.text);
-}
-pub(crate) fn field_number(b: &mut Builder, words: &Words, phrase: P, value: u64) {
-    text(b, words, phrase, &[Hole::Number(value)]);
-}
 fn region(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole], key: Option<Key>) {
     match key {
         Some(key) => {
@@ -46,9 +40,6 @@ fn wall(b: &mut Builder, words: &Words, phrase: P, absent: P, value: Option<Wall
         Some(value) => text(b, words, phrase, &[Hole::Wall(words.adjusted_wall(value))]),
         None => text(b, words, absent, &[]),
     }
-}
-fn duration(b: &mut Builder, words: &Words, phrase: P, value: Duration) {
-    text(b, words, phrase, &[Hole::Span(value)]);
 }
 fn optional_duration(b: &mut Builder, words: &Words, phrase: P, value: Option<Duration>) {
     match value {
@@ -273,6 +264,10 @@ fn person_action(b: &mut Builder, words: &Words, value: PersonCapacityAction) {
         }
         PersonCapacityAction::Stop { task } => {
             text(b, words, P::PersonCapacityActionStop, &[]);
+            field_number(b, words, P::Task, task);
+        }
+        PersonCapacityAction::Conclude { task } => {
+            text(b, words, P::PersonCapacityActionConclude, &[]);
             field_number(b, words, P::Task, task);
         }
         PersonCapacityAction::Cancel { task } => {

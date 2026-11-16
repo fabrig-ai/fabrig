@@ -1198,16 +1198,6 @@ pub enum Path {
     PersonProposalState,
     /// Bytes after `PersonProposal`.
     PersonProposalTail,
-    /// The `task` field of `Milestone`.
-    MilestoneTask,
-    /// The `position` field of `Milestone`.
-    MilestonePosition,
-    /// The `phase` field of `Milestone`.
-    MilestonePhase,
-    /// The `at` field of `Milestone`.
-    MilestoneAt,
-    /// Bytes after `Milestone`.
-    MilestoneTail,
     /// The `task` field of `HoldRow`.
     HoldRowTask,
     /// The `position` field of `HoldRow`.
@@ -1982,10 +1972,18 @@ pub enum Path {
     BeforeTalkQuestionWoken,
     /// Bytes after `BeforeTalk`.
     BeforeTalkTail,
+    /// The `by` field of `Concluded`.
+    ConcludedBy,
+    /// The `at` field of `Concluded`.
+    ConcludedAt,
+    /// Bytes after `Concluded`.
+    ConcludedTail,
     /// The `record` field of `TaskRecord`.
     TaskRecordRecord,
     /// The `talk` field of `TaskRecord`.
     TaskRecordTalk,
+    /// The `concluded` field of `TaskRecord`.
+    TaskRecordConcluded,
     /// Bytes after `TaskRecord`.
     TaskRecordTail,
     /// The `last_activity` field of `HotHistory`.
@@ -2086,6 +2084,8 @@ pub enum Path {
     LiveHotQuestionWoken,
     /// The `talk` field of `LiveHot`.
     LiveHotTalk,
+    /// The `concluded` field of `LiveHot`.
+    LiveHotConcluded,
     /// Bytes after `LiveHot`.
     LiveHotTail,
     /// The `spec` field of `LiveCold`.
@@ -2442,6 +2442,10 @@ pub enum Path {
     TalkOpenParty,
     /// Bytes after `TalkOpen`.
     TalkOpenTail,
+    /// The `at` field of `RefusalConcluded`.
+    RefusalConcludedAt,
+    /// Bytes after `RefusalConcluded`.
+    RefusalConcludedTail,
     /// The tag of `Refusal`.
     RefusalTag,
     /// The `task` field of `TaskProblem`.
@@ -8021,6 +8025,10 @@ pub enum Change {
     ProposalRejected,
     /// `proposal_withdrawn` without a payload.
     ProposalWithdrawn,
+    /// `concluded` without a payload.
+    Concluded,
+    /// `made` without a payload.
+    Made,
 }
 
 impl Change {
@@ -8549,63 +8557,6 @@ impl PersonProposal {
         self.action.check(limits)?;
         if self.reason.len() > usize::try_from(limits.person_proposal_reason.min(CEILINGS.person_proposal_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::PersonProposalReason, reason: skein_codec::Reason::Bound }); }
         self.state.check(limits)?;
-        Ok(())
-    }
-}
-
-/// Movable fields of `Milestone`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MilestoneParts {
-    /// The `task` field.
-    pub task: u64,
-    /// The `position` field.
-    pub position: u64,
-    /// The `phase` field.
-    pub phase: Phase,
-    /// The `at` field.
-    pub at: u64,
-}
-
-/// `Milestone` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Milestone {
-    task: u64,
-    position: u64,
-    phase: Phase,
-    at: u64,
-}
-
-impl Milestone {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: MilestoneParts) -> Result<Self, Problem> {
-        let MilestoneParts { task, position, phase, at } = parts;
-        let value = Self { task, position, phase, at };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `task` field.
-    #[must_use]
-    pub fn task(&self) -> u64 { self.task }
-
-    /// Reads the `position` field.
-    #[must_use]
-    pub fn position(&self) -> u64 { self.position }
-
-    /// Reads the `phase` field.
-    #[must_use]
-    pub fn phase(&self) -> &Phase { &self.phase }
-
-    /// Reads the `at` field.
-    #[must_use]
-    pub fn at(&self) -> u64 { self.at }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MilestoneParts { MilestoneParts { task: self.task, position: self.position, phase: self.phase, at: self.at } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        self.phase.check(limits)?;
         Ok(())
     }
 }
@@ -13271,6 +13222,44 @@ impl BeforeTalk {
     }
 }
 
+/// Movable fields of `Concluded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ConcludedParts {
+    /// The `by` field.
+    pub by: u64,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `Concluded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Concluded {
+    by: u64,
+    at: u64,
+}
+
+impl Concluded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ConcludedParts) -> Result<Self, Problem> {
+        let ConcludedParts { by, at } = parts;
+        let value = Self { by, at };
+        Ok(value)
+    }
+
+    /// Reads the `by` field.
+    #[must_use]
+    pub fn by(&self) -> u64 { self.by }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ConcludedParts { ConcludedParts { by: self.by, at: self.at } }
+
+}
+
 /// Movable fields of `TaskRecord`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskRecordParts {
@@ -13278,6 +13267,8 @@ pub struct TaskRecordParts {
     pub record: BeforeTalk,
     /// The `talk` field.
     pub talk: Option<Talk>,
+    /// The `concluded` field.
+    pub concluded: Option<Concluded>,
 }
 
 /// `TaskRecord` in this codec family.
@@ -13285,13 +13276,14 @@ pub struct TaskRecordParts {
 pub struct TaskRecord {
     record: BeforeTalk,
     talk: Option<Talk>,
+    concluded: Option<Concluded>,
 }
 
 impl TaskRecord {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: TaskRecordParts) -> Result<Self, Problem> {
-        let TaskRecordParts { record, talk } = parts;
-        let value = Self { record, talk };
+        let TaskRecordParts { record, talk, concluded } = parts;
+        let value = Self { record, talk, concluded };
         value.check(limits)?;
         Ok(value)
     }
@@ -13304,9 +13296,13 @@ impl TaskRecord {
     #[must_use]
     pub fn talk(&self) -> &Option<Talk> { &self.talk }
 
+    /// Reads the `concluded` field.
+    #[must_use]
+    pub fn concluded(&self) -> &Option<Concluded> { &self.concluded }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> TaskRecordParts { TaskRecordParts { record: self.record, talk: self.talk } }
+    pub fn into_parts(self) -> TaskRecordParts { TaskRecordParts { record: self.record, talk: self.talk, concluded: self.concluded } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.record.check(limits)?;
@@ -13660,6 +13656,8 @@ pub struct LiveHotParts {
     pub question_woken: u64,
     /// The `talk` field.
     pub talk: Option<Talk>,
+    /// The `concluded` field.
+    pub concluded: Option<Concluded>,
 }
 
 /// `LiveHot` in this codec family.
@@ -13677,13 +13675,14 @@ pub struct LiveHot {
     asked_requester: bool,
     question_woken: u64,
     talk: Option<Talk>,
+    concluded: Option<Concluded>,
 }
 
 impl LiveHot {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LiveHotParts) -> Result<Self, Problem> {
-        let LiveHotParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk } = parts;
-        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk };
+        let LiveHotParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded } = parts;
+        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded };
         value.check(limits)?;
         Ok(value)
     }
@@ -13736,9 +13735,13 @@ impl LiveHot {
     #[must_use]
     pub fn talk(&self) -> &Option<Talk> { &self.talk }
 
+    /// Reads the `concluded` field.
+    #[must_use]
+    pub fn concluded(&self) -> &Option<Concluded> { &self.concluded }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LiveHotParts { LiveHotParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, talk: self.talk } }
+    pub fn into_parts(self) -> LiveHotParts { LiveHotParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, talk: self.talk, concluded: self.concluded } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.history.check(limits)?;
@@ -14634,16 +14637,12 @@ pub enum Value {
     Pool(PoolSlots),
     /// `history` carrying `Box<History>`.
     History(Box<History>),
-    /// `milestone` carrying `Milestone`.
-    Milestone(Milestone),
     /// `person_proposal` carrying `PersonProposal`.
     PersonProposal(PersonProposal),
     /// `decided_proposal` carrying `PersonProposal`.
     DecidedProposal(PersonProposal),
     /// `activity` carrying `ActivityLine`.
     Activity(ActivityLine),
-    /// `live` carrying `BeforeTalk`.
-    Live(BeforeTalk),
     /// `ended` carrying `BeforeTalk`.
     Ended(BeforeTalk),
     /// `stub` carrying `Stub`.
@@ -14662,8 +14661,6 @@ pub enum Value {
     EndedByProject(EndedByProject),
     /// `placed_hold` carrying `PlacedHold`.
     PlacedHold(PlacedHold),
-    /// `live_talk` carrying `TaskRecord`.
-    LiveTalk(TaskRecord),
     /// `ended_talk` carrying `TaskRecord`.
     EndedTalk(TaskRecord),
     /// `attempt` carrying `AttemptRow`.
@@ -14692,12 +14689,11 @@ impl Value {
             Self::Writer(record) => WriterSlot::check(record, limits),
             Self::Pool(record) => PoolSlots::check(record, limits),
             Self::History(record) => History::check(record, limits),
-            Self::Milestone(record) => Milestone::check(record, limits),
             Self::PersonProposal(record) | Self::DecidedProposal(record) => PersonProposal::check(record, limits),
             Self::Activity(record) => ActivityLine::check(record, limits),
-            Self::Live(record) | Self::Ended(record) => BeforeTalk::check(record, limits),
+            Self::Ended(record) => BeforeTalk::check(record, limits),
             Self::PlacedHold(record) => PlacedHold::check(record, limits),
-            Self::LiveTalk(record) | Self::EndedTalk(record) => TaskRecord::check(record, limits),
+            Self::EndedTalk(record) => TaskRecord::check(record, limits),
             Self::Hold(record) => HoldRow::check(record, limits),
             Self::LiveHot(record) => LiveHot::check(record, limits),
             Self::LiveCold(record) => LiveCold::check(record, limits),
@@ -16172,6 +16168,37 @@ impl TalkOpen {
 
 }
 
+/// Movable fields of `RefusalConcluded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalConcludedParts {
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `RefusalConcluded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalConcluded {
+    at: u64,
+}
+
+impl RefusalConcluded {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RefusalConcludedParts) -> Result<Self, Problem> {
+        let RefusalConcludedParts { at } = parts;
+        let value = Self { at };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RefusalConcludedParts { RefusalConcludedParts { at: self.at } }
+
+}
+
 /// `Refusal` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
@@ -16269,6 +16296,8 @@ pub enum Refusal {
     TalkOpen(TalkOpen),
     /// `no_talk` without a payload.
     NoTalk,
+    /// `concluded` carrying `RefusalConcluded`.
+    Concluded(RefusalConcluded),
 }
 
 impl Refusal {
@@ -22283,7 +22312,7 @@ impl Change {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Cancelled | Self::Released | Self::Amended | Self::Moved | Self::Proposed | Self::ProposalPassed | Self::ProposalAccepted | Self::ProposalRejected | Self::ProposalWithdrawn => 1,
+            Self::Cancelled | Self::Released | Self::Amended | Self::Moved | Self::Proposed | Self::ProposalPassed | Self::ProposalAccepted | Self::ProposalRejected | Self::ProposalWithdrawn | Self::Concluded | Self::Made => 1,
         }
     }
 
@@ -22299,6 +22328,8 @@ impl Change {
             Self::ProposalAccepted => writer.put(&[6_u8])?,
             Self::ProposalRejected => writer.put(&[7_u8])?,
             Self::ProposalWithdrawn => writer.put(&[8_u8])?,
+            Self::Concluded => writer.put(&[9_u8])?,
+            Self::Made => writer.put(&[10_u8])?,
         }
         Ok(())
     }
@@ -22322,6 +22353,8 @@ impl Change {
             6 => Self::ProposalAccepted,
             7 => Self::ProposalRejected,
             8 => Self::ProposalWithdrawn,
+            9 => Self::Concluded,
+            10 => Self::Made,
             _ => return Err(Problem { path: Path::ChangeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -22839,48 +22872,6 @@ impl PersonProposal {
         let decoded_reason = { let length = match skein_codec::read_len(reader, limits.person_proposal_reason.min(CEILINGS.person_proposal_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PersonProposalReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PersonProposalReason, reason: skein_codec::Reason::Short })?) };
         let decoded_state = PersonProposalState::decode_from(limits, reader)?;
         Ok(Self { number: decoded_number, proposer: decoded_proposer, project: decoded_project, action: decoded_action, reason: decoded_reason, state: decoded_state })
-    }
-}
-
-impl Milestone {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_phase = &self.phase;
-        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_task = &self.task;
-        writer.put(&field_task.to_be_bytes())?;
-        let field_position = &self.position;
-        writer.put(&field_position.to_be_bytes())?;
-        let field_phase = &self.phase;
-        field_phase.encode(writer)?;
-        let field_at = &self.at;
-        writer.put(&field_at.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::MilestoneTask, reason: skein_codec::Reason::Short })?;
-        let decoded_position = reader.u64().ok_or(Problem { path: Path::MilestonePosition, reason: skein_codec::Reason::Short })?;
-        let decoded_phase = Phase::decode_from(limits, reader)?;
-        let decoded_at = reader.u64().ok_or(Problem { path: Path::MilestoneAt, reason: skein_codec::Reason::Short })?;
-        Ok(Self { task: decoded_task, position: decoded_position, phase: decoded_phase, at: decoded_at })
     }
 }
 
@@ -27502,6 +27493,39 @@ impl BeforeTalk {
     }
 }
 
+impl Concluded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_by = &self.by;
+        writer.put(&field_by.to_be_bytes())?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ConcludedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_by = reader.u64().ok_or(Problem { path: Path::ConcludedBy, reason: skein_codec::Reason::Short })?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::ConcludedAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { by: decoded_by, at: decoded_at })
+    }
+}
+
 impl TaskRecord {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -27514,6 +27538,11 @@ impl TaskRecord {
         if field_talk.is_some() {
         size = size.checked_add(24).expect("schema ceilings fit u32");
         }
+        let field_concluded = &self.concluded;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_concluded.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -27523,6 +27552,14 @@ impl TaskRecord {
         field_record.encode(writer)?;
         let field_talk = &self.talk;
         match field_talk {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_concluded = &self.concluded;
+        match field_concluded {
             Some(some_0) => {
                 writer.put(&[1_u8])?;
         some_0.encode(writer)?;
@@ -27542,7 +27579,8 @@ impl TaskRecord {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_record = BeforeTalk::decode_from(limits, reader)?;
         let decoded_talk = match reader.u8().ok_or(Problem { path: Path::TaskRecordTalk, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Talk::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TaskRecordTalk, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { record: decoded_record, talk: decoded_talk })
+        let decoded_concluded = match reader.u8().ok_or(Problem { path: Path::TaskRecordConcluded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Concluded::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TaskRecordConcluded, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { record: decoded_record, talk: decoded_talk, concluded: decoded_concluded })
     }
 }
 
@@ -27930,6 +27968,11 @@ impl LiveHot {
         if field_talk.is_some() {
         size = size.checked_add(24).expect("schema ceilings fit u32");
         }
+        let field_concluded = &self.concluded;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_concluded.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -27980,6 +28023,14 @@ impl LiveHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_concluded = &self.concluded;
+        match field_concluded {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -28003,7 +28054,8 @@ impl LiveHot {
         let decoded_asked_requester = match reader.u8().ok_or(Problem { path: Path::LiveHotAskedRequester, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LiveHotAskedRequester, reason: skein_codec::Reason::Bool }) };
         let decoded_question_woken = reader.u64().ok_or(Problem { path: Path::LiveHotQuestionWoken, reason: skein_codec::Reason::Short })?;
         let decoded_talk = match reader.u8().ok_or(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Talk::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, talk: decoded_talk })
+        let decoded_concluded = match reader.u8().ok_or(Problem { path: Path::LiveHotConcluded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Concluded::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotConcluded, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, talk: decoded_talk, concluded: decoded_concluded })
     }
 }
 
@@ -28874,10 +28926,9 @@ impl Value {
             Self::Writer(record) => 1_u32.checked_add(WriterSlot::measure(record)).expect("schema ceilings fit u32"),
             Self::Pool(record) => 1_u32.checked_add(PoolSlots::measure(record)).expect("schema ceilings fit u32"),
             Self::History(record) => 1_u32.checked_add(History::measure(record)).expect("schema ceilings fit u32"),
-            Self::Milestone(record) => 1_u32.checked_add(Milestone::measure(record)).expect("schema ceilings fit u32"),
             Self::PersonProposal(record) | Self::DecidedProposal(record) => 1_u32.checked_add(PersonProposal::measure(record)).expect("schema ceilings fit u32"),
             Self::Activity(record) => 1_u32.checked_add(ActivityLine::measure(record)).expect("schema ceilings fit u32"),
-            Self::Live(record) | Self::Ended(record) => 1_u32.checked_add(BeforeTalk::measure(record)).expect("schema ceilings fit u32"),
+            Self::Ended(record) => 1_u32.checked_add(BeforeTalk::measure(record)).expect("schema ceilings fit u32"),
             Self::Stub(record) => 1_u32.checked_add(Stub::measure(record)).expect("schema ceilings fit u32"),
             Self::Update(record) => 1_u32.checked_add(Update::measure(record)).expect("schema ceilings fit u32"),
             Self::Result(record) => 1_u32.checked_add(ResultRow::measure(record)).expect("schema ceilings fit u32"),
@@ -28885,7 +28936,7 @@ impl Value {
             Self::EndedByParty(record) => 1_u32.checked_add(EndedByParty::measure(record)).expect("schema ceilings fit u32"),
             Self::EndedByProject(record) => 1_u32.checked_add(EndedByProject::measure(record)).expect("schema ceilings fit u32"),
             Self::PlacedHold(record) => 1_u32.checked_add(PlacedHold::measure(record)).expect("schema ceilings fit u32"),
-            Self::LiveTalk(record) | Self::EndedTalk(record) => 1_u32.checked_add(TaskRecord::measure(record)).expect("schema ceilings fit u32"),
+            Self::EndedTalk(record) => 1_u32.checked_add(TaskRecord::measure(record)).expect("schema ceilings fit u32"),
             Self::Attempt(record) => 1_u32.checked_add(AttemptRow::measure(record)).expect("schema ceilings fit u32"),
             Self::Hold(record) => 1_u32.checked_add(HoldRow::measure(record)).expect("schema ceilings fit u32"),
             Self::LiveHot(record) => 1_u32.checked_add(LiveHot::measure(record)).expect("schema ceilings fit u32"),
@@ -28903,28 +28954,25 @@ impl Value {
             Self::Writer(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
             Self::Pool(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
             Self::History(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
-            Self::Milestone(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
-            Self::PersonProposal(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
-            Self::DecidedProposal(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
-            Self::Activity(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
-            Self::Live(record) => { writer.put(&[9_u8])?; record.encode(writer)?; }
-            Self::Ended(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
-            Self::Stub(record) => { writer.put(&[11_u8])?; record.encode(writer)?; }
-            Self::Update(record) => { writer.put(&[12_u8])?; record.encode(writer)?; }
-            Self::Result(record) => { writer.put(&[13_u8])?; record.encode(writer)?; }
-            Self::EndedDelegate(record) => { writer.put(&[14_u8])?; record.encode(writer)?; }
-            Self::Delegate(record) => { writer.put(&[15_u8])?; record.encode(writer)?; }
-            Self::EndedByParty(record) => { writer.put(&[16_u8])?; record.encode(writer)?; }
-            Self::EndedByProject(record) => { writer.put(&[17_u8])?; record.encode(writer)?; }
-            Self::PlacedHold(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
-            Self::LiveTalk(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
-            Self::EndedTalk(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
-            Self::Attempt(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
-            Self::Hold(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
-            Self::LiveHot(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
-            Self::LiveCold(record) => { writer.put(&[24_u8])?; record.encode(writer)?; }
-            Self::Summary(record) => { writer.put(&[25_u8])?; record.encode(writer)?; }
-            Self::Retention(record) => { writer.put(&[26_u8])?; record.encode(writer)?; }
+            Self::PersonProposal(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::DecidedProposal(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Activity(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
+            Self::Ended(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
+            Self::Stub(record) => { writer.put(&[9_u8])?; record.encode(writer)?; }
+            Self::Update(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
+            Self::Result(record) => { writer.put(&[11_u8])?; record.encode(writer)?; }
+            Self::EndedDelegate(record) => { writer.put(&[12_u8])?; record.encode(writer)?; }
+            Self::Delegate(record) => { writer.put(&[13_u8])?; record.encode(writer)?; }
+            Self::EndedByParty(record) => { writer.put(&[14_u8])?; record.encode(writer)?; }
+            Self::EndedByProject(record) => { writer.put(&[15_u8])?; record.encode(writer)?; }
+            Self::PlacedHold(record) => { writer.put(&[16_u8])?; record.encode(writer)?; }
+            Self::EndedTalk(record) => { writer.put(&[17_u8])?; record.encode(writer)?; }
+            Self::Attempt(record) => { writer.put(&[18_u8])?; record.encode(writer)?; }
+            Self::Hold(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
+            Self::LiveHot(record) => { writer.put(&[20_u8])?; record.encode(writer)?; }
+            Self::LiveCold(record) => { writer.put(&[21_u8])?; record.encode(writer)?; }
+            Self::Summary(record) => { writer.put(&[22_u8])?; record.encode(writer)?; }
+            Self::Retention(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -28944,28 +28992,25 @@ impl Value {
             2 => Self::Writer(WriterSlot::decode_from(limits, reader)?),
             3 => Self::Pool(PoolSlots::decode_from(limits, reader)?),
             4 => Self::History(Box::new(History::decode_from(limits, reader)?)),
-            5 => Self::Milestone(Milestone::decode_from(limits, reader)?),
-            6 => Self::PersonProposal(PersonProposal::decode_from(limits, reader)?),
-            7 => Self::DecidedProposal(PersonProposal::decode_from(limits, reader)?),
-            8 => Self::Activity(ActivityLine::decode_from(limits, reader)?),
-            9 => Self::Live(BeforeTalk::decode_from(limits, reader)?),
-            10 => Self::Ended(BeforeTalk::decode_from(limits, reader)?),
-            11 => Self::Stub(Stub::decode_from(limits, reader)?),
-            12 => Self::Update(Update::decode_from(limits, reader)?),
-            13 => Self::Result(ResultRow::decode_from(limits, reader)?),
-            14 => Self::EndedDelegate(Edge::decode_from(limits, reader)?),
-            15 => Self::Delegate(Edge::decode_from(limits, reader)?),
-            16 => Self::EndedByParty(EndedByParty::decode_from(limits, reader)?),
-            17 => Self::EndedByProject(EndedByProject::decode_from(limits, reader)?),
-            18 => Self::PlacedHold(PlacedHold::decode_from(limits, reader)?),
-            19 => Self::LiveTalk(TaskRecord::decode_from(limits, reader)?),
-            20 => Self::EndedTalk(TaskRecord::decode_from(limits, reader)?),
-            21 => Self::Attempt(AttemptRow::decode_from(limits, reader)?),
-            22 => Self::Hold(HoldRow::decode_from(limits, reader)?),
-            23 => Self::LiveHot(LiveHot::decode_from(limits, reader)?),
-            24 => Self::LiveCold(LiveCold::decode_from(limits, reader)?),
-            25 => Self::Summary(Box::new(TaskSummary::decode_from(limits, reader)?)),
-            26 => Self::Retention(RetentionRow::decode_from(limits, reader)?),
+            5 => Self::PersonProposal(PersonProposal::decode_from(limits, reader)?),
+            6 => Self::DecidedProposal(PersonProposal::decode_from(limits, reader)?),
+            7 => Self::Activity(ActivityLine::decode_from(limits, reader)?),
+            8 => Self::Ended(BeforeTalk::decode_from(limits, reader)?),
+            9 => Self::Stub(Stub::decode_from(limits, reader)?),
+            10 => Self::Update(Update::decode_from(limits, reader)?),
+            11 => Self::Result(ResultRow::decode_from(limits, reader)?),
+            12 => Self::EndedDelegate(Edge::decode_from(limits, reader)?),
+            13 => Self::Delegate(Edge::decode_from(limits, reader)?),
+            14 => Self::EndedByParty(EndedByParty::decode_from(limits, reader)?),
+            15 => Self::EndedByProject(EndedByProject::decode_from(limits, reader)?),
+            16 => Self::PlacedHold(PlacedHold::decode_from(limits, reader)?),
+            17 => Self::EndedTalk(TaskRecord::decode_from(limits, reader)?),
+            18 => Self::Attempt(AttemptRow::decode_from(limits, reader)?),
+            19 => Self::Hold(HoldRow::decode_from(limits, reader)?),
+            20 => Self::LiveHot(LiveHot::decode_from(limits, reader)?),
+            21 => Self::LiveCold(LiveCold::decode_from(limits, reader)?),
+            22 => Self::Summary(Box::new(TaskSummary::decode_from(limits, reader)?)),
+            23 => Self::Retention(RetentionRow::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -30450,6 +30495,35 @@ impl TalkOpen {
     }
 }
 
+impl RefusalConcluded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RefusalConcludedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::RefusalConcludedAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at })
+    }
+}
+
 impl Refusal {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -30465,6 +30539,7 @@ impl Refusal {
             Self::HoldRevision(record) => 1_u32.checked_add(RefusalHoldRevision::measure(record)).expect("schema ceilings fit u32"),
             Self::KeptQuestion(record) | Self::PersonAnswers(record) => 1_u32.checked_add(AnswerMessage::measure(record)).expect("schema ceilings fit u32"),
             Self::TalkOpen(record) => 1_u32.checked_add(TalkOpen::measure(record)).expect("schema ceilings fit u32"),
+            Self::Concluded(record) => 1_u32.checked_add(RefusalConcluded::measure(record)).expect("schema ceilings fit u32"),
             Self::Goals | Self::Grace | Self::Unproposable | Self::ResourceUnavailable | Self::NotReady | Self::Unknown | Self::Busy | Self::Duplicate | Self::Empty | Self::Batch | Self::Live | Self::Project | Self::Tree | Self::Depth | Self::Delegates | Self::Reference | Self::Subscription | Self::Dependencies | Self::Executor | Self::Spec | Self::Contract | Self::AuthorityShape | Self::Inputs | Self::State | Self::Attempt | Self::LiveDelegates | Self::Restore | Self::Read | Self::Turn | Self::Funding | Self::HoldKind | Self::HoldTaken | Self::Holds | Self::Kept | Self::NotStanding | Self::NoTalk => 1,
         }
     }
@@ -30519,6 +30594,7 @@ impl Refusal {
             Self::NotStanding => writer.put(&[44_u8])?,
             Self::TalkOpen(record) => { writer.put(&[45_u8])?; record.encode(writer)?; }
             Self::NoTalk => writer.put(&[46_u8])?,
+            Self::Concluded(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -30580,6 +30656,7 @@ impl Refusal {
             44 => Self::NotStanding,
             45 => Self::TalkOpen(TalkOpen::decode_from(limits, reader)?),
             46 => Self::NoTalk,
+            47 => Self::Concluded(RefusalConcluded::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::RefusalTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -35364,36 +35441,6 @@ impl PersonProposal {
     }
 }
 
-impl Milestone {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(Phase::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Phase::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
 impl HoldRow {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -38436,6 +38483,34 @@ impl BeforeTalk {
     }
 }
 
+impl Concluded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl TaskRecord {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -38447,6 +38522,7 @@ impl TaskRecord {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(BeforeTalk::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(Talk::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Concluded::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -38460,6 +38536,7 @@ impl TaskRecord {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(BeforeTalk::decoded_bound_within(limits)?)?.checked_add(Talk::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Concluded::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -38568,6 +38645,7 @@ impl LiveHot {
         size = size.checked_add(4_u64.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::encoded_bound_within(limits)?)?;
         size = size.checked_add(TaskOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
         size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(Talk::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Concluded::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -38586,6 +38664,7 @@ impl LiveHot {
         heap = heap.checked_add(List::<Number>::price(limits.live_hot_started_from)?.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(TaskOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(Talk::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Concluded::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -39144,18 +39223,16 @@ impl Value {
         let mut biggest = 0_u64;
         biggest = biggest.max(FundingRecord::encoded_bound_within(limits)?).max(FundingRecord::encoded_bound_within(limits)?);
         biggest = biggest.max(WriterSlot::encoded_bound_within(limits)?).max(PoolSlots::encoded_bound_within(limits)?);
-        biggest = biggest.max(History::encoded_bound_within(limits)?).max(Milestone::encoded_bound_within(limits)?);
-        biggest = biggest.max(PersonProposal::encoded_bound_within(limits)?).max(PersonProposal::encoded_bound_within(limits)?);
-        biggest = biggest.max(ActivityLine::encoded_bound_within(limits)?).max(BeforeTalk::encoded_bound_within(limits)?);
+        biggest = biggest.max(History::encoded_bound_within(limits)?).max(PersonProposal::encoded_bound_within(limits)?);
+        biggest = biggest.max(PersonProposal::encoded_bound_within(limits)?).max(ActivityLine::encoded_bound_within(limits)?);
         biggest = biggest.max(BeforeTalk::encoded_bound_within(limits)?).max(Stub::encoded_bound_within(limits)?);
         biggest = biggest.max(Update::encoded_bound_within(limits)?).max(ResultRow::encoded_bound_within(limits)?);
         biggest = biggest.max(Edge::encoded_bound_within(limits)?).max(Edge::encoded_bound_within(limits)?);
         biggest = biggest.max(EndedByParty::encoded_bound_within(limits)?).max(EndedByProject::encoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::encoded_bound_within(limits)?).max(TaskRecord::encoded_bound_within(limits)?);
-        biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?).max(AttemptRow::encoded_bound_within(limits)?);
-        biggest = biggest.max(HoldRow::encoded_bound_within(limits)?).max(LiveHot::encoded_bound_within(limits)?);
-        biggest = biggest.max(LiveCold::encoded_bound_within(limits)?).max(TaskSummary::encoded_bound_within(limits)?);
-        biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(AttemptRow::encoded_bound_within(limits)?).max(HoldRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(LiveHot::encoded_bound_within(limits)?).max(LiveCold::encoded_bound_within(limits)?);
+        biggest = biggest.max(TaskSummary::encoded_bound_within(limits)?).max(RetentionRow::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -39170,18 +39247,16 @@ impl Value {
         let mut biggest = 0_u64;
         biggest = biggest.max(FundingRecord::decoded_bound_within(limits)?).max(FundingRecord::decoded_bound_within(limits)?);
         biggest = biggest.max(WriterSlot::decoded_bound_within(limits)?).max(PoolSlots::decoded_bound_within(limits)?);
-        biggest = biggest.max(History::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<History>()).ok()?)?).max(Milestone::decoded_bound_within(limits)?);
-        biggest = biggest.max(PersonProposal::decoded_bound_within(limits)?).max(PersonProposal::decoded_bound_within(limits)?);
-        biggest = biggest.max(ActivityLine::decoded_bound_within(limits)?).max(BeforeTalk::decoded_bound_within(limits)?);
+        biggest = biggest.max(History::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<History>()).ok()?)?).max(PersonProposal::decoded_bound_within(limits)?);
+        biggest = biggest.max(PersonProposal::decoded_bound_within(limits)?).max(ActivityLine::decoded_bound_within(limits)?);
         biggest = biggest.max(BeforeTalk::decoded_bound_within(limits)?).max(Stub::decoded_bound_within(limits)?);
         biggest = biggest.max(Update::decoded_bound_within(limits)?).max(ResultRow::decoded_bound_within(limits)?);
         biggest = biggest.max(Edge::decoded_bound_within(limits)?).max(Edge::decoded_bound_within(limits)?);
         biggest = biggest.max(EndedByParty::decoded_bound_within(limits)?).max(EndedByProject::decoded_bound_within(limits)?);
         biggest = biggest.max(PlacedHold::decoded_bound_within(limits)?).max(TaskRecord::decoded_bound_within(limits)?);
-        biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?).max(AttemptRow::decoded_bound_within(limits)?);
-        biggest = biggest.max(HoldRow::decoded_bound_within(limits)?).max(LiveHot::decoded_bound_within(limits)?);
-        biggest = biggest.max(LiveCold::decoded_bound_within(limits)?).max(TaskSummary::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<TaskSummary>()).ok()?)?);
-        biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(AttemptRow::decoded_bound_within(limits)?).max(HoldRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(LiveHot::decoded_bound_within(limits)?).max(LiveCold::decoded_bound_within(limits)?);
+        biggest = biggest.max(TaskSummary::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<TaskSummary>()).ok()?)?).max(RetentionRow::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -40442,6 +40517,34 @@ impl TalkOpen {
     }
 }
 
+impl RefusalConcluded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Refusal {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -40457,7 +40560,7 @@ impl Refusal {
         biggest = biggest.max(RefusalDependencyEnded::encoded_bound_within(limits)?).max(RefusalPlaced::encoded_bound_within(limits)?);
         biggest = biggest.max(RefusalHoldOwner::encoded_bound_within(limits)?).max(RefusalHoldRevision::encoded_bound_within(limits)?);
         biggest = biggest.max(AnswerMessage::encoded_bound_within(limits)?).max(AnswerMessage::encoded_bound_within(limits)?);
-        biggest = biggest.max(TalkOpen::encoded_bound_within(limits)?);
+        biggest = biggest.max(TalkOpen::encoded_bound_within(limits)?).max(RefusalConcluded::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -40475,7 +40578,7 @@ impl Refusal {
         biggest = biggest.max(RefusalDependencyEnded::decoded_bound_within(limits)?).max(RefusalPlaced::decoded_bound_within(limits)?);
         biggest = biggest.max(RefusalHoldOwner::decoded_bound_within(limits)?).max(RefusalHoldRevision::decoded_bound_within(limits)?);
         biggest = biggest.max(AnswerMessage::decoded_bound_within(limits)?).max(AnswerMessage::decoded_bound_within(limits)?);
-        biggest = biggest.max(TalkOpen::decoded_bound_within(limits)?);
+        biggest = biggest.max(TalkOpen::decoded_bound_within(limits)?).max(RefusalConcluded::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -41014,7 +41117,6 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonProposalState::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonAction::encoded_bound_within(limits)?);
     biggest = biggest.max(PersonProposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(Milestone::encoded_bound_within(limits)?);
     biggest = biggest.max(HoldRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Grace::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRevision::encoded_bound_within(limits)?);
@@ -41047,11 +41149,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(MetMessage::encoded_bound_within(limits)?);
     biggest = biggest.max(MessageKind::encoded_bound_within(limits)?);
     biggest = biggest.max(Word::encoded_bound_within(limits)?);
+    biggest = biggest.max(InvalidResult::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
-    biggest = biggest.max(InvalidResult::encoded_bound_within(limits)?);
     biggest = biggest.max(FailedEnd::encoded_bound_within(limits)?);
     biggest = biggest.max(EndKind::encoded_bound_within(limits)?);
     biggest = biggest.max(AttemptRow::encoded_bound_within(limits)?);
@@ -41121,6 +41223,7 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Talk::encoded_bound_within(limits)?);
     biggest = biggest.max(Session::encoded_bound_within(limits)?);
     biggest = biggest.max(BeforeTalk::encoded_bound_within(limits)?);
+    biggest = biggest.max(Concluded::encoded_bound_within(limits)?);
     biggest = biggest.max(TaskRecord::encoded_bound_within(limits)?);
     biggest = biggest.max(HotHistory::encoded_bound_within(limits)?);
     biggest = biggest.max(HotDefinition::encoded_bound_within(limits)?);
@@ -41192,6 +41295,7 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalHoldOwner::encoded_bound_within(limits)?);
     biggest = biggest.max(RefusalHoldRevision::encoded_bound_within(limits)?);
     biggest = biggest.max(TalkOpen::encoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalConcluded::encoded_bound_within(limits)?);
     biggest = biggest.max(Refusal::encoded_bound_within(limits)?);
     biggest = biggest.max(TaskProblem::encoded_bound_within(limits)?);
     biggest = biggest.max(ResultFollowupsDelegates::encoded_bound_within(limits)?);
@@ -41373,7 +41477,6 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(PersonProposalState::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonAction::decoded_bound_within(limits)?);
     biggest = biggest.max(PersonProposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(Milestone::decoded_bound_within(limits)?);
     biggest = biggest.max(HoldRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Grace::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsRevision::decoded_bound_within(limits)?);
@@ -41406,11 +41509,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(MetMessage::decoded_bound_within(limits)?);
     biggest = biggest.max(MessageKind::decoded_bound_within(limits)?);
     biggest = biggest.max(Word::decoded_bound_within(limits)?);
+    biggest = biggest.max(InvalidResult::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
-    biggest = biggest.max(InvalidResult::decoded_bound_within(limits)?);
     biggest = biggest.max(FailedEnd::decoded_bound_within(limits)?);
     biggest = biggest.max(EndKind::decoded_bound_within(limits)?);
     biggest = biggest.max(AttemptRow::decoded_bound_within(limits)?);
@@ -41480,6 +41583,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Talk::decoded_bound_within(limits)?);
     biggest = biggest.max(Session::decoded_bound_within(limits)?);
     biggest = biggest.max(BeforeTalk::decoded_bound_within(limits)?);
+    biggest = biggest.max(Concluded::decoded_bound_within(limits)?);
     biggest = biggest.max(TaskRecord::decoded_bound_within(limits)?);
     biggest = biggest.max(HotHistory::decoded_bound_within(limits)?);
     biggest = biggest.max(HotDefinition::decoded_bound_within(limits)?);
@@ -41551,6 +41655,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RefusalHoldOwner::decoded_bound_within(limits)?);
     biggest = biggest.max(RefusalHoldRevision::decoded_bound_within(limits)?);
     biggest = biggest.max(TalkOpen::decoded_bound_within(limits)?);
+    biggest = biggest.max(RefusalConcluded::decoded_bound_within(limits)?);
     biggest = biggest.max(Refusal::decoded_bound_within(limits)?);
     biggest = biggest.max(TaskProblem::decoded_bound_within(limits)?);
     biggest = biggest.max(ResultFollowupsDelegates::decoded_bound_within(limits)?);

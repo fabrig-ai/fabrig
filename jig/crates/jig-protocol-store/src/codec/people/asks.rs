@@ -360,6 +360,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             limits,
             wire::AskWithdrawParts { project: *project, proposal: *proposal },
         )?),
+        domain::Ask::Delegate { project, task, batch } => wire::Ask::Delegate(wire::AskDelegate::new(
+            limits,
+            wire::AskDelegateParts { project: *project, task: *task, batch: super::batch::encode(batch, limits)? },
+        )?),
         domain::Ask::Create { project, batch } => wire::Ask::Create(wire::AskCreate::new(
             limits,
             wire::AskCreateParts { project: *project, batch: super::batch::encode(batch, limits)? },
@@ -396,6 +400,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
         domain::Ask::Stop { project, task } => {
             wire::Ask::Stop(wire::AskStop::new(limits, wire::AskStopParts { project: *project, task: *task })?)
         }
+        domain::Ask::Conclude { project, task } => wire::Ask::Conclude(wire::AskConclude::new(
+            limits,
+            wire::AskConcludeParts { project: *project, task: *task },
+        )?),
         domain::Ask::Cancel { project, task, reason, grace } => wire::Ask::Cancel(wire::AskCancel::new(
             limits,
             wire::AskCancelParts {
@@ -580,6 +588,10 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskWithdrawParts { project, proposal } = value.into_parts();
             domain::Ask::Withdraw { project, proposal }
         }
+        wire::Ask::Delegate(value) => {
+            let wire::AskDelegateParts { project, task, batch } = value.into_parts();
+            domain::Ask::Delegate { project, task, batch: super::batch::decode(batch, limits)? }
+        }
         wire::Ask::Create(value) => {
             let wire::AskCreateParts { project, batch } = value.into_parts();
             domain::Ask::Create { project, batch: super::batch::decode(batch, limits)? }
@@ -613,6 +625,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskStopParts { project, task } = value.into_parts();
             domain::Ask::Stop { project, task }
         }
+        wire::Ask::Conclude(value) => domain::Ask::Conclude { project: value.project(), task: value.task() },
         wire::Ask::Cancel(value) => {
             let wire::AskCancelParts { project, task, reason, grace } = value.into_parts();
             domain::Ask::Cancel {

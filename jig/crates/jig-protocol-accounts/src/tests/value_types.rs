@@ -32,7 +32,6 @@ fn registered_value_type_numbers_are_pinned() {
                 (7, "Row", Some("closed_ledger"), &[1, 1, 7]),
                 (8, "Row", Some("decided_proposal"), &[1, 1, 8]),
                 (9, "Row", Some("history"), &[1, 1, 9]),
-                (10, "Row", Some("milestone"), &[1, 1, 10]),
                 (11, "Row", Some("activity"), &[1, 1, 11]),
                 (12, "Row", Some("update"), &[1, 1, 12]),
                 (13, "Row", Some("result"), &[1, 1, 13]),

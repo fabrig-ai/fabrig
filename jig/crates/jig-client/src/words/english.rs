@@ -117,6 +117,7 @@ impl Word {
             Self::Refusal(RefusalWord::Authority) => (37, b"Authority missing", &[]),
             Self::Refusal(RefusalWord::Limit) => (38, b"Limit reached", &[]),
             Self::Refusal(RefusalWord::Moved) => (39, b"The object changed", &[]),
+            Self::Refusal(RefusalWord::Concluded) => (132, b"The gathering is concluded; no delegate may join it", &[]),
             Self::Refusal(RefusalWord::Ended) => (40, b"The object ended", &[]),
             Self::Refusal(RefusalWord::Unknown) => (41, b"No visible object with that name", &[]),
             Self::Refusal(RefusalWord::NameTaken) => (106, b"Another project has that name", &[]),

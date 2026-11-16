@@ -17,6 +17,13 @@ use temper_client_domain::{
 pub(crate) fn bounded<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     read_parts(card, w, false)
 }
+pub(crate) fn primary_first(asked: &mut Asked<'_>) {
+    if let Some(parsed) = &mut asked.parsed
+        && let Some(primary) = parsed.primary()
+    {
+        parsed.choices.get_mut(..=primary).expect("primary is a choice").rotate_right(1);
+    }
+}
 /// Context, evidence and the way to finish reading a cut question (client/pages/README.md).
 pub(crate) fn whole_parts(b: &mut Builder, asked: &Asked<'_>, w: &Words, bindings: &mut Bindings) {
     if let Some(parsed) = &asked.parsed {

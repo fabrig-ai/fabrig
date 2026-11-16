@@ -2,7 +2,8 @@ use crate::tests::kit::Goldens;
 use crate::words::wake_words::WakePhrase;
 use crate::{tree::fragments::wake as owner_wake, words::wake_words as owner_wake_words};
 use skein_ui::phrases::{
-    Form, HoleKind, Language, Phrase, PhraseLimits, Phrasebook, PluralClass, PluralRule, Segment, SpanUnit, WallFormat,
+    Form, HoleKind, Invalid, Language, Phrase, PhraseLimits, Phrasebook, PluralClass, PluralRule, Segment, SpanUnit,
+    WallFormat,
 };
 use skein_ui::{Builder, Role};
 
@@ -23,7 +24,7 @@ fn builder(nodes: u32, book: &Phrasebook) -> Builder {
 #[test]
 fn owner_wake_renderer_keeps_every_rule_result_and_independent_switch() {
     let mut goldens = Goldens::new("tree/fragments/wake/owner_wake_renderer_keeps");
-    let book = owner_wake_words::english().unwrap();
+    let book = english().unwrap();
     for rule in
         [WakeRule::Never, WakeRule::Immediate, WakeRule::Batch { count: u32::MAX, age: Duration::from_nanos(u64::MAX) }]
     {
@@ -52,7 +53,7 @@ fn owner_wake_renderer_keeps_every_rule_result_and_independent_switch() {
 #[test]
 fn owner_subscriptions_renderer_retains_numbers_task_flags_timer_absence_and_topic_pair() {
     let mut goldens = Goldens::new("tree/fragments/wake/owner_subscriptions_renderer");
-    let book = owner_wake_words::english().unwrap();
+    let book = english().unwrap();
     let mut entries = List::with_capacity(7);
     for kind in [
         SubscriptionKind::Task { target: u64::MAX, held: false, result: false },
@@ -133,14 +134,14 @@ fn owner_wake_renderer_uses_checked_selected_language_with_reordered_holes() {
             &PhraseLimits { languages: 1, phrases: 28, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 }
         )
         .unwrap_err(),
-        skein_ui::phrases::Invalid::Missing { id: WakePhrase::Policy.id() }
+        Invalid::Missing { id: WakePhrase::Policy.id() }
     );
 }
 
 #[test]
 fn a_paced_rule_shows_its_span_with_a_checked_number_hole() {
     use skein_ui::phrases::Hole;
-    let book = owner_wake_words::english().unwrap();
+    let book = english().unwrap();
     let value = WakePolicy {
         words: WakeRule::Never,
         notices: WakeRule::Immediate,
@@ -159,6 +160,15 @@ fn a_paced_rule_shows_its_span_with_a_checked_number_hole() {
     assert_eq!(tree.len(), owner_wake::policy_nodes() + 1);
     assert_eq!(
         book.say(0, WakePhrase::Paced.id(), &[Hole::Name(b"1000".as_slice().into())]).unwrap_err(),
-        skein_ui::phrases::Invalid::Values { id: WakePhrase::Paced.id() }
+        Invalid::Values { id: WakePhrase::Paced.id() }
     );
+}
+
+/// A checked standalone English phrasebook; callers select the loaded language.
+fn english() -> Result<Phrasebook, Invalid> {
+    Phrasebook::load(
+        owner_wake_words::shapes(),
+        Box::new([owner_wake_words::language()]),
+        &PhraseLimits { languages: 1, phrases: 28, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 },
+    )
 }

@@ -494,7 +494,9 @@ The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../test
   stories (`tests/engine/forge`, `../../domain/forge/README.md`, section 10)
   through bytes: a change produced, opened, checked, queued and landed;
   a creation and a merge whose answers were lost, found after a restart
-  and never made twice; a failed head repaired and checked again; a held
+  and never made twice; a failed head repaired and checked again, and on
+  GitHub a check run's failure read from its Actions job's log, its
+  repair pushing a new head, pending then passed, merged once at it; a held
   branch moved by another hand, reported as drift; on GitHub, a change
   waiting out 90 seconds of CI without delivery hints, landing within
   the pull keep's maximum poll after its verdict, with request costs
@@ -519,7 +521,9 @@ The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../test
   - **at start:** a forge with no rows, an incomplete set, an unreadable
     row and a set made for another forge each start not connected,
     named, nothing erased, while every other forge serves; carried rows
-    found at start are erased on the core's decision;
+    found at start are erased on the core's decision; a GitHub App's six
+    records as `testing/temper-github-app` seeds them start its forge
+    connected, the one forge listed, under its bot's login;
   - **connecting at runtime:** a run's writes kept before
     `Request::Connect`, the access built from the records, `Connected`
     told to the root with the identity, and calls `NotConnected` at cost

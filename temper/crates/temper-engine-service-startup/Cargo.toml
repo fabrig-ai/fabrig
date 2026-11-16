@@ -24,6 +24,7 @@ skein-push.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-landing.workspace = true
 temper-engine-domain-forge-tiers.workspace = true
 temper-engine-service-stock.workspace = true
 temper-engine-service-vocabulary.workspace = true
