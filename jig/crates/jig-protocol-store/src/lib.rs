@@ -560,6 +560,10 @@ pub use boundary::{
 };
 
 #[cfg(test)]
+mod records_tests;
+#[cfg(test)]
+mod store_kit;
+#[cfg(test)]
 mod tests;
 
 pub use jig_protocol_store_families::component_v3;

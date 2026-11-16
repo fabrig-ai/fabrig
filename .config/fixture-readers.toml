@@ -51,9 +51,12 @@ pair = "default"
 package = "jig-protocol-engine-clients"
 filter = "kind(lib)"
 
-# jig/crates/jig-protocol-store/src/tests.rs and its fixture helper modules; all unit callers.
+# Store and records test stages and their shared kit; all unit callers.
 [[fixture]]
-paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.rs"]
+paths = [
+    "jig/crates/jig-protocol-store/src/tests/fixtures/*.rs",
+    "jig/crates/jig-protocol-store/src/store_kit/*.rs",
+]
 [[fixture.reader]]
 pair = "default"
 package = "jig-protocol-store"

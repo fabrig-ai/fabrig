@@ -1,5 +1,5 @@
 //! Attempt and hold values and the absent open-attempt default (domain/tasks/lifecycle.md, 12).
-use super::{fixtures, saved_tasks, tasks_limits};
+use super::fixtures;
 use crate::{codec::tasks, tasks_v13 as wire};
 use jig_domain_tasks as d;
 use skein_lib::{Buffer, Reader, Wall, Writer};
@@ -86,4 +86,20 @@ fn task_runs_written_without_open_attempt_read_with_none() {
     let read = wire::TaskRun::decode(&limits, &mut Reader::new(out.as_slice())).unwrap();
     assert_eq!(read, record);
     assert!(read.open_attempt().is_none());
+}
+
+fn tasks_limits() -> wire::Limits {
+    tasks::limits(&fixtures::TASKS_LIMITS).expect("within the schema's ceilings")
+}
+
+fn saved_tasks(row: &jig_domain_tasks::Stored) -> Result<jig_domain_tasks::Stored, wire::Problem> {
+    let limits = tasks_limits();
+    let bytes = tasks::encode(row, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
+        .expect("within its limits");
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    if let jig_domain_tasks::Stored::Live(row) = row {
+        let cold = crate::codec::encode(&fixtures::cold_task(row), &fixtures::codec_limits(), &names).unwrap();
+        return tasks::decode_live(&bytes, &cold, &limits, &names);
+    }
+    tasks::decode(&bytes, &limits, &names)
 }
