@@ -1959,7 +1959,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session.temper-mode-draft > .temper-doc { grid-row: 2; padding-bottom: 24px; border-left: 0; }
 #app > .temper-session .temper-doc-inner { max-width: 640px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
-#app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-session .temper-doc-path { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.7 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-muted { color: var(--gf-muted); }
@@ -1997,6 +1997,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-seg > button::before { content: ''; width: 15px; height: 15px; background: url(files/chat.svg) center / 15px no-repeat; }
 #app > .temper-session .temper-seg > .temper-seg-split::before { background-image: url(files/split.svg); }
 #app > .temper-session .temper-seg > button:last-child::before { background-image: url(files/doc.svg); }
+#app > .temper-session .temper-doc-path > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #app > .temper-session .temper-doc-path > span:last-child { text-transform: lowercase; }
 #app > .temper-session .temper-doc-inner tr:has(> th):not(:has(> th:not(:empty))) { display: none; }
 

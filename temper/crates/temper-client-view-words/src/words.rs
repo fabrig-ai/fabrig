@@ -263,6 +263,8 @@ pub enum Word {
     DraftNotYet,
     DraftSendResumes,
     DraftWriting,
+    DraftThinking,
+    DraftDoing,
     DraftWords,
     ChatWrites,
     DraftName,
@@ -2118,7 +2120,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2664;
+const PHRASES: u32 = 2666;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2145,10 +2147,10 @@ const PHRASES: u32 = 2664;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4878;
+const SEGMENTS: u32 = 4884;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 63228;
-const ALL: [Word; 1947] = [
+const ENGLISH_BYTES: u32 = 63242;
+const ALL: [Word; 1949] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2363,6 +2365,8 @@ const ALL: [Word; 1947] = [
     Word::DraftNotYet,
     Word::DraftSendResumes,
     Word::DraftWriting,
+    Word::DraftThinking,
+    Word::DraftDoing,
     Word::DraftWords,
     Word::ChatWrites,
     Word::DraftName,
@@ -5610,6 +5614,8 @@ impl Word {
             Self::DraftNotYet => 9028,
             Self::DraftSendResumes => 9029,
             Self::DraftWriting => 3682,
+            Self::DraftThinking => 9700,
+            Self::DraftDoing => 9701,
             Self::DraftWords => 3683,
             Self::ChatWrites => 3684,
             Self::DraftName => 3685,
@@ -7749,6 +7755,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftSendResumes => (&[b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
         Word::DraftWriting => (&[b"writing"], &[]),
+        Word::DraftThinking => (&[b"thinking"], &[]),
+        Word::DraftDoing => (&[b"", b" \xc2\xb7 ", b" s"], &[Name, Number]),
         Word::DraftWords => (&[b"What should this draft hold?"], &[]),
         Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
         Word::DraftName => (&[b"a draft"], &[]),
@@ -8679,6 +8687,23 @@ impl Times {
     #[must_use]
     pub fn new(now: skein_lib::Wall) -> Self {
         Self { now, next: None }
+    }
+    /// Whole seconds for the draft's live path, ticking only in a browser
+    /// (client/pages/chat/document.md, 1).
+    pub fn doing(&mut self, words: &Words, what: Box<[u8]>, since: skein_lib::Wall) -> Box<[u8]> {
+        const SECOND: u64 = 1_000_000_000;
+        let seconds = self.now.as_nanos().saturating_sub(since.as_nanos()).checked_div(SECOND).expect("nonzero second");
+        if words.shell == Shell::Browser {
+            let next = self.now.as_nanos().checked_div(SECOND).expect("nonzero second").checked_add(1);
+            let next = match next {
+                Some(next) => next.checked_mul(SECOND),
+                None => None,
+            };
+            if let Some(next) = next {
+                self.next = [self.next, Some(skein_lib::Wall::from_nanos(next))].into_iter().flatten().min();
+            }
+        }
+        words.say(Word::DraftDoing, &[Hole::Name(what), Hole::Number(seconds)])
     }
     pub fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
         if model.source != jig_client::contract::ModelSource::List {
