@@ -26,3 +26,9 @@
   pages not yet in the joint world. [in flight: change 4726]
   the whole document: `suite::lifecycle`'s held program turn still runs
   here, not yet in the one-process world. [in flight: change 4727]
+- **Departs:** "A story ends what it starts": `suite::model_check`'s
+  trimmed-to-Ready story joins its trial task by a story-local harness
+  step reading the engine's state, not `task show TASK --until ended`,
+  because ctl can't reach that task: `same_party` answers unknown, and
+  the closed terminal's DIRECTORY isn't signed in for ctl. The join
+  still comes before the service stops. [in flight: change 4726]
