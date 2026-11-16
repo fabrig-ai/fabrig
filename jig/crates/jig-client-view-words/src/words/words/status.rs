@@ -9,7 +9,7 @@ use jig_client::{
 use skein_lib::{Duration, Wall};
 use skein_ui::{Builder, phrases::Hole};
 impl Words {
-    pub(crate) fn chat_status(&self, b: &mut Builder, status: &ChatStatus, wall: Wall) {
+    pub fn chat_status(&self, b: &mut Builder, status: &ChatStatus, wall: Wall) {
         match status {
             ChatStatus::HostRefused(why) => {
                 self.text(b, P::Word(Word::Status(StatusWord::HostRefused)), &[]);

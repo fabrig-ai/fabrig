@@ -7,7 +7,7 @@ use skein_ui::Builder;
 use skein_ui::phrases::Hole;
 impl Words {
     /// Admission reason facts, without invented amounts, actors, clocks or parts.
-    pub(crate) fn hold_category(&self, b: &mut Builder, reason: HoldCategory) {
+    pub fn hold_category(&self, b: &mut Builder, reason: HoldCategory) {
         match reason {
             HoldCategory::Circle => {
                 self.text(b, JigPhrase::CircleHold, &[]);

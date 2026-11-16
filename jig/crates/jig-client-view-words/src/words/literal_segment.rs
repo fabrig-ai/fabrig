@@ -47,12 +47,13 @@ pub fn render(b: &mut Builder, bytes: &[u8]) {
 }
 
 /// The words beside a displayed path share its finite node-text allowance.
-pub(crate) struct PathDisplay {
+#[derive(Debug)]
+pub struct PathDisplay {
     pub text: u32,
     pub reserved: u32,
     pub keep_last: bool,
 }
-pub(crate) trait Segment {
+pub trait Segment {
     fn bytes(&self) -> &[u8];
 }
 impl Segment for Box<[u8]> {
@@ -65,7 +66,7 @@ impl Segment for jig_client::contract::Bytes {
         self.bytes()
     }
 }
-pub(crate) fn path<S: Segment>(b: &mut Builder, path: &[S], words: &crate::words::Words, space: PathDisplay) {
+pub fn path<S: Segment>(b: &mut Builder, path: &[S], words: &crate::words::Words, space: PathDisplay) {
     let mut total = 0_u32;
     for segment in path {
         total =

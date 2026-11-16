@@ -7,20 +7,20 @@ use skein_lib::Duration;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Run};
 
-pub(crate) fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
+pub fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let saying = words.book().say(words.language(), phrase.id(), holes).expect("deployment sayings checked");
     b.text(Run::Plain, &saying.text);
 }
 
-pub(crate) fn field_number(b: &mut Builder, words: &Words, phrase: P, value: u64) {
+pub fn field_number(b: &mut Builder, words: &Words, phrase: P, value: u64) {
     text(b, words, phrase, &[Hole::Number(value)]);
 }
 
-pub(crate) fn duration(b: &mut Builder, words: &Words, phrase: P, value: Duration) {
+pub fn duration(b: &mut Builder, words: &Words, phrase: P, value: Duration) {
     text(b, words, phrase, &[Hole::Span(value)]);
 }
 
-pub(crate) fn refusal(b: &mut Builder, words: &Words, why: HelloRefusal) {
+pub fn refusal(b: &mut Builder, words: &Words, why: HelloRefusal) {
     match why {
         HelloRefusal::Agent { why } => agent(b, words, why),
         HelloRefusal::JobKinds => text(b, words, P::HelloRefusalJobKinds, &[]),

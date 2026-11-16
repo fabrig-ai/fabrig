@@ -2,13 +2,10 @@ pub(crate) mod binding;
 pub(crate) mod bridge;
 pub(crate) mod fixtures;
 pub(crate) mod kit;
-pub(crate) mod owner;
-pub(crate) mod regions;
 pub(crate) mod shapes;
 pub(crate) mod sizes;
 pub(crate) mod state;
 pub(crate) mod tree;
-pub(crate) mod words;
 
 // Match production English's checked segment sum, once per loaded language.
 // These selected-language fixtures change literal bytes, retaining the segment shapes.

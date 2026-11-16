@@ -1201,6 +1201,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-view-codec",
+ "jig-client-view-words",
  "skein-codec",
  "skein-lib",
  "skein-scratch",
@@ -1214,6 +1215,15 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "jig-client-view-words"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
 ]
 
 [[package]]
