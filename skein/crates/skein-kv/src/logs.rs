@@ -312,16 +312,26 @@ pub(crate) struct Read {
     pub(crate) at: u64,
     pub(crate) direction: Direction,
     pub(crate) max: u32,
+    rows: u32,
     pub(crate) extent: u64,
     pub(crate) records: Vec<LogRecord>,
     stopped: bool,
 }
 impl Read {
-    pub(crate) fn new(owner: skein_lib::Token, log: u64, at: u64, direction: Direction, max: u32, extent: u64) -> Self {
-        Self { owner, log, at, direction, max, extent, records: Vec::new(), stopped: false }
+    pub(crate) fn new(
+        owner: skein_lib::Token,
+        log: u64,
+        at: u64,
+        direction: Direction,
+        max: u32,
+        rows: u32,
+        extent: u64,
+    ) -> Self {
+        Self { owner, log, at, direction, max, rows, extent, records: Vec::new(), stopped: false }
     }
     pub(crate) fn finished(&self) -> bool {
         self.stopped
+            || self.rows == 0
             || self.extent == 0
             || match self.direction {
                 Direction::Forward => self.at >= self.extent,
@@ -386,6 +396,7 @@ impl Read {
         };
         self.max = self.max.saturating_sub(length);
         self.records.push(LogRecord { at, end, length, record });
+        self.rows = self.rows.checked_sub(1).expect("unfinished read has record room");
         self.at = match self.direction {
             Direction::Forward => end,
             Direction::Backward => at,

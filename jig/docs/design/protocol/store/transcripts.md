@@ -103,6 +103,9 @@ the committed length. The next open cuts the file to its committed length
 - **Never past what is committed.**
 - **Current bytes only:** each kind hands on a frame at the binary's
   versions, one behind patched as it is read (6).
+- **Turns-log demands** ask for one record in either direction
+  (`logs.md`, 5). A written patch site pauses the current frame before
+  the next record is demanded (6).
 - **A dropped transcript,** a task with no row of places: a party's
   page of its activity carries each turn line without its turn, as
   unread, and goes on past it, since none of its frames can be read

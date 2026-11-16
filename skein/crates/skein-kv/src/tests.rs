@@ -783,7 +783,13 @@ fn payload_memory_reads_cut_and_drop_with_the_commit() {
         (Direction::Backward, end, 64, vec![(end_a, end, 2, Some(&b"bb"[..])), (0, end_a, 1, Some(&b"a"[..]))], None),
         (Direction::Backward, end, 1, vec![(end_a, end, 2, None)], Some(end_a)),
     ] {
-        down(&mut store, &env, Request::ReadLog { owner, log: 7, at, direction, max }, &mut above, &mut below);
+        down(
+            &mut store,
+            &env,
+            Request::ReadLog { owner, log: 7, at, direction, max, rows: u32::MAX },
+            &mut above,
+            &mut below,
+        );
         let records = expected
             .into_iter()
             .map(|(at, end, length, record)| LogRecord { at, end, length, record: record.map(Box::from) })
@@ -797,7 +803,7 @@ fn payload_memory_reads_cut_and_drop_with_the_commit() {
     down(
         &mut store,
         &env,
-        Request::ReadLog { owner, log: 7, at: 0, direction: Direction::Forward, max: 64 },
+        Request::ReadLog { owner, log: 7, at: 0, direction: Direction::Forward, max: 64, rows: u32::MAX },
         &mut above,
         &mut below,
     );

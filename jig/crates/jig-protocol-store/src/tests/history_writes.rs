@@ -74,6 +74,7 @@ fn records(store: &mut Store, task: u64) -> Vec<(u64, Box<[logs::record::Row]>)>
             at: 0,
             direction: skein_kv::Direction::Forward,
             max: store.limits.store.page.bytes,
+            rows: u32::MAX,
         },
         &mut above,
         &mut below,

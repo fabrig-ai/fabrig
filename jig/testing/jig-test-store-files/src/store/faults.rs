@@ -54,6 +54,7 @@ impl Store {
                         at: position,
                         direction: skein_kv::Direction::Forward,
                         max: limits.page.bytes,
+                        rows: u32::MAX,
                     },
                     &mut above,
                     &mut below,
