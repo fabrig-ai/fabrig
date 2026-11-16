@@ -52,10 +52,10 @@ pub(crate) fn begin(
     {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     }
-    let Some(handles) = store.limits.files.checked_add(4) else {
+    let Some(handles) = crate::host::handles(&store.limits) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
-    let Some(handles) = handles.max(generations::COPY_HANDLES).checked_mul(3) else {
+    let Some(handles) = handles.checked_mul(3) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
     store.rehearsal = Some(State {

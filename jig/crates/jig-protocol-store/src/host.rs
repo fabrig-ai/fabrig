@@ -611,15 +611,13 @@ impl Drivers {
         }
     }
 }
-fn handles(limits: &crate::Limits) -> u32 {
+pub(crate) fn handles(limits: &crate::Limits) -> Option<u32> {
     // A rehearsal's patch also holds the source deployment and transcript roots.
     limits
         .files
-        .checked_add(4)
-        .expect("store file handles fit")
+        .checked_add(4)?
         .max(crate::generations::COPY_HANDLES)
         .checked_add(limits.store.logs.max(limits.secrets.logs))
-        .expect("payload file handles fit")
 }
 /// Largest positioned read admitted by the store.
 #[must_use]
@@ -644,7 +642,7 @@ pub fn check_read_page(limits: &crate::Limits) -> Option<()> {
     Some(())
 }
 fn driver(limits: &crate::Limits) -> Driver {
-    let files = handles(limits);
+    let files = handles(limits).expect("store and payload file handles fit");
     let read =
         max_read(limits).max(limits.store.record.saturating_add(17)).max(limits.secrets.record.saturating_add(17));
     let whole = max_whole(limits);
@@ -652,7 +650,7 @@ fn driver(limits: &crate::Limits) -> Driver {
     // with few writes after its 32nd start.
     let file_limits = FileLimits { files, read, entries: 1024, whole, timeout: limits.store.deadline };
     let io = FileIo::with_limits(&file_limits);
-    Driver { io, file_limits, above: Queue::uncapped(), handles: Map::with_capacity(handles(limits)) }
+    Driver { io, file_limits, above: Queue::uncapped(), handles: Map::with_capacity(files) }
 }
 fn close(file: Token) -> file::Request {
     file::Request::Close { owner: CLOSE, file }
