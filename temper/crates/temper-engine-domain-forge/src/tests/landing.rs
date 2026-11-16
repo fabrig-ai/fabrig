@@ -2061,6 +2061,222 @@ fn connected_member_landing() -> Domain {
     d
 }
 
+fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+    use skein_forge::api as a;
+    let mut d = connected_member_landing();
+    let after = d.after_landing(5).expect("project");
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: None,
+            }]),
+            tiers: Box::new([])
+        }]),
+        policy::Project { gate_timeout: Duration::from_secs(5), ..policy::Project::DEFAULT },
+        after
+    ));
+    let row = d.landing.rows.get_mut(&61).expect("landing");
+    row.landing.members[0].gates = Box::new([policy::GateProof {
+        proof: policy::Proof::Dispatched { key: [7; 32], try_: 1 },
+        posted: policy::Posted::Pending,
+        faults: 0,
+    }]);
+    row.entries = Box::new([LandingEntry {
+        entry: 9,
+        member: 0,
+        gate: 0,
+        operation: Operation::Dispatch,
+        preparation: Some(row.landing.preparation),
+        base: Some(fixtures::BASE),
+        run: None,
+    }]);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let inputs = Box::new([
+        a::Input { name: b"temper_commit".as_slice().into(), value: commit_text(&fixtures::HEAD) },
+        a::Input { name: b"temper_key".as_slice().into(), value: commit_text(&[7; 32]) },
+    ]);
+    outputs(
+        &mut d,
+        Event::Enqueue {
+            entry: skein_forge_client::Entry {
+                number: 9,
+                task: 61,
+                repository: REPO,
+                effect: skein_forge_client::Effect {
+                    write: a::Write::Dispatch {
+                        workflow: b"gate.yml".as_slice().into(),
+                        branch: b"temper/1/l61".as_slice().into(),
+                        inputs: inputs.clone(),
+                    },
+                    condition: skein_forge_client::Condition::None,
+                },
+                start: Some(skein_forge_client::Position {
+                    at: Time::from_nanos(10),
+                    comment: 0,
+                    review: 0,
+                    review_page: 1,
+                }),
+                attempt: Some(skein_forge_client::Attempt {
+                    sent: Time::from_nanos(10),
+                    deadline: Time::from_nanos(20),
+                    wall: Wall::from_nanos(10),
+                    expires: Wall::from_nanos(20),
+                }),
+                failures: 0,
+                queued: false,
+            },
+        },
+    );
+    d.flights.remove(&(61, 9));
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [7; 32] };
+    d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).expect("main key");
+    let mut flight = runs::follow();
+    flight.inputs = inputs;
+    let run = a::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: a::Event::Dispatch,
+        actor: *d.writers.get(&REPO.forge).expect("writer"),
+        state: a::RunState::Waiting,
+        conclusion: None,
+        url: b"https://forge/run/7".as_slice().into(),
+        created: Time::from_nanos(20),
+        jobs: Box::new([]),
+    };
+    d.landing.flights.insert(key.clone(), flight).expect("gate flight");
+    (d, key, run)
+}
+
+fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api::Run) -> policy::Decision {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        clock,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    for _ in 0..20_u32 {
+        let (call, op) = fixtures::next_at(d, clock);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Runs { .. }) => Answer::Runs { runs: Box::new([run.clone()]), more: false },
+            Op::Read(Read::Run { run: id }) => {
+                assert_eq!(id, run.id);
+                Answer::Run(run.clone())
+            }
+            Op::Read(_) | Op::Write(_) => panic!("unexpected gate read {op:?}"),
+        };
+        let mut answered = fixtures::answer_at(d, clock, call, Ok(answer));
+        while let Some(request) = answered.pop() {
+            if let Request::LandingDecision { decision, .. } = request {
+                return decision;
+            }
+        }
+    }
+    panic!("a gate poll decides");
+}
+
+#[test]
+fn a_queued_gate_only_expires_after_its_running_time_passes_the_bound() {
+    let (mut d, key, mut run) = clocked_gate();
+    let mut clock = env();
+    for seconds in [100, 110, 120] {
+        clock.now = Time::from_nanos(seconds * 1_000_000_000);
+        clock.wall = Wall::from_nanos(clock.now.as_nanos());
+        assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+        assert_eq!(d.landing.flights.get(&key).unwrap().clock.unwrap().ran(clock.wall), Duration::ZERO);
+    }
+    run.state = skein_forge::api::RunState::Running;
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    clock.now = Time::from_nanos(125_000_000_000);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert!(
+        matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }),
+        "the running bound is strict"
+    );
+    clock.now = Time::from_nanos(125_000_000_001);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert_eq!(
+        poll_clocked_gate(&mut d, &clock, &run),
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 })
+    );
+    assert_eq!(d.landing_hold_words(61).unwrap().as_ref(), b"gate gate of org/repo: run 8 running past its bound");
+}
+
+#[test]
+fn a_gate_waiting_past_its_runner_bound_names_the_wait() {
+    let (mut d, _, run) = clocked_gate();
+    let mut clock = env();
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    clock.now = clock.now.saturating_add(clock.limits.change_policy.runner_wait);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert_eq!(
+        poll_clocked_gate(&mut d, &clock, &run),
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 })
+    );
+    assert_eq!(
+        d.landing_hold_words(61).unwrap().as_ref(),
+        b"gate gate of org/repo: run 8 waiting for a runner past its bound"
+    );
+}
+
+#[test]
+fn a_rebuilt_landing_counts_on_from_its_saved_run_clock() {
+    let (mut d, key, mut run) = clocked_gate();
+    let mut clock = env();
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    run.state = skein_forge::api::RunState::Running;
+    clock.now = clock.now.saturating_add(Duration::from_secs(10));
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    let saved = d.landing.rows.get(&61).unwrap().entries[0].run.unwrap().clock.unwrap();
+    assert_eq!(saved, d.landing.flights.get(&key).unwrap().clock.unwrap());
+    d.landing.flights.remove(&key);
+    landing::rebuild(&mut d);
+    assert_eq!(d.landing.flights.get(&key).unwrap().clock, Some(saved));
+    assert!(!d.landing.flights.get(&key).unwrap().waiting, "rebuilt flight: {:?}", d.landing.flights.get(&key));
+    clock.now = clock.now.saturating_add(Duration::from_secs(6));
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    let decision = poll_clocked_gate(&mut d, &clock, &run);
+    assert_eq!(
+        decision,
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 }),
+        "rebuilt flight: {:?}",
+        d.landing.flights.get(&key)
+    );
+}
+
 #[test]
 fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
     let mut d = connected_member_landing();

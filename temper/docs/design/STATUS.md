@@ -227,7 +227,9 @@ range is bisected over its changed-key landings; each verdict is posted
 on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
 each member's pull request, `Repaired by #M` once a repair passes. A
 change's stall on CI and a landing's gate run past its bound name each
-pending job's state, read by skein's `JobState`; a tier's run that never
+pending job's state, read by skein's `JobState`, and count only the
+time CI runs, by an execution clock read each poll, a wait for a runner
+bounded apart (`domain/forge/change/stalls.md`, 2); a tier's run that never
 ends is held by no bound (`draft/tier-controls.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
@@ -450,6 +452,7 @@ Design documents:
 - [`domain/forge/change/opened.md`](domain/forge/change/opened.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
+- [`domain/forge/change/stalls.md`](domain/forge/change/stalls.status.md)
 - [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
@@ -534,6 +537,7 @@ Drafts:
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
