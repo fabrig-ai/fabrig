@@ -26,7 +26,10 @@ fn ways_name_their_templates_in_number_order() {
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let project = me.projects.get_mut(EMPTY).unwrap();
     project.templates = List::uncapped();
+    let mut milestone = template(1, b"milestone", true);
+    milestone.flags.ended_by = jig_client::contract::EndedBy::Requester;
     for template in [
+        milestone,
         template(OTHER_WAY, b"other way", true),
         template(WHOLE_WAY, b"goal for a draft", true),
         template(UNTRACKED_WAY, b"untracked", false),

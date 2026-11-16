@@ -649,13 +649,19 @@ fn default_way_uses_the_selected_tracked_template_or_the_lowest() {
     let project = me.projects.get_mut(0).unwrap();
     let mut template = project.templates.get(0).unwrap().clone();
     template.tracked = Some(1);
-    project.templates = List::with_capacity(2);
+    template.flags.ended_by = c::EndedBy::Result;
+    project.templates = List::with_capacity(3);
+    let mut milestone = template.clone();
+    milestone.number = 1;
+    milestone.flags.ended_by = c::EndedBy::Requester;
+    project.templates.push(milestone).unwrap();
     for number in [3, 2] {
         template.number = number;
         project.templates.push(template.clone()).unwrap();
     }
     assert_eq!(ways::default_way(&me, f::PROJECT, &SHOWN), Some(3));
     assert_eq!(ways::default_way(&me, f::PROJECT, &Ways::STOCK), Some(2));
+    assert_eq!(ways::default_way(&me, f::PROJECT, &Ways { way: 1, ..SHOWN }), Some(2));
     assert_eq!(ways::default_way(&me, OTHER, &SHOWN), None);
 }
 

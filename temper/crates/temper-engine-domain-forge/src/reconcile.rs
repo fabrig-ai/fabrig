@@ -194,6 +194,7 @@ impl Reconciliation {
             | Stored::Setting(_)
             | Stored::Binding { .. }
             | Stored::Making(_)
+            | Stored::Milestone(_)
             | Stored::ProjectFacts(_)
             | Stored::Device(_)
             | Stored::LandedDraft(_)

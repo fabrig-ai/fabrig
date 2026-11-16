@@ -6,6 +6,7 @@ mod delegation;
 mod drafts;
 pub(crate) mod fixtures;
 mod forge_words;
+mod milestones;
 mod public;
 mod question;
 mod status;
