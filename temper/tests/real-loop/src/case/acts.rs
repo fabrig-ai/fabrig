@@ -401,6 +401,18 @@ pub fn step_4_3(base: usize) -> Vec<calls::Step> {
 #[must_use]
 pub fn step_4_1_4_3() -> Vec<calls::Step> {
     let mut steps = step_4_1();
+    // The fleet picks by workspace, free slots and channel order, not by name:
+    // s1 links only once the director's waiting run holds ws's slot.
+    let placed = steps
+        .iter()
+        .position(|step| {
+            matches!(step, calls::Step::Call { argv, .. }
+                if matches!(argv.0.as_slice(), [calls::Arg::Lit("task"), calls::Arg::Lit("show"),
+                    calls::Arg::Number(DIRECTOR), calls::Arg::Lit("--until"), calls::Arg::Lit("replied")]))
+        })
+        .expect("director's reply wait")
+        + 1;
+    steps.insert(placed, calls::add_worker("s1"));
     let base = READS_4_1.iter().map(|(_, call)| call).max().expect("opener calls") + 1;
     steps.extend(step_4_3(base));
     steps

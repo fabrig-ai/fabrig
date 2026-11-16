@@ -300,8 +300,44 @@ in the lower world that owns it, never here.
   undeclared obligation fails the story, and so does a declared leftover
   whose task has ended.
   Teardown's own check stays beside it: no child is killed but those a
-  story asks for, as many kills as its `Kill` steps and each a
-  `Signal(9)`, no more strict and no less.
+  story asks for, no more strict and no less. A story asks for a kill by
+  a `Kill` step, and by a cancel the kill follows (the next item): every
+  kill is a `Signal(9)`, and those no cancel accounts for number exactly
+  the story's `Kill` steps.
+- **A cancel's kill is asked for.** git kills its child when a cancel
+  wins the race with the child's end (`../protocol/git.md`, 7), and
+  whether the child still runs then is timing; so a kill a story's
+  cancel causes is asked for as the cancel is. The world keeps, from the
+  service's observations and on the clock the kills' records read:
+  - each root's `Cancelling` notes (`../protocol/services.md`, 5), with
+    the iteration's `now` each was taken at, whichever root took them:
+    the standalone service or a cluster's worker;
+  - each task's requester, read from the engine's live tasks while the
+    task lives, so that a delegate's ancestry outlives its end;
+  - each cancellation the engine decides: its task, the party that
+    decided it (jig's `Ending::Cancelled`, its `by`), and the
+    iteration's `now` it was first seen at.
+
+  The story cancelled a task when a person decided its cancellation (a
+  story's `task cancel` step) or a task whose executor is an agent did
+  (a scripted agent's `cancel` tool); the deployment's own cancels, and
+  a procedure's or a job's, are not the story's. A kill whose reason is
+  `Cancelled` and whose requester is a root stands for the attempts that
+  root noted `Cancelling` at the latest instant at or before the kill,
+  every one of them where several share that instant (a cancel's
+  cascade). The check accepts it when it is a `Signal(9)`, it stands
+  for at least one attempt, and each of those attempts' tasks is one the
+  story cancelled, or a delegate below one, whose cancellation was first
+  seen at or before the kill. Every other kill needs a `Kill` step: a
+  `Cancelled` kill with no `Cancelling` note at or before it, or one
+  standing for work the story didn't cancel (a root's own cancel), a
+  `Deadline` kill, a `Grace` kill (supervision's forced kill of an
+  agent), a `Closed` kill, and any kill a hosted child requests. On a
+  refusal, the finding's line for each `Cancelled` kill goes on, after
+  its time, with `; stands for run R attempt A, cancelled with task C`
+  for each attempt it stands for whose cancel the story asked, `; stands
+  for run R attempt A, not the story's cancel` for each other, or `; no
+  cancel noted`.
 - **A kill no story asked for names its cause.** The check's finding
   prints every kill the world recorded, one line each as skein's
   `testing/README.md`, section 5 writes it, then each one's time from the run's

@@ -37,6 +37,12 @@ times, and the worker logs a line for it
 A real-loop story that fails on a kill it didn't ask for names each kill's
 target, killer, time and reason, with the service's notes from the run's
 last seconds (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
+A real-loop story counts a git kill its own cancel causes as asked for,
+pairing it with the worker's note of the cancelled attempt, and the
+reference case's three-worker story adds s1 once the director holds ws,
+rather than assuming which of two started workers the fleet picks first
+(`draft/real-loop-cancel-kills.status.md`; `testing/real-loop.md`;
+`testing/reference-case.md`).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -645,6 +651,7 @@ Drafts:
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
+- [`draft/real-loop-cancel-kills.md`](draft/real-loop-cancel-kills.status.md)
 - [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
