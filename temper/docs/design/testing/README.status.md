@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where temper's code lags or departs from [README.md](README.md).
+2026-11-16. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -159,4 +159,7 @@ that proof remains with the after-landing runs (11).
   4.2: the worker world's referee of turns panics on a changed replay or
   a turn gap, and the port chooser panics on a narrow range; their
   tests are `#[should_panic]`. [in flight: change 3251]
+
+- **Not yet:** 2.5: the one-process world has no story of a stop while a
+  program's turn runs. [in flight: change 4727]
 

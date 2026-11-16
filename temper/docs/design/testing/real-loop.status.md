@@ -15,3 +15,14 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:**
+  the whole document: `suite::goal_delivery` still runs here, its checks
+  not yet in the system world. [in flight: change 4723]
+  the whole document: `suite::plan_chat` still runs here, its checks not
+  yet in the system world and `tests/client`. [in flight: change 4724]
+  the whole document: `suite::sign_in`'s held issuer sockets still run
+  here, not yet in temper-fake's tests. [in flight: change 4725]
+  the whole document: `suite::model_check` still walks past Ready, its
+  pages not yet in the joint world. [in flight: change 4726]
+  the whole document: `suite::lifecycle`'s held program turn still runs
+  here, not yet in the one-process world. [in flight: change 4727]
