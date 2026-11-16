@@ -2,6 +2,8 @@
 
 2026-11-16. Where the tree's code lags or departs from [stock.md](stock.md).
 
+- **Not yet:** "The box's limits for that work": the counts dev.fabrig.ai's documents override are this table's, not twice dev's, and the carriers aren't derived [in flight: change 5801].
+
 
 
 
