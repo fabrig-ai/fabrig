@@ -102,13 +102,16 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
   goes to the user with the measurements, and no real-loop story moves to
   the fuzzy suite to make room for them: cost never decides a test's tier.
   A guide above its layer's reference (a whole-chat or playground story's
-  3 s) is a test that passes its reference, which takes its reason once
-  references are held (`temper/docs/design/draft/test-budgets.md`, 6).
+  3 s) is a test that passes its reference: when it is new, or grows, it
+  takes its line with its reason beside the budgets
+  (`tools/tiers/references.md`, 2).
 - **The layers' figures are measured as the suites' rules are:** user plus
   system CPU time per process, waited descendants included, summed
   across the layer's selected processes (skein/docs/foundation/testing-strategy.md, 8.1).
-  No test's CPU is measured within a shared process. For comparing an
-  individual test's guide, run it alone through nextest on the idle
+  No test's CPU is measured within a shared process: the gate runs a new
+  or flagged test alone after the suite and holds it to its reference
+  (`tools/tiers/references.md`). For comparing an
+  individual test's guide by hand, run it alone through nextest on the idle
   development machine with the tier's profile and `-j 1`, taking the
   median of three runs; these diagnostic measurements keep the same
   budget rule and do not replace a shared-process suite total. So no
