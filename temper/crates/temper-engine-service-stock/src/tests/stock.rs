@@ -713,6 +713,40 @@ fn the_chats_words_send_plain_changes_to_change() {
     ));
 }
 
+// temper/docs/design/domain/agent/agents.md, 2, Its person by name.
+#[test]
+fn person_requested_charters_name_their_person_when_speaking_of_them() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    for number in [1, 5, 13, 14, 15, 16] {
+        let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("person's charter");
+        let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+        let paragraph = words
+            .split("\n\n")
+            .find(|paragraph| paragraph.contains("[Requested by person N, NAME]"))
+            .expect("paragraph naming the person");
+        for phrase in [
+            "name after their number",
+            "same person N",
+            "ask and address them by number as before",
+            "rather than to them",
+            "decided",
+            "question and why",
+            "a report",
+            "a finding",
+            "a question to someone else",
+            "their name:",
+            "Sam asked to reopen pull #1292",
+            "never \"person N\" or \"the user\"",
+            "A line with no name, or a requester that is a task, leaves",
+        ] {
+            assert!(paragraph.contains(phrase), "charter {number}: {phrase}");
+        }
+        let fallback = if number == 5 { "\"your requester\"" } else { "\"your person\"" };
+        assert!(paragraph.contains(fallback), "charter {number}: {fallback}");
+    }
+}
+
 #[test]
 fn the_goals_charter_asks_for_one_report_revised_in_place() {
     let words = include_str!("../stock/chat.txt");

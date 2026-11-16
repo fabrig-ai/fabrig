@@ -319,6 +319,14 @@ Each project has its roles, and its policy says what each may do
   during a start's restore too, and allocates and changes nothing. An
   application that rests a fact on a deployment of one person reads it
   again at each start.
+- **A member's name** is one read, by project and party: for a party
+  holding a role in the project, its identity's name, else its login
+  where the name is empty (section 3), as given, which may be empty;
+  none for a party with no role there or no identity, or while the
+  people can't be read. It allocates and changes nothing. A brief names
+  a person requester by it (`../engine/briefs.md`, section 1), and an
+  application naming a project's people for its agents reads it, so
+  that a party has one name in a project wherever it is written.
 
 ## 5. A party's inbox
 
