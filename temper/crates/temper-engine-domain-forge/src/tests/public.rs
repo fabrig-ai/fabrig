@@ -248,6 +248,7 @@ fn change_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
+            last_checked: None,
         },
         pull: None,
         pending: Some(OPEN),
@@ -435,6 +436,9 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] },
             Receipt {
+                report: ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 logs: Box::new([]),
                 failures: None,
                 passed: false,
@@ -835,6 +839,9 @@ fn maximal_proofs(d: &mut Domain) {
             .insert(
                 ReceiptKey { project: 5, repository: REPO, check: Check::Gate(name), key: [7; 32] },
                 Receipt {
+                    report: ReceiptReport::Unset,
+                    base: None,
+                    jobs: Box::new([]),
                     logs: Box::new([]),
                     failures: None,
                     passed: false,

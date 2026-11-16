@@ -1,0 +1,1367 @@
+//! Durable answers use the same operation words before and after a restart (client/ctl/results.md, 1).
+use super::{Text, acts, document};
+use crate::jig::{Limits, runner::Printed};
+use alloc::boxed::Box;
+use jig_client::{Answered, Ask, Outcome, contract as c};
+use skein_json::writer::Encoder;
+mod start_model;
+#[derive(Debug)]
+pub struct Operation {
+    pub project: Option<u32>,
+    /// Only a live project removal keeps the name me gave at the call.
+    pub removed_project_name: Option<c::DocumentText>,
+    pub revision: Option<u32>,
+    pub exported: Option<(u32, u32)>,
+    pub file: Option<Box<[u8]>>,
+    pub word: &'static [u8],
+    /// Present only for a live call; restored requests retain their operation word.
+    pub tool: Option<&'static crate::jig::table::Tool>,
+    pub account: Option<Account>,
+    /// The declaration's provider and program name, retained from its durable ask.
+    pub declaration: Option<(u32, Box<[u8]>)>,
+    pub task: Option<u64>,
+    pub ended_task: Option<c::Phase>,
+    pub asked: Option<Asked>,
+    pub to: Option<c::Recipient>,
+    pub party: Option<u64>,
+    pub retry: Option<Box<[u8]>>,
+    pub value_name: Option<crate::jig::key::Name>,
+    pub proposal_project: Option<u32>,
+    pub proposal_decision: bool,
+    /// Distinct submitted settings scopes, ordered with the deployment before projects.
+    pub settings_scopes: Option<skein_lib::Set<u32>>,
+    pub start_model: Option<start_model::Start>,
+}
+/// What a person task's contract asks of an answer past it (client/ctl/areas.md).
+#[derive(Debug)]
+pub enum Asked {
+    /// The choice the reason is for; absent for a report's words.
+    Bound {
+        bound: u32,
+        choice: Option<u32>,
+    },
+    Words {
+        bound: u32,
+        revision: u64,
+    },
+    Approval {
+        revision: u64,
+    },
+    Choices {
+        choice: u32,
+        codes: skein_lib::List<u32>,
+    },
+}
+/// One in-flight source context; its name is bounded by the client's document text limit.
+#[derive(Clone, Debug)]
+pub struct Account {
+    pub provider: Option<u32>,
+    pub provider_name: Option<c::DocumentText>,
+    pub program: bool,
+    pub sign_in: bool,
+}
+impl Operation {
+    #[must_use]
+    pub fn for_call(ask: &Ask, tool: &'static crate::jig::table::Tool) -> Self {
+        let mut operation = Self::of(ask);
+        operation.tool = Some(tool);
+        operation
+    }
+    pub(crate) fn model_flags(&mut self, call: &crate::jig::call::Call) {
+        if let Some(start) = &mut self.start_model {
+            start.flags(call);
+        }
+    }
+    fn tool_name(&self) -> &'static [u8] {
+        match self.tool {
+            Some(tool) => tool.name,
+            None => self.word,
+        }
+    }
+    #[must_use]
+    pub fn of(ask: &Ask) -> Self {
+        let (word, task): (&[u8], Option<u64>) = match ask {
+            Ask::Family { .. } => (b"adopt", None),
+            Ask::Jig(ask) => match ask.as_ref() {
+                c::Ask::Restore { .. } => (b"restore", None),
+                c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
+                c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
+                c::Ask::ReadLists { .. } => (b"read-lists", None),
+                c::Ask::ChangeModel(_) => (b"change-model", None),
+                c::Ask::ChangeSettings(_) => (b"change-settings", None),
+                c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
+                    (creation_word(tasks), None)
+                }
+                c::Ask::Talk { task, .. } => (b"talk", Some(*task)),
+                c::Ask::Leave { task, .. } => (b"leave", Some(*task)),
+                c::Ask::Message { task, .. } => (b"message", Some(*task)),
+                c::Ask::Compound { operations, .. } => {
+                    let mut task = None;
+                    for operation in operations {
+                        if let c::Operation::Cancel { task: number, .. } = operation {
+                            task = Some(*number);
+                        }
+                    }
+                    (b"close", task)
+                }
+                c::Ask::Answer { on, .. } => (
+                    b"answer",
+                    Some(match on {
+                        c::AnswerOn::Question { task, .. } | c::AnswerOn::Person { task, .. } => *task,
+                    }),
+                ),
+                c::Ask::Decide { on, .. } => (
+                    b"decide",
+                    match on {
+                        c::DecideOn::Escalation { task, .. } => Some(*task),
+                        c::DecideOn::Proposal { proposal, .. } => match proposal.proposer {
+                            c::Proposer::Task(task) => Some(task),
+                            c::Proposer::Party(_) => None,
+                        },
+                    },
+                ),
+                c::Ask::Lift { .. } => (b"lift", None),
+                c::Ask::Release { task, .. } => (b"release", Some(*task)),
+                c::Ask::Stop { task, .. } => (b"stop", Some(*task)),
+                c::Ask::Cancel { task, .. } => (b"cancel", Some(*task)),
+                c::Ask::Take { task, .. } => (b"take", Some(*task)),
+                c::Ask::HandBack { task, .. } => (b"hand-back", Some(*task)),
+                c::Ask::Amend { task, .. }
+                | c::Ask::Propose { action: c::ProposeAction::Amendment { task, .. }, .. } => (b"amend", Some(*task)),
+                c::Ask::Move { task, .. } => (b"move", Some(*task)),
+                c::Ask::Seen { .. } => (b"seen", None),
+                c::Ask::EditNote { .. } => (b"edit-note", None),
+                c::Ask::DeleteNote { .. } => (b"delete-note", None),
+                c::Ask::ChangePolicy {
+                    edit: c::PolicyEdit::ProjectSpend { .. } | c::PolicyEdit::RoleSpend { .. },
+                    ..
+                } => (b"project fund", None),
+                c::Ask::ChangePolicy { .. } => (b"change-policy", None),
+                c::Ask::SetRoles { .. } => (b"set-roles", None),
+                c::Ask::MakeProject { .. } => (b"make-project", None),
+                c::Ask::SetVisibility { .. } => (b"project amend", None),
+                c::Ask::RemoveProject { .. } => (b"remove-project", None),
+                c::Ask::Rename { .. } => (b"rename", None),
+                c::Ask::MakeService { .. } => (b"make-service", None),
+                c::Ask::SetPool { .. } => (b"set-pool", None),
+                c::Ask::Withdraw { .. } => (b"withdraw", None),
+                c::Ask::SignIn { .. } => (b"connect", None),
+                c::Ask::SignOut { .. } => (b"disconnect", None),
+                c::Ask::AccountChange { change, .. } => (
+                    match change {
+                        c::AccountChange::MoveOut { .. } | c::AccountChange::Written { .. } => b"export".as_slice(),
+                        c::AccountChange::MoveIn { .. } => b"import",
+                        c::AccountChange::DeclareProgram { .. } => b"declare".as_slice(),
+                        c::AccountChange::CheckProgram { .. } => b"verify",
+                        c::AccountChange::AddKey { .. } => b"add-key".as_slice(),
+                        c::AccountChange::ReplaceKey { .. } => b"replace-key",
+                        c::AccountChange::Resume { .. } => b"retry",
+                        c::AccountChange::MoveAccount { .. } | c::AccountChange::MoveSource { .. } => b"rank",
+                        c::AccountChange::Remove { .. } | c::AccountChange::RemoveKey { .. } => b"forget",
+                        c::AccountChange::LoginProgram { .. }
+                        | c::AccountChange::CancelLogin { .. }
+                        | c::AccountChange::LoginEnded { .. }
+                        | c::AccountChange::SetUses { .. }
+                        | c::AccountChange::FinishSignIn { .. } => b"account-change",
+                    },
+                    None,
+                ),
+            },
+        };
+        let mut operation = Self::with_words(ask, word, task);
+        if let Ask::Jig(ask) = ask
+            && let c::Ask::AccountChange { change: c::AccountChange::DeclareProgram { provider, name, .. }, .. } =
+                ask.as_ref()
+        {
+            operation.declaration = Some((*provider, name.clone()));
+        }
+        operation
+    }
+    fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
+        let mut proposal_decision = false;
+        if let Ask::Jig(ask) = ask
+            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } = ask.as_ref()
+        {
+            proposal_decision = true;
+        }
+        Self {
+            project: funding_project(ask),
+            removed_project_name: None,
+            revision: settings_revision(ask),
+            exported: None,
+            file: None,
+            word,
+            tool: None,
+            account: None,
+            declaration: None,
+            task,
+            ended_task: None,
+            asked: None,
+            to: None,
+            party: None,
+            retry: None,
+            value_name: None,
+            proposal_project: proposal_project(ask),
+            proposal_decision,
+            settings_scopes: settings_scopes(ask),
+            start_model: start_model::Start::of(ask, word),
+        }
+    }
+}
+fn settings_revision(ask: &Ask) -> Option<u32> {
+    if let Ask::Jig(ask) = ask {
+        if let c::Ask::MoveToNewest(value) = ask.as_ref() {
+            return Some(value.revision);
+        }
+        if let c::Ask::Restore { revision, .. } = ask.as_ref() {
+            return Some(*revision);
+        }
+    }
+    None
+}
+fn funding_project(ask: &Ask) -> Option<u32> {
+    if let Ask::Jig(ask) = ask
+        && let c::Ask::Create { project, .. }
+        | c::Ask::ChangePolicy {
+            project,
+            edit: c::PolicyEdit::ProjectSpend { .. } | c::PolicyEdit::RoleSpend { .. },
+        } = ask.as_ref()
+    {
+        Some(*project)
+    } else {
+        None
+    }
+}
+#[must_use]
+pub fn print(
+    operation: &Operation,
+    outcome: &Outcome,
+    json: bool,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    prefix: &[u8],
+) -> Printed {
+    let status = match outcome {
+        Outcome::Full { held, room_at } => return super::answers_full(prefix, *held, *room_at),
+        Outcome::Answered(Answered::Jig(c::Answer::Done(_))) => 0,
+        Outcome::Answered(Answered::Jig(c::Answer::Refused { .. })) => 2,
+        Outcome::NotKept
+        | Outcome::Answered(Answered::Family(_))
+        | Outcome::Unknown
+        | Outcome::Limit
+        | Outcome::Unconfirmed
+        | Outcome::Held
+        | Outcome::Unsent
+        | Outcome::Lost => 1,
+    };
+    let bytes = bytes(operation, outcome, json, me, limits, false, prefix);
+    if status == 0 {
+        Printed { file: crate::jig::FileEnd::Keep, status, stdout: bytes, stderr: Box::default() }
+    } else {
+        Printed { file: crate::jig::FileEnd::Keep, status, stdout: Box::default(), stderr: bytes }
+    }
+}
+#[must_use]
+pub fn kept(
+    operation: &Operation,
+    outcome: &Outcome,
+    json: bool,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    prefix: &[u8],
+) -> Box<[u8]> {
+    bytes(operation, outcome, json, me, limits, true, prefix)
+}
+fn bytes(
+    operation: &Operation,
+    outcome: &Outcome,
+    json: bool,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    kept: bool,
+    prefix: &[u8],
+) -> Box<[u8]> {
+    if let Outcome::Full { held, room_at } = outcome {
+        return super::answers_full(prefix, *held, *room_at).stderr;
+    }
+    if json {
+        let bounds = skein_json::writer::Limits {
+            depth: 32,
+            length: u32::try_from(limits.result_bytes).expect("output bytes fit"),
+        };
+        let mut measure = Encoder::measure(&bounds);
+        encode(operation, outcome, &mut measure, kept, me, limits);
+        let Ok(size) = measure.measured() else { return super::failure(b"result limit", true, 1).stderr };
+        let mut write = Encoder::write(size, &bounds);
+        encode(operation, outcome, &mut write, kept, me, limits);
+        let bytes = write.finish();
+        if kept { newline(&bytes) } else { bytes }
+    } else {
+        let mut measure = Text::measure();
+        text(operation, outcome, me, limits, kept, prefix, &mut measure);
+        let mut write = Text::writing_exact(measure);
+        text(operation, outcome, me, limits, kept, prefix, &mut write);
+        write.finish()
+    }
+}
+fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a [u8]; 4]> {
+    let reason: Option<&[u8]> = match outcome {
+        Outcome::NotKept => Some(b"request not kept"),
+        Outcome::Unknown => Some(b"unknown past retention"),
+        Outcome::Limit => Some(b"request limit"),
+        Outcome::Held => Some(b"name held by another request"),
+        Outcome::Unconfirmed => Some(b"tools' bug; unconfirmed request; report it as a finding"),
+        Outcome::Answered(Answered::Family(_)) => Some(b"tools' bug; unexpected family answer; report it as a finding"),
+        Outcome::Answered(Answered::Jig(_)) | Outcome::Full { .. } => None,
+        Outcome::Unsent => Some(b"unsent"),
+        Outcome::Lost => Some(b"lost"),
+    };
+    let reason = reason?;
+    let name = if let Outcome::Unsent | Outcome::Lost = outcome { operation.value_name.as_ref() } else { None };
+    Some(match name {
+        Some(name) => [reason, b"; supply --key ", name.bytes(), b" and the same file again"],
+        None => [reason, b"", b"", b""],
+    })
+}
+fn text(
+    operation: &Operation,
+    outcome: &Outcome,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    kept: bool,
+    prefix: &[u8],
+    out: &mut Text,
+) {
+    if kept {
+        out.put(b"kept: ");
+        out.put(operation.word);
+        out.put(b", ");
+    }
+    if let Some(reason) = client_reason(operation, outcome) {
+        for part in reason {
+            out.put(part);
+        }
+        out.put(b"\n");
+        return;
+    }
+    let Outcome::Answered(Answered::Jig(answer)) = outcome else { unreachable!("client answers handled") };
+    match answer {
+        c::Answer::Done(_) if operation.exported.is_some() => moved_out(operation, out),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountMovedIn { account, renewed })) => {
+            moved_in(*account, *renewed, out);
+        }
+
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Proposed { proposal, .. })) => proposed(
+            c::ProposalKey {
+                proposer: c::Proposer::Party(operation.party.expect("request party retained")),
+                number: *proposal,
+            },
+            operation,
+            me,
+            out,
+        ),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProposalDecided {
+            by,
+            at,
+            choice,
+            repeated: true,
+            ..
+        })) => {
+            repeated_text(*by, *at, *choice, me, out);
+        }
+
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { source, name })) => {
+            out.put(b"Program source ");
+            out.number(u64::from(*source));
+            out.put(b": ");
+            out.put(name);
+            out.put(b"\nRun on each host, with its directories: ");
+            out.put(limits.program_login);
+            out.put(b" ");
+            out.put(name);
+            out.put(b"\nSkip it where the programs directory's ");
+            out.put(name);
+            out.put(b" is already signed in. Then: account verify ACCOUNT --source program, ACCOUNT as account list shows it");
+        }
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)) if operation.word == b"verify" => {
+            out.put(b"asked\naccount list --until settled");
+        }
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { address, .. })) => {
+            out.put(b"Open this address in a browser on the engine's machine:\n");
+            out.put(address);
+            out.put(b"\naccount list --until settled");
+        }
+        c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts }
+            | c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts },
+        )) => {
+            sign_out(operation, *confirmed, failed_hosts, me, limits, out);
+        }
+        c::Answer::Done(c::Outcome::Restored { proposal, to, left_out }) => {
+            restored_text(operation, *proposal, *to, left_out, out);
+        }
+        c::Answer::Done(c::Outcome::MovedToNewest(value)) => moved_text(operation, value, out),
+        c::Answer::Done(c::Outcome::SettingsChanged(changed)) => {
+            out.put(b"revision ");
+            out.number(u64::from(changed.revision));
+        }
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold, released })) => {
+            lifted(*hold, *released, out);
+        }
+        c::Answer::Done(done) => done_text(done, operation, out),
+        c::Answer::Refused { refusal, .. } => refused_text(operation, refusal, me, limits, prefix, out),
+    }
+    out.put(b"\n");
+}
+fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
+    | c::Outcome::Made { what: c::Made::Service { party } } = done
+    {
+        out.put(b"made: party ");
+        out.number(*party);
+        return;
+    }
+    if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
+        out.put(b"left: task ");
+        out.number(*task);
+        return;
+    }
+    if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
+        out.put(b"project ");
+        out.number(u64::from(*project));
+        return;
+    }
+    if let c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project }) = done {
+        out.put(b"deleted: project ");
+        out.number(u64::from(*project));
+        if let Some(name) = &operation.removed_project_name
+            && !name.bytes().is_empty()
+        {
+            out.put(b", ");
+            out.put(name.bytes());
+        }
+        return;
+    }
+    out.put(b"done: ");
+    let task = match done {
+        c::Outcome::Restored { .. } | c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
+            unreachable!("settings answer handled above")
+        }
+        c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
+        c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+        c::Outcome::Account(_) | c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
+    };
+    if let Some(task) = task {
+        out.put(b"task ");
+        out.number(task);
+        out.put(b", ");
+    }
+    out.put(operation.word);
+}
+fn restored_text(
+    operation: &Operation,
+    proposal: u64,
+    to: u32,
+    left_out: &skein_lib::List<c::Setting>,
+    out: &mut Text,
+) {
+    out.put(b"proposed restoring revision ");
+    out.number(u64::from(operation.revision.expect("restore revision retained")));
+    out.put(b" as proposal ");
+    document::settings::proposal_text(
+        c::ProposalKey {
+            proposer: c::Proposer::Party(operation.party.expect("request party retained")),
+            number: proposal,
+        },
+        out,
+    );
+    out.put(b" to role ");
+    out.number(u64::from(to));
+    for setting in left_out {
+        out.put(b"\nleft out: ");
+        settings_form::render::setting_text(crate::jig::settings_adapter::form_setting(*setting), out);
+    }
+}
+
+fn lifted(hold: u64, released: u32, out: &mut Text) {
+    out.put(b"done: hold ");
+    out.number(hold);
+    out.put(b" lifted, ");
+    out.number(u64::from(released));
+    out.put(b" released");
+}
+fn repeated_text(by: u64, at: skein_lib::Wall, choice: c::ProposalChoice, me: Option<&c::Me>, out: &mut Text) {
+    out.put(b"decided first: by ");
+    acts::party(by, me, out);
+    out.put(b", ");
+    out.put(match choice {
+        c::ProposalChoice::Accepted => b"accepted",
+        c::ProposalChoice::Rejected => b"rejected",
+        c::ProposalChoice::Passed => b"passed up",
+        c::ProposalChoice::Withdrawn => b"withdrawn",
+        c::ProposalChoice::Stale => b"stale",
+    });
+    out.put(b", ");
+    document::utc(at, out);
+}
+
+fn proposed(proposal: c::ProposalKey, operation: &Operation, me: Option<&c::Me>, out: &mut Text) {
+    out.put(b"proposed: ");
+    let name = crate::jig::argv::value::encode(
+        &[],
+        crate::jig::table::Kind::Proposal,
+        &crate::jig::call::Value::Proposal(proposal),
+    )
+    .expect("proposal identity is printable");
+    out.put(&name);
+    if let Some(to) = &operation.to {
+        out.put(b", to ");
+        match &operation.settings_scopes {
+            Some(scopes) => settings_owners(scopes, out),
+            None => acts::recipient(to, me, out),
+        }
+    }
+}
+
+fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
+    if let Ask::Jig(ask) = ask
+        && let c::Ask::Propose { action: c::ProposeAction::Settings(settings), .. } = ask.as_ref()
+    {
+        let mut scopes = skein_lib::Set::with_capacity(settings.items.len());
+        for item in &settings.items {
+            let scope = match item.setting {
+                c::Setting::Charter(_)
+                | c::Setting::Template(_)
+                | c::Setting::Policy(_)
+                | c::Setting::Model(_)
+                | c::Setting::Rules => 0,
+                c::Setting::ProjectPolicy { project } => project,
+                c::Setting::Application { scope, .. } => scope,
+            };
+            scopes.insert(scope).expect("at most one scope per submitted item");
+        }
+        Some(scopes)
+    } else {
+        None
+    }
+}
+
+fn settings_owners(scopes: &skein_lib::Set<u32>, out: &mut Text) {
+    let mut first = true;
+    for scope in scopes {
+        if !first {
+            out.put(b" and ");
+        }
+        first = false;
+        if *scope == 0 {
+            out.put(b"the deployment's owners");
+        } else {
+            out.put(b"project ");
+            out.number(u64::from(*scope));
+            out.put(b"'s owners");
+        }
+    }
+    if scopes.len() > 1 {
+        out.put(b"; one person must own every affected scope");
+    }
+}
+
+fn encode(
+    operation: &Operation,
+    outcome: &Outcome,
+    out: &mut Encoder,
+    kept: bool,
+    me: Option<&c::Me>,
+    limits: &Limits,
+) {
+    if !kept && let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::MovedToNewest(value)))) = outcome {
+        moved_json(value, out);
+        return;
+    }
+    if !kept && let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(changed)))) = outcome {
+        out.object_start();
+        out.key(b"revision");
+        out.unsigned(u64::from(changed.revision));
+        out.object_end();
+        return;
+    }
+    out.object_start();
+    out.key(b"operation");
+    out.string(operation.word);
+    out.key(b"outcome");
+    if let Some(reason) = client_reason(operation, outcome) {
+        out.object_start();
+        out.key(b"error");
+        out.string_parts(&reason);
+        out.object_end();
+    } else {
+        let Outcome::Answered(Answered::Jig(answer)) = outcome else { unreachable!("client answers handled") };
+        if let (Some((account, number)), c::Answer::Done(_)) = (operation.exported, answer) {
+            out.object_start();
+            out.key(b"account");
+            out.unsigned(u64::from(account));
+            out.key(b"number");
+            out.unsigned(u64::from(number));
+            out.key(b"file");
+            out.string(operation.file.as_deref().expect("export file"));
+            out.object_end();
+        } else {
+            document::answer_json(answer, out);
+        }
+    }
+    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountProgramDeclared { name, .. },
+    )))) = outcome
+    {
+        out.key(b"next");
+        out.string_parts(&[b"Run on each host, with its directories: ", limits.program_login, b" ", name]);
+    }
+    if let Some(next) = account_follow_up(operation, outcome) {
+        out.key(b"next");
+        out.string(next);
+    }
+    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts }
+        | c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts },
+    )))) = outcome
+    {
+        let mut measure = Text::measure();
+        if sign_out(operation, *confirmed, failed_hosts, me, limits, &mut measure) {
+            let mut write = Text::writing_exact(measure);
+            sign_out(operation, *confirmed, failed_hosts, me, limits, &mut write);
+            out.key(b"next");
+            out.string(&write.finish());
+        }
+    }
+    if !kept {
+        out.key(b"task");
+        match operation.task {
+            Some(task) => out.unsigned(task),
+            None => out.null(),
+        }
+        out.key(b"to");
+        match &operation.to {
+            Some(to) => document::recipient_json(to, out),
+            None => out.null(),
+        }
+    }
+    if let Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal, .. })) = outcome {
+        refused_json(operation, refusal, out);
+    }
+    out.object_end();
+}
+fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
+    if let Some(start) = &operation.start_model {
+        start.json(refusal, out);
+    }
+    let mut measure = Text::measure();
+    if account_next(operation, refusal, &mut measure) {
+        let mut write = Text::writing_exact(measure);
+        account_next(operation, refusal, &mut write);
+        out.key(b"next");
+        out.string(&write.finish());
+    }
+    ended_json(operation, refusal, out);
+    if let Some(asked) = asked(operation, refusal) {
+        asked_json(operation, asked, out);
+    }
+    if let c::Refusal::Moved { .. } = refusal
+        && let Some(task) = operation.task
+    {
+        let mut measured = Text::measure();
+        read_again(task, &mut measured);
+        let mut write = Text::writing_exact(measured);
+        read_again(task, &mut write);
+        out.key(b"read_again");
+        out.string(&write.finish());
+    }
+    if let c::Refusal::Authority { lacking, proposable: Some(true) } = refusal
+        && !owner_lack(lacking)
+    {
+        out.key(b"propose_instead");
+        out.string(operation.retry.as_deref().unwrap_or(operation.tool_name()));
+    }
+}
+fn asked<'a>(operation: &'a Operation, refusal: &c::Refusal) -> Option<&'a Asked> {
+    if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } } = refusal {
+        operation.asked.as_ref()
+    } else {
+        None
+    }
+}
+fn asked_json(operation: &Operation, asked: &Asked, out: &mut Encoder) {
+    match asked {
+        Asked::Bound { bound, .. } | Asked::Words { bound, .. } => {
+            out.key(b"bound");
+            out.unsigned(u64::from(*bound));
+        }
+        Asked::Approval { .. } | Asked::Choices { .. } => {}
+    }
+    match asked {
+        Asked::Words { .. } => {
+            out.key(b"takes");
+            out.string(b"words");
+        }
+        Asked::Approval { .. } => {
+            out.key(b"takes");
+            out.string(b"approval");
+        }
+        Asked::Choices { codes, .. } => {
+            out.key(b"choices");
+            out.array_start();
+            for code in codes {
+                out.unsigned(u64::from(*code));
+            }
+            out.array_end();
+        }
+        Asked::Bound { .. } => {}
+    }
+    if let Some(task) = operation.task {
+        let mut measure = Text::measure();
+        if answer_instead(task, asked, &mut measure) {
+            let mut write = Text::writing_exact(measure);
+            answer_instead(task, asked, &mut write);
+            out.key(b"answer_instead");
+            out.string(&write.finish());
+        }
+    }
+}
+fn answer_instead(task: u64, asked: &Asked, out: &mut Text) -> bool {
+    let (revision, form) = match asked {
+        Asked::Words { revision, .. } => (*revision, b" TEXT".as_slice()),
+        Asked::Approval { revision } => (*revision, b" --approve STATE [TEXT]".as_slice()),
+        Asked::Bound { .. } | Asked::Choices { .. } => return false,
+    };
+    out.put(b"task answer ");
+    out.number(task);
+    out.put(b" --rev ");
+    out.number(revision);
+    out.put(form);
+    true
+}
+fn asked_text(task: u64, asked: &Asked, out: &mut Text) {
+    out.put(b": task ");
+    out.number(task);
+    match asked {
+        Asked::Bound { bound, choice } => {
+            match choice {
+                Some(choice) => {
+                    out.put(b"'s reason for choice ");
+                    out.number(u64::from(*choice));
+                    out.put(b" is at most ");
+                }
+                None => out.put(b"'s words are at most "),
+            }
+            out.number(u64::from(*bound));
+            out.put(b" bytes");
+        }
+        Asked::Words { bound, .. } => {
+            out.put(b" takes words, at most ");
+            out.number(u64::from(*bound));
+            out.put(b" bytes, not a choice");
+        }
+        Asked::Approval { .. } => out.put(b" takes an approval, not a choice"),
+        Asked::Choices { choice, codes } => {
+            out.put(b" has no choice ");
+            out.number(u64::from(*choice));
+            out.put(b"; its choices are ");
+            let mut first = true;
+            for code in codes {
+                if !first {
+                    out.put(b", ");
+                }
+                first = false;
+                out.number(u64::from(*code));
+            }
+        }
+    }
+    match asked {
+        Asked::Words { .. } | Asked::Approval { .. } => {
+            out.put(b"\nanswer instead: ");
+            answer_instead(task, asked, out);
+        }
+        Asked::Bound { .. } | Asked::Choices { .. } => {}
+    }
+}
+fn read_again(task: u64, out: &mut Text) {
+    out.put(b"task show ");
+    out.number(task);
+}
+#[must_use]
+pub fn newline(bytes: &[u8]) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(bytes.len().checked_add(1).expect("line size fits"));
+    out.put(bytes).expect("measured line");
+    out.put(b"\n").expect("measured newline");
+    out.finish()
+}
+pub(crate) fn retry(call: &crate::jig::call::Call) -> Box<[u8]> {
+    use crate::jig::argv;
+    let tool = act_tool(call.tool);
+    let mut call = call.clone();
+    call.tool = 0;
+    let mut words = skein_lib::List::with_capacity(128);
+    argv::back(&[tool], &call, &mut words).expect("parsed act");
+    let mut measure = Text::measure();
+    retry_words(words.as_slice(), &mut measure);
+    let mut out = Text::writing_exact(measure);
+    retry_words(words.as_slice(), &mut out);
+    out.finish()
+}
+pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
+    use crate::jig::rows;
+    match tool {
+        rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
+        rows::GOAL_START_AT => &rows::GOAL_START,
+        rows::ROLE_START_AT => &rows::ROLE_START,
+        rows::NEED_ASK_AT => &rows::NEED_ASK,
+        rows::ROLE_TALK_AT => &rows::ROLE_TALK,
+        rows::MESSAGE_AT => &rows::MESSAGE,
+        rows::CLOSE_AT => &rows::CLOSE,
+        rows::ANSWER_AT => &rows::ANSWER,
+        rows::TAKE_AT => &rows::TAKE,
+        rows::HAND_BACK_AT => &rows::HAND_BACK,
+        rows::DECIDE_AT => &rows::DECIDE,
+        rows::TASK_DECIDE_AT => &rows::TASK_DECIDE,
+        rows::RELEASE_AT => &rows::RELEASE,
+        rows::LIFT_AT => &rows::LIFT,
+        rows::STOP_AT => &rows::STOP,
+        rows::CANCEL_AT => &rows::CANCEL,
+        rows::CONNECT_AT..=rows::RETRY_AT | rows::DECLARE_AT | rows::VERIFY_AT | rows::EXPORT_AT | rows::IMPORT_AT => {
+            account_tool(tool)
+        }
+        rows::AMEND_AT => &rows::AMEND,
+        rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
+        rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
+        rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
+        rows::RESTORE_AT => &rows::RESTORE,
+        rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
+        rows::PARTY_MAKE_AT => &rows::PARTY_MAKE,
+        rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
+        rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
+        rows::PROJECT_DELETE_AT => &rows::PROJECT_DELETE,
+        _ => unreachable!("act tool"),
+    }
+}
+fn retry_words(words: &[Box<[u8]>], out: &mut Text) {
+    for (index, word) in words.iter().enumerate() {
+        if index > 0 {
+            out.put(b" ");
+        }
+        super::lists::argument(word, out);
+    }
+}
+
+pub(crate) fn account_word(tool: u8) -> &'static [u8] {
+    crate::jig::table::name_words(account_tool(tool).name).1.expect("account verb")
+}
+
+pub(crate) fn account_tool(tool: u8) -> &'static crate::jig::table::Tool {
+    use crate::jig::rows;
+    match tool {
+        rows::CONNECT_AT => &rows::CONNECT,
+        rows::DISCONNECT_AT => &rows::DISCONNECT,
+        rows::ADD_KEY_AT => &rows::ADD_KEY,
+        rows::REPLACE_KEY_AT => &rows::REPLACE_KEY,
+        rows::FORGET_AT => &rows::FORGET,
+        rows::RANK_AT => &rows::RANK,
+        rows::RETRY_AT => &rows::RETRY,
+        rows::DECLARE_AT => &rows::DECLARE,
+        rows::VERIFY_AT => &rows::VERIFY,
+        rows::EXPORT_AT => &rows::EXPORT,
+        rows::IMPORT_AT => &rows::IMPORT,
+        _ => unreachable!("account tool"),
+    }
+}
+
+fn account_follow_up(operation: &Operation, outcome: &Outcome) -> Option<&'static [u8]> {
+    match outcome {
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignInStarted { .. },
+        )))) => Some(b"account list --until settled"),
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged))))
+            if operation.word == b"verify" =>
+        {
+            Some(b"account list --until settled")
+        }
+        Outcome::NotKept
+        | Outcome::Answered(_)
+        | Outcome::Unknown
+        | Outcome::Limit
+        | Outcome::Unconfirmed
+        | Outcome::Held
+        | Outcome::Unsent
+        | Outcome::Lost
+        | Outcome::Full { .. } => None,
+    }
+}
+
+fn sign_out(
+    operation: &Operation,
+    confirmed: bool,
+    failed_hosts: &[c::AccountHostFailure],
+    me: Option<&c::Me>,
+    limits: &Limits,
+    out: &mut Text,
+) -> bool {
+    let mut advice = false;
+    let program = match &operation.account {
+        Some(account) => account.program,
+        None => !failed_hosts.is_empty(),
+    };
+    if program {
+        if failed_hosts.is_empty() {
+            out.put(b"Signed out on every machine.");
+        } else {
+            advice = true;
+            out.put(b"Not signed out on:");
+            for host in failed_hosts {
+                out.put(b"\n");
+                out.put(&host.name);
+                out.put(match host.why {
+                    c::AccountHostWhy::NotInContact => b": not in contact",
+                    c::AccountHostWhy::Lost => b": contact lost",
+                    c::AccountHostWhy::Failed => b": failed",
+                });
+            }
+        }
+    }
+    let sign_in = match &operation.account {
+        Some(account) => account.sign_in,
+        None => false,
+    };
+    // With failed hosts, a mixed removal cannot tell us whether its sign-in was revoked.
+    if !confirmed && (sign_in || failed_hosts.is_empty()) {
+        advice = true;
+        if program {
+            out.put(b"\n");
+        }
+        out.put(limits.application);
+        out.put(b" removed its tokens. Disconnect ");
+        out.put(limits.application);
+        out.put(b" in ");
+        let mut named = false;
+        if let Some(account) = &operation.account {
+            if let Some(name) = &account.provider_name
+                && !name.cut
+            {
+                out.put(name.bytes());
+                out.put(b"'s settings, under Apps.");
+                named = true;
+            }
+            if !named && let Some(me) = me {
+                for offer in &me.providers {
+                    if Some(offer.provider) == account.provider && !offer.name.cut {
+                        out.put(offer.name.bytes());
+                        out.put(b"'s settings, under Apps.");
+                        named = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if !named {
+            out.put(b"the provider's settings, under Apps.");
+        }
+    } else if !program {
+        out.put(b"done: ");
+        out.put(operation.word);
+    }
+    advice
+}
+
+fn moved_out(operation: &Operation, out: &mut Text) {
+    out.put(b"moved out: account ");
+    out.number(u64::from(operation.exported.expect("exported").0));
+    out.put(b" to ");
+    out.put(operation.file.as_deref().expect("export file"));
+}
+fn moved_in(account: u32, renewed: bool, out: &mut Text) {
+    out.put(b"moved in: account ");
+    out.number(u64::from(account));
+    if renewed {
+        out.put(b", renewed");
+    }
+}
+
+mod ceiling;
+
+fn refused_text(
+    operation: &Operation,
+    refusal: &c::Refusal,
+    me: Option<&c::Me>,
+    limits: &Limits,
+    prefix: &[u8],
+    out: &mut Text,
+) {
+    if super::roles::refusal(operation.word, refusal, me, out) {
+        return;
+    }
+    if operation.proposal_decision && *refusal == c::Refusal::Unknown {
+        out.put(operation.tool_name());
+        out.put(b": this proposal isn't waiting; it may have been decided or replaced");
+        return;
+    }
+    if operation.word == b"restore" && restore_refusal(operation, refusal, prefix, out) {
+        return;
+    }
+    if operation.word == b"close"
+        && ended_refusal(refusal, operation.ended_task.is_some())
+        && let Some(task) = operation.task
+    {
+        out.put(b"chat ");
+        out.number(task);
+        out.put(b" has ended");
+        return;
+    }
+    if operation.word == b"cancel"
+        && ended_refusal(refusal, operation.ended_task.is_some())
+        && let Some(task) = operation.task
+    {
+        out.put(b"task ");
+        out.number(task);
+        out.put(b" has ended");
+        if let Some(phase) = operation.ended_task {
+            out.put(b": ");
+            out.put(ended_word(phase));
+        } else {
+            out.put(b": ");
+            acts::refusal(refusal, &document::phrasebook(limits.text), out);
+        }
+        return;
+    }
+    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Ceiling { holder, dimension, value, .. }, .. }) =
+        (operation.project, refusal)
+        && operation.word == b"project fund"
+    {
+        ceiling::text(project, *holder, *dimension, *value, limits.application, out);
+        return;
+    }
+    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
+        (operation.project, refusal)
+        && operation.word == b"project fund"
+    {
+        out.put(b"refused: the period has ");
+        out.number(*left);
+        out.put(b" left, the pools need ");
+        out.number(*needed);
+        out.put(b"; raise the project's first: project fund ");
+        out.number(u64::from(project));
+        out.put(b" AMOUNT");
+        return;
+    }
+    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
+        (operation.project, refusal)
+        && *left == 0
+    {
+        spent_pool(operation, project, *needed, *left, me, out);
+        return;
+    }
+    if start_model::refusal(operation, refusal, out) || account_refusal(operation, refusal, out) {
+        return;
+    }
+    out.put(operation.tool_name());
+    out.put(b": ");
+    acts::refusal(refusal, &document::phrasebook(limits.text), out);
+    if let Some(asked) = asked(operation, refusal)
+        && let Some(task) = operation.task
+    {
+        asked_text(task, asked, out);
+    }
+    if let c::Refusal::Moved { what: c::Moved::PlacedHold { revision }, .. } = refusal
+        && operation.word == b"lift"
+    {
+        out.put(b"\nrevision now: ");
+        out.number(revision.value);
+    }
+    if let c::Refusal::Moved { .. } = refusal
+        && let Some(task) = operation.task
+    {
+        out.put(b"\nread again: task show ");
+        out.number(task);
+    }
+    if let c::Refusal::Authority { lacking, proposable: Some(true) } = refusal
+        && !owner_lack(lacking)
+    {
+        out.put(b"\npropose instead: ");
+        match &operation.retry {
+            Some(call) => out.put(call),
+            None => out.put(operation.tool_name()),
+        }
+    }
+}
+
+/// Account refusals with one actionable meaning (client/ctl/areas.md).
+fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let Some((provider, name)) = &operation.declaration {
+        if *refusal == c::Refusal::NameTaken {
+            out.put(b"account declare: program name ");
+            out.put(name);
+            out.put(b" is taken");
+        } else if *refusal == c::Refusal::NotOffered {
+            out.put(b"account declare: provider ");
+            out.number(u64::from(*provider));
+            out.put(b" offers you no program login");
+        } else {
+            return false;
+        }
+    } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
+        out.put(b"account retry: the source is not limited, so there is nothing to resume");
+    } else {
+        return false;
+    }
+    out.put(b"\n");
+    account_next(operation, refusal, out);
+    true
+}
+fn account_next(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let Some((_, name)) = &operation.declaration {
+        if *refusal == c::Refusal::NameTaken {
+            out.put(b"Declare under another name. If account list shows a source of yours named ");
+            out.put(name);
+            out.put(b", check its login instead: account verify ACCOUNT --source program");
+        } else if *refusal == c::Refusal::NotOffered {
+            out.put(b"me prints each provider's ways; declare with a provider whose line names programs");
+        } else {
+            return false;
+        }
+    } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
+        out.put(b"account list shows its state and what it needs");
+    } else {
+        return false;
+    }
+    true
+}
+
+fn restore_refusal(operation: &Operation, refusal: &c::Refusal, prefix: &[u8], out: &mut Text) -> bool {
+    let revision = operation.revision.expect("restore revision retained");
+    if let c::Refusal::Forgotten { oldest } = refusal {
+        out.put(prefix);
+        out.put(b": revision ");
+        out.number(u64::from(revision));
+        out.put(b" is forgotten; the oldest kept is revision ");
+        out.number(u64::from(*oldest));
+        return true;
+    }
+    if let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = refusal
+        && value.fault == c::SettingFault::Count
+    {
+        out.put(b"revision restore: too large; revision ");
+        out.number(u64::from(revision));
+        out.put(b"'s settings pass a proposal's bound; restore a later revision");
+        return true;
+    }
+    if let c::Refusal::Malformed { why: c::Malformed::SettingsUnchanged, .. } = refusal {
+        out.put(b"revision restore: nothing to restore; the settings are as revision ");
+        out.number(u64::from(revision));
+        out.put(b" left them");
+        return true;
+    }
+    if let c::Refusal::Stale(value) = refusal
+        && (revision == 0 || revision > value.newest)
+    {
+        out.put(b"revision restore: no revision ");
+        out.number(u64::from(revision));
+        out.put(b"; the newest is revision ");
+        out.number(u64::from(value.newest));
+        return true;
+    }
+    false
+}
+
+// Me carries the pool ledger, but no role policy spend: a cut can make
+// those different, so never call the pool budget the role's spend limit.
+fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: Option<&c::Me>, out: &mut Text) {
+    let mut membership = None;
+    if let Some(me) = me {
+        for held in &me.projects {
+            if held.project == project {
+                membership = Some(held);
+                break;
+            }
+        }
+    }
+    out.put(operation.tool_name());
+    out.put(b": refused: your pool in project ");
+    out.number(u64::from(project));
+    out.put(b" had ");
+    out.number(left);
+    out.put(b" left, ");
+    out.number(needed);
+    out.put(b" needed");
+    let pool = match membership {
+        Some(held) => held.pool.as_ref(),
+        None => None,
+    };
+    if let Some(pool) = pool
+        && pool.left >= needed
+    {
+        out.put(b"\nnow: your pool has ");
+        out.number(pool.left);
+        out.put(b" left; budget ");
+        out.number(pool.numbers.budget);
+        out.put(b"; this key keeps its first answer: start new work with a new --key");
+        return;
+    }
+    out.put(b"\nread it: project show ");
+    out.number(u64::from(project));
+    if let Some(held) = membership {
+        let role = match held.role {
+            c::HeldRole::Owner => 0,
+            c::HeldRole::Maintainer => 1,
+            c::HeldRole::Member => 2,
+            c::HeldRole::Observer => 3,
+            c::HeldRole::Policy { role } => role,
+        };
+        out.put(b"\nraise it: project fund ");
+        out.number(u64::from(project));
+        out.put(b" AMOUNT --role ");
+        out.number(u64::from(role));
+        out.put(b", and first the project's if its period has no room: project fund ");
+    } else {
+        out.put(b"\nraise the project's if its period has no room: project fund ");
+    }
+    out.number(u64::from(project));
+    out.put(b" AMOUNT");
+}
+
+fn proposal_project(ask: &Ask) -> Option<u32> {
+    match ask {
+        Ask::Jig(ask) => match ask.as_ref() {
+            c::Ask::Propose { project, .. } => Some(*project),
+            c::Ask::Restore { .. }
+            | c::Ask::MoveToNewest(_)
+            | c::Ask::ReadLists { .. }
+            | c::Ask::ChangeModel(_)
+            | c::Ask::ChangeSettings(_)
+            | c::Ask::Create { .. }
+            | c::Ask::Withdraw { .. }
+            | c::Ask::Talk { .. }
+            | c::Ask::Leave { .. }
+            | c::Ask::Message { .. }
+            | c::Ask::Compound { .. }
+            | c::Ask::Answer { .. }
+            | c::Ask::Take { .. }
+            | c::Ask::HandBack { .. }
+            | c::Ask::Decide { .. }
+            | c::Ask::Lift { .. }
+            | c::Ask::Release { .. }
+            | c::Ask::Amend { .. }
+            | c::Ask::Stop { .. }
+            | c::Ask::Cancel { .. }
+            | c::Ask::Move { .. }
+            | c::Ask::Seen { .. }
+            | c::Ask::EditNote { .. }
+            | c::Ask::DeleteNote { .. }
+            | c::Ask::ChangePolicy { .. }
+            | c::Ask::SetRoles { .. }
+            | c::Ask::MakeService { .. }
+            | c::Ask::RemoveProject { .. }
+            | c::Ask::SetVisibility { .. }
+            | c::Ask::Rename { .. }
+            | c::Ask::MakeProject { .. }
+            | c::Ask::SetPool { .. }
+            | c::Ask::SignIn { .. }
+            | c::Ask::AccountChange { .. }
+            | c::Ask::SignOut { .. } => None,
+        },
+        Ask::Family { .. } => None,
+    }
+}
+
+pub(super) fn moved_json(value: &c::OutcomeMovedToNewest, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"newest");
+    out.unsigned(u64::from(value.newest));
+    out.key(b"moved");
+    out.unsigned(u64::from(value.moved));
+    out.key(b"stayed");
+    out.unsigned(u64::from(value.stayed));
+    out.object_end();
+}
+
+fn moved_text(operation: &Operation, value: &c::OutcomeMovedToNewest, out: &mut Text) {
+    out.put(b"moved ");
+    out.number(u64::from(value.moved));
+    out.put(if value.moved == 1 { b" task to revision " } else { b" tasks to revision " });
+    out.number(u64::from(value.newest));
+    if value.stayed != 0 {
+        out.put(b"; ");
+        out.number(u64::from(value.stayed));
+        out.put(if value.stayed == 1 { b" could not, and finishes on " } else { b" could not, and finish on " });
+        out.number(u64::from(operation.revision.expect("move request's revision")));
+    }
+}
+
+fn ended_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
+    if operation.word == b"cancel"
+        && ended_refusal(refusal, operation.ended_task.is_some())
+        && let Some(phase) = operation.ended_task
+    {
+        out.key(b"ended");
+        out.string(ended_word(phase));
+    }
+}
+
+fn ended_word(phase: c::Phase) -> &'static [u8] {
+    if phase == c::Phase::Done {
+        b"done"
+    } else if phase == c::Phase::Cancelled {
+        b"cancelled"
+    } else if phase == c::Phase::Failed {
+        b"failed"
+    } else {
+        b"ended"
+    }
+}
+
+fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
+    match refusal {
+        c::Refusal::Ended { .. } => true,
+        c::Refusal::Unknown => archived,
+        c::Refusal::Forgotten { .. }
+        | c::Refusal::Judged { .. }
+        | c::Refusal::Stale(_)
+        | c::Refusal::Full(_)
+        | c::Refusal::AccountMove { .. }
+        | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::LiveTasks { .. }
+        | c::Refusal::Circle { .. }
+        | c::Refusal::Dependency { .. }
+        | c::Refusal::Kept { .. }
+        | c::Refusal::Account { .. }
+        | c::Refusal::NoEscalationHolder
+        | c::Refusal::Provider
+        | c::Refusal::Malformed { .. }
+        | c::Refusal::Role { .. }
+        | c::Refusal::Taken { .. }
+        | c::Refusal::NotWaiting
+        | c::Refusal::NoFurther
+        | c::Refusal::Authority { .. }
+        | c::Refusal::Limit { .. }
+        | c::Refusal::Moved { .. }
+        | c::Refusal::NameTaken
+        | c::Refusal::ProgramNameReserved
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
+        | c::Refusal::NotOffered
+        | c::Refusal::KeyConflict
+        | c::Refusal::Llm { .. } => false,
+    }
+}
+
+fn owner_lack(lacking: &c::Lacking) -> bool {
+    if let c::Lacking::HoldOwner { .. } = lacking {
+        return true;
+    }
+    false
+}
+
+fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
+    match tasks.get(0) {
+        Some(task) if task.flags.ended_by == c::EndedBy::Standing => b"role",
+        Some(c::NewTask { executor: c::Executor::Person(_), .. }) => b"need",
+        Some(task) if !task.flags.conversation => b"goal",
+        Some(_) | None => b"chat",
+    }
+}

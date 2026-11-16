@@ -239,6 +239,7 @@ fn opening_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
+            last_checked: None,
         },
         pull: None,
         pending: Some(OPEN),
@@ -443,6 +444,9 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
     let row = d.tiers.get_mut(&(REPO, Box::from(TIER))).expect("tier");
     row.task = Some(TIER_TASK);
     row.result = Some(Receipt {
+        report: ReceiptReport::Unset,
+        base: None,
+        jobs: Box::new([]),
         logs: Box::new([]),
         failures: None,
         passed: true,

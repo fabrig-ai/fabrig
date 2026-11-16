@@ -19,8 +19,8 @@ mod tests;
 mod verdict;
 
 pub use boundary::{
-    CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Leave,
-    Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Probed, Project, Proof, Report,
+    CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, GateReport, Hold, Key,
+    Landing, Leave, Limits, Member, MemberFacts, Outcome, Phase, Posted, Posting, Preparation, Probed, Project, Proof,
     Repository, Round, RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, probe, step};

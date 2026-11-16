@@ -40,10 +40,11 @@ sections 2 and 4). The policy's types it adds are section 10's.
 
 - **The setting:** a repository's gate (`landing.md`, 13.1) gains its
   report, the artifact its run uploads and its format, `junit` or
-  `lines`, written in the gate's entry as a tier's are: `artifact` and
-  `format`, both or neither, the artifact's name 1 to 32 bytes with no
-  `/` (`after-landing.md`, 2). None by default: a gate with none is
-  probed whole.
+  `lines`, written in the gate's `report` object (`landing.md`, 13.1):
+  `artifact` and `format`, both required there, the artifact's name 1 to
+  32 bytes with no `/` (`after-landing.md`, 2). Its optional `fuzzy`
+  prefix classifies repair names, not probe ids (`landing.md`, 7.3).
+  None by default: a gate with no report is probed whole.
 - **Its key:** a gate with a report appends it to its definition
   (`landing.md`, 6.1) after what `base` appends: the byte 2, the
   artifact's length in two bytes and its bytes, and the format's byte, 0

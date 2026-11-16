@@ -400,6 +400,18 @@ fn a_change_in_each_state_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_changes_last_checked_head_round_trips_some_and_none() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for checked in [Some([29; 32]), None] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.change.last_checked = checked;
+        let row = forge::Stored::Change(Box::new(row));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn an_ended_changes_hold_round_trips_in_its_state() {
     use temper_engine_domain_forge_change::{Hold, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -1511,6 +1523,12 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
         forge::Check::Tier(Box::from([0; 32])),
     ] {
         for passed in [false, true] {
+            let mut jobs = skein_lib::List::with_capacity(16);
+            if !passed {
+                for job in 0..16 {
+                    jobs.push(forge::ReceiptJob { job, attempt: u32::MAX, name: Box::new([b'n'; 256]) }).unwrap();
+                }
+            }
             let row = forge::Stored::Receipt {
                 key: forge::ReceiptKey {
                     project: 5,
@@ -1519,6 +1537,9 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
+                    report: temper_engine_domain_forge::ReceiptReport::Unset,
+                    base: if passed { None } else { Some([0xbb; 32]) },
+                    jobs: jobs.into_boxed(),
                     logs: Box::new([]),
                     failures: None,
                     passed,
@@ -1835,6 +1856,7 @@ fn a_changes_questions_round_trip_unchanged() {
     }
     row.questions = Questions {
         route: Route::Up,
+        answered: Box::new([]),
         taken: 3,
         open: open.into_boxed(),
         waiting: Box::new([
@@ -1845,6 +1867,69 @@ fn a_changes_questions_round_trip_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let row = forge::Stored::Change(Box::new(row));
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+/// questions.md, 1, Its answers, kept for later work: the bounded record survives a restart.
+#[test]
+fn a_changes_kept_answers_round_trip_unchanged() {
+    use temper_engine_domain_forge_change::{ANSWERS_KEPT, Answered, Route, State};
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.questions.route = Route::Up;
+    let mut answered = skein_lib::List::with_capacity(u32::try_from(ANSWERS_KEPT).unwrap());
+    for number in 1..=u64::try_from(ANSWERS_KEPT).unwrap() {
+        answered
+            .push(Answered {
+                asker: 7,
+                number,
+                line: b"Question: keep both lines?".as_slice().into(),
+                answer: b"keep both lines\nKeep blank lines too".as_slice().into(),
+            })
+            .unwrap();
+    }
+    row.questions.answered = answered.into_boxed();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let stored = forge::Stored::Change(Box::new(row));
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+/// A registered field defaults at layout conversion, not in the fixed-layout decoder.
+#[test]
+fn a_change_row_written_without_kept_answers_decodes_with_none() {
+    let mut family = None;
+    for candidate in crate::PATCH_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before =
+        family.current.replace(" answered: list 16 Answered = []", "").replace(" answered: list 16 Answered", "");
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored =
+        forge::Stored::Change(Box::new(fixtures::change_row(temper_engine_domain_forge_change::State::Producing {
+            requested: true,
+        })));
+    let mut bytes = records::encode(&stored);
+    // Write the row at the preceding layout, then read it as the registry does.
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }
 
 #[test]
@@ -2516,6 +2601,9 @@ fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
             key: [3; 32],
         },
         receipt: forge::Receipt {
+            report: temper_engine_domain_forge::ReceiptReport::Unset,
+            base: None,
+            jobs: Box::new([]),
             failures: None,
             passed: false,
             candidate: [4; 32],
@@ -2803,6 +2891,7 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
                 taken: 1,
                 open,
                 waiting: skein_lib::List::with_capacity(0),
+                answered: skein_lib::List::with_capacity(0),
             },
         )
         .unwrap();
@@ -2900,5 +2989,107 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
             let held = meter.end().held();
             assert_eq!(forge::stored_bytes(&cloned), Some(held));
         }
+    }
+}
+
+#[test]
+fn receipt_reports_round_trip_their_states_and_owned_bytes() {
+    for report in [
+        forge::ReceiptReport::Unset,
+        forge::ReceiptReport::Unread,
+        forge::ReceiptReport::Many { bound: 16 },
+        forge::ReceiptReport::Tests(Box::new([
+            forge::ReceiptTest { key: b"test binary fuzzy::a".as_slice().into(), fuzzy: true },
+            forge::ReceiptTest { key: b"test binary b".as_slice().into(), fuzzy: false },
+        ])),
+    ] {
+        let row = forge::Stored::Receipt {
+            key: forge::ReceiptKey {
+                project: 5,
+                repository: fixtures::REPO,
+                check: forge::Check::Gate(b"gate".as_slice().into()),
+                key: [7; 32],
+            },
+            receipt: forge::Receipt {
+                report,
+                base: Some([1; 32]),
+                jobs: Box::new([]),
+                logs: Box::new([]),
+                failures: None,
+                passed: false,
+                run: forge::ReceiptRun { id: 7, number: 8, url: b"run/7".as_slice().into() },
+                candidate: [3; 32],
+                ended: skein_lib::Wall::EPOCH,
+            },
+        };
+        new_family_round_trip(&row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+    }
+}
+
+#[test]
+fn receipt_row_report_defaults_without_changing_tier_rows() {
+    let mut text = None;
+    for family in crate::PATCH_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.expect("registered application family");
+    let old = text.replace("report: ReceiptReport = unset ", "").replace("report: ReceiptReport ", "");
+    assert_ne!(text, old);
+    let old = skein_codec::schema::parse(old.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let receipt = fixtures::tier_row().result.unwrap();
+    assert_eq!(receipt.report, forge::ReceiptReport::Unset);
+    let receipt = forge::Stored::Receipt {
+        key: forge::ReceiptKey {
+            project: 5,
+            repository: fixtures::REPO,
+            check: forge::Check::Gate(b"gate".as_slice().into()),
+            key: [7; 32],
+        },
+        receipt,
+    };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (root, row) in
+        [(b"ReceiptRow".as_slice(), receipt), (b"TierRow".as_slice(), forge::Stored::Tier(fixtures::tier_row()))]
+    {
+        let bytes = records::encode(&row);
+        let to_old = skein_codec::layout::Plan::derive(
+            &new,
+            new.root(root, None).unwrap(),
+            &[],
+            &old,
+            old.root(root, None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let to_new = skein_codec::layout::Plan::derive(
+            &old,
+            old.root(root, None).unwrap(),
+            &[],
+            &new,
+            new.root(root, None).unwrap(),
+            &[],
+        )
+        .expect("a receipt row report defaults and tier layouts stay identical");
+        let mut workspace = skein_codec::layout::Workspace::new();
+        assert!(workspace.fit(&to_old));
+        let mut before = skein_lib::Buffer::with_capacity(131_072);
+        to_old.convert(&bytes[3..], &mut before, &mut workspace).unwrap();
+        if root == b"TierRow" {
+            assert_eq!(before.as_slice(), &bytes[3..], "tier bytes are unchanged");
+        }
+        assert!(workspace.fit(&to_new));
+        let mut after = skein_lib::Buffer::with_capacity(131_072);
+        to_new.convert(before.as_slice(), &mut after, &mut workspace).unwrap();
+        let restored = skein_lib::bytes::concat(&[&bytes[..3], after.as_slice()]);
+        assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
     }
 }

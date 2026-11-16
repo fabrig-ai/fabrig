@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- Hello · Claude Opus 5.5 · high · ● Live                   forgejo-3 restarting
+ ● Live · Hello · Claude Opus 5.5 · high                   forgejo-3 restarting
 --
 ................................................................................
 ..abbb...cccccc.................................................................
@@ -46,7 +46,7 @@
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 ggeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee..............................
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-.fffffeeeffffffffffffffffffffffeeehhhhhh...................gggggggggggggggggggg.
+.hhhhhheeefffffeeeffffffffffffffffffffff...................gggggggggggggggggggg.
 --
 a: fore #1B76FD
 b: fore #00C4FE

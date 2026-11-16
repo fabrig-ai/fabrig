@@ -238,7 +238,8 @@ fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
 /// temper/docs/design/domain/forge/README.md, 6: the job's unresolved merge starts again at the goal tip.
 #[test]
 fn a_catch_up_the_merge_job_cannot_settle_goes_to_a_resolution() {
-    let (mut world, goal, branch, head) = goal_world(true, true, true);
+    let (mut world, goal, branch, head) =
+        goal_world_with_limits(true, true, true, &StoryLimits { spec_bytes: Some(4096), ..StoryLimits::default() });
     let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", MAIN_PATH, MAIN_WORK, 1)
         .expect("main advanced");
     let task = catch_up(&mut world, &goal, base);

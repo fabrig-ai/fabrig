@@ -1812,6 +1812,9 @@ fn observation(
                 p::Outcome::Fault => unreachable!("completed observation"),
             };
             Some(crate::Receipt {
+                report: crate::ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 logs: Box::new([]),
                 passed: *outcome == p::Outcome::Passed,
                 failures: Some(failures),

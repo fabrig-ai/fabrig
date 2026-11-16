@@ -77,8 +77,7 @@ pub fn configure(root: &Path, repository: u64) {
 /// The narrowed batch reports failed ids and accepts a selected probe.
 pub(super) fn selected_gate(value: &mut Value) {
     let gate = &mut value["application"]["landing"]["projects"][0]["gates"][0]["gates"][0];
-    gate["artifact"] = "failed-tests".into();
-    gate["format"] = "lines".into();
+    gate["report"] = json!({"artifact":"failed-tests", "format":"lines"});
 }
 
 const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);

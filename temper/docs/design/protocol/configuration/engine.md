@@ -62,7 +62,8 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   a `gates` entry being
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
   "workflow": string, "ignored": [string], "blocking": boolean,
-  "base": boolean, "artifact": string, "format": "junit" | "lines"}],
+  "base": boolean, "report": {"artifact": string, "format": "junit" |
+  "lines", "fuzzy": string}}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
@@ -70,10 +71,13 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
   and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
-  7.1). A gate's `artifact` and `format`, both or neither, none when
-  absent, are its report, read as a tier's are named and checked, and
-  read after a failed run for its failed cases
-  (`../../domain/landing-search-by-test.md`, 2). A tier's `branch` is the
+  7.1). A gate's `report`, none when absent, names the artifact its
+  failed run uploads and its format, read as a tier's, and `fuzzy`, when
+  present, the name prefix of its fuzzy tests, all others focused: the
+  failed tests a landing's repair names (`../../domain/landing.md`, 7.3;
+  `../../domain/forge/change/repairs.md`, *A landing's repair*). Its
+  artifact is bounded as a tier's (below), its `fuzzy` 1 to 64 bytes
+  (2026-11-15). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
   judges no landing (`../../domain/after-landing.md`, section 2). Its

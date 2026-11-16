@@ -112,6 +112,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         pull: None,
         pending: None,

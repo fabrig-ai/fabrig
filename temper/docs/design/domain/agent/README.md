@@ -165,8 +165,9 @@ That holds whatever the delegate: a producer, a repair or a resolution, a
 goal's landing's among them, whose branch is the goal's branch held under the
 goal's hold. The next attempt's pull section pins that head
 (`../forge/change/repairs.md`). Recording the head completes no production, repair or
-resolution: the save remains unchecked, and the forge opens no pull request
-on it (`../forge/change/README.md`, 1). In its hold, the next checked delivery, or the
+resolution: the save remains unchecked, the forge opens no pull request
+on it (`../forge/change/README.md`, 1), and no dependent starts early from
+it (`../forge/change/questions.md`, 1, *Early starts*). In its hold, the next checked delivery, or the
 worker's own save of saved work, commits afresh on a save's head even with
 the tree unchanged (../worker/checkouts.md), so the head a finish delivers
 carries the delivery's title and body, never the unchecked mark. A later

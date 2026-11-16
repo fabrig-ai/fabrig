@@ -418,14 +418,17 @@ fn the_welcome_says_each_state() {
             }
         }
         if name == "connecting from the first frame" {
-            let mut connecting = false;
-            for node in tree.nodes() {
-                if node.role == Role::Status && f::text(tree, node).ends_with(b"Connecting") {
-                    connecting = true;
-                }
-            }
-            assert!(connecting, "{name}: Connecting");
+            let (left, _) = f::bottom_halves(tree);
+            assert_eq!(f::text(tree, left).as_ref(), "● Connecting".as_bytes());
+            assert_eq!(f::find(tree, Role::Text, "● Connecting".as_bytes()).styles.as_slice(), &[look::WAITING]);
         }
+    }
+    for (root, state, style) in [(&empty, "● Live", look::LIVE), (&stale, "● Out of date", look::DOWN)] {
+        let view = build(root, &front(None));
+        let (left, right) = f::bottom_halves(view.tree());
+        assert_eq!(f::text(view.tree(), left).as_ref(), state.as_bytes());
+        assert!(f::text(view.tree(), right).is_empty());
+        assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
     }
 }
 
@@ -563,7 +566,6 @@ fn starting_root(live: bool) -> Domain {
 }
 #[test]
 #[expect(clippy::large_stack_arrays, reason = "the fact rows own a client root each")]
-#[expect(clippy::disallowed_methods, reason = "the test reads validated quiet-line text as UTF-8")]
 #[expect(clippy::too_many_lines, reason = "one fact table checks the starting steps, tokens, failure and quiet line")]
 fn the_starting_steps_follow_the_facts() {
     use crate::BoxStage;
@@ -697,18 +699,10 @@ fn the_starting_steps_follow_the_facts() {
                 &[look::HINT]
             );
         }
-        let mut bottom = None;
-        for node in tree.nodes() {
-            if node.region == Some(look::BOTTOM) {
-                bottom = Some(node);
-            }
-        }
-        let line = f::text(tree, bottom.unwrap());
-        let line = core::str::from_utf8(&line).unwrap();
-        assert!(line.contains("● Connecting"));
-        assert!(line.contains("Forgejo starting…"));
-        assert!(!line.contains("Not on the quiet line"));
-        assert!(!line.contains("Downloading"));
+        let (left, right) = f::bottom_halves(tree);
+        assert_eq!(f::text(tree, left).as_ref(), "● Connecting".as_bytes());
+        assert_eq!(f::find(tree, Role::Text, "● Connecting".as_bytes()).styles.as_slice(), &[look::WAITING]);
+        assert_eq!(f::text(tree, right).as_ref(), "Forgejo starting…".as_bytes());
         super::limits::fits(tree, &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
     }
     let mut tui = starting_tui();

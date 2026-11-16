@@ -210,8 +210,15 @@ pub enum Word {
     ProjectsAhead,
     ProjectsReading,
     StartingFollowed,
+    ChangeTitle,
+    DraftTitle,
+    TellTitle,
+    AskPlaceholder,
+    ChangePlaceholder,
+    DraftPlaceholder,
+    TellPlaceholder,
 }
-pub(crate) const ALL: [Word; 200] = [
+pub(crate) const ALL: [Word; 207] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -411,6 +418,13 @@ pub(crate) const ALL: [Word; 200] = [
     Word::ProjectsAhead,
     Word::ProjectsReading,
     Word::StartingFollowed,
+    Word::ChangeTitle,
+    Word::DraftTitle,
+    Word::TellTitle,
+    Word::AskPlaceholder,
+    Word::ChangePlaceholder,
+    Word::DraftPlaceholder,
+    Word::TellPlaceholder,
     Word::LinkPending,
 ];
 
@@ -675,6 +689,13 @@ impl Word {
             Self::ProjectsReading => 200,
             Self::StartingFollowed => 201,
             Self::ClosedChat => 202,
+            Self::ChangeTitle => 203,
+            Self::DraftTitle => 204,
+            Self::TellTitle => 205,
+            Self::AskPlaceholder => 206,
+            Self::ChangePlaceholder => 207,
+            Self::DraftPlaceholder => 208,
+            Self::TellPlaceholder => 209,
         }
     }
     const fn id(self) -> PhraseId {
@@ -683,6 +704,13 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::ChangeTitle => (&[b"New change"], &[]),
+            Self::DraftTitle => (&[b"Design session"], &[]),
+            Self::TellTitle => (&[b"Tell temper"], &[]),
+            Self::AskPlaceholder => (&[b"Ask temper anything, or Esc to go back."], &[]),
+            Self::ChangePlaceholder => (&[b"Say the change, or Esc to go back."], &[]),
+            Self::DraftPlaceholder => (&[b"Say what to design, or Esc to go back."], &[]),
+            Self::TellPlaceholder => (&[b"Tell temper what's off, or Esc to go back."], &[]),
             Self::TalkCommand => (&[b"A role, about its area"], &[]),
             Self::TalkStart => (&[b"a role, about its area"], &[]),
             Self::TalkHead => (&[b"Talk with a role on ", b""], &[Slot::Title]),
@@ -1068,5 +1096,16 @@ impl Words {
     #[must_use]
     pub const fn view(&self) -> &temper_client_view_words::words::Words {
         &self.view
+    }
+}
+
+/// The title and placeholder of a place not yet started (client/tui/pages/README.md, 2).
+pub(crate) const fn place(command: crate::Own) -> Option<(Word, Word)> {
+    match command {
+        crate::Own::Ask => Some((Word::AskTemper, Word::AskPlaceholder)),
+        crate::Own::Change => Some((Word::ChangeTitle, Word::ChangePlaceholder)),
+        crate::Own::Draft => Some((Word::DraftTitle, Word::DraftPlaceholder)),
+        crate::Own::Tell => Some((Word::TellTitle, Word::TellPlaceholder)),
+        crate::Own::Talk | crate::Own::Brief | crate::Own::Needs | crate::Own::Open | crate::Own::Theme => None,
     }
 }

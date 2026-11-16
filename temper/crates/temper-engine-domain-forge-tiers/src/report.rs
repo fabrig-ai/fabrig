@@ -8,9 +8,48 @@ use skein_lib::{List, Stack, Writer, bytes};
 
 /// Reads a report, sorting and deduplicating its bounded failing ids.
 pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, Unreadable> {
+    Ok(keys(read(format, file, *limits, KeyForm::Tier)?, limits.failing_tests))
+}
+
+fn keys(failures: NamedFailures, capacity: u32) -> Failures {
+    match failures {
+        NamedFailures::Many => Failures::Many,
+        NamedFailures::Tests(tests) => {
+            let mut ids = List::with_capacity(capacity);
+            for test in tests {
+                ids.push(test.key).expect("bounded tests");
+            }
+            Failures::Tests(ids.into_boxed())
+        }
+    }
+}
+
+/// A failed test's repair key and unjoined name (domain/forge/change/repairs.md).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct NamedTest {
+    pub key: TestId,
+    pub name: TestId,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum NamedFailures {
+    Many,
+    Tests(Box<[NamedTest]>),
+}
+
+/// Reads repair keys without losing the case name used by the fuzzy prefix.
+pub fn named_report(format: Format, file: &[u8], limits: &Limits) -> Result<NamedFailures, Unreadable> {
+    read(format, file, *limits, KeyForm::Repair)
+}
+
+#[derive(Clone, Copy)]
+enum KeyForm {
+    Tier,
+    Repair,
+}
+fn read(format: Format, file: &[u8], limits: Limits, form: KeyForm) -> Result<NamedFailures, Unreadable> {
     match format {
-        Format::Lines => Ok(lines(file, *limits)),
-        Format::Junit => junit(file, *limits),
+        Format::Lines => Ok(lines(file, limits)),
+        Format::Junit => junit_cases(file, limits, form, true),
     }
 }
 
@@ -18,10 +57,13 @@ pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, 
 /// (temper/docs/design/domain/landing-search-by-test.md, 2).
 #[must_use]
 pub fn selection(format: Format, file: &[u8], limits: &Limits) -> Option<Failures> {
-    let failures = match format {
-        Format::Lines => lines(file, *limits),
-        Format::Junit => junit_cases(file, *limits, false).ok()?,
-    };
+    let failures = keys(
+        match format {
+            Format::Lines => lines(file, *limits),
+            Format::Junit => junit_cases(file, *limits, KeyForm::Tier, false).ok()?,
+        },
+        limits.failing_tests,
+    );
     match &failures {
         Failures::Many => Some(failures),
         Failures::Tests(tests) => {
@@ -67,8 +109,8 @@ pub fn failed(report: Option<Result<Failures, Unreadable>>) -> Outcome {
     }
 }
 
-fn lines(file: &[u8], limits: Limits) -> Failures {
-    let mut failures = Failures::Tests(Box::new([]));
+fn lines(file: &[u8], limits: Limits) -> NamedFailures {
+    let mut failures = NamedFailures::Tests(Box::new([]));
     let mut from = 0_usize;
     for (at, byte) in file.iter().enumerate() {
         if *byte == b'\n' {
@@ -80,13 +122,14 @@ fn lines(file: &[u8], limits: Limits) -> Failures {
     failures
 }
 
-fn line(failures: &mut Failures, line: &[u8], limits: Limits) {
+fn line(failures: &mut NamedFailures, line: &[u8], limits: Limits) {
     let line = line.strip_suffix(b"\r").unwrap_or(line);
     if !line.is_empty() {
         if line.len() > index(limits.test_id_bytes) {
-            *failures = Failures::Many;
+            *failures = NamedFailures::Many;
         } else {
-            insert(failures, Box::from(line), limits);
+            let name = last_word(line);
+            insert(failures, NamedTest { key: Box::from(line), name: Box::from(name) }, limits);
         }
     }
 }
@@ -95,16 +138,18 @@ fn index(value: u32) -> usize {
     skein_lib::usize_of(value)
 }
 
-fn insert(failures: &mut Failures, test: TestId, limits: Limits) {
+fn insert(failures: &mut NamedFailures, test: NamedTest, limits: Limits) {
     let tests = match failures {
-        Failures::Many => return,
-        Failures::Tests(tests) => tests,
+        NamedFailures::Many => return,
+        NamedFailures::Tests(tests) => tests,
     };
-    if tests.binary_search(&test).is_ok() {
-        return;
+    for old in tests.iter() {
+        if old.key == test.key {
+            return;
+        }
     }
     if tests.len() >= index(limits.failing_tests) {
-        *failures = Failures::Many;
+        *failures = NamedFailures::Many;
         return;
     }
     let capacity = u32::try_from(tests.len()).expect("bounded ids").checked_add(1).expect("room for an id");
@@ -112,7 +157,7 @@ fn insert(failures: &mut Failures, test: TestId, limits: Limits) {
     let mut new = Some(test);
     for old in tests.iter() {
         if let Some(test) = &new
-            && test < old
+            && test.key < old.key
         {
             let test = new.take().expect("new id is pending");
             ordered.push(test).expect("one new id fits");
@@ -128,16 +173,12 @@ fn insert(failures: &mut Failures, test: TestId, limits: Limits) {
 #[derive(Debug)]
 struct Case {
     // None is an id past the byte bound, remembered only if the case fails.
-    id: Option<TestId>,
+    id: Option<NamedTest>,
     failed: bool,
 }
 
-fn junit(file: &[u8], limits: Limits) -> Result<Failures, Unreadable> {
-    junit_cases(file, limits, true)
-}
-
-fn junit_cases(file: &[u8], limits: Limits, errors: bool) -> Result<Failures, Unreadable> {
-    let mut failures = Failures::Tests(Box::new([]));
+fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Result<NamedFailures, Unreadable> {
+    let mut failures = NamedFailures::Tests(Box::new([]));
     // The artifact bounds the nesting; the stack grows only as tags arrive.
     let Ok(capacity) = u32::try_from(file.len()) else { return Err(Unreadable) };
     let mut elements = Stack::with_capacity(capacity);
@@ -189,7 +230,7 @@ fn junit_cases(file: &[u8], limits: Limits, errors: bool) -> Result<Failures, Un
                 if ended.failed {
                     match ended.id {
                         Some(id) => insert(&mut failures, id, limits),
-                        None => failures = Failures::Many,
+                        None => failures = NamedFailures::Many,
                     }
                 }
             } else {
@@ -198,7 +239,7 @@ fn junit_cases(file: &[u8], limits: Limits, errors: bool) -> Result<Failures, Un
                 }
                 let name = attribute(attributes, Attribute::Name)?.ok_or(Unreadable)?;
                 let class = attribute(attributes, Attribute::Class)?.unwrap_or(b"");
-                let id = case_id(name, class, limits.test_id_bytes)?;
+                let id = case_id(name, class, limits.test_id_bytes, form)?;
                 if !self_closing {
                     case = Some(Case { id, failed: false });
                 }
@@ -334,24 +375,41 @@ fn attribute(attributes: &[u8], wanted: Attribute) -> Result<Option<&[u8]>, Unre
     Ok(found)
 }
 
-fn case_id(name: &[u8], class: &[u8], limit: u32) -> Result<Option<TestId>, Unreadable> {
-    let name = decode(name, limit)?;
-    let class = decode(class, limit)?;
-    let Some(name) = name else { return Ok(None) };
-    let Some(class) = class else { return Ok(None) };
-    if class.is_empty() {
-        return Ok(Some(name));
+fn last_word(line: &[u8]) -> &[u8] {
+    let mut end = line.len();
+    for (at, byte) in line.iter().enumerate().rev() {
+        if byte.is_ascii_whitespace() {
+            let from = at.checked_add(1).expect("within line");
+            if from < end {
+                return line.get(from..end).expect("last word");
+            }
+            end = at;
+        }
     }
-    let Some(length) = class.len().checked_add(1) else { return Ok(None) };
+    line.get(..end).expect("last word")
+}
+
+fn case_id(name: &[u8], class: &[u8], limit: u32, form: KeyForm) -> Result<Option<NamedTest>, Unreadable> {
+    let Some(name) = decode(name, limit)? else { return Ok(None) };
+    let Some(class) = decode(class, limit)? else { return Ok(None) };
+    let (prefix, separator) = match form {
+        KeyForm::Tier => (b"".as_slice(), b".".as_slice()),
+        KeyForm::Repair => (b"test ".as_slice(), b" ".as_slice()),
+    };
+    let class_length = if class.is_empty() { 0 } else { class.len().checked_add(separator.len()).ok_or(Unreadable)? };
+    let Some(length) = prefix.len().checked_add(class_length) else { return Ok(None) };
     let Some(length) = length.checked_add(name.len()) else { return Ok(None) };
     if length > index(limit) {
         return Ok(None);
     }
     let mut id = Writer::new(length);
-    id.put(&class).expect("id's computed length");
-    id.put(b".").expect("id's separator");
-    id.put(&name).expect("id's computed length");
-    Ok(Some(id.finish()))
+    id.put(prefix).expect("key's prefix");
+    if !class.is_empty() {
+        id.put(&class).expect("key's class");
+        id.put(separator).expect("key's separator");
+    }
+    id.put(&name).expect("key's name");
+    Ok(Some(NamedTest { key: id.finish(), name }))
 }
 
 fn decode(raw: &[u8], limit: u32) -> Result<Option<TestId>, Unreadable> {

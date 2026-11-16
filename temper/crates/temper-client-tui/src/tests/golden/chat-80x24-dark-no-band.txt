@@ -21,7 +21,7 @@
 ─────────────────────────────────── Hello / What landed… T2 on 127.0.0.1:8367 ──
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
- Hello · Claude Opus 5.5 · high · ● Live                            1 needs you
+ ● Live · Hello · Claude Opus 5.5 · high                            1 needs you
 --
 abbbbbbbbbbbbbbbbbbbbbbb........................................................
 ................................................................................
@@ -46,7 +46,7 @@ abbbbbbbb.......................................................................
 ddddddddddddddddddddddddddddddddddddeeeeedddeeeeeeeeeeeebbbbbbbbbbbbbbbbbbbbbddd
 aaddddd.........................................................................
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
-.bbbbbdddbbbbbbbbbbbbbbbbbbbbbbdddffffff............................aaaaaaaaaaa.
+.ffffffdddbbbbbdddbbbbbbbbbbbbbbbbbbbbbb............................aaaaaaaaaaa.
 --
 a: fore #E08A68
 b: fore #9A9388

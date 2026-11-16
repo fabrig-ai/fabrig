@@ -739,17 +739,25 @@ fn the_launchpad_says_each_state() {
     if ticking.tick() != Some(Wall::from_nanos(584 * MINUTE)) {
         failures.push("the headline did not rebuild at its minute").unwrap();
     }
-    for (root, tui, state, style) in [
-        (&brief, &ordinary, "● Live", look::LIVE),
-        (&before, &ordinary, "● Connecting", look::WAITING),
-        (&starting, &ordinary, "● Connecting", look::WAITING),
-        (&signed_out, &signing, "● Connecting", look::WAITING),
-        (&offline, &ordinary, "● Offline", look::DOWN),
-        (&stale, &ordinary, "● Out of date", look::DOWN),
+    for (root, tui, state, style, expected) in [
+        (&brief, &ordinary, "● Live", look::LIVE, "● Live · Hello"),
+        (&none, &ordinary, "● Live", look::LIVE, "● Live"),
+        (&before, &ordinary, "● Connecting", look::WAITING, "● Connecting"),
+        (&starting, &ordinary, "● Connecting", look::WAITING, "● Connecting"),
+        (&signed_out, &signing, "● Connecting", look::WAITING, "● Connecting"),
+        (&offline, &ordinary, "● Offline", look::DOWN, "● Offline · Hello"),
+        (&stale, &ordinary, "● Out of date", look::DOWN, "● Out of date"),
     ] {
         let view = build(root, tui);
+        let (left, right) = f::bottom_halves(view.tree());
+        assert_eq!(f::text(view.tree(), left).as_ref(), expected.as_bytes());
+        assert!(f::text(view.tree(), right).is_empty());
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
     }
+    let view = draw(launchpad::read(&brief, &ordinary, &f::words(), NOW), 80, 0);
+    let (left, right) = f::bottom_halves(view.tree());
+    assert_eq!(f::text(view.tree(), left).as_ref(), "● Live · Hello · Claude Opus 5.5 · high".as_bytes());
+    assert!(f::text(view.tree(), right).is_empty());
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Brief);
     let part = launchpad::read(&brief, &tui, &f::words(), NOW);

@@ -76,7 +76,9 @@ fn a_changes_merge_job_runs_on_its_worker() {
         } else {
             assert_eq!(report.branch, report.head);
             assert_eq!(report.resolution_base, Some(commit(report.base).raw()));
-            assert!(report.resolution.as_ref().expect("resolution made").ends_with(result));
+            let resolution = report.resolution.as_ref().expect("resolution made");
+            assert!(resolution.windows(result.len()).any(|part| part == result));
+            assert!(resolution.ends_with(b"Its request, at spec revision 0:\nWrite the first FILE"));
         }
     }
 }

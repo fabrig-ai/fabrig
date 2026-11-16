@@ -299,3 +299,11 @@ fn a_by_test_repair_keeps_its_top_fact_and_older_boundaries_have_neither_fact() 
     let below = v25::LandingBelow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_eq!((below.by_test(), below.top()), (false, false));
 }
+
+#[test]
+fn old_receipts_acquire_no_base_and_no_failed_jobs() {
+    let bytes = current_layout(b"Receipt", kept_golden(25, "record_receipt_full.bin"));
+    let after = v25::Receipt::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(after.base(), &None);
+    assert!(after.jobs().is_empty());
+}

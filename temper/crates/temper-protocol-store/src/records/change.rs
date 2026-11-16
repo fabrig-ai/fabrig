@@ -595,6 +595,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         ready_since,
         owns_turn,
         last_head,
+        last_checked,
         gate_failures,
         released,
         released_resolution,
@@ -620,6 +621,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             },
             owns_turn: *owns_turn,
             last_head: *last_head,
+            last_checked: *last_checked,
             gate_failures: encode_gate_failures(gate_failures),
             released_resolution: *released_resolution,
             released: match released {
@@ -649,6 +651,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         ready_since,
         owns_turn,
         last_head,
+        last_checked,
         gate_failures,
         released,
         released_resolution,
@@ -673,6 +676,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         },
         owns_turn,
         last_head,
+        last_checked,
         gate_failures: decode_gate_failures(gate_failures),
         released_resolution,
         released: match released {
@@ -1480,6 +1484,23 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             )
             .expect("same count");
     }
+    let mut answered = List::with_capacity(u32::try_from(value.answered.len()).expect("admitted count"));
+    for answer in &value.answered {
+        answered
+            .push(
+                w::Answered::new(
+                    &w::CEILINGS,
+                    w::AnsweredParts {
+                        asker: answer.asker,
+                        number: answer.number,
+                        line: answer.line.clone(),
+                        answer: answer.answer.clone(),
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect("same count");
+    }
     w::Questions::new(
         &w::CEILINGS,
         w::QuestionsParts {
@@ -1490,13 +1511,19 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
             taken: value.taken,
             open,
             waiting,
+            answered,
         },
     )
     .expect(FITS)
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::QuestionsParts { route, taken, open, waiting } = value.into_parts();
+    let w::QuestionsParts { route, taken, open, waiting, answered } = value.into_parts();
+    let mut answers = List::with_capacity(answered.len());
+    for answer in answered.into_boxed() {
+        let w::AnsweredParts { asker, number, line, answer } = answer.into_parts();
+        answers.push(d::Answered { asker, number, line, answer }).expect("same count");
+    }
     let mut words_waiting = List::with_capacity(waiting.len());
     for word in waiting.into_boxed() {
         let w::WaitingParts { from, number, words, passed } = word.into_parts();
@@ -1522,6 +1549,7 @@ fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecoda
         taken,
         open: questions.into_boxed(),
         waiting: words_waiting.into_boxed(),
+        answered: answers.into_boxed(),
     })
 }
 

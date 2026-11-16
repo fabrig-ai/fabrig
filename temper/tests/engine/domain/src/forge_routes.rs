@@ -850,9 +850,10 @@ impl World {
                                             blocking: true,
                                             base: false,
                                             report: dispatch_by_test.then(|| {
-                                                temper_engine_domain_forge_landing::Report {
+                                                temper_engine_domain_forge_landing::GateReport {
                                                     artifact: b"failed".as_slice().into(),
                                                     format: temper_engine_domain_forge_tiers::Format::Lines,
+                                                    fuzzy: None,
                                                 }
                                             }),
                                         }])

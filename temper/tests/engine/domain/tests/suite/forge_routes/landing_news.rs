@@ -142,8 +142,7 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
     assert!(matches!(source.as_ref(), tasks::HoldSource::Account { words, .. } if words.as_ref() == why.as_bytes()));
 }
 
-#[test]
-fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs() {
+fn candidate_repair() -> (World, u64, engine::Assignment) {
     let (mut world, _, change) = produced_goal_with_checks(0);
     for _ in 0..1200 {
         world.prepare_tick();
@@ -168,9 +167,16 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
                     .map(|run| task_row(&world, run.task).map(|row| &row.spec.words))
                     .collect::<Vec<_>>()
             )
-        });
+        })
+        .clone();
+    (world, change, repair)
+}
+
+#[test]
+fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs() {
+    let (world, change, repair) = candidate_repair();
     assert!(live_task(&world, repair.task).spec.words.starts_with(b"Repair landing gate 0 at "));
-    let context = std::str::from_utf8(ci_words(repair)).expect("failure context");
+    let context = std::str::from_utf8(ci_words(&repair)).expect("failure context");
     for words in
         ["Gate: gate", "Run: ", "Candidate: ", "Base: ", "Failed job: test", "Failed step: ", "End of its log:"]
     {
@@ -184,6 +190,87 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
     assert!(
         matches!(&repair.workspace.repositories[0].start, engine::ForgeStart::Branch(branch) if *branch == row.branch)
     );
+}
+
+#[test]
+fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_job_pin() {
+    use super::super::change_tool::named_read;
+    let (mut world, change, repair) = candidate_repair();
+    let row = super::super::light_rules::change_row(&world, change);
+    let head = row.change.last_head.expect("change head");
+    let (_, temper_engine_domain_forge_change::Delegate::Repair(why)) = row.delegate.expect("repair") else {
+        panic!("repair delegate")
+    };
+    let temper_engine_domain_forge_change::Repair::LandingAt { candidate, .. } = why else {
+        panic!("candidate repair")
+    };
+    let failure = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::Receipt { receipt, .. } if receipt.candidate == candidate && !receipt.passed => {
+                    Some(receipt.clone())
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("receipt");
+    assert_ne!(head, failure.candidate);
+    let job = failure.jobs.first().expect("failed job");
+    let expected_pin = format!(
+        "read_job head {} run {} job {} attempt {}",
+        hex(&failure.candidate),
+        failure.run.id,
+        job.job,
+        job.attempt
+    );
+    let expected_status = format!("temper/gate/{}: failed", String::from_utf8_lossy(&job.name));
+    let tasks::Party::Task(goal) = live_task(&world, change).requester else { panic!("goal") };
+    let chat = world.assigned.iter().rev().find(|run| run.task == goal).expect("goal run").clone();
+    for (index, commit) in [head, failure.candidate].into_iter().enumerate() {
+        let raw_head = u64::from_be_bytes(commit[8..16].try_into().unwrap());
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Status {
+                commit: raw_head,
+                context: b"own-check".as_slice().into(),
+                state: raw::Check::Passed,
+                description: Box::new([]),
+                link: Box::new([]),
+            }),
+        );
+        let input = format!(r#"{{"commit":"{}"}}"#, hex(&commit));
+        let own = named_read(&mut world, &chat, 500 + u32::try_from(index).unwrap(), b"read_checks", input.as_bytes());
+        let engine::CallAnswer::ForgeRead(ref own_result) = own else { panic!("forge checks") };
+        let Ok(skein_forge::api::Answer::Checks(ref own_statuses)) = **own_result else { panic!("checks") };
+        let checks =
+            named_read(&mut world, &repair, 600 + u32::try_from(index).unwrap(), b"read_checks", input.as_bytes());
+        let engine::CallAnswer::ForgeRead(ref result) = checks else { panic!("forge checks") };
+        let Ok(skein_forge::api::Answer::Checks(ref statuses)) = **result else { panic!("checks") };
+        assert!(!own_statuses.is_empty(), "the forge has the commit's own checks");
+        assert_eq!(&statuses[..own_statuses.len()], own_statuses.as_ref());
+        assert_eq!(statuses.len(), own_statuses.len() + failure.jobs.len());
+        let rendered = temper_engine_smith::answer(&checks);
+        let text = std::str::from_utf8(rendered.text()).expect("checks text");
+        assert!(text.contains(&expected_status), "{text}");
+        assert!(text.contains(std::str::from_utf8(&failure.run.url).unwrap()), "{text}");
+        let pin = text.lines().find(|line| *line == expected_pin).expect("candidate job pin");
+        let fields: Vec<_> = pin.split_ascii_whitespace().collect();
+        let input =
+            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+        let answer =
+            named_read(&mut world, &repair, 510 + u32::try_from(index).unwrap(), b"read_job", input.as_bytes());
+        let rendered = temper_engine_smith::answer(&answer);
+        assert!(!rendered.error(), "{answer:?}");
+        assert!(rendered.text().ends_with(b"failing check test 3\n"), "{}", String::from_utf8_lossy(rendered.text()));
+    }
+    let other = format!(r#"{{"commit":"{}"}}"#, hex(&failure.base.expect("round base")));
+    let ordinary = named_read(&mut world, &chat, 520, b"read_checks", other.as_bytes());
+    let repair_checks = named_read(&mut world, &repair, 620, b"read_checks", other.as_bytes());
+    assert_eq!(repair_checks, ordinary, "another commit gets only forge checks");
 }
 
 #[test]

@@ -58,7 +58,8 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
     if let Some(result) = &row.result {
         held = held
             .checked_add(skein_lib::len_u64(result.run.url.len()))?
-            .checked_add(skein_lib::len_u64(result.logs.len()))?;
+            .checked_add(skein_lib::len_u64(result.logs.len()))?
+            .checked_add(crate::landing::receipt_job_bytes(result)?)?;
         if let Some(failures) = &result.failures {
             held = held.checked_add(failures_bytes(failures)?)?;
         }

@@ -51,7 +51,7 @@ pub use capture::{Measure, Observation};
 pub use completion::completion;
 
 pub use component::{Component, ComponentError, ComponentLimits, component_valid};
-pub use contract::{decode_deliver, decode_finish, deliver_schema, finish_schema};
+pub use contract::{decode_deliver, decode_finish, decode_finish_call, deliver_schema, finish_schema, outcome_schema};
 pub use decode::decode;
 pub use endpoints::{ConfiguredEndpoint, EndpointError, EndpointOptions, Endpoints, OversizedReasoning, endpoint_own};
 

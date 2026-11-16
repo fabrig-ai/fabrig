@@ -40,6 +40,7 @@ fn change_row() -> top::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            last_checked: None,
         },
         pull: None,
         pending: None,

@@ -919,6 +919,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,
             last_head: Some([15; 32]),
+            last_checked: None,
         },
         pull: Some(16),
         pending: Some(17),
@@ -1134,6 +1135,9 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
+            report: temper_engine_domain_forge::ReceiptReport::Unset,
+            base: None,
+            jobs: Box::new([]),
             logs: Box::new([b'l'; 8192]),
             passed: false,
             failures: Some(failures.clone()),

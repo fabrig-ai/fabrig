@@ -207,7 +207,7 @@ fn a_base_definition_appends_only_the_true_flag() {
 #[test]
 fn a_report_definition_follows_the_optional_base_flag() {
     let mut gate = gate();
-    gate.report = Some(crate::Report { artifact: copy_of(b"failed"), format: crate::Format::Junit });
+    gate.report = Some(crate::GateReport { artifact: copy_of(b"failed"), format: crate::Format::Junit, fuzzy: None });
     assert_eq!(&*definition(&gate), b"\0\x08gate.yml\0\x01\0\x04docs\x01\x02\0\x06failed\0");
     gate.base = true;
     gate.report.as_mut().expect("report").format = crate::Format::Lines;

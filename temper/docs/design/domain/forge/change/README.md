@@ -263,7 +263,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 1. **Producing:** a task for an agent, with the charter the change
    names, whose workspace starts from its landing branch (or its saved
    work; or, started early, from its landing branch with its
-   dependencies' pushed heads merged in: `questions.md`, 1) and pushes the change's
+   dependencies' last checked heads merged in: `questions.md`, 1) and pushes the change's
    branch (`../../agent/README.md`, section 5). Its
    result is the head it pushed. **A result with a head always moves
    the change on** (2026-11-13): to opening its pull request (step 2),

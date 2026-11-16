@@ -1,8 +1,8 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
 use crate::domain::{child, emit, keep_entry};
 use crate::{
-    Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptKey, ReceiptRun,
-    RepositoryGates, Request, Stored, runs,
+    Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
+    ReceiptReport, ReceiptRun, RepositoryGates, Request, Stored, runs,
 };
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -111,17 +111,17 @@ enum Stage {
         key: ReceiptKey,
         pages: u32,
     },
+    FailedReport {
+        key: ReceiptKey,
+        run: api::Run,
+        report: policy::GateReport,
+        words: Box<[u8]>,
+    },
     FailedJobs {
         key: ReceiptKey,
         run: api::Run,
         next: u32,
         words: Box<[u8]>,
-    },
-    FailedReport {
-        key: ReceiptKey,
-        run: api::Run,
-        words: Box<[u8]>,
-        format: temper_engine_domain_forge_tiers::Format,
     },
     Tree {
         member: u16,
@@ -1438,6 +1438,22 @@ fn advance(
             }
             cleanup_branch(d, env, owner, p, &row, member.checked_add(1).expect("member bound"), out);
         }
+        Stage::FailedReport { key, run, report, words } => {
+            let failures = match &answer {
+                Ok(api::Answer::File { truncated: true, .. }) => Some(temper_engine_domain_forge_tiers::Failures::Many),
+                Ok(api::Answer::File { bytes, .. }) => temper_engine_domain_forge_tiers::selection(
+                    report.format,
+                    bytes,
+                    &temper_engine_domain_forge_tiers::Limits {
+                        failing_tests: env.limits.tiers.failing_tests,
+                        test_id_bytes: env.limits.tiers.test_id_bytes,
+                    },
+                ),
+                Ok(_) | Err(_) => None,
+            };
+            let report = receipt_report(&report, env, answer);
+            failed_receipt(d, env, owner, p, key, run, report, failures, words, out);
+        }
         Stage::FailedJobs { key, run, next, words } => {
             let mut log = List::with_capacity(8192);
             append_words(&mut log, &words);
@@ -1458,21 +1474,6 @@ fn advance(
                 Ok(_) | Err(_) => append_words(&mut log, b"[job log could not be read]\n"),
             }
             failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
-        }
-        Stage::FailedReport { key, run, words, format } => {
-            let failures = match answer {
-                Ok(api::Answer::File { truncated: true, .. }) => Some(temper_engine_domain_forge_tiers::Failures::Many),
-                Ok(api::Answer::File { bytes, .. }) => temper_engine_domain_forge_tiers::selection(
-                    format,
-                    &bytes,
-                    &temper_engine_domain_forge_tiers::Limits {
-                        failing_tests: env.limits.tiers.failing_tests,
-                        test_id_bytes: env.limits.tiers.test_id_bytes,
-                    },
-                ),
-                Ok(_) | Err(_) => None,
-            };
-            failed_receipt(d, env, owner, p, key, run, words, failures, out);
         }
         Stage::Round { member, stage, candidate } => {
             round_read(d, env, owner, p, &row, member, stage, candidate, answer, out);
@@ -1534,6 +1535,9 @@ fn advance(
                             return;
                         }
                         let receipt = Receipt {
+                            report: ReceiptReport::Unset,
+                            base: None,
+                            jobs: Box::new([]),
                             logs: Box::new([]),
                             failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
@@ -4397,15 +4401,58 @@ impl Domain {
     /// The candidate pins its failure snapshot even after the landing's live row retires.
     #[must_use]
     pub fn candidate_failure_words(&self, change: u64, gate: u16, candidate: api::Commit) -> Option<Box<[u8]>> {
-        let mut blamed_run = None;
+        let (_, receipt) = self.failure_receipt(change, gate, Some(candidate))?;
+        Some(receipt.logs.clone())
+    }
+    /// The receipt pins the gate run and its jobs for a repair's required words.
+    #[must_use]
+    pub fn landing_failure(&self, change: u64, why: change::Repair) -> Option<crate::LandingFailure> {
+        let (gate, candidate) = match why {
+            change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
+            change::Repair::Landing { gate } => (gate, None),
+            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+                return None;
+            }
+        };
+        let (gate, receipt) = self.failure_receipt(change, gate, candidate)?;
+        Some(crate::LandingFailure {
+            gate: gate.into(),
+            run: receipt.run.clone(),
+            report: receipt.report.clone(),
+            prefix: receipt.candidate,
+            base: receipt.base,
+            jobs: receipt.jobs.clone(),
+        })
+    }
+    fn failure_receipt(&self, change: u64, gate: u16, candidate: Option<api::Commit>) -> Option<(&[u8], &Receipt)> {
+        let mut kept_run = None;
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {
-                if member.change == change
-                    && let Some(policy::Leave::Blamed { gate: failed, run, red, .. }) = member.left
-                    && failed == gate
-                    && red == candidate
-                {
-                    blamed_run = Some(run);
+                if member.change != change {
+                    continue;
+                }
+                match member.left {
+                    Some(policy::Leave::Blamed { gate: failed, run, red, .. }) => {
+                        if failed == gate && (candidate.is_none() || candidate == Some(red)) {
+                            kept_run = Some(run);
+                        }
+                    }
+                    Some(policy::Leave::Failed { gate: failed, run }) => {
+                        if failed == gate && candidate.is_none() {
+                            kept_run = Some(run);
+                        }
+                    }
+                    None
+                    | Some(
+                        policy::Leave::Conflict
+                        | policy::Leave::EarlierConflict
+                        | policy::Leave::Unit { .. }
+                        | policy::Leave::Dependency { .. }
+                        | policy::Leave::HeadMoved { .. }
+                        | policy::Leave::Cancelled
+                        | policy::Leave::Held
+                        | policy::Leave::Refused { .. },
+                    ) => {}
                 }
             }
         }
@@ -4416,10 +4463,10 @@ impl Domain {
             if key.project == project
                 && key.repository == change.repository
                 && key.check == Check::Gate(name.clone())
-                && (receipt.candidate == candidate || blamed_run == Some(receipt.run.number))
+                && (candidate == Some(receipt.candidate) || kept_run == Some(receipt.run.number))
                 && !receipt.passed
             {
-                return Some(receipt.logs.clone());
+                return Some((name, receipt));
             }
         }
         None
@@ -4787,6 +4834,38 @@ fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     }
 }
 
+fn receipt_report(
+    report: &policy::GateReport,
+    env: &Env<Limits>,
+    answer: Result<api::Answer, api::Error>,
+) -> ReceiptReport {
+    use temper_engine_domain_forge_tiers::{Limits, NamedFailures, named_report};
+    let limits = Limits {
+        failing_tests: env.limits.tiers.failing_tests.min(1024),
+        test_id_bytes: env.limits.tiers.test_id_bytes.min(4096),
+    };
+    let parsed = match answer {
+        Ok(api::Answer::File { truncated: true, .. }) => Ok(NamedFailures::Many),
+        Ok(api::Answer::File { bytes, .. }) => named_report(report.format, &bytes, &limits),
+        Ok(_) | Err(_) => return ReceiptReport::Unread,
+    };
+    match parsed {
+        Err(_) => ReceiptReport::Unread,
+        Ok(NamedFailures::Many) => ReceiptReport::Many { bound: limits.failing_tests },
+        Ok(NamedFailures::Tests(tests)) => {
+            let mut kept = List::with_capacity(limits.failing_tests);
+            for test in tests {
+                let fuzzy = match &report.fuzzy {
+                    Some(prefix) => test.name.starts_with(prefix),
+                    None => false,
+                };
+                kept.push(crate::ReceiptTest { key: test.key, fuzzy }).expect("bounded report");
+            }
+            ReceiptReport::Tests(kept.into_boxed())
+        }
+    }
+}
+
 /// Snapshot each failed job before publishing the failed receipt (domain/landing.md, 7.3).
 #[expect(clippy::too_many_arguments, reason = "one coherent failed run and its bounded log cursor")]
 fn failed_jobs(
@@ -4803,27 +4882,8 @@ fn failed_jobs(
     let mut log = List::with_capacity(8192);
     append_words(&mut log, &words);
     let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
+    let base = failed_run_base(d, &row, &key, &run).expect("run base");
     if next == 0 {
-        let mut base = None;
-        if let Some(flight) = d.landing.flights.get(&key) {
-            base = input_commit(&flight.inputs, b"temper_base");
-            for entry in &row.entries {
-                if entry.entry == flight.entry {
-                    base = entry.base.or(base);
-                }
-            }
-        }
-        if base.is_none() {
-            for member in &row.landing.members {
-                if member.candidate == Some(run.commit) {
-                    base = member.base;
-                }
-            }
-        }
-        if base.is_none() {
-            base = row.landing.members.first().expect("round member").base;
-        }
-        let base = base.expect("run base");
         let name = match &key.check {
             Check::Gate(name) | Check::Tier(name) => name,
         };
@@ -4869,27 +4929,32 @@ fn failed_jobs(
     let row_logs = log.into_boxed();
     row.landing.round.failure =
         crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
-    let project = row.landing.project;
     save(d, row, out);
     let mut report = None;
-    for gate in d.landing.gates(project, key.repository) {
-        if let Check::Gate(name) = &key.check
-            && *name == gate.name
-        {
+    for gate in d.landing.gates(key.project, key.repository) {
+        if key.check == Check::Gate(gate.name.clone()) {
             report.clone_from(&gate.report);
+            break;
         }
     }
-    if let Some(report) = report
-        && let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact, report.format, env)
-    {
-        p.stage = Stage::FailedReport { key: key.clone(), run, words: row_logs, format: report.format };
-        ask(d, env, owner, p, key.repository, read, out);
-        return;
-    }
-    failed_receipt(d, env, owner, p, key, run, row_logs, None, out);
+    let evidence = if let Some(report) = report {
+        if let Some(read) = crate::tiers::parts::artifact_read(run.id, report.artifact.clone(), report.format, env) {
+            p.stage = Stage::FailedReport { key: key.clone(), run, report, words: row_logs };
+            ask(d, env, owner, p, key.repository, read, out);
+            return;
+        }
+        ReceiptReport::Unread
+    } else {
+        ReceiptReport::Unset
+    };
+    failed_receipt(d, env, owner, p, key, run, evidence, None, row_logs, out);
 }
 
-#[expect(clippy::too_many_arguments, reason = "the failed run and its report complete the pending landing read")]
+/// A report read is evidence, never a second verdict on a failed gate (domain/landing.md, 7.3).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the failed run and both report interpretations complete one landing read"
+)]
 fn failed_receipt(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4897,10 +4962,13 @@ fn failed_receipt(
     p: Pending,
     key: ReceiptKey,
     run: api::Run,
-    words: Box<[u8]>,
+    report: ReceiptReport,
     failures: Option<temper_engine_domain_forge_tiers::Failures>,
+    words: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
+    let row = d.landing.rows.get(&p.task).expect("failed landing");
+    let base = failed_run_base(d, row, &key, &run).expect("run base");
     let flight = d.landing.flights.get(&key).expect("failed flight");
     let no_verdict = match tests_value(&flight.inputs) {
         Some(selected) => !selected_report(selected, failures.as_ref()),
@@ -4908,6 +4976,9 @@ fn failed_receipt(
     };
     let number = run.number;
     let receipt = Receipt {
+        report,
+        base: Some(base),
+        jobs: receipt_jobs(&run.jobs),
         logs: words,
         failures,
         passed: false,
@@ -4920,6 +4991,42 @@ fn failed_receipt(
     }
     finish_flight(d, &key, if no_verdict { Some((number, false)) } else { None }, out);
     collect(d, env, owner, p, out);
+}
+
+pub(super) fn receipt_jobs(run_jobs: &[api::RunJob]) -> Box<[ReceiptJob]> {
+    let mut jobs = List::with_capacity(16);
+    for job in run_jobs {
+        if job.conclusion == Some(api::Conclusion::Failure) {
+            let name = job.name.get(..job.name.len().min(256)).expect("bounded name").into();
+            if jobs.push(ReceiptJob { job: job.id, attempt: job.attempt, name }).is_err() {
+                break;
+            }
+        }
+    }
+    jobs.into_boxed()
+}
+
+fn failed_run_base(d: &Domain, row: &LandingRow, key: &ReceiptKey, run: &api::Run) -> Option<api::Commit> {
+    let mut base = None;
+    if let Some(flight) = d.landing.flights.get(key) {
+        base = input_commit(&flight.inputs, b"temper_base");
+        for entry in &row.entries {
+            if entry.entry == flight.entry {
+                base = entry.base.or(base);
+            }
+        }
+    }
+    if base.is_none() {
+        for member in &row.landing.members {
+            if member.candidate == Some(run.commit) {
+                base = member.base;
+            }
+        }
+    }
+    if base.is_none() {
+        base = row.landing.members.first().expect("round member").base;
+    }
+    base
 }
 
 fn failed_candidate(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> api::Commit {

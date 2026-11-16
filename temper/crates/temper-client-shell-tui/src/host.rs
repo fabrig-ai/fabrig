@@ -693,6 +693,15 @@ impl Host {
                 self.act(Act::Confirm);
             }
             tui::Event::Leave => self.leave(),
+            tui::Event::Back => {
+                self.tell(Told::Place { command: None });
+                if let Address::NewChat { .. } = self.root.pages().address()
+                    && let Some(project) = self.root.pages().project()
+                {
+                    self.went(Address::Home { project });
+                }
+                self.tell(Told::Cleared);
+            }
             tui::Event::Answer { words } => {
                 self.act(Act::MessageWords { words });
                 self.act(Act::Send);
@@ -713,10 +722,11 @@ impl Host {
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
         match command {
             tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
-                let words = skein_lib::bytes::concat(&[command.name(), b" "]);
-                self.composer_words(words);
-                self.focus.caret = u32::try_from(self.words().len()).expect("command name fits the box");
+                self.composer_words(Box::default());
+                self.focus.caret = 0;
                 self.tell(Told::Cleared);
+                self.tell(Told::LeftOff { task: None });
+                self.tell(Told::Place { command: Some(command) });
             }
             tui::Own::Brief => {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
@@ -799,6 +809,7 @@ impl Host {
                     .and_then(|me| me.projects.iter().find(|row| row.project == tell.project))
                     .map(|row| row.name.bytes().into())
                     .unwrap_or_default();
+                self.tell(Told::Place { command: None });
                 self.notice(tui::Notice::Filed { number, project });
                 None
             }
@@ -808,7 +819,11 @@ impl Host {
         };
         if refusal.is_some() {
             let tell = self.root.pages().tell().expect("outcome kept");
-            let words = skein_lib::bytes::concat(&[tui::Own::Tell.name(), b" ", &tell.words]);
+            let words = if self.state().place() == Some(tui::Own::Tell) {
+                tell.words.clone()
+            } else {
+                skein_lib::bytes::concat(&[tui::Own::Tell.name(), b" ", &tell.words])
+            };
             self.composer_words(words);
         }
         self.tell(Told::Tell { serial, refusal });
@@ -829,38 +844,35 @@ impl Host {
             self.notice(tui::Notice::SigningIn);
             return;
         }
-        if self.bare_own() {
+        if let Some(command) = self.bare_own() {
+            self.own(command, duties);
+            return;
+        }
+        if let Some(command) = self.state().place()
+            && !self.words().starts_with(b"/")
+        {
+            if core::str::from_utf8(self.words()).is_ok_and(|words| words.chars().all(char::is_whitespace)) {
+                return;
+            }
+            self.tell(Told::Send);
+            let words = skein_lib::bytes::concat(&[command.name(), b" ", self.words()]);
+            if command == tui::Own::Tell {
+                self.tell_words(&words);
+            } else {
+                self.launchpad_words(&words);
+            }
             return;
         }
         self.tell(Told::NotOpened { address: None });
         self.tell(Told::Send);
-        let project = self
-            .root
-            .pages()
-            .chat()
-            .and_then(|chat| chat.task(self.root.client()))
-            .map(|task| task.project)
-            .or(self.root.pages().project());
-        if let Some(project) = project
-            && let Some(words) = self.words().strip_prefix(b"/tell ").filter(|words| !words.is_empty())
-        {
-            let words = words.into();
-            let title = self
-                .root
-                .pages()
-                .chat()
-                .and_then(|chat| chat.task(self.root.client()))
-                .map(|task| task.chip.title.bytes().into());
-            let about = Some(root::pages::tell::About { address: self.root.pages().address().clone(), title });
-            self.act(Act::Tell { project, words, about });
-            self.composer_words(Box::default());
-            self.tell(Told::Cleared);
+        let value: Box<[u8]> = self.words().into();
+        if self.tell_words(&value) {
             return;
         }
         let words = self.words();
         let command_words = words.starts_with(b"/")
             && core::str::from_utf8(words).is_ok_and(|words| !words.chars().any(char::is_whitespace));
-        if self.root.pages().chat().is_none() && self.root.pages().project().is_some() && self.launchpad_words() {
+        if self.root.pages().chat().is_none() && self.root.pages().project().is_some() && self.launchpad_words(&value) {
             return;
         }
         let words = self.words();
@@ -926,19 +938,44 @@ impl Host {
         self.tell(Told::Cleared);
     }
 
-    fn bare_own(&self) -> bool {
-        tui::offered_own(&self.root, self.state()).iter().any(|command| match command {
-            tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => {
-                self.words().strip_prefix(command.name()).filter(|rest| !rest.is_empty()).is_some_and(|rest| {
-                    core::str::from_utf8(rest).is_ok_and(|rest| rest.chars().all(char::is_whitespace))
-                })
-            }
+    fn tell_words(&mut self, value: &[u8]) -> bool {
+        let project = self
+            .root
+            .pages()
+            .chat()
+            .and_then(|chat| chat.task(self.root.client()))
+            .map(|task| task.project)
+            .or(self.root.pages().project());
+        if let Some(project) = project
+            && let Some(words) = value.strip_prefix(b"/tell ").filter(|words| !words.is_empty())
+        {
+            let words = words.into();
+            let title = self
+                .root
+                .pages()
+                .chat()
+                .and_then(|chat| chat.task(self.root.client()))
+                .map(|task| task.chip.title.bytes().into());
+            let about = Some(root::pages::tell::About { address: self.root.pages().address().clone(), title });
+            self.act(Act::Tell { project, words, about });
+            self.composer_words(Box::default());
+            self.tell(Told::Cleared);
+            return true;
+        }
+        false
+    }
+
+    fn bare_own(&self) -> Option<tui::Own> {
+        tui::offered_own(&self.root, self.state()).iter().copied().find(|command| match command {
+            tui::Own::Draft | tui::Own::Change | tui::Own::Ask | tui::Own::Tell => self
+                .words()
+                .strip_prefix(command.name())
+                .is_some_and(|rest| core::str::from_utf8(rest).is_ok_and(|rest| rest.chars().all(char::is_whitespace))),
             tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open => false,
         })
     }
 
-    fn launchpad_words(&mut self) -> bool {
-        let words = self.words();
+    fn launchpad_words(&mut self, words: &[u8]) -> bool {
         if let Some(words) = words.strip_prefix(b"/talk ").filter(|words| !words.is_empty()) {
             let words: Box<[u8]> = words.into();
             let project = self.root.pages().project().expect("launchpad project");
@@ -965,13 +1002,13 @@ impl Host {
             && self.root.pages().project().is_some_and(|project| root::pages::drafts_offered(&self.root, project))
         {
             let words = words.into();
-            self.went(Address::NewChat { draft: true });
+            self.start_at(Address::NewChat { draft: true });
             self.act(Act::ChatWords { words });
             self.act(Act::StartChat);
             self.tell(Told::Cleared);
         } else if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
             let words = words.into();
-            self.went(Address::NewChat { draft: false });
+            self.start_at(Address::NewChat { draft: false });
             self.act(Act::ChatWords { words });
             self.act(Act::StartChat);
             self.tell(Told::Cleared);
@@ -980,7 +1017,7 @@ impl Host {
             if let Some(project) = self.root.pages().project()
                 && self.root.pages().address() != &(Address::Home { project })
             {
-                self.went(Address::Home { project });
+                self.start_at(Address::Home { project });
             }
             self.act(Act::ChatWords { words });
             self.act(Act::StartChat);
@@ -1081,6 +1118,12 @@ impl Host {
         self.went(Address::Home { project });
     }
     fn went(&mut self, address: Address) {
+        self.tell(Told::Place { command: None });
+        self.start_at(address);
+    }
+
+    /// A start may pass through `NewChat` or `Home` without ending the TUI place.
+    fn start_at(&mut self, address: Address) {
         self.step(Event::Went { place: Place::Address(address) });
         self.tell(Told::Went);
     }

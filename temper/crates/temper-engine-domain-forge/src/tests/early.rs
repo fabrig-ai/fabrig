@@ -94,7 +94,16 @@ fn producing_under_rule(base: &[u8], last: GateLast, up_to_date: bool) -> Domain
 
 #[test]
 fn the_first_early_producer_merges_dependency_heads_in_order() {
-    let d = producing();
+    let mut d = producing();
+    for (task, commit) in [(41, fixtures::HEAD), (42, fixtures::BASE)] {
+        let mut row = fixtures::opening_row();
+        row.task = task;
+        row.change.task = task;
+        row.branch = format!("temper/{task}").into_bytes().into();
+        row.change.last_checked = Some(commit);
+        head(&mut d, &row.branch, [9; 32]);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    }
     let item = d.workspace_item(seed(false)).unwrap();
     assert_eq!(
         item.start,
@@ -213,4 +222,65 @@ fn the_first_branch_read_wakes_the_changes_dependents_through_the_root() {
     fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
     assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
     assert_eq!(d.procedure_wakes.get(&fixtures::CHANGE), Some(&false), "the dependency itself needs no new step");
+}
+
+fn claim(d: &mut Domain, attempt: u64) -> Name {
+    let name = run_branch(b"51");
+    outputs(d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
+    outputs(
+        d,
+        Event::Claim {
+            task: CHILD,
+            attempt,
+            writes: Box::new([name.clone()]),
+            designs: Box::new([]),
+            holders: Box::new([fixtures::CHANGE]),
+        },
+    );
+    name
+}
+
+#[test]
+fn a_checked_report_is_kept_below_a_later_unchecked_save() {
+    let mut d = producing();
+    for (attempt, commit, checked) in [(1, fixtures::HEAD, true), (2, fixtures::BASE, false)] {
+        let name = claim(&mut d, attempt);
+        let requests =
+            outputs(&mut d, Event::Answered { task: CHILD, attempt, pushed: Box::new([(name, commit, checked)]) });
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.last_head, Some(commit));
+        assert_eq!(row.change.last_checked, Some(fixtures::HEAD));
+        let mut durable = false;
+        for request in &requests {
+            if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
+                durable |= row.change.last_head == Some(commit) && row.change.last_checked == Some(fixtures::HEAD);
+            }
+        }
+        assert!(durable, "both heads are durable: {requests:?}");
+    }
+}
+
+#[test]
+fn a_checked_report_of_the_known_head_sets_it_and_wakes_dependents() {
+    let mut d = producing();
+    let name = claim(&mut d, 1);
+    outputs(&mut d, Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name, fixtures::HEAD, false)]) });
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_checked, None);
+    let name = claim(&mut d, 2);
+    d.procedure_wakes.remove(&fixtures::CHANGE);
+    outputs(&mut d, Event::Answered { task: CHILD, attempt: 2, pushed: Box::new([(name, fixtures::HEAD, true)]) });
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_checked, Some(fixtures::HEAD));
+    assert_eq!(d.procedure_wakes.get(&fixtures::CHANGE), Some(&false));
+}
+
+#[test]
+fn a_lost_attempts_reread_pins_its_head_without_checking_it() {
+    let mut d = producing();
+    let name = claim(&mut d, 1);
+    outputs(&mut d, Event::Lost { task: CHILD, attempt: 1 });
+    fixtures::answer_next(&mut d, Ok(api::Answer::Commit(fixtures::HEAD)));
+    assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
+    let row = d.change(fixtures::CHANGE).unwrap();
+    assert_eq!(row.change.last_head, Some(fixtures::HEAD));
+    assert_eq!(row.change.last_checked, None);
 }

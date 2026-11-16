@@ -77,8 +77,11 @@ fn gate(report: bool) -> landing::Gate {
         ignored: Box::new([]),
         blocking: true,
         base: false,
-        report: report
-            .then(|| landing::Report { artifact: b"failed".as_slice().into(), format: landing::Format::Lines }),
+        report: report.then(|| landing::GateReport {
+            artifact: b"failed".as_slice().into(),
+            format: landing::Format::Lines,
+            fuzzy: None,
+        }),
     }
 }
 fn until_dispatch(world: &mut World, member: u16, start: u64) {
@@ -613,6 +616,9 @@ fn an_unrelated_whole_failure_at_three_does_not_move_red_or_prevent_a_selected_d
     let prefix = world.landing(LANDING).landing.members[2].candidate.expect("prefix three");
     let key = key_at(&world, prefix);
     let unrelated = top::Receipt {
+        base: None,
+        jobs: Box::new([]),
+        report: top::ReceiptReport::Unset,
         candidate: prefix,
         passed: false,
         failures: Some(Failures::Tests(Box::new([b"b".as_slice().into()]))),

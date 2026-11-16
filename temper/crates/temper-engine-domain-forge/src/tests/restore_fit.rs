@@ -77,6 +77,9 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                report: ReceiptReport::Unset,
+                base: None,
+                jobs: Box::new([]),
                 logs: Box::new([]),
                 failures: None,
                 passed: true,

@@ -1213,6 +1213,9 @@ fn kept_candidate_failure(d: &mut Domain) {
                     key: [7; 32],
                 },
                 receipt: Receipt {
+                    report: ReceiptReport::Unset,
+                    base: None,
+                    jobs: Box::new([]),
                     logs: b"receipt's failed step and log\n".as_slice().into(),
                     failures: None,
                     passed: false,
@@ -2325,4 +2328,38 @@ fn a_short_reason_stands_on_a_pull_only_past_its_identity_or_ready() {
             assert!(text(&bytes).ends_with(expected), "{}", text(&bytes));
         }
     }
+}
+
+#[test]
+fn landing_failure_pins_the_candidate_or_the_kept_rounds_run() {
+    use temper_engine_domain_forge_landing::Leave;
+    let why = change::Repair::LandingAt { gate: 0, candidate: [7; 32], below: None };
+    let mut d = landing_repair(why);
+    kept_candidate_failure(&mut d);
+    let key = d.landing.receipts.iter().next().unwrap().0.clone();
+    let receipt = d.landing.receipts.get_mut(&key).unwrap();
+    receipt.base = Some(fixtures::BASE);
+    receipt.jobs = Box::new([ReceiptJob { job: 9001, attempt: 2, name: b"gate".as_slice().into() }]);
+    let expected = LandingFailure {
+        report: ReceiptReport::Unset,
+        gate: b"gate".as_slice().into(),
+        run: receipt.run.clone(),
+        prefix: receipt.candidate,
+        base: receipt.base,
+        jobs: receipt.jobs.clone(),
+    };
+    assert_eq!(d.landing_failure(fixtures::CHANGE, why), Some(expected.clone()));
+    let legacy = change::Repair::Landing { gate: 0 };
+    assert_eq!(d.landing_failure(fixtures::CHANGE, legacy), None, "no kept round names the receipt");
+    kept_landing_failure(&mut d);
+    assert_eq!(d.landing_failure(fixtures::CHANGE, legacy), Some(expected.clone()));
+    let blamed = change::Repair::LandingAt { gate: 0, candidate: [8; 32], below: None };
+    d.landing.rows.get_mut(&61).unwrap().landing.members[0].left =
+        Some(Leave::Blamed { gate: 0, run: 7, red: [8; 32], green: [6; 32] });
+    assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), Some(expected.clone()));
+    d.landing.rows.remove(&61).unwrap();
+    assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), None);
+    assert_eq!(d.landing_failure(fixtures::CHANGE, why), Some(expected));
+    d.landing.receipts.get_mut(&key).unwrap().passed = true;
+    assert_eq!(d.landing_failure(fixtures::CHANGE, why), None, "a passed receipt is not a failure");
 }

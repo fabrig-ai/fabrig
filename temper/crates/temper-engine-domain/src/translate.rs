@@ -92,7 +92,7 @@ pub struct RepositoryChecks {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateCheck {
-    pub report: Option<temper_engine_domain_forge_landing::Report>,
+    pub report: Option<temper_engine_domain_forge_landing::GateReport>,
     pub base: bool,
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,

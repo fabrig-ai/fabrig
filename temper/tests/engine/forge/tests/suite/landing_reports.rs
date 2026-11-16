@@ -44,7 +44,11 @@ fn world(reports: bool, fault: bool, contents: &[u8], limit: u32) -> World {
                 ignored: Box::new([]),
                 blocking: true,
                 base: false,
-                report: Some(landing::Report { artifact: b"failed".as_slice().into(), format: landing::Format::Lines }),
+                report: Some(landing::GateReport {
+                    artifact: b"failed".as_slice().into(),
+                    format: landing::Format::Lines,
+                    fuzzy: None
+                }),
             }]),
         }]),
     ));

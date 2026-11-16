@@ -351,6 +351,8 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_row_entries: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,
+        receipt_test_key: forge.tiers.test_id_bytes.min(4096),
+        receipt_tests_tests: forge.tiers.failing_tests,
         follow_row_branch: forge.name_bytes,
         follow_row_stopped_some: forge.follow_reason_bytes,
         follow_row_queue: forge.follow_queue,

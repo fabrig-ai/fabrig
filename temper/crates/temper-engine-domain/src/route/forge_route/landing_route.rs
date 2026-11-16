@@ -63,24 +63,17 @@ pub(super) fn pending(
         let Some(upstream_task) = domain.core.tasks.task(*dependency) else { continue };
         let kind = match domain.forge.change(*dependency) {
             Some(upstream) if upstream.repository != repository => forge_change::PendingKind::Elsewhere,
-            Some(upstream) if upstream.base.as_ref() == base => {
-                let head = match super::branch_parts(&upstream.branch, env.limits.forge.authority_segments) {
-                    Some(parts) => domain.forge.branch_head(&forge::Name {
-                        forge: upstream.repository.forge,
-                        repository: upstream.repository.repository,
-                        what: forge::What::Branch(parts),
-                    }),
-                    None => None,
-                };
-                forge_change::PendingKind::Change { head, kept: !upstream_task.waiting_on.is_empty() }
-            }
+            Some(upstream) if upstream.base.as_ref() == base => forge_change::PendingKind::Change {
+                checked: upstream.change.last_checked,
+                kept: !upstream_task.waiting_on.is_empty(),
+            },
             Some(_) => forge_change::PendingKind::Other,
             None => match upstream_task.executor {
                 tasks::Executor::Procedure { connector, code: super::CHANGE_CODE }
                     if connector == domain.config.forge_connector =>
                 {
                     // A sibling made in the same batch may not have registered its forge row yet.
-                    forge_change::PendingKind::Change { head: None, kept: !upstream_task.waiting_on.is_empty() }
+                    forge_change::PendingKind::Change { checked: None, kept: !upstream_task.waiting_on.is_empty() }
                 }
                 tasks::Executor::Agent { .. }
                 | tasks::Executor::Procedure { .. }

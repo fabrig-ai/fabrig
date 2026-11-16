@@ -312,19 +312,15 @@ fn description(
     );
     None
 }
-// Gates and tiers share report member checks (domain/landing-search-by-test.md, 2).
+// A tier requires both report members (domain/after-landing.md, 2).
 fn report(
     object: &mut crate::startup::members::Object,
     document: &Document,
     path: &Path,
-    required: bool,
     problems: &mut Problems,
-) -> Option<temper_engine_domain_forge_landing::Report> {
+) -> Option<(Box<[u8]>, Format)> {
     let artifact = object.member(document, b"artifact");
     let format = object.member(document, b"format");
-    if !required && artifact.is_none() && format.is_none() {
-        return None;
-    }
     let artifact = match artifact {
         Some(at) => match config::read::text(document, at, u32::try_from(CHECK_NAME_BYTES).expect("artifact bound")) {
             Ok(value) => {
@@ -361,7 +357,7 @@ fn report(
             None
         }
     };
-    Some(temper_engine_domain_forge_landing::Report { artifact: artifact?, format: format? })
+    Some((artifact?, format?))
 }
 fn tier(
     document: &Document,
@@ -372,7 +368,7 @@ fn tier(
 ) -> Option<engine::TierCheck> {
     let mut object = read::object(document, at, "tier-check", path, problems)?;
     let check = check(&mut object, document, path, limits, problems);
-    let report = report(&mut object, document, path, true, problems);
+    let report = report(&mut object, document, path, problems);
     let follows = match object.member(document, b"branch") {
         Some(at) => match config::read::text(document, at, 1_048_576) {
             Ok(value) => {
@@ -394,17 +390,54 @@ fn tier(
     let description = description(&mut object, document, path, problems);
     read::finish(object, document, path, problems);
     let check = check?;
-    let report = report?;
+    let (artifact, format) = report?;
     Some(engine::TierCheck {
         name: check.name,
         workflow: check.workflow,
         ignored: check.ignored,
-        artifact: report.artifact,
-        format: report.format,
+        artifact,
+        format,
         follows: follows?,
         span_ms: span_ms?,
         description: description?,
     })
+}
+fn gate_report(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<temper_engine_domain_forge::GateReport> {
+    let mut object = read::object(document, at, "gate-report", path, problems)?;
+    let artifact = checked_text(&mut object, document, b"artifact", 32, path, problems);
+    if let Some(artifact) = &artifact {
+        read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
+    }
+    let format = read::text(&mut object, document, b"format", path, problems);
+    let format = match format.as_deref() {
+        Some(b"junit") => Some(Format::Junit),
+        Some(b"lines") => Some(Format::Lines),
+        Some(_) => {
+            read::form(false, path.member(b"format"), problems);
+            None
+        }
+        None => None,
+    };
+    let fuzzy = match object.member(document, b"fuzzy") {
+        Some(at) => match config::read::text(document, at, 64) {
+            Ok(value) => {
+                read::form(!value.is_empty(), path.member(b"fuzzy"), problems);
+                Some(value)
+            }
+            Err(what) => {
+                problems.push(path.member(b"fuzzy"), What::Jig(what));
+                None
+            }
+        },
+        None => None,
+    };
+    read::finish(object, document, path, problems);
+    Some(temper_engine_domain_forge::GateReport { artifact: artifact?, format: format?, fuzzy })
 }
 fn repository_checks(
     document: &Document,
@@ -425,7 +458,6 @@ fn repository_checks(
             let path = read::index(&path.member(b"gates"), index);
             let Some(mut object) = read::object(document, *at, "gate-check", &path, problems) else { continue };
             let check = check(&mut object, document, &path, limits, problems);
-            let report = report(&mut object, document, &path, false, problems);
             let blocking = read::boolean(&mut object, document, b"blocking", &path, problems);
             let base = match object.member(document, b"base") {
                 Some(at) => match config::read::boolean(document, at) {
@@ -436,6 +468,10 @@ fn repository_checks(
                     }
                 },
                 None => Some(false),
+            };
+            let report = match object.member(document, b"report") {
+                Some(at) => gate_report(document, at, &path.member(b"report"), problems),
+                None => None,
             };
             read::finish(object, document, &path, problems);
             if let Some(check) = check
