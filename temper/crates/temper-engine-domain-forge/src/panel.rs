@@ -91,6 +91,10 @@ impl Domain {
             branch: row.branch.clone(),
             landing: row.base.clone(),
             head,
+            source: match &row.source {
+                Some(source) => Some(PanelSource { branch: source.branch.clone(), at: source.at, kept: row.kept }),
+                None => None,
+            },
             pull: row.pull,
             step,
             hold,
@@ -120,9 +124,8 @@ impl Domain {
         }
         let step = match state {
             change::State::NoChange { .. } | change::State::Ended => PanelStep::Ended,
-            change::State::Taking { .. } | change::State::Producing { .. } | change::State::WaitingProducer { .. } => {
-                PanelStep::Producing
-            }
+            change::State::Taking { .. } => PanelStep::Taking,
+            change::State::Producing { .. } | change::State::WaitingProducer { .. } => PanelStep::Producing,
             change::State::Opening { .. } => PanelStep::Opening,
             change::State::Recreating { .. } => PanelStep::Recreating,
             change::State::Reopening { .. } => PanelStep::Reopening,

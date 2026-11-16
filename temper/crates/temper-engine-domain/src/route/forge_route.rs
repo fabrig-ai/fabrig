@@ -2888,6 +2888,7 @@ fn change_grants(
     repository: &forge::Repository,
     held_grants: &[tasks::Grant],
     dispatch: bool,
+    taking: bool,
 ) -> Result<Box<[tasks::Grant]>, tasks::Refusal> {
     let name = resource_name(repository, &forge::What::Repository, env.limits.authority.segments)
         .ok_or(tasks::Refusal::AuthorityShape)?;
@@ -2901,6 +2902,7 @@ fn change_grants(
         if grant.connector != domain.config.forge_connector
             || !(forge::CHANGE_KINDS.contains(&grant.kind)
                 || forge::READ_KINDS.contains(&grant.kind)
+                || (taking && grant.kind == 9)
                 || (dispatch && (grant.kind == 16 || grant.kind == 17)))
         {
             continue;
@@ -3433,7 +3435,7 @@ pub(super) fn chat_change(
         return Err(tasks::Refusal::Funding);
     }
     let mut authority = held.clone();
-    authority.grants = change_grants(domain, env, repository, &authority.grants, false)?;
+    authority.grants = change_grants(domain, env, repository, &authority.grants, false, source.is_some())?;
     let mut kinds = List::with_capacity(5);
     kinds.push(tasks::AuthorityExecutor::Charter(producer_charter)).expect("producer kind");
     if producer_charter != review_charter {

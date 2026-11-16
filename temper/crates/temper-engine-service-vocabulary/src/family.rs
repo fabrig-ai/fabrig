@@ -755,7 +755,16 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
             questions: panel_questions(value.questions, limits)?,
-            source: None,
+            source: match value.source {
+                Some(source) => Some(
+                    w::PanelSource::new(
+                        limits,
+                        w::PanelSourceParts { branch: source.branch, at: source.at, kept: source.kept },
+                    )
+                    .ok()?,
+                ),
+                None => None,
+            },
         },
     )
     .ok()?;
@@ -904,6 +913,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
         forge::PanelStep::Preparing { landing } => {
             w::Step::Preparing(w::InLanding::new(limits, w::InLandingParts { landing }).ok()?)
         }
+        forge::PanelStep::Taking => w::Step::Taking,
         forge::PanelStep::Producing => w::Step::Producing,
         forge::PanelStep::Opening => w::Step::Opening,
         forge::PanelStep::Recreating => w::Step::Recreating,

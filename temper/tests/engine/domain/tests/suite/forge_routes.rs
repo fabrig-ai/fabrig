@@ -55,6 +55,7 @@ mod rules_by_path;
 mod context_projects;
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
+mod opened_panel;
 #[path = "forge_routes/resource_admission.rs"]
 mod resource_admission;
 

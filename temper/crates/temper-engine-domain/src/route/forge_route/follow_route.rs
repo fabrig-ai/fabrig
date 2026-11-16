@@ -334,7 +334,7 @@ fn delegate(
     let origin =
         super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
     let mut member = super::chat_change(domain, env, &origin, &call, target, base, None, spend).ok()?;
-    member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true).ok()?;
+    member.authority.grants = super::change_grants(domain, env, target, &context.authority.grants, true, false).ok()?;
     member.spec = describe(domain, env, row, core::slice::from_ref(entry), member.spec)?;
     Some(member)
 }

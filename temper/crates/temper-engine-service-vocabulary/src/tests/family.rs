@@ -698,6 +698,7 @@ fn panel() -> forge::Panel {
     forge::Panel {
         way: change::Way::Queue,
         in_landing: None,
+        source: None,
         task: CHANGE_TASK,
         forge: 1,
         owner: b"acme".as_slice().into(),
@@ -5489,4 +5490,25 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };
         assert_eq!(answer.into_parts().refusal, expected);
     }
+}
+
+#[test]
+fn an_opened_panel_carries_its_source_and_taking_step() {
+    for (step, expected) in [(forge::PanelStep::Taking, w::Step::Taking), (forge::PanelStep::Opening, w::Step::Opening)]
+    {
+        for kept in [None, Some([9; 32])] {
+            for at in [None, Some([8; 32])] {
+                let mut value = panel();
+                value.step = step.clone();
+                value.source = Some(forge::PanelSource { branch: b"docs/x".as_slice().into(), at, kept });
+                let got = decoded_panel(value, &crate::forges::Forges::with_capacity(0));
+                assert_eq!(got.step(), &expected);
+                let source = got.source().as_ref().expect("opened source");
+                assert_eq!(source.branch(), b"docs/x");
+                assert_eq!(*source.at(), at);
+                assert_eq!(*source.kept(), kept);
+            }
+        }
+    }
+    assert_eq!(*decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source(), None);
 }

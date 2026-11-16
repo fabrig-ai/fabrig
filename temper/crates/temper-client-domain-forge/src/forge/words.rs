@@ -864,9 +864,11 @@ pub enum ChangeWord {
     SearchRed,
     LeftBlamed,
     RepairLanding,
+    TakingBranch,
+    TakingKept,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 137] = [
+pub const CHANGES: [ChangeRow; 139] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -1008,6 +1010,8 @@ pub const CHANGES: [ChangeRow; 137] = [
     (ChangeWord::SearchRed, &[b"Search: red member ", b" at ", b""], &[Number, Name]),
     (ChangeWord::LeftBlamed, &[b"Left: blamed by gate ", b", red at ", b", green at ", b""], &[Number, Name, Name]),
     (ChangeWord::RepairLanding, &[b"Repairing: landing gate ", b" failed."], &[Number]),
+    (ChangeWord::TakingBranch, &[b"taking ", b""], &[Name]),
+    (ChangeWord::TakingKept, &[b"taking ", b" ", b""], &[Name, Name]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1030,6 +1034,14 @@ impl ChangeWord {
 #[expect(clippy::too_many_lines, reason = "exhaustive change vocabulary with its name bounds")]
 pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
     match word {
+        ChangeWord::TakingBranch => 1024,
+        ChangeWord::TakingKept => {
+            if index == 0 {
+                1024
+            } else {
+                64
+            }
+        }
         ChangeWord::Train => {
             if index == 0 {
                 2048

@@ -474,6 +474,7 @@ impl Decision {
     /// bounds refusal returns ownership; successful admission ends through journal release after
     /// durability.
     #[expect(clippy::result_large_err, reason = "bounded assignment ownership is returned intact on admission refusal")]
+    #[expect(clippy::too_many_lines, reason = "delivery admission meters each closed delivery variant")]
     pub fn deliver(&mut self, limits: &Limits, delivery: Delivery) -> Result<(), Delivery> {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &delivery {
@@ -500,6 +501,9 @@ impl Decision {
                     .saturating_add(panel.landing.len())
                     .saturating_add(panel.approval_bytes())
                     .saturating_add(size_of_val(panel.gates.as_ref()));
+                if let Some(source) = &panel.source {
+                    owned = owned.saturating_add(source.branch.len());
+                }
                 if let temper_engine_domain_forge::PanelStep::Queued { ahead, .. } = &panel.step {
                     owned = owned.saturating_add(ahead.len().saturating_mul(size_of::<u64>()));
                 }
