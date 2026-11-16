@@ -74,7 +74,10 @@ fn generated() -> (engine::Config, engine::Limits) {
         demo: parsed.application.demo,
         welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
@@ -91,7 +94,10 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
-            host_part: None,
+            host_part: temper_engine_domain::room::HostPart {
+                allowance: u64::MAX,
+                ..temper_engine_domain::room::HostPart::EMPTY
+            },
             kinds_stock: crate::stock::forge(&limits),
             ways_stock: Box::default(),
             machine: Some(crate::system::machine_config(&settings.machine)),

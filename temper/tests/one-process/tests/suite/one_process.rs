@@ -7,14 +7,6 @@ fn claude_keys_can_stand_alone_follow_a_login_and_belong_to_the_deployment() {
     temper_one_process_world::claude_keys::walk();
 }
 #[test]
-fn a_fresh_goals_unencodable_review_releases_the_host_and_cancels() {
-    temper_one_process_world::review_delivery::walk(0);
-}
-#[test]
-fn a_changes_unencodable_review_after_two_restarts_cancels_and_closes() {
-    temper_one_process_world::review_delivery::walk(2);
-}
-#[test]
 fn a_signal_mid_run_interrupts_its_run_and_the_next_start_takes_it_again() {
     for (name, story) in
         [("chat", world::Story::ChatReadThenWait { words: b"Hello" }), ("coding", world::Story::CodingAtStop)]

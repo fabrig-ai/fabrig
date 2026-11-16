@@ -70,7 +70,10 @@ fn stock_box(account: OneAccount) -> StockBox {
     let mut core = jig_protocol_config::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
     let config = engine::Config {
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         period_span: crate::stock::PERIOD_SPAN,
         core,
         landings: application.landings,

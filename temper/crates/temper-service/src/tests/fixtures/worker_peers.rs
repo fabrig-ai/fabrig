@@ -695,7 +695,10 @@ impl AskingChat {
         limits.loads.reply_bytes = 2_097_152;
         limits.loads.read_bytes = 2_097_152;
         let config = engine::Config {
-            host_part: None,
+            host_part: temper_engine_domain::room::HostPart {
+                allowance: u64::MAX,
+                ..temper_engine_domain::room::HostPart::EMPTY
+            },
             kinds_stock: setup.kinds_stock,
             ways_stock: Box::default(),
             period_span: crate::stock::PERIOD_SPAN,
