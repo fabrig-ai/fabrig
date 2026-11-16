@@ -884,9 +884,6 @@ impl Judge {
             self.controls.signal(engine_index, ServiceSignal::Terminate);
         }
         if shutdown.peers {
-            // Check before waiting on all hosted children: an orphaned held
-            // program must fail for its missing interrupt, not a world timeout.
-            caller.check_program_stop()?;
             self.finish_peers(peer, children);
         }
         Ok(())

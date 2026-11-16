@@ -7077,6 +7077,7 @@ dependencies = [
  "smith-fake-claude",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-program",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
