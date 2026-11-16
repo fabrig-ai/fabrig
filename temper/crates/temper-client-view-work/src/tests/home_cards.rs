@@ -59,6 +59,164 @@ fn question_card(root: &d::Domain) -> d::pages::inbox::Card {
     card
 }
 
+fn group_draw(root: &d::Domain, needs: &[Need<'_>], across: bool, w: &Words) -> (Tree, Bindings) {
+    let mut b = Builder::new(&f::tree_limits());
+    let mut bindings = Bindings::new(256);
+    b.open(Role::Main);
+    crate::pages::home_cards::cards(&mut b, root, needs, across, w, &mut bindings, &mut Times::new(f::groups::NOW));
+    b.close();
+    (b.finish(), bindings)
+}
+fn styled_nodes(tree: &Tree, style: skein_ui::Style) -> &[skein_ui::Node] {
+    let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).expect("styled part");
+    super::inbox::subtree(tree, at)
+}
+fn text(nodes: &[skein_ui::Node]) -> String {
+    String::from_utf8(nodes.iter().flat_map(|n| n.text.iter().flat_map(|run| run.text.iter().copied())).collect())
+        .unwrap()
+}
+
+#[test]
+fn group_card_keeps_its_findings_context_choices_and_scope() {
+    let bugs = f::groups::bugs();
+    let root = f::groups::fixture(&[f::groups::QUESTION], &bugs, &[], false);
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    for across in [false, true] {
+        for w in [f::browser_words(), f::words()] {
+            let (tree, bindings) = group_draw(&root, &[Need::Card(card)], across, &w);
+            assert!(
+                tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::GROUP_CARD)
+                    && n.styles.as_slice().contains(&look::NEED_CARD))
+            );
+            assert_eq!(look::NAMES.style(look::GROUP_CARD), Some(b"temper-group-card".as_slice()));
+            assert_eq!(look::NAMES.style(look::GROUP_CONTEXT), Some(b"temper-group-context".as_slice()));
+            let from = styled_nodes(&tree, look::NEED_FROM);
+            let from_text = text(from);
+            assert_eq!(
+                from_text,
+                format!(
+                    "{}{}",
+                    if across { "Shop " } else { "" },
+                    if w.shell == crate::words::Shell::Browser {
+                        "3 bugs in temper · the oldest 1 d"
+                    } else {
+                        "3 bugs · in temper · the oldest 1 d"
+                    }
+                )
+            );
+            let rows = styled_nodes(&tree, look::FINDING_ROWS);
+            assert_eq!(rows.iter().filter(|n| n.role == Role::Item).count(), 3);
+            assert!(!rows.iter().any(|n| n.role == Role::Link || n.binding.is_some()));
+            let rows_text = text(rows);
+            let mut last = 0;
+            for title in bugs.iter().map(|row| core::str::from_utf8(row.title()).unwrap()) {
+                let at = rows_text.find(title).unwrap();
+                assert!(at >= last);
+                last = at;
+            }
+            if w.shell == crate::words::Shell::Browser {
+                assert!(from.iter().any(|n| n.styles.as_slice().contains(&look::CHIP_HIGH)));
+                assert_eq!(look::NAMES.style(look::CHIP_HIGH), Some(b"temper-chip-high".as_slice()));
+                let chips: Vec<_> = from.iter().filter(|n| n.styles.as_slice().contains(&look::CHIP)).collect();
+                assert_eq!(chips.len(), if across { 2 } else { 1 });
+                if across {
+                    assert_eq!(chips[0].name.as_deref(), Some(b"Shop".as_slice()));
+                }
+                assert_eq!(rows.iter().filter(|n| n.styles.as_slice().contains(&look::SEVERITY)).count(), 3);
+                assert_eq!(
+                    rows.iter()
+                        .filter(|n| n.styles.as_slice().contains(&look::FINDING_WHEN))
+                        .map(|n| n.name.as_deref().unwrap())
+                        .collect::<Vec<_>>(),
+                    ["qa · 1 d".as_bytes(), "review · 16 h".as_bytes(), "review · 15 h".as_bytes()]
+                );
+                assert_eq!(
+                    control(&tree, &bindings, "More"),
+                    d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Open { object: card.object }))
+                );
+            } else {
+                assert!(rows_text.contains("The model picker keeps a later choice · high · qa · 1 d"));
+                assert!(rows_text.contains("A resolution ignores later files · low · review · 16 h"));
+                assert!(rows_text.contains("A hung forge read holds too long · medium · review · 15 h"));
+            }
+            assert!(f::find(&tree, Role::Paragraph, b"Start a goal for each?").is_some());
+            let context = styled_nodes(&tree, look::GROUP_CONTEXT);
+            assert_eq!(text(context), "None blocks a landing.");
+            assert!(context[0].styles.as_slice().contains(&look::ASK_CONTEXT));
+            let position = |style| tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
+            assert!(position(look::ASK_QUESTION) < position(look::FINDING_ROWS));
+            assert!(position(look::FINDING_ROWS) < position(look::GROUP_CONTEXT));
+            assert!(position(look::GROUP_CONTEXT) < position(look::NEED_ACTS));
+            let buttons: Vec<_> = styled_nodes(&tree, look::NEED_ACTS)
+                .iter()
+                .filter(|n| n.role == Role::Button || n.role == Role::Link)
+                .collect();
+            assert_eq!(
+                buttons.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+                [b"A goal for each".as_slice(), b"One goal for all", b"Backlog them", b"Tell it something else"]
+            );
+            assert_eq!(buttons[3].role, Role::Link);
+            assert!(buttons[0].styles.as_slice().contains(&look::RECOMMENDED));
+            assert!(buttons[1..].iter().all(|n| n.styles.as_slice().contains(&look::ASK_QUIET)));
+            assert!(f::find(&tree, Role::Text, b"recommended").is_some());
+            assert_eq!(
+                control(&tree, &bindings, "A goal for each"),
+                d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Choose {
+                    object: card.object,
+                    words: b"A goal for each".as_slice().into()
+                }))
+            );
+        }
+    }
+}
+
+#[test]
+fn group_rows_omit_a_shared_kind_and_singletons_have_no_oldest_prefix() {
+    use temper_client_protocol_wire::v1 as w;
+    let rows = [
+        f::groups::row(2, "First flake", w::Severity::Low, w::FindingKind::Flake, 24),
+        f::groups::row(8, "Second flake", w::Severity::Low, w::FindingKind::Flake, 16),
+    ];
+    for (question, label, ages) in [
+        ("Q?\nFindings: 2/2 2/8\nChoice: A", "2 findings the oldest 1 d", vec!["1 d", "16 h"]),
+        ("Q?\nFindings: 2/8\nChoice: A", "1 finding 16 h", vec!["16 h"]),
+    ] {
+        let root = f::groups::fixture(&[question], &rows, &[], false);
+        let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+        let (tree, _) = group_draw(&root, &[Need::Card(card)], false, &f::browser_words());
+        assert_eq!(text(styled_nodes(&tree, look::NEED_FROM)), label);
+        let rows = styled_nodes(&tree, look::FINDING_ROWS);
+        assert_eq!(
+            rows.iter()
+                .filter(|n| n.styles.as_slice().contains(&look::FINDING_WHEN))
+                .map(|n| core::str::from_utf8(n.name.as_deref().unwrap()).unwrap())
+                .collect::<Vec<_>>(),
+            ages
+        );
+    }
+}
+
+#[test]
+fn fourth_group_summarizes_findings_instead_of_the_question() {
+    let root = f::groups::fixture(&[f::groups::QUESTION; 4], &f::groups::bugs(), &[], false);
+    let needs: Vec<_> = root.pages().inbox().unwrap().cards.iter().map(Need::Card).collect();
+    for w in [f::browser_words(), f::words()] {
+        let (tree, _) = group_draw(&root, &needs, false, &w);
+        let more = styled_nodes(&tree, look::HOME_MORE);
+        assert_eq!(
+            text(more),
+            if w.shell == crate::words::Shell::Browser {
+                "One more 3 bugs in temper · the oldest 1 d"
+            } else {
+                "One more: 3 bugs · high · in temper · the oldest 1 d"
+            }
+        );
+        if w.shell == crate::words::Shell::Browser {
+            assert!(more.iter().any(|n| n.styles.as_slice().contains(&look::SEVERITY_HIGH)));
+        }
+    }
+}
+
 #[test]
 fn three_cards_keep_order_project_scope_and_the_remaining_link() {
     let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);

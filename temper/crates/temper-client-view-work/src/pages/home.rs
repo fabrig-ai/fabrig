@@ -1,6 +1,6 @@
 //! A project's first page (temper/docs/design/client/pages/README.md).
 //! A stopped try (temper/docs/design/domain/trial.md, 6.3).
-pub(crate) use crate::common::home::{intro_words, kicker, need_words, needs_sentence, number_word};
+pub(crate) use crate::common::home::{intro_words, kicker, need_words, needs_count, needs_sentence, number_word};
 use crate::{
     bindings::Bindings,
     look,
@@ -197,10 +197,7 @@ fn needs(
     let Some(inbox) = root.pages().inbox() else { return };
     let session = root.pages().needs();
     let open = session.all(inbox, root.forge().approvals());
-    let (count, cut) = match facts.needs {
-        Needs::Count { count, cut, .. } => (count, cut),
-        Needs::Unknown => (0, false),
-    };
+    let (count, cut) = needs_count(facts.needs);
     b.open(Role::Region);
     b.style(look::HOME_NEEDS);
     b.name(&w.say(Word::NeedsYou, &[]));

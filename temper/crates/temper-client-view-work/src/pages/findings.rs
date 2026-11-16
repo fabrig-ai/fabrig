@@ -12,7 +12,7 @@ use temper_client_domain::{
     Domain,
     pages::{
         Act as PageAct,
-        findings::{Act, Card, Mode},
+        findings::{Act, Card, Group, Mode},
     },
 };
 use temper_client_protocol_wire::v1 as w;
@@ -137,8 +137,8 @@ fn acts(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &m
     b.close();
 }
 fn facts(b: &mut Builder, card: &Card, words: &Words) {
-    let kind = words.say(kind_word(card), &[]);
-    let severity = words.say(severity_word(card), &[]);
+    let kind = words.say(kind_word(&card.row), &[]);
+    let severity = words.say(severity_word(card.row.severity()), &[]);
     let area = match card.row.area() {
         Some(area) => area.clone(),
         None => words.say(Word::FindingNoArea, &[]),
@@ -295,8 +295,8 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
         | w::FindingRefusal::Words(_) => crate::shared::finding_refusal(words, refusal),
     }
 }
-fn kind_word(card: &Card) -> Word {
-    match card.row.kind() {
+fn kind_word(row: &w::FindingRow) -> Word {
+    match row.kind() {
         w::FindingKind::Qa => Word::FindingQa,
         w::FindingKind::Flake => Word::FindingFlake,
         w::FindingKind::Red => Word::FindingRed,
@@ -304,8 +304,8 @@ fn kind_word(card: &Card) -> Word {
         w::FindingKind::Feedback => Word::FindingFeedback,
     }
 }
-fn severity_word(card: &Card) -> Word {
-    match card.row.severity() {
+fn severity_word(severity: &w::Severity) -> Word {
+    match severity {
         w::Severity::Low => Word::FindingLow,
         w::Severity::Medium => Word::FindingMedium,
         w::Severity::High => Word::FindingHigh,
@@ -313,17 +313,20 @@ fn severity_word(card: &Card) -> Word {
 }
 /// A finding's short line shares the row's words, including severity in the terminal.
 pub(crate) fn short(card: &Card, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
-    let separator = words.say(Word::ToolSeparator, &[]);
-    let mut text: Box<[u8]> = card.row.title().into();
-    if words.shell == Shell::Terminal {
-        text = bytes::concat(&[&text, &separator, &words.say(severity_word(card), &[])]);
-    }
-    bytes::concat(&[&text, &separator, &when(card, words, times, kind)])
+    short_row(&card.row, words, times, kind)
 }
-fn when(card: &Card, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
-    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(card.row.at()));
+fn short_row(row: &w::FindingRow, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
+    let separator = words.say(Word::ToolSeparator, &[]);
+    let mut text: Box<[u8]> = row.title().into();
+    if words.shell == Shell::Terminal {
+        text = bytes::concat(&[&text, &separator, &words.say(severity_word(row.severity()), &[])]);
+    }
+    bytes::concat(&[&text, &separator, &when(row, words, times, kind)])
+}
+fn when(row: &w::FindingRow, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
+    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(row.at()));
     if kind {
-        bytes::concat(&[&words.say(kind_word(card), &[]), &words.say(Word::ToolSeparator, &[]), &age])
+        bytes::concat(&[&words.say(kind_word(row), &[]), &words.say(Word::ToolSeparator, &[]), &age])
     } else {
         age
     }
@@ -338,19 +341,117 @@ pub fn row(
     times: &mut Times,
     kind: bool,
 ) {
+    finding_row(b, &card.row, Some(Act::Open { id: card.id }), words, bindings, times, kind);
+}
+fn finding_row(
+    b: &mut Builder,
+    row: &w::FindingRow,
+    open: Option<Act>,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    kind: bool,
+) {
     b.open(Role::Item);
     if words.shell == Shell::Terminal {
-        b.text(Run::Plain, &short(card, words, times, kind));
+        b.text(Run::Plain, &short_row(row, words, times, kind));
     } else {
-        severity(b, words, card.row.severity().clone());
-        b.open(Role::Link);
-        b.name(card.row.title());
-        b.bind(bindings.insert(PageAct::Finding(Act::Open { id: card.id })));
-        b.text(Run::Plain, card.row.title());
+        severity(b, words, row.severity().clone());
+        b.open(if open.is_some() { Role::Link } else { Role::Text });
+        b.style(look::FINDING_TITLE);
+        b.name(row.title());
+        if let Some(open) = open {
+            b.bind(bindings.insert(PageAct::Finding(open)));
+        }
+        b.text(Run::Plain, row.title());
         b.close();
-        ask::text(b, Role::Text, &when(card, words, times, kind), look::FINDING_WHEN);
+        ask::text(b, Role::Text, &when(row, words, times, kind), look::FINDING_WHEN);
     }
     b.close();
+}
+/// The group's from line, shared by Home and the open Needs you card.
+pub(crate) fn group_from(
+    b: &mut Builder,
+    root: &Domain,
+    group: &Group<'_>,
+    words: &Words,
+    times: &mut Times,
+    across: bool,
+) {
+    if across && let Some(name) = super::project_name(root.pages().me(root.client()), group.project) {
+        ask::text(b, Role::Text, &name, look::CHIP);
+        b.text(Run::Plain, b" ");
+    }
+    chip(b, words, group.severity(), &group_label(group, words));
+    let separator = words.say(Word::ToolSeparator, &[]);
+    b.text(Run::Plain, if words.shell == Shell::Terminal { &separator } else { b" " });
+    b.text(Run::Plain, &group_when(group, words, times));
+}
+fn group_label(group: &Group<'_>, words: &Words) -> Box<[u8]> {
+    let count = u64::try_from(group.rows.len()).expect("group rows bounded");
+    if !group.noun.is_empty() {
+        words.say(Word::FindingGroupCount, &[Hole::Number(count), Hole::Name(group.noun.clone())])
+    } else if count == 1 {
+        words.say(Word::FindingGroupOne, &[])
+    } else {
+        words.say(Word::FindingGroupMany, &[Hole::Number(count)])
+    }
+}
+fn group_when(group: &Group<'_>, words: &Words, times: &mut Times) -> Box<[u8]> {
+    let age = times.say(words, TimeForm::Span, group.oldest());
+    let age = if group.rows.len() == 1 { age } else { words.say(Word::FindingGroupOldest, &[Hole::Name(age)]) };
+    if group.phrase.is_empty() {
+        age
+    } else {
+        bytes::concat(&[&group.phrase, &words.say(Word::ToolSeparator, &[]), &age])
+    }
+}
+pub(crate) fn group_rows(
+    b: &mut Builder,
+    group: &Group<'_>,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    let mut kind = false;
+    if let Some(first) = group.rows.first() {
+        for row in &group.rows {
+            if row.kind() != first.kind() {
+                kind = true;
+                break;
+            }
+        }
+    }
+    b.open(Role::List);
+    b.style(look::FINDING_ROWS);
+    for row in &group.rows {
+        finding_row(b, row, None, words, bindings, times, kind);
+    }
+    b.close();
+}
+pub(crate) fn group_context(b: &mut Builder, asked: &ask::Asked<'_>) {
+    if let Some(parsed) = &asked.parsed
+        && !parsed.context.is_empty()
+    {
+        b.open(Role::Paragraph);
+        b.style(look::ASK_CONTEXT);
+        b.style(look::GROUP_CONTEXT);
+        b.name(&parsed.context);
+        b.text(Run::Plain, &parsed.context);
+        b.close();
+    }
+}
+pub(crate) fn group_short(b: &mut Builder, group: &Group<'_>, words: &Words, times: &mut Times) {
+    severity(b, words, group.severity());
+    b.text(Run::Plain, &group_label(group, words));
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+        let severity = severity_word(&group.severity());
+        b.text(Run::Plain, &words.say(severity, &[]));
+    }
+    let separator = words.say(Word::ToolSeparator, &[]);
+    b.text(Run::Plain, if words.shell == Shell::Terminal { &separator } else { b" " });
+    b.text(Run::Plain, &group_when(group, words, times));
 }
 fn reason(b: &mut Builder, root: &Domain, card: &Card, words: &Words) {
     if let Some(why) =
@@ -379,7 +480,7 @@ pub(crate) fn preview(
         ask::text(b, Role::Text, &name, look::CHIP);
         b.text(Run::Plain, b" ");
     }
-    chip(b, words, card.row.severity().clone(), &words.say(kind_word(card), &[]));
+    chip(b, words, card.row.severity().clone(), &words.say(kind_word(&card.row), &[]));
     b.text(Run::Plain, b" ");
     let area = match card.row.area() {
         Some(area) => words.say(Word::FindingInArea, &[Hole::Name(area.clone())]),

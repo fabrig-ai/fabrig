@@ -29,6 +29,7 @@ pub mod delegation;
 pub mod document;
 pub mod goal;
 pub mod goals;
+pub mod groups;
 pub mod home;
 pub mod inbox;
 pub mod limits_helpers;

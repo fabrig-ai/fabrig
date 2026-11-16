@@ -39,16 +39,26 @@ pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> 
     kicker
 }
 
+/// The complete findings-only read counts findings; every other read counts cards.
+#[must_use]
+pub fn needs_count(needs: Needs) -> (u32, bool) {
+    match needs {
+        Needs::Count { count, cut, findings } => (if findings.only && !cut { findings.total() } else { count }, cut),
+        Needs::Unknown => (0, false),
+    }
+}
+
 #[must_use]
 pub fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
+    let (count, _) = needs_count(needs);
     match needs {
         Needs::Unknown => unknown.into(),
-        Needs::Count { count, cut: true, .. } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
-        Needs::Count { count: 0, cut: false, .. } => w.say(Word::HomeNeedsNone, &[]),
-        Needs::Count { count: 1, cut: false, findings } => {
+        Needs::Count { cut: true, .. } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
+        Needs::Count { cut: false, .. } if count == 0 => w.say(Word::HomeNeedsNone, &[]),
+        Needs::Count { cut: false, findings, .. } if count == 1 => {
             w.say(if findings.only { Word::HomeNeedsFindingOne } else { Word::HomeNeedsOne }, &[])
         }
-        Needs::Count { count, cut: false, findings } => {
+        Needs::Count { cut: false, findings, .. } => {
             let number = match number_word(count) {
                 Some(word) => w.say(word, &[]),
                 None => skein_lib::Decimal::of(u64::from(count)).as_bytes().into(),

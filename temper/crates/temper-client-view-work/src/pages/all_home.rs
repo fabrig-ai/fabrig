@@ -45,10 +45,7 @@ fn page(
         b.style(look::HOME_NEEDS);
         b.open(Role::Slot);
         b.style(look::HOME_HEAD);
-        let (count, cut) = match facts.needs {
-            temper_client_domain::pages::home::Needs::Count { count, cut, .. } => (count, cut),
-            temper_client_domain::pages::home::Needs::Unknown => (0, false),
-        };
+        let (count, cut) = home::needs_count(facts.needs);
         ask::text(
             b,
             Role::Heading { level: 2 },

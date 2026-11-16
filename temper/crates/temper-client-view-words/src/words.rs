@@ -1731,6 +1731,10 @@ pub enum Word {
     FindingLowSeverity,
     FindingMediumSeverity,
     FindingHighSeverity,
+    FindingGroupCount,
+    FindingGroupOne,
+    FindingGroupMany,
+    FindingGroupOldest,
     FindingWaiting,
     FindingNoGoal,
     FindingGone,
@@ -2150,7 +2154,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2696;
+const PHRASES: u32 = 2700;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2177,10 +2181,10 @@ const PHRASES: u32 = 2696;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4938;
+const SEGMENTS: u32 = 4950;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 64230;
-const ALL: [Word; 1979] = [
+const ENGLISH_BYTES: u32 = 64260;
+const ALL: [Word; 1983] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -3825,6 +3829,10 @@ const ALL: [Word; 1979] = [
     Word::FindingLowSeverity,
     Word::FindingMediumSeverity,
     Word::FindingHighSeverity,
+    Word::FindingGroupCount,
+    Word::FindingGroupOne,
+    Word::FindingGroupMany,
+    Word::FindingGroupOldest,
     Word::FindingWaiting,
     Word::FindingNoGoal,
     Word::FindingGone,
@@ -5896,6 +5904,10 @@ impl Word {
             Self::FindingLowSeverity => 8024,
             Self::FindingMediumSeverity => 8025,
             Self::FindingHighSeverity => 8026,
+            Self::FindingGroupCount => 8038,
+            Self::FindingGroupOne => 8039,
+            Self::FindingGroupMany => 8040,
+            Self::FindingGroupOldest => 8041,
             Self::FindingWaiting => 8017,
             Self::FindingNoGoal => 8018,
             Self::FindingGone => 8019,
@@ -8596,6 +8608,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::FindingLowSeverity => (&[b"low severity"], &[]),
         Word::FindingMediumSeverity => (&[b"medium severity"], &[]),
         Word::FindingHighSeverity => (&[b"high severity"], &[]),
+        Word::FindingGroupCount => (&[b"", b" ", b""], &[Number, Name]),
+        Word::FindingGroupOne => (&[b"1 finding"], &[]),
+        Word::FindingGroupMany => (&[b"", b" findings"], &[Number]),
+        Word::FindingGroupOldest => (&[b"the oldest ", b""], &[Name]),
         Word::FindingWaiting => (&[b"Waiting for the findings document."], &[]),
         Word::FindingNoGoal => (&[b"not a live goal of the project"], &[]),
         Word::FindingGone => (&[b"no finding"], &[]),
