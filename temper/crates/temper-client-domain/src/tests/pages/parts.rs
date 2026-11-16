@@ -1,3 +1,4 @@
+use crate::pages::findings::Counted;
 use crate::pages::{
     home,
     parts::{self, HomeFacts, HomeParts, NeedsFacts, NeedsParts},
@@ -92,7 +93,7 @@ fn project_parts_keep_to_begin_and_away_counts() {
         (
             "to begin",
             true,
-            home::Needs::Count { count: 2, cut: true },
+            home::Needs::Count { count: 2, cut: true, findings: Counted::default() },
             home::Status::Unknown,
             None,
             HomeFacts { open: 2, to_begin: true, ..HomeFacts::default() },
@@ -100,7 +101,7 @@ fn project_parts_keep_to_begin_and_away_counts() {
         (
             "brief and away",
             false,
-            home::Needs::Count { count: 2, cut: false },
+            home::Needs::Count { count: 2, cut: false, findings: Counted::default() },
             home::Status::Shown(Box::new(crate::tests::fixtures::status::document(2, 1, Some(2)))),
             Some(crate::pages::decided::Shown {
                 more: false,

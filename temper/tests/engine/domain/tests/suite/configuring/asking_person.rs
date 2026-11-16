@@ -103,7 +103,6 @@ pub(crate) fn world() -> PersonWorld {
     bounds.fleet.workstreams = 6;
     bounds.call_records = 4;
     bounds.journal.transcript_bytes = 65_536;
-    bounds.loads.rows = 8;
     let period_budget = config.core.defaults.rules.period_spend;
     let mut world = World::with_limits(config, &bounds);
     world.driver.send(Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link: engine::Link::Lost }));
