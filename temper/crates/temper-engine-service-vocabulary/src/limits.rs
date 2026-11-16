@@ -388,9 +388,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 5's room (337,286) less 1,472
+    // tests/stock_brief.rs derives charter 5's room (336,666) less 1,472
     // bytes for 64 titles and framing and 195 margin; below 395,520.
-    brief_bytes: 335_619,
+    brief_bytes: 334_999,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
