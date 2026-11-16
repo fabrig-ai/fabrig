@@ -76,6 +76,7 @@ pub trait GitFace {
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn qa_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal>;
     fn prune(&mut self) -> Result<(), Refusal>;
 }
@@ -222,6 +223,12 @@ impl GitFace for RealGit {
     }
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
         self.worktree(&["worktree", "add", "--detach"], path, &[commit])
+    }
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
+        let tree = Self { directory: path.into(), environment: self.environment.clone() };
+        tree.bytes(&["checkout", "--force", "--detach", commit])?;
+        tree.bytes(&["clean", "-ffdxq"])?;
+        Ok(())
     }
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal> {
         if !path.exists() {
@@ -560,5 +567,60 @@ fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {
         Ok(output.stdout)
     } else {
         Err(refused(format!("{name}: {}: {}", output.status, String::from_utf8_lossy(&output.stderr).trim())))
+    }
+}
+
+/// Hashing kept builds and installing their files (qa/builds.md, 3–4; qa/places.md, 3).
+pub trait BuildFilesFace {
+    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal>;
+    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal>;
+    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()>;
+}
+pub struct RealBuildFiles {
+    pub environment: Environment,
+}
+impl RealBuildFiles {
+    fn command(&self, directory: &Path) -> Command {
+        let mut command = Command::new("sha256sum");
+        captured(&mut command, &self.environment);
+        command.current_dir(directory).stdin(Stdio::null());
+        command
+    }
+}
+impl BuildFilesFace for RealBuildFiles {
+    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal> {
+        checked(
+            self.command(directory)
+                .arg("--")
+                .args(files)
+                .output()
+                .map_err(|why| refused(format!("sha256sum: {why}")))?,
+            "sha256sum",
+        )
+    }
+    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal> {
+        let manifest = fs::canonicalize(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
+        let output = self
+            .command(directory)
+            .arg("--check")
+            .arg("--")
+            .arg(manifest)
+            .output()
+            .map_err(|why| refused(format!("sha256sum --check: {why}")))?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            // --check names mismatching files on stdout, with its summary on stderr.
+            Err(refused(format!(
+                "sha256sum --check: {}: {}{}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            )))
+        }
+    }
+
+    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()> {
+        fs::hard_link(source, destination)
     }
 }

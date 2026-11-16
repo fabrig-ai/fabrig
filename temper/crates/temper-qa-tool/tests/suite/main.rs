@@ -1,9 +1,11 @@
 //! Landed QA's focused value tests and seeded invariants (qa/README.md, 6).
+mod build_files;
 mod builds;
 mod configuration;
 mod fuzzy;
 mod hold;
 mod home;
+mod installation;
 mod ledger;
 mod passes;
 mod place;

@@ -161,6 +161,7 @@ impl Inputs {
             landing.title
         )
         .expect("string");
+        writeln!(text, "Tree: {}\n", home.triage_tree().display()).expect("string");
         text.push_str("## Drafts\n\n");
         if self.drafts.is_empty() {
             text.push_str("No draft is named; the request was the title's words.\n");

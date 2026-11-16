@@ -185,7 +185,6 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 now.wall,
                 &self.home.configuration.owner,
             )?;
-            self.trees.push(self.home.session_directory(number).join("tree"));
             self.active.remove(&number);
         }
         self.clean_trees()?;
@@ -202,7 +201,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             now.wall,
         )?;
         let directory = self.home.session_directory(number);
-        let tree = directory.join("tree");
+        let tree = self.home.triage_tree();
         let start = || -> Result<ProcessCommand, Refusal> {
             fs::create_dir_all(&directory).map_err(|why| refused(format!("sessions/{number}: {why}")))?;
             let brief = directory.join("brief");
@@ -210,10 +209,10 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 .map_err(|why| refused(format!("brief: {why}")))?;
             fs::write(directory.join("diff.patch"), inputs.patch)
                 .map_err(|why| refused(format!("diff.patch: {why}")))?;
-            Ok(self.agent_command(number, &self.home.configuration.agent.triage))
+            Ok(self.agent_command(number, &self.home.configuration.agent.triage, tree.clone()))
         };
         let result = start().and_then(|command| {
-            self.git.add_tree(&tree, &landing.commit)?;
+            self.prepare_tree(&tree, &landing.commit)?;
             self.processes.start(&command)
         });
         match result {
@@ -232,16 +231,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             }
             Err(why) => {
                 ledger.end_session(number, Exit::Unstarted, None, now.wall, &self.home.configuration.owner)?;
-                self.trees.push(tree);
-                if let Err(cleanup) = self.clean_trees() {
-                    eprintln!("temper-qa: triage cleanup: {cleanup}");
-                }
                 return Err(why);
             }
         }
         Ok(())
     }
-    fn agent_command(&self, number: u64, effort: &str) -> ProcessCommand {
+    fn agent_command(&self, number: u64, effort: &str, tree: PathBuf) -> ProcessCommand {
         let directory = self.home.session_directory(number);
         let mut environment = self.environment.clone();
         environment.retain(|(name, _)| {
@@ -259,7 +254,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 .iter()
                 .map(|argument| argument.replace("{effort}", effort))
                 .collect(),
-            directory: directory.join("tree"),
+            directory: tree,
             stdin: directory.join("brief"),
             output: directory.join("output"),
             environment,
@@ -343,7 +338,10 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         } else {
             ledger.end_session(number, exit, tokens, now, &self.home.configuration.owner)?;
         }
-        self.trees.push(self.home.session_directory(number).join("tree"));
+        let legacy = self.home.session_directory(number).join("tree");
+        if legacy.exists() {
+            self.trees.push(legacy);
+        }
         Ok(())
     }
 
@@ -364,17 +362,22 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         };
         let directory = configuration.place_directory(&self.home.directory, place)?;
         let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
-        pass_files::install(&self.home.builds.join(&start.build), &start.build, &directory)?;
+        crate::installation::install(
+            &self.home.builds.join(&start.build),
+            &start.build,
+            &directory,
+            &mut crate::faces::RealBuildFiles { environment: self.environment.clone() },
+        )?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
         pass_files::prepare_files(&self.home, start.pass)?;
         *ledger = recorded;
-        let command = self.agent_command(start.session, &configuration.agent.pass);
+        let command = self.agent_command(start.session, &configuration.agent.pass, self.home.pass_tree(place));
         let mut prepare = || -> Result<(), Refusal> {
             let directory = self.home.session_directory(start.session);
             fs::create_dir_all(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
             let brief = pass_brief::render(&mut self.git, &self.home, &start, ledger)?;
             fs::write(&command.stdin, brief).map_err(|why| refused(format!("brief: {why}")))?;
-            self.git.add_tree(&command.directory, &start.build)
+            self.prepare_tree(&command.directory, &start.build)
         };
         let result = prepare().and_then(|()| self.processes.start(&command));
         drop(lock);
@@ -409,11 +412,34 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     }
 
     fn clean_trees(&mut self) -> Result<(), Refusal> {
-        while let Some(tree) = self.trees.first() {
-            self.git.remove_tree(tree)?;
-            self.trees.remove(0);
+        if self.trees.is_empty() {
+            return Ok(());
         }
-        self.git.prune()
+        for tree in &self.trees {
+            self.git.remove_tree(tree)?;
+        }
+        self.git.prune()?;
+        self.trees.clear();
+        Ok(())
+    }
+
+    fn prepare_tree(&mut self, tree: &std::path::Path, commit: &str) -> Result<(), Refusal> {
+        if let Some(parent) = tree.parent() {
+            crate::private::directory(parent)?;
+        }
+        if tree.exists() {
+            if self.git.move_tree(tree, commit).is_ok() {
+                return Ok(());
+            }
+            self.git.remove_tree(tree)?;
+            self.git.prune()?;
+        }
+        if let Err(why) = self.git.add_tree(tree, commit) {
+            self.git.remove_tree(tree)?;
+            self.git.prune()?;
+            return Err(why);
+        }
+        Ok(())
     }
     fn delete_builds(&self, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
         let mut builds: Vec<_> =

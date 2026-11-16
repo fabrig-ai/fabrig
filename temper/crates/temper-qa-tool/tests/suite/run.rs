@@ -159,7 +159,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].setups, ["fresh", "project"]);
     let command = &run.processes.commands[0];
     assert_eq!(command.arguments, ["agent", "--effort=cheap"]);
-    assert_eq!(command.directory, world.home.session_directory(1).join("tree"));
+    assert_eq!(command.directory, world.home.triage_tree());
     assert_eq!(command.output, world.home.session_directory(1).join("output"));
     for (key, value) in [
         ("CAPTURED", "kept".to_owned()),
@@ -225,7 +225,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].tokens, Some(1234));
     assert_eq!(ledger.sessions.len(), 2);
     assert_eq!(ledger.sessions[1].landing, Some(2));
-    assert!(!world.home.session_directory(1).join("tree").exists());
+    assert!(world.home.triage_tree().is_dir());
     let brief = fs::read_to_string(world.home.session_directory(2).join("brief")).expect("second brief");
     for words in ["Case 1: web / work; landings 1", "setup fresh", "open Work", "Drafts lists the draft"] {
         assert!(brief.contains(words), "{words}");
@@ -338,7 +338,7 @@ fn refusing_a_worktree_or_command_ends_unstarted_and_leaves_the_landing_count_un
         assert_eq!(ledger.sessions[0].exit, Some(Exit::Unstarted));
         assert_eq!(ledger.landings[0].sessions, 0);
         assert_eq!(ledger.landings[0].triaged, None);
-        assert!(!world.home.session_directory(1).join("tree").exists());
+        assert_eq!(world.home.triage_tree().is_dir(), !git_refuses);
         run.git.fail_add = false;
         run.processes.next.clear();
         run.processes.next.push_back(Agent::None);
@@ -928,4 +928,48 @@ fn triage_lists_ctl_groups_from_the_merge_tree_before_web_and_tui() {
         assert!(brief.contains(words), "{words}\n{brief}");
     }
     assert!(!brief.contains("ctl and help are outside"));
+}
+
+fn a_running_triage() -> (World, super::world::Loop) {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::None, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.tick();
+    (world, run)
+}
+
+#[test]
+fn a_second_triage_moves_and_cleans_the_kept_tree_instead_of_making_one() {
+    let (world, mut run) = a_running_triage();
+    let tree = world.home.triage_tree();
+    fs::write(tree.join("leftover"), "agent's untracked file").expect("leftover");
+    land(&mut run, 4, 8);
+    run.tick();
+    assert_eq!(run.git.calls.iter().filter(|call| call.starts_with("add ")).count(), 1);
+    assert!(run.git.calls.contains(&format!("checkout {}", id(4))));
+    assert!(run.git.calls.contains(&"clean -ffdxq".into()));
+    assert!(!run.git.calls.iter().any(|call| call.starts_with("remove ")));
+    assert!(!tree.join("leftover").exists());
+    assert_eq!(run.processes.commands[0].directory, tree);
+    assert_eq!(run.processes.commands[1].directory, tree);
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains(&format!("Tree: {}", tree.display())));
+}
+
+#[test]
+fn a_failed_triage_tree_move_removes_and_makes_it_again() {
+    let (world, mut run) = a_running_triage();
+    fs::write(world.home.triage_tree().join("leftover"), "old").expect("leftover");
+    run.git.move_error = Some("checkout refused".into());
+    land(&mut run, 4, 8);
+    run.tick();
+    let calls = &run.git.calls;
+    let moved = calls.iter().position(|call| call == &format!("checkout {}", id(4))).expect("move tried");
+    let removed = calls.iter().position(|call| call.starts_with("remove ")).expect("removed");
+    let added = calls.iter().position(|call| call == &format!("add {}", id(4))).expect("made again");
+    assert!(moved < removed && removed < added);
+    assert_eq!(run.git.prunes, 1);
+    assert!(!world.home.triage_tree().join("leftover").exists());
+    assert_eq!(world.ledger().sessions[1].exit, None);
 }

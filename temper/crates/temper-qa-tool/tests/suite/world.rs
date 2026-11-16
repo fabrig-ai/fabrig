@@ -36,6 +36,7 @@ pub struct Git {
     pub fail_head: bool,
     pub fail_add: bool,
     pub fail_remove: bool,
+    pub move_error: Option<String>,
     pub prunes: usize,
 }
 impl Git {
@@ -149,6 +150,16 @@ impl GitFace for Git {
         if self.fail_add {
             return Err(Refusal("worktree refused".into()));
         }
+        Ok(())
+    }
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
+        self.calls.push(format!("checkout {commit}"));
+        if let Some(why) = &self.move_error {
+            return Err(Refusal(why.clone()));
+        }
+        self.calls.push("clean -ffdxq".into());
+        fs::remove_dir_all(path).expect("fake checkout and clean");
+        fs::create_dir_all(path).expect("fake moved tree");
         Ok(())
     }
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal> {

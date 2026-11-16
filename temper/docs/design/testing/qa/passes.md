@@ -1,6 +1,6 @@
 # Passes
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
 Q6 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
@@ -64,14 +64,21 @@ The loop's third step (`README.md`, 4), for each free place
    which takes the cases queued at that moment.
 4. **Started:** its session (section 4). A start that fails before the
    agent runs ends the session `unstarted`, which undoes the pass's
-   start (`ledger.md`, 4.12), its tree removed; the failure is the
+   start (`ledger.md`, 4.12), its kept tree retained; the failure is the
    step's.
 
 ## 4. A pass session
 
-- **Its directory,** `sessions/N/` as triage's (`triage.md`, 2):
-  `brief`, `output`, and `tree/`, a worktree of the pass's build's
-  commit, for the agent to read the landings' drafts and the design.
+- **Its directory,** `sessions/N/`: `brief` and `output`. Its kept
+  tree is `trees/PLACE` under the home's private `trees/`, PLACE the
+  place's one-based position in the configuration's `places`. A place
+  has its own tree, separate from triage's and every other place's.
+  Made once with `git worktree add --detach`, then before each session
+  moved to the pass's build's commit with `git checkout --force
+  --detach COMMIT` followed by `git clean -ffdxq`, as triage's
+  (`triage.md`, 2), and removed and made again if moving fails. It
+  starts with exactly that commit's files for the agent to read the
+  landings' drafts and the design; the brief names the kept tree.
 - **Its command** as triage's (`triage.md`, 5), each `{effort}`
   replaced by `agent.pass`, its working directory the tree, its stdin
   the brief, with `TEMPER_INTERNAL_QA_HOME` and
@@ -153,8 +160,8 @@ Each refused as `ledger.md`, 5 words it, otherwise recorded at once:
 The loop's third step, for a pass session whose process has exited, or
 whose bound has passed:
 
-- **Ended** in the ledger with its exit, tokens and time, and its tree
-  removed (`git worktree remove --force`); `brief` and `output` stay.
+- **Ended** in the ledger with its exit, tokens and time; the kept
+  tree, `brief` and `output` stay.
 - **Lost:** a pass session still running when the loop starts is ended
   `lost` (`README.md`, 4) and counts as any end does.
 - **Its holder** sees the session ended and stops the drive session

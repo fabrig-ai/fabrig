@@ -1,6 +1,6 @@
 # Landed QA
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, milestones Q1, Q3, Q4 and Q6 of
 `../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
@@ -122,7 +122,9 @@ ledger.json        the ledger (ledger.md, 2)
 ledger.lock        the ledger's lock (ledger.md, 3)
 run.lock           held by the one running loop (section 4)
 builds/COMMIT/     each kept build, its files and its manifest (builds.md), unless qa.json names another directory
-sessions/N/        each agent session's brief, output and, while it runs, its tree (triage.md, 2; passes.md, 4)
+sessions/N/        each agent session's brief, diff and output (triage.md, 2; passes.md, 4)
+trees/triage/      triage's kept tree (triage.md, 2)
+trees/PLACE/       each place's kept pass tree, numbered in configuration order (passes.md, 4)
 passes/P/          each pass's setups, reports and requests (passes.md, 2)
 evidence/F/        each finding's evidence (findings.md, 2)
 places/1/          the place, unless qa.json names others (places.md, 2)
@@ -205,7 +207,8 @@ the tokens the command reports (`triage.md`, 5).
 `run.lock` for its life, so a second is refused, `another temper-qa run
 holds HOME`. At its start it ends every session the ledger still has
 running as lost (`triage.md`, 6; `passes.md`, 6), its process gone with
-the loop that started it, and prunes their trees.
+the loop that started it. Kept trees stay; session-local trees left by an
+older home are removed and their worktree registrations pruned.
 
 - **A tick,** every `bounds.poll` seconds, and at once when a session
   it started ends, takes these steps in order, each under the ledger's

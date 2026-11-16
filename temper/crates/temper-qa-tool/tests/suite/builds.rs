@@ -142,3 +142,49 @@ fn the_drive_tool_and_every_file_but_fake_claude_must_print_the_kept_commit() {
     script(&stage.join("bin/fake-claude-extra"), "2.1.312 (Claude Code)");
     refusal(&home, &stage, &format!("bin/fake-claude-extra prints 2.1.312 (Claude Code), not {SHORT}"));
 }
+
+#[test]
+fn a_manifest_uses_one_sha256sum_faces_answer_for_every_sorted_byte_path() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+    let (_scratch, home, stage) = stage();
+    let name = PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec()));
+    fs::write(stage.join(&name), b"asset").expect("byte path");
+    let mut paths: Vec<_> = REQUIRED.iter().map(PathBuf::from).collect();
+    paths.push(name);
+    paths.sort();
+    let mut answer = Vec::new();
+    for path in &paths {
+        // The face's hashes deliberately differ from the files' bytes.
+        let line = if path.to_str().is_none() {
+            let mut line = format!("\\{}  bundle/weird\\\\\\n\\r", "a".repeat(64)).into_bytes();
+            line.extend_from_slice(b"\xff\n");
+            line
+        } else {
+            format!("{}  {}\n", "b".repeat(64), path.display()).into_bytes()
+        };
+        answer.extend_from_slice(&line);
+    }
+    let mut face = super::build_files::Files { answer: answer.clone(), ..Default::default() };
+    temper_qa_tool::build::keep_with(&home, COMMIT, &stage, &[], &mut face).expect("kept");
+    assert_eq!(face.hashes, [(stage, paths)]);
+    let mut expected = format!("commit {COMMIT}\n").into_bytes();
+    expected.extend_from_slice(&answer);
+    assert_eq!(fs::read(home.builds.join(COMMIT).join("manifest")).expect("manifest"), expected);
+}
+
+#[test]
+fn a_sha256sum_answer_missing_a_file_or_not_parsing_never_moves_or_records() {
+    for (answer, expected) in [
+        (format!("{}  bin/fake-claude\n", "0".repeat(64)).into_bytes(), "absent from sha256sum answer"),
+        (b"not a checksum\n".to_vec(), "invalid checksum line"),
+    ] {
+        let (_scratch, home, stage) = stage();
+        let mut face = super::build_files::Files { answer, ..Default::default() };
+        let why = temper_qa_tool::build::keep_with(&home, COMMIT, &stage, &[], &mut face).expect_err("refused");
+        assert!(why.0.contains(expected), "{why}");
+        assert!(stage.is_dir());
+        assert!(!home.builds.join(COMMIT).exists());
+        assert!(!home.builds.join(format!(".{COMMIT}.partial")).exists());
+        assert!(!home.ledger.exists());
+    }
+}
