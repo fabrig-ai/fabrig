@@ -34,14 +34,13 @@ records kept in files or stores.
 - **Canonical.** One value has one encoding, and decoding refuses any
   other, so what decodes encodes back to the same bytes.
 - **Versioned.** A schema is one version of a family, and a family has
-  one current version. A record kept beyond a channel carries its
-  version. A reader reads the current version and refuses another. A
-  family's baseline is its owner's (section 5): until it, no version moves
-  and nothing is translated; from it on, a patched family's kept versions
-  are read as generic values and patched to the current one
-  (`patches.md`), and a registered family's version stays where it is,
-  its store converting each value from the layout it was written at
-  (section 5, `layouts.md`).
+  one current version. Generated code reads the current version and
+  refuses another. Wires keep texts and patches for translation between
+  versions (`patches.md`, `bridges.md`). A registered family's version
+  stays where it is: its store names each value's layout and converts
+  it at read through the texts its registry holds (section 5,
+  `layouts.md`). Formats outside the registry are fixed at their
+  versions; a change to one brings its own route for the deployed store.
 - **Defaults and former names in the schema** (section 3): a field may
   give the value an older layout without it takes, and a declaration,
   field or variant the names it had, so that a layout converts to the
@@ -87,9 +86,9 @@ records kept in files or stores.
   `src/generated/<family>_v<N>.rs` or `v<N>.rs` (section 4), and depends
   on lib and `skein-codec` alone; its dev-dependencies are free,
   `skein-codegen` among them. The family's **owner**, the crate that
-  keeps it, holds the rest: its schemas, kept texts and patches
-  (`command.md`, 1), its generated glue, its golden bytes and its drift
-  test (section 6), and the translation between its records and a
+  keeps it, holds the rest: its schemas, kept texts and patches where
+  the family uses them (`command.md`, 1), its generated glue, its golden
+  bytes and its drift test (section 6), and the translation between its records and a
   domain, with the domain's crates as its dependencies. So the generated
   code compiles beside the domains rather than after them, and only a
   change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
@@ -227,10 +226,11 @@ enum Form {
   are a type of this schema, declared before. The words change neither
   the bytes nor the Rust: the generated code reads the field as any
   `bytes N`, and its owner decodes what it holds as before. They let a
-  patch of the held type reach the field wherever it is kept (`patches.md`
-  ). From the baseline on (`patches.md`), a field of a stored family
-  whose bytes are a record or pieces says so. A `secret N` may say so
-  too, `secret N holds skein-oauth SavedToken`, and stays a secret: never
+  patch of the held type reach the field wherever it is kept (`patches.md`),
+  and a layout plan convert it with its holder (`layouts.md`, 2). A field
+  of a stored family whose bytes are a record or pieces says so. A
+  `secret N` may say so too, `secret N holds skein-oauth SavedToken`,
+  and stays a secret: never
   printed, its bytes reaching a patch as a held field's do.
 - **A record marked `versioned`** starts with its family's version, a
   `u16`. A reader of bytes kept elsewhere learns from it which code reads
@@ -322,7 +322,7 @@ pub struct Output {
 pub struct Tests { /* the tests' module but for the records' path */ }
 impl Tests {
     // tests/generated/<file>.rs's text, naming the records by `records`,
-    // their module's public path: "temper_protocol_store_codec::v20"
+    // their module's public path: "temper_protocol_store_codec::v25"
     pub fn text(&self, records: &str) -> String;
 }
 pub fn generate(schema: &Schema) -> Output;
@@ -334,16 +334,15 @@ pub fn tests_main(modules: &[&str]) -> String;
 
 ## 5. Versions
 
-- **A family's baseline:** for the families a temper deployment stores,
-  the store temper's `main` wrote at `bc23255eb7` (temper's
-  `protocol/baseline.md`; the user, 2026-11-11); for every other family
-  a build stores, sends or embeds, the first release. Until it, a family's version
-  keeps its number: a change a reader would notice changes the schema,
-  its generated code and its golden bytes in place. A record an older
-  build kept is then not told apart by its version, so nothing is kept
-  across builds that change its family: a store from an older build is
-  started afresh. From it, a version moves in the landing whose patch
-  moves it (`command.md`, 2).
+- **Three rules:** wires keep versioned texts and patches; registered
+  store families keep their version and convert by layout; formats
+  outside the registry are fixed at their versions. A store below its
+  floor is refused, not walked through patches (jig's
+  `protocol/store/opening.md`, 1.7 and 1.8).
+- **A patched family's baseline is its owner's first kept text,** made
+  by `--baseline` (`command.md`, 1). Before it, no version moves and
+  nothing is translated. The command knows the crate's files, not a
+  deployment or a release.
 - **A wire's family moves with its layout.** A family that crosses
   between two builds of its owner's (a channel's bodies, what one side
   writes and the other reads) is marked a wire in its crate
@@ -353,15 +352,14 @@ pub fn tests_main(modules: &[&str]) -> String;
   alike and a peer can be judged by its version and its fingerprint
   (section 9) before anything else crosses (`command.md`, 2, the wire
   rule).
-- **From the baseline on, any change a reader would notice is a new
-  version:** a new schema, whose generated code replaces the old. There
-  is one version at a time, and no promise of stability to anyone
-  outside the family's owner.
+- **A patch moves its family's version:** a new schema, whose generated
+  code replaces the old (`command.md`, 2). There is one generated
+  version at a time. This is not the rule for registered families.
 - **A reader reads one version.** It reads a versioned record's version
   first, with `skein-codec`, and refuses another with the problem
   *another version*. Its generated code reads the current version only.
-- **Kept versions are patched, from the baseline on.** From it, a
-  family's owner keeps each version's schema as text, and a kept record
+- **A patched family keeps its versions, from the baseline on.** Its
+  owner keeps each version's schema as text, and a kept record
   of an older version is read as a generic value (section 8) and patched
   to the current version (`patches.md`) before the generated code reads
   it. A version then names one layout. Until the baseline, nothing is
@@ -372,21 +370,27 @@ pub fn tests_main(modules: &[&str]) -> String;
 - **A registered family's version stays.** A stored family its owner
   marks registered (`command.md`, 1) is kept by a store that names each
   value's layout and converts it as it is read (jig's
-  `protocol/store/layouts.md`): from its owner's registration on, its
-  version and its kept texts stay as they are, no patch names it, and a
-  change of its layout is a new layout of each value type it reaches
-  (9.4), derived by a plan (`layouts.md`) or converted by its owner's
-  written job. Its generated code reads and writes its version at a
-  value's head, as any family's; the store maps that head to and from
-  the value's layout id. A family's patches landed before its
-  registration keep running for the stores behind them.
+  `protocol/store/layouts.md`): its crate keeps no texts or patches for
+  older layouts. A change of its layout is a new layout of each value
+  type it reaches (9.4), derived by a plan (`layouts.md`) or converted
+  by its owner's written job. The registry holds the layouts and texts
+  values may still use. Its generated code reads and writes its version
+  at a value's head, as any family's; the store maps that head to and
+  from the value's layout id.
+- **Formats outside the registry are fixed:** the component's own rows,
+  the secrets' store and the transcripts' frames. A change designs and
+  brings, in its own landing, how the deployed store gets there
+  (temper's `draft/store-floor.md`, section 5). The frame patcher stays:
+  a frame behind the binary's versions is patched as it is read (jig's
+  `protocol/store/transcripts.md`, 6).
 - **A writer writes its current version only.**
 - **On a channel,** the agreed version picks the code for its bodies
   (../../net/channel.md, section 5.2). Bodies carry no version of their own.
-- **Golden bytes:** until the baseline, a family has one set, its
-  current schema's, which a change moves in place. From it on, a
-  version's golden bytes stand for it, and a change that moves them is a
-  new version.
+- **Golden bytes:** a registered family keeps its current schema's
+  goldens, which a layout change replaces in place; temper keeps
+  `golden/v25` alone. A patched family's kept versions are represented
+  by its texts and patch goldens (`command.md`, 3). Before its baseline,
+  its current goldens change in place.
 
 ## 6. Golden bytes and tests
 
@@ -821,23 +825,23 @@ As the generated decoder's, with each bound at its ceiling:
   stored value's layout is 9.4's, which leaves the family's version out
   and resolves what a value holds.
 - **A family's fingerprint** is over all its declarations', in the
-  text's order, including those no other declaration names: the kept
-  text is the unit, and any declaration may be a stored root, which only its
-  owner's keys say. A declaration added, dropped or moved moves it, as
+  text's order, including those no other declaration names: the schema
+  text is the unit, and any declaration may be a root, which only its
+  owner's use says. A declaration added, dropped or moved moves it, as
   a declaration's own change does.
 - **Step code,** in `schema`: one pass over the declarations in order,
   each named type's fingerprint read from the entries already made, so
   nothing recurses. It allocates that table alone, a fingerprint per
   declaration, at most `MAX_DECLARATIONS`.
-- **A rename moves no fingerprint,** and the check (`command.md`) also
-  asks the latest kept text to follow the current names, so that a
-  later diff never mistakes a rename for a field dropped and another
-  added.
-- **A family's fingerprint moved** means its kept text is replaced,
-  not that a patch is owed: the check decides by the diff (`command.md`
-  ), never by the family's fingerprint alone, and nothing at run
-  time takes its move for a change of layout. What must decide one
-  uses the declarations' fingerprints.
+- **A rename moves no fingerprint.** For a patched family, the command
+  refreshes a text not frozen or keeps renames waiting beside a frozen
+  one (`command.md`, 4), so that a later diff never mistakes a rename
+  for a field dropped and another added. A registered family's former
+  names are in its current schema (section 3).
+- **A family's fingerprint is not a value type's layout.** The patch
+  check judges changes by the diff and, for wires, the family
+  fingerprint (`command.md`, 2). Registered values use 9.4's layout
+  fingerprints, not kept versions of the family.
 
 ### 9.1 The encoding
 
@@ -919,11 +923,10 @@ A store that names each value's layout (jig's
 `protocol/store/layouts.md`) names it by the layout of the value's
 **value type**: a root declaration of the family, and, where the root
 is broad, the one variant of its leading enumeration that the value's
-key says it holds. The tasks family's `Row { value: Value, models: … }`
-is one root of many value types, one per variant of `Value` its keys
-hold: a milestone's layout is `Row` with `Value` at its `milestone`
-variant alone, so a change to another variant's record moves the
-milestone's layout not at all.
+key says it holds. For example, a schema with `record Envelope {
+value: Entry }` and `enum Entry { book: Book, note: Note }` has a broad
+root: a book's layout is `Envelope` with `Entry` at `book` alone, so a
+change to `Note` moves the book's layout not at all.
 
 - **The root,** `Root { decl, variant }`: `variant` may be given only
   when `decl` is broad, a declaration with a leading enumeration as
@@ -986,7 +989,7 @@ is step code as `fingerprints` is: a pass over the declarations the
 root reaches, each held text's in turn, with no recursion and a table
 per text it reaches, at most `MAX_DECLARATIONS` each. Its tests, beside
 9.3's: a versioned root's layout equal across its family's versions; a
-milestone-like variant's layout unmoved by a change to a sibling
+restricted variant's layout unmoved by a change to a sibling
 variant's record and moved by its own; a broad root without a variant
 moved by either; a held record's change moving
 its holder's layout when its family is given and not when it is not;
@@ -999,8 +1002,8 @@ fixture that holds every type, as 9.3's.
   one large record keeps it at that size until the patcher goes.
 
 - **Upstreams' levels:** the command writes a patch's `after` as its
-  author gives it (`command.md`, 3); jig, which orders patches across
-  owners, reads them from the pins.
+  author gives it (`command.md`, 3); it does not discover upstreams'
+  levels for the author.
 - **Proposals to a fixpoint:** the command runs the diff in rounds to
   propose renames a level of references down (`command.md`, 2); the diff itself
   could take candidate pairs as matched until none fails, and propose
@@ -1044,9 +1047,8 @@ fixture that holds every type, as 9.3's.
   patch's text, should authors write the same function often (`patches.md`, 2).
 - **A held type renamed in its own family** is a `retype` in its
   holder's diff, written: the holder's diff reads its own family's two
-  texts alone, so it cannot see the held family's renames. jig,
-  which patches held fields across families, gives the diff
-  those renames.
+  texts alone, so it cannot see the held family's renames. A caller
+  could give the diff those renames.
 - **Composing patches:** a record k versions behind is patched in k
   passes; plans may compose later, behind the same interface, and so
   remove the box each pass after the first allocates (`patches.md`, 7).

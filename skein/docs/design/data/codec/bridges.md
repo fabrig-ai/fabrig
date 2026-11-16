@@ -12,9 +12,9 @@ each application's (jig's `protocol/channel/wires.md`; temper's
 
 ## 1. In one page
 
-- **Up, by the forward patch** (`patches.md`), as a store reads an old
-  record. **Down, by its reverse:** each block of a wire's patch, from
-  `k` to `k + 1`, has a reverse from `k + 1` to `k`, derived from its
+- **Up, by the forward patch** (`patches.md`), as a frame reader reads
+  an old frame. **Down, by its reverse:** each block of a wire's patch,
+  from `k` to `k + 1`, has a reverse from `k + 1` to `k`, derived from its
   lines wherever they allow it (2), its author giving what they do
   not: the value a dropped field takes going down, or a written
   function (3).
@@ -118,7 +118,7 @@ breaking  = "breaking" text            ; no reverse: the floor rises to this ver
 ```
 
 ```
-family jig-store-tasks 9 to 10
+family example-tasks 9 to 10
 drop Task.note
 down Task.note none                       # the older side assumes no note
 add Task.score u32 written
@@ -151,8 +151,8 @@ refuses unprintable "a title that is not UTF-8"   # refusal 0, of site 1
   neither derived nor given, at that line) and `Breaking` (a reverse
   asked of a breaking block); `Missing` and `Site` cover a down site
   missing or misplaced as they do a forward one. A down line in a
-  family's block that is not a wire's plans as any line: the store
-  never asks for its reverse.
+  family's block that is not a wire's plans as any line: a frame
+  reader never asks for its reverse.
 
 ## 4. The floor
 
@@ -377,7 +377,7 @@ Step tests in skein-codec and skein-codegen, the story in
 ## 8. Open questions
 
 - **A down site's context.** It reads only the record; one that needs
-  other data, as a store's written function reads its `Context`, has
+  other data, as a forward written function reads its `Context`, has
   none at a channel. Default: none, until a reverse needs it.
 - **Bridging held fields.** A bridge carries a held field's bytes; a
   caller that bridges a family holding another's translates the held
