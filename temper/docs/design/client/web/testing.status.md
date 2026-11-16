@@ -1,8 +1,11 @@
 # testing: status
 
-2026-11-14. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
+- **Not yet:** 6: story 11's phone part still looks for Ask temper's
+  ways tabs, which the head and its "Stock ways" menu replaced, and
+  fails there [in flight: change 5100].
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
