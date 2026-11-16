@@ -1,7 +1,13 @@
 # attention: status
 
-2026-11-11. Where the tree's code lags or departs from [attention.md](attention.md).
+2026-11-16. Where the tree's code lags or departs from [attention.md](attention.md).
 
+
+- **Not yet:** 2: a `ProjectFacts` row made for a project's open findings at a sitting, and the document's `last_landed` none where `landed` is 0 [in flight: change 4290].
+
+- **Not yet:** 3: the open findings' part of the words, its mark kept on the brief and the run in flight, and a sitting starting a run when the mark differs from the brief's [in flight: change 4290].
+
+- **Not yet:** 3, *Its instructions*: the stock's `status.txt` names no findings [in flight: change 4289].
 
 - **Not yet:** 5: a standing role's Decided rows for its person and Overturn waking it, held by no story (`../agent/standing.md`, section 3).
 

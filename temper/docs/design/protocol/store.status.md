@@ -6,6 +6,7 @@
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
 - **Not yet:** 2: family 42, `Follow`, a follow's record [in flight: change 105].
+- **Not yet:** 2: family 36, `ProjectFacts`, keeps no open findings' mark on its brief or its run in flight [in flight: change 4290].
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 
