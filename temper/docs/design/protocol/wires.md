@@ -448,7 +448,10 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   from the kept texts and the floor.
 - **A worker's table once:** what `worker_settings::prepare` keeps is
   the table jig's `kinds::schema` makes over its link's limits, and a
-  worker made from it opens as one made by `Worker::new`.
+  worker made from it opens as one made by `Worker::new`. A worker given
+  chosen wires opens stating them, each at one version, its layouts the
+  wires', a chosen lowest overriding its floor: `temper-worker-service`'s
+  own tests, beside those, starting no world.
 - **The opening and translation** at jig's components (jig's
   `protocol/channel/bridges.md`, 9); temper's roots against its
   encoders (6); `Identity` total from the floor; the bridge

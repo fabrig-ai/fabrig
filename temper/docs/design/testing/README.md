@@ -353,7 +353,9 @@ terminal client, the captures and the faults.
   lists.
   Each story, each run above among them, is a test of its own;
   Anthropic's keys through `ctl` are `tests/client`'s
-  (`../client/ctl/testing.md`, 2).
+  (`../client/ctl/testing.md`, 2), as is the template's paging story; a
+  worker's opening with chosen wires is `temper-worker-service`'s
+  (`../protocol/wires.md`, 11).
 
 ### 2.8 macOS
 
