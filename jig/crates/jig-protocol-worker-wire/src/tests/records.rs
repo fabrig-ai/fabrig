@@ -70,6 +70,12 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 }
 
 #[test]
+fn assignment_charter_path_names_the_schema_field() {
+    const NAME: &str = crate::v14::Path::AssignmentCharter.name();
+    assert_eq!(NAME, "Assignment.charter");
+}
+
+#[test]
 fn a_hello_keeps_its_agent_bounds_through_bytes() {
     let hello = fixtures::hello_fullest();
     let decoded = hello_through_bytes(&hello);
