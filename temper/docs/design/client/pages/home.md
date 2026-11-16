@@ -584,7 +584,7 @@
     part that draws it says the severity's word there where its own words
     don't already (*A finding's row*; 1, *More*). One view function draws
     it, `findings::severity(b: &mut Builder, words: &Words, severity:
-    w::Severity)`, `pub(crate)` in `temper-client-view-work`'s
+    w::Severity)`, public in `temper-client-view-work`'s
     `pages::findings`, for every part here and for the triager's groups
     after them (`../../draft/home-for-a-person.md`, 5).
   - *A chip of findings,* `temper-chip` with `temper-chip-low`,
@@ -621,7 +621,7 @@
     span since it was filed, at the right in `temper-finding-when`, 12 px
     in the mono face, faint: "qa · 1 d", or "1 d". In the terminal:
     "TITLE · high · qa · 1 d". `findings::row(b, root, card, words,
-    bindings, times, kind: bool)`, `pub(crate)` beside `severity`, draws
+    bindings, times, kind: bool)`, public beside `severity`, draws
     one item, in a list its caller opens, so that a group's card draws its
     rows with it (`../../draft/home-for-a-person.md`, 5).
   - *A finding's own card,* a finding the person holds (`needs-you.md`,
