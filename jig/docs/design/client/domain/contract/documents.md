@@ -100,7 +100,10 @@
     and its escalation if held; its dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
-    (`../../../domain/tasks/lifecycle.md`, 8); the proposals waiting in its subtree; how
+    (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
+    concluded it and when, `concluded: Option<Concluded>`, none while
+    delegates may join (`../../../domain/tasks/gatherings.md`, section
+    3); the proposals waiting in its subtree; how
     far its activity has committed; for an agent task, `Task.settings:
     Option<TaskSettings>`, `TaskSettings { task: u32, run: Option<u32>,
     newest: u32 }`: the settings revision it records, its live run's

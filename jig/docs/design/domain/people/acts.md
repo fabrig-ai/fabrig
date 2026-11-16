@@ -44,6 +44,8 @@ The operations as the client sends them are
 | Operation | Needs | Becomes |
 |---|---|---|
 | `Create`, a batch | member, within their role's authority and their pool (../authority.md, 8.4); its dependencies and inputs within their reach, and a holder for its escalations (below) | its tasks, with their dependencies, checked whole and made at once (../tasks/README.md, section 4), each with the fields it names (../tasks/README.md, section 3); the party their requester and their funder; a budget given `AsAllowed` resolved, and what was given answered (../authority.md, section 7) |
+| `Delegate`, a batch beneath a task | member, as for `Create`; a live task in their tree, or maintainer, an agent's or a procedure's, neither closing nor concluded (../tasks/gatherings.md, section 3); within their role's authority and within what the task has left (../authority.md, 8.4); its dependencies and inputs within their reach (below) | its tasks, checked whole and made at once (../tasks/README.md, section 4), the task's delegates: the task their requester and their funder, the party named in their history; a budget given `AsAllowed` resolved against what the task has left, and what was given answered |
+| `Conclude` | the task in their tree, or maintainer; a live gathering (../tasks/gatherings.md, section 2) | no delegate joins it from that decision, and it ends done once its delegates have ended (../tasks/gatherings.md, section 3); one already concluded changes nothing |
 | `Propose`, an action | member; a batch or an amendment beyond their authority, of a kind a role the project's policy names may accept | a proposal of theirs, waiting for that role (../tasks/proposals.md), its number answered |
 | `Restore`, a version of the settings, in the deployment's scope | a role in the deployment or a project; a revision the history keeps | a proposal of the settings as that revision left them, against the newest, waiting for the owners of its items (../engine/settings.md, 10) |
 | `Propose`, a change of settings, in the deployment's scope | a role in the deployment or a project; the revision they saw; an owner who may accept each item (../engine/settings.md, 6) | a proposal of settings, waiting for those owners, its number answered |
@@ -119,8 +121,9 @@ The operations as the client sends them are
   escalation role (`README.md`, section 4). Otherwise the request is refused, saying
   so, as a proposal nobody may accept is: a held task never waits for
   nobody.
-- **Where a party reaches.** A party's `Create` may name, as a
-  dependency, a live task, or, as an input, an ended task's result: a
+- **Where a party reaches.** A party's `Create` or `Delegate` may name, as a
+  dependency, a live task or one that has ended (one done adds no wait,
+  one failed or cancelled refuses it: ../tasks/README.md, section 4), or, as an input, an ended task's result: a
   task in their tree, or any task of the project for a maintainer, as a
   task's batch reaches its delegates and the tasks it was introduced to
   (../tasks/README.md, section 4, and ../tasks/messages.md, section 5); a batch gives its tasks no references.

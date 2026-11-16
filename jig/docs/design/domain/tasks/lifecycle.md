@@ -479,9 +479,12 @@ batch per asker; the core numbers each notice once.
 A task is ended by its result, by its requester or by its closer (11),
 or it stands, ended only by a cancel (`standing.md`, section 2):
 its `ended_by`, fixed at its making. A result ends it by default. Its requester may end it
-only if it is an agent's conversation with a person, its requester;
+only if it is an agent's conversation with a person, its requester, or
+a gathering a person requested (`gatherings.md`);
 making it refuses any other shape, and a restart takes what was made
-(../engine/restart.md). It changes no right
+(../engine/restart.md). A gathering has no run, so what follows is an
+agent's: its requester's `Conclude` is its word, and it ends done once
+that is said and its delegates have ended (`gatherings.md`, section 3). It changes no right
 to cancel. It travels with the task from the client's making, through
 storage and preparation, to its run's charter (../hosts/charters.md, 1),
 whatever the charter the task's agent shares with others.

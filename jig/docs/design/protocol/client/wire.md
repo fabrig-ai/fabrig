@@ -7,7 +7,7 @@
   - the envelope of every message: its owner and its version (`README.md`, section 6
     );
   - the operations of `../../client/domain/contract/requests.md`, 2, one record
-    each, by their names: `Create`, `Propose`, `Withdraw`, `Message`,
+    each, by their names: `Create`, `Delegate`, `Conclude`, `Propose`, `Withdraw`, `Message`,
     `Amend`, `Cancel`, `Release`, `Stop`, `Move`, `Decide`, `Answer`,
     `Take`, `HandBack`, `Seen`, `MakeProject`, `RemoveProject`,
     `ChangeSettings`, `MoveToNewest`, and the project's own; and
