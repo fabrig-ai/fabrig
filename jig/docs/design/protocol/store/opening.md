@@ -82,7 +82,9 @@ io has no recursive removal: each directory is listed from its first
 page, each file in it removed, and listed again until it is empty (a
 removal moves what a later page would show), then removed itself,
 deepest first; then `generations/` is synced. A start never removes the
-active generation or its previous.
+active generation or its previous. Then each checkpoint temporary in
+`checkpoints/`, the same way, and `checkpoints/` synced: never a
+checkpoint (`checkpoints.md`, 7).
 
 ### 1.6 `transcripts/`
 
@@ -123,6 +125,11 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
   and this start has changed nothing in it. Name one again from a
   backup of `<deployment>`, or write `active` to name the generation
   under `generations/` to open, and start again."
+- `Checkpoints`: "`<deployment>` holds checkpoints but no `active` names a
+  generation, and this start has changed nothing in it. Restore
+  `<deployment>` from a backup or from one of its checkpoints, or, to
+  start afresh, move `checkpoints/` out of `<deployment>`, and start
+  again." A first start beside checkpoints (`checkpoints.md`, 7).
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
   the baseline, the first build whose stores later builds upgrade, and this

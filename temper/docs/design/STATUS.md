@@ -475,6 +475,7 @@ Design documents:
 - [`protocol/baseline.md`](protocol/baseline.status.md)
 - [`protocol/binaries.md`](protocol/binaries.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
+- [`protocol/checkpoints.md`](protocol/checkpoints.status.md)
 - [`protocol/cluster.md`](protocol/cluster.status.md)
 - [`protocol/components.md`](protocol/components.status.md)
 - [`protocol/configuration/README.md`](protocol/configuration/README.status.md)
@@ -536,6 +537,7 @@ Drafts:
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
+- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act.
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
