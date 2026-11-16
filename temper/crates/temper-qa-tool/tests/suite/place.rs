@@ -9,7 +9,7 @@ use std::{
 };
 use temper_qa_tool::{
     Home, Refusal,
-    faces::{ArchiveFace, RealDrive},
+    faces::{ArchiveFace, RealDrive, copy_members},
     place::{PassPlace, PlacePaths, RecipeInput, place_busy},
 };
 
@@ -807,4 +807,16 @@ fn recipe_input_and_names_reject_paths_and_multiline_records() {
     }
     let paths = PlacePaths::new(&world.place.paths.directory);
     assert_eq!(paths.scratch, world.place.paths.directory.join("box"));
+}
+
+#[test]
+fn a_copy_takes_the_members_its_box_made() {
+    // A box with fake backends keeps its configuration under data/, so its config/ may never be made.
+    let scratch = Scratch::new("qa-copy-members");
+    let box_directory = scratch.path();
+    assert!(copy_members(box_directory).is_err(), "an empty box directory has nothing to copy");
+    fs::create_dir(box_directory.join("data")).expect("data");
+    assert_eq!(copy_members(box_directory).expect("members"), ["data"]);
+    fs::create_dir(box_directory.join("config")).expect("config");
+    assert_eq!(copy_members(box_directory).expect("members"), ["config", "data"]);
 }
