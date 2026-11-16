@@ -120,12 +120,61 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
     scripts.into_boxed_slice()
 }
 
+/// The owned runner reports each selected case with the same id as the whole run.
+pub const WORKFLOW: &str = r#"on:
+  workflow_dispatch:
+    inputs:
+      temper_commit: { required: true }
+      temper_key: { required: true }
+      temper_probe: { required: false }
+      temper_tests: { required: false, default: "" }
+jobs:
+  test:
+    runs-on: temper-host
+    steps:
+      - run: |
+          auth=$(printf 'x-access-token:%s' "${{ github.token }}" | base64 -w0)
+          git -c "http.extraHeader=Authorization: basic $auth" clone "${{ github.server_url }}/${{ github.repository }}.git" .
+          git checkout "${{ inputs.temper_commit }}"
+          sh check.sh '${{ inputs.temper_tests }}'
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: failed-tests
+          path: failed-tests.txt
+"#;
+
+pub const CHECK: &str = r#"set -u
+: > failed-tests.txt
+tests=${1:-}
+if [ -z "$tests" ]; then
+    tests="batch-red
+readme"
+fi
+status=0
+for test in $tests; do
+    case "$test" in
+        batch-red)
+            green=yes
+            for file in batch-*.txt; do
+                [ -f "$file" ] || continue
+                if grep -qx red "$file"; then green=no; fi
+            done
+            [ "$green" = yes ] ;;
+        readme) test -s README.md ;;
+        *) false ;;
+    esac || { printf '%s\n' "$test" >> failed-tests.txt; status=1; }
+done
+exit "$status"
+"#;
+
 /// The turn and runner-cancellation stories use the same owned forge, policy,
 /// producer and funding setup. The batch stories also hold concurrent model turns.
 pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    turn_restart::selected_gate(&mut value);
     value["workers"][0]["slots"] = 8.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();
@@ -515,6 +564,9 @@ impl Judge<'_> {
             return Ok(None);
         }
         self.dispatched(run, candidate(&panel)?)?;
+        if !self.barrier.selection(run).is_empty() {
+            return Err("the top proves whole".into());
+        }
         if gate_runs(self.forge)?.len() != 1 {
             return Err("only the top's dispatch, no push runs".into());
         }

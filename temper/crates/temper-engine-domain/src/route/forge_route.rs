@@ -4041,18 +4041,29 @@ fn blamed_repair_words(
     let head = head.get(..12)?;
     let red = red.get(..12)?;
     let green = green.get(..12)?;
-    let before: [&[u8]; 11] = [
+    let gates = if below.by_test {
+        b"\nRepair the failed landing gate. Its failing tests passed at ".as_slice()
+    } else {
+        b"\nRepair the failed landing gate. The landing's gates passed at ".as_slice()
+    };
+    let top = if below.by_test && below.top {
+        b" They passed at every probed prefix below it: they may fail only with this change's unit on the others, or be flaky.".as_slice()
+    } else {
+        b"".as_slice()
+    };
+    let before: [&[u8]; 12] = [
         &opening,
         head,
         b": failed at prefix ",
         red,
         b" above ",
         green,
-        b"\nRepair the failed landing gate. The landing's gates passed at ",
+        gates,
         green,
         b" and failed at ",
         red,
         b", with this change's unit on top of it; a change below may still share the cause.",
+        top,
     ];
     let ci = b" The CI section gives its run, base and failed jobs.";
     let mut required = ci.len().checked_add(REPAIR_PRESERVATION.len())?;

@@ -209,6 +209,7 @@ pub struct StoryLimits {
     pub dispatch_passes: Option<u32>,
     /// A dispatch fails the test ids listed in this file at its candidate.
     pub dispatch_tests: Option<&'static [u8]>,
+    pub dispatch_by_test: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
@@ -482,6 +483,7 @@ impl World {
             refuse_prepare,
             dispatch_passes: _,
             dispatch_tests: _,
+            dispatch_by_test,
             landing_members,
             batch,
             slots,
@@ -847,7 +849,12 @@ impl World {
                                             ignored: Box::new([b"docs".as_slice().into()]),
                                             blocking: true,
                                             base: false,
-                                            report: None,
+                                            report: dispatch_by_test.then(|| {
+                                                temper_engine_domain_forge_landing::Report {
+                                                    artifact: b"failed".as_slice().into(),
+                                                    format: temper_engine_domain_forge_tiers::Format::Lines,
+                                                }
+                                            }),
                                         }])
                                     } else {
                                         Box::new([])
@@ -1210,8 +1217,12 @@ impl World {
                         requirements: Box::new([]),
                         fails: Box::new([]),
                         flaky: Box::new([]),
-                        report: None,
-                        select: None,
+                        report: timing.dispatch_by_test.then(|| raw::Report {
+                            artifact: b"failed".as_slice().into(),
+                            format: raw::ReportFormat::Lines,
+                            deflate: false,
+                        }),
+                        select: timing.dispatch_by_test.then(|| b"temper_tests".as_slice().into()),
                         file: b"gate.yml".as_slice().into(),
                         jobs: Box::new([b"test".as_slice().into()]),
                         latency_min: Duration::from_secs(1),

@@ -172,9 +172,11 @@ fn landing_repair_context_round_trips_and_old_rows_have_none() {
     for (index, slot) in changes.iter_mut().enumerate() {
         *slot = Some(Landed { change: 2341 + u64::try_from(index).unwrap(), pull: 7 + u64::try_from(index).unwrap() });
     }
-    for below in
-        [None, Some(Below { green: [0xbb; 32], changes: [None; 4] }), Some(Below { green: [0xbb; 32], changes })]
-    {
+    for below in [
+        None,
+        Some(Below { by_test: false, top: false, green: [0xbb; 32], changes: [None; 4] }),
+        Some(Below { by_test: false, top: false, green: [0xbb; 32], changes }),
+    ] {
         let mut row = seed.clone();
         row.landing.phase = landing::Phase::Preparing;
         row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
@@ -271,4 +273,29 @@ fn searches_by_test_round_trip_and_older_searches_are_whole_without_a_line() {
     );
     assert_eq!(bounds.limits.landing_selection_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(bounds.limits.landing_searched_changes, fixtures::LIMITS.landing_members);
+}
+
+#[test]
+fn a_by_test_repair_keeps_its_top_fact_and_older_boundaries_have_neither_fact() {
+    use temper_engine_domain_forge_change::{Ask, Below, Repair, State};
+    let schema = kept_schema(17);
+    let forge::Stored::Landing(seed) = stored(upgraded(&v17_landing(&schema))) else { panic!("landing") };
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (by_test, top) in [(true, false), (true, true), (false, true)] {
+        let below = Some(Below { green: [0xbb; 32], changes: [None; 4], by_test, top });
+        let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Repairing {
+            requested: true,
+            why: Repair::LandingAt { gate: 1, candidate: [0xaa; 32], below },
+        })));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        let mut row = seed.clone();
+        row.landing.phase = landing::Phase::Preparing;
+        row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
+        let row = forge::Stored::Landing(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+    // The registered layout adds defaults to a boundary written before either fact existed.
+    let bytes = current_layout(b"LandingBelow", skein_lib::bytes::concat(&[&[0xbb; 32], &0_u32.to_be_bytes()]));
+    let below = v25::LandingBelow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!((below.by_test(), below.top()), (false, false));
 }

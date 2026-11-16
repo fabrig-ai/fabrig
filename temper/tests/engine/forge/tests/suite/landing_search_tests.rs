@@ -638,3 +638,168 @@ fn an_unrelated_whole_failure_at_three_does_not_move_red_or_prevent_a_selected_d
     landings::drive_landing(&mut world, LANDING);
     assert!(matches!(world.landing(LANDING).landing.members[3].left, Some(landing::Leave::Blamed { .. })));
 }
+
+fn collect_step(world: &mut World, entry: u64, lines: &mut Vec<(u64, Box<[u8]>)>) -> landing::Decision {
+    let result = landings::read_landing_step(
+        world,
+        LANDING,
+        entry,
+        super::landing_batches::heard(landing::Preparation::Idle, b""),
+    );
+    lines.extend(result.news);
+    if let Some(entry) = result.entry {
+        world.event(top::Event::Committed { entry });
+        world.run_for(1);
+    }
+    if matches!(result.decision, landing::Decision::Prepare { .. }) {
+        world.prepare_landing(LANDING, false);
+    }
+    result.decision
+}
+fn text(commit: api::Commit) -> String {
+    String::from_utf8(top::commit_text(&commit).into_vec()).expect("fixture value")
+}
+#[test]
+fn selected_probe_news_and_the_next_round_name_the_search_once_across_restart() {
+    for (breaking, grouped) in [(1, false), (3, false), (3, true)] {
+        let contents: Vec<_> = (1..=4).map(|index| (index == breaking).then_some(b"a\nb\n".as_slice())).collect();
+        let mut world = configured_batch(&contents, true, workflow(), false);
+        if grouped {
+            let mut row = world.landing(LANDING).clone();
+            row.landing.members[3].unit = row.landing.members[2].unit;
+            world.keep_history_landing(row);
+        }
+        let mut lines = Vec::new();
+        let mut prefixes = Vec::new();
+        for entry in 1000..1600 {
+            let decision = collect_step(&mut world, entry, &mut lines);
+            if prefixes.is_empty() && world.landing(LANDING).landing.phase == landing::Phase::Proving {
+                prefixes = world
+                    .landing(LANDING)
+                    .landing
+                    .members
+                    .iter()
+                    .map(|m| m.candidate.expect("fixture value"))
+                    .collect();
+            }
+            if matches!(decision, landing::Decision::Leave { .. }) {
+                break;
+            }
+        }
+        let base = world.landing(LANDING).landing.members[0].base.expect("fixture value");
+        let probes = if grouped {
+            vec![(1, 3)]
+        } else if breaking == 1 {
+            vec![(1, 3), (0, 1)]
+        } else {
+            vec![(1, 3), (2, 3)]
+        };
+        for change in 51..=54 {
+            for &(probe, red) in &probes {
+                let expected = format!(
+                    "landing {LANDING}: change {change} probing at {} by 2 tests, red at {}, on {}",
+                    text(prefixes[probe]),
+                    text(prefixes[red]),
+                    text(base)
+                );
+                assert_eq!(
+                    lines
+                        .iter()
+                        .filter(|(task, words)| *task == change && words.as_ref() == expected.as_bytes())
+                        .count(),
+                    1,
+                    "{expected}"
+                );
+            }
+        }
+        assert!(lines.iter().any(|(task, words)| *task == 50 + breaking
+            && String::from_utf8_lossy(words).contains("left: gate gate failed in")));
+        world.restart();
+        for entry in 2000..2600 {
+            let decision = collect_step(&mut world, entry, &mut lines);
+            if decision == landing::Decision::Finish {
+                break;
+            }
+        }
+        for change in (51..=54).filter(|c| *c != 50 + breaking && !(grouped && *c == 54)) {
+            assert_eq!(
+                lines
+                    .iter()
+                    .filter(|(task, words)| *task == change && String::from_utf8_lossy(words).contains(" proving at "))
+                    .count(),
+                2,
+                "change {change} proves in both rounds"
+            );
+        }
+        let green = if breaking == 1 { "the base".to_owned() } else { text(prefixes[1]) };
+        let blamed = if grouped { "53, 54".to_owned() } else { (50 + breaking).to_string() };
+        let red = if grouped { prefixes[3] } else { prefixes[usize::try_from(breaking - 1).expect("fixture value")] };
+        let expected = format!("Search by test: red at {}, change {blamed} blamed; green at {green}.\n", text(red));
+        let bodies: Vec<_> = world
+            .take_calls()
+            .into_iter()
+            .filter_map(|op| match op {
+                api::Op::Write(api::Write::OpenPull { body, .. }) => {
+                    Some(String::from_utf8(body.into_vec()).expect("fixture value"))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(bodies.len(), 2);
+        assert!(!bodies[0].contains("Search by test:"));
+        assert!(bodies[1].ends_with(&expected), "{}", bodies[1]);
+        assert_eq!(bodies[1].matches("Search by test:").count(), 1);
+        assert!(world.landing(LANDING).landing.searched.is_none());
+    }
+}
+#[test]
+fn a_search_going_whole_tells_each_member_once_without_a_change_prefix() {
+    let mut unselected = workflow();
+    unselected.select = None;
+    let mut world = configured_batch(&[None, Some(b"b\n"), Some(b"a\n"), None], true, unselected, false);
+    let mut lines = Vec::new();
+    for entry in 1000..1600 {
+        if collect_step(&mut world, entry, &mut lines) == landing::Decision::Finish {
+            break;
+        }
+    }
+    let base = world.landing(LANDING).landing.members[0].base.expect("fixture value");
+    let expected = format!("landing {LANDING}: probing whole again from {}", text(base));
+    for change in 51..=54 {
+        assert_eq!(
+            lines.iter().filter(|(task, words)| *task == change && words.as_ref() == expected.as_bytes()).count(),
+            1,
+            "{expected}"
+        );
+    }
+}
+
+#[test]
+fn the_search_line_is_not_repeated_when_an_opened_round_goes_stale() {
+    let mut world = batch(4, 3, true);
+    let mut opened = false;
+    for entry in 1000..1600 {
+        landings::step_landing(&mut world, LANDING, entry);
+        if world.landing(LANDING).landing.round.pull.is_some() && world.landing(LANDING).landing.preparation == 2 {
+            opened = true;
+            break;
+        }
+    }
+    assert!(opened, "the next round opens after the boundary");
+    world.push_file(b"main", b"outside", b"base moved");
+    world.restart();
+    landings::drive_landing(&mut world, LANDING);
+    let bodies: Vec<_> = world
+        .take_calls()
+        .into_iter()
+        .filter_map(|op| match op {
+            api::Op::Write(api::Write::OpenPull { body, .. }) => {
+                Some(String::from_utf8(body.into_vec()).expect("body"))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(bodies.len(), 3);
+    assert_eq!(bodies[1].matches("Search by test:").count(), 1);
+    assert!(!bodies[2].contains("Search by test:"));
+}

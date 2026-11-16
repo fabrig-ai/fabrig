@@ -163,7 +163,7 @@ enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_m
 enum EffectResult { none, pending, made, conflict, failed }
 record LandingRepair { gate: u16 }
 record LandedBelow { change: u64 pull: u64 }
-record LandingBelow { green: fixed 32 changes: list 4 LandedBelow }
+record LandingBelow { green: fixed 32 changes: list 4 LandedBelow by_test: bool = false top: bool = false }
 record LandingRepairAt { gate: u16 candidate: fixed 32 below: option LandingBelow }
 enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit, landing_at: LandingRepairAt }
 record RepairValue { why: Repair }

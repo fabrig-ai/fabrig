@@ -1924,6 +1924,10 @@ pub enum Path {
     LandingBelowGreen,
     /// The `changes` field of `LandingBelow`.
     LandingBelowChanges,
+    /// The `by_test` field of `LandingBelow`.
+    LandingBelowByTest,
+    /// The `top` field of `LandingBelow`.
+    LandingBelowTop,
     /// Bytes after `LandingBelow`.
     LandingBelowTail,
     /// The `gate` field of `LandingRepairAt`.
@@ -10919,6 +10923,10 @@ pub struct LandingBelowParts {
     pub green: [u8; 32],
     /// The `changes` field.
     pub changes: List<LandedBelow>,
+    /// The `by_test` field.
+    pub by_test: bool,
+    /// The `top` field.
+    pub top: bool,
 }
 
 /// `LandingBelow` in this codec family.
@@ -10926,13 +10934,15 @@ pub struct LandingBelowParts {
 pub struct LandingBelow {
     green: [u8; 32],
     changes: List<LandedBelow>,
+    by_test: bool,
+    top: bool,
 }
 
 impl LandingBelow {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LandingBelowParts) -> Result<Self, Problem> {
-        let LandingBelowParts { green, changes } = parts;
-        let value = Self { green, changes };
+        let LandingBelowParts { green, changes, by_test, top } = parts;
+        let value = Self { green, changes, by_test, top };
         value.check(limits)?;
         Ok(value)
     }
@@ -10945,9 +10955,17 @@ impl LandingBelow {
     #[must_use]
     pub fn changes(&self) -> &List<LandedBelow> { &self.changes }
 
+    /// Reads the `by_test` field.
+    #[must_use]
+    pub fn by_test(&self) -> bool { self.by_test }
+
+    /// Reads the `top` field.
+    #[must_use]
+    pub fn top(&self) -> bool { self.top }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LandingBelowParts { LandingBelowParts { green: self.green, changes: self.changes } }
+    pub fn into_parts(self) -> LandingBelowParts { LandingBelowParts { green: self.green, changes: self.changes, by_test: self.by_test, top: self.top } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.changes.capacity() > limits.landing_below_changes.min(CEILINGS.landing_below_changes) { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Bound }); }
@@ -33572,6 +33590,8 @@ impl LandingBelow {
         let field_changes = &self.changes;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_changes.len().checked_mul(16).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -33584,6 +33604,10 @@ impl LandingBelow {
         for item_0 in field_changes.as_slice() {
         item_0.encode(writer)?;
         }
+        let field_by_test = &self.by_test;
+        writer.put(&[u8::from(*field_by_test)])?;
+        let field_top = &self.top;
+        writer.put(&[u8::from(*field_top)])?;
         Ok(())
     }
 
@@ -33597,7 +33621,9 @@ impl LandingBelow {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_green = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingBelowGreen, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_changes = { let count = match skein_codec::read_count(reader, limits.landing_below_changes.min(CEILINGS.landing_below_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingBelowChanges, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandedBelow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { green: decoded_green, changes: decoded_changes })
+        let decoded_by_test = match reader.u8().ok_or(Problem { path: Path::LandingBelowByTest, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingBelowByTest, reason: skein_codec::Reason::Bool }) };
+        let decoded_top = match reader.u8().ok_or(Problem { path: Path::LandingBelowTop, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingBelowTop, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { green: decoded_green, changes: decoded_changes, by_test: decoded_by_test, top: decoded_top })
     }
 }
 
@@ -55194,6 +55220,7 @@ impl LandingBelow {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(u64::from(32_u32))?.checked_add(4_u64.checked_add(u64::from(limits.landing_below_changes).checked_mul(LandedBelow::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -55207,6 +55234,7 @@ impl LandingBelow {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(List::<LandedBelow>::price(limits.landing_below_changes)?.checked_add(u64::from(limits.landing_below_changes).checked_mul(LandedBelow::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

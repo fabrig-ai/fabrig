@@ -2065,6 +2065,14 @@ fn conflict_words(row: &LandingRow, member: u16) -> Box<[u8]> {
     }
     row.landing.round.failure.clone()
 }
+fn whole_again(search: Option<&policy::Search>) -> bool {
+    match search {
+        Some(policy::Search { tests: policy::SearchTests::WholeAgain, .. }) => true,
+        Some(policy::Search { tests: policy::SearchTests::Whole | policy::SearchTests::ByTest { .. }, .. }) | None => {
+            false
+        }
+    }
+}
 fn round_words(d: &Domain, row: &LandingRow) -> (Box<[u8]>, Box<[u8]>) {
     let mut count = 0_u64;
     for member in &row.landing.members {
@@ -2141,6 +2149,24 @@ fn round_words(d: &Domain, row: &LandingRow) -> (Box<[u8]>, Box<[u8]>) {
         }
         append_words(&mut body, b" blamed; green at ");
         append_words(&mut body, &commit_hex(green));
+        append_words(&mut body, b".\n");
+    }
+    if let Some(searched) = &row.landing.searched {
+        append_words(&mut body, b"Search by test: red at ");
+        append_words(&mut body, &commit_hex(searched.red));
+        append_words(&mut body, b", change ");
+        let mut separator = b"".as_slice();
+        for change in &searched.changes {
+            append_words(&mut body, separator);
+            append_words(&mut body, skein_lib::Decimal::of(*change).as_bytes());
+            separator = b", ";
+        }
+        append_words(&mut body, b" blamed; green at ");
+        if let Some(green) = searched.green {
+            append_words(&mut body, &commit_hex(green));
+        } else {
+            append_words(&mut body, b"the base");
+        }
         append_words(&mut body, b".\n");
     }
     (title.into_boxed(), body.into_boxed())
@@ -3019,7 +3045,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         | policy::Decision::Delete { .. }
         | policy::Decision::Resolve { .. }
         | policy::Decision::Judge { .. } => {
-            if row.landing.round.search != prior.landing.round.search && policy::probe(&row.landing).is_some() {
+            if whole_again(row.landing.round.search.as_ref()) && !whole_again(prior.landing.round.search.as_ref()) {
+                Some(crate::LandingNews::WholeAgain)
+            } else if row.landing.round.search != prior.landing.round.search && policy::probe(&row.landing).is_some() {
                 Some(crate::LandingNews::Probing)
             } else if row.landing.phase == policy::Phase::Proving && prior.landing.phase != policy::Phase::Proving {
                 Some(crate::LandingNews::Proving)
@@ -3737,11 +3765,22 @@ pub(crate) fn hinted(d: &mut Domain, hint: &api::Hint, out: &mut Queue<Request>)
         }
     }
 }
-/// domain/landing-search.md, 7: only this round's prefixes below the blamed unit land.
+/// The boundary context of domain/landing-search.md, 7 and landing-search-by-test.md, 7.
 fn repair_below(row: &LandingRow, green: api::Commit) -> change::Below {
-    let mut below = change::Below { green, changes: [None; 4] };
+    let search = row.landing.round.search.as_ref().expect("blamed boundary");
+    let by_test = match &search.tests {
+        policy::SearchTests::ByTest { .. } => true,
+        policy::SearchTests::Whole | policy::SearchTests::WholeAgain => false,
+    };
+    let mut top = 0;
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.candidate.is_some() {
+            top = u16::try_from(index).expect("bounded members").checked_add(1).expect("member number");
+        }
+    }
+    let mut below = change::Below { green, changes: [None; 4], by_test, top: search.red == top };
     let mut slots = below.changes.iter_mut();
-    let end = row.landing.round.search.as_ref().expect("blamed boundary").green;
+    let end = search.green;
     for member in row.landing.members.iter().take(usize::from(end)) {
         if member.candidate.is_some() {
             *slots.next().expect("at most four members below the blamed unit") =
@@ -4407,7 +4446,7 @@ impl Domain {
         append_words(&mut words, b"landing ");
         append_words(&mut words, skein_lib::Decimal::of(task).as_bytes());
         append_words(&mut words, b": ");
-        if step != crate::LandingNews::Held {
+        if step != crate::LandingNews::Held && step != crate::LandingNews::WholeAgain {
             append_words(&mut words, b"change ");
             append_words(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
             append_words(&mut words, b" ");
@@ -4453,16 +4492,29 @@ impl Domain {
                 let search = row.landing.round.search.as_ref()?;
                 let probe = row.landing.members.get(usize::from(policy::probe(&row.landing)?))?;
                 let red = row.landing.members.get(usize::from(search.red.checked_sub(1)?))?;
-                for part in [
-                    b"probing at ".as_slice(),
-                    &commit_hex(probe.candidate?),
-                    b", red at ",
-                    &commit_hex(red.candidate?),
-                    b", on ",
-                    &commit_hex(probe.base?),
-                ] {
+                append_words(&mut words, b"probing at ");
+                append_words(&mut words, &commit_hex(probe.candidate?));
+                match &search.tests {
+                    policy::SearchTests::ByTest { gates, .. } => {
+                        let mut count = 0_u64;
+                        for cases in gates.iter().flatten() {
+                            count = count
+                                .checked_add(u64::try_from(cases.len()).expect("bounded selection"))
+                                .expect("bounded cases");
+                        }
+                        append_words(&mut words, b" by ");
+                        append_words(&mut words, skein_lib::Decimal::of(count).as_bytes());
+                        append_words(&mut words, b" tests");
+                    }
+                    policy::SearchTests::Whole | policy::SearchTests::WholeAgain => {}
+                }
+                for part in [b", red at ".as_slice(), &commit_hex(red.candidate?), b", on ", &commit_hex(probe.base?)] {
                     append_words(&mut words, part);
                 }
+            }
+            crate::LandingNews::WholeAgain => {
+                append_words(&mut words, b"probing whole again from ");
+                append_words(&mut words, &commit_hex(member.base?));
             }
             crate::LandingNews::Landed => {
                 append_words(&mut words, b"landed at ");

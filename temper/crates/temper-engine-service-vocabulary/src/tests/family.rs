@@ -754,6 +754,8 @@ fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
             gate: 0,
             candidate: [7; 32],
             below: Some(change::Below {
+                by_test: false,
+                top: false,
                 green: [8; 32],
                 changes: [Some(change::Landed { change: 3, pull: 5 }), None, None, None],
             }),
@@ -5361,7 +5363,7 @@ fn a_landing_repair_keeps_its_change_panel_readable() {
         change::Repair::LandingAt {
             gate: 0,
             candidate: [8; 32],
-            below: Some(change::Below { green: [7; 32], changes: [None; 4] }),
+            below: Some(change::Below { by_test: false, top: false, green: [7; 32], changes: [None; 4] }),
         },
     ] {
         let mut value = panel();
