@@ -54,6 +54,16 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         }
         [contents, segments @ ..] if &**contents == b"contents" => {
             let reference = query_value(&target.query, b"ref").ok_or(Unrouted::Malformed)?;
+            if id::read(&reference).is_none() && !reference.is_empty() {
+                if method != Method::Get {
+                    return Err(Unrouted::Method);
+                }
+                return Ok(Route::Reference(super::Reference {
+                    at,
+                    name: reference,
+                    read: super::ReferenceRead::Contents { path: joined(segments) },
+                }));
+            }
             Request::Contents {
                 at,
                 path: joined(segments),

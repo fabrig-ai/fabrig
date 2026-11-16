@@ -1,6 +1,6 @@
 # fake-forge: status
 
-2026-11-15. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-16. Where skein's code lags or departs from [forge.md](forge.md).
 
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses

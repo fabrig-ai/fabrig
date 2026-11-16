@@ -11,8 +11,11 @@ use alloc::boxed::Box;
 use skein_json::writer;
 mod actions;
 mod branches;
+mod change_files;
 pub mod delivery;
 mod files;
+mod reference;
+pub use reference::{Reference, ReferenceRead};
 mod hooks;
 mod items;
 mod orgs;
@@ -39,6 +42,7 @@ pub enum Unrouted {
 pub enum Route {
     Ready(Request),
     Body(BodyDecoder),
+    Reference(Reference),
 }
 pub fn route(method: Method, target: &[u8], limits: &Limits) -> Result<Route, Unrouted> {
     match hooks::repository_route(method, target, limits) {

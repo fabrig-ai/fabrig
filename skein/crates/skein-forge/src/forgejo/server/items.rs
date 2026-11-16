@@ -57,6 +57,16 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         [pulls, number] if &**pulls == b"pulls" => Request::Pull { at, number: number_value(number)? },
         [pulls, base, head] if &**pulls == b"pulls" => Request::PullFor { at, base: base.clone(), head: head.clone() },
         [commits, commit, status] if &**commits == b"commits" && &**status == b"status" => {
+            if id::read(commit).is_none() && !commit.is_empty() {
+                if method != Method::Get {
+                    return Err(Unrouted::Method);
+                }
+                return Ok(Route::Reference(super::Reference {
+                    at,
+                    name: commit.clone(),
+                    read: super::ReferenceRead::CombinedStatus { page: page(query)? },
+                }));
+            }
             Request::CombinedStatus { at, commit: id::read(commit).ok_or(Unrouted::Malformed)?, page: page(query)? }
         }
         _ => return Err(Unrouted::NotFound),
