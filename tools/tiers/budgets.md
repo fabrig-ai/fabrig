@@ -94,7 +94,7 @@ cpu_s = 72
 
   An unplaced row is never over. It gives the warning `unplaced: BINARY_ID has no layer (tools/tiers/layers.md)`, one line for each such binary.
 - **The line for a layer over its budget** reads `layer over budget: TREE PROFILE LAYER: FIGURE CPU s, budget BUDGET s`, or ends `no budget` where the row has none. `FIGURE` has two decimals and `BUDGET` is the file's figure as Python's `str` gives it.
-- **With `gate`,** each such line is in `over_budget`, and the verdict is `over budget`. Otherwise the verdict is `within budget` where the profile has gate tables, a pair table or both, and today's rules hold for the pair's own figures and `starved`.
+- **With `gate`,** each such line is in `over_budget`. The verdict keeps its order (`tools/tiers/design.md`, 10.2): `over budget` when `over_budget` holds any line, a layer's or the pair's own; else `starved` for a starved run; else `within budget` when the profile has gate tables or a pair table; else `no budget set`.
 - **Without `gate`,** each such line is in `warnings`, and the verdict is what it would be with no gate tables: a layer over its budget is a warning there, never red (the user, 11-16).
 - **A selection** (a run with `-p`) sums only what it ran. A layer's figure in it is a lower bound of the layer's whole figure, and is judged as it stands. A partial run is judged whole once the ledger exists (section 7).
 - **`print_summary`** prints, after the suite's totals, a line for each `layers` row and each `trees` row: the figure, the budget, the ideal and, for a layer, the reference, with `none` where null. Each warning or over-budget line follows, as today. The exact text of the rows is the code's; the over line is the form above.
