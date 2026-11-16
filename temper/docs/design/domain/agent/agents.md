@@ -389,13 +389,54 @@ and not its name.
   lines (jig's `domain/engine/briefs.md`, section 2), naming the note and the revision
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
-  what changed and doesn't repeat it. Where a sequence says more drawn, it writes a
-  flow, and its words name the subset (`skein/docs/design/ui/markdown.md`, 1): the same
-  block reads in a repository, where a forge renders Mermaid.
+  what changed and doesn't repeat it. It draws what a picture says faster, in
+  the document as in a reply (*What a document draws*, below).
 - **Ask temper's,** `ask.txt` (`ask-temper.md`): the same, through `document` (`ask-temper.md`, 3), its
   title "How this project works", kept once the person's way of working is
   understood, a section a topic and open questions last (1); its reply says in
-  one sentence what the document now adds, and never repeats its text.
+  one sentence what the document now adds, and never repeats its text. It
+  draws in it what it describes, as its *Showing* part says (below).
+- **What a document draws,** the chat's, the drafter's (4) and Ask temper's
+  alike (the user, 2026-11-16): whatever a picture says faster than words,
+  in the document as in a reply: steps, a path through parts, who acts
+  where. Each draws only what the client draws today, in a turn as in a
+  document (`../../client/pages/chat/document.md`, 1, and
+  `../../client/pages/chat/conversation.md`, 3): a view, a flow and a table.
+  - *A flow* is skein's subset (`skein/docs/design/ui/markdown.md`, 1), which
+    the words name: a fenced block, info string `mermaid`, `flowchart LR` or
+    `flowchart TD`, `accTitle:` its name, one path joined by `-->`, each node
+    `id[Name<br>caption]`, `:::strong` after the one that matters. The same
+    block reads in a repository, where a forge renders Mermaid.
+  - *One path a flow:* each path through the parts is a flow of its own, and
+    options stand side by side in a table. A branch, a merge, an edge's label
+    or another shape shows as code, so the words ask for none (5, *Pictures
+    past one path*).
+  - *The chat's and the drafter's words,* in their document paragraph of
+    `chat.txt` and `drafter.txt`, in place of the sentence that drew a flow
+    only "where a sequence says more drawn": the rule, the flow's form as
+    above, one example, a request's way through a system, and the one-path
+    sentences. The example is a system's, not a project's path, so that a
+    design session reads it as meant for what it designs:
+
+    ```mermaid
+    flowchart LR
+    accTitle: A read, end to end
+    c[Client] --> g[Gateway<br>checks the token] --> s[Orders<br>reads its replica]:::strong --> d[Store]
+    ```
+  - *Ask temper's words* (`ask-temper.md`): its *Showing* part opens with the
+    rule, for a reply and the document; what exists is drawn from a view,
+    and only what does not exist yet, an idea or a what-if, is sketched as a
+    flow (`../../draft/ask-temper.md`, 6.1). Its document line asks it to draw
+    in the document what it describes: the project's path from its view,
+    never as a list of steps, and a proposal that waits from its own view
+    until it is decided. A `path` view is read again at each newer revision
+    (`../../client/pages/chat/conversation.md`, 3), so the document's drawing
+    stays current once the proposal is accepted.
+  - *Its stories:* the stock's phrase tests hold each charter's words: the
+    rule, the flow's form, the example and the one-path sentences in
+    `chat.txt` and `drafter.txt`; *Showing*'s opening, its sketch line and the
+    document line in `ask.txt`. Whether a real model draws where it should is
+    the user's judgement, by trying it after landing.
 - **The tool's answer** gives the client what its line says (`../../client/pages/README.md`
   ): `Note N revision R written · 64 lines` for a first write, `Note N revision
   R written · +18 −6 · line 31 · 64 lines` for a later one, from jig's `lines`,
@@ -460,9 +501,10 @@ conversation its person ends, kept, listed among the project's chats.
   touches before proposing; ask one question at a time, as numbered choices,
   the recommendation first with its reason and "Tell me something else" last;
   take each answer into the draft at once; keep the open points under
-  `## Open questions`; say in one line when none blocks the work; and keep
+  `## Open questions`; say in one line when none blocks the work; keep
   the draft as the chat's document (3), a first version whole, then
-  changed by lines. temper/ui writes them, as a chat's.
+  changed by lines; and draw in it what a picture says faster, as a chat's
+  document does (3, *What a document draws*). temper/ui writes them, as a chat's.
 - **It reads and starts nothing.** Its charter names every family a chat's
   does but delegate, so its runs are declared no `goal`, `change` or
   `delegate` (`tools.md`), and its task's authority, a chat's, would refuse none of
@@ -576,3 +618,11 @@ conversation its person ends, kept, listed among the project's chats.
   of `../../protocol/configuration/settings.md`, 7, with the reference's fallback.
   Default: the existing stock and reference words and wakes; test charters
   exercise goal delivery.
+
+- **Pictures past one path** (`agents.md`, 3, *What a document draws*): a
+  design session's drawings, a system's parts and the links between them,
+  need branches, merges and labelled edges, which skein's flow subset
+  (`skein/docs/design/ui/markdown.md`, 1) keeps as code today, in the browser
+  and the terminal alike. Default: one path a flow and options in a table,
+  until a draft of its own designs a wider drawing for the web and the TUI
+  (the user, 2026-11-16: "we can do it incrementally").

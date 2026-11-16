@@ -1,6 +1,6 @@
 # ask-temper: status
 
-2026-11-11. Where the design lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-16. Where the design lags or departs from [ask-temper.md](ask-temper.md).
 
 M1 is built: charter 11 and template 5, its small request on both shapes,
 no workspace, its own tools, the configuring reads through `see`, proposals
@@ -42,7 +42,7 @@ of it follows landing with the walk.
   - 5.1: `../domain/agent/ask-temper.md`, 1: the settings, their history and proposals read as the settings' renderers write them for ctl, not by 5.1's rules for how an answer reads, which hold the addresses read as the person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration/settings.md`, 2). `../domain/agent/README.md`, section 8 defers how the settings' addresses read, revision values of temper's kinds and the project-policy address.
   - 5.3: `../domain/agent/ask-temper.md`, 3, and `../domain/agent/README.md`, 8: a document moved between a call's read and write is refused naming its section; the run calls again against the newest. Retrying within the same call needs jig to accept a section splice or leave a moved write unrecorded, because jig records the refusal today.
   - 6.2: `../client/pages/chat/conversation.md`, 3 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/tui/pages/README.md`).
-  - 8: `../domain/agent/ask-temper.md`: the instructions carry the Showing part's first step alone; its other views and the paragraph on sketches join with M3b.
+  - 8: `../domain/agent/ask-temper.md`: the instructions carry the Showing part's first step and its sketch line in skein's flow subset alone; its other views and the actors' marks join with M3b.
   - 6.3: skein's `ui/README.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
 - **Design departs:** 5.2: `../domain/agent/ask-temper.md`, 2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; `ask-temper.md`, section 10 keeps durable parts for later if needed.
 - **Design departs:** 5.1: `../domain/agent/ask-temper.md`, 1 makes `me` of the
@@ -68,4 +68,15 @@ of it follows landing with the walk.
   review, and no record shows that review; its *Finding out* names
   neither kind, decided when it was held to 8,192 bytes, though `see`'s
   answer to an unknown address does (`../domain/agent/ask-temper.status.md`, 1).
+- **Design departs:** 8: `../domain/agent/agents.md`, 3, *What a document
+  draws*, and `../domain/agent/ask-temper.md`: `ask.txt`'s *Showing* opens
+  "Draw whatever a picture says faster than words, in a reply and in the
+  document", where section 8 has "Show a picture when it explains better
+  than words"; its sketch line, a flow for what does not exist yet, names
+  skein's flow subset with no actors' marks; and its document line, in
+  *Configuring*, asks it to draw the document's subject: the project's path
+  from its view, never as a list of steps, and a proposal that waits from
+  its own view until it is decided. Decided by the user, 2026-11-16, after
+  a write-up of a chat that had drawn a proposal gave the path as a
+  numbered list and the proposal in prose.
 - **Open:** 12.
