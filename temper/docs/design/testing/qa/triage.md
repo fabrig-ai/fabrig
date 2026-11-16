@@ -4,7 +4,7 @@ Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
 `../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
-main's order, answering no QA or cases through the ledger's commands.
+main's order, answering no QA, cases or gaps through the ledger's commands.
 
 ## 1. In one page
 
@@ -16,7 +16,8 @@ main's order, answering no QA or cases through the ledger's commands.
   catalogue and the cases queued, in a brief on its stdin and a tree of
   the merge to read.
 - **It answers** (section 4) through `temper-qa triage none WHY` or
-  `temper-qa triage case FILE`, each recorded at once; a case for a page
+  `temper-qa triage case FILE` or `temper-qa triage gap KIND WHY`
+  (`gaps.md`, 2), each recorded at once; a case for a page
   a queued case covers joins it.
 - **Cheap** (section 5): the agent's command line at triage's effort,
   within `bounds.triage`; it reads, and starts no box.
@@ -70,11 +71,9 @@ this order:
   `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
   draft's promises, written before anything is tried; no QA, with a line
   why, when the landing changes nothing a person meets there; the fakes
-  alone, the person's forge the box's fake Forgejo, so what only the
-  box's own Forgejo or another real backend shows is no case, and a
-  landing that changes nothing else a person meets is no QA, its line
-  saying so (`../../draft/landed-qa.md`, 6 and 12); reading alone, no
-  box started, within its bound.
+  alone, the person's forge the box's fake Forgejo; what a person
+  meets that these cannot show is a gap (`../../draft/landed-qa.md`,
+  6 and 12); reading alone, no box started, within its bound.
 - **The landing:** its number, goal, pull request, merge commit and
   title.
 - **Its drafts,** each a path in the tree: every draft the merge's
@@ -151,6 +150,16 @@ this order:
   printable ASCII alone, other bytes as `\xHH`, with `\"` and `\\` for
   quote and backslash (`../../client/drive.md`, 3.1).
 
+After the commands the brief says: "A landing a person would meet
+that no case can judge yet, because ctl offers no way to do or see it,
+the fakes show no such behaviour, or QA's lines and setups can't reach
+it, is a gap: `temper-qa triage gap KIND WHY`, never none."
+
+When a landing closes its gap, its earlier gap and session brief stay
+beside the new triage (`gaps.md`, 7). Its diff and drafts are the
+original landing's; its surfaces, setups and kept tree are the newest
+kept build holding the closing landing's (`ledger.md`, 4.18).
+
 ## 4. Its answers
 
 - **`temper-qa triage none WHY`:** WHY one argument, the line saying why
@@ -182,7 +191,11 @@ this order:
   `tui` lines. The page must be among that surface's session pages.
   `adds` and each `see` optional, the rest required; checked, merged and
   answered as `ledger.md`, 4.3 says, or refused as its section 5 words it.
-- **Both** run in the session's environment (section 5) and record for
+- **`temper-qa triage gap KIND WHY`:** KIND `ctl`, `fake` or `qa`, WHY
+  one nonempty argument: what a person would do or see and what is
+  missing to judge it. Prints `gap N`, answering `gap` unless cases
+  accompany it (`gaps.md`, 2).
+- **All** run in the session's environment (section 5) and record for
   its landing alone.
 
 ## 5. The agent's run

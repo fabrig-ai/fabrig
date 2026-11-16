@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Configuration {
     pub owner: String,
+    pub gaps_fake: Option<String>,
     pub git: Git,
     pub agent: Agent,
     pub bounds: Bounds,
@@ -47,6 +48,14 @@ impl Configuration {
     pub fn finding_area(&self, surface: &str) -> &str {
         self.areas.get(surface).map_or(self.owner.as_str(), String::as_str)
     }
+    #[must_use]
+    pub fn gap_owner(&self, kind: &str) -> &str {
+        match kind {
+            "ctl" => self.finding_area("ctl"),
+            "fake" => self.gaps_fake.as_deref().unwrap_or(&self.owner),
+            _ => &self.owner,
+        }
+    }
     pub fn place_directory(&self, home: &Path, name: &str) -> Result<PathBuf, Refusal> {
         if !self.places.iter().any(|place| place == name) {
             return Err(refused(format!("unknown place {name}")));
@@ -58,9 +67,20 @@ impl Configuration {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
             let object = d::object(
                 &value,
-                &["owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request"],
+                &[
+                    "owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request",
+                    "gaps",
+                ],
             )?;
             let owner = nonempty(object, "owner")?;
+            let gaps_fake = object
+                .get("gaps")
+                .map(|value| {
+                    let gaps = d::object(value, &["fake"])?;
+                    gaps.get("fake").map(d::string).transpose()
+                })
+                .transpose()?
+                .flatten();
             let git = named_object(object, "git", &["directory", "branch", "fetch"])?;
             let directory = path(home, &nonempty(git, "directory").map_err(|why| refused(format!("git.{why}")))?);
             let branch = git.get("branch").map(d::string).transpose()?.unwrap_or_else(|| "main".into());
@@ -111,6 +131,7 @@ impl Configuration {
             let notify = object.get("notify").map(command_line).transpose()?;
             Ok(Self {
                 owner,
+                gaps_fake,
                 git: Git { directory, branch, fetch },
                 agent: Agent { command, triage, pass },
                 bounds,

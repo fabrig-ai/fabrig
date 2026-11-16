@@ -57,6 +57,7 @@ impl Ledger {
                 &value,
                 &[
                     "head",
+                    "gaps",
                     "landings",
                     "cases",
                     "builds",
@@ -70,6 +71,7 @@ impl Ledger {
             )?;
             Ok(Self {
                 head: object.get("head").map(string).transpose()?,
+                gaps: q::records(object, "gaps")?.iter().map(crate::gap_document::gap).collect::<Result<_, _>>()?,
                 landings: array(required(object, "landings")?)?.iter().map(landing).collect::<Result<_, _>>()?,
                 cases: array(required(object, "cases")?)?.iter().map(case).collect::<Result<_, _>>()?,
                 builds: array(required(object, "builds")?)?.iter().map(build).collect::<Result<_, _>>()?,
@@ -94,11 +96,13 @@ impl Ledger {
     pub fn document(&self) -> Value {
         let mut document = json!({
             "head": self.head,
+            "gaps": self.gaps.iter().map(crate::gap_document::document).collect::<Vec<_>>(),
             "landings": self.landings.iter().map(|landing| {
                 let (answer, why) = match &landing.answer {
                     None => (None, None),
                     Some(Answer::None { why }) => (Some("none"), Some(why)),
                     Some(Answer::Cases) => (Some("cases"), None),
+                    Some(Answer::Gap) => (Some("gap"), None),
                 };
                 json!({"number": landing.number, "commit": landing.commit, "goal": landing.goal,
                     "pull": landing.pull, "title": landing.title, "seen": landing.seen,
@@ -190,6 +194,7 @@ fn landing(value: &Value) -> Result<Landing, Refusal> {
         None => None,
         Some("none") => Some(Answer::None { why: text(object, "why")? }),
         Some("cases") => Some(Answer::Cases),
+        Some("gap") => Some(Answer::Gap),
         Some(other) => return Err(refused(format!("unknown answer {other}"))),
     };
     Ok(Landing {

@@ -155,7 +155,12 @@ pub(crate) struct Inputs {
     catalogue: String,
 }
 impl Inputs {
-    pub fn read(git: &mut impl GitFace, landing: &Landing, configured: &[String]) -> Result<Self, Refusal> {
+    pub fn read(
+        git: &mut impl GitFace,
+        landing: &Landing,
+        configured: &[String],
+        build: &str,
+    ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
         let parent = format!("{commit}^1");
         let drafts = landing_drafts(git, landing)?;
@@ -163,7 +168,7 @@ impl Inputs {
         let mut surfaces = String::new();
         if configured.iter().any(|surface| surface == "ctl") {
             let mut groups = Vec::new();
-            for entry in git.entries(commit, REFERENCE_DIRECTORY.trim_end_matches('/'))? {
+            for entry in git.entries(build, REFERENCE_DIRECTORY.trim_end_matches('/'))? {
                 if !entry.directory
                     && let Some(group) = entry.name.strip_prefix("ctl-").and_then(|name| name.strip_suffix(".md"))
                 {
@@ -188,7 +193,7 @@ impl Inputs {
                 continue;
             }
             let mut names = Vec::new();
-            for entry in git.entries(commit, directory)? {
+            for entry in git.entries(build, directory)? {
                 let name = if entry.directory { Some(entry.name.as_str()) } else { page_name(&entry.name) };
                 if let Some(name) = name {
                     names.push(name.to_owned());
@@ -200,7 +205,7 @@ impl Inputs {
             pages.insert(surface.into(), names);
             writeln!(surfaces, "- {surface} journeys: {journeys}").expect("string");
         }
-        let (setups, catalogue) = read_setups(git, commit, configured)?;
+        let (setups, catalogue) = read_setups(git, build, configured)?;
         let mut qa = Vec::new();
         for value in git.qa_trailers(&parent, commit)? {
             if !qa.contains(&value) {
@@ -220,7 +225,7 @@ impl Inputs {
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {
         let mut text = format!(
-            "# Triage\n\nJudge what a person now sees or does through {}. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, so what only the box's own Forgejo or another real backend shows is no case, and a landing that changes nothing else a person meets is no QA, its line saying so. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+            "# Triage\n\nJudge what a person now sees or does through {}. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, what a person meets that these cannot show is a gap. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
             opening(&self.pages),
         );
         writeln!(
@@ -283,6 +288,11 @@ impl Inputs {
             }
         }
         self.commands(&mut text);
+        text.push_str("\nA landing a person would meet that no case can judge yet, because ctl offers no way to do or see it, the fakes show no such behaviour, or QA's lines and setups can't reach it, is a gap: `temper-qa triage gap KIND WHY`, never none. KIND is ctl, fake or qa; WHY one nonempty argument. Gaps may accompany cases.\n");
+        for gap in ledger.gaps.iter().filter(|gap| gap.landing == landing.number && gap.case.is_none()) {
+            writeln!(text, "\nEarlier gap {} ({}; {}): {}", gap.number, gap.kind, gap.state.name(), gap.why)
+                .expect("string");
+        }
         text
     }
     fn commands(&self, text: &mut String) {

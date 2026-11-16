@@ -205,8 +205,8 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         "temper-qa triage case FILE",
         "The fakes alone",
         "the person's forge is the box's fake Forgejo",
-        "what only the box's own Forgejo or another real backend shows is no case",
-        "a landing that changes nothing else a person meets is no QA, its line saying so",
+        "what a person meets that these cannot show is a gap",
+        "is a gap: `temper-qa triage gap KIND WHY`, never none",
         "\"expect\"",
     ] {
         assert!(brief.contains(words), "{words}\n{brief}");

@@ -110,8 +110,8 @@ The loop's third step (`README.md`, 4), for each free place
     is a security hole or lost data; a fault beside a case on the
     landing's surface a finding (`../../draft/landed-qa.md`, 13); the
     fakes alone: the person's forge is the box's fake Forgejo, and a
-    case that would set up the box's own Forgejo or reach any real
-    backend is blocked, naming it (`../../draft/landed-qa.md`, 6 and
+    case no line or setup can bring to its state is a gap, not blocked:
+    `temper-qa pass gap CASE KIND WHY` (`../../draft/landed-qa.md`, 6 and
     12).
   - **The pass:** its number; its place and the place's kind; its
     build's commit; for a resume, the goal it waited on and whether it
@@ -132,8 +132,9 @@ The loop's third step (`README.md`, 4), for each free place
     (`../../client/recipe.md`, 5.2). When neither `web` nor `tui` is
     configured, offer `fresh` and only recipes whose whole chain has no
     web or tui line, as triage does (`triage.md`, 3); a case whose state
-    no setup reaches is brought there from the nearest, and once it has run its lines
-    become a recipe (`places.md`, 6).
+    no setup reaches is brought there from the nearest where its lines
+    can reach it, then becomes a recipe (`places.md`, 6). When no line
+    or setup can reach it, record a gap (`gaps.md`, 3).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
     lines in brief (`../../client/drive.md`, 3), among them ctl's box
     values and the `forge commit`, `forge push` and `forge checks` lines
@@ -157,6 +158,11 @@ Each refused as `ledger.md`, 5 words it, otherwise recorded at once:
   case's outcome (`ledger.md`, 4.10), printed `case N RESULT`. A later
   outcome for the same case in the same session is the one its end
   reads.
+- **`temper-qa pass gap CASE KIND WHY`:** CASE assigned to this pass;
+  KIND `ctl`, `fake` or `qa`; WHY one nonempty argument saying what is
+  missing. Records outcome `gap` with its number, out of the queue at
+  once, counted neither failed nor blocked (`gaps.md`, 3). Prints
+  `gap N`.
 - **`temper-qa pass finding FILE`:** a finding (`findings.md`, 2).
 - **`temper-qa pass note WORDS`:** a note, WORDS one nonempty argument,
   printed `note N`.
@@ -220,12 +226,16 @@ where that contract has its mark:
       "expected": "...", "seen": "...", "evidence": ["0004-1280.png"],
       "state": "open", "goals": [] }
   ],
+  "gaps": [],
   "notes": ["..."]
 }
 ```
 
 - **A case** has its last outcome, or `outcome` absent while it has
   none; `expected` is each step's `expect` across its asks, in order.
+- **A gap** appears in `gaps` beside findings, with its ledger fields
+  (`ledger.md`, 2.11); a case's `gap` outcome also carries `gap`, its
+  number. Gaps count neither failed nor blocked.
 - **A finding's** `reproduction` is its lines from its setup; a linked
   one carries `linked`, the finding it matched.
 

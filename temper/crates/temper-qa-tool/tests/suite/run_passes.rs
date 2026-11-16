@@ -142,7 +142,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     for words in [
         "The fakes alone",
         "the person's forge is the box's fake Forgejo",
-        "the box's own Forgejo or reach any real backend is blocked, naming it",
+        "A case no line or setup can bring to its state is a gap, not blocked: `temper-qa pass gap CASE KIND WHY`",
         "{forgejo.api}",
         "{forgejo.git}",
         "{forgejo.admin}",
