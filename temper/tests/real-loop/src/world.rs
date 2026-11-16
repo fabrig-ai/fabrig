@@ -102,7 +102,7 @@ pub(crate) enum Kind {
     Caller(Box<Caller>),
     Ctl(Box<crate::calls::Recorded>),
     Terminal(Box<temper_client_shell_terminal::terminal::Terminal>),
-    Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    Agent(Box<agent::Hosted>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Claude(Box<smith_fake_claude::Fake>),
@@ -219,14 +219,22 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, recipe, steps, direct_key, sign_in, false)
+    run_with_issuer(scratch, recipe, steps, direct_key, sign_in, false, agent::agent)
 }
 
 pub(crate) fn run_production_sign_in(
     scratch: &skein_scratch::Scratch,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, || llm::scripted(Box::new([])), steps, true, true, true)
+    run_with_issuer(scratch, || llm::scripted(Box::new([])), steps, true, true, true, agent::agent)
+}
+
+pub(crate) fn run_stubborn(
+    scratch: &skein_scratch::Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    steps: impl FnOnce() -> Vec<crate::calls::Step>,
+) -> CheckedOutcome<Proc> {
+    run_with_issuer(scratch, recipe, steps, false, false, false, agent::stubborn)
 }
 
 fn run_with_issuer(
@@ -236,6 +244,7 @@ fn run_with_issuer(
     direct_key: bool,
     sign_in: bool,
     production: bool,
+    agent: agent::Factory,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
@@ -279,7 +288,7 @@ fn run_with_issuer(
             None => ServiceHost::new(scratch.path().into(), signals, direct_key),
         })))
     });
-    host(&mut world, scratch.path(), steps, direct_key, 1);
+    host(&mut world, scratch.path(), steps, direct_key, 1, agent);
     if let Some(listener) = reservation {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let address = listener.local_addr().expect("issuer address");
@@ -432,7 +441,7 @@ pub(crate) fn run_forge(
             false,
         ))))
     });
-    host(&mut world, scratch.path(), steps, false, 1);
+    host(&mut world, scratch.path(), steps, false, 1, agent::agent);
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
         *state.borrow_mut() = Some(forge);
@@ -477,7 +486,7 @@ pub(crate) fn run_github(
         Proc::new(Kind::Service(Box::new(service)))
     });
     // This story provisions its account explicitly, retaining every ctl output.
-    host(&mut world, scratch.path(), steps, true, 1);
+    host(&mut world, scratch.path(), steps, true, 1, agent::agent);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.host_roots(crate::git::route_program(), crate::git::roots);
     world.run(&skein_shell::Clock::new(), patience)
@@ -488,6 +497,7 @@ fn host<R: Referee<Proc>>(
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
     direct_key: bool,
     agents: u32,
+    agent: agent::Factory,
 ) {
     let root = skein_shell::open_root(path).expect("caller launch root");
     world.spawn_with_fds(vec![root], || {
@@ -517,10 +527,15 @@ fn host<R: Referee<Proc>>(
         crate::terminal::roots,
     );
     if agents != 0 {
-        host_agent(world, path, agents);
+        host_agent(world, path, agents, agent);
     }
 }
-fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Path, agents: u32) {
+fn host_agent<R: Referee<Proc>>(
+    world: &mut World<Proc, R>,
+    path: &std::path::Path,
+    agents: u32,
+    agent: agent::Factory,
+) {
     use std::os::unix::ffi::OsStrExt;
     let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
@@ -540,7 +555,7 @@ fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Pa
     world.host_roots(
         HostedProgram {
             program: fixtures::pinned_agent_program(path).as_os_str().as_bytes().into(),
-            make: agent::agent,
+            make: agent,
             instances: agents,
             operations: smith_agent_service::program_operations(&configuration.service).expect("agent program routes")
                 + 3,
@@ -875,6 +890,13 @@ impl Judge {
                 service.arm(temper_client_tools::key::engine(&name))?;
             }
             self.armed = true;
+        }
+        if caller.cancelling_run() {
+            for proc in children.iter_mut() {
+                if let Kind::Agent(agent) = &mut proc.kind {
+                    agent.cancel();
+                }
+            }
         }
         self.children.apply(children, caller);
         for proc in children.iter() {
@@ -1282,7 +1304,7 @@ fn cluster_roots<R: Referee<Proc>>(
             forge.map(|(fixture, _, _)| fixture),
         ))))
     });
-    host(world, &engine.path().join("data"), steps, false, 0);
+    host(world, &engine.path().join("data"), steps, false, 0, agent::agent);
     for (name, scratch) in workers.iter().zip(worker_scratch) {
         world.spawn_signals(|signals| {
             Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
@@ -1292,7 +1314,7 @@ fn cluster_roots<R: Referee<Proc>>(
                 forge.map(|(fixture, _, _)| fixture),
             ))))
         });
-        host_agent(world, &scratch.path().join("data"), 1);
+        host_agent(world, &scratch.path().join("data"), 1, agent::agent);
     }
     let mut git = crate::git::program();
     git.instances = u32::try_from(workers.len()).expect("worker git count");

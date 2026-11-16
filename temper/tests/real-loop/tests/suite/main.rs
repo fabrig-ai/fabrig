@@ -19,6 +19,7 @@ mod notes;
 mod peers;
 mod restart;
 mod sign_in;
+mod teardown;
 mod template_bounds;
 mod terminal;
 mod tools;

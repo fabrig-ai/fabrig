@@ -72,7 +72,7 @@ fn startup(
         }
         Proc::new(Kind::Service(Box::new(service)))
     });
-    host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1);
+    host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1, agent::agent);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.try_run(&skein_shell::Clock::new(), patience)
 }

@@ -30,7 +30,7 @@ pub use skein_lib::Time;
 pub use skein_scratch::Scratch;
 pub use temper_service::End;
 
-/// The checked result retains its owners until assertions finish.
+/// The result retains its owners until assertions finish.
 pub struct Ran {
     outcome: Outcome,
     scratch: Scratch,
@@ -132,6 +132,27 @@ impl Ran {
     pub fn killed(&self) -> &[skein_world::real::Killed] {
         &self.outcome.killed
     }
+    /// Notes in iteration order, bounded by age and then by count.
+    fn recent_notes(&self) -> &[(Time, temper_service::Note)] {
+        let notes = &self.service().notes;
+        let first =
+            notes.partition_point(|(at, _)| self.outcome.end.saturating_since(*at) > skein_lib::Duration::from_secs(5));
+        &notes[first.max(notes.len().saturating_sub(100))..]
+    }
+    fn kill_finding(&self, heading: &str) -> String {
+        use std::fmt::Write;
+        let mut finding = format!("{heading}\n");
+        for killed in self.killed() {
+            let millis = killed.at.saturating_since(self.outcome.start).as_millis();
+            writeln!(finding, "{killed}; {millis} ms from run start").expect("string writer");
+        }
+        finding.push_str("service notes (last 5 s, latest 100):\n");
+        for (at, note) in self.recent_notes() {
+            let millis = at.saturating_since(self.outcome.start).as_millis();
+            writeln!(finding, "{millis} ms: {note:?}").expect("string writer");
+        }
+        finding
+    }
     #[must_use]
     pub fn path(&self) -> &std::path::Path {
         self.scratch.path()
@@ -154,6 +175,17 @@ pub fn run_on(scratch: Scratch, recipe: impl FnOnce() -> llm::Recipe, steps: imp
     let outcome = world::run(&scratch, recipe, steps, false, false);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
+/// Run to completion with an agent frozen at the story's task cancellation.
+/// Returns without the teardown check so a story can inspect its finding.
+#[must_use]
+pub fn run_stubborn_on(
+    scratch: Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Ran {
+    let outcome = world::run_stubborn(&scratch, recipe, steps);
+    Ran { outcome: Outcome::Checked(outcome), scratch }
+}
 /// Run a terminal sign-in with a synthetic issuer and no provisioned key.
 #[must_use]
 pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
@@ -169,21 +201,31 @@ pub fn run_production_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
     let outcome = world::run_production_sign_in(&scratch, steps);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
-fn checked(ran: Ran) -> Ran {
-    assert!(
-        matches!(
-            ran.served(),
-            Some(
-                End::Engine(temper_service::EngineEnd::Drained)
-                    | End::Worker(temper_service::worker_alone::End::Drained)
-            )
-        ),
-        "service end {:?}",
-        ran.served()
-    );
-    assert_eq!(ran.killed().len(), ran.requested_kills(), "only requested kills: {:?}", ran.killed());
+/// Teardown's checks return their first finding (testing/real-loop.md).
+pub fn check(ran: &Ran) -> Result<(), String> {
+    if !matches!(
+        ran.served(),
+        Some(End::Engine(temper_service::EngineEnd::Drained) | End::Worker(temper_service::worker_alone::End::Drained))
+    ) {
+        return Err(format!("service end {:?}", ran.served()));
+    }
+    if ran.killed().len() != ran.requested_kills() {
+        return Err(ran.kill_finding(&format!(
+            "only requested kills: {} recorded for {} Kill steps",
+            ran.killed().len(),
+            ran.requested_kills()
+        )));
+    }
     for killed in ran.killed() {
-        assert_eq!(killed.exit, Exit::Signal(9), "requested kill");
+        if killed.exit != Exit::Signal(9) {
+            return Err(ran.kill_finding(&format!("requested kill: expected Signal(9), got {:?}", killed.exit)));
+        }
+    }
+    Ok(())
+}
+fn checked(ran: Ran) -> Ran {
+    if let Err(finding) = check(&ran) {
+        panic!("{finding}");
     }
     ran
 }

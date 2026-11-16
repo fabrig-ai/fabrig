@@ -793,6 +793,10 @@ impl Caller {
             _ => None,
         }
     }
+    pub(crate) fn cancelling_run(&self) -> bool {
+        matches!(self.steps.get(self.next), Some(Step::Call { argv, .. })
+            if matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("cancel"), ..]))
+    }
     pub(crate) fn stopping_engine(&self) -> bool {
         matches!(self.steps.get(self.next), Some(Step::StopEngine))
     }
