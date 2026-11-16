@@ -6,4 +6,5 @@
 - **Not yet:** 2, 5 and 10: the stock's template 8 and label 4; `decided` judging for the maker; ways, Ask temper's goals and a public change's goal taking a milestone out [in flight: change 4858].
 - **Not yet:** 8 and 10: the forge's milestone row, its name, last landing and end, and a milestone making no forge issue [in flight: change 4854].
 - **Not yet:** 7: `milestones::facts`, `milestones::of` and the forge family's read `Milestone` [in flight: change 4862].
+- **Design departs:** 7: an ended milestone's totals come from the forge's row alone; jig's ended record is not read, since its archive loader serves no forge read. One whose row was dropped (section 8's bound) answers `not_milestone`.
 - **Not yet:** 9 and 10: the status agent's milestones, and a milestone out of its live goals [in flight: change 4867].
