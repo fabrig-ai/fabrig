@@ -12,10 +12,15 @@
   setup host's, the clients' listener's forge routes' and the picker's;
   and the box's, which `temper-box serve` checks and takes none of but
   `box.line_bytes`, its pipe's (../setup/box.md).
-- **Two profiles, as jig's:** `small`, for one person's machine with
-  the mechanics' smallest work, and `standard`, a project of fabrig's
-  scale, its own development, with five times the
-  largest figure seen (`stock.md`); another name is refused. `temper-box init`'s
+- **One stock** (`../../draft/config.md`, 5.1): temper's figures are
+  one set, the stock, which is jig's stock with temper's figures over it,
+  and a document chooses no profile. A document's `limits.profile` may
+  be absent or `standard`, and either reads the stock. Any other name,
+  `small` among them, refuses the start, naming it. `small`'s figures
+  are a test's, in the fixtures crate `temper-limits-fixtures` (jig's
+  are in `jig-protocol-config-fixtures`), and never a document's. Where
+  this document gives `standard`'s figure, that is the stock's, and
+  `small`'s is the fixtures'. `temper-box init`'s
   document names `standard` for the engine's, the worker's and the
   application's limits alike (`../setup/init.md`, 3). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
@@ -43,7 +48,41 @@
   (`../../domain/agent/tools.md`); trimming is the fallback. Where a limit
   of temper's is a quantity jig's profile also sets, its constant cites
   jig's profile's.
-- **`small` starts as it stands** against an agent of its size:
+- **Sized from what** (`../../draft/config.md`, 5.2):
+  - **Counts:** a count (tasks, holds, inboxes, charters, executors,
+    changes, subscriptions, resources, repositories, projects, workers,
+    slots, client streams) is twice dev.fabrig.ai's figure of 2026-11-16
+    where that is above `standard`'s. It's rounded up to the least number
+    of the form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ (34 → 40, 768 → 768, 758 → 768).
+    Elsewhere it stays at `standard`'s.
+  - **Times:** a time is dev's where that is above `standard`'s: the
+    brief's gathering 300 s and the checkout's local timeout 60 s, for
+    example.
+  - **Other figures:** a figure with no source is dev's where that is
+    above `standard`'s. A figure with a source is derived
+    (`derived.md`).
+  - **The sign-in's lifetime stays a day.** dev's seven days serves its
+    automations, and dev keeps it as an override.
+  - **Each constant's comment says what it was sized from:** a figure
+    of dev's, a formula or a design's bound. A constant whose comment
+    cites a test world is sized again from what it bounds at the
+    stock's counts. What the start's checks tie to a figure moves with
+    it, by the least that passes.
+- **The stock covers fabrig's development** (`../../draft/config.md`,
+  5.2):
+  - **The deployment figures** are dev.fabrig.ai's documents' overrides
+    of 2026-11-16, named as fabrig's own development. They're recorded in
+    `temper-engine-service-vocabulary`'s limits module, each as its
+    document (the engine's or a worker's), its dotted name and its
+    value.
+  - **A focused test** resolves the stock as each document resolves it
+    with no override, the stock agent's derivations included
+    (`derived.md`, section 3). It holds every stock figure at or above
+    its recorded figure, but for the exceptions it names, each with its
+    reason: the sign-in's lifetime (above), and a worker's figures that
+    derive from its `slots` (`derived.md`, 5.2), which are held at dev's
+    `slots` instead.
+- **The fixtures' `small` starts as it stands** against an agent of its size:
   smith's, whose run bounds (its directories, their names,
   its accounts) are smith's own and no configuration changes (smith's
   `smith-domain-run`, `derive`; `smith-agent-service`), and whose largest

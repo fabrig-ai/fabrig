@@ -274,6 +274,11 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
   | conflicted paths in one merge | past 4, the bound then, on a goal's merge (2026-11-11) | `checkout.conflicts` 512 and `git_component.stdout_bytes` 131,072 in both profiles, for a merge of a few hundred conflicted paths (`limits.md`, the checkout's capacity) |
 
+  The stock's counts that dev.fabrig.ai's documents override are sized
+  at twice its figures where those run above this table's defaults
+  (`limits.md`, sized from what), and the stock's carriers are derived
+  (`derived.md`). The table's defaults hold elsewhere.
+
   The stock and the reference's whole delegation (`reference.md`) fit the
   sixteen entries ctl's settings form takes in an authority's list.
   A limit the table does not name moves with the ones it is coupled to

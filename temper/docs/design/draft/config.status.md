@@ -5,13 +5,14 @@
 - **Design lags:**
   - 1, 3, 4: `../protocol/configuration/README.md`, sections 1, 2, 3, 6 and 8, give one JSON document, `temper.json`, with jig's three parts at its top level, and every member written out; `../protocol/configuration/engine.md` gives `application`'s members; `../protocol/setup/init.md`, sections 2 and 3, give the documents `init` writes, the box's of 631 lines.
   - 4.5: `../protocol/documentation.md`, section 8, renders `configuration` and `configuration-engine` from the JSON document's decoders, and `limits` and `limits-engine` with `small`'s values.
-  - 5: `../protocol/configuration/limits.md` and jig's `protocol/limits.md` give two profiles that a document names, `small` and `standard`, overridden by dotted name in the document; `../protocol/configuration/stock.md` sizes `standard` at five times fabrig's largest figures, below dev.fabrig.ai's in 43 limits.
+  - 5: `../protocol/configuration/limits.md` and jig's `protocol/limits.md` give one stock, but a document still overrides it by dotted name in its `limits`, and the counts are constants, not formulas of `live_goals`; `memory_bytes` is still the document's (5.3).
   - 6.1, 6.2: `../protocol/configuration/settings.md`, section 1, keeps the limits and `engine.llm` in the document, the providers leaving it "by a design of their own, later".
   - 6.3: `../protocol/configuration/README.md`, section 4, has a person write smith's agent configuration, and smith's `protocol/agent.md`, section 4 reads it from a file a worker names.
   - 6.4: `../protocol/configuration/engine.md` and `../protocol/forge/engine.md`, section 1, take an owned or fake forge's place from the document's `machine`.
   - 6.7: `../protocol/cluster.md`, section 2, and jig's `domain/engine/fleet.md` make each worker a configured position of the engine's document, admitted by a digest file, so that adding one is a new document and the cluster's restart.
-  - 7: the start's checks of `../protocol/configuration/README.md`, section 2, and `../protocol/configuration/limits.md` refuse a document whose coupled figures disagree, where this draft derives them.
+  - 7: `../protocol/configuration/derived.md` derives the turn's, the payload's and the clients' carriers and a worker's places, but not the graces, and not the engine's limits on workers from the workers' settings.
 - **Design departs:**
+  - 5.2: the stock agent's tool payload is 63,740, dev's, not 64 KiB, since skein's rule, (payload + 260) × 6 ≤ output × 8, admits no more at the stock's output of 48,000 (`../protocol/configuration/derived.md`, section 3). Decided by N1's design, 2026-11-16.
   - 8: `upgrades.md`, section 10, has each release read the previous release's configuration members. This draft's builds refuse a member that moved, and dev.fabrig.ai moves by its operators' steps, by the user's word until v0.1.0 has users (`notes.md`, section 21).
 - **Open:**
   - 11: a raise taken at once by every child; the memory budget's stock; an override's reason; the webhooks' listener. Each has a default in its question.
