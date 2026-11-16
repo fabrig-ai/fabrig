@@ -15,6 +15,9 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:** the whole document: teardown's check counts a story's
+  kills by its `Kill` steps alone; a cancel's kill isn't yet asked for.
+  [in flight: change 5893]
 - **Not yet:**
   the whole document: `suite::goal_delivery` still runs here, its checks
   not yet in the system world. [in flight: change 4723]

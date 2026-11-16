@@ -37,9 +37,12 @@ times, and the worker logs a line for it
 A real-loop story that fails on a kill it didn't ask for names each kill's
 target, killer, time and reason, with the service's notes from the run's
 last seconds (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
-The reference case's three-worker story adds s1 once the director holds
-ws, rather than assuming which of two started workers the fleet picks
-first (`draft/real-loop-cancel-kills.status.md`; `testing/reference-case.md`).
+A real-loop story counts a git kill its own cancel causes as asked for,
+pairing it with the worker's note of the cancelled attempt, and the
+reference case's three-worker story adds s1 once the director holds ws,
+rather than assuming which of two started workers the fleet picks first
+(`draft/real-loop-cancel-kills.status.md`; `testing/real-loop.md`;
+`testing/reference-case.md`).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
