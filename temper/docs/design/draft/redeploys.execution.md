@@ -1,6 +1,6 @@
 # redeploys: execution
 
-2026-11-13. How [redeploys.md](redeploys.md) gets carried out. It designs nothing: each milestone writes its own design from the draft as it runs. Goals use the focused and fuzzy suites alone; the drills on the deployments run after landing, as the draft's 7.5 says.
+2026-11-15. How [redeploys.md](redeploys.md) gets carried out. It designs nothing: each milestone writes its own design from the draft as it runs. Goals use the focused and fuzzy suites alone; the drills on the deployments run after landing, as the draft's 7.5 says.
 
 ## 1. The milestones
 
@@ -13,6 +13,7 @@
 | R5, the engine alone: a settled stop that places nothing; the graces sized from the enforced stop bound; workers' openings kept; `upgrade --check` given its verdict on which workers may stay, at R1's floor and at R4's | 5 | temper/migration | R1, R2; goal 648's `upgrade --check` (main `182801bf82`), the store's rehearsal, whose verdict on the workers compares the stored wire numbers | the engine redeployed alone, its runs adopted | built by goal 2288 (`../protocol/wires.md`, 10; `../domain/root.md`, 8.2; jig's `domain/engine/restart.md`, 1; `../protocol/configuration/README.md`; jig's `domain/engine/fleet.md`); its drill not yet run |
 | R6, the redeploy script and its referee: the engine alone by default, workers in turn, every part together across a breaking change | 7 | temper/migration, as the deployments' operator | R2, R3, R5; R4 for the engine alone across a wire change | every redeploy from then on | built by goal 2487 (`../redeploy.md`, `temper-redeploy`); its drill not yet run: each redeploy of dev.fabrig.ai or staging.fabrig.ai waits for the user's yes |
 | R7, the policy for infrastructure failures | 9 | temper/migration | — | none of its own | done |
+| R8, a restart said: the engine's settled stop keeps then says that it restarts, and its restart wait, on each link whose agreed version carries the word, a new version of the workers' wire; the worker keeping its runs through that wait, its stop bound keeping its meaning; every following start holding the runs it restores through the wait and its grace until the word is discharged; a waiting run's relayed calls within their deadlines, and its completions waiting for a valid grant; the redeploy naming who keeps its grace alone, and the referee judging each worker by its wait | 5.2, 5.3, 7.5 | its goal, once approved | R4 (the new version bridged), R5, R6 | the engine redeployed alone for longer than the workers' grace with runs live, its runs adopted, none ended for contact | not started |
 
 ## 2. Order
 
@@ -21,3 +22,4 @@
 - **R5 after R1 and R2:** with R3 too, the redeploy (R6) restarts the engine alone whenever no wire moved, and drains each worker it restarts.
 - **R4 after R1:** then the engine goes alone across a wire change too, and the check judges by floors.
 - **Until R6,** a redeploy restarts every part together, drained once R2 lands (the draft's 7.3).
+- **R8 after R4, R5 and R6:** until it lands, a worker keeps its runs through its grace alone, so the engine restarts alone without cutting runs only within it.
