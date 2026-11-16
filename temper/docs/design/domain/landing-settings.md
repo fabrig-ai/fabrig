@@ -67,6 +67,16 @@ Kind 4's members, each with its default and the section it serves:
   (`../protocol/configuration/engine.md`, *Prepare under `turn`*), and a
   repository that isn't the project's. A removal or a reset is always
   good: the project lands by the defaults above.
+- **Kind 5 fits jig's settings carrier.** Each of its fields keeps its
+  own bound, from the deployment's `forge` limits, but their product can
+  pass what one application setting value carries (jig's
+  `ApplicationValue`, `client-v26-part1.schema`, 1,114,240 bytes): four
+  repositories of 64 gates and 32 tiers, each with four ignored paths
+  of 1,024 bytes, already do. So the judge also refuses a kind 5 value
+  whose encoding passes that carrier, naming `repositories` and the
+  bound, read from the carrier's generated limit rather than restated.
+  Every count's own maximum stays; only the whole is capped, and the
+  default profiles fit far within it (2026-11-16).
 - **Named** `project-landing` and `project-gates`, with the `project`,
   in a settings file and a run's `settings`, `see` and
   `propose_settings`. Their values are JSON with the names and forms of
