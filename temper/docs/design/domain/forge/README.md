@@ -812,7 +812,7 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people/README.md`, section 11).
-- A gate's live run past the stall: `change/repairs.md`, section 1.
+- A gate's live run past the stall: `change/stalls.md`, section 6.
 - A green head no wake reaches: `change/repairs.md`, section 1.
 - A retry before the read: `change/repairs.md`, section 1.
 - A hold at gating at a green head: `change/repairs.md`, section 1.

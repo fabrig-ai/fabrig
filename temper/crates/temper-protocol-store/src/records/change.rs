@@ -1,6 +1,6 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{Duration, List, Wall};
 use temper_engine_domain_forge_change as d;
 use temper_engine_domain_forge_vocabulary as top;
 fn encode_status(value: d::Status) -> w::ChangeStatus {
@@ -587,6 +587,50 @@ fn decode_early(value: w::Early) -> d::Early {
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
+pub(super) fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
+    let clock = clock?;
+    Some(
+        w::ExecutionClock::new(
+            &w::CEILINGS,
+            w::ExecutionClockParts {
+                since: clock.since.as_nanos(),
+                head: clock.head,
+                run: clock.run,
+                attempt: clock.attempt,
+                ran: clock.ran.as_nanos(),
+                waited: clock.waited.as_nanos(),
+                unknown: clock.unknown.as_nanos(),
+                at: clock.at.as_nanos(),
+                seen: match clock.seen {
+                    d::Execution::Unknown => w::Execution::Unknown,
+                    d::Execution::Waiting => w::Execution::Waiting,
+                    d::Execution::Running => w::Execution::Running,
+                },
+            },
+        )
+        .expect(FITS),
+    )
+}
+
+pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
+    let clock = clock?.into_parts();
+    Some(d::Clock {
+        since: Wall::from_nanos(clock.since),
+        head: clock.head,
+        run: clock.run,
+        attempt: clock.attempt,
+        ran: Duration::from_nanos(clock.ran),
+        waited: Duration::from_nanos(clock.waited),
+        unknown: Duration::from_nanos(clock.unknown),
+        at: Wall::from_nanos(clock.at),
+        seen: match clock.seen {
+            w::Execution::Unknown => d::Execution::Unknown,
+            w::Execution::Waiting => d::Execution::Waiting,
+            w::Execution::Running => d::Execution::Running,
+        },
+    })
+}
+
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
     let d::Change {
         early,
@@ -598,6 +642,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         resolutions,
         updates,
         since,
+        clock,
         ready_since,
         owns_turn,
         last_head,
@@ -621,6 +666,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             resolutions: *resolutions,
             updates: *updates,
             since: since.as_nanos(),
+            clock: encode_clock(*clock),
             ready_since: match ready_since {
                 Some(value) => Some(value.as_nanos()),
                 None => None,
@@ -654,6 +700,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         resolutions,
         updates,
         since,
+        clock,
         ready_since,
         owns_turn,
         last_head,
@@ -676,6 +723,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         resolutions,
         updates,
         since: Wall::from_nanos(since),
+        clock: decode_clock(clock),
         ready_since: match ready_since {
             Some(value) => Some(Wall::from_nanos(value)),
             None => None,

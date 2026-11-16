@@ -16,6 +16,7 @@ mod devices;
 mod dismissed;
 mod drafts;
 mod early;
+mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
@@ -159,6 +160,8 @@ pub(crate) const LIMITS: Limits = Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },

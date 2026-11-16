@@ -1,7 +1,7 @@
 use crate::runs;
 use alloc::boxed::Box;
 use skein_forge::api as a;
-use skein_lib::{Duration, Time};
+use skein_lib::{Duration, Time, Wall};
 use temper_engine_domain_forge_landing as policy;
 const COMMIT: a::Commit = [3; 32];
 fn run() -> a::Run {
@@ -33,6 +33,7 @@ pub(super) fn follow() -> runs::Follow {
     follow.writes = Box::new([]);
     follow.start = Some(Time::from_nanos(10));
     follow.since = Some(Time::from_nanos(10));
+    follow.wall = Some(Wall::from_nanos(10));
     follow
 }
 #[test]
@@ -94,27 +95,42 @@ fn only_our_dispatch_at_the_commit_after_start_is_followed() {
                 }),
                 1,
                 Time::from_nanos(20),
+                Wall::from_nanos(20),
                 Duration::from_secs(10)
             )
             .is_none()
     );
     assert_eq!(follow.read(), Some(a::Read::Run { run: 7 }));
-    let ended =
-        follow.answered(Ok(a::Answer::Run(run())), 1, Time::from_nanos(20), Duration::from_secs(10)).expect("one end");
+    let ended = follow
+        .answered(Ok(a::Answer::Run(run())), 1, Time::from_nanos(20), Wall::from_nanos(20), Duration::from_secs(10))
+        .expect("one end");
     assert_eq!(ended.outcome, policy::Verdict::Passed);
-    assert!(follow.answered(Ok(a::Answer::Run(run())), 1, Time::from_nanos(20), Duration::from_secs(10)).is_none());
+    assert!(
+        follow
+            .answered(Ok(a::Answer::Run(run())), 1, Time::from_nanos(20), Wall::from_nanos(20), Duration::from_secs(10))
+            .is_none()
+    );
 }
 #[test]
 fn a_missing_run_is_lost_once_at_its_local_lifetime() {
     let mut follow = follow();
     follow.start = Some(Time::from_nanos(1_000));
     let empty = a::Answer::Runs { runs: Box::new([]), more: false };
-    assert!(follow.answered(Ok(empty.clone()), 1, Time::from_nanos(19), Duration::from_nanos(10)).is_none());
+    assert!(
+        follow
+            .answered(Ok(empty.clone()), 1, Time::from_nanos(19), Wall::from_nanos(19), Duration::from_nanos(10))
+            .is_none()
+    );
     assert_eq!(
-        follow.answered(Ok(empty.clone()), 1, Time::from_nanos(20), Duration::from_nanos(10)).expect("lost").outcome,
+        follow
+            .answered(Ok(empty.clone()), 1, Time::from_nanos(20), Wall::from_nanos(20), Duration::from_nanos(10))
+            .expect("lost")
+            .outcome,
         policy::Verdict::Fault(policy::Fault::Lost)
     );
-    assert!(follow.answered(Ok(empty), 1, Time::from_nanos(21), Duration::from_nanos(10)).is_none());
+    assert!(
+        follow.answered(Ok(empty), 1, Time::from_nanos(21), Wall::from_nanos(21), Duration::from_nanos(10)).is_none()
+    );
 }
 #[test]
 fn an_unseen_run_is_not_lost_until_a_read_answers_without_it() {
@@ -122,7 +138,9 @@ fn an_unseen_run_is_not_lost_until_a_read_answers_without_it() {
         let mut follow = follow();
         for now in [20, 40, 80] {
             assert!(
-                follow.answered(Err(error), 1, Time::from_nanos(now), Duration::from_nanos(10)).is_none(),
+                follow
+                    .answered(Err(error), 1, Time::from_nanos(now), Wall::from_nanos(now), Duration::from_nanos(10))
+                    .is_none(),
                 "{error:?} is not a runner fault"
             );
             assert_eq!(follow.outcome, None);
@@ -131,12 +149,112 @@ fn an_unseen_run_is_not_lost_until_a_read_answers_without_it() {
         let empty = a::Answer::Runs { runs: Box::new([]), more: false };
         assert_eq!(
             follow
-                .answered(Ok(empty), 1, Time::from_nanos(81), Duration::from_nanos(10))
+                .answered(Ok(empty), 1, Time::from_nanos(81), Wall::from_nanos(81), Duration::from_nanos(10))
                 .expect("answered absence past lifetime")
                 .outcome,
             policy::Verdict::Fault(policy::Fault::Lost)
         );
     }
+}
+
+#[test]
+fn the_execution_clock_counts_from_the_first_running_answer_and_ignores_completion() {
+    let mut follow = follow();
+    let mut run = run();
+    run.state = a::RunState::Waiting;
+    run.conclusion = None;
+    follow.run = Some(run.clone());
+    for now in [20, 40, 80] {
+        assert!(
+            follow
+                .answered(
+                    Ok(a::Answer::Run(run.clone())),
+                    1,
+                    Time::from_nanos(now),
+                    Wall::from_nanos(now),
+                    Duration::from_secs(10)
+                )
+                .is_none()
+        );
+        let clock = follow.clock.expect("a waiting reading");
+        assert_eq!(clock.ran(Wall::from_nanos(now)), Duration::ZERO);
+        assert_eq!(clock.waited(Wall::from_nanos(now)), Duration::from_nanos(now - 20));
+    }
+    run.state = a::RunState::Running;
+    for now in [100, 120, 140] {
+        assert!(
+            follow
+                .answered(
+                    Ok(a::Answer::Run(run.clone())),
+                    1,
+                    Time::from_nanos(now),
+                    Wall::from_nanos(now),
+                    Duration::from_secs(10)
+                )
+                .is_none()
+        );
+        let clock = follow.clock.expect("a running reading");
+        assert_eq!(clock.ran(Wall::from_nanos(now)), Duration::from_nanos(now - 100));
+        assert_eq!(clock.waited(Wall::from_nanos(now)), Duration::from_nanos(80));
+    }
+    let clock = follow.clock;
+    run.state = a::RunState::Completed;
+    run.conclusion = Some(a::Conclusion::Success);
+    assert!(
+        follow
+            .answered(Ok(a::Answer::Run(run)), 1, Time::from_nanos(160), Wall::from_nanos(160), Duration::from_secs(10))
+            .is_some()
+    );
+    assert_eq!(follow.clock, clock, "a completed answer adds no reading");
+}
+
+#[test]
+fn a_listing_reads_the_highest_attempt_and_a_rerun_write_starts_a_fresh_clock() {
+    let mut follow = follow();
+    let mut run = run();
+    run.state = a::RunState::Running;
+    run.conclusion = None;
+    let job = a::RunJob {
+        id: 11,
+        name: b"test".as_slice().into(),
+        attempt: 3,
+        state: a::RunState::Running,
+        conclusion: None,
+        step: None,
+        steps: 0,
+    };
+    run.jobs = Box::new([job.clone(), a::RunJob { id: 12, attempt: 2, ..job }]);
+    assert!(
+        follow
+            .answered(
+                Ok(a::Answer::Runs { runs: Box::new([run.clone()]), more: false }),
+                1,
+                Time::from_nanos(20),
+                Wall::from_nanos(20),
+                Duration::from_secs(10)
+            )
+            .is_none()
+    );
+    let clock = follow.clock.expect("a listing reads execution too");
+    assert_eq!(clock.attempt, 3);
+    assert_eq!(clock.ran(Wall::from_nanos(80)), Duration::from_nanos(60));
+    follow.writes =
+        Box::new([a::Write::Rerun { attempt: a::JobAttempt { head: COMMIT, run: 7, job: 11, attempt: 3 } }]);
+    assert!(follow.write(10).is_some());
+    follow.wall = Some(Wall::from_nanos(80));
+    follow.waiting = false;
+    assert!(
+        follow
+            .answered(Ok(a::Answer::Run(run)), 1, Time::from_nanos(100), Wall::from_nanos(100), Duration::from_secs(10))
+            .is_none()
+    );
+    let clock = follow.clock.expect("the rerun's first answer");
+    assert_eq!(clock.since, Wall::from_nanos(80));
+    assert_eq!(
+        clock.ran(Wall::from_nanos(120)),
+        Duration::from_nanos(20),
+        "even an unchanged forge attempt starts afresh after our write"
+    );
 }
 
 #[test]

@@ -47,7 +47,7 @@ fn a_newer_temper_keyed_request_is_not_served_and_admits_nothing() {
             range = Some((served.first(), served.last()));
         }
     }
-    assert_eq!(range, Some((26, 26)));
+    assert_eq!(range, Some((27, 27)));
     assert_eq!(engine.domain.deployment().tasks, before);
     assert!(engine.events.is_empty());
 }
