@@ -159,7 +159,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].setups, ["fresh", "project"]);
     let command = &run.processes.commands[0];
     assert_eq!(command.arguments, ["agent", "--effort=cheap"]);
-    assert_eq!(command.directory, world.home.session_directory(1).join("tree"));
+    assert_eq!(command.directory, world.home.triage_tree());
     assert_eq!(command.output, world.home.session_directory(1).join("output"));
     for (key, value) in [
         ("CAPTURED", "kept".to_owned()),
@@ -225,7 +225,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].tokens, Some(1234));
     assert_eq!(ledger.sessions.len(), 2);
     assert_eq!(ledger.sessions[1].landing, Some(2));
-    assert!(!world.home.session_directory(1).join("tree").exists());
+    assert!(world.home.triage_tree().is_dir());
     let brief = fs::read_to_string(world.home.session_directory(2).join("brief")).expect("second brief");
     for words in ["Case 1: web / work; landings 1", "setup fresh", "open Work", "Drafts lists the draft"] {
         assert!(brief.contains(words), "{words}");
@@ -338,7 +338,7 @@ fn refusing_a_worktree_or_command_ends_unstarted_and_leaves_the_landing_count_un
         assert_eq!(ledger.sessions[0].exit, Some(Exit::Unstarted));
         assert_eq!(ledger.landings[0].sessions, 0);
         assert_eq!(ledger.landings[0].triaged, None);
-        assert!(!world.home.session_directory(1).join("tree").exists());
+        assert_eq!(world.home.triage_tree().is_dir(), !git_refuses);
         run.git.fail_add = false;
         run.processes.next.clear();
         run.processes.next.push_back(Agent::None);
@@ -462,29 +462,29 @@ fn a_step_failing_for_an_hour_is_one_line_until_it_succeeds() {
 }
 
 #[test]
-fn cycles_wait_for_poll_but_wake_on_agent_exit_or_bound() {
+fn cycles_wait_for_events_and_the_nearest_bound_without_polling() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::None]);
-    run.cycle();
-    assert_eq!(run.clock.time, 60, "an idle cycle waits for poll");
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("idle timeout"), None);
     land(&mut run, 2, 7);
+    run.waker().poke();
     run.cycle();
-    assert_eq!(run.clock.time, 61, "the first one-second probe sees the exit");
-    assert_eq!(world.ledger().sessions[0].exit, None, "the next tick records the end");
-    assert!(world.ledger().landings[0].answer.is_some(), "commands can record between ticks");
+    assert_eq!(run.clock.time, 0, "a poke runs a tick at once");
+    assert_eq!(world.ledger().sessions.len(), 1);
     run.cycle();
-    assert_eq!(world.ledger().sessions[0].ended, Some(61));
-    assert_eq!(run.clock.time, 121);
+    assert_eq!(world.ledger().sessions[0].ended, Some(0), "exit wakes without advancing the clock");
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("bound"), Some(30));
     run.cycle();
-    assert_eq!(run.clock.time, 30, "the bound also wakes the next tick");
+    assert_eq!(run.clock.time, 30);
     assert_eq!(run.processes.signals, [(1, Signal::Term)]);
-    run.home.configuration.bounds.poll = 0;
-    run.cycle();
-    assert_eq!(run.clock.time, 30, "zero poll has no wait");
+    assert_eq!(world.ledger().sessions[0].exit, Some(Exit::Bound));
+    assert_eq!(run.wait_timeout().expect("pending kill"), Some(10));
 }
 
 #[test]
@@ -766,12 +766,14 @@ printf 'ended\n' >&2
     assert_eq!(before.passes[0].requests[0].goal, Some(41), "file before polling state");
     assert_eq!(before.passes[0].requests[0].ended, None, "stderr cannot end the goal");
     assert_eq!(run.processes.bounded.iter().map(|(_, seconds)| *seconds).collect::<Vec<_>>(), [600, 60]);
+    assert_eq!(run.wait_timeout().expect("waiting goal check"), Some(60));
     run.tick();
     assert_eq!(world.ledger(), before, "live changes nothing");
     fs::write(world.home.directory.join("state-answer"), "ended\n\n").expect("ended");
     run.clock.time = 20;
     run.tick();
     assert_eq!(world.ledger().passes[0].requests[0].ended, Some(20));
+    assert_eq!(run.wait_timeout().expect("ended goal disarms state check"), None);
     let calls = run.processes.bounded.len();
     run.tick();
     assert_eq!(run.processes.bounded.len(), calls, "ended goals are not polled again");
@@ -928,4 +930,48 @@ fn triage_lists_ctl_groups_from_the_merge_tree_before_web_and_tui() {
         assert!(brief.contains(words), "{words}\n{brief}");
     }
     assert!(!brief.contains("ctl and help are outside"));
+}
+
+fn a_running_triage() -> (World, super::world::Loop) {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::None, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.tick();
+    (world, run)
+}
+
+#[test]
+fn a_second_triage_moves_and_cleans_the_kept_tree_instead_of_making_one() {
+    let (world, mut run) = a_running_triage();
+    let tree = world.home.triage_tree();
+    fs::write(tree.join("leftover"), "agent's untracked file").expect("leftover");
+    land(&mut run, 4, 8);
+    run.tick();
+    assert_eq!(run.git.calls.iter().filter(|call| call.starts_with("add ")).count(), 1);
+    assert!(run.git.calls.contains(&format!("checkout {}", id(4))));
+    assert!(run.git.calls.contains(&"clean -ffdxq".into()));
+    assert!(!run.git.calls.iter().any(|call| call.starts_with("remove ")));
+    assert!(!tree.join("leftover").exists());
+    assert_eq!(run.processes.commands[0].directory, tree);
+    assert_eq!(run.processes.commands[1].directory, tree);
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains(&format!("Tree: {}", tree.display())));
+}
+
+#[test]
+fn a_failed_triage_tree_move_removes_and_makes_it_again() {
+    let (world, mut run) = a_running_triage();
+    fs::write(world.home.triage_tree().join("leftover"), "old").expect("leftover");
+    run.git.move_error = Some("checkout refused".into());
+    land(&mut run, 4, 8);
+    run.tick();
+    let calls = &run.git.calls;
+    let moved = calls.iter().position(|call| call == &format!("checkout {}", id(4))).expect("move tried");
+    let removed = calls.iter().position(|call| call.starts_with("remove ")).expect("removed");
+    let added = calls.iter().position(|call| call == &format!("add {}", id(4))).expect("made again");
+    assert!(moved < removed && removed < added);
+    assert_eq!(run.git.prunes, 1);
+    assert!(!world.home.triage_tree().join("leftover").exists());
+    assert_eq!(world.ledger().sessions[1].exit, None);
 }

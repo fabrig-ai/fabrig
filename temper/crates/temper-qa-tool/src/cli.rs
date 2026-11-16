@@ -140,6 +140,17 @@ const RUN: Command = Command {
     variables: &[&HOME],
     notes: "Holds run.lock for its life; reads qa.json once at start.",
 };
+const WAKE: Command = Command {
+    reach: Reach::Words(&["wake"]),
+    set: Set::Internal,
+    forms: &[""],
+    line: "Wake the QA loop after moving main's ref.",
+    arguments: &[],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "Connects to run.sock and closes; no running loop is no error.",
+};
 const SHOW: Command = Command {
     reach: Reach::Words(&["show"]),
     set: Set::Internal,
@@ -268,8 +279,8 @@ pub const TABLE: Table = Table {
     version: "",
     commit: "",
     commands: &[
-        RUN, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES,
-        REPORT, TUNE,
+        RUN, WAKE, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW,
+        LINES, REPORT, TUNE,
     ],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
@@ -547,6 +558,10 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     };
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let directory = Path::new(OsStr::from_bytes(directory));
+    if command == &WAKE {
+        crate::events::poke(directory)?;
+        return Ok(String::new());
+    }
     // Session commands run from another working directory, so the home placed
     // in their environment must not depend on this command's working directory.
     let absolute = if command == &RUN {
