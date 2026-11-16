@@ -904,6 +904,7 @@ impl Judge {
             Step::Terminal(_) => return Err("Terminal unsupported".into()),
             Step::Browse { .. } => return Err("Browse unsupported".into()),
             Step::Authorize => return Err("Authorize unsupported".into()),
+            Step::TrialEnded => return Err("TrialEnded unsupported".into()),
             Step::Return => return Err("Return unsupported".into()),
             Step::ClaudeTurn { .. } => return Err("ClaudeTurn unsupported".into()),
         }
@@ -1148,6 +1149,7 @@ fn describe(step: &calls::Step) -> String {
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),
+        Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),

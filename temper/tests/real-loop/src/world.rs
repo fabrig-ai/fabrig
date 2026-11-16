@@ -935,6 +935,14 @@ impl Referee<Proc> for Judge {
         else {
             return Err("root admission order".into());
         };
+        // This story-local join observes the engine's durable terminal record,
+        // even when the live task has already been reclaimed before Ready closes.
+        if procs.iter().any(|proc| {
+            matches!(&proc.kind, Kind::Service(host) if host.service.as_ref().and_then(crate::service::Driven::engine_domain).is_some())
+                && proc.diagnostics.terminals.ended.contains(&crate::calls::TRIAL_TASK)
+        }) {
+            caller.trial_ended.set(true);
+        }
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
         let mut workers_changed = false;
