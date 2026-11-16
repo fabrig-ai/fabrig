@@ -3473,6 +3473,37 @@ fn issue_count(world: &mut World) -> usize {
     items.len()
 }
 
+#[test]
+fn a_settled_stop_says_its_configured_restart_wait_after_commit_before_drained() {
+    let wait = Duration::from_secs(900);
+    let mut world = World::new().with_restart_wait(wait, false);
+    for _ in 0..80 {
+        world.tick();
+    }
+    let commits = world.store.header().commits;
+    world.send(engine::Event::Stop);
+    assert!(world.restarting.is_empty(), "the word waits for its decision");
+    assert!(world.drained.is_none());
+    drain_stop(&mut world);
+    assert_eq!(world.store.header().restart_wait_ms, Some(900_000));
+    assert_eq!(world.restarting.as_slice(), &[(wait, commits + 1)]);
+    assert_eq!(world.drained, Some(commits + 1));
+}
+
+#[test]
+fn a_zero_wait_or_in_process_workers_says_no_restart() {
+    for (wait, in_process) in [(Duration::ZERO, false), (Duration::from_secs(900), true)] {
+        let mut world = World::new().with_restart_wait(wait, in_process);
+        for _ in 0..80 {
+            world.tick();
+        }
+        world.send(engine::Event::Stop);
+        drain_stop(&mut world);
+        assert!(world.restarting.is_empty(), "wait {wait:?}, in process {in_process}");
+        assert_eq!(world.store.header().restart_wait_ms, None);
+    }
+}
+
 // A settled stop keeps its restart word; a committed forge effect stays
 // with the connector (jig's `domain/engine/restart.md`, 1).
 #[test]

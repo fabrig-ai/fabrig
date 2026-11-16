@@ -885,6 +885,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),
             }
@@ -1019,6 +1020,7 @@ impl World {
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")

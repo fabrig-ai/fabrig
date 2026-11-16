@@ -846,6 +846,7 @@ impl StartStore {
                     | engine::Request::Forge { .. }
                     | engine::Request::Account(_)
                     | engine::Request::Busy(_)
+                    | engine::Request::Restarting { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
             } else if root.ready() {

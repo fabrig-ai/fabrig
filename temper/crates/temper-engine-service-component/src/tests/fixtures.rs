@@ -416,6 +416,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::Forge { .. }
                 | root::Request::Account(_)
                 | root::Request::Busy(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => panic!("first-start fixture output: {request:?}"),
             }
@@ -1059,6 +1060,7 @@ pub fn settle_root(
                 | root::Request::Forge { .. }
                 | root::Request::Busy(_)
                 | root::Request::Unsettled(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop => {
                     panic!("unexpected chat request")

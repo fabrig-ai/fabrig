@@ -219,6 +219,11 @@ impl Channel {
     }
 }
 
+/// An authenticated channel whose hello has crossed, for the service's stop routing.
+pub(super) fn opened_engine() -> engine::Component {
+    Channel::new().engine
+}
+
 fn exchange(
     ask: temper_worker_domain::wire::Ask,
     expected: temper_worker_domain::wire::Answer,
