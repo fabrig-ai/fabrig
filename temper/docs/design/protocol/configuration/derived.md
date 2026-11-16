@@ -124,6 +124,25 @@ writes only `slots`.
 - **A box's worker** is admitted at its document's `slots`, which the
   start checks against the ceiling, as today.
 
+### 5.4 Where the code is
+
+- **temper's derivations** live in `temper-service-core`'s `derived`
+  module, which the engine's, the box's and the worker's starts share.
+  These names cross changes:
+  - `Sources`: a record of `turn` (T), `payload` (P), `inbox` (the
+    agent's unread messages per run) and `unacknowledged` (its turns
+    held unacknowledged), each a `u32`.
+  - `STOCK`: the stock agent's `Sources`, which are 18,431,842, 63,740,
+    82 and 8 (section 3).
+  - Taking a process's `Sources` from its agent's declaration, as
+    today's checks read the agent.
+- **jig's reader** derives the stream carriers and a worker's hub slots
+  (5.2), and reads a document over a base: `jig-protocol-config`'s
+  `stock()`, `engine_over` and `worker_over` (jig's
+  `protocol/limits.md`, the stock).
+- **`Sources` is a projection** of the agent's declaration, the four
+  figures that the derivations read. It isn't a second agent type.
+
 ## 6. Tests
 
 - **Each formula of 5.1 and 5.2 has a focused test** in the crate that
