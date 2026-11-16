@@ -56,6 +56,13 @@ files'.
     service as a box's process for the walk (`../testing/fakes.md`,
     section 6, has it in the worlds alone).
   - 10: `../../development/acceptance.md` holds no story of it.
+- **Design departs:** 2, from `home-for-a-person.md`, section 5, which
+  the user approved on 2026-11-15: the kinds hold an eleventh, movable,
+  `findings`, starting work on findings, at "asks you; Away may decide"
+  in Agents review's and Draft first's defaults and with no item on You
+  approve (`../domain/forge/attention.md`, 6), so that the triager's
+  question over a group says why it reached its person and offers its
+  Stop asking; F2's design wrote it, goal 4747, 2026-11-16.
 - **Design departs:** 9, decided by N3b's designer, goal 492, on
   2026-11-11: a device is registered by `temper ctl push add FILE`, not
   `temper ctl me push add`, because `me` is a read and the tools' parser

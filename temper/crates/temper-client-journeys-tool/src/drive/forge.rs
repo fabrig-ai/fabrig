@@ -20,6 +20,7 @@ enum Stage {
     Log,
     Files,
     Repository,
+    Branch,
     File,
     Commit,
     Checks,
@@ -34,6 +35,8 @@ pub(super) struct Pending {
     files: Vec<FileChange>,
     index: usize,
     branch: Box<[u8]>,
+    target_branch: Option<Box<[u8]>>,
+    new_branch: Option<Box<[u8]>>,
     stage: Stage,
     method: Method,
     path: Box<[u8]>,
@@ -42,13 +45,14 @@ pub(super) struct Pending {
 impl Machine {
     pub(super) fn forge_start(&mut self, now: Time, out: &mut Vec<Action>) {
         let Some(Record::Forge(record)) = self.current.as_ref().map(Line::record) else { unreachable!("forge line") };
-        let (repository, message, files) = match record {
-            Forge::Commit { repository, message, paths } => (
+        let (repository, target_branch, message, files) = match record {
+            Forge::Commit { repository, branch, message, paths } => (
                 repository.clone(),
+                branch.clone(),
                 Some(message.clone()),
                 paths.iter().map(|path| FileChange { path: path.clone(), content: Box::new([]), sha: None }).collect(),
             ),
-            Forge::Checks { repository } => (repository.clone(), None, vec![]),
+            Forge::Checks { repository } => (repository.clone(), None, None, vec![]),
         };
         let log = self.plan.options.scratch.join("session/box.log");
         self.wait(Phase::Forge, now, if message.is_some() { STEP } else { CHECKS });
@@ -61,6 +65,8 @@ impl Machine {
             files,
             index: 0,
             branch: Box::new([]),
+            target_branch,
+            new_branch: None,
             stage: Stage::Log,
             method: Method::Get,
             path: Box::new([]),
@@ -154,6 +160,9 @@ impl Pending {
         let mut body: Box<[u8]> = Box::new([]);
         let path = match self.stage {
             Stage::Repository => repo,
+            Stage::Branch => {
+                format!("{repo}/branches/{}", encoded(self.target_branch.as_deref().expect("push branch"), false))
+            }
             Stage::File => format!(
                 "{repo}/contents/{}?ref={}",
                 encoded(&self.files[self.index].path, true),
@@ -167,6 +176,7 @@ impl Pending {
                 let request = Request::ChangeFiles {
                     at: Repo { owner: owner.into(), name: name.into() },
                     branch: self.branch.clone(),
+                    new_branch: self.new_branch.clone(),
                     message: self.message.clone().expect("commit message"),
                     files: self.files.clone().into(),
                 };
@@ -198,13 +208,20 @@ impl Pending {
         })
     }
     fn response(&mut self, status: u16, body: &[u8]) -> Result<Option<Vec<String>>, String> {
-        if !((200..300).contains(&status) || self.stage == Stage::File && status == 404) {
+        if !((200..300).contains(&status)
+            || (self.stage == Stage::File || self.stage == Stage::Branch) && status == 404)
+        {
             return Err(format!(
                 "{} {}: HTTP {status}: {}",
                 if self.method == Method::Post { "POST" } else { "GET" },
                 String::from_utf8_lossy(&self.path),
                 String::from_utf8_lossy(body.get(..4096).unwrap_or(body))
             ));
+        }
+        if self.stage == Stage::Branch && status == 404 {
+            self.new_branch = self.target_branch.clone();
+            self.stage = Stage::File;
+            return Ok(None);
         }
         if self.stage == Stage::File && status == 404 {
             self.next_file();
@@ -218,7 +235,17 @@ impl Pending {
                 if self.branch.is_empty() {
                     return Err("repository lacks default_branch".into());
                 }
-                self.stage = if self.message.is_some() { Stage::File } else { Stage::Checks };
+                self.stage = if self.target_branch.is_some() {
+                    Stage::Branch
+                } else if self.message.is_some() {
+                    Stage::File
+                } else {
+                    Stage::Checks
+                };
+            }
+            Stage::Branch => {
+                self.branch = self.target_branch.clone().expect("push branch");
+                self.stage = Stage::File;
             }
             Stage::File => {
                 self.files[self.index].sha = Some(text(&doc, 0, b"sha")?.into());

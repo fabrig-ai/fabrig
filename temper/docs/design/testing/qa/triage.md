@@ -1,10 +1,10 @@
 # Triage
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
 `../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
-main's order, answering no QA or cases through the ledger's commands.
+main's order, answering no QA, cases or gaps through the ledger's commands.
 
 ## 1. In one page
 
@@ -16,7 +16,8 @@ main's order, answering no QA or cases through the ledger's commands.
   catalogue and the cases queued, in a brief on its stdin and a tree of
   the merge to read.
 - **It answers** (section 4) through `temper-qa triage none WHY` or
-  `temper-qa triage case FILE`, each recorded at once; a case for a page
+  `temper-qa triage case FILE` or `temper-qa triage gap KIND WHY`
+  (`gaps.md`, 2), each recorded at once; a case for a page
   a queued case covers joins it.
 - **Cheap** (section 5): the agent's command line at triage's effort,
   within `bounds.triage`; it reads, and starts no box.
@@ -34,15 +35,23 @@ there is a next landing:
 2. **Recorded:** a session in the ledger, `triage`, its landing, its
    effort (`agent.triage`), its start, and the pages and setups its
    commands check against (`ledger.md`, 2.5).
-3. **Its directory,** `sessions/N/` in the home: `brief` (section 3),
-   `diff.patch`, `git diff MERGE^1 MERGE`, and `tree/`, `git -C
-   DIRECTORY worktree add --detach sessions/N/tree MERGE`, for the agent
-   to read the whole tree at the merge.
+3. **Its directory,** `sessions/N/` in the home: `brief` (section 3)
+   and `diff.patch`, `git diff MERGE^1 MERGE`. Its tree is the kept
+   `trees/triage`, under the home's private `trees/` directory, for the
+   agent to read the whole tree at the merge. If absent, made with
+   `git worktree add --detach trees/triage MERGE`; if present, moved
+   with `git checkout --force --detach MERGE` then `git clean -ffdxq`
+   in that tree. Thus each session starts with exactly the merge's
+   files, whatever its predecessor left. If either move command fails,
+   the tree is removed with `git worktree remove --force`, the worktree
+   registrations pruned and the tree made again. A failed add is cleaned
+   up too. The brief names this kept tree.
 4. **The agent started** (section 5).
 
 A start that fails before the agent runs (git refusing, the command not
 found) ends the session `unstarted`: it counts for no landing's
-`sessions`, its tree is removed, and the failure is the loop's step's
+`sessions`, its kept tree stays for the next start, and the failure is
+the loop's step's
 (`README.md`, 4), tried again at the next tick.
 
 ## 3. Its brief
@@ -51,7 +60,10 @@ found) ends the session `unstarted`: it counts for no landing's
 this order:
 
 - **What triage is,** from `../../draft/landed-qa.md`, 4: what a person
-  now sees or does through ctl, the web client or the TUI, ctl first:
+  now sees or does through the configured surfaces alone
+  (`README.md`, 3.2), named in the opening words: with `["ctl"]`,
+  through ctl; with all three, through ctl, the web client or the TUI.
+  Ctl comes first where configured:
   a landing's ctl cases written before its web and TUI ones, the
   person's acts and temper's account as `temper ctl` gives them, each
   case on a setup of a kind that takes its surface (a deployment's setup
@@ -59,11 +71,9 @@ this order:
   `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
   draft's promises, written before anything is tried; no QA, with a line
   why, when the landing changes nothing a person meets there; the fakes
-  alone, the person's forge the box's fake Forgejo, so what only the
-  box's own Forgejo or another real backend shows is no case, and a
-  landing that changes nothing else a person meets is no QA, its line
-  saying so (`../../draft/landed-qa.md`, 6 and 12); reading alone, no
-  box started, within its bound.
+  alone, the person's forge the box's fake Forgejo; what a person
+  meets that these cannot show is a gap (`../../draft/landed-qa.md`,
+  6 and 12); reading alone, no box started, within its bound.
 - **The landing:** its number, goal, pull request, merge commit and
   title.
 - **Its drafts,** each a path in the tree: every draft the merge's
@@ -95,7 +105,8 @@ this order:
   directory, never a thousand.
 - **Its commits' `QA:` trailers:** each value of a `QA:` trailer among
   `git log MERGE^1..MERGE`, each once, in order; none, said.
-- **The surfaces,** ctl's first:
+- **The configured surfaces alone,** ctl's first, with each configured
+  surface's entries and design below; an absent surface has neither:
   - `ctl`: each group of ctl's tools, from the pages of
     `temper/docs/help/reference/` at MERGE whose names start `ctl-`,
     each group named by the rest of its page's stem
@@ -119,7 +130,14 @@ this order:
   chain's root's (`../../client/recipe.md`, 2): the tool follows each
   `recipe`'s `after` line to the root, through at most eight parents,
   and the root holding `config/` is a deployment's; a chain it cannot
-  follow is a box's. These names are the session's `setups`, those of
+  follow is a box's. When neither `web` nor `tui` is configured, the
+  catalogue offers `fresh` and only the recipes whose whole chain,
+  the recipe and its `after` ancestors, holds no `web` or `tui` line:
+  these walk in a ctl session without a browser
+  (`../../client/recipe.md`, 5.1). A missing recipe or parent, a cycle,
+  or more than eight parents leaves that setup out. With `web` or
+  `tui` configured, the catalogue offers every setup.
+  These names are the session's `setups`, those of
   a deployment's kind its `deployments` (`ledger.md`, 2.5); with no
   recipe yet, `fresh` alone, and a case says in `adds` what it needs.
 - **The cases queued:** each case's number, surface, page and landings,
@@ -127,6 +145,20 @@ this order:
   for one of their pages joins it.
 - **The commands** (section 4), the case file's form, and that each is
   recorded at once, so a session ended early loses nothing recorded.
+  Where ctl is configured, the case form says do is ctl or forge drive
+  lines and gives their byte rule in one line: quoted bytes take
+  printable ASCII alone, other bytes as `\xHH`, with `\"` and `\\` for
+  quote and backslash (`../../client/drive.md`, 3.1).
+
+After the commands the brief says: "A landing a person would meet
+that no case can judge yet, because ctl offers no way to do or see it,
+the fakes show no such behaviour, or QA's lines and setups can't reach
+it, is a gap: `temper-qa triage gap KIND WHY`, never none."
+
+When a landing closes its gap, its earlier gap and session brief stay
+beside the new triage (`gaps.md`, 7). Its diff and drafts are the
+original landing's; its surfaces, setups and kept tree are the newest
+kept build holding the closing landing's (`ledger.md`, 4.18).
 
 ## 4. Its answers
 
@@ -135,7 +167,8 @@ this order:
 - **`temper-qa triage case FILE`:** FILE a path, or `-` for stdin, holding
   one JSON object:
 
-  `surface` is `ctl`, `web` or `tui`; for `ctl`, `page` is a group of
+  `surface` is one of the configured surfaces, `ctl`, `web` or `tui`;
+  another refuses, naming the surfaces triage takes. For `ctl`, `page` is a group of
   ctl's tools (`landing`), each step's `do` a ctl act or wait as the
   person types it, and `see` words ctl prints:
 
@@ -152,9 +185,17 @@ this order:
   }
   ```
 
+  `setup` must be among the session's catalogue. When neither `web`
+  nor `tui` is configured, a setup outside it refuses with the reason:
+  ctl-only triage takes `fresh` and recipe chains with no `web` or
+  `tui` lines. The page must be among that surface's session pages.
   `adds` and each `see` optional, the rest required; checked, merged and
   answered as `ledger.md`, 4.3 says, or refused as its section 5 words it.
-- **Both** run in the session's environment (section 5) and record for
+- **`temper-qa triage gap KIND WHY`:** KIND `ctl`, `fake` or `qa`, WHY
+  one nonempty argument: what a person would do or see and what is
+  missing to judge it. Prints `gap N`, answering `gap` unless cases
+  accompany it (`gaps.md`, 2).
+- **All** run in the session's environment (section 5) and record for
   its landing alone.
 
 ## 5. The agent's run
@@ -181,8 +222,8 @@ this order:
 
 - **At the loop's second step,** a session whose process has exited, or
   whose bound has passed, is ended in the ledger with its exit, tokens
-  and time (`ledger.md`, 4.4), and its tree removed (`git worktree
-  remove --force`); `brief`, `diff.patch` and `output` stay.
+  and time (`ledger.md`, 4.4); the kept tree, `brief`, `diff.patch` and
+  `output` stay.
 - **Lost:** a session still running when the loop starts is ended `lost`
   (`README.md`, 4) and counts as any end does.
 - **Then** the next session may start in the same step.

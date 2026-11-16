@@ -577,3 +577,57 @@ fn job_state_images_keep_requirements_and_bridge_legacy_defaults() {
     let stored = domain.repositories.get(domain.id(&repository())).unwrap();
     assert!(stored.workflows[0].requirements.is_empty());
 }
+
+#[test]
+fn declared_ci_and_dispatch_keep_their_waits_and_run_deadlines_across_an_image() {
+    use crate::api::{Conclusion, JobWait, RunState};
+    let mut config = calm();
+    config.latency_min = Duration::ZERO;
+    config.latency_max = Duration::ZERO;
+    config.limits.content_bytes = 128;
+    let mut configured = setup();
+    configured.checks.cue = Some(Cue::Declared { path: copy_of(b"ci") });
+    configured.workflows = Box::new([Workflow {
+        cue: Some(Cue::Declared { path: copy_of(b"ci") }),
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        ..workflow()
+    }]);
+    let mut h = Harness::with(config, configured);
+    let head = h.commit(FIRST, &[(b"ci", b"wait 10m run 1m pass")]);
+    h.push(ENGINE, b"work", head).unwrap();
+    h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"wf"), branch: copy_of(b"work"), inputs: Box::new([]) }));
+    h.until(Time::from_nanos(Duration::from_secs(120).as_nanos()));
+    fire(&mut h.domain, &h.env, &mut h.out);
+    let mut other = restored(&h);
+    for (seconds, wait, state) in [
+        (120, Some(JobWait::Runner), RunState::Running),
+        (599, Some(JobWait::Runner), RunState::Running),
+        (600, None, RunState::Running),
+        (659, None, RunState::Running),
+        (660, None, RunState::Completed),
+    ] {
+        h.until(Time::from_nanos(Duration::from_secs(seconds).as_nanos()));
+        other.until(Time::from_nanos(Duration::from_secs(seconds - 120).as_nanos()));
+        let Answer::Statuses(original) = h.inspect(&Read::Statuses { commit: head }).unwrap() else {
+            panic!("statuses")
+        };
+        let Answer::Statuses(restored) = other.inspect(&Read::Statuses { commit: head }).unwrap() else {
+            panic!("statuses")
+        };
+        assert_eq!(original[0].state, restored[0].state);
+        assert_eq!(restored[0].state, if state == RunState::Completed { Check::Passed } else { Check::Pending });
+        for run in [1, 2] {
+            same_read(&h, &other, Read::Run { run });
+            same_read(&h, &other, Read::Jobs { run });
+            let Answer::Run(view) = other.inspect(&Read::Run { run }).unwrap() else { panic!("run") };
+            assert_eq!((view.wait, view.state), (wait, state), "run {run} at {seconds}");
+            if state == RunState::Completed {
+                assert_eq!(view.conclusion, Some(Conclusion::Success));
+            }
+        }
+        for job in [1, 2] {
+            same_read(&h, &other, Read::Job { job });
+        }
+    }
+}

@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where temper's code lags or departs from [README.md](README.md).
+2026-11-16. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -118,7 +118,9 @@ that proof remains with the after-landing runs (11).
     `MakingMade`, a stub of what the walks proved;
   - the idle-socket walk's log line is `temper-box fake oauth`'s own, so its
     story is the `temper-box` package's focused `suite::fake`, beside the
-    fake's other process stories, where the request has one real-loop
+    fake's other process stories, and its sign-in beside held sockets and
+    turn-away are temper-fake's own, on skein's simulator, placed there by
+    `../draft/focused-pyramid.md`, 4, where the request has one real-loop
     test reject and log: lifting the command's private host into the
     real loop for one line would test a copy of the process, not the
     process.
@@ -139,8 +141,10 @@ that proof remains with the after-landing runs (11).
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).
 
+
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
+
 
 - **Not yet:**
   4.2: temper-box-kit's ctl checks panic where they find, and the fake
@@ -157,4 +161,5 @@ that proof remains with the after-landing runs (11).
   4.2: the worker world's referee of turns panics on a changed replay or
   a turn gap, and the port chooser panics on a narrow range; their
   tests are `#[should_panic]`. [in flight: change 3251]
+
 

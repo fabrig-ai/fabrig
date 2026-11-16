@@ -82,6 +82,8 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
     use temper_engine_domain_forge_change as change;
     seed_reds(service, 77);
     let row = forge::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -113,6 +115,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: None,
@@ -120,6 +123,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

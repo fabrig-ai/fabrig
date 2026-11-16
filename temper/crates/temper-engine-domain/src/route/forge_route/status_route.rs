@@ -1,6 +1,7 @@
 //! Home's status procedure and its agent (temper/docs/design/domain/forge/attention.md, 3).
 use super::{Box, Domain, Env, Limits, ProcedureStep, RunWorkspace, STATUS_CODE, StepEnd, Work, forge, tasks};
 
+mod milestones;
 mod roles;
 pub(crate) use roles::{Reading, indexed as notes_indexed, recalled as notes_recalled, refused as notes_refused};
 
@@ -8,11 +9,12 @@ pub(super) fn start_status_run(
     domain: &mut Domain,
     env: &Env<Limits>,
     project: u32,
+    since: skein_lib::Wall,
     words: Box<[u8]>,
     findings: &[u8],
     signers: &[u64],
 ) {
-    let words = goal_words(domain, env, project, &words, findings, signers);
+    let words = goal_words(domain, env, project, since, &words, findings, signers);
     roles::start(domain, env, project, words);
 }
 
@@ -37,6 +39,7 @@ fn goal_words(
     domain: &Domain,
     env: &Env<Limits>,
     project: u32,
+    since: skein_lib::Wall,
     facts: &[u8],
     findings: &[u8],
     signers: &[u64],
@@ -46,24 +49,27 @@ fn goal_words(
     super::append(&mut words, b"Live goals:\n");
     for candidate in domain.core.tasks.view_tasks() {
         let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
-        if row.project != project || row.tracked.is_none() {
+        if row.project != project || row.tracked.is_none() || tasks::gathering::executor(row.executor) {
             continue;
         }
         let Ok(chip) = jig_domain_core::documents::chip_from_row(&crate::core_limits(&env.limits), row) else {
             continue;
         };
+        if let Some(parent) = milestone_parent(domain, row.requester)
+            && let Ok(chip) = jig_domain_core::documents::chip_from_row(&crate::core_limits(&env.limits), parent)
+        {
+            super::append(&mut words, &chip.title.bytes);
+            super::append(&mut words, " › ".as_bytes());
+        }
         super::append(&mut words, &chip.title.bytes);
         super::append(&mut words, b": ");
         super::append(&mut words, skein_lib::Decimal::of(u64::from(row.ended_delegates.done)).as_bytes());
         super::append(&mut words, b" of ");
-        let ended = row.ended_delegates;
-        let total = u32::try_from(row.delegates.len())
-            .expect("bounded live delegates")
-            .saturating_add(ended.done)
-            .saturating_add(ended.failed);
+        let total = delegate_total(row);
         super::append(&mut words, skein_lib::Decimal::of(u64::from(total)).as_bytes());
         super::append(&mut words, b" delegates done\n");
     }
+    milestones::append(domain, env, project, since, &mut words);
     if !signers.is_empty() {
         super::append(&mut words, b"People who signed:\n");
         for person in signers {
@@ -76,6 +82,22 @@ fn goal_words(
     }
     super::append(&mut words, findings);
     words
+}
+
+fn delegate_total(row: &tasks::TaskRecord) -> u32 {
+    u32::try_from(row.delegates.len())
+        .expect("bounded live delegates")
+        .saturating_add(row.ended_delegates.done)
+        .saturating_add(row.ended_delegates.failed)
+}
+
+fn milestone_parent(domain: &Domain, requester: tasks::Party) -> Option<&tasks::TaskRecord> {
+    let number = match requester {
+        tasks::Party::Task(number) => number,
+        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => return None,
+    };
+    let row = domain.core.tasks.task(number)?;
+    if tasks::gathering::executor(row.executor) { Some(row) } else { None }
 }
 
 fn signer_name(domain: &Domain, project: u32, person: u64) -> &[u8] {

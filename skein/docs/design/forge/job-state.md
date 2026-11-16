@@ -4,7 +4,7 @@ Provisional, 2026-11-14. The read that says what a job not yet ended is
 doing: waiting for a runner, blocked by the jobs it needs, or running at
 a step. A service reads it when a wait on CI has passed its bound, to
 say why in the hold it makes (temper's
-`domain/forge/change/repairs.md`, *A stall's hold says where*;
+`domain/forge/change/stalls.md`, 3 and 4;
 `domain/landing.md`, 4.2). It is a call of the vocabulary (README.md,
 3.2), rendered by each dialect (forgejo.md, github.md), and the fake
 forge models the states it reads (../testing/fakes/forge.md, 2.3).
@@ -80,9 +80,14 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
   by default. A job asking for a label no runner serves stays
   `Waiting`, with no steps, its run and its status pending, until the
   world serves the label.
+- **A declared wait:** a job whose head's CI declaration opens with
+  phases is `Waiting`, as above, for its `wait` span, then runs for its
+  `run` span (`../testing/fakes/forge.md`, 2.3), so a commit's CI as
+  well as a dispatched job waits for a runner on the fake.
 - **Needs:** a job naming jobs it needs is `Blocked` until they end.
 - **Running:** a job running has its steps, the one it is at
-  `running`, so a job running past a bound reads at its step.
+  `running`, so a job running past a bound reads at its step, a commit's
+  CI job as a dispatched one.
 - Each wire face, Forgejo's and GitHub's, answers the job's read with
   its forge's words for these states (sections 3 and 4).
 

@@ -703,11 +703,11 @@ fn a_proposal_selects_the_template_it_installs() {
         let mut world = World::stock();
         let run = world.chat(ASK_TEMPLATE, world.owner, 20);
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
-        value["number"] = json!(8);
+        value["number"] = json!(9);
         value["tracked"] = json!(1);
-        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":8});
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":9});
         let mut items = vec![
-            json!({"setting":{"kind":"template","number":8},"set":value}),
+            json!({"setting":{"kind":"template","number":9},"set":value}),
             json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
         ];
         if reverse {
@@ -720,13 +720,13 @@ fn a_proposal_selects_the_template_it_installs() {
         };
         assert_eq!(settings.items.len(), 2);
         assert_eq!(world.head().number, 1, "proposing publishes neither item");
-        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 8"}"#);
+        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 9"}"#);
         assert!(error, "the proposed template is not published");
         let (text, _) = see_whole(&mut world.driver, &run, 13, "settings project-ways");
         assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let installed = see_value(&mut world.driver, &run, 30, "settings template 8");
+        let installed = see_value(&mut world.driver, &run, 30, "settings template 9");
         assert_eq!(installed, value);
         let (text, _) = see_whole(&mut world.driver, &run, 40, "settings project-ways");
         let body = text.lines().nth(1).expect("ways value");
@@ -750,21 +750,21 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .find(|value| value.number == ASK_TEMPLATE)
         .expect("asking template");
     let added = s::Item {
-        setting: s::Setting::Template(8),
-        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 8, ..template }))),
+        setting: s::Setting::Template(9),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 9, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), ASK_TEMPLATE, true),
-        ("installed", added.clone(), 8, true),
-        ("absent", added, 9, false),
+        ("installed", added.clone(), 9, true),
+        ("absent", added, 10, false),
         (
             "removed",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Removed },
             ASK_TEMPLATE,
             false,
         ),
-        ("reset addition", s::Item { setting: s::Setting::Template(8), edit: s::Edit::Reset }, 8, false),
+        ("reset addition", s::Item { setting: s::Setting::Template(9), edit: s::Edit::Reset }, 9, false),
         (
             "reset default",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Reset },
@@ -814,7 +814,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
         (1, "project-ways", format!("project-ways {PROJECT}, revision 1\n{{\"drafts\":true,\"goals\":false,\"changes\":false,\"way\":0}}\nthe stock\n")),
         (2, "project-questions", format!("project-questions {PROJECT}, revision 1\n\"none\"\nthe stock\n")),
         (3, "charter-words 4", "charter-words 4, revision 1\n\"reviews each change at its head, and holds it until it approves\"\ndefault, 67 bytes\n".to_owned()),
-        (5, "project-classes", format!("project-classes {PROJECT}, revision 1\n{}\nthe stock\n", r#"{"items":[{"kind":"wording","words":"","class":"decide"},{"kind":"retry","words":"","class":"decide"},{"kind":"tests","words":"","class":"decide"},{"kind":"implementation","words":"","class":"ask"},{"kind":"dependency","words":"","class":"ask"},{"kind":"departure","words":"","class":"ask"}],"sets":[]}"#)),
+        (5, "project-classes", format!("project-classes {PROJECT}, revision 1\n{}\nthe stock\n", r#"{"items":[{"kind":"wording","words":"","class":"decide"},{"kind":"retry","words":"","class":"decide"},{"kind":"tests","words":"","class":"decide"},{"kind":"implementation","words":"","class":"ask"},{"kind":"dependency","words":"","class":"ask"},{"kind":"departure","words":"","class":"ask"},{"kind":"findings","words":"","class":"ask"}],"sets":[]}"#)),
         (4, "charter-words 7", "charter-words 7, revision 1\ncharter-words 7: none kept; Roles says the charter by its instructions' first sentence.\n".to_owned()),
     ] {
         let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {address}"));

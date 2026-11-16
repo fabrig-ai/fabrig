@@ -21,10 +21,6 @@ fn codec_module(name: &str) -> bool {
     ]
     .iter()
     .any(|directory| root.join(directory).join(format!("{family}-v{version}.schema")).is_file())
-        || root
-            .join("crates/jig-protocol-store/schema/kept")
-            .join(format!("jig-store-{family}-v{version}.schema"))
-            .is_file()
 }
 
 fn forbidden_name(name: &str, codec: bool) -> bool {
@@ -341,10 +337,14 @@ fn versioned_codec_names_require_a_schema() {
 #[test]
 fn kept_codec_names_require_a_retained_schema() {
     let path = Path::new("fixture/codecs.rs");
-    let source = "use crate::{people_v16, people_v0, unknown_v16};";
+    let source = "use crate::{people_v17, people_v16, people_v0, unknown_v16};";
     assert_eq!(
         breaches(path, source),
-        ["fixture/codecs.rs:1: identifier people_v0", "fixture/codecs.rs:1: identifier unknown_v16"]
+        [
+            "fixture/codecs.rs:1: identifier people_v16",
+            "fixture/codecs.rs:1: identifier people_v0",
+            "fixture/codecs.rs:1: identifier unknown_v16",
+        ]
     );
 }
 

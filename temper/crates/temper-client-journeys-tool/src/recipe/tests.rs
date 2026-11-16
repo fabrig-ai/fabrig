@@ -24,6 +24,148 @@ fn shown(lines: Vec<WalkLine>) -> Vec<String> {
     lines.into_iter().map(|line| format!("{} {}", line.source, String::from_utf8_lossy(&line.line))).collect()
 }
 #[test]
+fn explicit_check_separates_steps_from_ctl_reads_waits_and_see_lines() {
+    let mut files = Files::new();
+    put(&mut files, "ctl-state", "recipe", b"recipe 1\nctl project make Hello\nforge checks forgejo work/hello\ncheck\nctl project list --until made:1\nctl project show Hello\n");
+    let chain = read(&files, "ctl-state").expect("ctl check");
+    let recipe = &chain.recipes[0];
+    assert_eq!(recipe.steps.len(), 2);
+    assert_eq!(recipe.check.iter().map(|line| line.number).collect::<Vec<_>>(), [5, 6]);
+    assert_eq!(
+        shown(chain.lines(Some("ctl-state")).expect("check from copy")),
+        ["ctl-state:5 ctl project list --until made:1", "ctl-state:6 ctl project show Hello"]
+    );
+    put(
+        &mut files,
+        "mixed",
+        "recipe",
+        b"recipe 1\nweb see \"Wait\"\ncheck\nctl project show Hello\nweb see \"Hello\"\ntui see \"Hello\"\n",
+    );
+    let chain = read(&files, "mixed").expect("explicit mixed check");
+    assert_eq!(chain.recipes[0].steps.len(), 1);
+    assert_eq!(chain.recipes[0].check.len(), 3);
+}
+
+#[test]
+fn explicit_check_refuses_repetition_fields_empty_checks_and_acts() {
+    let mut files = Files::new();
+    for (tail, line, why) in [
+        ("check\nctl project list\ncheck\nctl project list\n", 5, "repeated check"),
+        ("check extra\nctl project list\n", 3, "check takes no fields"),
+        ("check\n", 3, "at least one line"),
+        ("check\nforge checks forgejo work/hello\n", 4, "may follow check"),
+        ("check\ndeployment restart engine\n", 4, "unknown client \"deployment\""),
+        ("check\nweb press button \"Start\"\n", 4, "may follow check"),
+        ("check\nweb reload \"/\"\n", 4, "may follow check"),
+        ("check\ntui key enter\n", 4, "may follow check"),
+        ("check\ntui stop\n", 4, "not recipe acts"),
+        ("check\nweb look\n", 4, "not recipe acts"),
+        ("check\nend\n", 4, "not recipe acts"),
+        ("check\n\n", 4, "not recipe acts"),
+        ("ctl project list\n", 3, "must end"),
+    ] {
+        put(&mut files, "bad", "recipe", format!("recipe 1\nctl project make Hello\n{tail}").as_bytes());
+        let refusal = read(&files, "bad").expect_err(tail);
+        assert_eq!((refusal.name.as_str(), refusal.line), ("bad", Some(line)), "{refusal}");
+        assert!(refusal.why.contains(why), "{refusal}");
+    }
+}
+
+fn ctl_chain() -> Files {
+    let mut files = Files::new();
+    put(&mut files, "root", "recipe", b"recipe 1\nctl project make Hello\ncheck\nctl project show Hello\n");
+    put(&mut files, "child", "recipe", b"recipe 1\nafter \"root\"\nforge checks forgejo work/hello\ncheck\nctl project list --until made:1\nctl project show Hello\n");
+    files
+}
+
+#[test]
+fn ctl_chain_plans_a_ctl_session_without_resets_from_fresh_or_copy() {
+    let chain = read(&ctl_chain(), "child").expect("ctl chain");
+    let fresh = [
+        "root:2 ctl project make Hello",
+        "root:4 ctl project show Hello",
+        "child:3 forge checks forgejo work/hello",
+        "child:5 ctl project list --until made:1",
+        "child:6 ctl project show Hello",
+    ];
+    assert_eq!(shown(chain.lines(None).expect("fresh")), fresh);
+    assert_eq!(shown(chain.lines(Some("root")).expect("root copy")), &fresh[1..]);
+    assert_eq!(shown(chain.lines(Some("child")).expect("child copy")), &fresh[3..]);
+    let options = drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
+        .expect("options");
+    assert!(command::session_options(&chain, Path::new("/recipes"), options).ctl);
+}
+
+#[test]
+fn mixed_chain_keeps_browser_session_and_resets_even_from_a_ctl_copy() {
+    for (recipe, contents) in [
+        ("root", "recipe 1\ntui key enter\ncheck\nctl project show Hello\n"),
+        ("root", "recipe 1\nweb see \"Hello\"\n"),
+        ("child", "recipe 1\nafter \"root\"\nweb press button \"Start\"\nweb see \"Hello\"\n"),
+    ] {
+        let mut files = ctl_chain();
+        put(&mut files, recipe, "recipe", contents.as_bytes());
+        let chain = read(&files, "child").expect("mixed chain");
+        let options =
+            drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
+                .expect("options");
+        assert!(!command::session_options(&chain, Path::new("/recipes"), options).ctl);
+        let fresh = shown(chain.lines(None).expect("fresh"));
+        assert_eq!(fresh.iter().filter(|line| *line == "walk: web reload \"/\"").count(), 2);
+        assert_eq!(fresh.iter().filter(|line| *line == "walk: tui stop").count(), 2);
+        let copy = shown(chain.lines(Some("root")).expect("root copy"));
+        assert_eq!(copy.iter().filter(|line| *line == "walk: web reload \"/\"").count(), 1);
+        assert_eq!(copy.iter().filter(|line| *line == "walk: tui stop").count(), 1);
+        assert!(chain.lines(Some("child")).expect("child check").iter().all(|line| line.source != Source::Walk));
+    }
+}
+
+#[test]
+fn hash_includes_the_check_record_as_written() {
+    let mut files = Files::new();
+    put(&mut files, "root", "recipe", b"recipe 1\nweb see \"Hello\"\n");
+    let implicit = read(&files, "root").expect("implicit check");
+    put(&mut files, "root", "recipe", b"recipe 1\ncheck\nweb see \"Hello\"\n");
+    let explicit = read(&files, "root").expect("explicit check");
+    assert_eq!(implicit.recipes[0].check[0].line.print(), explicit.recipes[0].check[0].line.print());
+    assert_eq!(implicit.recipes[0].check[0].number, 2);
+    assert_eq!(explicit.recipes[0].check[0].number, 3);
+    assert_ne!(implicit.hash(), explicit.hash(), "the delimiter counts even when the check has the same meaning");
+    assert_eq!(hex(explicit.hash()), "9d8f84c3ede54c13aeafa0c30328afb2877655906aa08deb740557715586d844");
+}
+
+#[test]
+fn ctl_check_walk_requires_ok_and_stops_at_its_first_failed_read() {
+    let chain = read(&ctl_chain(), "child").expect("ctl chain");
+    for failed in [None, Some("project absent")] {
+        let (mut walk, first) = Walk::start(&chain, Some("child")).expect("walk check");
+        assert!(
+            matches!(first.as_slice(), [Action::Line(line)] if line.line.as_ref() == b"ctl project list --until made:1")
+        );
+        let actions =
+            walk.step(Event::Answer(Answer { shown: vec!["project list".into()], failed: failed.map(str::to_owned) }));
+        if failed.is_some() {
+            assert!(matches!(actions.last(), Some(Action::End)));
+        } else {
+            assert!(
+                matches!(actions.last(), Some(Action::Line(line)) if line.line.as_ref() == b"ctl project show Hello")
+            );
+            let actions = walk.step(Event::Answer(Answer { shown: vec![], failed: None }));
+            assert!(matches!(actions.last(), Some(Action::End)));
+        }
+        let exit = finished(walk.step(Event::Ended(clean())));
+        assert_eq!(exit.status, if failed.is_some() { 5 } else { 0 });
+        assert_eq!(
+            exit.shown.last().expect("result"),
+            &failed.map_or_else(
+                || format!("walked child {}", hex(chain.hash())),
+                |why| format!("stopped at child:5: {why}"),
+            )
+        );
+    }
+}
+
+#[test]
 fn forge_steps_walk_before_resets_and_checks_from_fresh_or_copy() {
     let mut files = Files::new();
     put(&mut files, "base", "recipe", b"recipe 1\nweb see \"Base\"\n");
@@ -50,6 +192,7 @@ fn forge_steps_walk_before_resets_and_checks_from_fresh_or_copy() {
 fn reads_chain_and_walks_fresh_or_from_a_copy() {
     let files = three();
     let chain = read(&files, "last").expect("chain");
+    assert!(!chain.ctl_only());
     assert_eq!(chain.names().collect::<Vec<_>>(), ["project-landing", "middle", "last"]);
     let middle = &chain.recipes[1];
     assert_eq!(middle.after.as_deref(), Some("project-landing"));
@@ -129,6 +272,112 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
         [br#"web see "Nothing needs you.""#.as_slice()]
     );
+}
+
+/// Ctl alone reaches Hello and the person's model account (testing/qa/setups.md, 2, 6).
+#[test]
+fn ctl_hello_reads_hashes_and_walks_its_steps_and_checks_in_a_ctl_session() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let setups = root.join("docs/development/qa/setups");
+    let chain = Chain::read(&setups, "ctl-hello").expect("ctl-hello chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["ctl-hello"]);
+    assert_ne!(chain.hash(), [0; 32]);
+    let listed = command::catalogue(&Reader::Directory(&setups), vec!["ctl-hello".into()]);
+    assert!(
+        matches!(listed.as_slice(), [line] if line.starts_with("ctl-hello: ") && !line.contains(": refused:")),
+        "{listed:?}"
+    );
+    let design = std::fs::read_to_string(root.join("docs/design/testing/qa/setups.md")).expect("setups design");
+    let block = design.split("  ```text\n").nth(1).expect("recipe block").split("  ```").next().expect("block end");
+    let documented = block.lines().fold(String::new(), |mut text, line| {
+        text.push_str(line.strip_prefix("  ").expect("indented block"));
+        text.push('\n');
+        text
+    });
+    assert_eq!(
+        std::str::from_utf8(&chain.recipes[0].bytes).expect("ASCII recipe"),
+        documented,
+        "recipe bytes are the design's block"
+    );
+    assert_eq!(chain.recipes[0].steps.len(), 5);
+    assert_eq!(chain.recipes[0].check.len(), 2);
+    let lines = chain.lines(None).expect("fresh ctl walk");
+    assert_eq!(
+        shown(lines.clone()),
+        [
+            "ctl-hello:2 ctl project make Hello --key qa-hello-project",
+            "ctl-hello:3 ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello",
+            "ctl-hello:4 ctl forge list --until made:1",
+            "ctl-hello:5 ctl account add-key 1 {model.key} --key qa-model",
+            "ctl-hello:6 ctl account list --until usable",
+            "ctl-hello:8 ctl project show Hello",
+            "ctl-hello:9 ctl account list --until usable",
+        ]
+    );
+    let scratch = skein_scratch::Scratch::new("recipe-ctl-hello");
+    std::fs::create_dir(scratch.path().join("session")).expect("session");
+    let log = b"box: effective data /box/data\nbox: fake forgejo http://127.0.0.1:4321\nbox: Forgejo elsewhere admin token file /box/admin.token\nbox: model key /box/model.key\n";
+    std::fs::write(scratch.path().join("session/box.log"), log).expect("opening lines");
+    let mut options =
+        drive::Options::parse(&args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]))
+            .expect("options");
+    options.scratch = scratch.path().into();
+    let options = command::session_options(&chain, &setups, options);
+    assert!(options.ctl);
+    run_ctl_hello(options, lines, scratch.path());
+}
+
+fn run_ctl_hello(options: drive::Options, lines: Vec<WalkLine>, scratch: &Path) {
+    use drive::{Action, Event, Input, Machine, Output, Plan, Process};
+    use skein_lib::Time;
+
+    let plan = Plan::new(options, std::path::PathBuf::new(), OsStr::new("/bin"));
+    let (mut machine, _) = Machine::start(plan, Time::ZERO);
+    machine.step(
+        Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
+        Time::ZERO,
+    );
+    let actions = machine.step(
+        Event::Exited { process: Process::SignIn, code: 0, stdout: Box::new([]), stderr: Box::new([]) },
+        Time::ZERO,
+    );
+    assert!(matches!(actions.as_slice(), [Action::Ready]));
+    for line in lines {
+        let mut actions = machine.step(Event::Line(line.line.clone()), Time::ZERO);
+        if let [Action::ReadBoxLog { path }] = actions.as_slice() {
+            assert_eq!(path, &scratch.join("session/box.log"));
+            actions = machine.step(Event::BoxLog(Ok(std::fs::read(path).expect("box log").into())), Time::ZERO);
+        }
+        let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else {
+            panic!("{} must start ctl, not refuse a surface: {actions:?}", line.source)
+        };
+        let mut resolved = String::from_utf8(line.line.to_vec()).expect("ASCII ctl line");
+        for (name, value) in [
+            ("{forgejo.admin}", "/box/admin.token"),
+            ("{forgejo.api}", "127.0.0.1:4321"),
+            ("{forgejo.git}", "http://127.0.0.1:4321"),
+            ("{git}", "/box/data/demo/bin/git"),
+            ("{model.key}", "/box/model.key"),
+        ] {
+            resolved = resolved.replace(name, value);
+        }
+        let mut expected: Vec<OsString> = vec!["ctl".into(), scratch.join("session/ctl").into()];
+        expected.extend(resolved.split_whitespace().skip(1).map(OsString::from));
+        assert_eq!(program.args, expected, "{}", line.source);
+        assert_eq!(program.program, Path::new("/build/temper"));
+        assert_eq!(program.input, Input::Null);
+        let actions = machine.step(
+            Event::Exited { process: Process::Ctl, code: 0, stdout: Box::new([]), stderr: Box::new([]) },
+            Time::ZERO,
+        );
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+            if kept == &line.line && answer.failed.is_none()),
+            "{}: {actions:?}",
+            line.source
+        );
+        assert!(machine.ready());
+    }
 }
 
 /// QA uses the fake Forgejo elsewhere, never the owned one (testing/qa/setups.md, 2, 5).
@@ -220,7 +469,7 @@ fn b1_plan_commits_exactly_the_twins_gate_before_waiting_on_checks() {
     let recipe = chain.recipes.last().expect("B1 plan");
     assert_eq!(recipe.after.as_deref(), Some("widget"));
     let mut steps = recipe.steps.iter();
-    let Record::Forge(Forge::Commit { repository, message, paths }) =
+    let Record::Forge(Forge::Commit { repository, message, paths, .. }) =
         steps.next().expect("gate is the first step").line.record()
     else {
         panic!("B1 starts by committing its gate");
@@ -504,6 +753,7 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     assert_eq!(arguments.name.as_deref(), Some("last"));
     assert_eq!(arguments.from.as_deref(), Some("middle"));
     let options = session_options(&chain, &arguments.setups, arguments.drive.expect("drive"));
+    assert!(!options.ctl, "a mixed chain keeps its browser session");
     let plan = drive::Plan::new(options, "/chromium".into(), OsStr::new("/bin"));
     let (machine, actions) = drive::Machine::start(plan, skein_lib::Time::ZERO);
     assert!(!machine.ready());
@@ -528,7 +778,7 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
         (None, true, true, false),
         (Some("middle"), false, false, false),
         (Some("middle"), true, false, false),
-        (Some("middle"), false, true, false),
+        (Some("middle"), false, true, true),
         (Some("middle"), true, true, true),
     ] {
         let result = walk::check_scratch(from, config, data);
@@ -678,4 +928,17 @@ fn walk_commits_each_recipes_own_files_even_when_paths_are_the_same() {
         }
     }
     assert_eq!(committed, ["cGFyZW50IGJ5dGVz", "Y2hpbGQgYnl0ZXM="]);
+}
+
+#[test]
+fn recipe_keeps_a_push_line_and_its_files_for_a_ctl_walk() {
+    let mut files = Files::new();
+    let source = r#"forge push forgejo work/hello work/topic "message" "a.txt""#;
+    put(&mut files, "pushed", "recipe", format!("recipe 1\n{source}\ncheck\nctl change list\n").as_bytes());
+    put(&mut files, "pushed", "files/a.txt", b"pushed bytes");
+    let chain = read(&files, "pushed").expect("push recipe");
+    assert_eq!(chain.recipes[0].files[b"a.txt".as_slice()], b"pushed bytes");
+    assert!(chain.lines(None).expect("walk lines").iter().any(|line| line.line.as_ref() == source.as_bytes()));
+    files.get_mut("pushed").expect("recipe").remove(OsStr::new("files/a.txt"));
+    assert!(read(&files, "pushed").map(|_| ()).expect_err("missing push file").why.contains("missing"));
 }

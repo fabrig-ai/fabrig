@@ -125,6 +125,26 @@ fn the_success_story() {
     assert_eq!(front.runs_answered, 1);
 }
 
+#[test]
+fn an_answered_trial_leaves_home_and_work_empty() {
+    let (mut front, mut root) = trying();
+    h::answer_trial(&mut front, &mut root);
+    assert_eq!(row(&root).state, trials::State::Answered { seconds: 1 });
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Ready });
+
+    press(&mut front, &mut root, Role::Button, b"Create your project");
+    let project = root.person().pages().project().expect("Ready's project");
+    assert_eq!(root.person().pages().address(), &Address::Home { project });
+    press(&mut front, &mut root, Role::Button, b"Skip");
+    let home = shown(&root);
+    assert!(home.contains("Nothing needs you."), "{home}");
+    assert!(home.contains("No chats yet."), "{home}");
+
+    press(&mut front, &mut root, Role::Link, b"Work");
+    let work = shown(&root);
+    assert!(work.contains("Nothing in flight yet."), "{work}");
+}
+
 fn shown(root: &Root) -> String {
     Temper::tree(&drawn(root))
         .nodes()

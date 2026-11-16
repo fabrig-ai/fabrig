@@ -153,7 +153,16 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   keeps, the triager groups the findings that one act would settle, by
   what they are, and asks its person one question a group, where its
   `decided` says Ask: "Three bugs in temper, each with a clear fix. Start
-  a goal for each?" Its question is in the line form
+  a goal for each?" That call names the kind `findings`, starting work
+  on findings (`forge/attention.md`, 6), and no paths, since its choice
+  starts work and changes no file itself: so every group's need reads
+  "Reached you because it starts work on findings, which asks you unless
+  you’re away." on the stock's tables, Home says it once for them all,
+  and its Stop asking lets the triager start goals for findings, then
+  tell its person (`../client/pages/needs-you.md`, 1, *Why it reached
+  you*). Where the call says Decided, the triager carries its
+  recommended choice out and its person reads it under Decided for
+  you, "Allowed: starting work on findings." Its question is in the line form
   (`agent/agents.md`, 2), with a `Findings:` line naming the group's
   findings and a `Group:` line its plural noun and phrase; its context
   says what they share and what the choices weigh; its choices are its

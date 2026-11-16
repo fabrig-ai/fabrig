@@ -8,29 +8,6 @@ use skein_codec::{
 };
 use skein_lib::List;
 
-pub(super) fn patches(store: &Store) -> Result<(), OpenRefusal> {
-    let Some(pending) = &store.directory.patch else { return Ok(()) };
-    for step in pending.plan.steps() {
-        for index in 0..pending.machines.len() {
-            let machine = pending.machines.get(crate::patching::machines::FamilyIx(index));
-            if machine.block(*step).is_none() {
-                continue;
-            }
-            let family = store
-                .patch_sets
-                .sets
-                .get(machine.set)
-                .expect("machine set")
-                .families
-                .get(machine.family)
-                .expect("machine family");
-            if !family.types.is_empty() {
-                return Err(OpenRefusal::Set { owner: step.owner, patch: step.patch });
-            }
-        }
-    }
-    Ok(())
-}
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
     let mut count = 0_u64;
     for space in store.stores.store.census().keyspaces() {
@@ -132,7 +109,7 @@ fn derive(
     }
 }
 fn job(store: &Store, key: &RowKey, row: &Row) -> Option<&'static str> {
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for job in set.jobs {
             if let Some(converts) = &job.converts
                 && key.0.as_ref() == converts.family
@@ -171,7 +148,7 @@ pub(super) fn history_type(family: &str, number: u16) -> bool {
 }
 fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::ValueType)> {
     let mut index = 0_u32;
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             for ty in family.types {
                 if family.name == key.0.as_ref() && ty.number == key.1 {
@@ -211,12 +188,7 @@ pub(super) fn plans(
             }
             None => None,
         };
-        let patches = match &store.directory.patch {
-            Some(pending) => !pending.plan.steps().is_empty(),
-            None => false,
-        };
-        // A patch has not yet moved the active census's version heads to the seed's ids.
-        let values = if history_type(&key.0, key.1) || (!row.stored && patches) {
+        let values = if history_type(&key.0, key.1) {
             None
         } else {
             match found {
@@ -236,8 +208,8 @@ pub(super) fn plans(
                 continue;
             }
             let (_, declaration) = declared.expect("binary type declared");
-            let digest = binary.text(&key.0, true).expect("binary text");
-            let held = binary.held(layouts, digest, true).ok_or(OpenRefusal::Failed)?;
+            let digest = binary.text(&key.0).expect("binary text");
+            let held = binary.held(layouts, digest).ok_or(OpenRefusal::Failed)?;
             let readable = texts::row(layouts, key);
             let new =
                 layouts.texts.get(&digest).ok_or(OpenRefusal::Failed)?.schema.as_ref().ok_or(OpenRefusal::Failed)?;
@@ -290,7 +262,7 @@ pub(super) fn settling(store: &mut Store, family: &str, number: u16) -> Result<b
     if history_type(family, number) && !logs_pending(store)? {
         return Ok(false);
     }
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for held in set.families {
             if held.name != family {
                 continue;
@@ -311,7 +283,7 @@ fn logs_pending(store: &mut Store) -> Result<bool, OpenRefusal> {
     }
 }
 pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             for ty in family.retired {
                 for range in ty.keys {

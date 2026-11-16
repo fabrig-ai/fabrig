@@ -12,6 +12,86 @@ const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
 const REQUEST_KEY: [u8; 16] = [5; 16];
 const WATCHER: Token = Token::new(7);
 #[test]
+fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
+    for (budget, expected_budget) in [
+        (
+            w::OpenBudget::Amount(w::OpenAmount::new(&w::CEILINGS, w::OpenAmountParts { amount: 500 }).unwrap()),
+            forge::OpenBudget::Amount(500),
+        ),
+        (w::OpenBudget::AsAllowed, forge::OpenBudget::AsAllowed),
+    ] {
+        let input = w::OpenChange::new(
+            &w::CEILINGS,
+            w::OpenChangeParts {
+                project: 7,
+                repository: Some(
+                    w::DraftRepository::new(
+                        &w::CEILINGS,
+                        w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
+                    )
+                    .unwrap(),
+                ),
+                branch: b"docs/x".as_slice().into(),
+                at: Some(Box::new([b'a'; 40])),
+                into: Some(b"release".as_slice().into()),
+                title: b"Fix the docs".as_slice().into(),
+                body: Some(b"Keep examples.".as_slice().into()),
+                budget,
+            },
+        )
+        .unwrap();
+        let record =
+            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::OpenChange(input) }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application { request, reply_to, sign_in, key, digest, .. }) = event
+        else {
+            panic!("opening")
+        };
+        assert_eq!((reply_to, sign_in, key, digest), (REPLY, 3, REQUEST_KEY, [7; 32]));
+        assert_eq!(
+            request,
+            root::Application::OpenChange(forge::OpenChange {
+                project: 7,
+                repository: Some(forge::DraftRepository {
+                    owner: b"org".as_slice().into(),
+                    name: b"repo".as_slice().into()
+                }),
+                branch: b"docs/x".as_slice().into(),
+                at: Some(Box::new([b'a'; 40])),
+                into: Some(b"release".as_slice().into()),
+                title: b"Fix the docs".as_slice().into(),
+                body: Some(b"Keep examples.".as_slice().into()),
+                budget: expected_budget,
+            })
+        );
+    }
+    assert_eq!(
+        encoded(Some(forge::ApplicationOutcome::Opened { task: 81 })),
+        w::Outcome::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { task: 81 }).unwrap())
+    );
+    let w::Outcome::OpenRefused(answer) =
+        encoded(Some(forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix {
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+        })))
+    else {
+        panic!("open refusal")
+    };
+    let w::OpenRefusal::UnderPrefix(why) = answer.reason() else { panic!("under prefix") };
+    assert_eq!((why.owner(), why.name(), why.prefix()), (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice()));
+}
+
+#[test]
 fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
     use forge::follows::FollowAct as A;
     let after = [0xab; 32];
@@ -618,6 +698,7 @@ fn panel() -> forge::Panel {
     forge::Panel {
         way: change::Way::Queue,
         in_landing: None,
+        source: None,
         task: CHANGE_TASK,
         forge: 1,
         owner: b"acme".as_slice().into(),
@@ -694,6 +775,7 @@ fn a_panel_encodes_and_decodes_back_whole() {
     let expected = w::ChangePanel::new(
         &w::CEILINGS,
         w::ChangePanelParts {
+            source: None,
             way: w::Way::Queue,
             in_landing: None,
             task: CHANGE_TASK,
@@ -1562,7 +1644,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Tier(_)
+                        root::Application::OpenChange(_)
+                        | root::Application::Tier(_)
                         | root::Application::Follow { .. }
                         | root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
@@ -1695,12 +1778,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_five() {
+fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v26::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 25);
+    assert_eq!(wire::CLIENT_VERSION, 28);
 }
 
 #[test]
@@ -4778,6 +4861,9 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     );
 }
 
+#[path = "milestones.rs"]
+mod milestones;
+
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {
     let reading = w::Reading::new(
@@ -5479,4 +5565,25 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };
         assert_eq!(answer.into_parts().refusal, expected);
     }
+}
+
+#[test]
+fn an_opened_panel_carries_its_source_and_taking_step() {
+    for (step, expected) in [(forge::PanelStep::Taking, w::Step::Taking), (forge::PanelStep::Opening, w::Step::Opening)]
+    {
+        for kept in [None, Some([9; 32])] {
+            for at in [None, Some([8; 32])] {
+                let mut value = panel();
+                value.step = step.clone();
+                value.source = Some(forge::PanelSource { branch: b"docs/x".as_slice().into(), at, kept });
+                let got = decoded_panel(value, &crate::forges::Forges::with_capacity(0));
+                assert_eq!(got.step(), &expected);
+                let source = got.source().as_ref().expect("opened source");
+                assert_eq!(source.branch(), b"docs/x");
+                assert_eq!(*source.at(), at);
+                assert_eq!(*source.kept(), kept);
+            }
+        }
+    }
+    assert_eq!(*decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source(), None);
 }

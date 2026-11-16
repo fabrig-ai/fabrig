@@ -1,4 +1,4 @@
-//! Baseline owner admission, coverage and the application's mark-only fixture.
+//! Baseline owner admission, coverage and a registry and job upgrade.
 #[test]
 fn an_opened_worker_may_stay_after_its_deployment_stops() {
     temper_one_process_world::upgrade::check::opened_worker_rehearsal();
@@ -27,7 +27,7 @@ fn power_lost_at_the_copys_first_write_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(0);
 }
 #[test]
-fn power_lost_at_the_patch_commit_keeps_a_whole_generation() {
+fn power_lost_at_the_seal_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(1);
 }
 #[test]
@@ -37,6 +37,10 @@ fn power_lost_at_the_switch_rename_keeps_a_whole_generation() {
 #[test]
 fn power_lost_at_the_wires_commit_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(3);
+}
+#[test]
+fn power_lost_at_a_drawn_moment_keeps_a_whole_generation() {
+    temper_one_process_world::upgrade::story::drawn_power_loss(5);
 }
 #[test]
 fn a_story_keeps_its_history_through_a_settled_upgrade() {
@@ -80,11 +84,15 @@ fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
 }
 
 #[test]
-fn a_mark_only_upgrade_closes_a_signal_stopped_chats_window_and_opens_again_at_equal_levels() {
-    temper_one_process_world::upgrade::fresh_windows();
+fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
+    temper_one_process_world::upgrade::story::unsettled();
 }
 
 #[test]
-fn a_killed_services_in_flight_write_recovers_through_the_upgrade_once() {
-    temper_one_process_world::upgrade::story::unsettled();
+fn the_settled_image_matches_the_story() {
+    let scratch = skein_scratch::Scratch::new("settled-upgrade-image");
+    temper_one_process_world::upgrade::story::settled_image(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/settled"),
+        scratch.path(),
+    );
 }

@@ -1,10 +1,9 @@
 //! Publishing staged builds (temper/docs/design/testing/qa/builds.md, 3 and 4).
 use crate::{Home, Refusal, cli::Environment, ledger::short, refused};
-use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
     fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Read, Seek, Write},
+    io::{BufRead, BufReader, Seek, Write},
     os::unix::{
         ffi::OsStrExt,
         fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -16,6 +15,23 @@ use std::{
 
 /// Publish a staged build after checking its files and executable versions.
 pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
+    keep_with(
+        home,
+        commit,
+        directory,
+        environment,
+        &mut crate::faces::RealBuildFiles { environment: environment.to_vec() },
+    )
+}
+
+/// Publish using the build-file face (qa/builds.md, 3 and 4).
+pub fn keep_with(
+    home: &Home,
+    commit: &str,
+    directory: &Path,
+    environment: &Environment,
+    face: &mut impl crate::faces::BuildFilesFace,
+) -> Result<String, Refusal> {
     if !(commit.len() == 40 || commit.len() == 64)
         || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
@@ -38,6 +54,18 @@ pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environme
                 home.builds.display()
             )));
         }
+        let checksums = face.hash(directory, &files)?;
+        let mut bytes = format!("commit {commit}\n").into_bytes();
+        bytes.extend_from_slice(&checksums);
+        let parsed = crate::manifest::parse(&bytes, commit)?;
+        for path in &files {
+            if !parsed.contains_key(path) {
+                return Err(refused(format!("{}: file is absent from sha256sum answer", path.display())));
+            }
+        }
+        if parsed.len() != files.len() {
+            return Err(refused("sha256sum answer names an unexpected file"));
+        }
         let partial = home.builds.join(format!(".{commit}.partial"));
         match fs::symlink_metadata(&partial) {
             Ok(metadata) => {
@@ -51,7 +79,10 @@ pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environme
             Err(why) => return Err(refused(format!("{}: {why}", partial.display()))),
         }
         io(directory, fs::rename(directory, &partial))?;
-        manifest(&partial, commit, &files)?;
+        let manifest = partial.join("manifest");
+        let mut output = io(&manifest, File::create(&manifest))?;
+        io(&manifest, output.write_all(&bytes))?;
+        io(&manifest, output.sync_all())?;
         io(&partial, fs::rename(&partial, home.builds.join(commit)))?;
         ledger.record_build_kept(commit, skein_shell::Clock::new().now().wall.as_secs())?;
         Ok(format!("build {} kept: {} files\n", short(commit), files.len()))
@@ -170,39 +201,6 @@ fn version(home: &Home, executable: &Path, environment: &Environment) -> Result<
     let mut line = Vec::new();
     io(&capture, BufReader::new(output).read_until(b'\n', &mut line))?;
     Ok(String::from_utf8_lossy(&line).lines().next().unwrap_or("").into())
-}
-
-fn manifest(directory: &Path, commit: &str, files: &[PathBuf]) -> Result<(), Refusal> {
-    let path = directory.join("manifest");
-    let mut output = io(&path, File::create(&path))?;
-    io(&path, writeln!(output, "commit {commit}"))?;
-    for name in files {
-        let full = directory.join(name);
-        let mut file = io(&full, File::open(&full))?;
-        let mut hash = Sha256::new();
-        let mut buffer = [0; 16384];
-        loop {
-            let count = io(&full, file.read(&mut buffer))?;
-            if count == 0 {
-                break;
-            }
-            hash.update(&buffer[..count]);
-        }
-        let bytes = name.as_os_str().as_bytes();
-        let escaped = bytes.contains(&b'\\') || bytes.contains(&b'\n') || bytes.contains(&b'\r');
-        io(&path, write!(output, "{}{:x}  ", if escaped { "\\" } else { "" }, hash.finalize()))?;
-        for byte in bytes {
-            let escaped: &[u8] = match byte {
-                b'\\' => b"\\\\",
-                b'\n' => b"\\n",
-                b'\r' => b"\\r",
-                _ => std::slice::from_ref(byte),
-            };
-            io(&path, output.write_all(escaped))?;
-        }
-        io(&path, output.write_all(b"\n"))?;
-    }
-    io(&path, output.sync_all())
 }
 
 fn io<T>(path: &Path, result: std::io::Result<T>) -> Result<T, Refusal> {

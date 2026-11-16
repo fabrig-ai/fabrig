@@ -3,6 +3,7 @@ pub mod across_versions;
 mod box_listener;
 pub mod fixtures;
 pub mod golden;
+pub mod held_program;
 pub mod upgrade;
 
 mod oracle;
@@ -22,6 +23,5 @@ pub mod lower;
 pub mod m15;
 pub mod public;
 
-pub mod claude_keys;
 pub mod model_list;
 pub mod push;

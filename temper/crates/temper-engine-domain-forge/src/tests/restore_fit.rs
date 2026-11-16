@@ -24,6 +24,13 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
         }),
+        RecordKind::Milestone => Stored::Milestone(MilestoneRow {
+            project: 5,
+            task: n,
+            name: b"Store shape".as_slice().into(),
+            last_landing: None,
+            ended: None,
+        }),
         RecordKind::Making => Stored::Making(making::row(number)),
         RecordKind::LandingLog => Stored::LandingLog(LandingLog {
             repository: skein_forge::api::Repository { forge: 1, repository: number },

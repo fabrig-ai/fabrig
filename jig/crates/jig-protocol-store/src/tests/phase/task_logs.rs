@@ -1,6 +1,6 @@
 //! Upgrade map fixtures into logs, preserving serving answers (protocol/store/logs.md, 6).
 use super::*;
-use crate::{Owner, PatchSet};
+use crate::{Owner, OwnerSet};
 use alloc::collections::VecDeque;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_tasks as tasks;
@@ -17,7 +17,7 @@ fn read(disk: &mut Disk, store: &mut Store, task: u64, scope: reads::Scope) -> r
 #[test]
 fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
     let mut disk = Disk::new(&[]);
-    let mut store = jig_store(&disk, crate::JIG_STORE_PATCH_SET);
+    let mut store = jig_store(&disk, crate::JIG_STORE_SET);
     assert_opened(&disk.open(&mut store), 0);
     let mut above = Queue::uncapped();
     let mut below = fixtures::below();
@@ -50,10 +50,10 @@ fn history_routes_while_the_first_commits_done_row_waits_for_sync() {
 
 #[test]
 fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
-    let set = crate::JIG_STORE_PATCH_SET;
+    let set = crate::JIG_STORE_SET;
     let old_jobs = set.jobs.iter().filter(|job| job.name != "task-logs").copied().collect::<Vec<_>>();
     let mut disk = Disk::new(&[]);
-    let mut old = jig_store(&disk, PatchSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
+    let mut old = jig_store(&disk, OwnerSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
     assert_opened(&disk.open(&mut old), 0);
     let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
@@ -140,4 +140,72 @@ fn task_logs_moves_old_map_rows_in_pages_preserves_reads_and_runs_only_once() {
     for (scope, before) in scopes.iter().zip(&before) {
         crate::tests::history_logs::equal(before, &read(&mut disk, &mut again, 5, scope.clone()));
     }
+}
+
+#[test]
+fn rehearsal_task_logs_exceeds_the_map_only_handle_bound_and_closes() {
+    const TASKS: u32 = 40;
+    let set = crate::JIG_STORE_SET;
+    let old_jobs = set.jobs.iter().filter(|job| job.name != "task-logs").copied().collect::<Vec<_>>();
+    let mut disk = Disk::new(&[]);
+    let mut old = jig_store(&disk, OwnerSet { jobs: Box::leak(old_jobs.into_boxed_slice()), ..set });
+    assert_opened(&disk.open(&mut old), 0);
+    let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let rows = (1..=TASKS).map(|task| fixtures::activity_line(u64::from(task), 1)).collect::<Vec<_>>();
+    let ops = rows
+        .iter()
+        .map(|row| skein_kv::Op::Put {
+            key: crate::keys::encode(&row.key(), fixtures::KEY_LIMIT).unwrap(),
+            value: crate::codec::encode(row, &old.codec_limits, &[]).unwrap(),
+        })
+        .collect();
+    registry::raw(&mut disk, &mut old, ops);
+
+    let mut limits = old.limits;
+    limits.store.logs = TASKS;
+    let map_only_handles = limits.files.checked_add(4).unwrap().max(crate::generations::COPY_HANDLES);
+    assert!(TASKS > map_only_handles.checked_mul(3).unwrap());
+    let mut disk = Disk::with_file_limits(
+        &disk.items(),
+        FileLimits { files: map_only_handles.checked_add(limits.store.logs).unwrap(), ..file_limits() },
+    );
+    let before = disk.contents();
+    let mut store = disk.store_with_limits(&limits);
+    store.owner_sets(crate::OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });
+    let scratch = disk.scratch_root();
+    let directory = disk.root();
+    let mut events = VecDeque::from(
+        disk.request(
+            &mut store,
+            Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION },
+        )
+        .into_vec(),
+    );
+    let mut opened = false;
+    let mut ran = 0_u32;
+    while let Some(event) = events.pop_front() {
+        match event {
+            Event::Job { owner, of: Owner::Jig, job, page } => {
+                assert_eq!(job.as_ref(), "task-logs");
+                let answer = crate::jobs::page(&job, &page).unwrap();
+                events.extend(disk.request(&mut store, Request::Job { owner, answer: Ok(answer) }));
+            }
+            Event::Ran { of: Owner::Jig, job, .. } => {
+                assert_eq!(job.as_ref(), "task-logs");
+                ran = ran.checked_add(1).unwrap();
+            }
+            Event::Opened { pending: true, .. } => opened = true,
+            Event::Rehearsing { .. } | Event::Decoded { .. } | Event::Census { .. } => {}
+            other => panic!("{other:?}"),
+        }
+    }
+    assert!(opened);
+    assert_eq!(ran, 1);
+    for task in 1..=TASKS {
+        assert!(store.stores.store.log_end(crate::logs::history(u64::from(task)).unwrap()) > 0);
+    }
+    let events = disk.request(&mut store, Request::Close { owner: Token::new(1) });
+    let [Event::Closed { removed: true, .. }] = events.as_ref() else { panic!("{events:?}") };
+    assert_eq!(disk.contents(), before, "the source is unchanged");
 }

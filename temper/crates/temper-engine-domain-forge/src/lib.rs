@@ -26,6 +26,8 @@ mod approvals;
 mod change_history;
 pub mod history;
 mod landing_proofs;
+#[path = "milestones.rs"]
+mod milestone_rows;
 mod readiness;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
@@ -44,6 +46,7 @@ pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
 mod ci;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod closer;
+mod execution;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::commit;
 mod connect;
@@ -177,7 +180,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{

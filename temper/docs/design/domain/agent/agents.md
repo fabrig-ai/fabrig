@@ -262,6 +262,11 @@ of `../../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks/messages.md`, 1; jig's `domain/people/README.md`,
   section 5). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A goal in a milestone asks its maker** the same way: its requester
+  is the milestone, a task, so it asks it with `message` in the question
+  form, and jig puts the question in the inbox of the milestone's
+  requester, its maker (jig's `domain/tasks/gatherings.md`, section 4;
+  `../milestones.md`, section 5). Its `decided` judges for the maker.
 - **A goal a person started asks that person.** A goal from the sheet or
   from Goals (`../../client/pages/goal.md`, 3) has a person as its requester.
   Its brief says `[Requested by person N, NAME]` (*Its person by name*,

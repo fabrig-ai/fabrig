@@ -39,6 +39,7 @@ pub enum Kind {
     Irreversible,
     Rules,
     Other,
+    Findings,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

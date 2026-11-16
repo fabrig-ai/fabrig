@@ -79,6 +79,14 @@ pub(super) fn encode_owner_phase_counts(
 
 pub(super) fn encode_task_line(value: &jig_client::contract::TaskLine, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
+    encode_task_line_fields(value, out, budget);
+    out.object_end();
+}
+pub(super) fn encode_task_line_fields(
+    value: &jig_client::contract::TaskLine,
+    out: &mut Encoder,
+    budget: &mut super::Cut,
+) {
     out.key(b"chip");
     super::encode_chip(&value.chip, out, budget);
     out.key(b"project");
@@ -122,7 +130,6 @@ pub(super) fn encode_task_line(value: &jig_client::contract::TaskLine, out: &mut
         }
         None => out.null(),
     }
-    out.object_end();
 }
 
 pub(super) fn encode_task_page(

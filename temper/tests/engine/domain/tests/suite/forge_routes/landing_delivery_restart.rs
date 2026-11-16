@@ -133,7 +133,12 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     let recovered =
         landing_rows(&world).into_iter().find(|row| row.landing.task == first_landing).expect("restored landing");
     assert_eq!(recovered.landing.phase, forge_top::LandingPhase::Proving);
-    assert!(recovered.entries.iter().any(|entry| entry.run == Some(first_run)), "same in-flight run found");
+    assert!(
+        recovered.entries.iter().any(|entry| entry.run.is_some_and(|run| {
+            run.id == first_run.id && run.attempt == first_run.attempt && run.ended == first_run.ended
+        })),
+        "same in-flight run found"
+    );
     assert!(
         world.forge_reads.as_ref().expect("reads").iter().any(|(_, read)| matches!(read,
         api::Read::Run { run, .. } if *run == first_run.id)),

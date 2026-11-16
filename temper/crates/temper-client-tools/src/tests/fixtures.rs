@@ -74,7 +74,25 @@ pub(crate) const FOLLOW_MERGE: &[&str] = &[
 pub(crate) const TIER_HOLD: &[&str] =
     &["tier", "hold", "--project", "shop", "browser", "--reason", "maintenance", "--key", "tier-hold"];
 pub(crate) const TIER_RELEASE: &[&str] = &["tier", "release", "--project", "shop", "browser", "--key", "tier-release"];
+pub(crate) const OPEN_CHANGE: &[&str] = &[
+    "change",
+    "open",
+    "--project",
+    "shop",
+    "--branch",
+    "docs/x",
+    "--title",
+    "Fix the docs",
+    "--budget",
+    "500",
+    "--key",
+    "open-change",
+];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
+    &["milestone", "whole", "812", "--key", "whole"],
+    &["milestone", "list", "--project", "1"],
+    &["milestone", "show", "812"],
     TIER_HOLD,
     TIER_RELEASE,
     FOLLOW_START,
@@ -246,6 +264,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
     &["draft", "list", "--project", "shop"],
     &["deployment", "census"],
+    OPEN_CHANGE,
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -707,7 +726,8 @@ impl Harness {
         if json {
             self.json_calls.insert(self.next);
         }
-        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
+        let count = if (call.tool == crate::jig::rows::GOAL_START_AT && crate::jig::call::number(&call, 11).is_some())
+            || crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
             || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
         {
             SINGLE_READ
@@ -733,6 +753,9 @@ impl Harness {
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
+                | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::MILESTONE_SHOW_AT
+                | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::FINDING_FILE_AT
@@ -897,7 +920,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 122;
+pub(super) const TOOL_FORMS: u32 = 127;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

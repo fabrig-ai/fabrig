@@ -178,15 +178,20 @@ const SESSION: Settings = Settings {
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
-    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR]"],
+    forms: &[
+        "--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl]",
+    ],
     line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
     settings: &[&SESSION],
-    switches: &[Switch {
-        name: "strict",
-        set: Set::Internal,
-        line: "Give --strict to the box's fake model.",
-        notes: "",
-    }],
+    switches: &[
+        Switch { name: "strict", set: Set::Internal, line: "Give --strict to the box's fake model.", notes: "" },
+        Switch {
+            name: "ctl",
+            set: Set::Internal,
+            line: "Take ctl and forge lines alone, without a browser or TUI.",
+            notes: "Needs no SKEIN_TEST_CHROMIUM; the box still takes its bundle.",
+        },
+    ],
     variables: &[&CHROMIUM, &PATH],
     notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin} and {git} read the box’s values when run. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
@@ -247,7 +252,7 @@ pub(crate) const RECIPE_WALK: Command = Command {
     line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
     arguments: RECIPE_HASH.arguments,
     settings: &[&RECIPES, &RECIPE_SESSION],
-    switches: DRIVE.switches,
+    switches: &[DRIVE.switches[0]],
     variables: DRIVE.variables,
     notes: "Chain scripts go to the box root first. Answers carry recipe and file line, or walk: for resets. Exit 0: walked NAME HASH; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build. See temper/docs/design/client/recipe.md, 5.",
     ..REPRINT

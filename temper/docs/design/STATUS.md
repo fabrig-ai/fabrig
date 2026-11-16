@@ -71,6 +71,14 @@ finding, its context and its choices; the stock triager groups what it
 keeps and asks one question a group; the headline and Needs you's head
 count the findings the open cards concern, each once. Its walk follows
 landing (`draft/home-for-a-person.status.md`; `client/pages/needs-you.md`, 1).
+Its milestone F2, goal 4747, says why a group reached its person: a
+kind of decision of its own, `findings`, starting work on findings,
+which the stock's Agents review and Draft first tables ask unless the
+person is away; the triager's question over a group names it, so its
+line reads "Reached you because it starts work on findings, which asks
+you unless you’re away.", said once on Home, with its Stop asking, "Let
+the triager start goals for findings, then tell you." Its walk follows
+landing (`draft/home-for-a-person.status.md`; `domain/forge/attention.md`, 6).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -127,9 +135,13 @@ the fake Forgejo and the fake model, saved and restored with a newer
 build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
-`batch` of two. Its passes follow landing
+`batch` of two. Its passes follow landing; QA gaps are filed for people
+with no goal, then reopened for judgement by a closing landing. By goal
+5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
+model as the person's account and scripts its reviews' approving
+verdicts, so that a ctl case's change lands by the stock rule
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
-`testing/qa/setups.md`; `draft/landed-qa.status.md`).
+`testing/qa/setups.md`; `testing/qa/gaps.md`; `draft/landed-qa.status.md`).
 
 The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
@@ -230,7 +242,9 @@ range is bisected over its changed-key landings; each verdict is posted
 on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
 each member's pull request, `Repaired by #M` once a repair passes. A
 change's stall on CI and a landing's gate run past its bound name each
-pending job's state, read by skein's `JobState`; a tier's run that never
+pending job's state, read by skein's `JobState`, and count only the
+time CI runs, by an execution clock read each poll, a wait for a runner
+bounded apart (`domain/forge/change/stalls.md`, 2); a tier's run that never
 ends is held by no bound (`draft/tier-controls.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
@@ -362,6 +376,16 @@ its writes paged so that a restart part-way starts and resumes, while a
 context another project adopts stays (`domain/forge/adoption.md`, 1;
 `protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
 
+A person opens a change from a branch they pushed with `temper ctl
+change open`: the root expands the client's `OpenChange` into one change
+task of their own, requested and funded by them within their role's
+creating offer, and the change's first state, taking, reads the branch's
+head once, keeps it and makes the change's own branch at it, then lands
+it as any change, under `turn` or `queue`, leaving the pushed branch
+untouched; the client's wire moved its version for it
+(`domain/forge/change/opened.md`; `draft/mechanical-changes.status.md`,
+M1). Its walk on dev.fabrig.ai follows landing.
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -369,6 +393,7 @@ Design documents:
 - [`client/box-binary.md`](client/box-binary.status.md)
 - [`client/ctl/README.md`](client/ctl/README.status.md)
 - [`client/ctl/areas.md`](client/ctl/areas.status.md)
+- [`client/ctl/milestones.md`](client/ctl/milestones.status.md)
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
@@ -440,8 +465,10 @@ Design documents:
 - [`domain/forge/change/README.md`](domain/forge/change/README.status.md)
 - [`domain/forge/change/branch-path.md`](domain/forge/change/branch-path.status.md)
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
+- [`domain/forge/change/opened.md`](domain/forge/change/opened.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
+- [`domain/forge/change/stalls.md`](domain/forge/change/stalls.status.md)
 - [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
@@ -453,6 +480,7 @@ Design documents:
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
+- [`domain/milestones.md`](domain/milestones.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
@@ -504,6 +532,7 @@ Design documents:
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
 - [`testing/qa/deployment.md`](testing/qa/deployment.status.md)
 - [`testing/qa/findings.md`](testing/qa/findings.status.md)
+- [`testing/qa/gaps.md`](testing/qa/gaps.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)
@@ -526,15 +555,16 @@ Drafts:
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
+- [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
-- [`draft/default-wall-230.md`](draft/default-wall-230.status.md)
 - [`draft/deleted-repository-rows.md`](draft/deleted-repository-rows.status.md) — goal 3678: temper's job at open `deleted-repository-forge-rows` drops the forge rows a deleted project left naming a repository with no `Repository` row, and refuses, naming it, on any row it must keep; jobs at open count what they drop, printed on the `ran` line (`protocol/store.md`, 4; `protocol/binaries.md`, 2).
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
@@ -567,6 +597,7 @@ Drafts:
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
+- [`draft/milestones.md`](draft/milestones.status.md) — M1, goal 4276: jig's gathering, `Conclude` and a party's `Delegate`. M2, goal 4793: temper's milestone, the stock's template 8, label 4, on jig's gathering; its goals asking its maker; `temper ctl milestone new`, `whole`, `list` and `show`, and `goal start`'s `--milestone`, `--after` and `--no-deadline`; the forge family's read `Milestone` and the forge's row of each milestone, its last landing and its end; the status agent's milestones (`domain/milestones.md`; `client/ctl/milestones.md`).
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
@@ -592,12 +623,14 @@ Drafts:
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
-- [`draft/store-floor.md`](draft/store-floor.status.md) — F0, goal 4032: dev.fabrig.ai's store settled once at open: the tasks' milestones, the whole live tasks, the projections' whole forms and temper's whole change records dropped from the schema, value types 10 and 12 retired with their ranges, each set's settling job putting every value at the binary's layout and retiring the other layouts by proof, before `task-logs`; skein's plans with their drops refused; the turns' versions, ended tasks' variants and empty round branches counted; the floor row written by the first commit and the upgrade's last; the levels held explicitly by each set.
+- [`draft/store-floor.md`](draft/store-floor.status.md) — F0, goal 4032: dev.fabrig.ai's store settled once at open: the tasks' milestones, the whole live tasks, the projections' whole forms and temper's whole change records dropped from the schema, value types 10 and 12 retired with their ranges, each set's settling job putting every value at the binary's layout and retiring the other layouts by proof, before `task-logs`; skein's plans with their drops refused; the turns' versions, ended tasks' variants and empty round branches counted; the floor row written by the first commit and the upgrade's last; the levels held explicitly by each set. F2, goal 4623: the map patches' history and the walk gone: jig's and temper's patches, old registered texts and temper's old goldens, the eager walk with S2's rewrite, the fresh mark, the effects-in-flight check, seeding from code, the baseline recognizer and the rehearsal's decoding at patch levels; the owner sets (`OwnerSet`) keep each current family, value type, job, level and the frames' texts and patches; a store behind the levels or holding values with no registry refused, naming build c1019509e3; the upgrade fixture a registry change and a job.
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, seeded with no value rewritten, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them; jig's job at open `milestones` folds a store's milestones into them and erases them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; jobs at open writing the summaries and retention rows of what already ended; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed, a store's whole rows put into their parts by jobs at open; a store seeded in the upgrade that brings a new value type opens. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, moved out of the map by jig's job at open `task-logs`, linked into a new generation and dropped whole by retention; turns written before them stay in their files until retention drops them.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
+- [`draft/test-budgets.md`](draft/test-budgets.status.md)
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
+- [`draft/tools-by-role.md`](draft/tools-by-role.status.md)
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

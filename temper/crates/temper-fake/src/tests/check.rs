@@ -119,6 +119,8 @@ pub const LIMITS: d::Limits = d::Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -180,6 +182,8 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
     d::Stored::Change(Box::new(d::ChangeRow {
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -211,6 +215,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             owns_turn: false,
             last_head: head,
             last_checked: None,
+            clock: None,
         },
         pull,
         pending: None,
@@ -218,6 +223,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         delegate: None,
         delegate_status: change::Status::Passed,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

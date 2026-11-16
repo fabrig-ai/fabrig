@@ -237,6 +237,7 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
                 | w::Request::Looked(_)
                 | w::Request::SetAway(_)
                 | w::Request::SetDraft(_)
+                | w::Request::OpenChange(_)
                 | w::Request::TierAct(_)
                 | w::Request::FollowAct(_)
                 | w::Request::FileFinding(_)
@@ -388,6 +389,8 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::Opened(_)
+        | w::Outcome::OpenRefused(_)
         | w::Outcome::Tier(_)
         | w::Outcome::Filed(_)
         | w::Outcome::Handed

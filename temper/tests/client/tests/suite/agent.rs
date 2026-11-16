@@ -72,6 +72,47 @@ fn a_message_is_followed_by_its_reply_waited_for() {
     );
 }
 
+/// temper/docs/design/client/ctl/testing.md, 2: activity's cursor bounds a chat read.
+#[test]
+fn an_activity_cursor_reads_the_first_reply_without_the_second() {
+    const FIRST: &[u8] = b"The first QA reply is complete.";
+    const SECOND: &[u8] = b"The queued QA words were answered.";
+    let mut world = fixtures::open_world(fixtures::SEED);
+    let agent = fixtures::agent(&mut world);
+    world.front().reply_at_once(FIRST);
+    let started = call(&mut world, agent, &[b"chat", b"start", b"--project", b"1", b"--key", b"hello", b"Hello"]);
+    let task = fixtures::done_task(&started);
+    assert_chat(&started, task);
+    let first = wait_for_reply(&mut world, agent, task);
+    assert_eq!(first.status, 0, "{first:?}");
+    assert!(first.stdout.ends_with(b"met\n"), "{first:?}");
+    world.front().reply_at_once(SECOND);
+    let sent = call(
+        &mut world,
+        agent,
+        &[b"task", b"message", task.to_string().as_bytes(), b"These are the queued QA words.", b"--key", b"more"],
+    );
+    assert_eq!(sent.status, 0, "{sent:?}");
+    let second = wait_for_reply(&mut world, agent, task);
+    assert_eq!(second.status, 0, "{second:?}");
+    assert!(second.stdout.ends_with(b"met\n"), "{second:?}");
+    let task = task.to_string();
+    let activity = call(&mut world, agent, &[b"task", b"activity", task.as_bytes(), b"--json"]);
+    assert_eq!(activity.status, 0, "{activity:?}");
+    let page: serde_json::Value = serde_json::from_slice(&activity.stdout).expect("activity JSON");
+    let cursor = page["before"]["value"].as_str().unwrap_or_else(|| panic!("activity's older-page cursor: {page}"));
+    // Activity's smaller page gives an overlapping chat read, not chat show's continuation.
+    let older = call(&mut world, agent, &[b"chat", b"show", task.as_bytes(), b"--before", cursor.as_bytes()]);
+    assert_eq!(older.status, 0, "{older:?}");
+    assert_eq!(older.stdout.windows(FIRST.len()).filter(|bytes| *bytes == FIRST).count(), 1, "{older:?}");
+    assert_eq!(older.stdout.windows(SECOND.len()).filter(|bytes| *bytes == SECOND).count(), 0, "{older:?}");
+    let latest = call(&mut world, agent, &[b"chat", b"show", task.as_bytes()]);
+    assert_eq!(latest.status, 0, "{latest:?}");
+    for reply in [FIRST, SECOND] {
+        assert_eq!(latest.stdout.windows(reply.len()).filter(|bytes| *bytes == reply).count(), 1, "{latest:?}");
+    }
+}
+
 #[test]
 fn a_chat_the_agent_closes_ends() {
     let (mut world, agent, task, started) = chat(true);

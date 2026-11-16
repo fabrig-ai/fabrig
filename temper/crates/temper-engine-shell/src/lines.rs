@@ -456,15 +456,6 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 crate::upgrade::job_counts(&counts)
             )
         }
-        temper_engine_service::Note::Patched { of, patch, counts } => {
-            let binary = if binary == "temper" { "temper-box" } else { binary };
-            format!(
-                "{binary} serve: patched {} {patch}: {} records in {} commits\n",
-                crate::upgrade::owner(of),
-                counts.records,
-                counts.commits
-            )
-        }
         temper_engine_service::Note::Listening { listener, addr } => {
             let name = match listener {
                 temper_engine_service::Listening::Clients => "clients",

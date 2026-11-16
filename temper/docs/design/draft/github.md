@@ -955,7 +955,7 @@ Each step lands working, and shows what it proved in the real loop
   per repository and its repair.
 - **The fake against GitHub:** the conformance runs the same checks on
   the fake and, opt-in, on github.com, as skein's does for Forgejo
-  (skein's `testing/fakes/forge.md`, section 7), so the fake's quirks are
+  (skein's `testing/fakes/throwaway.md`, section 2), so the fake's quirks are
   GitHub's.
 - **Left to this work,** since part C reshapes what they test. Each
   lands in skein's kit worlds, on part C's footing:

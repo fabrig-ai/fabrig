@@ -62,7 +62,7 @@ impl Layouts {
         let old_held = layout.held().iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
         let new = schema::parse(family.current.as_bytes()).map_err(|why| format!("binary schema: {why:?}"))?;
         let mut new_held = Vec::new();
-        for set in temper_engine_service::store::PATCH_SETS.sets {
+        for set in temper_engine_service::store::OWNER_SETS.sets {
             for family in set.families {
                 if !family.current.is_empty() {
                     new_held.push(
@@ -124,7 +124,7 @@ impl Layouts {
 }
 
 fn resolve(key: &[u8]) -> Option<(&'static KeptFamily, &'static ValueType)> {
-    for set in temper_engine_service::store::PATCH_SETS.sets {
+    for set in temper_engine_service::store::OWNER_SETS.sets {
         let relative = match set.owner {
             Owner::Application => key.strip_prefix(&[keys::APPLICATION]),
             Owner::Skein | Owner::Smith | Owner::Jig => Some(key),

@@ -169,6 +169,8 @@ impl Reconciliation {
                 | crate::ApplicationOutcome::ForgeRefused(_)
                 | crate::ApplicationOutcome::MakeKept
                 | crate::ApplicationOutcome::Follow(_)
+                | crate::ApplicationOutcome::Opened { .. }
+                | crate::ApplicationOutcome::OpenRefused(_)
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Red(row) => self.task(RecordKind::Red, row.goal, None),
@@ -192,6 +194,7 @@ impl Reconciliation {
             | Stored::Setting(_)
             | Stored::Binding { .. }
             | Stored::Making(_)
+            | Stored::Milestone(_)
             | Stored::ProjectFacts(_)
             | Stored::Device(_)
             | Stored::LandedDraft(_)

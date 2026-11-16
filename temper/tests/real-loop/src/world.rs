@@ -15,50 +15,28 @@ use skein_world::{
 pub(crate) struct Proc {
     pub(crate) kind: Kind,
     diagnostics: diagnostics::Operations,
-    production_exchanges: Option<usize>,
-    issuer_accepts: usize,
 }
 impl Proc {
     pub(crate) fn new(kind: Kind) -> Self {
-        Self { kind, diagnostics: diagnostics::Operations::default(), production_exchanges: None, issuer_accepts: 0 }
+        Self { kind, diagnostics: diagnostics::Operations::default() }
     }
     pub(crate) fn code_exchanges(&self) -> usize {
         let Kind::Issuer(peer) = &self.kind else { panic!("issuer process") };
-        self.production_exchanges.unwrap_or_else(|| {
-            peer.observations()
-                .iter()
-                .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
-                .count()
-        })
+        peer.observations()
+            .iter()
+            .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
+            .count()
     }
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
-        if let Kind::Issuer(peer) = &mut self.kind {
-            self.issuer_accepts += peer
-                .completions()
-                .iter()
-                .filter(|complete| matches!(complete.result, Ok(skein_io::kernel::Done::Accepted { .. })))
-                .count();
-        }
         self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
             && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
         {
             self.diagnostics.terminals.observe(host.completions());
         }
-        let plans = if let (Some(_), Kind::Issuer(peer)) = (self.production_exchanges, &mut self.kind) {
-            temper_fake::oauth::refill(peer, crate::issuer::SEED).expect("box issuer refill");
-            Some(peer.granted().len())
-        } else {
-            None
-        };
         self.kind.iterate(now, wall);
-        if let (Some(before), Some(exchanges), Kind::Issuer(peer)) = (plans, &mut self.production_exchanges, &self.kind)
-        {
-            // Each consumed successful token plan is one exchange; the box retains no observations.
-            *exchanges += before - peer.granted().len();
-        }
     }
     fn drain(&mut self) {
         self.kind.drain();
@@ -219,14 +197,7 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, recipe, steps, direct_key, sign_in, false, agent::agent)
-}
-
-pub(crate) fn run_production_sign_in(
-    scratch: &skein_scratch::Scratch,
-    steps: impl FnOnce() -> Vec<crate::calls::Step>,
-) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, || llm::scripted(Box::new([])), steps, true, true, true, agent::agent)
+    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent)
 }
 
 pub(crate) fn run_stubborn(
@@ -234,16 +205,15 @@ pub(crate) fn run_stubborn(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, recipe, steps, false, false, false, agent::stubborn)
+    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn)
 }
 
-fn run_with_issuer(
+fn run_with_agent(
     scratch: &skein_scratch::Scratch,
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
     direct_key: bool,
     sign_in: bool,
-    production: bool,
     agent: agent::Factory,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
@@ -294,16 +264,10 @@ fn run_with_issuer(
         let address = listener.local_addr().expect("issuer address");
         let fd = skein_io::kernel::Fd::new(listener.as_raw_fd());
         world.spawn_with_fds(vec![fd], || {
-            let mut peer = if production {
-                crate::issuer::production(address)
-            } else {
-                crate::issuer::peer(address, &crate::issuer::registration(address))
-            };
+            let mut peer = crate::issuer::peer(address, &crate::issuer::registration(address));
             peer.adopt_listener(fd, address).expect("held issuer listener");
             let _ = listener.into_raw_fd();
-            let mut proc = Proc::new(Kind::Issuer(Box::new(peer)));
-            proc.production_exchanges = production.then_some(0);
-            proc
+            Proc::new(Kind::Issuer(Box::new(peer)))
         });
     }
     world.run(&skein_shell::Clock::new(), patience)
@@ -899,12 +863,6 @@ impl Judge {
             }
         }
         self.children.apply(children, caller);
-        for proc in children.iter() {
-            if let Kind::Issuer(peer) = &proc.kind {
-                caller.issuer_accepted.set(proc.issuer_accepts);
-                caller.issuer_rejected.set(peer.rejected());
-            }
-        }
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
             let state = borrowed.as_mut().ok_or("spawned forge")?;
@@ -958,9 +916,6 @@ impl Judge {
             self.controls.signal(engine_index, ServiceSignal::Terminate);
         }
         if shutdown.peers {
-            // Check before waiting on all hosted children: an orphaned held
-            // program must fail for its missing interrupt, not a world timeout.
-            caller.check_program_stop()?;
             self.finish_peers(peer, children);
         }
         Ok(())
@@ -1009,6 +964,14 @@ impl Referee<Proc> for Judge {
         else {
             return Err("root admission order".into());
         };
+        // This story-local join observes the engine's durable terminal record,
+        // even when the live task has already been reclaimed before Ready closes.
+        if procs.iter().any(|proc| {
+            matches!(&proc.kind, Kind::Service(host) if host.service.as_ref().and_then(crate::service::Driven::engine_domain).is_some())
+                && proc.diagnostics.terminals.ended.contains(&crate::calls::TRIAL_TASK)
+        }) {
+            caller.trial_ended.set(true);
+        }
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
         let mut workers_changed = false;

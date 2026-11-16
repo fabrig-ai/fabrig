@@ -454,6 +454,8 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Drafted(_)
             | w::Outcome::DraftRefused(_)
             | w::Outcome::Follow(_)
+            | w::Outcome::Opened(_)
+            | w::Outcome::OpenRefused(_)
             | w::Outcome::Tier(_)
             | w::Outcome::NotTheirs
             | w::Outcome::Overturned

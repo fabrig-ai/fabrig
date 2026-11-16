@@ -13,6 +13,7 @@ fn an_empty_ci_repair_runs_one_job_again_before_updating() {
     for why in [Repair::Ci, Repair::Semantic] {
         let c = repairing(why);
         let f = Facts {
+            taken: None,
             rerun: true,
             ci: Ci { head: HEAD, status: Status::Failed },
             contains_base: Status::Failed,

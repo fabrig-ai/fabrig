@@ -79,6 +79,7 @@ fn delegated_messages(into_main: bool) {
     let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request JSON");
     let pull = row(&world, change).pull.expect("member's pull request");
     assert_eq!(row(&world, change).goal, Some(goal.task));
+    assert_eq!(row(&world, change).milestone, None, "a plain goal has no milestone");
     assert_eq!(row(&world, change).title.as_ref(), TITLE);
     let message = format!(
         "Add the squash trailers\n\nSquashes each change.\n\nChange: {change}\nPull-request: {pull}\nHead: {head}"

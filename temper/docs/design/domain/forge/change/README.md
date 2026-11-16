@@ -9,7 +9,9 @@ branch. Its parameters:
 - **the branch,** held by the task: one it is handed, already pushed (a
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks/holds.md`, 4), or its own, named after its tree
-  (`../branches.md`), which a producing task pushes; or, held by its
+  (`../branches.md`), which a producing task pushes, or which temper
+  makes at the head a person pushed, for a change they open from it
+  (`opened.md`); or, held by its
   requester and not by the task, its requester's held branch: the
   requester's own goal branch (`../branches.md`, 1), which the change lands whole
   (below);
@@ -37,7 +39,7 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait counts the stall as the producing phase does (`repairs.md`). A
+  open the pull. This wait counts the stall as the producing phase does (`stalls.md`, 1). A
   failed producer supplies none, and holds whatever it pushed (`repairs.md`).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
@@ -190,6 +192,15 @@ question route `up` with no parameter 14, never starts early, under its
 follow's `owner` start produces only once its owner's word starts it, and
 carries its follow's check (`../follows.md`, sections 4 and 6).
 
+The source of a change a person opens from a branch they pushed is bytes
+parameter 19, `BRANCH` or `BRANCH:COMMIT` (`opened.md`, 3.1), made by the
+root's expansion of their request alone. The start keeps it with the
+change (`source`); a value outside that form, or beside parameter 3,
+number parameter 11 of 1, or parameter 16, 17 or 18, refuses the start as
+a malformed parameter. Such a change has no producing task: its first
+state is taking, which makes its own branch at the source's head
+(`opened.md`, 4).
+
 ## 2. Its way to landing
 
 An explicit successful no-change result from the producer ends the change
@@ -272,7 +283,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the branch's tip opens as any head does, and takes its base where
    checking and its turn say (steps 3 and 6). What the change reads or
    waits on before it takes that step is bounded as every wait is: the
-   stall counts, or a named exemption stands (`repairs.md`, *Stalls*).
+   stall counts, or a named exemption stands (`stalls.md`, 1).
    An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks/holds.md`, 3), and a
@@ -325,7 +336,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    than the branch's, while the branch is at the head the change
    expects (the head it entered this step with), is the forge catching
    up. The change waits for the pull request to name its head, its
-   stall counting (`repairs.md`, *Stalls*), and goes on from there.
+   stall counting (`stalls.md`, 1), and goes on from there.
    Only its branch found at another head than the change expects is
    drift (3).
 3. **Checking:** CI runs on its head, where its landing branch's rules

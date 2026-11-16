@@ -64,7 +64,10 @@
 beside the fake person, as a scripted agent making calls (`../testing.md`
 ; `../../testing/checks.md`, 3). Area 1's stories: a chat started, its
 reply waited for, a message, a turn too large for a page read whole,
-the chat closed; a repository adopted; a held task released. The
+the chat closed; a message answered after the chat's first reply, then
+`chat show --before` at the cursor `task activity TASK --json` gives
+reading the older page, the first reply once and not the second, and
+`chat show` both, each once; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
 `task show TASK --until ended` begins, checking the matching terminal
 answer (`tools.md`, 4). A turn too large for a page exists only where the engine's
@@ -81,7 +84,12 @@ deadline, each meeting `account list --until settled`; a limited
 notice, the next task waiting for its account and `task show TASK`
 saying why, then `account retry` and the run started; `account rank`
 and `account forget`; a program source declared, and `account verify`
-answered as each host reports; a program account forgotten, its name
+answered as each host reports; Anthropic's keys
+(`../../draft/claude-api.md`, 6), provider 2 named `anthropic` in every
+answer: a key-only account, then a Claude Code program declared and a
+key put after it with `--account`, the account keeping its holder and
+its program first, then the deployment's with `--deployment`, held by
+the deployment and listed with its accounts; a program account forgotten, its name
 declared again by its holder, its host-check dispatch observed, then a
 declaration of that live name refused at exit 2 with its reason and next
 step (`areas.md`). Area 6's, over the engine root's forge

@@ -287,6 +287,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     super::role::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
+    f::OPEN_CHANGE,
     &["draft", "ready", "--project", "1", "draft.md", "--key", "draft-ready"],
     &["draft", "not-ready", "--project", "1", "draft.md", "--key", "draft-not-ready"],
     &["repository", "make", "--project", "1", "team/widget", "--key", "make-widget"],
@@ -402,6 +403,9 @@ fn every_other_act_replays_its_first_outcome_in_text_and_json() {
 fn replay_cases_cover_every_keyed_verb_in_the_tools_table() {
     let mut covered = Vec::new();
     for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()).chain(PERSON_CALLS.iter()).chain(TALK_CALLS.iter()) {
+        covered.push(f::call(argv).tool);
+    }
+    for argv in super::milestone::KEYED {
         covered.push(f::call(argv).tool);
     }
     covered.push(rows::AMEND_AT);

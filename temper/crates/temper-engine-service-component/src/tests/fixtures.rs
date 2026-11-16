@@ -10,7 +10,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -336,8 +336,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     let mut core = crate::system::core_config(&settings.jig, &seeds);
     core.kinds.clone_from(&settings.kinds);
     core.jobs = limits::jobs(&settings.jig.limits);
-    let mut store = memory_store_for(&limits, &settings.jig.limits.store, &core.settings.models);
-    store.routes.patch_context().executors.clone_from(&core.defaults.rules.ceiling.delegation.kinds);
+    let store = memory_store_for(&limits, &settings.jig.limits.store, &core.settings.models);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
     let config = root::Config {
         host_part: settings.host_part,

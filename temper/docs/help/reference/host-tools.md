@@ -64,7 +64,7 @@ Offered to every run but an asking one.
 - `options`: a list; required. Two to six options, each at most 120 bytes.
 - `took`: an integer from 0 to 5; required. The chosen option's index, starting at zero.
 - `why`: text; required. Why you chose it, at most 400 bytes.
-- `kind`: one of `wording`, `retry`, `implementation`, `tests`, `dependency`, `departure`, `money`, `irreversible`, `rules` or `other`; required.
+- `kind`: one of `wording`, `retry`, `implementation`, `tests`, `dependency`, `departure`, `money`, `irreversible`, `rules`, `other` or `findings`; required.
 - `paths`: a list; optional. At most 16 repository-relative paths the choice would change, each 1 to 256 bytes with no leading /.
 - `under`: an integer from 1 to 20; optional. The item with words of the project's classes that covers this choice.
 

@@ -1,9 +1,11 @@
 //! The complete event/action session policy, without io (client/drive.md, 2–6).
 use crate::line::{Line, Record, Web};
+use skein_browser::boundary::Trouble;
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
 use std::{
+    fmt::Write,
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
@@ -140,6 +142,7 @@ pub enum Event {
     Exited { process: Process, code: i32, stdout: Box<[u8]>, stderr: Box<[u8]> },
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
+    PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
     Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
@@ -264,6 +267,7 @@ impl Machine {
             }
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
+            Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
             Event::Snapshot(text) if self.phase == Phase::Snapshot => {
                 self.shown.extend(shown_lines(&text));
                 self.answer(None, &mut out);
@@ -317,6 +321,11 @@ impl Machine {
             }
         };
         let record = self.current.as_ref().expect("current line").record();
+        if self.plan.options.ctl && matches!(record, Record::Web(_) | Record::Tui(_)) {
+            self.current = None;
+            self.answer(Some("this session takes ctl and forge lines alone".into()), out);
+            return;
+        }
         if matches!(record, Record::End) {
             self.end(now, out);
             return;
@@ -469,13 +478,18 @@ impl Machine {
                         self.answer(Some("the box exited".into()), out);
                         self.box_failed = Some(format!("box exited {code}"));
                     } else {
-                        self.fail_box(format!("box exited {code} before ready"), now, out);
+                        self.fail_box(before_ready(code, stderr), now, out);
                     }
                 }
             }
             Process::SignIn if self.phase == Phase::SignIn => {
                 if code != 0 {
                     self.fail_box(format!("ctl sign-in exited {code}: {}", String::from_utf8_lossy(stderr)), now, out);
+                } else if self.plan.options.ctl {
+                    self.first = None;
+                    self.phase = Phase::Ready;
+                    self.until = None;
+                    out.push(Action::Ready);
                 } else {
                     self.wait(Phase::Spent, now, Duration::from_secs(30));
                     out.push(Action::Open(self.first.clone().expect("first link")));
@@ -526,6 +540,16 @@ impl Machine {
             }
             _ => {}
         }
+    }
+    fn page_trouble(&mut self, trouble: Trouble, text: &[u8], url: &[u8], now: Time, out: &mut Vec<Action>) {
+        if matches!(self.phase, Phase::Spent | Phase::FreshLink | Phase::Fresh | Phase::Root | Phase::Main)
+            && trouble == Trouble::Log
+            && text.windows(b"status of 401".len()).any(|part| part == b"status of 401")
+            && resource(url).strip_prefix(self.origin.as_ref()) == Some(b"/jig/v1/sign-in/link".as_slice())
+        {
+            return;
+        }
+        self.face_done(Err(trouble_words(trouble, text, url)), now, out);
     }
     fn face_done(&mut self, result: Result<(), String>, now: Time, out: &mut Vec<Action>) {
         if self.tui_face_done(&result, now, out) {
@@ -652,6 +676,9 @@ impl Machine {
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
             out.extend([Action::CancelFace, Action::StopCtl, Action::StopTui]);
+        } else if self.plan.options.ctl {
+            out.push(Action::StopCtl);
+            self.stop_box(now, out);
         } else {
             self.wait(Phase::ClosingBrowser, now, STEP);
             out.extend([Action::CancelFace, Action::StopCtl, Action::CloseBrowser]);
@@ -724,6 +751,17 @@ fn copy_act(act: &Act) -> Act {
         Act::Near { .. } | Act::Drawing { .. } => unreachable!("no drive line gives an internal act"),
     }
 }
+fn resource(url: &[u8]) -> &[u8] {
+    url.split(|byte| b"?#".contains(byte)).next().unwrap_or_default()
+}
+fn trouble_words(trouble: Trouble, text: &[u8], url: &[u8]) -> String {
+    let mut words = format!("{trouble:?}: {}", String::from_utf8_lossy(text));
+    let url = resource(url);
+    if !url.is_empty() {
+        write!(words, " ({})", String::from_utf8_lossy(url)).expect("string write");
+    }
+    words
+}
 fn shown_lines(bytes: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(bytes).lines().map(str::to_owned).collect()
 }
@@ -772,6 +810,17 @@ fn duration(bytes: &[u8]) -> Option<u64> {
         (text, 1)
     };
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
+}
+/// A box's exit before its ready line, with the last of what it said that no
+/// log line took: a start that failed says why there (client/drive.md, 2.5).
+fn before_ready(code: i32, stderr: &[u8]) -> String {
+    let words = String::from_utf8_lossy(stderr);
+    let words = words.trim();
+    if words.is_empty() {
+        return format!("box exited {code} before ready");
+    }
+    let cut = words.char_indices().rev().nth(511).map_or(0, |(at, _)| at);
+    format!("box exited {code} before ready: {}", &words[cut..])
 }
 #[cfg(test)]
 pub(crate) mod tests;

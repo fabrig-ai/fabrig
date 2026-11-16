@@ -1,14 +1,13 @@
 //! The scratch's maps decoded before planning (protocol/store/opening.md, 5).
-use crate::patching::{machines, plan::Levels};
 use crate::registry::rehearsal::Decoder;
-use crate::{Event, KeptFamily, OpenRefusal, PatchSet, Phase, Store, Undecoded, open, pages, restore};
+use crate::{Event, KeptFamily, OpenRefusal, OwnerSet, Phase, Store, Undecoded, open, pages, restore};
 use alloc::boxed::Box;
-use skein_codec::{patch::Patcher, value::Value};
+use skein_codec::{schema, value::Value};
 use skein_lib::{List, Queue, Token};
 
 /// Starts do not walk. A rehearsal retains the stored layout texts, one kept
 /// family's schemas and one reusable value; pages have the count walk's bounds.
-pub(crate) fn records(store: &mut Store, owner: Token, found: Levels, above: &mut Queue<Event>) -> bool {
+pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
     if store.rehearsal.is_none() {
         return true;
     }
@@ -20,13 +19,9 @@ pub(crate) fn records(store: &mut Store, owner: Token, found: Levels, above: &mu
         }
     };
     let mut records = 0_u64;
-    for set in store.patch_sets.sets {
-        let Some(level) = found.of(set.owner) else { continue };
-        for (ix, family) in set.families.iter().enumerate() {
-            if family.texts.is_empty() {
-                continue;
-            }
-            match family_records(store, set, ix, level, &mut layouts) {
+    for set in store.owner_sets.sets {
+        for family in set.families {
+            match family_records(store, set, family, &mut layouts) {
                 Ok(count) => records = records.checked_add(count).expect("map row counts fit u64"),
                 Err(Failure::Record { version, key }) => {
                     store.phase = Phase::Stopped;
@@ -54,47 +49,29 @@ enum Failure {
     Open(OpenRefusal),
 }
 
-fn decoder(store: &Store, set: &PatchSet, ix: usize, level: u32) -> Result<(Box<Patcher>, u16), Failure> {
-    let invalid = OpenRefusal::Set { owner: set.owner, patch: 0 };
-    let family = set.families.get(ix).expect("family being walked");
-    let room = machines::Rooms::of(&store.limits).of_map(family.map);
-    let capacity = machines::capacity(set, ix, room).ok_or(Failure::Open(invalid.clone()))?;
-    let mut patcher = Box::new(Patcher::new(capacity));
-    let mut version = None;
-    for text in family.texts {
-        let Ok(kept) = patcher.keep(text.as_bytes()) else { return Err(Failure::Open(invalid)) };
-        if version.is_none() {
-            version = Some(kept);
-        }
-    }
-    let mut version = version.ok_or(Failure::Open(invalid.clone()))?;
-    for text in set.patches.iter().take(skein_lib::length::usize_of(level)) {
-        match patcher.plan(text.as_bytes()) {
-            Ok(Some(plan)) => version = patcher.versions(plan).to,
-            Ok(None) => {}
-            Err(_) => return Err(Failure::Open(invalid)),
-        }
-    }
-    Ok((patcher, version))
-}
-
 #[derive(Debug)]
 enum Root {
-    Kept(skein_codec::schema::DeclIx),
+    Kept(schema::DeclIx),
     Layout(u16),
 }
 
 fn family_records(
     store: &mut Store,
-    set: &PatchSet,
-    ix: usize,
-    level: u32,
+    set: &OwnerSet,
+    family: &KeptFamily,
     layouts: &mut Decoder,
 ) -> Result<u64, Failure> {
     layouts.family();
-    let family = set.families.get(ix).expect("family being walked");
-    let registered = layouts.seeded() && !family.types.is_empty();
-    let kept = if registered { None } else { Some(decoder(store, set, ix, level)?) };
+    let registered = !family.types.is_empty();
+    let kept = if registered {
+        None
+    } else {
+        Some(
+            schema::parse(family.current.as_bytes())
+                .ok()
+                .ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner }))?,
+        )
+    };
     let mut ranges = List::uncapped();
     if registered {
         for ty in family.types {
@@ -106,18 +83,15 @@ fn family_records(
             }
         }
     } else {
-        let (patcher, version) = kept.as_ref().expect("unregistered family's kept decoder");
-        let schema = patcher.schema(*version).expect("reached version kept");
+        let schema = kept.as_ref().expect("unregistered family's current decoder");
         for keys in family.keys {
-            let root = schema
-                .find(keys.root.as_bytes())
-                .ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner, patch: 0 }))?;
+            let root = schema.find(keys.root.as_bytes()).ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner }))?;
             let range =
                 pages::kept_interval(store, set.owner, family.map, keys).ok_or(Failure::Open(OpenRefusal::Failed))?;
             ranges.push((range, Root::Kept(root))).expect("uncapped ranges");
         }
     }
-    let mut value = Value::with_room(machines::Rooms::of(&store.limits).of_map(family.map).nodes);
+    let mut value = Value::with_room(pages::map_limits(store, family.map).value);
     let mut count = 0_u64;
     for (range, root) in ranges.into_boxed() {
         let mut cursor = None;
@@ -142,11 +116,10 @@ fn family_records(
                 let decoded = match root {
                     Root::Layout(number) => layouts.decode(family.name, number, &mut value, item.row.value),
                     Root::Kept(root) => {
-                        let (patcher, version) = kept.as_ref().expect("kept root's decoder");
-                        let schema = patcher.schema(*version).expect("reached version kept");
+                        let schema = kept.as_ref().expect("current root's decoder");
                         match value.decode(schema, root, item.row.value) {
                             Ok(_) => Ok(()),
-                            Err(_) => Err(*version),
+                            Err(_) => Err(schema.version()),
                         }
                     }
                 };

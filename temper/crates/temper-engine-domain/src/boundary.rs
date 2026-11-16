@@ -765,6 +765,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    OpenChange(forge::OpenChange),
     Tier(forge::TierActRequest),
     Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
     Forge(forge::Ask),
@@ -819,6 +820,10 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    Milestone {
+        project: u32,
+        task: u64,
+    },
     History(forge::history::Query),
     Finding {
         project: u32,
@@ -850,6 +855,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),

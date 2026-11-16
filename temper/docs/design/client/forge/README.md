@@ -96,6 +96,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | Step | It says |
 |---|---|
 | producing | T21 producing it, as a chip |
+| taking | in place of producing, for a change opened from a pushed branch: `taking BRANCH`, then the head it kept (`../../domain/forge/change/opened.md`, 4) |
 | opening | opening its pull request |
 | checking | CI on its head, and for how long |
 | gating | which gates are running, as chips, and which requirements wait |
@@ -681,8 +682,12 @@ project's change, from producing to landed, read at each step as its
 public document, with no question line, branch, gate name or reason in
 it; a landing with two members and a failed gate read as its public
 document, the failed proof's state in it, reached through either member; a
-change of a private project, one outside every goal's tree, and one in
-a conversation's tree, unknown; a queue holding a change outside every
+change of a private project, of a project deleted or never made, of
+another public project read under this one's identifier, one outside
+every goal's tree, and one in a conversation's tree, unknown alike; a
+public project whose only change is outside every goal's tree, its
+landings' document holding no landing, no queue and no turn's holder;
+a queue holding a change outside every
 goal's tree, which the landings leave out and count nowhere; a landing
 with a member that is not public, absent and unknown; a queue's merge
 read as a landed line and through its change as its landing, its commit

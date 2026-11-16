@@ -570,7 +570,15 @@ fn parts_and_facts_follow_the_project_rules() {
     let item = |subject, words: &[u8], class| Item { subject, words: words.into(), class };
     let set =
         |number| PathSet { number, name: b"Core".as_slice().into(), patterns: Box::new([b"src/*".as_slice().into()]) };
-    let movable = [Kind::Wording, Kind::Retry, Kind::Implementation, Kind::Tests, Kind::Dependency, Kind::Departure];
+    let movable = [
+        Kind::Wording,
+        Kind::Retry,
+        Kind::Implementation,
+        Kind::Tests,
+        Kind::Dependency,
+        Kind::Departure,
+        Kind::Findings,
+    ];
     let ask_away: Box<[_]> = movable.map(|kind| kind_line(kind, 0, Class::AskAway)).into();
     let all_decide = Classes {
         items: movable.map(|kind| item(Subject::Kind(kind), b"", Class::Decide)).into(),
@@ -620,6 +628,7 @@ fn parts_and_facts_follow_the_project_rules() {
                 kind_line(Kind::Implementation, 4, Class::Ask),
                 kind_line(Kind::Dependency, 5, Class::Ask),
                 kind_line(Kind::Departure, 6, Class::Ask),
+                kind_line(Kind::Findings, 7, Class::Ask),
             ]),
         ),
         ("You approve", Classes::stock(Way::YouApprove), Box::default(), ask_away.clone()),
@@ -633,6 +642,7 @@ fn parts_and_facts_follow_the_project_rules() {
                 kind_line(Kind::Tests, 0, Class::AskAway),
                 kind_line(Kind::Dependency, 2, Class::AskAway),
                 kind_line(Kind::Departure, 0, Class::AskAway),
+                kind_line(Kind::Findings, 0, Class::AskAway),
                 kind_line(Kind::Retry, 5, Class::AskAway),
                 set_line(2, 0, Class::AskAway),
                 kind_line(Kind::Implementation, 1, Class::Ask),
@@ -651,6 +661,7 @@ fn parts_and_facts_follow_the_project_rules() {
                 kind_line(Kind::Tests, 0, Class::AskAway),
                 kind_line(Kind::Dependency, 0, Class::AskAway),
                 kind_line(Kind::Departure, 0, Class::AskAway),
+                kind_line(Kind::Findings, 0, Class::AskAway),
             ]),
         ),
         (

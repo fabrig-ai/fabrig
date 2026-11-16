@@ -93,15 +93,6 @@ impl Ran {
             .expect("story's issuer");
         proc.code_exchanges()
     }
-    /// Connections the issuer turned away at its own capacity.
-    #[must_use]
-    pub fn issuer_rejected(&self) -> u64 {
-        self.outcome
-            .procs
-            .iter()
-            .find_map(|proc| if let world::Kind::Issuer(peer) = &proc.kind { Some(peer.rejected()) } else { None })
-            .expect("story's issuer")
-    }
     /// The task number printed by this call's completed act.
     #[must_use]
     pub fn number(&self, call: usize) -> u64 {
@@ -194,13 +185,6 @@ pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 
-/// Run a sign-in against the box's production issuer constructor and refill policy.
-#[must_use]
-pub fn run_production_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
-    let scratch = Scratch::new("real-box-sign-in");
-    let outcome = world::run_production_sign_in(&scratch, steps);
-    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
-}
 /// Teardown's checks return their first finding (testing/real-loop.md).
 pub fn check(ran: &Ran) -> Result<(), String> {
     if !matches!(

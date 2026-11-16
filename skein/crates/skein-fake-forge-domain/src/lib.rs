@@ -49,6 +49,7 @@ mod actions;
 pub mod api;
 mod boundary;
 mod ci;
+mod contents;
 mod creation;
 mod dispatch;
 mod domain;
@@ -74,6 +75,7 @@ mod wiki;
 mod tests;
 
 pub use boundary::{Event, Request};
+pub use contents::{ContentsChange, change_files};
 pub use creation::{create_empty_repository, create_file, create_repository};
 pub use domain::{Config, Domain, Metadata, Room, Skew, Tally, fire, step, step_admitted, time};
 pub use faults::{Rate, RateDenied, RateKey, rate};
@@ -85,5 +87,6 @@ pub use scenario::{
     advance, check, commit, commit_tree, grant, manual_merges, merge_commit, repository, set_failing, set_opening,
     set_reachable, set_refusing, settings, unborn_repository,
 };
+pub use trees::blob_id;
 
 mod reports;

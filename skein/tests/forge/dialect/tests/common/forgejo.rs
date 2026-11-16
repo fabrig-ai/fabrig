@@ -108,6 +108,8 @@ pub fn decode_route(method: Method, target: &[u8], body: &[u8], limits: &Limits)
     match server::route(method, target, limits) {
         Err(error) => Err(format!("route: {error:?}")),
         Ok(server::Route::Ready(request)) => Ok((request, 0)),
+        // A named ref is resolved by the serving fake through its branch, which a transcript alone can't do.
+        Ok(server::Route::Reference(_)) => Err("route: a named reference awaits its branch".into()),
         Ok(server::Route::Body(decoder)) => {
             decode_body(decoder, body, limits).map_err(|error| format!("body: {error:?}"))
         }
