@@ -108,7 +108,7 @@ temper-worker-domain                       the worker's root (worker/README.md)
   path from `docs/design/`: `forge/change/README.md, 2`; jig's as
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
-  the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
+  the conformance's `facts.txt` (skein's `testing/fakes/throwaway.md`, section 2) and
   `crates/temper-git-transcripts-tool/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
