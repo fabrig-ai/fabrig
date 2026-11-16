@@ -1,4 +1,5 @@
 //! Per-route projections and post-write reads; one write precedes its readback.
+mod contents;
 use crate::{Config, Limits, answers, errors, routes, setup::Store};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::{self as a, Answer};
@@ -485,6 +486,9 @@ pub fn answer(
         }
         Answer::Directory(entries) => return directory(limits, select, entries),
         Answer::File(body) => {
+            if let Request::Contents { path, .. } = request {
+                return contents::file(limits, path, body);
+            }
             let range = match select {
                 Select::Raw(range) => *range,
                 Select::Document

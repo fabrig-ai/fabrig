@@ -56,7 +56,7 @@ fn configuration_defaults_paths_required_keys_and_unknown_names() {
 }
 
 #[test]
-fn default_surfaces_take_both_and_web_only_leaves_tui_queued() {
+fn default_surfaces_take_all_and_web_only_leaves_ctl_and_tui_queued() {
     for surfaces in [None, Some(json!(["web"]))] {
         let mut value = configuration();
         if let Some(surfaces) = &surfaces {
@@ -67,10 +67,12 @@ fn default_surfaces_take_both_and_web_only_leaves_tui_queued() {
         let mut ledger = temper_qa_tool::Ledger::default();
         super::passes::queue(&mut ledger, "work", "web");
         super::passes::queue(&mut ledger, "chat", "tui");
-        super::passes::build(&mut ledger, "build", &[1, 2], 2);
+        super::passes::queue(&mut ledger, "task", "ctl");
+        super::passes::build(&mut ledger, "build", &[1, 2, 3], 2);
         let pass = ledger.start_pass("places/1", &config.surfaces, "high", 3).expect("pass");
-        assert_eq!(ledger.passes[0].cases.len(), if surfaces.is_none() { 2 } else { 1 });
+        assert_eq!(ledger.passes[0].cases.len(), if surfaces.is_none() { 3 } else { 1 });
         assert_eq!(ledger.cases[1].pass, if surfaces.is_none() { Some(pass.pass) } else { None });
+        assert_eq!(ledger.cases[2].pass, if surfaces.is_none() { Some(pass.pass) } else { None });
     }
 }
 
@@ -119,7 +121,7 @@ fn pass_configuration_defaults_and_helpers_and_nested_refusals() {
     assert_eq!(config.agent.pass, "high");
     assert_eq!(config.bounds.pass, 7200);
     assert_eq!(config.places, ["places/1"]);
-    assert_eq!(config.surfaces, ["web", "tui"]);
+    assert_eq!(config.surfaces, ["ctl", "web", "tui"]);
     assert_eq!(config.request.area, "qa");
     assert_eq!(config.request.state, None);
     assert_eq!(config.finding_area("web"), "qa");
@@ -156,4 +158,24 @@ fn pass_configuration_defaults_and_helpers_and_nested_refusals() {
         value[key] = bad;
         assert!(decode(&value).is_err(), "{key}");
     }
+}
+
+#[test]
+fn ctl_surfaces_areas_and_box_place_kinds_are_accepted() {
+    let mut value = configuration();
+    value["surfaces"] = json!(["ctl"]);
+    value["areas"] = json!({"ctl":"tools"});
+    value["places"] = json!([{"directory":"plain", "kind":"box"}, {"directory":"default-kind"}]);
+    let config = Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa"))
+        .expect("ctl and box places");
+    assert_eq!(config.surfaces, ["ctl"]);
+    assert_eq!(config.finding_area("ctl"), "tools");
+    assert_eq!(config.finding_area("web"), "qa");
+    assert_eq!(config.places, ["plain", "default-kind"]);
+    assert!(config.ports.is_empty());
+    value["places"][0]["kind"] = json!("unknown");
+    let why = Configuration::decode(&serde_json::to_vec(&value).expect("JSON"), Path::new("/qa"))
+        .expect_err("unsupported kind")
+        .to_string();
+    assert!(why.contains("plain") && why.contains("unknown"), "{why}");
 }

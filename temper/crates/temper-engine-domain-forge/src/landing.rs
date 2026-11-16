@@ -1493,7 +1493,7 @@ fn advance(
                 None => None,
             };
             let listing = if let Ok(api::Answer::Runs { .. }) = &answer { true } else { false };
-            let ended = flight.answered(answer, writer, env.now, env.limits.client.lifetime);
+            let ended = flight.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime);
             let next = if listing && pages < env.limits.client.rows { flight.read() } else { None };
             let candidate = flight.commit;
             let current_run = match &flight.run {
@@ -2471,8 +2471,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                         Some((_, _, _, _, _, settings, _)) => *settings,
                         None => policy::Project::DEFAULT,
                     };
-                    if let Some(since) = flight.since
-                        && env.now.as_nanos().saturating_sub(since.as_nanos()) > settings.gate_timeout.as_nanos()
+                    if let Some(clock) = flight.clock
+                        && (clock.ran(env.wall) > settings.gate_timeout
+                            || clock.waited(env.wall) >= env.limits.change_policy.runner_wait)
                         && flight.outcome.is_none()
                         && flight.run.is_some()
                     {
@@ -2522,9 +2523,15 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         env.wall,
     );
     if p.stall.is_none()
-        && let policy::Decision::Hold(policy::Hold::Timeout { member, run, .. }) = stepped.decision
+        && let policy::Decision::Hold(policy::Hold::Timeout { member, gate, .. }) = stepped.decision
     {
-        let repository = repository(row.landing.members.get(usize::from(member)).expect("gate member"));
+        let m = stepped.landing.members.get(usize::from(member)).expect("gate member");
+        let repository = repository(m);
+        let proof = proof_key(m.gates.get(usize::from(gate)).expect("gate proof").proof).expect("expired gate key");
+        let name = &d.train_gates(&row, repository).get(usize::from(gate)).expect("gate").name;
+        let key = gate_key(&row, member, gate, name, proof);
+        let flight = d.landing.flights.get(&key).expect("expired gate flight");
+        let run = flight.run.as_ref().expect("expired gate run").id;
         p.stage = Stage::StallRun;
         d.stall_words.remove(&p.task);
         ask(d, env, owner, p, repository, api::Read::Run { run }, out);
@@ -3660,6 +3667,7 @@ pub(crate) fn outcome(
             && let Some(attempt) = entry.entry.attempt
         {
             flight.since = Some(attempt.sent);
+            flight.wall = Some(attempt.wall);
         }
         if item.operation == Operation::Dispatch
             && let Some(entry) = d.entries.get(&entry)
@@ -3971,13 +3979,20 @@ pub(crate) fn rebuild(d: &mut Domain) {
             );
             follow.writes = Box::new([]);
             follow.waiting = d.flights.contains_key(&(row.landing.task, newest));
-            follow.since = match d.entries.get(&newest) {
-                Some(latest) => match latest.entry.attempt {
-                    Some(attempt) => Some(attempt.sent),
-                    None => None,
-                },
-                None => None,
-            };
+            if let Some(latest) = d.entries.get(&newest)
+                && let Some(attempt) = latest.entry.attempt
+            {
+                follow.since = Some(attempt.sent);
+                follow.wall = Some(attempt.wall);
+            }
+            for entry in &row.entries {
+                if entry.entry == newest {
+                    follow.clock = match entry.run {
+                        Some(mark) => mark.clock,
+                        None => None,
+                    };
+                }
+            }
             follow.start = match kept.entry.start {
                 Some(start) => Some(start.at),
                 None => None,
@@ -4324,6 +4339,7 @@ impl Domain {
             policy::Hold::Faults { member, gate } | policy::Hold::Timeout { member, gate, .. } => {
                 let m = row.landing.members.get(usize::from(member))?;
                 let repo = self.repository(repository(m))?;
+                let proof = proof_key(m.gates.get(usize::from(gate))?.proof);
                 let gate = self.train_gates(row, repository(m)).get(usize::from(gate))?;
                 let mut words = List::with_capacity(16384);
                 for part in [b"gate ".as_slice(), &gate.name, b" of ", &repo.owner, b"/", &repo.name] {
@@ -4334,7 +4350,30 @@ impl Domain {
                     policy::Hold::Timeout { run, .. } => {
                         append_words(&mut words, b": run ");
                         append_words(&mut words, skein_lib::Decimal::of(run).as_bytes());
-                        append_words(&mut words, b" running past its bound");
+                        let mut waiting = false;
+                        if let Some(proof) = proof {
+                            let key = ReceiptKey {
+                                project: row.landing.project,
+                                repository: repository(m),
+                                check: Check::Gate(gate.name.clone()),
+                                key: proof,
+                            };
+                            if let Some(flight) = self.landing.flights.get(&key)
+                                && let Some(clock) = flight.clock
+                            {
+                                let timeout = match self.landing.projects.get(&row.landing.project) {
+                                    Some((_, _, _, _, _, settings, _)) => settings.gate_timeout,
+                                    None => policy::Project::DEFAULT.gate_timeout,
+                                };
+                                waiting = clock.ran(clock.at) <= timeout
+                                    && (clock.waited(clock.at) >= self.landing.limits.change_policy.runner_wait
+                                        || clock.seen == change::Execution::Waiting);
+                            }
+                        }
+                        append_words(
+                            &mut words,
+                            if waiting { b" waiting for a runner past its bound" } else { b" running past its bound" },
+                        );
                         return Some(self.ci_stall_words(
                             row.landing.task,
                             words.as_slice(),

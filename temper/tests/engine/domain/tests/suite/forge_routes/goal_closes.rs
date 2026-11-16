@@ -662,6 +662,7 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
         world.tick();
     }
     assert!(matches!(row(&world, landing).change.state, change::State::Checking { .. }));
+    super::stall_hold::execution_reads(&mut world, landing, skein_forge::api::RunState::Running);
     world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
     wait_held(&mut world, landing, goal.task);
     assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Stalled, .. }));

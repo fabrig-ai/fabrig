@@ -1,7 +1,9 @@
-//! Completion sorting keeps io's queue across polls without a kernel.
-use super::{ROOT_CLOSE, Report, take_root_close};
+//! Completion sorting keeps io's queue across polls, and a spawn's directory goes
+//! beneath the session's root, without a kernel.
+use super::{Pump, ROOT_CLOSE, Report, take_root_close};
 use skein_io::kernel::{Complete, Done, Error, Op};
 use skein_lib::{Queue, Token};
+use std::path::Path;
 
 // Three ordinary completions and the root close fill the queue.
 const CAPACITY: u32 = 4;
@@ -57,4 +59,17 @@ fn another_sort_keeps_leftovers_before_newly_delivered_completions() {
 
     assert!(complete.iter().eq([ordinary(1), ordinary(2), ordinary(3)].iter()), "leftovers precede new completions");
     assert!(reports.is_empty());
+}
+
+#[test]
+fn a_spawn_directory_is_given_beneath_the_root() {
+    // The root is `/`, and a spawn opens its directory beneath it, refusing an absolute path.
+    for (path, beneath) in [
+        ("/home/person/scratch", "home/person/scratch"),
+        ("//home/person", "home/person"),
+        ("/", ""),
+        ("profile", "profile"),
+    ] {
+        assert_eq!(&*Pump::beneath(Path::new(path)), beneath.as_bytes(), "{path}");
+    }
 }
