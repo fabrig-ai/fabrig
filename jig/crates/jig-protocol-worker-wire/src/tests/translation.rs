@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v14 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v15 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -146,6 +146,7 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
         if kind == channel::Kind::Wires.number()
             || kind == channel::Kind::Ask.number()
             || kind == channel::Kind::Asked.number()
+            || kind == channel::Kind::Restarting.number()
         {
             assert!(down.is_err(), "the appended kind is absent at twelve");
             continue;
@@ -161,7 +162,7 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
         assert_eq!(up.bytes(), expected.as_ref(), "{}", golden.name);
         covered.insert(kind).unwrap();
     }
-    assert_eq!(covered.len(), u32::try_from(channel::KINDS.len().checked_sub(3).unwrap()).unwrap());
+    assert_eq!(covered.len(), u32::try_from(channel::KINDS.len().checked_sub(4).unwrap()).unwrap());
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # sign-in: status
 
-2026-11-12. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-16. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
 
 Section 4.3 has no known gap in the endings' header and column, linking
@@ -36,8 +36,9 @@ unchanged. Local `Lost` uses the busy page, as `openid-provider.md`, section 3 n
   2.5: the proxy's own rules are played against scripted upstreams, not
   temper's service (`temper/tests/one-process/src/public/checks.rs`):
   the `Age` it keeps and the stale copy it never serves, what it keeps,
-  its upstream stopped, two deployments behind it with one path, and a
-  refused `Host` with a copy cached.
+  its upstream stopped, two deployments behind it with one path, a
+  refused `Host` with a copy cached, and the headers it drops from a
+  public read.
 - **Design departs:** `openid-provider.md`, 9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page

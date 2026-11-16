@@ -17,6 +17,11 @@ and adds to them is `places.md`.
 - **The first recipes** (section 2), from the journeys' setups: the
   welcome, `project-landing` and `chat-draft`, on the box's generated
   scripts.
+- **Ctl alone** (section 2): `ctl-hello`, from a fresh box by ctl lines
+  alone, Hello on the fake Forgejo and the box's fake model the person's
+  account, its scripts a review's approving verdict, so that a ctl
+  case's change lands by the project's stock rule; it walks in a ctl
+  session.
 - **The TUI's** (section 3): the TUI's journeys start from
   `project-landing`, which serves their starting screens; `tui-chat`
   adds a chat asked and answered from the TUI's launchpad.
@@ -58,6 +63,55 @@ and adds to them is `places.md`.
 | `welcome` | none | its check alone | a fresh box's welcome, nothing connected |
 | `project-landing` | `welcome` | `ctl project make Hello`; `ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git}`, waited until `work/hello` is adopted; the fake ChatGPT plan signed in through the web client, as a person signs a model in once a forge is connected; its check a `web see` of Hello's home naming `work/hello` | Hello, `work/hello` its home on the box's fake Forgejo, the fake ChatGPT plan signed in |
 | `chat-draft` | `project-landing` | the web journey's, unchanged | Hello's first chat with its first Away mode draft written |
+| `ctl-hello` | none | `project-landing`'s three ctl lines; `ctl account add-key 1 {model.key} --key qa-model`; `ctl account list --until usable`; its check, after `check`, `ctl project show Hello` and `ctl account list --until usable` | Hello, `work/hello` its home on the box's fake Forgejo, the box's fake model the person's account, and any change's review answered approving |
+
+- **`ctl-hello`, ctl alone:** the catalogue's first recipe whose chain
+  holds no `web` and no `tui` line, so that triage with neither surface
+  configured offers it (`triage.md`, 3) and its walk is a ctl session
+  (`../../client/recipe.md`, 5.1; `../../client/drive.md`, 2.6). A root,
+  since `welcome`'s check and `project-landing`'s sign-in are web lines.
+  Its `recipe`, whole:
+
+  ```text
+  recipe 1
+  ctl project make Hello --key qa-hello-project
+  ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello
+  ctl forge list --until made:1
+  ctl account add-key 1 {model.key} --key qa-model
+  ctl account list --until usable
+  check
+  ctl project show Hello
+  ctl account list --until usable
+  ```
+
+- **The fake model as the person's account:** provider 1, OpenAI, whose
+  endpoint the box's fake model serves; its key the box's fake model
+  key, named by its file alone (`../../client/drive.md`, 3.4), never
+  read. Without `--deployment`, a key-only account of the signed-in
+  person (`../../client/ctl/areas.md`, area 5), which serves the
+  person's own work: a change the person opens is admitted as their
+  batch and its reviews spend their pool
+  (`../../domain/forge/change/opened.md`, 3), so its review runs on it,
+  while work no person funds finds no account and waits rather than
+  failing under strict. With OpenAI's alone, the reviewer's charter
+  takes `gpt-6.1-sol`, which the fake model serves.
+- **Its scripts:** `scripts.json` holds `cued` alone, one script: B0's
+  twin's review (4.3), cued by `Review this change at the named head`,
+  its four turns the twin's, `read_pull`, `read_pull_files` and
+  `read_checks`, each taking the pull request's number and head from
+  the review's brief (skein's `testing/fakes/llm.md`, 2.6), then
+  `finish` with verdict `1`, approving, all but its text, which reads
+  "Approve. QA's scripted review read the pull request, the files it
+  changes and its checks." No `asked` and no `otherwise`: under strict
+  any other turn fails, naming its request (skein's
+  `testing/fakes/llm.md`, 2.5), so a case whose change needs a model's
+  turn beyond its review, a goal's or a chat's, gives those scripts in
+  a child recipe (`places.md`, 6).
+- **What it serves:** ctl's `change`, `landing`, `repository` and
+  `project` groups on a change that lands by the stock rule, gate 1's
+  review approving: a branch a case's `forge push` makes and
+  `ctl change open` opens (`../../draft/mechanical-changes.md`), and any
+  change the person funds whose only model turns are its review's.
 
 ## 3. The TUI's
 
@@ -239,7 +293,13 @@ Forgejo through the box's values; a twin setup's `scripts.json` reads in
 the box's `--scripts` form and equals its fixture's `cued` and `asked`;
 `widget`'s files equal the B0 fixture's tree; `b1-plan`'s `forge commit`
 names the B1 fixture's gate files, its files equal to theirs, and its
-`.fake-forge/ci` reads `pull-file changes/{pull}.md`. `turn-landing`'s
+`.fake-forge/ci` reads `pull-file changes/{pull}.md`. `ctl-hello` reads
+and hashes as a root whose chain holds no `web` and no `tui` line; its
+walk from a fresh box is a ctl session given its steps and then its
+check, with no `web reload "/"` and no `tui stop`, its `{model.key}`
+resolved from the box's line and kept as written; its `scripts.json`
+reads in the box's `--scripts` form and its one script is B0's twin's
+review but for the verdict's text. `turn-landing`'s
 `config/` holds its five documents, each rendered with a place's names
 (`deployment.md`, 2) refusing none and parsing as its JSON shape; its
 forge document declares the gate and the manual merges; its patch file

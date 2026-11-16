@@ -286,6 +286,114 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     );
 }
 
+/// Ctl alone reaches Hello and the person's model account (testing/qa/setups.md, 2, 6).
+#[test]
+fn ctl_hello_reads_hashes_and_walks_its_steps_and_checks_in_a_ctl_session() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let setups = root.join("docs/development/qa/setups");
+    let chain = Chain::read(&setups, "ctl-hello").expect("ctl-hello chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["ctl-hello"]);
+    assert_ne!(chain.hash(), [0; 32]);
+    let listed = command::catalogue(&Reader::Directory(&setups), vec!["ctl-hello".into()]);
+    assert!(
+        matches!(listed.as_slice(), [line] if line.starts_with("ctl-hello: ") && !line.contains(": refused:")),
+        "{listed:?}"
+    );
+    let design = std::fs::read_to_string(root.join("docs/design/testing/qa/setups.md")).expect("setups design");
+    let block = design.split("  ```text\n").nth(1).expect("recipe block").split("  ```").next().expect("block end");
+    let documented = block.lines().fold(String::new(), |mut text, line| {
+        text.push_str(line.strip_prefix("  ").expect("indented block"));
+        text.push('\n');
+        text
+    });
+    assert_eq!(
+        std::str::from_utf8(&chain.recipes[0].bytes).expect("ASCII recipe"),
+        documented,
+        "recipe bytes are the design's block"
+    );
+    assert_eq!(chain.recipes[0].steps.len(), 5);
+    assert_eq!(chain.recipes[0].check.len(), 2);
+    let lines = chain.lines(None).expect("fresh ctl walk");
+    assert_eq!(
+        shown(lines.clone()),
+        [
+            "ctl-hello:2 ctl project make Hello --key qa-hello-project",
+            "ctl-hello:3 ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello",
+            "ctl-hello:4 ctl forge list --until made:1",
+            "ctl-hello:5 ctl account add-key 1 {model.key} --key qa-model",
+            "ctl-hello:6 ctl account list --until usable",
+            "ctl-hello:8 ctl project show Hello",
+            "ctl-hello:9 ctl account list --until usable",
+        ]
+    );
+    let scratch = skein_scratch::Scratch::new("recipe-ctl-hello");
+    std::fs::create_dir(scratch.path().join("session")).expect("session");
+    let log = b"box: effective data /box/data\nbox: fake forgejo http://127.0.0.1:4321\nbox: Forgejo elsewhere admin token file /box/admin.token\nbox: model key /box/model.key\n";
+    std::fs::write(scratch.path().join("session/box.log"), log).expect("opening lines");
+    let mut options = command::session_options(
+        &chain,
+        &setups,
+        &args(&["--bin", "/build", "--bundle", "/bundle", "--scratch", "/scratch"]),
+    )
+    .expect("options");
+    options.scratch = scratch.path().into();
+    assert!(options.ctl);
+    run_ctl_hello(options, lines, scratch.path());
+}
+
+fn run_ctl_hello(options: drive::Options, lines: Vec<WalkLine>, scratch: &Path) {
+    use drive::{Action, Event, Input, Machine, Output, Plan, Process};
+    use skein_lib::Time;
+
+    let plan = Plan::new(options, std::path::PathBuf::new(), OsStr::new("/bin"));
+    let (mut machine, _) = Machine::start(plan, Time::ZERO);
+    machine.step(
+        Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first".as_slice().into() },
+        Time::ZERO,
+    );
+    let actions = machine.step(
+        Event::Exited { process: Process::SignIn, code: 0, stdout: Box::new([]), stderr: Box::new([]) },
+        Time::ZERO,
+    );
+    assert!(matches!(actions.as_slice(), [Action::RemoveLink, Action::Ready]));
+    for line in lines {
+        let mut actions = machine.step(Event::Line(line.line.clone()), Time::ZERO);
+        if let [Action::ReadBoxLog { path }] = actions.as_slice() {
+            assert_eq!(path, &scratch.join("session/box.log"));
+            actions = machine.step(Event::BoxLog(Ok(std::fs::read(path).expect("box log").into())), Time::ZERO);
+        }
+        let [Action::Start { process: Process::Ctl, program }] = actions.as_slice() else {
+            panic!("{} must start ctl, not refuse a surface: {actions:?}", line.source)
+        };
+        let mut resolved = String::from_utf8(line.line.to_vec()).expect("ASCII ctl line");
+        for (name, value) in [
+            ("{forgejo.admin}", "/box/admin.token"),
+            ("{forgejo.api}", "127.0.0.1:4321"),
+            ("{forgejo.git}", "http://127.0.0.1:4321"),
+            ("{git}", "/box/data/demo/bin/git"),
+            ("{model.key}", "/box/model.key"),
+        ] {
+            resolved = resolved.replace(name, value);
+        }
+        let mut expected: Vec<OsString> = vec!["ctl".into(), scratch.join("session/ctl").into()];
+        expected.extend(resolved.split_whitespace().skip(1).map(OsString::from));
+        assert_eq!(program.args, expected, "{}", line.source);
+        assert_eq!(program.program, Path::new("/build/temper"));
+        assert_eq!(program.input, Input::Null);
+        let actions = machine.step(
+            Event::Exited { process: Process::Ctl, code: 0, stdout: Box::new([]), stderr: Box::new([]) },
+            Time::ZERO,
+        );
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+            if kept == &line.line && answer.failed.is_none()),
+            "{}: {actions:?}",
+            line.source
+        );
+        assert!(machine.ready());
+    }
+}
+
 /// QA uses the fake Forgejo elsewhere, never the owned one (testing/qa/setups.md, 2, 5).
 #[test]
 fn committed_qa_recipes_never_set_up_the_owned_forge() {

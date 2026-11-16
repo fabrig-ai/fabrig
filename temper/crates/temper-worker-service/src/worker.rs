@@ -51,6 +51,7 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     link: link::Component,
+    grace: skein_lib::Duration,
     link_out: Queue<link::Request>,
     out: Queue<root::Request>,
     pub(crate) events: Queue<root::Event>,
@@ -166,6 +167,7 @@ impl Worker {
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
         Ok(Self {
+            grace: prepared.link.grace,
             git,
             jobs: jobs::Jobs::new(slots),
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
@@ -548,6 +550,9 @@ impl Worker {
                     }
                 }
                 self.engine.push(root::Event::Lost);
+            }
+            link::Request::Restarting { wait } => {
+                self.notes.push(crate::worker_alone::Note::Restarting { keep: wait.max(self.grace) });
             }
             link::Request::GracePassed => self.engine.push(root::Event::GracePassed),
             link::Request::Resend { run, attempt, turn } => {
@@ -981,6 +986,7 @@ impl Worker {
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
             | smith::Down::Cancel
+            | smith::Down::Renewals { .. }
             | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
@@ -1012,6 +1018,9 @@ impl Worker {
             }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
+            }
+            smith::Down::Renewals { held } => {
+                process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
             smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
@@ -1310,7 +1319,8 @@ fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith:
             }
             smith::Down::Start { start: fit_start(start, agent), window }
         }
-        other @ (smith::Down::Grant { .. }
+        other @ (smith::Down::Renewals { .. }
+        | smith::Down::Grant { .. }
         | smith::Down::Message { .. }
         | smith::Down::Answer { .. }
         | smith::Down::Acknowledge { .. }

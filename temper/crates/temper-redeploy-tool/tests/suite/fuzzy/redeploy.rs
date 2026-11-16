@@ -84,8 +84,18 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 let d = description(count);
                 let mut deployment = Deployment::new(d.clone());
                 deployment.stage_all(NEW);
-                for index in 0..count {
+                let mut stop = Vec::new();
+                for (index, worker) in d.workers.iter().enumerate() {
                     grace(&mut deployment, index, (next(&mut random) % 4 + 2) * 1000);
+                    if next(&mut random) % 2 == 0 {
+                        let wait = (next(&mut random) % 5 + 3) * 1000;
+                        stop.push(format!(
+                            "temper-engine serve: worker {} told the engine restarts: wait {wait} ms",
+                            worker.name
+                        ));
+                    } else {
+                        stop.push(format!("temper-engine serve: worker {} not told the engine restarts: jig-worker-wire 14; it keeps its grace", worker.name));
+                    }
                     let opening = match next(&mut random) % 12 {
                         0 => Opening::Never,
                         1 => Opening::Refused { nanoseconds: SECOND, text: "wire version cannot agree".into() },
@@ -93,6 +103,7 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                     };
                     deployment.opening(index, opening);
                 }
+                deployment.stop_logs.push_back(stop);
                 let (code, verdict_line) = match verdict {
                     0 => (0, "workers may stay: yes"),
                     1 => (0, "workers may stay: no"),
@@ -163,6 +174,51 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
     assert_eq!(counts, [1, 2, 3, 4].into());
     assert_eq!(outcomes, ["Done".into(), "Failed".into(), "Refused".into()].into());
 }
+#[test]
+fn told_deployments_follow_the_opening_bound_and_per_worker_verdicts_seeded() {
+    use temper_redeploy_tool::referee::judgement::{Readings, evaluate};
+    let mut coverage = [false; 4];
+    for seed in 1..=512_u64 {
+        let mut random = seed;
+        let count = usize::try_from(next(&mut random) % 4 + 1).unwrap();
+        let d = description(count);
+        let mut deployment = Deployment::new(d.clone());
+        deployment.stage_all(NEW);
+        let mut given = Vec::new();
+        let mut delays = Vec::new();
+        let mut stop = Vec::new();
+        for (index, worker) in d.workers.iter().enumerate() {
+            let grace_seconds = next(&mut random) % 4 + 2;
+            grace(&mut deployment, index, grace_seconds * 1000);
+            let told = next(&mut random) % 2 == 0;
+            let wait = next(&mut random) % 9;
+            let name = &worker.name;
+            stop.push(if told {
+                format!("temper-engine serve: worker {name} told the engine restarts: wait {} ms", wait * 1000)
+            } else {
+                format!("temper-engine serve: worker {name} not told the engine restarts: jig-worker-wire 14; it keeps its grace")
+            });
+            let wait = if told { grace_seconds.max(wait) } else { grace_seconds };
+            given.push(wait);
+            let delay = next(&mut random) % 10;
+            delays.push(delay);
+            coverage[usize::from(told)] = true;
+            deployment.opening(index, Opening::After { nanoseconds: delay * SECOND, wires: WIRES.into() });
+        }
+        deployment.stop_logs.push_back(stop);
+        let bound = *given.iter().max().unwrap();
+        let last = *delays.iter().max().unwrap();
+        let (outcome, record) = run(&d, &mut deployment, Mode::Engine);
+        assert_eq!(outcome, if last <= bound { Outcome::Done } else { Outcome::Failed }, "seed {seed}");
+        assert_eq!(deployment.at, (1 + last.min(bound)) * SECOND, "seed {seed}");
+        let failures = delays.iter().zip(&given).filter(|(delay, wait)| *delay >= *wait).count();
+        let result = evaluate(&d, &record, &Readings::default());
+        assert_eq!(result.failures, failures, "seed {seed}: {given:?}, {delays:?}: {result:?}");
+        coverage[2 + usize::from(failures == 0)] = true;
+    }
+    assert!(coverage.into_iter().all(|seen| seen), "told and not told, both referee verdicts");
+}
+
 fn fail(deployment: &mut Deployment, random: &mut u64) -> u64 {
     let d = deployment.description.clone();
     let count = u64::try_from(d.workers.len()).expect("fixture worker count fits u64");

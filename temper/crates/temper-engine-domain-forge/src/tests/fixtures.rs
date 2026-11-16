@@ -155,6 +155,7 @@ pub fn opening_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

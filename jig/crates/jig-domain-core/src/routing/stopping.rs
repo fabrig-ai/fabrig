@@ -68,6 +68,14 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         );
     }
     assert!(work.is_empty(), "forgetting an attempt starts no sibling work");
+    let wait = env.limits.fleet.restart_wait;
+    if core.settling && !core.workers_in_process && wait != skein_lib::Duration::ZERO {
+        let kept = core.counters.deployment.restart_wait_ms.unwrap_or(0);
+        core.counters.deployment.restart_wait_ms = Some(kept.max(wait.as_millis()));
+        core.counters.header = crate::numbers::Header::Dirty;
+        core.restart_said = true;
+        out.push(Request::Held(Box::new(Held::Restarting { wait })));
+    }
     core.stopping = true;
     core.draining = Some(true);
     out

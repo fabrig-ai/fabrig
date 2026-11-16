@@ -40,7 +40,6 @@ impl Harness for Golden {
         fixtures::files()
     }
 }
-thread_local! { static PATCHED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) }; }
 struct Observer {
     inner: ServiceObserver,
 }
@@ -56,19 +55,7 @@ impl Observe for Observer {
         self.inner.complete(complete, service)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: skein_lib::Wall) -> bool {
-        while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = note {
-                let owner = match of {
-                    jig_protocol_store::Owner::Skein => "skein",
-                    jig_protocol_store::Owner::Smith => "smith",
-                    jig_protocol_store::Owner::Jig => "jig",
-                    jig_protocol_store::Owner::Application => "temper",
-                };
-                PATCHED.with(|lines| {
-                    lines.borrow_mut().push(format!("{owner} {patch} {} {}\n", counts.records, counts.commits));
-                });
-            }
-        }
+        while service.notes().pop().is_some() {}
         self.inner.before_iterate(service, now, wall)
     }
     fn submitted(&mut self, submit: &skein_io::kernel::Submit) {
@@ -391,7 +378,6 @@ pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
 
 /// An ordinary world story; the caller supplies only its test's temporary directory.
 pub fn make(directory: &Path) {
-    PATCHED.with(|lines| lines.borrow_mut().clear());
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
@@ -450,11 +436,10 @@ pub fn make(directory: &Path) {
     world::lower_store(None);
 }
 
-/// The permanent baseline is refused for its retired milestones, without switching generations.
+/// The permanent baseline is refused as unleveled, without switching generations.
 pub fn read(directory: &Path) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
-    PATCHED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = read_configuration(directory);
     let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
@@ -499,9 +484,14 @@ pub fn read(directory: &Path) {
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
     assert!(
-        matches!(service.service.end(), Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
-        temper_service::EngineStop::StoreOpen { why: jig_protocol_store::OpenRefusal::Layout { family, value_type: 10, why: jig_protocol_store::Unplanned::Retired, .. } }
-    ))) if family.as_ref() == "jig-store-tasks"),
+        matches!(
+            service.service.end(),
+            Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
+                temper_service::EngineStop::StoreOpen {
+                    why: jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Unleveled }
+                }
+            )))
+        ),
         "{:?}",
         service.service.end()
     );

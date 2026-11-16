@@ -140,6 +140,8 @@ fn forms_round_trip_and_bad_fields_are_named() {
 #[test]
 fn ctl_box_values_are_bare_or_quoted_and_unknown_names_are_refused() {
     for source in [
+        "ctl account add-key 1 {model.key} --key qa-model",
+        r#"ctl account add-key 1 "{model.key}" --key qa-model"#,
         "ctl forge connect forgejo-admin {forgejo.admin} --api {forgejo.api} --git {forgejo.git} --git-program {git}",
         r#"ctl forge connect forgejo-admin "{forgejo.admin}" --api "{forgejo.api}" --git "{forgejo.git}" --git-program "{git}""#,
         "ctl account add-key Model {model.key}",

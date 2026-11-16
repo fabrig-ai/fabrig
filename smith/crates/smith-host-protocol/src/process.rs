@@ -222,6 +222,19 @@ impl Process {
         Ok(())
     }
 
+    /// Tell the run whether the host can renew its grants.
+    pub fn send_renewals(
+        &mut self,
+        held: bool,
+        token: Token,
+        to_service: &mut Queue<ProcessEvent>,
+        below: &mut Queue<IoRequest>,
+    ) -> Result<(), Error> {
+        self.channel.send_renewals(held, token, &mut self.channel_events, &mut self.channel_below)?;
+        self.drain_channel(to_service, below);
+        Ok(())
+    }
+
     /// Ask the run to stop at its current turn boundary.
     pub fn send_drain(
         &mut self,

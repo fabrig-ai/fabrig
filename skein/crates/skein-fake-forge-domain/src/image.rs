@@ -144,6 +144,16 @@ impl Domain {
             }
         }
         require(input.is_empty(), "trailing bytes")?;
+        for index in 0..domain.repositories.len() {
+            let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("retained repository");
+            let repository = domain.repositories.get_mut(id).expect("retained repository");
+            for runs in [&mut repository.runs, &mut repository.dispatched] {
+                for position in 0..runs.len() {
+                    let (&key, _) = runs.iter().nth(skein_lib::usize_of(position)).expect("retained run");
+                    crate::actions::complete(runs.get_mut(&key).expect("retained run"));
+                }
+            }
+        }
         Ok(domain)
     }
 }

@@ -252,3 +252,33 @@ fn me_carries_no_creating_bounds_for_an_observer() {
     let value = frame(&core, &limits);
     assert_eq!(value.projects.get(0).unwrap().creating, None);
 }
+
+#[test]
+fn me_offers_the_reserved_gathering_only_when_the_role_names_it() {
+    for procedure in [GATHERING, 1] {
+        let (old, limits) = core();
+        let mut config = config(148);
+        let kinds: Box<[authority::Executor]> =
+            Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(procedure)]);
+        config.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+        let policy = &mut config.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.kinds.clone_from(&kinds);
+        policy.roles[0].authority.delegation.kinds = kinds;
+        let mut core = seeded_core(config, &limits).expect("gathering creating configuration");
+        core.people = old.people;
+        let frame = frame(&core, &limits);
+        let crate::acts::Creating { within: crate::acts::Bounds::Create { procedures, .. }, .. } =
+            frame.projects.get(0).expect("project").creating.as_ref().expect("creating")
+        else {
+            panic!("creating bounds")
+        };
+        let mut gatherings = 0;
+        for candidate in procedures {
+            if candidate.connector == RECURRING {
+                assert_eq!(candidate.code, GATHERING, "no other code is offered on the reserved connector");
+                gatherings += 1;
+            }
+        }
+        assert_eq!(gatherings, u32::from(procedure == GATHERING));
+    }
+}

@@ -741,7 +741,14 @@ printf 'ended\n'
         .expect("socket end arrives before the hour-long fallback")
         .expect("holder ends from socket request");
     serving.join().expect("holder thread");
-    File::open(place.join("drive.lock")).expect("lock").try_lock().expect("place freed");
+    // The loop's own close takes the lock a moment to see it released; the place frees within a bound.
+    let lock = File::open(place.join("drive.lock")).expect("lock");
+    let mut tries = 200;
+    while let Err(why) = lock.try_lock() {
+        tries -= 1;
+        assert!(tries > 0, "place freed within 2 s: {why:?}");
+        std::thread::sleep(Duration::from_millis(10));
+    }
     assert!(!place.join("drive.sock").exists());
 }
 

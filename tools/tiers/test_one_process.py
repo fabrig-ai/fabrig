@@ -185,6 +185,68 @@ class EndToEndTests(RunnerFixture):
                 self.assertIn(output.getvalue().splitlines()[-1],
                               (self.directory / 'command-output.txt').read_text())
 
+    def test_walls_replace_the_profiles_global_timeout(self):
+        self.env['FIXTURE_CASE'] = 'hang'
+        self.binary(names=('b',))
+        self.config.write_text('[profile.default]\nglobal-timeout="60s"\n')
+        walls = self.root / 'walls.toml'
+        walls.write_text('[profile.default]\nglobal-timeout="1s"\n')
+        self.prepare()
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'))
+        result = subprocess.run([str(HERE / 'one-process'), '--out', str(self.directory),
+                                 '--walls', str(walls), 'default', '-p', 'fixture'],
+                                cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        plan = json.loads((self.directory / 'plan.json').read_text())
+        self.assertEqual(plan['global_timeout'], 1)
+        again = self.module['again_plan'](self.directory, 'fixture::suite', ['b'])
+        self.assertEqual(again['global_timeout'], 1)
+        run = json.loads((self.directory / 'run.json').read_text())
+        self.assertTrue(run['starved'])
+        self.assertLess(run['wall_s'], 4)
+        results = json.loads((self.directory / 'results.json').read_text())
+        self.assertEqual(results['cancelled'], 'global-timeout')
+        self.assertEqual([(t['test_name'], t['outcome']) for t in results['tests']], [('b', 'cancelled')])
+        failure = ET.parse(self.directory / 'junit.xml').find('.//failure')
+        self.assertEqual(failure.get('type'), 'test abort')
+        self.assertIn('signal 15 (SIGTERM)', failure.get('message'))
+        self.assertEqual(self.module['CPU']['summary'](self.directory)['verdict'], 'starved')
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        self.assertIn(str(self.config), calls[0])
+        self.assertNotIn(str(walls), calls[0])
+
+    def test_walls_refuse_before_commands(self):
+        walls = self.root / 'walls.toml'
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'))
+        for label, source, arguments, message in (
+                ('another key', '[profile.default]\nglobal-timeout="1s"\nslow-timeout="1s"\n',
+                 ['default'], 'global-timeout alone'),
+                ('another table', '[profile.default]\nglobal-timeout="1s"\n[test-groups]\n',
+                 ['default'], 'only profile tables'),
+                ('duration', '[profile.default]\nglobal-timeout="soon"\n',
+                 ['default'], "invalid duration 'soon'"),
+                ('missing profile', '[profile.fuzzy]\nglobal-timeout="1s"\n',
+                 ['default'], "no wall for profile 'default'"),
+                ('again', '[profile.default]\nglobal-timeout="1s"\n',
+                 ['--again', str(self.root / 'no plan'), 'fixture::suite', 'b'],
+                 '--walls is not supported with --again')):
+            with self.subTest(label=label):
+                for name in ('cargo-argv.jsonl', 'prefix-argv.jsonl'):
+                    (self.root / name).unlink(missing_ok=True)
+                walls.write_text(source)
+                result = subprocess.run([str(HERE / 'one-process'), '--walls', str(walls), *arguments],
+                                        cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                        capture_output=True, text=True, timeout=4)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertFalse((self.root / 'cargo-argv.jsonl').exists())
+                self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
+                self.assertIn(message, result.stderr)
+                if label != 'again':
+                    self.assertIn(str(walls), result.stderr)
+
     def test_command_empty_selection(self):
         self.binary(names=())
         self.prepare()

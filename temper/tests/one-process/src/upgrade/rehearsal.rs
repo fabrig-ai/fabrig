@@ -274,24 +274,8 @@ fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
     let (lines, code) = render(&tool.0);
     eprintln!("golden maps: {expected} kept records\n{lines}");
     assert_eq!(code, 1, "{lines}");
-    if broken {
-        use std::fmt::Write;
-        let mut hex = String::new();
-        for byte in key {
-            write!(hex, "{byte:02x}").expect("hex key");
-        }
-        assert!(lines.contains(&format!("record not decodable: temper-store 11, store key {hex}\n")), "{lines}");
-        assert!(!lines.contains("decoded ") && !lines.contains("patched "), "no plan runs: {lines}");
-    } else {
-        assert!(lines.contains(&format!("decoded {expected} records\n")), "{lines}");
-        assert!(
-            lines.contains(
-                "family jig-store-tasks value type 10 layout 9: the value type is retired, and its keys hold a value"
-            ),
-            "{lines}"
-        );
-        assert!(!lines.contains("patched ") && !lines.contains("patches and restores pass"), "{lines}");
-    }
+    assert!(lines.contains("holds a store from before the baseline"), "{lines}");
+    assert!(!lines.contains("decoded ") && !lines.contains("registry commit, jobs and restores pass"), "{lines}");
     let mut disk = outcome.machine.0.borrow_mut();
     assert_eq!(contents(&mut disk, 0), before, "every source path and byte unchanged");
     assert!(contents(&mut disk, 2).is_empty(), "close emptied scratch");
@@ -314,24 +298,39 @@ fn break_record(disk: &mut Machine, maps: &super::maps::Maps, key: &[u8]) {
         .expect("golden log commits");
     let header_key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
     let encoded_key = jig_protocol_store::keys::encode(&header_key, 64).expect("header key");
-    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(mut header)) =
-        jig_protocol_store::codec::decode(
-            &header_key,
-            maps.store.get(encoded_key.as_ref()).expect("header"),
-            &fixtures::codec(),
-            fixtures::store_names(),
+    // The golden's deployment header uses the captured pre-restart layout, not today's codec.
+    let text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../jig/crates/jig-protocol-store/src/tests/fixtures/cb429613c6-core-v6.schema"
+    ));
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept core schema");
+    let mut value = skein_codec::value::Value::with_room(32);
+    let row = value
+        .decode(
+            &schema,
+            schema.find(b"Row").expect("header row"),
+            Box::from(maps.store.get(encoded_key.as_ref()).expect("header").as_slice()),
         )
-        .expect("header decodes")
+        .expect("kept header decodes");
+    let skein_codec::schema::Shape::Record { first: row_value, count: 1, .. } =
+        schema.declaration(schema.find(b"Row").expect("row declaration")).shape
     else {
-        panic!("deployment header")
+        panic!("Row holds its value")
     };
-    header.commits = last + 1;
-    let header = jig_protocol_store::codec::encode(
-        &jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)),
-        &fixtures::codec(),
-        fixtures::store_names(),
-    )
-    .expect("header encodes");
+    let enumeration = value.field(row, row_value).expect("row value");
+    let header = value.payload(enumeration).expect("row payload").expect("deployment payload");
+    let declaration = schema.find(b"Deployment").expect("deployment declaration");
+    let skein_codec::schema::Shape::Record { first, count, .. } = schema.declaration(declaration).shape else {
+        panic!("deployment is a record")
+    };
+    let commit = (first.index()..first.index() + count)
+        .map(skein_codec::schema::FieldIx::new)
+        .find(|&field| schema.spelled(schema.field(field).name) == b"commits")
+        .expect("commit field");
+    let span = value.span(value.field(header, commit).expect("header commit")).expect("commit span");
+    let mut header = value.bytes().to_vec();
+    header[usize::try_from(span.start).expect("span start")..usize::try_from(span.end).expect("span end")]
+        .copy_from_slice(&(last + 1).to_be_bytes());
     let mut body = Vec::new();
     for (key, value) in [(key, b"".as_slice()), (encoded_key.as_ref(), header.as_ref())] {
         body.push(1);

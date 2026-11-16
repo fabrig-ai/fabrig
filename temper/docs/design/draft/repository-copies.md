@@ -210,14 +210,14 @@ MakeRepository {
 - **`temper box --fake-backends`** seeds two, and prints their
   addresses with the files a walk pastes (`../protocol/setup/box.md`,
   5): a journey copies them in the welcome.
-- **The conformance** (skein's `testing/fakes/forge.md`, section 7) records each
+- **The conformance** (skein's `testing/fakes/throwaway.md`, section 2) records each
   fact `Copy` relies on, on the throwaway Forgejo, from a source served
   by a second throwaway on loopback, its migration settings allowing
   local networks in the throwaway alone: the migration's answer, a
   missing source's, the repository's state after a migration cut
   short, the default branch kept, `OFFLINE_MODE` leaving migrations
   on, and which workflow directory Actions reads when both are there
-  (section 8). They join skein's `forge/setup/forgejo.md`, section 2.
+  (`repository-copies.md`, section 8). They join skein's `forge/setup/forgejo.md`, section 2.
 - **No test reaches a real host.**
 
 ## 7. The welcome

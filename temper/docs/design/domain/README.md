@@ -56,6 +56,9 @@ all. Then temper's:
    triaged and closed when their fix clears; QA after landing.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
+10. **milestones.md:** a milestone, a set of goals on jig's gathering:
+    its template and identity, its goals asking its maker, its totals
+    and the forge's row of it, and the status agent's milestones.
 
 ## 2. Structure
 
@@ -108,7 +111,7 @@ temper-worker-domain                       the worker's root (worker/README.md)
   path from `docs/design/`: `forge/change/README.md, 2`; jig's as
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
-  the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
+  the conformance's `facts.txt` (skein's `testing/fakes/throwaway.md`, section 2) and
   `crates/temper-git-transcripts-tool/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what

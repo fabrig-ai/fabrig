@@ -23,6 +23,7 @@ mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
+mod milestones;
 mod now;
 mod panels;
 pub(crate) mod policy_translate;
@@ -412,6 +413,7 @@ fn route_core_with_job(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
@@ -567,7 +569,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
-            Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
+            Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal, decision),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
             Work::Activate { context, ready } => activate(domain, env, decision, context, ready),

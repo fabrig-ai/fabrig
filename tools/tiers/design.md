@@ -784,7 +784,7 @@ change to the build command a caller wraps changes none of them.
   object, and exits 0 for a valid run within its CPU budgets or with none
   set, 1 over a CPU budget, and 2 for invalid input or unverified
   coverage (7.3). A one-process run's directory reads the same way (11).
-- `tools/tiers/one-process [--out DIR] [--budgets PATH] PROFILE [NEXTEST_ARGS...]`
+- `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 
 ### 10.2 `cpu.py`
@@ -822,11 +822,12 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
-- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'))`:
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None)`:
   runs the selection of `command`, the caller's nextest command as it would
   give `execute` without `prepare`'s arguments, a binary's tests in one
   process (section 11), into `directory`, fresh as `prepare` makes one, which
-  it makes itself. It holds `wall_hard_s` from `limits` as `execute` does,
+  it makes itself. `walls`, a walls file's path or none, gives the run's
+  `global-timeout` (11.7). It holds `wall_hard_s` from `limits` as `execute` does,
   writes 11.8's files, prints the summary as text and returns as `execute`
   does: 1 over a CPU budget; otherwise 100 when a failure stands; otherwise 0
   when the run was starved or its only blemishes are starved tests; otherwise
@@ -945,10 +946,11 @@ measured", never a share or a guess. No `/proc` sampling.
 `cpu.py`'s `execute_one_process` (10.2) and `tools/tiers/one-process` (11.9)
 run the mode. Its body is `tools/tiers/one_process.py`, loaded with
 `runpy.run_path` as `cpu.py` is and no importable module:
-`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'))`
+`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None)`
 runs one suite into a fresh, private `directory` (mode 0700, refused when it
 holds anything) and writes 11.8's files; `execute_one_process` adds the
-summary and the exit status.
+summary and the exit status. `walls`, a walls file's path or none, gives the
+profile's `global-timeout` in place of `config`'s (11.7).
 
 `command` is the caller's nextest command, as it would pass it to `execute`
 without `prepare`'s arguments: its first element whose basename is `cargo`
@@ -973,7 +975,8 @@ refuses, raising `ValueError` before anything runs, what it cannot hold:
 - an override filter outside 11.3's filtersets, and the profile's
   `default-filter` outside them where the caller gives no filter of its own
   (11.2);
-- a `limits` table for the profile with `cpu_test_s`: no test's CPU is measured.
+- a `limits` table for the profile with `cpu_test_s`: no test's CPU is measured;
+- a `walls` file outside 11.7's form, or one with no wall for the profile.
 
 ### 11.2 Selecting
 
@@ -983,7 +986,7 @@ path, and the run command's arguments that `list` takes: package
 and target selection, features and build options, filters (`-E`, test-name
 filters, `--ignore-default-filter`), `--run-ignored` and `--partition`. Nextest
 therefore selects with the configuration the mode reads, a caller's private one
-(a gate's, with its own wall cap) as well as the checkout's. Run-only
+as well as the checkout's; a walls file (11.7) changes no selection. Run-only
 arguments (`--no-fail-fast`, `--fail-fast`, `--max-fail`, `--no-capture`, the
 output and status levels, `--hide-progress-bar`) are dropped, and `--no-tests`
 is the mode's own. The listing builds, as `run` would; its output is forwarded,
@@ -1181,6 +1184,35 @@ and its exit gave. The lanes end once they have settled the last process, and
 the run is starved. No per-test bound is added: one would be a policy, the
 user's.
 
+**The gate's walls.** A walls file gives a run's profile its
+`global-timeout` in place of `config`'s, for a caller whose wall is its own:
+the gate's (`skein/docs/foundation/testing-strategy.md`, 8.1). It is TOML in
+the shape of nextest's configuration, a `[profile.NAME]` table for each
+profile it limits holding `global-timeout` alone, a duration in nextest's
+syntax, and nothing else:
+
+```toml
+[profile.default]
+global-timeout = "270s"
+```
+
+Only the lanes' bound changes: the listing reads `config` as ever (11.2),
+and the wall reaches the lanes as any `global-timeout` does, in `plan.json`
+(11.4), so `--again` from the run holds it too (11.9). A file with another
+table or key, a duration nextest wouldn't read, or no table for the run's
+profile is refused before anything runs (11.1). Its expiry is the global
+timeout's above: the run is starved, and its summary says so as anywhere;
+the gate's runner, outside this repository, reruns it once and judges a
+second expiry by its own cgroup's stalls (8.1 of the strategy).
+
+The repository keeps the gate's walls in `.config/gate/walls.toml`, 270 s
+for `default` and 215 s for `fuzzy`, which the gate passes to both suites
+(`.config/gate/README.md`, item 4). Every other run reads the profiles' own
+`global-timeout` in `.config/nextest.toml`, three times the gate's walls:
+810 s and 645 s. `tests/boundary/tests/profiles.rs` holds that: each profile
+the walls file names is one of `.config/nextest.toml`'s, whose own
+`global-timeout` is three times its wall.
+
 `limits`' `wall_hard_s` for the profile holds as `execute` holds it (7.3),
 from the first process's start while a test runs: crossing it prints the
 green `starved` warning, writes `starved.json` and sends `SIGTERM` to the lanes'
@@ -1246,13 +1278,15 @@ and nothing reads it as a result.
 
 ### 11.9 By hand
 
-`tools/tiers/one-process [--out DIR] [--budgets PATH] PROFILE [NEXTEST_ARGS...]`,
+`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] PROFILE [NEXTEST_ARGS...]`,
 from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 --no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a
 package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
 prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
 `tiers-one-process/runs/<UTC time>-<pid>` beneath Cargo metadata's target
-directory, printed first; `PATH`'s limits (`budgets`) apply, none by default.
+directory, printed first; `--budgets`' limits (`budgets`) apply, none by
+default; `--walls` names a walls file (11.7), passed to
+`execute_one_process` as `walls`, none by default.
 It exits as `execute_one_process` returns, 2 for an invalid invocation or
 run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
 
@@ -1278,7 +1312,9 @@ keeps. It writes `DIR`'s `plan.json`, `run.json`, `results.json`,
 times; `DIR` defaults as above and is printed first. It exits 0 when every
 name passed, 100 when one did not, and 2 for an invalid invocation or run:
 no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
-tests or given twice, no names, or a `DIR` not fresh. The hold is as
+tests or given twice, no names, or a `DIR` not fresh; `--budgets` or
+`--walls` with `--again` is an invalid invocation too, since the plan holds
+its run's bound. The hold is as
 above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`.
 
 ### 11.10 Offline proof
@@ -1306,6 +1342,10 @@ goes on. `--again`, from a fixture run's directory: its names run in one
 process, in order, with the plan's environment and no cargo command; a
 pass exits 0 and a failure 100, with the run directory's files and no kept
 times; a binary or a name the plan doesn't select, no names and no plan
-exit 2.
+exit 2. A walls file (11.7): its wall, shorter than the fixture profile's
+own `global-timeout`, stops a hang at the wall, in the plan and the run's
+cancellation; a file with another key or table, a duration nextest
+wouldn't read, or no table for the profile exits 2 before any cargo
+command; `--walls` with `--again` exits 2.
 `test_cpu.py` covers `summary`'s reading of a one-process directory, a forced
 kill's included, and the exit statuses.

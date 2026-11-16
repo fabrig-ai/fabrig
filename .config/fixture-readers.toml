@@ -59,7 +59,7 @@ pair = "default"
 package = "jig-protocol-store"
 filter = "kind(lib)"
 
-# src/tests/{format,frame_memory}.rs; jig/tests/store-codecs/tests/suite/drift.rs: layouts().
+# Store unit and drift tests; one-process rehearsal corrupts the captured deployment header.
 [[fixture]]
 paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.schema"]
 [[fixture.reader]]
@@ -70,6 +70,10 @@ filter = "kind(lib)"
 pair = "default"
 package = "jig-store-codecs-world"
 filter = "binary(=suite) & test(/the_stores_layouts_have_no_drift/)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::broken_golden_rehearsal_names_temper_record_and_leaves_source_unchanged)"
 
 # src/tests.rs declares the private fixture module.
 [[fixture]]

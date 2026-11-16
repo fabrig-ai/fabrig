@@ -4,7 +4,7 @@ use temper_redeploy_tool::{
     cli::{Action, execute},
     fake::{Deployment, WIRES, description, output},
     hosts::{Output, Part, ctl},
-    record::{Before, Grace, Journal, Opening, Outage, Record, TaskBefore, Window},
+    record::{Before, Grace, Journal, Opening, Outage, Record, TaskBefore, Told, Window},
     redeploy::Mode,
     referee::{
         before, judge,
@@ -181,7 +181,7 @@ fn pattern_judgement_pages_activity_and_prints_every_finding_through_the_journal
         lines(&journal),
         vec![
             format!("worker w1 agreed {WIRES}"),
-            "window 31.0 s within w1's grace 300.0 s".into(),
+            "window 31.0 s".into(),
             "every part was out 2.0 s".into(),
             "task 7 attempt 3 failed: lost".into(),
             "task 8 attempt 2 failed: run, its own".into(),
@@ -206,13 +206,20 @@ fn openings_window_boundaries_outages_and_other_holds_are_judged() {
     let mut hosts = Deployment::new(d.clone());
     empty(&mut hosts);
     let mut record = record(2);
-    // The window is compared to the smallest grace, not the opening's worker.
     record.graces[1].grace_ms = 400_000;
-    for (duration, failed, word) in [(31, false, "within"), (300, true, "past"), (301, true, "past")] {
+    for (duration, failed, word) in [(31, false, "within"), (400, true, "past"), (401, true, "past")] {
         record.window = Some(Window { from: BEGAN, to: BEGAN + duration * SECOND, worker: "w2".into() });
+        record.openings[1].at = BEGAN + duration * SECOND;
         let mut journal = memory(record.clone());
         assert_eq!(judge(&d, &mut journal, &mut hosts), !failed);
-        assert!(lines(&journal).contains(&format!("window {duration}.0 s {word} w1's grace 300.0 s").as_str()));
+        assert!(lines(&journal).contains(&format!("window {duration}.0 s").as_str()));
+        assert!(
+            lines(&journal).contains(&format!("worker w2 back in {duration}.0 s {word} its grace 400.0 s").as_str())
+        );
+        assert!(
+            !lines(&journal).iter().any(|line| line.starts_with("worker w1 back")),
+            "w1's opening predates the start ridden"
+        );
     }
     record.window = None;
     record.openings.pop();
@@ -259,6 +266,80 @@ fn openings_window_boundaries_outages_and_other_holds_are_judged() {
 }
 fn record_without_workers() -> Record {
     record(0)
+}
+
+#[test]
+fn each_workers_return_is_judged_against_its_given_wait() {
+    let d = description(2);
+    let mut hosts = Deployment::new(d.clone());
+    empty(&mut hosts);
+    for (wait_ms, a, b, failures) in [
+        (1_200_000, 900, 900, 1),
+        (1_200_000, 1199, 299, 0),
+        (1_200_000, 1200, 300, 2),
+        (1_200_000, 1201, 301, 2),
+        (100_000, 299, 299, 0),
+        (100_000, 300, 300, 2),
+    ] {
+        let mut record = record(2);
+        record.told = Some(vec![
+            Told { worker: "w2".into(), wait_ms: None },
+            Told { worker: "w1".into(), wait_ms: Some(wait_ms) },
+        ]);
+        record.window =
+            Some(Window { from: BEGAN, to: BEGAN + a.min(b) * SECOND, worker: if a < b { "w1" } else { "w2" }.into() });
+        record.openings[0].at = BEGAN + a * SECOND;
+        record.openings[1].at = BEGAN + b * SECOND;
+        let mut journal = memory(record);
+        assert_eq!(judge(&d, &mut journal, &mut hosts), failures == 0);
+        let restart = (wait_ms / 1000).max(300);
+        let a_word = if a >= restart { "past" } else { "within" };
+        let b_word = if b >= 300 { "past" } else { "within" };
+        assert_eq!(
+            lines(&journal),
+            vec![
+                format!("worker w1 agreed {WIRES}"),
+                format!("worker w2 agreed {WIRES}"),
+                format!("window {}.0 s", a.min(b)),
+                format!("worker w1 back in {a}.0 s {a_word} its restart wait {restart}.0 s"),
+                format!("worker w2 back in {b}.0 s {b_word} its grace 300.0 s"),
+                "read: 0 projects, 0 tasks, since 2026-11-13T10:00:00Z".into(),
+                if failures == 0 { "pass".into() } else { format!("fail: {failures}") }
+            ]
+        );
+    }
+}
+
+#[test]
+fn a_record_without_told_is_read_by_a_later_referee_as_no_worker_told() {
+    let d = description(1);
+    let mut hosts = Deployment::new(d.clone());
+    empty(&mut hosts);
+    let mut record = record(1);
+    record.window = Some(Window { from: BEGAN, to: BEGAN + 900 * SECOND, worker: "w1".into() });
+    record.openings[0].at = BEGAN + 900 * SECOND;
+    let mut value = serde_json::to_value(record).unwrap();
+    assert_eq!(value["told"], Value::Null);
+    value.as_object_mut().unwrap().remove("told").unwrap();
+    let scratch = skein_scratch::Scratch::new("redeploy-before-told");
+    let path = scratch.path().join("record.json");
+    let bytes = serde_json::to_vec(&value).unwrap();
+    std::fs::write(&path, &bytes).unwrap();
+    let printed = scratch.path().join("printed");
+    assert_eq!(
+        execute(
+            &d,
+            &Action::Referee { record: path.clone() },
+            &mut hosts,
+            Box::new(std::fs::File::create(&printed).unwrap())
+        )
+        .unwrap(),
+        1
+    );
+    let printed = std::fs::read_to_string(printed).unwrap();
+    assert!(printed.contains("temper-redeploy referee: worker w1 back in 900.0 s past its grace 300.0 s\n"));
+    assert!(printed.ends_with("temper-redeploy referee: fail: 1\n"));
+    assert_eq!(std::fs::read(path).unwrap(), bytes, "referee does not rewrite the older record");
 }
 
 #[test]

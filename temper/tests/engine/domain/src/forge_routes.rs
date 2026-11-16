@@ -180,6 +180,8 @@ pub struct World {
     pub issue_write_times: Vec<Wall>,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
+    /// Each restart notice paired with the durable decision observed before it.
+    pub restarting: Vec<(Duration, u64)>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
     /// Time per normal tick; short-stall stories can drive reads with less shell latency.
@@ -395,6 +397,17 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("project policy");
+        self
+    }
+
+    /// Configure the stop before either root starts.
+    #[must_use]
+    pub fn with_restart_wait(mut self, wait: Duration, workers_in_process: bool) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.fleet.restart_wait = wait;
+        self.restart_config.core.workers_in_process = workers_in_process;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("restart wait configuration");
         self
     }
 
@@ -1448,6 +1461,7 @@ impl World {
             fail_open_writes: false,
             issue_write_times: Vec::new(),
             drained: None,
+            restarting: Vec::new(),
             unsettled: Vec::new(),
             busy_calls: 0,
             tick_interval: Duration::from_millis(100),
@@ -2596,6 +2610,10 @@ impl World {
                 engine::Request::Unsettled(write) => {
                     assert!(self.drained.is_none(), "unfinished entries precede Drained");
                     self.unsettled.push(write);
+                }
+                engine::Request::Restarting { wait } => {
+                    assert!(self.drained.is_none(), "the restart word precedes Drained");
+                    self.restarting.push((wait, self.store.header().commits));
                 }
                 engine::Request::Drained => {
                     assert!(self.drained.is_none(), "drained once");

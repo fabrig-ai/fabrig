@@ -1,0 +1,8 @@
+# The gate's wall limits, passed to both suites by the gate.
+# The user's word of 11-16: skein/docs/foundation/testing-strategy.md, 8.1;
+# tools/tiers/design.md, 11.7.
+[profile.default]
+global-timeout = "270s"
+
+[profile.fuzzy]
+global-timeout = "215s"

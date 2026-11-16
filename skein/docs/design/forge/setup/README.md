@@ -388,7 +388,7 @@ The tiers and budgets are ../../../foundation/testing-strategy.md's and skein's 
   (../../../foundation/testing-strategy.md, section 8).
 - **Against a real forge,** the conformance records `forgejo.md`, section 2's and
   10's facts, and a service tests its host on the throwaway Forgejo
-  (../../testing/fakes/forge.md, sections 7 and 6). No suite calls GitHub itself.
+  (../../testing/fakes/throwaway.md, sections 2 and 1). No suite calls GitHub itself.
 - **The App never changes live** (../../testing/fakes/github.md, section 2, which holds
   the rule). The probe App's fixture installations are accepted by no
   state; GitHub's reconcile (`github.md`, 1.6) with `uninstall_strays` and

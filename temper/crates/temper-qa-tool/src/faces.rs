@@ -563,19 +563,24 @@ impl DriveFace for RealDrive {
     }
 }
 
-/// Copies hold config/ and data/ alone; cache/ stays at the place (qa/places.md, 2 and 4).
+/// Copies hold config/ and data/ but for the relative paths left out by the place;
+/// cache/ stays at the place (qa/places.md, 2 and 4).
 pub trait ArchiveFace {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal>;
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal>;
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal>;
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal>;
 }
 pub struct RealArchive {
     pub environment: Environment,
 }
 impl RealArchive {
-    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path, left_out: &[&str]) -> Command {
         let mut command = Command::new("tar");
         captured(&mut command, &self.environment);
         command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
+        command.args(["--anchored", "--no-wildcards"]);
+        for path in left_out {
+            command.arg(format!("--exclude={path}"));
+        }
         command
     }
 }
@@ -589,10 +594,10 @@ pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
     Ok(members)
 }
 impl ArchiveFace for RealArchive {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         let members = copy_members(scratch)?;
         checked(
-            self.command("--create", scratch, archive)
+            self.command("--create", scratch, archive, left_out)
                 .args(members)
                 .output()
                 .map_err(|why| refused(format!("tar: {why}")))?,
@@ -600,9 +605,11 @@ impl ArchiveFace for RealArchive {
         )?;
         Ok(())
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         checked(
-            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
+            self.command("--extract", scratch, archive, left_out)
+                .output()
+                .map_err(|why| refused(format!("tar: {why}")))?,
             "tar --extract",
         )?;
         Ok(())

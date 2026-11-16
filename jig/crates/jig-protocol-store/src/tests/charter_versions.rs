@@ -6,7 +6,7 @@ use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_lib::{Reader, Writer};
 
 #[expect(clippy::disallowed_macros, reason = "the contract pins the immutable kept v3 schema text")]
-pub(crate) const KEPT: &str = include_str!("../../schema/kept/jig-store-settings-v3.schema");
+pub(crate) const KEPT: &str = include_str!("fixtures/charter-versions-settings.schema");
 pub(crate) fn layout() -> JobLayout {
     JobLayout { root: "CharterVersion".into(), variant: None, text: KEPT.as_bytes().into(), held: Box::new([]) }
 }
@@ -57,9 +57,6 @@ fn charter_versions_job_puts_both_kept_forms_as_one_root_on_every_page() {
         };
         // Layout heads are not family versions.
         page.rows[0].value[..2].copy_from_slice(&99_u16.to_be_bytes());
-        if !charter {
-            page.layout = None;
-        }
         let answer = jobs::page("charter-versions", &page).unwrap();
         assert_eq!(answer.through, None);
         assert_eq!(answer.writes.len(), records.len());
@@ -108,6 +105,18 @@ fn charter_versions_job_refuses_neither_form_naming_the_key() {
     }
 }
 #[test]
+fn charter_versions_refuses_a_nonempty_page_without_its_registry_layout() {
+    let page = JobPage {
+        rows: Box::new([JobRow { key: key(&record(false, false)), value: old(&record(false, false)) }]),
+        end: false,
+        layout: None,
+        room: crate::JobRoom { writes: u32::MAX, bytes: u64::MAX },
+    };
+    let refused = jobs::page("charter-versions", &page).unwrap_err();
+    assert_eq!(refused.key, None);
+    assert_eq!(refused.why.as_ref(), "missing charter-version layout");
+}
+#[test]
 fn charter_versions_end_is_empty_and_unknown_jobs_are_refused() {
     let page = JobPage {
         rows: Box::new([]),
@@ -124,7 +133,7 @@ fn charter_versions_end_is_empty_and_unknown_jobs_are_refused() {
 }
 #[test]
 fn charter_versions_from_is_the_kept_v3_root_layout_and_the_job_is_admitted() {
-    let set = crate::JIG_STORE_PATCH_SET;
+    let set = crate::JIG_STORE_SET;
     let job = set.jobs.iter().find(|job| job.name == "charter-versions").unwrap();
     let converts = job.converts.unwrap();
     let family = set.families.iter().find(|family| family.name == converts.family).unwrap();
@@ -135,10 +144,10 @@ fn charter_versions_from_is_the_kept_v3_root_layout_and_the_job_is_admitted() {
     assert_eq!(schema.version(), 3);
     let expected = schema.layout(schema.root(ty.root.as_bytes(), None).unwrap(), &[]).unwrap().digest();
     assert_eq!(converts.from, expected);
-    jobs::admission::check(&crate::PatchSets { sets: Box::leak(Box::new([jig_set()])) }).unwrap();
+    jobs::admission::check(&crate::OwnerSets { sets: Box::leak(Box::new([jig_set()])) }).unwrap();
 }
 
 /// Store-owned production metadata, including the registered roots and written job.
-pub(crate) fn jig_set() -> crate::PatchSet {
-    crate::JIG_STORE_PATCH_SET
+pub(crate) fn jig_set() -> crate::OwnerSet {
+    crate::JIG_STORE_SET
 }

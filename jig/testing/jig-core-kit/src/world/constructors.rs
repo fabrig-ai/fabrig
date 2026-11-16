@@ -35,7 +35,7 @@ impl World {
             initial,
             rows,
             startup,
-            patch_sets,
+            owner_sets,
             disk_store,
             mut peers,
             cut,
@@ -54,9 +54,9 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let mut world = Self::empty(configuration, &limits, patch_sets);
+        let mut world = Self::empty(configuration, &limits, owner_sets);
         world.seed = seed;
-        world.configure_disk(disk_store, patch_sets);
+        world.configure_disk(disk_store, owner_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -165,13 +165,13 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
-    fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
+    fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::OwnerSets) -> World {
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
         let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let initial_ask = initial_request(&configuration, &creating);
         let protocol = crate::protocol::Stand::with_models(limits.core, &configuration.core.settings.models);
-        let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);
+        let store = Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
             seed: 0,
@@ -258,6 +258,7 @@ impl World {
             hold_restart_reads: false,
             hold_restore_pages: false,
             hold_switch: false,
+            hold_logins: false,
             store_delay: 0,
             fill: 0,
             stopped: false,

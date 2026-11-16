@@ -56,7 +56,11 @@ The messages of public reading (`../../domain/people/public-reading.md`):
   watch, a stream, a keyed request. The public party opens no stream
   and no watch; a page reads again by its own timer.
 - **Testing:** the component's world plays public reads with no
-  credential and with a signed-in person's cookie, answered alike; past
+  credential, with a signed-in person's cookie, with a bearer and with
+  both, answered alike; every exchange but a public read (a request, a
+  read, a watch and its end, the stream and its end, a sign-out) with
+  no credential, and with a cookie the deployment never made, answered
+  signed out; past
   the room, the rate and the bytes, busy while signed-in exchanges are
   answered; reservations given back on every end, two reads completing
   at once and one whose exchange is gone among them, the bytes' bucket
@@ -66,8 +70,11 @@ The messages of public reading (`../../domain/people/public-reading.md`):
   distinct for projects and tasks, and the same after a restart. The
   mapping's world: each answer's status and exact headers, a late
   answer's shortened `max-age`, a credential on the route never read,
-  malformed paths (an overflowing number, a leading zero, upper-case or
-  short identifiers, an encoded or dot segment, a query, a trailing
-  slash) `404`, and `OPTIONS`, `HEAD` and `POST` `404` with no
-  `Access-Control-` header. Its fuzzy tests: the public path's parser
+  malformed paths (an overflowing number, a leading zero, upper-case,
+  short or long identifiers, an encoded, empty or dot segment, a query,
+  a trailing slash) `404` with `no-store` and no body, an unknown of
+  every owner the same `404`, byte for byte, and `OPTIONS`, `HEAD` and
+  `POST` `404`; no answer carries an `Access-Control-` header, a
+  document's, an unknown's, a refusal's, a busy one's or an error's
+  among them. Its fuzzy tests: the public path's parser
   and the public records' decoders over seeded bytes.

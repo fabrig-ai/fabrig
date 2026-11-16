@@ -175,11 +175,15 @@ fn ask_run(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Requ
     {
         return;
     }
-    let (words, signers) = words::specification(d, row, env.wall);
+    let since = match &row.brief {
+        Some(brief) => brief.at,
+        None => Wall::EPOCH,
+    };
+    let (words, signers) = words::specification(d, row, since, env.wall);
     let row = d.project_facts.get_mut(&project).expect("held facts");
     row.running = Some(StatusRunning { task: None, landed: row.landed, since: env.wall, findings: mark });
     save(row, out);
-    out.push(Request::StatusRun { project, words, findings, signers });
+    out.push(Request::StatusRun { project, since, words, findings, signers });
 }
 
 pub(crate) fn task(d: &mut Domain, project: u32, task: Option<u64>, out: &mut Queue<Request>) {

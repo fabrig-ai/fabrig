@@ -8,7 +8,6 @@ pub(crate) enum Record {
     Start {
         task: u64,
         attempt: u64,
-        conversation: u64,
         workspace: Option<smith_channel::Workspace>,
         input: Option<Box<smith_channel::Start>>,
     },
@@ -150,9 +149,9 @@ impl Wire {
             let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(start.charter()))
                 .map_err(|why| format!("agent charter bytes: {why:?}"))?;
             self.events.push(Observed::Assigned {
+                conversation: proof.conversation,
                 task: proof.task,
                 attempt: start.activation(),
-                conversation: proof.conversation,
                 resumed: !start.transcript().is_empty(),
                 budget: charter.budget().spend(),
                 // Only the drain/restart story changes revision 1 through ctl.
@@ -161,12 +160,10 @@ impl Wire {
                 settings: crate::stories::settings_revision(),
             });
             let task = proof.task;
-            let conversation = proof.conversation;
             drop(store);
             self.store.borrow_mut().agent_records.push(Record::Start {
                 task,
                 attempt: start.activation(),
-                conversation,
                 workspace: start.workspace().clone(),
                 input: self.keep_starts.then(|| Box::new(start)),
             });

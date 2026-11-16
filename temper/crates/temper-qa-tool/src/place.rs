@@ -10,6 +10,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A box worker pins this directory afresh at each start (qa/places.md, 4).
+const BOX_PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
+
 /// Shared with the holder and the loop. Only the holder keeps drive.lock held.
 #[derive(Clone, Debug)]
 pub struct PlacePaths {
@@ -283,7 +286,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let temporary = directory.join("copy.tmp");
         remove(&temporary)?;
         private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
-        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary) {
+        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary, &[BOX_PINNED_AGENT]) {
             remove(&temporary)?;
             return Err(why);
         }
@@ -391,7 +394,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             self.empty()?;
             if let Some((_, copy)) = &source {
-                self.archive.extract(&copy.path, &self.paths.scratch)?;
+                self.archive.extract(&copy.path, &self.paths.scratch, &[BOX_PINNED_AGENT])?;
             }
             let start =
                 source.as_ref().map_or(0, |(index, _)| if index + 1 == chain.len() { *index } else { index + 1 });

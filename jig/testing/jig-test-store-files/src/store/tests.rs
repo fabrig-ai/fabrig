@@ -22,6 +22,7 @@ fn snapshot_store() -> Store {
     let mut store = Store::new(&limits, &[]);
     let header = core::Deployment {
         id: [0; 16],
+        restart_wait_ms: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,
@@ -248,6 +249,7 @@ fn disk_history_store() -> Store {
     let mut store = Store::on_disk(&jig_test_profile::limits(), &[]);
     let header = core::Deployment {
         id: [0; 16],
+        restart_wait_ms: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,
@@ -446,6 +448,7 @@ fn starting_snapshot() -> Store {
     let mut store = Store::starting(&limits, &[]);
     let header = core::Deployment {
         id: [0; 16],
+        restart_wait_ms: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,

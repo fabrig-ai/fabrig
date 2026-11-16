@@ -729,8 +729,8 @@ behaviour the conformance checked.
   `forgejo-runner --version` when it is `forgejo-runner version v`
   and `RUNNER_VERSION`, and nothing more.
 - **Readers:** the throwaway Forgejo, the conformance, and a service's
-  owned Forgejo check their binaries against the pin (../testing/fakes/forge.md,
-  section 6).
+  owned Forgejo check their binaries against the pin (../testing/fakes/throwaway.md,
+  section 1).
 - **Digests on Linux:** the SHA-256 of each release's Linux binary, per
   architecture, as lowercase hex:
 
@@ -1054,7 +1054,7 @@ The dialect's step tests, in `skein-forge`, with no io:
   that ends; a repository id past 32 bits.
 - **Transcripts** are format-faithful and content-irrelevant: volatile
   fields (times, ids, hashes) are masked, and no credential or secret
-  reaches a file (../testing/fakes/forge.md, section 7).
+  reaches a file (../testing/fakes/throwaway.md, section 2).
 
 The component's machine world, the protocol world, the client's world,
 the setup's world and the conformance are in connection.md,

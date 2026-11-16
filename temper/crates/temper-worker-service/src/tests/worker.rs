@@ -1143,3 +1143,15 @@ fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
         );
     }
 }
+
+#[test]
+fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
+    use skein_lib::Duration;
+    let mut stand = socket_stand();
+    let grace = fixtures::worker_settings().jig.graces.grace;
+    for wait in [Duration::ZERO, grace.saturating_mul(4)] {
+        stand.worker.link(fixtures::NOW, link::Request::Restarting { wait });
+        assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Restarting { keep: wait.max(grace) }));
+        assert!(stand.worker.notes().is_empty(), "once per word");
+    }
+}

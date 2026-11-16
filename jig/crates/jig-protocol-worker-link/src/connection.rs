@@ -1,7 +1,7 @@
 //! Each phase owns its channel (protocol/channel/README.md, 9.3).
 use crate::Limits;
 use skein_channel::{Machine, WriteWait};
-use skein_lib::{Time, Token};
+use skein_lib::{Duration, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Connection {
     pub(crate) token: Token,
@@ -12,6 +12,7 @@ pub(crate) struct Connection {
     pub(crate) wires: Option<skein_lib::List<jig_protocol_worker_wire::Agreed>>,
     pub(crate) stated: bool,
     pub(crate) version: u16,
+    pub(crate) restart_wait: Option<Duration>,
 }
 #[derive(Debug)]
 pub(crate) enum Phase {
@@ -41,6 +42,10 @@ impl Phase {
 }
 
 impl Connection {
+    /// The word lengthens this channel's grace at its loss (protocol/channel/restart.md, 4).
+    pub(crate) fn loss_wait(&self, grace: Duration) -> Duration {
+        self.restart_wait.unwrap_or(grace).max(grace)
+    }
     pub(crate) fn queued(&self) -> bool {
         match self.machine.waiting().write {
             WriteWait::Frames => true,

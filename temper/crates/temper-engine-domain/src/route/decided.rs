@@ -57,7 +57,14 @@ fn person(domain: &Domain, task: u64) -> Option<u64> {
     match row.requester {
         tasks::Party::Person(person) => Some(person),
         tasks::Party::Deployment { .. } => None,
-        tasks::Party::Task(_) => {
+        tasks::Party::Task(requester) => {
+            let parent = domain.core.tasks.task(requester)?;
+            if tasks::gathering::executor(parent.executor) {
+                return match parent.requester {
+                    tasks::Party::Person(person) => Some(person),
+                    tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
+                };
+            }
             let chat = domain.core.tasks.task(domain.core.tasks.served_chat(task)?)?;
             match chat.requester {
                 tasks::Party::Person(person) => Some(person),

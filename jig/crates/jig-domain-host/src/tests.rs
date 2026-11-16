@@ -123,7 +123,12 @@ fn a_hosted_run_keeps_its_decoded_contract_across_hellos() {
         };
         assert_eq!(*contract, 3);
         let hello = h.step(jobs::opened());
-        let [Request::Hello { hello }] = hello.as_ref() else { panic!("hello: {hello:?}") };
+        let [Request::Agent(crate::ToAgent::Renewals { agent, held: false }), Request::Hello { hello }] =
+            hello.as_ref()
+        else {
+            panic!("hello: {hello:?}")
+        };
+        assert_eq!(*agent, owner);
         assert_eq!(hello.hosting.len(), 1, "the same run is offered for adoption");
     }
 }
@@ -646,11 +651,15 @@ fn a_renewal_while_starting_sends_the_agent_accounts_grants_only() {
 }
 
 #[test]
-fn an_equal_or_older_generation_does_not_renew_an_agent() {
+fn an_equal_generation_is_resent_and_an_older_generation_is_ignored() {
     let mut h = Harness::new();
     let (owner, _) = assigned_grants(&mut h, Box::new([fixtures::account_grant(2)]));
-    h.started(owner, Token::new(301));
-    assert!(renewal(&mut h, fixtures::account_grant(2)).is_empty());
+    let agent = Token::new(301);
+    h.started(owner, agent);
+    assert_eq!(
+        &*renewal(&mut h, fixtures::account_grant(2)),
+        &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::account_grant(2) })]
+    );
     assert!(renewal(&mut h, fixtures::account_grant(1)).is_empty());
 }
 
