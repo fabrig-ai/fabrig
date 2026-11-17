@@ -2,7 +2,6 @@
 
 2026-11-15. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.1, 4.3 and 12: the opening is judged against the digest files `engine.hosts.workers` names, an unknown name and a wrong secret refused *unauthorized*; the hello's position is the document's [in flight: change 5794].
 
 
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.

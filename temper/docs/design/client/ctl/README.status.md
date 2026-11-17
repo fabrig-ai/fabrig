@@ -2,7 +2,6 @@
 
 2026-11-15. Remaining gaps between temper's code and [README.md](README.md).
 
-- **Not yet:** 1: no worker tools [in flight: change 5791].
 
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan

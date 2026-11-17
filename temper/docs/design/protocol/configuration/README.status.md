@@ -2,7 +2,6 @@
 
 2026-11-13. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1, 2, 5 and 8: standalone and an engine alone name their workers in `engine.hosts.workers`, each with a digest file; the box's worker is `worker` [in flight: change 5794].
 
 
 

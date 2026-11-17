@@ -2,7 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [documentation.md](documentation.md).
 
-- **Not yet:** 2.4: no `worker` group under the deployment's noun [in flight: change 5791].
 
 Section 5 has no known gap in an asking charter reading the same pages
 through `see help`, with `read_docs` absent from that charter's offer.

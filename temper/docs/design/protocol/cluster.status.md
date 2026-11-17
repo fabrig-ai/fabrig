@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
-- **Not yet:** 1 to 3: workers are `engine.hosts.workers`' positions with digest files; the box's worker is `worker`, with a digest; the cluster's description puts digests in the engine's data [in flight: change 5794].
 
 - **Not yet:** 6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration

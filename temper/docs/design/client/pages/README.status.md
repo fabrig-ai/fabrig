@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** `Builders`' row: the tab draws the hosts, read-only [in flight: change 5792].
 
 
 
