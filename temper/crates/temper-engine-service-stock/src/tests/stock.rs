@@ -48,7 +48,9 @@ fn single_model() -> Box<[u8]> {
     ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let mut base = config::stock();
+    temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
+    fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
     let mut engine = engine(&single_model());
@@ -1165,7 +1167,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             let charter = jig_domain_core::settings::charters::resolved(
                 charter,
                 &defaults.models,
-                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+                &jig_protocol_config::stock().core,
             )
             .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
@@ -1362,8 +1364,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
     let document = generated();
-    let engine_bytes = fixtures::value(&document, b"engine");
-    let engine = fixtures::parse_engine(&engine_bytes);
+    let engine = engine(&document);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;

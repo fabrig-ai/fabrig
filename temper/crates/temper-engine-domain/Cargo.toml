@@ -39,6 +39,7 @@ temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 smith-domain-run.workspace = true
 temper-protocol-brief.workspace = true
 jig-protocol-worker-wire.workspace = true

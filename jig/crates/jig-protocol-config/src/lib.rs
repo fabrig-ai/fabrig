@@ -23,7 +23,7 @@ pub use domain::{
 pub use projects::{Policy, Project, policies};
 mod check;
 mod worker;
-pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker};
+pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker, worker_over};
 pub mod clients;
 mod files;
 pub mod hosts;
@@ -38,7 +38,7 @@ pub mod members;
 pub mod names;
 pub mod overrides;
 pub mod profile;
-pub use profile::{JournalSizes, Limits, Link, Profile, profile};
+pub use profile::{JournalSizes, Limits, Link, stock};
 pub mod forms;
 mod problem;
 pub mod read;
@@ -79,8 +79,6 @@ pub struct Engine {
     pub limits: Limits,
 }
 /// Parse jig's engine member before startup constructs any component.
-#[expect(clippy::too_many_lines, reason = "one ordered read before the engine whole-check")]
-#[expect(clippy::manual_map, reason = "step code uses no closures")]
 pub fn engine(
     document: &skein_json::Document,
     at: u32,
@@ -88,14 +86,28 @@ pub fn engine(
     defaults: Defaults,
     fixed: &Fixed,
 ) -> Result<Engine, Problems> {
+    engine_over(document, at, directories, defaults, fixed, &stock())
+}
+
+/// Parse jig's engine member over an application's base (protocol/limits.md, the stock).
+#[expect(clippy::too_many_lines, reason = "one ordered read before the engine whole-check")]
+#[expect(clippy::manual_map, reason = "step code uses no closures")]
+pub fn engine_over(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &Directories,
+    defaults: Defaults,
+    fixed: &Fixed,
+    base: &Limits,
+) -> Result<Engine, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "engine") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Standard);
+    let mut limits = *base;
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+        let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
             problems.push(problem.path.clone(), problem.what);

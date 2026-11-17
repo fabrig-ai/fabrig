@@ -28,7 +28,7 @@ fn agent() -> crate::settings::Agent {
 fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Problems> {
     let mut agent = agent();
     // This fixture host bound leaves the other stock charters at least 2,048 bytes.
-    agent.run_limits.host_part = 65_748;
+    agent.run_limits.host_part = 64_000;
     // The long instructions need the charter carriers, independently of the host-part bound.
     let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
     let mut document: serde_json::Value = serde_json::from_slice(&document).expect("room fixture");
@@ -89,7 +89,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT, None) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,748; it needs at least 2,048\n",
+        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 64,000; it needs at least 2,048\n",
     );
 }
 
@@ -103,7 +103,7 @@ fn default_parts_are_counted_before_start() {
     let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,748; it needs at least 2,048\n"
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 64,000; it needs at least 2,048\n"
     );
     start(4_000, None).expect("without the part the default fits");
 }
@@ -116,8 +116,8 @@ fn default_parts_are_counted_before_start() {
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
     let generated = super::stock::generated();
-    for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
-        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
+    {
+        let document = generated;
         let engine = super::stock::engine(&document);
         let host = temper_engine_smith::room::host_part(
             Some(&agent().run_limits),
@@ -132,11 +132,7 @@ fn stock_charters_leave_at_least_2048_bytes() {
                 jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
                     .unwrap();
             let room = host.room(&resolved);
-            std::eprintln!(
-                "stock charter {}: profile {name}, room {room}, bound {}",
-                charter.number,
-                host.bound.unwrap()
-            );
+            std::eprintln!("stock charter {}: stock, room {room}, bound {}", charter.number, host.bound.unwrap());
             assert!(room >= ENOUGH);
             if charter.number == 5 {
                 let mut without = resolved.clone();

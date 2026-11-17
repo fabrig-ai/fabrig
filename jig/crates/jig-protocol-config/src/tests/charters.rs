@@ -160,7 +160,7 @@ fn a_part_refuses_no_reasons() {
     reason = "test fixture lists are ordinary Rust (programming-model.md, 10.2)"
 )]
 fn a_charter_refuses_parts_past_its_limit() {
-    let count = crate::profile(crate::Profile::Small).core.tasks.charter_parts;
+    let count = crate::stock().core.tasks.charter_parts;
     let parts =
         vec![r#"{"on":["first"],"instructions":"a.md"}"#; usize::try_from(count.checked_add(1).unwrap()).unwrap()];
     let value = format!("[{}]", parts.join(","));
@@ -182,8 +182,8 @@ fn a_charter_refuses_policy_and_parts_past_run_bytes() {
     let max = jig_domain_core_vocabulary::policy_owned_bytes(&engine.charters[0].policy).unwrap();
     let max = skein_lib::Decimal::of(max);
     let limits =
-        skein_lib::bytes::concat(&[br#""profile": "small", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
-    let document = fixtures::with(&document, br#""profile": "small""#, &limits);
+        skein_lib::bytes::concat(&[br#""profile": "standard", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
+    let document = fixtures::with(&document, br#""profile": "standard""#, &limits);
     let problems = fixtures::engine(&document).expect_err("parts exceed remaining run bytes");
     assert_eq!(
         problems.problems.get(0),

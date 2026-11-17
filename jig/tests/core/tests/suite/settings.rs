@@ -2124,7 +2124,7 @@ fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documen
 
 #[test]
 fn a_small_profile_s_whole_room_of_answers_holds_and_restarts() {
-    support::whole_room_of_answers(jig_protocol_config::Profile::Small);
+    support::whole_room_of_answers(&jig_protocol_config_fixtures::small());
 }
 
 fn request_world(config: root::Config, limits: &root::Limits) -> World {

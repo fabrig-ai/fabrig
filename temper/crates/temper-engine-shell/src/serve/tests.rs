@@ -173,7 +173,7 @@ fn before_root_records_only_when_requested_and_refuses_a_headless_bundle() {
     let mut required: Box<[jig_protocol_config::File]> = Box::new([]);
     let mut asked: Box<[jig_protocol_config::File]> = Box::new([]);
     let configured = scratch.path().as_os_str().as_bytes();
-    let limits = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let mut tags = Vec::new();
     for record in [false, true] {
         let inputs = super::before_root(

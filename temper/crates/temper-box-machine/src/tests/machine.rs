@@ -8,7 +8,7 @@ use skein_lib::Duration;
 use temper_forge_setup::Kind;
 #[test]
 fn a_once_step_must_exit_zero_before_the_next_starts() {
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
     rig.started(PREPARE);
     assert_eq!(&*rig.effects(), &[]);
@@ -19,7 +19,7 @@ fn a_once_step_must_exit_zero_before_the_next_starts() {
 }
 #[test]
 fn a_long_step_lets_the_next_start_once_it_has_started() {
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.completed(PREPARE);
     rig.effects();
     rig.started(FORGEJO);
@@ -61,7 +61,7 @@ fn a_long_step_after_a_long_step_restarts_alone() {
 #[test]
 fn the_backoff_doubles_and_stops_doubling_at_its_maximum() {
     // Eight retries reach the cap; the shipped five stop before it.
-    let mut rig = Rig::new(&limits::Limits { restarts: 8, ..limits::small() });
+    let mut rig = Rig::new(&limits::Limits { restarts: 8, ..limits::stock() });
     rig.completed(PREPARE);
     rig.started(FORGEJO);
     rig.effects();
@@ -170,7 +170,7 @@ fn a_stop_during_a_backoff_starts_nothing() {
 }
 #[test]
 fn a_step_still_starting_is_stopped_once_started() {
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.completed(PREPARE);
     rig.effects();
     rig.terminate();
@@ -196,7 +196,7 @@ fn a_second_termination_signal_closes_every_child_at_once() {
 
 #[test]
 fn a_long_step_refused_before_start_retries_and_continues_the_order() {
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.completed(PREPARE);
     rig.effects();
     rig.input(Input::NotStarted { step: FORGEJO });
@@ -394,7 +394,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
     );
     cases.push(("started long is subject to restart policy", give_up)).unwrap();
     for (name, script) in cases.into_boxed() {
-        let mut machine = Machine::new(&limits::small(), &placed()).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &placed()).unwrap();
         let mut out = Queue::with_capacity(128);
         machine.start(Time::ZERO, &[], &mut out);
         assert_eq!(pop_effect(&mut out), Some(Spawn { step: 0 }), "{name}");
@@ -428,7 +428,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
                 )]),
             }]),
         });
-        let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
         let mut out = Queue::with_capacity(32);
         machine.start(Time::ZERO, &[], &mut out);
         assert!(effects_empty(&out));
@@ -448,7 +448,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         assert!(effects_empty(&out));
     }
     // A record joins the startup chain, with no ask or record barrier.
-    let mut machine = Machine::new(&limits::small(), &placed()).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed()).unwrap();
     let mut out = Queue::with_capacity(128);
     machine.start(Time::ZERO, &[3], &mut out);
     pop_effect(&mut out);
@@ -668,7 +668,7 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
                 ]),
             }]),
         });
-        let mut machine = Machine::new(&limits::small(), &steps).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &steps).unwrap();
         let mut out = Queue::uncapped();
         let mut now = Time::ZERO;
         machine.start(now, &[], &mut out);
@@ -715,7 +715,7 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
         }]),
     });
     for code in [0, 1] {
-        let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
         let mut out = Queue::with_capacity(32);
         machine.start(Time::ZERO, &[], &mut out);
         machine.input(Time::ZERO, Input::Ask { forge: 3 }, &mut out);
@@ -778,7 +778,7 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
     let placed = version_gated_steps();
     for recorded in [false, true] {
         for ending in ["ready", "timeout", "stop", "exit"] {
-            let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+            let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
             let mut out = Queue::with_capacity(32);
             let now = Time::ZERO;
             machine.start(now, if recorded { &[3] } else { &[] }, &mut out);
@@ -885,7 +885,7 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
         }]),
     });
     for records in [&[][..], &[1][..]] {
-        let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
         let mut out = Queue::uncapped();
         machine.start(Time::ZERO, records, &mut out);
         assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 3 }));
@@ -914,7 +914,7 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
 fn stoppable_group(recorded: bool) -> Rig {
     use crate::layout;
     use temper_forge_setup::{Group, Stage, Steps};
-    let limits = limits::small();
+    let limits = limits::stock();
     let machine = crate::machine::Machine::new(
         &limits,
         &layout::flatten(Steps {
@@ -969,9 +969,9 @@ fn a_group_stop_signals_in_reverse_and_answers_only_after_all_closes_then_can_st
         rig.input(Input::Stop { forge: 1 });
         for step in [2, 0] {
             assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
-            rig.advance(limits::small().grace);
+            rig.advance(limits::stock().grace);
             assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
-            rig.advance(limits::small().grace);
+            rig.advance(limits::stock().grace);
             assert_eq!(&*rig.effects(), &[Order::Close { step }]);
             rig.closed(step);
         }
@@ -1027,7 +1027,7 @@ fn a_group_stop_disarms_backoff_and_closes_a_live_or_starting_restart_preparatio
         start_stoppable(&mut rig, false);
         rig.failed_long(2);
         if preparation != "backoff" {
-            rig.advance(limits::small().backoff);
+            rig.advance(limits::stock().backoff);
             assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }]);
             if preparation == "live" {
                 rig.started(1);
@@ -1081,7 +1081,7 @@ fn lifecycle_facts_interleave_with_spawn_and_actual_stop_settlement() {
     use temper_forge_setup::Steps;
     let placed =
         layout::flatten(Steps { always: Box::new([super::fixtures::step(b"serve", Kind::Long)]), asked: Box::new([]) });
-    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step: 0 } }));
@@ -1104,7 +1104,7 @@ fn lifecycle_facts_interleave_with_spawn_and_actual_stop_settlement() {
 fn failure_and_a_requested_stop_keep_independent_outcomes() {
     use super::fixtures::take_facts;
     use crate::terminal::Fact;
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.effects();
     rig.started(PREPARE);
     rig.exited(PREPARE, Exit::Code(1));
@@ -1191,7 +1191,7 @@ fn group_failure_facts_keep_exit_spawn_readiness_and_record_reasons_until_closur
         (Input::Exited { step: 0, exit: Exit::Code(9) }, Why::Exited { step: 0, exit: Exit::Code(9) }),
         (Input::Exited { step: 0, exit: Exit::Signal(9) }, Why::Exited { step: 0, exit: Exit::Signal(9) }),
     ] {
-        let machine = Machine::new(&limits::small(), &placed).unwrap();
+        let machine = Machine::new(&limits::stock(), &placed).unwrap();
         let mut rig = Rig { out: Queue::uncapped(), machine, now: Time::ZERO };
         rig.machine.start(rig.now, &[], &mut rig.out);
         rig.input(Input::Ask { forge: 7 });
@@ -1268,7 +1268,7 @@ fn retry_preparation_and_readiness_give_up_keep_the_actual_step_reason() {
     for not_started in [false, true] {
         let mut rig = Rig::running();
         rig.failed_long(SERVE);
-        rig.advance(limits::small().backoff);
+        rig.advance(limits::stock().backoff);
         rig.effects();
         let why = if not_started {
             rig.input(Input::NotStarted { step: ONCE_1 });
@@ -1287,7 +1287,7 @@ fn retry_preparation_and_readiness_give_up_keep_the_actual_step_reason() {
         always: Box::new([step(b"forge", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into())]),
         asked: Box::new([]),
     });
-    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
@@ -1304,7 +1304,7 @@ fn retry_preparation_and_readiness_give_up_keep_the_actual_step_reason() {
 fn spawn_refusal_retry_fact_and_inclusive_window_reset_use_the_selected_delay() {
     use super::fixtures::take_facts;
     use crate::{machine::Why, terminal::Fact};
-    let limits = limits::small();
+    let limits = limits::stock();
     let mut rig = Rig::new(&limits);
     rig.completed(PREPARE);
     rig.effects();
@@ -1352,7 +1352,7 @@ fn intentional_stop_exits_and_spawn_refusals_emit_no_restart_or_give_up() {
         }
         assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
     }
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.effects();
     rig.terminate();
     take_facts(&mut rig.out);
@@ -1399,7 +1399,7 @@ fn simultaneous_retries_and_group_failure_emit_ordered_lifecycle_events() {
     const COUNT: u32 = 64;
     for grouped in [false, true] {
         let placed = lifecycle_load_steps(grouped, COUNT);
-        let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
         let mut out = Queue::uncapped();
         machine.start(Time::ZERO, &[], &mut out);
         while out.pop().is_some() {}
@@ -1451,7 +1451,7 @@ fn simultaneous_retries_and_group_failure_emit_ordered_lifecycle_events() {
                         fact: Fact::Restarting {
                             step,
                             why: Why::Exited { step, exit: Exit::Signal(9) },
-                            delay: limits::small().backoff,
+                            delay: limits::stock().backoff,
                         }
                     })
                 );
@@ -1459,7 +1459,7 @@ fn simultaneous_retries_and_group_failure_emit_ordered_lifecycle_events() {
             assert!(out.is_empty());
         }
         if !grouped {
-            machine.fire(Time::ZERO.saturating_add(limits::small().backoff), &mut out);
+            machine.fire(Time::ZERO.saturating_add(limits::stock().backoff), &mut out);
             for step in 0..usize::try_from(COUNT).unwrap() {
                 assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step } }));
                 assert_eq!(out.pop(), Some(Order::Spawn { step }));
@@ -1481,7 +1481,7 @@ fn simultaneous_retries_and_group_failure_emit_ordered_lifecycle_events() {
 #[test]
 fn an_unsent_spawn_is_withdrawn_at_the_first_stop() {
     use crate::terminal::Fact;
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
     rig.completed(PREPARE);
     assert_eq!(&*rig.effects(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
@@ -1520,7 +1520,7 @@ fn a_restored_owned_forge_announces_started_only_after_readiness() {
         }]),
     };
     let placed = layout::flatten(steps);
-    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[37], &mut out);
     assert_eq!(take_facts(&mut out).as_ref(), &[Fact::GroupStarting { forge: 37 }, Fact::Starting { step: 0 }]);
@@ -1557,7 +1557,7 @@ fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
             ]),
         }]),
     };
-    let mut machine = Machine::new(&limits::small(), &layout::flatten(steps)).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &layout::flatten(steps)).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[37], &mut out);
     take_effects(&mut out);
@@ -1583,7 +1583,7 @@ fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
 }
 
 fn stopping_forgejo_spawn() -> Rig {
-    let mut rig = Rig::new(&limits::small());
+    let mut rig = Rig::new(&limits::stock());
     rig.effects();
     rig.completed(PREPARE);
     rig.effects();
@@ -1644,7 +1644,7 @@ fn a_group_stop_withdraws_its_preparation_before_signalling_the_earlier_child() 
     let mut rig = stoppable_group(false);
     start_stoppable(&mut rig, false);
     rig.failed_long(2);
-    rig.advance(limits::small().backoff);
+    rig.advance(limits::stock().backoff);
     assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }]);
     rig.input(Input::Stop { forge: 1 });
     assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
@@ -1683,7 +1683,7 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
     let mut rig = stoppable_group(false);
     start_stoppable(&mut rig, false);
     rig.failed_long(2);
-    rig.advance(limits::small().backoff);
+    rig.advance(limits::stock().backoff);
     rig.effects();
     rig.input(Input::Stop { forge: 1 });
     assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
@@ -1694,7 +1694,7 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
 fn kind_rig() -> Rig {
     let steps = crate::layout::flatten(super::fixtures::kind_steps());
     let mut rig = Rig {
-        machine: crate::machine::Machine::new(&limits::small(), &steps).unwrap(),
+        machine: crate::machine::Machine::new(&limits::stock(), &steps).unwrap(),
         now: skein_lib::Time::ZERO,
         out: skein_lib::Queue::uncapped(),
     };
@@ -1818,7 +1818,7 @@ fn restored_owned_group_survives_serve_abort() {
             steps: Box::new([(Stage::Run, step(b"forgejo", Kind::Long))]),
         }]),
     });
-    let machine = Machine::new(&limits::small(), &placed).unwrap();
+    let machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut rig = Rig { machine, out: Queue::uncapped(), now: Time::ZERO };
     rig.machine.start(rig.now, &[1], &mut rig.out);
     assert_eq!(&*rig.effects(), &[Order::Spawn { step: 0 }]);
@@ -1844,7 +1844,7 @@ fn restored_owned_group_survives_serve_abort() {
 fn fetching_rig(recorded: &[u16]) -> Rig {
     let placed = crate::layout::flatten(super::fixtures::fetching_steps());
     let mut rig = Rig {
-        machine: crate::machine::Machine::new(&limits::small(), &placed).unwrap(),
+        machine: crate::machine::Machine::new(&limits::stock(), &placed).unwrap(),
         now: skein_lib::Time::ZERO,
         out: skein_lib::Queue::uncapped(),
     };
@@ -1895,7 +1895,7 @@ fn ignored_source_ending(ending: Option<Exit>) {
             steps: Box::new([(Stage::Run, step(b"forgejo", Kind::Long)), (Stage::Run, step(b"source", Kind::Source))]),
         }]),
     });
-    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     machine.input(Time::ZERO, Input::Started { step: 2 }, &mut out);
@@ -1915,7 +1915,7 @@ fn ignored_source_ending(ending: Option<Exit>) {
     assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
     assert!(effects_empty(&out));
     assert!(machine.outcome().is_none(), "the box keeps running");
-    let retry = Time::ZERO.saturating_add(limits::small().backoff);
+    let retry = Time::ZERO.saturating_add(limits::stock().backoff);
     machine.fire(retry, &mut out);
     assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 1 }));
     machine.input(retry, Input::Started { step: 1 }, &mut out);
@@ -1949,7 +1949,7 @@ fn source_retries_cap_the_wait_without_giving_up_and_stop_with_the_group() {
         }]),
     });
     let limits =
-        limits::Limits { backoff: Duration::from_millis(2), backoff_max: Duration::from_millis(5), ..limits::small() };
+        limits::Limits { backoff: Duration::from_millis(2), backoff_max: Duration::from_millis(5), ..limits::stock() };
     let mut machine = Machine::new(&limits, &placed).unwrap();
     let mut out = Queue::uncapped();
     let mut now = Time::ZERO;
@@ -2032,7 +2032,7 @@ fn a_record_failure_disarms_the_source_retry_and_a_new_start_gets_its_first_endi
             steps: Box::new([(Stage::Source, step(b"source", Kind::Source))]),
         }]),
     });
-    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut machine = Machine::new(&limits::stock(), &placed).unwrap();
     let mut out = Queue::uncapped();
     machine.start(Time::ZERO, &[], &mut out);
     for added in [false, true] {

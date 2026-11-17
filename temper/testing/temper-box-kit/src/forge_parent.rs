@@ -11,7 +11,7 @@ use skein_shell::{Clock, Config, Kernel, Wait};
 
 #[expect(clippy::too_many_lines, reason = "one small fake listener loop, reexecuted by the startup tests")]
 pub fn serve() -> ! {
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
+    let limits = jig_protocol_config_fixtures::small().io;
     let operations = skein_io::operations(&limits).expect("io operations");
     let mut kernel = Kernel::open(Config { operations }).expect("fake kernel");
     let clock = Clock::new();

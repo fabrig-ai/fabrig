@@ -38,7 +38,7 @@ impl Source {
                 marker: marker.into(),
                 documents: None,
                 bundle: None,
-                bundle_limits: temper_service::limits::profile(temper_service::limits::Profile::Small).clients,
+                bundle_limits: temper_service::limits::stock().clients,
             });
         }
         let temper_bytes = public(&dirs.document())?;

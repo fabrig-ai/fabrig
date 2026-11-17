@@ -220,7 +220,7 @@ fn auth_list(root: &Path) -> String {
 }
 
 fn link_sign_in(browser: &mut Browser, temper: SocketAddr, link: &[u8]) -> io::Result<super::forgejo_sign_in::Answer> {
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let link = std::str::from_utf8(link).expect("link text").trim();
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("printed secret").1.as_bytes(), 32)
         .expect("link encoding");
@@ -239,7 +239,7 @@ fn repository(browser: &mut Browser, temper: SocketAddr, forge: SocketAddr) -> i
     let authorization = opened.location.expect("issuer redirect");
     assert!(authorization.starts_with(&format!("http://{temper}/oauth/authorize?")), "every press passes the issuer");
     assert_eq!(browser.call(&authorization, None)?.status, 200);
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let record = wire::Authorize::new(
         &limits,
         wire::AuthorizeParts { query: authorization.split_once('?').expect("query").1.as_bytes().into() },
