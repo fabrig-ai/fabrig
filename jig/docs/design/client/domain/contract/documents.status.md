@@ -1,7 +1,8 @@
 # documents: status
 
-2026-11-16. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-17. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: a task's `tasks_left` [in flight: change 6050]
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
