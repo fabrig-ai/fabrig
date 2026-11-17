@@ -205,13 +205,16 @@
   - *One per sign-in, four in all:* a sign-in has at most one live
     asked link, and its asking again replaces it: the one replaced is
     remembered expired (*Why a link can't sign in*, above), since no one
-    signed in by it. At most 4 are live at once in the deployment,
-    whoever asked; an ask past them from a sign-in with none live is
-    answered busy until one ends, as is one the component has no room
-    for among its exchanges. A link reserved by a sign-in (below) is no
-    longer live: an ask meanwhile draws another, and the reserved one,
-    given back by its exchange (not ready, busy, full), is remembered
-    expired if its sign-in has a live one by then.
+    signed in by it. At most 4 sign-ins hold an asked link at once in
+    the deployment, live or reserved, whoever asked; an ask past them
+    from a sign-in that holds none is answered busy until one ends, as
+    is one the component has no room for among its exchanges. A link
+    reserved by a sign-in (below) is no longer live but keeps its
+    sign-in's place among the 4: its sign-in's ask meanwhile draws
+    another in that place, and the reserved one, given back by its
+    exchange (not ready, busy, full), is remembered expired if its
+    sign-in has a live one by then, and is live again otherwise. So a
+    give-back never makes a fifth.
   - *Signed in by it:* `LinkSignIn`, the printed link's message and
     route. A secret whose digest is a live asked link's, before its
     expiry, reserves that link for its exchange, as the printed link's
