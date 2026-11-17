@@ -62,7 +62,7 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
         let source = plan.options.deployment.as_ref().expect("deployment directory");
         for entry in fs::read_dir(source).map_err(|why| format!("{}: {why}", source.display()))? {
             let entry = entry.map_err(|why| format!("{}: {why}", source.display()))?;
-            if !["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"]
+            if !["engine.json", "worker.json", "forgejo.json", "model.json"]
                 .iter()
                 .any(|name| entry.file_name() == *name)
             {
@@ -70,7 +70,7 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
             }
         }
         let mut input = vec![];
-        for name in ["engine.json", "worker.json", "agent.json", "forgejo.json", "model.json"] {
+        for name in ["engine.json", "worker.json", "forgejo.json", "model.json"] {
             input.push((name, read(&source.join(name), deployment::DOCUMENT_BYTES)?));
         }
         let documents = deployment::documents(
@@ -150,6 +150,13 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
     }
     deployment::values(&place, &forge, &model)
 }
+pub(in crate::drive) fn worker(plan: &Plan) -> Result<deployment::Worker, String> {
+    let scratch = &plan.options.scratch;
+    let document = read(&beneath(scratch, Path::new("config/worker/temper.json"))?, deployment::DOCUMENT_BYTES)?;
+    let digest = read(&beneath(scratch, Path::new("data/engine/secrets/worker.digest"))?, 65)?;
+    deployment::Worker::read(&document, &digest)
+}
+
 /// Resolve bounded settings inputs before ctl starts, leaving flags and stdin unchanged.
 pub(in crate::drive) fn settings_files(
     directory: Option<&Path>,

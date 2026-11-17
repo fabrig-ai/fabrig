@@ -559,6 +559,34 @@ fn an_issues_close_and_reopen_answer_201() {
     }
 }
 #[test]
+fn a_merged_pulls_close_and_reopen_answer_412_without_a_domain_call() {
+    let (mut h, number) = reviewer_pull();
+    h.call(fixtures::ADMIN, Op::Write(Write::Merge { number, head: 2, how: a::MergeHow::Style })).expect("merge pull");
+    let before = h.call(fixtures::PERSON, Op::Read(Read::Pull { number })).expect("pull before edit");
+    let item_before =
+        h.call(fixtures::PERSON, Op::Read(Read::Item { number, after: 0, since: None })).expect("item before edit");
+    for state in [skein_forge::forgejo::document::IssueState::Closed, skein_forge::forgejo::document::IssueState::Open]
+    {
+        let request = Request::EditIssue { at: fixtures::at(), number, title: None, body: None, state: Some(state) };
+        h.send(&request);
+        assert_eq!(h.status(), 412, "{state:?}");
+        assert_eq!(
+            h.body().as_ref(),
+            br#"{"message":"cannot change state of this pull request, it was already merged"}"#
+        );
+        assert_eq!(h.domain_calls(), 0);
+        assert_eq!(h.call(fixtures::PERSON, Op::Read(Read::Pull { number })), Ok(before.clone()));
+        assert_eq!(
+            h.call(fixtures::PERSON, Op::Read(Read::Item { number, after: 0, since: None })),
+            Ok(item_before.clone())
+        );
+    }
+    let a::Answer::Pull(pull) = before else { panic!("merged pull") };
+    assert_eq!(pull.state, a::State::Closed);
+    assert!(pull.merged.is_some());
+}
+
+#[test]
 fn a_reviewer_request_answers_201_over_http() {
     let (mut h, number) = reviewer_pull();
     h.send(&Request::RequestReviewers { at: fixtures::at(), number, reviewers: Box::new([boxed(b"person")]) });

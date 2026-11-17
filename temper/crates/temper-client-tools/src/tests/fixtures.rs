@@ -190,6 +190,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["account", "replace-key", "43", "key-file"],
     &["account", "forget", "43"],
     &["account", "rank", "43", "1"],
+    &["account", "uses", "43", "--party", "73", "--project", "1"],
+    &["account", "uses", "43", "--default"],
     &["account", "retry", "43"],
     &["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],

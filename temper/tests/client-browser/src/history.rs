@@ -6,6 +6,17 @@ use skein_ui::Role;
 use std::path::Path;
 
 impl Tier {
+    /// Make the ordinary stories' project as its owner before opening the browser's fresh link.
+    /// The deployment seeds none (temper/docs/design/protocol/configuration/moved.md, 2).
+    #[must_use]
+    pub fn project_face(&self) -> Script {
+        self.ctl_face(self.project_calls().into())
+    }
+
+    pub(crate) fn project_calls(&self) -> [Step; 2] {
+        self.ctl(&["project", "make", "Project 1", "--key", "browser-project"])
+    }
+
     /// One `temper ctl` call on this deployment's client directory, with closed stdin and exit 0.
     #[must_use]
     pub fn ctl(&self, words: &[&str]) -> [Step; 2] {
@@ -50,6 +61,18 @@ impl Tier {
             }),
             exited(),
         ];
+        let agents = self.scratch.path().join("browser-agents.json");
+        if agents.is_file() {
+            steps.extend(self.ctl(&[
+                "settings",
+                "apply",
+                agents.to_str().expect("agents settings path"),
+                "--against",
+                "1",
+                "--key",
+                "browser-agents",
+            ]));
+        }
         steps.extend(calls);
         steps.extend([open_printed(), exited()]);
         Script::new(steps.into_boxed_slice())
@@ -64,12 +87,17 @@ impl Tier {
     }
 }
 
+/// Open the browser's fresh printed link after the owner's ctl face finishes.
+#[must_use]
+pub fn page_opens() -> Vec<Step> {
+    vec![open_printed(), exited()]
+}
+
 /// Open the reader's fresh printed link after ctl finishes, then navigate to `address`.
 #[must_use]
 pub fn reader_opens(address: &[u8]) -> Vec<Step> {
-    vec![
-        open_printed(),
-        exited(),
+    let mut steps = page_opens();
+    steps.extend([
         Step::Person(PersonStep::See {
             find: skein_fake_person::Find::exactly_named(Role::Button, b"Try the playground"),
             within: WITHIN,
@@ -79,7 +107,8 @@ pub fn reader_opens(address: &[u8]) -> Vec<Step> {
         }),
         Step::Person(PersonStep::See { find: crate::live(), within: WITHIN }),
         Step::Person(PersonStep::Go { address: crate::page_address(address) }),
-    ]
+    ]);
+    steps
 }
 
 fn ctl_call(program: &Path, directory: &Path, words: &[&str]) -> [Step; 2] {

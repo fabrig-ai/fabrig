@@ -35,6 +35,7 @@ pub struct Switcher {
     new_words: Box<[u8]>,
     pending: Option<(Key, Form)>,
     refusal: Option<(Form, Outcome)>,
+    armed: bool,
     pub(super) opening: Option<u32>,
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
@@ -46,6 +47,7 @@ impl Default for Switcher {
             new_words: Box::default(),
             pending: None,
             refusal: None,
+            armed: false,
             opening: None,
         }
     }
@@ -112,6 +114,10 @@ impl Switcher {
             | Address::Adopt { .. } => {}
         }
     }
+    pub(super) fn supersede(&mut self) {
+        self.armed = false;
+        self.opening = None;
+    }
     pub(super) fn close(&mut self) {
         self.renaming = None;
         self.rename_words = Box::default();
@@ -174,6 +180,7 @@ impl Switcher {
         *serial = serial.checked_add(1).expect("page keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
         self.pending = Some((key, form));
+        self.armed = form == Form::New;
         self.refusal = None;
         out.push(Request::Client(jig_client::Event::Send {
             key,
@@ -201,7 +208,9 @@ impl Switcher {
                         )))),
                     ) => {
                         self.new_words = Box::default();
-                        self.opening = Some(*project);
+                        if self.armed {
+                            self.opening = Some(*project);
+                        }
                     }
                     _ => {
                         if form != Form::Rename || self.renaming.is_some() {
@@ -209,6 +218,7 @@ impl Switcher {
                         }
                     }
                 }
+                self.armed = false;
                 true
             }
             Told::Link { .. }

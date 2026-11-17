@@ -512,7 +512,7 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
     let coordinator = defaults.charters.iter().find(|charter| charter.number == 5).unwrap();
     assert_eq!(charter.wake, jig_domain_tasks::WakePolicy { results: ResultsWake::Each, ..coordinator.wake });
     assert_eq!((charter.policy.turns, charter.policy.time), (coordinator.policy.turns, coordinator.policy.time));
-    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(60)));
+    assert_eq!((charter.policy.reserve_turns, charter.policy.reserve_time), (1, skein_lib::Duration::from_secs(300)));
     let template = defaults.templates.iter().find(|template| template.number == 7).expect("standing role template");
     assert_eq!(template.name.as_ref(), b"standing role");
     assert_eq!(template.executor, TemplateExecutor::Chosen);
@@ -1210,15 +1210,17 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 
 #[test]
 fn init_inbox_holds_three_message_credits_within_the_store_codec() {
+    // Fabrig's own development's 63,740-byte payload, less the separator.
+    const MESSAGE: u32 = 63_738;
     let engine = engine(&generated());
     let limits = &engine.limits.core;
-    assert_eq!(limits.tasks.result_bytes, 10_660);
-    assert_eq!(limits.tasks.message_bytes, 10_660);
+    assert_eq!(limits.tasks.result_bytes, MESSAGE);
+    assert_eq!(limits.tasks.message_bytes, MESSAGE);
     assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
     // protocol/configuration/stock.md: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
     let required = 2 * limits.tasks.message_bytes + 5 * limits.tasks.result_bytes;
-    assert_eq!(required, 74_620);
+    assert_eq!(required, 446_166);
     assert!(limits.tasks.inbox_bytes >= required);
     assert!(jig_protocol_store::codec::limits(limits).is_some(), "the three-credit inbox fits the pinned store codec");
 }
@@ -1251,15 +1253,25 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (9, 4, 300)] {
+        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (5, 800, 28_800), (9, 4, 300)] {
             let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
-            assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if number == 9 || number == 10 { 60 } else { 300 }),
+                "{row}"
+            );
         }
         for charter in &stock.charters {
             assert_eq!(charter.spend, k, "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if charter.number == 9 || charter.number == 10 { 60 } else { 300 }),
+                "{row}: charter {}",
+                charter.number
+            );
         }
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
         assert_eq!(policy.roles[0].authority.budget.spend, 24 * k, "{row}");
@@ -2191,6 +2203,7 @@ fn the_status_charter_is_small_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/status.txt").as_slice().into();
     expected.policy.turns = 4;
     expected.policy.time = skein_lib::Duration::from_secs(300);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.inspect = false;
     expected.policy.agents = false;
     expected.policy.tools = jig_domain_tasks::Tools(0);
@@ -2241,6 +2254,7 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
     expected.policy.turns = 2;
     expected.policy.time = skein_lib::Duration::from_secs(120);
+    expected.policy.reserve_time = skein_lib::Duration::from_secs(60);
     expected.policy.resume = false;
     expected.policy.inspect = false;
     expected.policy.agents = false;

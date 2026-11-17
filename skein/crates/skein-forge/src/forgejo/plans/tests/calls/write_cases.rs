@@ -34,6 +34,70 @@ pub(in super::super) struct WriteCase {
     pub users: &'static [(u64, &'static [u8])],
     pub bodies: &'static [Option<&'static [u8]>],
 }
+// forge/forgejo.md, 1.4: Forgejo's state-edit refusal for a merged pull request.
+const MERGED_REFUSAL: &[u8] = br#"{"message":"cannot change state of this pull request, it was already merged"}"#;
+const CLOSED_ITEM: &[u8] = br#"{"number":7,"state":"closed","pull_request":{"merged":true},"user":{"id":2,"login":"writer"},"labels":[],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}"#;
+const OPEN_ITEM: &[u8] = br#"{"number":7,"state":"open","user":{"id":2,"login":"writer"},"labels":[],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}"#;
+const CLOSE_SENDS: &[&str] =
+    &["PATCH /api/v1/repos/fixture/specimen/issues/7", "GET /api/v1/repos/fixture/specimen/issues/7"];
+
+#[test]
+fn refused_closes_read_the_item_once_and_keep_the_refusal_unless_closed() {
+    use crate::forgejo::plans::{Failure, plan::Step};
+    for (name, status, body, read_status, read_body, expected) in [
+        ("merged", 412, MERGED_REFUSAL, 200, CLOSED_ITEM, Ok(Answer::Done)),
+        ("open", 412, MERGED_REFUSAL, 200, OPEN_ITEM, Err(Error::Refused)),
+        ("missing read", 412, MERGED_REFUSAL, 404, &b"{}"[..], Err(Error::Refused)),
+        ("failed read", 412, MERGED_REFUSAL, 500, &b"{}"[..], Err(Error::Refused)),
+        ("undecodable read", 412, MERGED_REFUSAL, 200, &b"{"[..], Err(Error::Refused)),
+        ("unknown message", 422, &br#"{"message":"unknown"}"#[..], 200, CLOSED_ITEM, Ok(Answer::Done)),
+        ("other refused status", 400, &b"{}"[..], 200, CLOSED_ITEM, Ok(Answer::Done)),
+    ] {
+        let mut run = begun(Write::Close { number: 7 });
+        assert_eq!(
+            run.answer(status, body),
+            Step::send(crate::forgejo::request::Request::Issue {
+                at: crate::forgejo::tests::fixtures::repository(),
+                number: 7,
+            }),
+            "{name}"
+        );
+        assert_eq!(run.answer(read_status, read_body), Step::Done(expected), "{name}");
+        run.assert_sent(CLOSE_SENDS);
+        run.assert_bodies(&[Some(br#"{"state":"closed"}"#), None]);
+    }
+    for failure in [Failure::Unseen, Failure::Seen] {
+        let mut run = begun(Write::Close { number: 7 });
+        run.answer(412, MERGED_REFUSAL);
+        assert_eq!(run.fail(failure), Step::Done(Err(Error::Refused)));
+        run.assert_sent(CLOSE_SENDS);
+    }
+}
+
+#[test]
+fn closes_read_nothing_after_other_classifications_and_reopen_never_reads() {
+    use crate::forgejo::plans::{Fields, plan::Step};
+    use crate::forgejo::tests::fixtures;
+    use skein_lib::Duration;
+    for (status, body, expected) in [
+        (201, ISSUE, Ok(Answer::Done)),
+        (404, &b"{}"[..], Err(Error::Missing)),
+        (500, &b"{}"[..], Err(Error::Timeout)),
+        (200, &b"{"[..], Err(Error::Timeout)),
+        (401, &b"{}"[..], Err(Error::Forbidden)),
+        (403, &b"{}"[..], Err(Error::Forbidden)),
+        (429, &b"{}"[..], Err(Error::RateLimited { after: Duration::from_secs(5) })),
+    ] {
+        let mut run = begun(Write::Close { number: 7 });
+        let fields = Fields { retry_after: Some(Duration::from_secs(5)), ..fixtures::fields() };
+        assert_eq!(run.answer_with(status, body, fields), Step::Done(expected), "{status}");
+        run.assert_sent(&[CLOSE_SENDS[0]]);
+    }
+    let mut run = begun(Write::Reopen { number: 7 });
+    assert_eq!(run.answer(412, MERGED_REFUSAL), Step::Done(Err(Error::Refused)));
+    run.assert_sent(&[CLOSE_SENDS[0]]);
+}
+
 pub(in super::super) fn cases() -> [[WriteCase; 5]; 3] {
     [creating(), editing(), branches()]
 }

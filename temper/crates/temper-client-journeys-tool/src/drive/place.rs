@@ -52,7 +52,7 @@ impl Ports {
 
 pub(super) enum Place {
     Box(BoxState),
-    Deployment(DeploymentState),
+    Deployment(Box<DeploymentState>),
 }
 pub(super) struct BoxState {
     stage: BoxStage,
@@ -86,6 +86,9 @@ pub(super) enum Stage {
     Idle,
     PatchTui,
     Reading,
+    WorkerFile,
+    WorkerList,
+    WorkerAdd,
     Stopping(bool),
     Writing,
     Classifying,
@@ -100,6 +103,7 @@ pub(super) struct DeploymentState {
     pub link: bool,
     pub first: Option<Box<[u8]>>,
     pub patch: Option<deployment::RenderedFile>,
+    pub worker: Option<deployment::Worker>,
     pub until: Option<Time>,
     pub patch_until: Option<Time>,
 }
@@ -128,6 +132,7 @@ pub(super) enum Progress {
     None,
     Waiting,
     First(First),
+    Started,
     Link { link: Box<[u8]>, replace: bool },
     Failed(String),
     LostLine(String),
@@ -140,7 +145,7 @@ pub(super) enum Progress {
 impl Place {
     pub fn start(plan: &Plan, now: Time) -> (Self, Action) {
         if plan.options.deployment.is_some() {
-            (Self::Deployment(DeploymentState::new(now)), Action::PrepareDeployment)
+            (Self::Deployment(Box::new(DeploymentState::new(now))), Action::PrepareDeployment)
         } else {
             (
                 Self::Box(BoxState {
@@ -239,6 +244,16 @@ impl Place {
                 Progress::Waiting
             }
             Deployment::Restart => state.restart(tui, plan, now, out),
+        }
+    }
+    pub fn signed_in(&mut self, now: Time, out: &mut Vec<Action>) -> bool {
+        if let Self::Deployment(state) = self {
+            state.stage = Stage::WorkerFile;
+            state.until = Some(now.saturating_add(STEP));
+            out.push(Action::ReadDeploymentWorker);
+            true
+        } else {
+            false
         }
     }
     pub fn event(

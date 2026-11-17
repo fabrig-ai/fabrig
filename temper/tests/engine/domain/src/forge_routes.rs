@@ -521,7 +521,7 @@ impl World {
             library_gate_latency: _,
             tier,
         } = *timing;
-        let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
+        let paths::Gate { approval, agent: agent_gate, owner: owner_gate, freshness } = gate;
         std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
@@ -707,7 +707,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -836,7 +840,11 @@ impl World {
                         ci: true,
                         up_to_date: true,
                         gates: if agent_gate || owner_gate {
-                            Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }])
+                            Box::new([engine::Gate {
+                                number: 1,
+                                blocking: true,
+                                freshness: freshness.unwrap_or(engine::Freshness::Exact),
+                            }])
                         } else {
                             Box::new([])
                         },
@@ -3136,7 +3144,7 @@ pub fn change_world_with_policy(
         true,
         silent_ci,
         passes,
-        paths::Gate { approval, agent: agent_gate, owner: owner_gate },
+        paths::Gate { approval, agent: agent_gate, owner: owner_gate, ..paths::Gate::default() },
         None,
     );
     change_world_in(world, paths::Change { no_ci, owner_gate, tracked })
@@ -3362,6 +3370,8 @@ fn delegated_goal(world: &mut World, parent: &engine::Assignment) -> engine::Ass
 
 #[derive(Clone, Copy, Default)]
 pub struct Gate {
+    /// Agent and owner reviews use Exact unless the story chooses another rule.
+    pub freshness: Option<engine::Freshness>,
     pub approval: Option<engine::Freshness>,
     pub agent: bool,
     pub owner: bool,

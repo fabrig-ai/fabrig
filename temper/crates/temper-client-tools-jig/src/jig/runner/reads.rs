@@ -241,7 +241,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let what = c::Read::Turn { task, attempt: name.attempt, turn: name.number };
             read(runner, &mut reading, 1, what, out);
         }
-        22 | 23 | 25 | 27..=30 | 33 | rows::EXPORT_AT => {
+        22 | 23 | 25 | 27..=30 | 33 | rows::EXPORT_AT | rows::USES_AT => {
             let Some(document) = client.document(runner.me()) else { return };
             let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return };
             if reading.called.call.tool == 23 && model_project(&reading.called.call, me).is_err() {
@@ -638,6 +638,7 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         || (27..=30).contains(&reading.called.call.tool)
         || reading.called.call.tool == 33
         || reading.called.call.tool == rows::EXPORT_AT
+        || reading.called.call.tool == rows::USES_AT
     {
         super::accounts::resolved(runner, client, env, reading, out);
         return;

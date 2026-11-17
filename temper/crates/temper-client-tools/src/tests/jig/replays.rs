@@ -301,6 +301,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["account", "replace-key", "43", "file", "--key", "replace"],
     &["account", "forget", "43", "--key", "forget"],
     &["account", "rank", "43", "2", "--key", "rank"],
+    &["account", "uses", "43", "--party", "73", "--project", "1", "--key", "uses"],
+    &["account", "uses", "43", "--default", "--key", "default-uses"],
     &["account", "retry", "43", "--key", "retry"],
     &["account", "declare", "9", "helper", "work-login", "--key", "declare"],
     &["account", "verify", "43", "--key", "verify"],

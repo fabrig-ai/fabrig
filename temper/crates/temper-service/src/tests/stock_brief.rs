@@ -14,7 +14,7 @@ use smith_domain_run as run;
 
 fn configured() -> smith_agent_shell::config::Configuration {
     let mut configuration =
-        fixtures::stock_configuration(10_662, 8192).expect("stock agent with local fake destinations");
+        fixtures::stock_configuration(63_740, 48_000).expect("stock agent with local fake destinations");
     // These profile measurements use inert direct endpoints, with no program process.
     configuration.service.program = None;
     configuration.service.domain.programs = Box::default();
@@ -115,7 +115,7 @@ fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
         if number == 5 {
             let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
             eprintln!("red charter 5 with workspace: room={room}");
-            assert!(room >= 334_999 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
+            assert!(room >= 318_306 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
         }
         assert_eq!(
             charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
@@ -151,10 +151,10 @@ fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
 fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 399_961);
-    assert_eq!(limits.room, 822_476);
-    assert_eq!(limits.offer_bytes, 199_981);
-    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
+    assert_eq!(limits.host_part, 360_150);
+    assert_eq!(limits.room, 742_860);
+    assert_eq!(limits.offer_bytes, 180_075);
+    assert_eq!(configuration.service.limits.channel.bodies.turn_body, 18_431_842);
 
     for (number, open) in [
         (1, false),
@@ -201,7 +201,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         if number == 5 {
             assert_eq!(original.owned_bytes().unwrap(), 59_235);
 
-            assert_eq!(receiving, 65_463);
+            assert_eq!(receiving, 127_407);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {
@@ -259,9 +259,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 359_655, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 319_844, "charter 5's maximal non-brief host part leaves this room");
 
-    assert_eq!(brief.brief_bytes, 334_999);
+    assert_eq!(brief.brief_bytes, 318_306);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));

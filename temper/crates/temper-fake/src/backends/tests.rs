@@ -559,10 +559,12 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         assert_eq!(endpoint["dialect"], 2, "Anthropic’s endpoint dialect");
         assert_eq!(endpoint["number"], 2);
     }
+    // The catalogue requests 8,192 tokens within the endpoint's 48,000-token ceiling.
+    assert_eq!(model.model.output, 8192);
     let agent_limits = &agent_endpoint["limits"];
     for field in ["window", "output"] {
-        let actual = if field == "window" { model.model.window } else { model.model.output };
-        assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
+        let actual = if field == "window" { model.model.window } else { 48_000 };
+        assert_eq!(json!(actual), agent_limits[field], "program endpoint quantities: {field}");
     }
     let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
