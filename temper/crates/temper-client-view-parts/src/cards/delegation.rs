@@ -44,8 +44,9 @@ pub fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindi
     if facts.goal {
         b.style(look::TOOL_FILE);
     }
-    b.name(facts.title);
-    b.text(Run::Plain, facts.title);
+    let title = crate::common::chat::row_title(facts.title);
+    b.name(&title);
+    b.text(Run::Plain, &title);
     b.close();
     if words.shell == Shell::Browser {
         status(b, facts.state, words);
@@ -170,7 +171,7 @@ pub(crate) fn line(task: &c::Task, words: &Words) -> crate::shared::DelegationLi
     };
     crate::shared::DelegationLine {
         kind: words.say(kind, &[Hole::Number(facts.task)]),
-        title: facts.title.into(),
+        title: crate::common::chat::row_title(facts.title),
         state: state_words(facts.state, words),
     }
 }

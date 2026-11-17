@@ -215,7 +215,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     LLM (the model is not what it tests), the machine's git, and the
     test's relay. The forge is a GitHub forge connected with the probe
     App, its record's `read_only` set (../protocol/forge/engine.md, 1;
-    ../protocol/setup/github.md, 7), its place `application.machine.github`'s
+    ../protocol/setup/github.md, 7), its place `application.test.github`'s
     (../protocol/configuration/engine.md): `api` and `remote` the
     relay's two loopback listeners, `web` the latter's origin; and the
     forge component's and the resources' polling their defaults but

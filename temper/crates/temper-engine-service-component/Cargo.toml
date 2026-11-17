@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-oauth-issuer.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true
@@ -40,6 +41,7 @@ smith-protocol-translate.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
+temper-engine-service-stock.workspace = true
 temper-engine-service-vocabulary.workspace = true
 temper-engine-smith.workspace = true
 temper-forge-setup.workspace = true
@@ -78,7 +80,6 @@ temper-client-domain-forge.workspace = true
 temper-client-tools.workspace = true
 temper-engine-domain-world.workspace = true
 temper-engine-service-startup.workspace = true
-temper-engine-service-stock.workspace = true
 temper-test-env.workspace = true
 temper-init.workspace = true
 temper-github-app.workspace = true

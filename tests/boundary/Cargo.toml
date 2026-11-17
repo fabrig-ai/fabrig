@@ -16,6 +16,7 @@ serde_json.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
+aho-corasick.workspace = true
 skein-codec.workspace = true
 skein-codegen.workspace = true
 skein-scratch.workspace = true

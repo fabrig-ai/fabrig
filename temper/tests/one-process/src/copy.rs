@@ -53,7 +53,7 @@ impl Harness for CopyWorld {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
     fn configure(document: &mut serde_json::Value) {
-        document["engine"]["acts"] = serde_json::json!([{"connector": 1, "may": ["adopt"]}]);
+        document["world_settings"]["adopt_only"] = true.into();
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()

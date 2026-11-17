@@ -174,7 +174,9 @@ fn brief(b: &mut Builder, task: &c::Task, me: Option<&c::Me>, words: &Words, bin
     b.style(look::AGENT_BRIEF);
     b.name(&words.say(Word::TaskBrief, &[]));
     text(b, Role::Heading { level: 2 }, &words.say(Word::TaskBrief, &[]));
-    skein_ui::markdown::read(task.spec.specification.words.bytes(), 3, b);
+    if !crate::common::chat::only_title(&task.spec.specification.words) {
+        skein_ui::markdown::read(task.spec.specification.words.bytes(), 3, b);
+    }
     super::task::requester(b, task.requester, me, words);
     super::task::dependencies(
         b,
@@ -194,7 +196,8 @@ fn lineage(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindin
     if let Some(parent) = task.lineage_chips.as_slice().last() {
         b.open(Role::Slot);
         super::task::task_link(b, parent.task, words, bindings);
-        text(b, Role::Paragraph, parent.title.bytes());
+        let title = crate::common::chat::row_title(parent.title.bytes());
+        text(b, Role::Paragraph, &title);
         b.close();
     } else if let c::Requester::Task(parent) = task.requester {
         b.open(Role::Slot);
@@ -203,7 +206,8 @@ fn lineage(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindin
     }
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::Task, &[Hole::Number(task.chip.task)]));
-    text(b, Role::Paragraph, task.chip.title.bytes());
+    let title = crate::common::chat::row_title(task.chip.title.bytes());
+    text(b, Role::Paragraph, &title);
     b.close();
     b.close();
 }

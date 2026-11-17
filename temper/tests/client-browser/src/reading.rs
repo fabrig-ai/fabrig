@@ -128,8 +128,6 @@ mod tests {
             sign_in: false,
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).expect("clients port"),
-                owned: NonZeroU16::new(8368).expect("owned port"),
-                forge: NonZeroU16::new(8369).expect("forge port"),
                 llm: NonZeroU16::new(8370).expect("LLM port"),
                 webhooks: NonZeroU16::new(8371).expect("webhooks port"),
             },

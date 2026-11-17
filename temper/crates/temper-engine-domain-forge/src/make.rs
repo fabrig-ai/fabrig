@@ -9,6 +9,51 @@ use jig_domain_core_vocabulary::Carried;
 use skein_lib::{Duration, Env, Queue, Token};
 pub use temper_engine_domain_forge_vocabulary::make::*;
 
+#[derive(Hash, Debug)]
+pub(crate) enum Choosing {
+    Owned { intent: FirstIntent, first: SetUpFirst },
+    Fake,
+}
+
+pub(crate) fn choose(
+    d: &mut Domain,
+    request: Token,
+    kind: crate::BoxKind,
+    choosing: Choosing,
+    out: &mut Queue<Request>,
+) {
+    let login = match d.setup_people.remove(&request) {
+        Some(login) => login,
+        None => Box::from(b"owner".as_slice()),
+    };
+    d.choosing.insert(request, choosing).expect("one chosen place per admitted act");
+    out.push(Request::ChoosePlace { request, kind, login });
+}
+
+pub(crate) fn chosen(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    place: Option<crate::Place>,
+    git_program: Option<Box<[u8]>>,
+    out: &mut Queue<Request>,
+) {
+    let Some(choosing) = d.choosing.remove(&request) else { return };
+    match choosing {
+        Choosing::Owned { intent, first } => {
+            let Some(place) = place else {
+                d.setup_answer(env, request, SetUpAnswer::Refused(SetUpRefusal::Busy), out);
+                return;
+            };
+            match owned(d, intent.clone(), place, out) {
+                Ok(forge) => finish(d, forge, request, intent, first, out),
+                Err(why) => d.setup_answer(env, request, SetUpAnswer::Refused(why), out),
+            }
+        }
+        Choosing::Fake => crate::playground::chosen(d, request, place, git_program, out),
+    }
+}
+
 pub(crate) fn bot() -> Bot {
     Bot { login: Box::from(BOT_LOGIN), name: Box::from(b"temper".as_slice()), email: Box::from(BOT_EMAIL) }
 }
@@ -86,7 +131,13 @@ pub(crate) fn setup(
         }
     };
     let admitted = match forge {
-        Making::New(ForgeAsk::Owned) => owned(d, intent.clone(), out),
+        Making::New(ForgeAsk::Owned) => match offered(d) {
+            Ok(()) => {
+                choose(d, request, crate::BoxKind::Owned, Choosing::Owned { intent, first }, out);
+                return;
+            }
+            Err(why) => Err(why),
+        },
         Making::New(ForgeAsk::GitHub | ForgeAsk::Managed { .. } | ForgeAsk::Connected { .. }) => {
             Err(SetUpRefusal::NotOffered)
         }
@@ -109,6 +160,17 @@ pub(crate) fn setup(
             return;
         }
     };
+    finish(d, forge, request, intent, first, out);
+}
+
+fn finish(
+    d: &mut Domain,
+    forge: u16,
+    request: Token,
+    intent: FirstIntent,
+    first: SetUpFirst,
+    out: &mut Queue<Request>,
+) {
     if let Some(record) = d.record(forge)
         && record.first.as_ref() != Some(&intent)
     {
@@ -157,6 +219,9 @@ fn intent(first: &SetUpFirst, name_bytes: u32) -> Result<FirstIntent, SetUpRefus
 }
 
 fn setup_busy(d: &Domain) -> bool {
+    if !d.choosing.is_empty() {
+        return true;
+    }
     for (_, (state, _)) in &d.connections {
         match state {
             Connection::SettingUp { .. } => return true,
@@ -171,7 +236,7 @@ fn setup_busy(d: &Domain) -> bool {
     false
 }
 
-fn owned(d: &mut Domain, intent: FirstIntent, out: &mut Queue<Request>) -> Result<u16, SetUpRefusal> {
+fn offered(d: &Domain) -> Result<(), SetUpRefusal> {
     if !d.under_box {
         return Err(SetUpRefusal::NotUnderTheBox);
     }
@@ -188,15 +253,17 @@ fn owned(d: &mut Domain, intent: FirstIntent, out: &mut Queue<Request>) -> Resul
             };
         }
     }
-    let Some(place) = (match &d.machine {
-        Some(machine) => machine.owned.clone(),
-        None => None,
-    }) else {
-        return Err(SetUpRefusal::NotOffered);
-    };
-    if setup_busy(d) {
+    if setup_busy(d) || !crate::forges::room(d) {
         return Err(SetUpRefusal::Busy);
     }
+    Ok(())
+}
+fn owned(
+    d: &mut Domain,
+    intent: FirstIntent,
+    place: crate::Place,
+    out: &mut Queue<Request>,
+) -> Result<u16, SetUpRefusal> {
     match crate::forges::make(d, Kind::Forgejo, Mode::Owned, place, None, false, bot(), true, Some(intent), out) {
         Some(forge) => Ok(forge),
         None => Err(SetUpRefusal::Busy),
