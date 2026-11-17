@@ -70,7 +70,7 @@ pub(crate) struct Layouts {
     ranges: Map<Box<[u8]>, Range>,
     rows: Map<RowKey, Row>,
     retired: Map<Box<[u8]>, Box<[u8]>>,
-    written: Map<(u32, u16), &'static str>,
+    written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
     pending: Queue<skein_kv::Op>,
 }
@@ -209,20 +209,26 @@ impl Layouts {
         }
         Some(ops.into_boxed())
     }
-    pub(crate) fn written(&self, job: &Job) -> Option<(u16, JobLayout)> {
-        let converts = job.converts.as_ref()?;
-        for ((family, number, id), row) in &self.rows {
-            if family.as_ref() != converts.family
-                || *number != converts.value_type
-                || row.value.layout() != &converts.from
-            {
+    pub(crate) fn written(&self, job: &Job) -> Option<Queue<(u16, JobLayout)>> {
+        let mut layouts = Queue::uncapped();
+        let Some(converts) = job.converts.as_ref() else { return Some(layouts) };
+        for (key, row) in &self.rows {
+            let (family, number, id) = key;
+            if family.as_ref() != converts.family || *number != converts.value_type {
+                continue;
+            }
+            let takes = match converts.from {
+                crate::Layouts::One(from) => row.value.layout() == &from,
+                crate::Layouts::Unplanned => self.written.get(key) == Some(&job.name),
+            };
+            if !takes {
                 continue;
             }
             let mut held = List::uncapped();
             for digest in row.value.held() {
                 held.push(self.texts.get(digest)?.bytes.clone()).ok()?;
             }
-            return Some((
+            layouts.push((
                 *id,
                 JobLayout {
                     root: texts::string(row.value.root())?,
@@ -234,8 +240,12 @@ impl Layouts {
                     held: held.into_boxed(),
                 },
             ));
+            match converts.from {
+                crate::Layouts::One(_) => break,
+                crate::Layouts::Unplanned => {}
+            }
         }
-        None
+        Some(layouts)
     }
 }
 /// Keep an owned row in place when only its head moves. A converted row owns

@@ -577,7 +577,8 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             families.push(BASE.sets[0].families[2]);
         }
         let with_written_secret = OwnerSet { families: Box::leak(families.into_boxed_slice()), ..base };
-        let converts = Some(Converts { family: base.families[0].name, value_type: 1, from: [0; 32] });
+        let converts =
+            Some(Converts { family: base.families[0].name, value_type: 1, from: crate::Layouts::One([0; 32]) });
         let bound = Box::leak("n".repeat(64).into_boxed_str());
         let past = Box::leak("n".repeat(65).into_boxed_str());
         for (label, set, jobs, accepted) in [
@@ -612,13 +613,23 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             (
                 "written family in secrets",
                 with_written_secret,
-                vec![Job { converts: Some(Converts { family: "fixture-token", value_type: 1, from: [0; 32] }), ..job }],
+                vec![Job {
+                    converts: Some(Converts {
+                        family: "fixture-token",
+                        value_type: 1,
+                        from: crate::Layouts::One([0; 32]),
+                    }),
+                    ..job
+                }],
                 false,
             ),
             (
                 "written family missing",
                 base,
-                vec![Job { converts: Some(Converts { family: "absent", value_type: 1, from: [0; 32] }), ..job }],
+                vec![Job {
+                    converts: Some(Converts { family: "absent", value_type: 1, from: crate::Layouts::One([0; 32]) }),
+                    ..job
+                }],
                 false,
             ),
         ] {

@@ -51,6 +51,6 @@ pub(super) fn history(before: &Maps, after: &Maps) {
             }
         }
     }
-    assert_eq!(registry_seen, registry, "only the receipt registry rows and job done row change");
+    assert_eq!(registry_seen, registry, "only the receipt registry rows and jobs' done rows change");
     eprintln!("upgrade history allowed: {allowed:?}");
 }

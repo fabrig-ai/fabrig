@@ -246,7 +246,7 @@ fn written_jobs_name_a_registered_type_and_its_ranges() {
             counts: &[],
             name: "convert",
             keys: base.types[0].keys,
-            converts: Some(Converts { family: base.name, value_type: 0, from: [0; 32] }),
+            converts: Some(Converts { family: base.name, value_type: 0, from: crate::Layouts::One([0; 32]) }),
         };
         let wrong = Job { converts: Some(Converts { value_type: 1, ..job.converts.unwrap() }), ..job };
         let mid: &'static [u8] = Box::leak([job.keys[0].from, b"/"].concat().into_boxed_slice());

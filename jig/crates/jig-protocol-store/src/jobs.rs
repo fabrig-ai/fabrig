@@ -12,7 +12,13 @@ pub struct Job {
 pub struct Converts {
     pub family: &'static str,
     pub value_type: u16,
-    pub from: [u8; 32],
+    pub from: Layouts,
+}
+/// The layouts a written job converts (protocol/store/jobs.md, 1 and 4).
+#[derive(Clone, Copy, Debug)]
+pub enum Layouts {
+    One([u8; 32]),
+    Unplanned,
 }
 /// Inclusive start and exclusive end; application keys are relative to its tag.
 #[derive(Clone, Copy, Debug)]
@@ -38,7 +44,7 @@ pub struct JobRow {
     pub key: Box<[u8]>,
     pub value: Box<[u8]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct JobLayout {
     pub root: Box<str>,
     pub variant: Option<Box<str>>,
