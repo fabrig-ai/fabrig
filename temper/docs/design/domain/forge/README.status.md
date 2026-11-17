@@ -13,8 +13,6 @@
 
 - **Not yet:** 5.3: goal overlap reads a pull request's files with both sides, for their paths alone (`temper-engine-domain-forge/src/topics.rs`).
 
-- **Not yet:** 6: an update's or a preparation's refusal by the check before any send settles as a lost write, and a preparation re-sends at once against its same pin, counting each; no `EffectResult::Stale`, replan, backoff or `Change.stale`; a preparation's conflict goes straight to a resolution, past the merge job (`temper-engine-domain-forge-change/src/domain.rs`, `preparing`; `temper-engine-domain-forge/src/domain.rs`, `change_outcome`) [in flight: change 6058].
-- **Not yet:** 6: a refusal for a moved base reads `head changed`; no `base moved` [in flight: change 6054].
 
 `attention.md`, sections 1, 4, 5 and 6 have no known implementation gap
 in what reaches a person, the whole story's milestone N1,

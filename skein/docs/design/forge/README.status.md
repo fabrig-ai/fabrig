@@ -11,8 +11,6 @@ they don't, or a range whose oldest commit alone passes the answer,
 `a_range_past_the_answer_keeps_its_oldest_commits`). The pin's `compare`
 transcript lists its three commits newest first, as the plan reads them.
 
-- **Not yet:** 3.4: `BaseMoved { base }`; `Error` has 20 errors, a base
-  gone on read as `Stale` (`skein-forge/src/api.rs`) [in flight: change 6054].
 - **Not yet:** 3.2: `Merge`'s `Recorded { commit }`, Forgejo's
   `manually-merged` and GitHub's refusal of it; `MergeHow` has the style
   and fast-forward only alone (`skein-forge/src/api.rs`)

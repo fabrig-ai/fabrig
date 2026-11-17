@@ -16,4 +16,3 @@
   not a `Range`.
 
 - **Not yet:** 7.3, 10: the update conformance gap remains `forgejo.status.md`, 2.
-- **Not yet:** 7.4, 7.5: an update's check fails `Stale` for a moved base as for a moved head; no `BaseMoved` (`outbox/answer.rs`, `pulled`) [in flight: change 6054].
