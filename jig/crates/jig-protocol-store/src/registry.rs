@@ -9,6 +9,7 @@ use skein_lib::{Buffer, List, Map, Queue};
 mod check;
 #[cfg(test)]
 mod counting;
+mod depth;
 pub(crate) mod rehearsal;
 mod rows;
 #[cfg(test)]

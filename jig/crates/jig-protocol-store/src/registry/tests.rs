@@ -5,6 +5,7 @@ use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
 use jig_test_layouts::layouts::{CURRENT, FIRST, KEPT};
+mod shortcut;
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
