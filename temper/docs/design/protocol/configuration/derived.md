@@ -85,7 +85,7 @@ engine's and each worker's.
 | the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋, the start's resume window |
 | both `hub.turn_queue_bytes` | the agent's unacknowledged turns × T |
-| the engine's and each worker's `io.output` | the least room the start's checks take for a turn of T's frame: the links' frames, the smallest resumed start and the checkout's answer |
+| the engine's and each worker's `io.output` | the larger of fabrig's own development's 18,432,866 (`limits.md`, the stock covers fabrig's development) and the least room the start's checks take for a turn of T's frame: the links' frames, the smallest resumed start and the checkout's answer |
 | `root.journal.transcript_bytes` | resume |
 | `root.loads.transcript_bytes` | T |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |
