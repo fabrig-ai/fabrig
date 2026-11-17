@@ -204,7 +204,8 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
         }
         rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
-        rows::DEPLOYMENT_CENSUS_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
+        rows::DEPLOYMENT_CENSUS_AT | rows::WORKER_LIST_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
+        rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT => read(runner, &mut reading, 2, c::Read::Settings, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
@@ -575,6 +576,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if super::worker::needs_deployment(&reading) {
+        read(runner, &mut reading, 1, c::Read::Deployment, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if let Some((local, what)) = super::role::next(&reading) {
         read(runner, &mut reading, local, what, out);
         runner.active.insert(reading.called.call_number, reading);
@@ -602,6 +608,10 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     {
         super::application::read(runner, &mut reading, query, out);
         runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&reading.called.call.tool) {
+        super::worker::resolved(runner, client, env, reading, out);
         return;
     }
     join_thread(&mut reading);

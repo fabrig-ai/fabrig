@@ -51,6 +51,10 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
+    (Some(jig::rows::WORKER_LIST_AT), "help_worker_list"),
+    (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
+    (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
+    (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {

@@ -62,6 +62,7 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
             | Value::Duration(_)
             | Value::Proposal(_)
             | Value::Digest(_)
+            | Value::Sha256(_)
             | Value::Condition(_)
             | Value::Switch
             | Value::Project(_)

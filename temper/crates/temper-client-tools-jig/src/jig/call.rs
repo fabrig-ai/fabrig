@@ -32,6 +32,7 @@ pub enum Value {
     Duration(skein_lib::Duration),
     Proposal(ProposalKey),
     Digest([u8; 8]),
+    Sha256([u8; 32]),
     Condition(Condition),
     Switch,
     Project(Project),

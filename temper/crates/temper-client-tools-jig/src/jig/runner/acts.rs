@@ -167,6 +167,7 @@ fn act_read(call: &Call) -> c::Read {
 #[derive(Debug)]
 pub enum Failed {
     Refused(&'static [u8]),
+    RefusedDetail(Box<[u8]>),
     Fixed(&'static [u8]),
     Detail(Box<[u8]>),
 }
@@ -691,6 +692,7 @@ pub fn prepared(
         Err(why) => {
             let printed = match why {
                 Failed::Refused(why) => render::failure(why, called.json, 2),
+                Failed::RefusedDetail(why) => render::failure(&why, called.json, 2),
                 Failed::Fixed(why) => render::failure(why, called.json, 1),
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
             };
@@ -814,6 +816,7 @@ fn send(
     let (Event::Send { request, .. } | Event::Carry { request, .. }) = &event else { unreachable!("act event") };
     let mut operation = Operation::for_call(request, render::outcome::act_tool(called.call.tool));
     operation.model_flags(&called.call);
+    operation.worker_name(&called.call);
     operation.to = to;
     operation.exported = exported;
     if called.call.tool == rows::EXPORT_AT {
@@ -826,6 +829,7 @@ fn send(
     if called.call.tool != rows::EXPORT_AT
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
+        && !(rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&called.call.tool)
     {
         operation.retry = Some(render::outcome::retry(&called.call));
     }

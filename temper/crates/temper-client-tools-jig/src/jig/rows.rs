@@ -4,6 +4,58 @@ use super::table::{
     Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
+/// Worker shorthands (client/ctl/workers.md, 1–3).
+pub const WORKER_LIST_AT: u8 = 102;
+pub const WORKER_ADD_AT: u8 = 103;
+pub const WORKER_PLACES_AT: u8 = 104;
+pub const WORKER_REMOVE_AT: u8 = 105;
+pub const WORKER_LIST: Tool = Tool {
+    name: b"worker list",
+    line: b"Read the workers not withdrawn, in number order",
+    prints: b"A line per worker: WORKER, its places, up since TIME, down since TIME or down, and its runs' count",
+    result: b"workers",
+    forms: &[&[]],
+    keyed: Keyed::Never,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Runs are those of the connected host of the worker's name.\nJSON gives each worker not withdrawn, with its runs' count.\n",
+};
+pub const WORKER_ADD: Tool = Tool {
+    name: b"worker add",
+    line: b"Add a worker, or bring a withdrawn one back at its number",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[
+        positional(b"worker", b"WORKER", Kind::Worker, Required, b"The worker's name"),
+        flag(b"places", b"PLACES", Kind::Places, Required, b"The worker's places"),
+        flag(b"digest", b"SHA256", Kind::Sha256, Required, b"The SHA-256 of the worker's secret"),
+    ]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Make the secret on the worker's own machine as temper help server says;\nthe digest is its SHA-256. A worker started first redials until added.\nChanges one setting against the newest revision read; running work stays.\n",
+};
+pub const WORKER_PLACES: Tool = Tool {
+    name: b"worker places",
+    line: b"Change a worker's places",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[
+        positional(b"worker", b"WORKER", Kind::Worker, Required, b"The live worker's name"),
+        positional(b"places", b"PLACES", Kind::Places, Required, b"The worker's new places"),
+    ]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"A linked worker takes its new places at its next start.\nChanges one setting against the newest revision read; running work stays.\n",
+};
+pub const WORKER_REMOVE: Tool = Tool {
+    name: b"worker remove",
+    line: b"Remove a worker, withdrawn at its number",
+    prints: b"`worker WORKER: revision R`, the new revision",
+    result: b"change_settings",
+    forms: &[&[positional(b"worker", b"WORKER", Kind::Worker, Required, b"The live worker's name")]],
+    keyed: Keyed::Required,
+    area: DEPLOYMENT_CENSUS.area,
+    notes: b"Stop a linked worker first; its runs end interrupted.\nChanges one setting against the newest revision read; running work stays.\n",
+};
 /// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
 pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
 pub const DEPLOYMENT_CENSUS: Tool = Tool {

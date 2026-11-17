@@ -7,6 +7,7 @@ mod census;
 mod projects;
 mod projects_json;
 mod proposal;
+mod workers;
 pub(super) use proposal::projects_text;
 pub(super) mod question;
 pub(crate) mod settings;
