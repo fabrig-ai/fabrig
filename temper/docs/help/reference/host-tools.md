@@ -57,18 +57,18 @@ Offered where the run's charter names the delegate family and its authority hold
 
 ## decided
 
-Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.
+Ask whether you may decide for your person. Carry on only if decided; otherwise the answer says how to ask.
 
 A write.
 Offered where the run's charter names the control family and its authority holds it.
 
-- `question`: text; required. The question, at most 400 bytes.
-- `options`: array; required. Two to six options, each at most 120 bytes.
-- `took`: integer [0, 5]; required. The chosen option's index, starting at zero.
-- `why`: text; required. Why you chose it, at most 400 bytes.
+- `question`: text; required. Question, up to 400 bytes.
+- `options`: array; required. 2-6 options, each up to 120 bytes.
+- `took`: integer [0, 5]; required. Chosen index, from 0.
+- `why`: text; required. Why, up to 400 bytes.
 - `kind`: one of `wording|retry|implementation|tests|dependency|departure|money|irreversible|rules|other|findings`; required.
-- `paths`: array. At most 16 repository-relative paths the choice would change, each 1 to 256 bytes with no leading /.
-- `under`: integer [1, 20]. The item with words of the project's classes that covers this choice.
+- `paths`: array. Up to 16 repository-relative paths, each 1-256 bytes, no leading /.
+- `under`: integer [1, 20]. Covering item in the project's classes.
 
 ## goal
 
@@ -114,7 +114,7 @@ Offered where the run's charter names the delegate family and its authority hold
 
 ## delegate
 
-Make a batch of direct delegates within your authority. tracked {priority} makes one a goal, the lower first. For a change to a repository, call change.
+Batch direct delegates within authority. tracked {priority}: goals, lower first. Repository changes: call change.
 
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
@@ -169,15 +169,15 @@ Offered where the run's charter names the control family and its authority holds
 
 ## message
 
-Send words, a question, or the answer to a question, to a task you reference. Its run reads it at its next turn.
+Send words, a question or an answer to a referenced task; its run reads it next turn.
 
 A write.
 Offered where the run's charter names the message family and its authority holds it.
 
-- `target`: integer >=1; required. The task's number.
-- `form`: one of `words|question|answer`; required. words; a question, which its run may answer; or an answer, naming the question.
-- `words`: text; required. What you say.
-- `question`: integer >=1. For an answer: the question's number.
+- `target`: integer >=1; required. Task.
+- `form`: one of `words|question|answer`; required. An answer names its question.
+- `words`: text; required. Text.
+- `question`: integer >=1. Answer: question ID.
 
 ## cancel
 
@@ -202,27 +202,27 @@ Offered where the run's charter names the control family and its authority holds
 
 ## introduce
 
-Give two tasks you reference a reference to each other, so that each can message the other.
+Give two referenced tasks references to each other, so each can message the other.
 
 A write.
 Offered where the run's charter names the message family and its authority holds it.
 
-- `left`: integer >=1; required. One task's number.
-- `right`: integer >=1; required. The other task's number.
+- `left`: integer >=1; required. Task number.
+- `right`: integer >=1; required. Other task.
 
 ## subscribe
 
-Hear of a task you reference, held or ended, or of a timer, once or periodic. Answers the subscription's number.
+Hear of a referenced task held/ended, or a timer once/periodically. Returns subscription number.
 
 A write.
 Offered where the run's charter names the subscribe family and its authority holds it.
 
-- `kind`: one of `task|timer`; required. task, to hear of a task; timer, to hear at a time.
-- `target`: integer >=1. For task: the task's number.
-- `held`: boolean. For task: true to hear when it is held; false when absent.
-- `result`: boolean. For task: true to hear its result; true when absent.
-- `at`: integer >=0. For timer: when, in wall-clock nanoseconds since the Unix epoch.
-- `period`: integer >=1. For timer: again every this many nanoseconds; once when absent.
+- `kind`: one of `task|timer`; required. task or timer.
+- `target`: integer >=1. task: task number.
+- `held`: boolean. task: hear when held; omit: false.
+- `result`: boolean. task: hear result; omit: true.
+- `at`: integer >=0. timer: Unix-epoch wall nanoseconds.
+- `period`: integer >=1. timer: repeat interval, nanoseconds; omit: once.
 
 ## unsubscribe
 
@@ -259,23 +259,23 @@ Offered where the run's charter names the decide family and its authority holds 
 
 ## propose
 
-Ask the covering holder to act beyond your authority. A release from a party's hold names task, hold and the hold's revision, and waits for its owner.
+Ask the holder to act beyond authority; party-held releases await their owner.
 
 A write.
 Offered where the run's charter names the propose family and its authority holds it.
 
-- `action`: one of `batch|effect|amend|widen|release`; required. The act; each takes the members named for it below.
-- `task`: integer >=1. For amend, widen and release: the task's number.
-- `revision`: integer >=0. The spec revision you last saw, for amend; the hold's revision, for release.
+- `action`: one of `batch|effect|amend|widen|release`; required. Act.
+- `task`: integer >=1. amend/widen/release: task.
+- `revision`: integer >=0. amend: spec; release: hold.
 - `hold`: integer >=1.
-- `batch`: array. For batch: the tasks, as delegate's batch.
-- `amendment`: object. For amend: what changes, as amend's amendment.
-- `authority`: object. For widen: the authority wanted, whole.
-- `reason`: text; required. Why; the holder reads it.
-- `as_holder`: boolean. For batch: true makes the tasks the accepter's delegates rather than yours.
-- `repository`: object. For effect: as effect_forge's repository.
-- `resource`: object. For effect: as effect_forge's resource.
-- `write`: object. For effect: as effect_forge's write.
+- `batch`: array. delegate's batch.
+- `amendment`: object. amend's amendment.
+- `authority`: object. Whole authority.
+- `reason`: text; required. Why.
+- `as_holder`: boolean. batch: accepter holds them.
+- `repository`: object. effect: effect_forge.repository.
+- `resource`: object. effect: effect_forge.resource.
+- `write`: object. effect: effect_forge.write.
 
 ## withdraw
 
@@ -288,20 +288,20 @@ Offered where the run's charter names the decide family and its authority holds 
 
 ## note
 
-Write a note in a scope for later runs to recall, or revise one, whole or by a line range, naming the revision you read.
+Write or revise a note, whole or by lines, at the revision read.
 
 A write.
 Offered where the run's charter names the note family and its authority holds it.
 
-- `scope`: object; required. {kind}: deployment; project, with project; goal, with project and goal; resources, with project, connector, pattern.
-- `description`: text; required. What the note is about: a search reads it.
-- `body`: text; required. The note's text, or the text that replaces the range.
-- `references`: array. The numbers of the tasks it refers to.
-- `name`: integer >=1. To revise a note: its name. Leave it out for a new note.
-- `recalled`: integer >=1. To revise a note: the revision you read, from your brief, recall or your last write's answer.
-- `first`: integer >=1. To change lines, with name, recalled and remove: the 1-based first line replaced; with remove 0, any line past the last appends.
-- `remove`: integer >=0. With first: how many lines go; 0 to insert.
-- `join`: boolean. With first and remove: true continues the line before first without a newline, for long lines.
+- `scope`: object; required. {kind}: deployment; project:+project; goal:+project,goal; resources:+project,connector,pattern.
+- `description`: text; required. What a search reads.
+- `body`: text; required. New text or range replacement.
+- `references`: array. Task numbers.
+- `name`: integer >=1. Revise: name; omit: new.
+- `recalled`: integer >=1. Revision read.
+- `first`: integer >=1. With name,recalled,remove: first line (1-based); remove=0 past end appends.
+- `remove`: integer >=0. With first: lines removed; 0 inserts.
+- `join`: boolean. With first,remove: join preceding line without newline.
 
 ## recall
 
@@ -340,7 +340,7 @@ Offered where the run's charter names the effect family and its authority holds 
 
 ## read_task
 
-Specs/results, from=next. Durable question numbers and answerers, for an answer.
+Specs/results; from=next. For an answer: durable question numbers and answerers.
 
 A read.
 Offered where the run's charter names the read family and its authority holds it.
@@ -351,7 +351,7 @@ Offered where the run's charter names the read family and its authority holds it
 
 ## settings
 
-Read the deployment's settings: the inventory with no member, or a setting, a revision's record or a page of the history; a long answer goes on from an offset.
+Read settings: no members gives inventory; setting, revision or history selects one. Long answers continue from an offset.
 
 A read.
 Offered where the run's charter names the settings family and its authority holds it.
@@ -367,7 +367,7 @@ Offered where the run's charter names the settings family and its authority hold
 
 ## propose_settings
 
-Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep your document separate.
+Propose whole settings from items or a note revision. One owner acceptance makes a revision; keep your document separate.
 
 A write.
 Offered where the run's charter names the settings family and its authority holds it.
@@ -586,14 +586,14 @@ Offered where the run's charter names the read family and its authority holds it
 
 ## read_docs
 
-Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.
+Read pages: {topic,from} gives text then next: OFFSET or end; {search} finds sections holding every word.
 
 A read.
 Offered to every run but an asking one.
 
-- `topic`: text. A page's name, such as index.
-- `from`: integer >=0. The offset to read from, as next: gave it; 0 when absent.
-- `search`: text. The words a section must hold, every one: at most 8.
+- `topic`: text. Page, e.g. index.
+- `from`: integer >=0. Offset after next:; default 0.
+- `search`: text. Up to 8 words, all required.
 
 ## see
 

@@ -212,7 +212,6 @@ fn every_schema_root_is_an_object_with_no_alternatives() {
 }
 
 // Existing schema-text gaps, held until Hold the brief's floor fills them.
-// note.first is the sole present description here: its bound is 128 rather than 120.
 const DESCRIPTION_ALLOWANCE: &[(&str, &str)] = &[
     ("finding", "act"),
     ("finding", "kind"),
@@ -241,7 +240,6 @@ const DESCRIPTION_ALLOWANCE: &[(&str, &str)] = &[
     ("read_task", "task"),
     ("read_task", "field"),
     ("read_task", "from"),
-    ("note", "first"),
 ];
 
 #[test]
@@ -257,7 +255,7 @@ fn every_description_is_within_its_bound() {
         let Value::Object(properties) = properties else { panic!("whole properties") };
         for (name, member) in properties {
             let name = core::str::from_utf8(name).unwrap();
-            if !DESCRIPTION_ALLOWANCE.contains(&(tool, name)) || (tool, name) == ("note", "first") {
+            if !DESCRIPTION_ALLOWANCE.contains(&(tool, name)) {
                 let description = member.required(b"description").unwrap().text(b"description").unwrap();
                 assert!(!description.is_empty(), "{tool}.{name}: top-level description present");
             }
@@ -272,12 +270,7 @@ fn every_description_allowance_still_names_a_gap() {
         let whole = json::parse(spec.whole()).unwrap();
         let property =
             whole.required(b"properties").unwrap().required(member.as_bytes()).expect("allowance's member exists");
-        if (tool, member) == ("note", "first") {
-            let text = property.required(b"description").unwrap().text(b"description").unwrap();
-            assert!(text.len() > MEMBER_BYTES && text.len() <= 128, "remove stale note.first allowance");
-        } else {
-            assert!(property.field(b"description").unwrap().is_none(), "remove stale {tool}.{member} allowance");
-        }
+        assert!(property.field(b"description").unwrap().is_none(), "remove stale {tool}.{member} allowance");
     }
 }
 
@@ -288,16 +281,10 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
                 match key.as_ref() {
                     b"description" => {
                         let Value::String(text) = value else { panic!("{tool}.{member}: description is text") };
-                        // note.first states both replacement and overshooting append semantics.
-                        let bound = if tool == "note"
-                            && member == "input.first"
-                            && DESCRIPTION_ALLOWANCE.contains(&("note", "first"))
-                        {
-                            128
-                        } else {
-                            MEMBER_BYTES
-                        };
-                        assert!(text.len() <= bound, "{tool}.{member}: description exceeds {bound} bytes");
+                        assert!(
+                            text.len() <= MEMBER_BYTES,
+                            "{tool}.{member}: description exceeds {MEMBER_BYTES} bytes"
+                        );
                     }
                     b"properties" => {
                         let Value::Object(properties) = value else { panic!("declared properties are an object") };

@@ -12,9 +12,43 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v1.txt"),
     include_str!("../contract/host-tools-v2.txt"),
     include_str!("../contract/host-tools-v3.txt"),
+    include_str!("../contract/host-tools-v4.txt"),
 ];
-const ADAPTERS: &[Adapter] =
-    &[Adapter { version: 1, tool: b"decided", map: decided }, Adapter { version: 2, tool: b"decided", map: decided }];
+const ADAPTERS: &[Adapter] = &[
+    Adapter { version: 1, tool: b"amend", map: identity },
+    Adapter { version: 1, tool: b"decided", map: identity },
+    Adapter { version: 1, tool: b"delegate", map: identity },
+    Adapter { version: 1, tool: b"introduce", map: identity },
+    Adapter { version: 1, tool: b"message", map: identity },
+    Adapter { version: 1, tool: b"note", map: identity },
+    Adapter { version: 1, tool: b"propose", map: identity },
+    Adapter { version: 1, tool: b"propose_settings", map: identity },
+    Adapter { version: 1, tool: b"read_docs", map: identity },
+    Adapter { version: 1, tool: b"settings", map: identity },
+    Adapter { version: 1, tool: b"subscribe", map: identity },
+    Adapter { version: 2, tool: b"amend", map: identity },
+    Adapter { version: 2, tool: b"decided", map: identity },
+    Adapter { version: 2, tool: b"delegate", map: identity },
+    Adapter { version: 2, tool: b"introduce", map: identity },
+    Adapter { version: 2, tool: b"message", map: identity },
+    Adapter { version: 2, tool: b"note", map: identity },
+    Adapter { version: 2, tool: b"propose", map: identity },
+    Adapter { version: 2, tool: b"propose_settings", map: identity },
+    Adapter { version: 2, tool: b"read_docs", map: identity },
+    Adapter { version: 2, tool: b"settings", map: identity },
+    Adapter { version: 2, tool: b"subscribe", map: identity },
+    Adapter { version: 3, tool: b"amend", map: identity },
+    Adapter { version: 3, tool: b"decided", map: identity },
+    Adapter { version: 3, tool: b"delegate", map: identity },
+    Adapter { version: 3, tool: b"introduce", map: identity },
+    Adapter { version: 3, tool: b"message", map: identity },
+    Adapter { version: 3, tool: b"note", map: identity },
+    Adapter { version: 3, tool: b"propose", map: identity },
+    Adapter { version: 3, tool: b"propose_settings", map: identity },
+    Adapter { version: 3, tool: b"read_docs", map: identity },
+    Adapter { version: 3, tool: b"settings", map: identity },
+    Adapter { version: 3, tool: b"subscribe", map: identity },
+];
 const CONTRACT: Contract =
     Contract { floor: crate::wire::FLOOR, current: crate::wire::VERSION, kept: KEPT, adapters: ADAPTERS };
 
@@ -42,7 +76,7 @@ struct Contract {
 struct Adapter {
     version: u16,
     tool: &'static [u8],
-    map: fn(&run::HostInput) -> Result<Mapped, Problem>,
+    map: fn(&[u8], &run::HostInput) -> Result<Mapped, Problem>,
 }
 
 struct Mapped {
@@ -51,8 +85,8 @@ struct Mapped {
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
-fn decided(input: &run::HostInput) -> Result<Mapped, Problem> {
-    Ok(Mapped { tool: b"decided".as_slice().into(), input: input.clone() })
+fn identity(tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: tool.into(), input: input.clone() })
 }
 
 impl Contract {
@@ -101,7 +135,7 @@ impl Contract {
             return crate::call_in(name, tool, input, models, catalogue, repositories);
         }
         let adapter = self.adapter(version, tool).ok_or(Problem::UnknownTool)?;
-        let mapped = (adapter.map)(input)?;
+        let mapped = (adapter.map)(tool, input)?;
         crate::call_in(name, &mapped.tool, &mapped.input, models, catalogue, repositories)
     }
 

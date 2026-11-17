@@ -31,7 +31,7 @@ const TWO: Contract = Contract {
 };
 const NAME: run::CallName = run::CallName { activation: 7, completion: 2, position: 1 };
 
-fn docs(input: &run::HostInput) -> Result<Mapped, Problem> {
+fn docs(_tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
     let words = crate::json::parse(input.bytes())?.required(b"words")?.text(b"words")?;
     assert_eq!(words.as_ref(), b"WireGuard");
     Ok(Mapped {
@@ -40,7 +40,7 @@ fn docs(input: &run::HostInput) -> Result<Mapped, Problem> {
     })
 }
 
-fn release(input: &run::HostInput) -> Result<Mapped, Problem> {
+fn release(_tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
     let value = crate::json::parse(input.bytes())?;
     let mut text = Text::new();
     text.add(br#"{"target":"#)?;

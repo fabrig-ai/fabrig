@@ -251,15 +251,14 @@ fn asking_charters_keep_their_own_forms_and_require_authority() {
         assert!(declaration_named(&offered, name).is_none());
     }
     let proposal = declaration_named(&offered, b"propose_settings").unwrap();
-    assert!(
-        crate::json::parse(&proposal.schema)
-            .unwrap()
-            .required(b"properties")
-            .unwrap()
-            .field(b"note")
-            .unwrap()
-            .is_some()
-    );
+    let properties = crate::json::parse(&proposal.schema).unwrap();
+    assert!(properties.required(b"properties").unwrap().field(b"more").unwrap().is_none());
+    for spec in &crate::calls::SPECS {
+        if spec.name == b"propose_settings" {
+            let whole = crate::json::parse(spec.whole()).unwrap();
+            assert!(whole.required(b"properties").unwrap().field(b"note").unwrap().is_some());
+        }
+    }
 }
 
 #[test]
@@ -302,17 +301,17 @@ fn declarations_name_no_asking_tool_the_caller_lacks() {
         tasks::Tools(jig_domain_core::ToolFamilies::JIG.control.0),
     );
     let decided = declaration_named(&control, b"decided").expect("control declaration");
-    assert_eq!(decided.description.as_ref(), b"Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.");
+    assert_eq!(
+        decided.description.as_ref(),
+        b"Ask whether you may decide for your person. Carry on only if decided; otherwise the answer says how to ask."
+    );
     let schema = crate::json::parse(&decided.schema).expect("schema");
     let under = schema.required(b"properties").unwrap().required(b"under").unwrap().required(b"description").unwrap();
-    assert_eq!(
-        under.text(b"description").unwrap().as_ref(),
-        b"The item with words of the project's classes that covers this choice."
-    );
+    assert_eq!(under.text(b"description").unwrap().as_ref(), b"Covering item in the project's classes.");
     let read = read.expect("task read declared");
     assert_eq!(
         read.description.as_ref(),
-        b"Specs/results, from=next. Durable question numbers and answerers, for an answer."
+        b"Specs/results; from=next. For an answer: durable question numbers and answerers."
     );
     for text in [&decided.description, &decided.schema, &read.description] {
         assert!(skein_lib::bytes::find(text, b"message").is_none());
@@ -876,17 +875,15 @@ fn amendments_replace_tracking_and_instructions_including_empty_words() {
 }
 
 #[test]
-fn the_declared_deadline_example_decodes_the_whole_authority() {
+#[expect(clippy::disallowed_methods, reason = "step fixture looks up its whole declaration")]
+fn the_whole_deadline_example_decodes_the_whole_authority() {
     const EXAMPLE: &[u8] = br#"{"target":3,"revision":1,"amendment":{"reason":"Finish by Friday.","authority":{"tools":5,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":1000,"deadline":1793404800000000000},"notes":0}}}"#;
-    for tool in tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() == b"amend" {
-            let schema = crate::json::parse(&tool.schema).expect("amend schema");
-            assert_eq!(
-                schema.required(b"examples").expect("examples").array(b"examples").expect("examples array"),
-                &[crate::json::parse(EXAMPLE).expect("example")]
-            );
-        }
-    }
+    let spec = crate::calls::SPECS.iter().find(|spec| spec.name == b"amend").unwrap();
+    let schema = crate::json::parse(spec.whole()).expect("amend whole schema");
+    assert_eq!(
+        schema.required(b"examples").expect("examples").array(b"examples").expect("examples array"),
+        &[crate::json::parse(EXAMPLE).expect("example")]
+    );
     let engine::Tool::Amend { keep_parameters: false, target, revision, amendment } =
         decided(b"amend", EXAMPLE).expect("deadline example").tool
     else {
@@ -2313,44 +2310,30 @@ fn change_batch_keeps_member_options(options: &str) {
 }
 
 #[test]
-fn change_batch_declares_each_member() {
-    let mut found = false;
-    for tool in tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"change" {
-            continue;
-        }
-        found = true;
-        let schema = crate::json::parse(&tool.schema).expect("plan schema");
-        let properties = schema.required(b"properties").unwrap();
-        let batch = properties.required(b"changes").unwrap();
-        assert_eq!(batch.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
-        let item = batch.required(b"items").unwrap();
-        assert_eq!(
-            item.required(b"required").unwrap().array(b"required").unwrap(),
-            &[crate::json::Value::String(b"words".as_slice().into())]
+#[expect(clippy::disallowed_methods, reason = "step fixture compares whole batch and root members")]
+fn change_batch_whole_form_keeps_each_member() {
+    let spec = crate::calls::SPECS.iter().find(|spec| spec.name == b"change").unwrap();
+    let schema = crate::json::parse(spec.whole()).expect("whole plan schema");
+    let properties = schema.required(b"properties").unwrap();
+    let batch = properties.required(b"changes").unwrap();
+    assert_eq!(batch.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
+    let item = batch.required(b"items").unwrap();
+    assert_eq!(
+        item.required(b"required").unwrap().array(b"required").unwrap(),
+        &[crate::json::Value::String(b"words".as_slice().into())]
+    );
+    let member = item.required(b"properties").unwrap();
+    let crate::json::Value::Object(fields) = member else { panic!("batch member properties") };
+    let crate::json::Value::Object(root) = properties else { panic!("root properties") };
+    for (name, value) in fields {
+        assert!(
+            root.iter().any(|(key, root_value)| key == name && root_value == value),
+            "{name:?}: whole batch member matches root"
         );
-        let member = item.required(b"properties").unwrap();
-        for field in [
-            b"words".as_slice(),
-            b"repository",
-            b"name",
-            b"landing",
-            b"branch",
-            b"merge",
-            b"after",
-            b"producer",
-            b"llm",
-            b"questions",
-            b"repairs",
-        ] {
-            assert_eq!(member.required(field), properties.required(field), "{field:?}");
-            assert!(member.field(field).unwrap().is_some(), "member declares {field:?}");
-        }
-        assert!(member.field(b"changes").unwrap().is_none(), "batches do not nest");
-        let words = member.required(b"words").unwrap();
-        assert_eq!(words.required(b"minLength").unwrap().number(b"minLength"), Ok(1));
     }
-    assert!(found, "change offered");
+    assert!(member.field(b"changes").unwrap().is_none(), "batches do not nest");
+    let words = member.required(b"words").unwrap();
+    assert_eq!(words.required(b"minLength").unwrap().number(b"minLength"), Ok(1));
 }
 
 #[test]
@@ -2393,18 +2376,21 @@ fn change_refuses_words_with_changes_and_empty_members() {
 
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
-    let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","up"],"description":"up, none; omit: project setting."}}}"#;
     let stock = 1_539;
-    for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
+    let mut plan_schema = None;
+    for (authority, plan) in [(stock, false), (stock | 0b100, true)] {
         let mut found = false;
         for tool in
             crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority))
         {
             if tool.name.as_ref() == b"change" {
                 found = true;
-                assert_eq!(tool.schema.as_ref(), schema);
-                assert_eq!(tool.description.as_ref(), b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.");
+                let schema = crate::json::parse(&tool.schema).expect("change schema");
+                let properties = schema.required(b"properties").unwrap();
+                assert_eq!(properties.field(b"changes").unwrap().is_some(), plan);
+                if plan {
+                    plan_schema = Some(tool.schema);
+                }
             }
         }
         assert!(found, "change offered");
@@ -2413,11 +2399,10 @@ fn change_offers_its_plan_members_only_with_control() {
     for tool in tools(Duration::from_secs(10)) {
         if tool.name.as_ref() == b"change" {
             found = true;
-            assert_eq!(tool.schema.as_ref(), plan);
-            crate::json::parse(&tool.schema).expect("plan schema");
+            assert_eq!(Some(tool.schema), plan_schema, "complete registry includes the plan form");
         }
     }
-    assert!(found, "complete registry includes plan schema");
+    assert!(found, "complete registry includes change");
 }
 
 #[test]
@@ -3274,7 +3259,7 @@ fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
     for tool in tools(Duration::from_secs(1)) {
         match tool.name.as_ref() {
             b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
-            b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
+            b"delegate" => assert!(tool.description.ends_with(b"Repository changes: call change.")),
             b"read_branches" => {
                 assert_eq!(tool.description.as_ref(), b"List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.");
                 let schema = crate::json::parse(&tool.schema).expect("JSON schema");

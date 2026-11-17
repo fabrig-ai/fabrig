@@ -93,7 +93,32 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules and unnumbered project settings.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.whole(), br#""description":"Setting number; template-goal: its template's. Omit for rules and unnumbered project settings.""#).is_some());
+            let schema = crate::json::parse(spec.whole()).unwrap();
+            let properties = schema.required(b"properties").unwrap();
+            let setting = if spec.name == b"settings" {
+                properties.required(b"setting").unwrap()
+            } else {
+                properties
+                    .required(b"items")
+                    .unwrap()
+                    .required(b"items")
+                    .unwrap()
+                    .required(b"properties")
+                    .unwrap()
+                    .required(b"setting")
+                    .unwrap()
+            };
+            let kinds = setting
+                .required(b"properties")
+                .unwrap()
+                .required(b"kind")
+                .unwrap()
+                .required(b"enum")
+                .unwrap()
+                .array(b"enum")
+                .unwrap();
+            assert!(kinds.contains(&crate::json::Value::String(b"model".as_slice().into())));
         }
     }
     for (input, why) in [

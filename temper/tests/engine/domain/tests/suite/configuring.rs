@@ -2132,15 +2132,6 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         let mut world = World::with_limits(configuration, &bounds);
         let member = world.member();
         let run = world.chat(if from_note { SETTINGS_TEMPLATE } else { ASK_TEMPLATE }, member, 20);
-        let charter = temper_engine_smith::charter(&run);
-        let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"propose_settings").unwrap();
-        let schema: serde_json::Value = serde_json::from_slice(&tool.schema).unwrap();
-        assert!(
-            schema["properties"]["items"]["items"]["properties"]["setting"]["properties"]["kind"]["enum"]
-                .as_array()
-                .unwrap()
-                .contains(&json!("model"))
-        );
         let selector = json!({"kind":"model","number":4});
         let (text, _) = model_read(&mut world, &run, 1, None);
         assert!(text.starts_with("model 4, revision 1\n"), "{text}");
