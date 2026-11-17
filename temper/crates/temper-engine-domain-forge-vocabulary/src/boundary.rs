@@ -1028,6 +1028,7 @@ pub struct ChangeSource {
 pub struct ChangeRow {
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1058,6 +1059,10 @@ pub struct ChangeRow {
     /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1095,6 +1100,12 @@ pub struct ChangeRow {
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
 }
+/// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Regate {
+    pub receipt: ReceiptKey,
+    pub run: u64,
+}
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCold {
@@ -1122,6 +1133,7 @@ pub struct ChangeCold {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1138,6 +1150,10 @@ pub struct ChangeHot {
     pub effect: change::EffectResult,
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1158,6 +1174,7 @@ impl ChangeRow {
         let Self {
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1181,6 +1198,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1227,6 +1246,7 @@ impl ChangeRow {
             },
             ChangeHot {
                 kept,
+                regate,
                 task_release,
                 job,
                 signed,
@@ -1243,6 +1263,8 @@ impl ChangeRow {
                 effect,
                 delegate,
                 delegate_status,
+                delegate_flake,
+                delegate_head,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1259,6 +1281,7 @@ impl ChangeRow {
     }
     /// Join parts belonging to the same task.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each field is moved explicitly from its cold or hot store part")]
     pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
         let ChangeCold {
             source,
@@ -1283,6 +1306,7 @@ impl ChangeRow {
         } = cold;
         let ChangeHot {
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1299,6 +1323,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1315,6 +1341,7 @@ impl ChangeRow {
         Self {
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1338,6 +1365,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1464,6 +1493,17 @@ pub struct LandingRow {
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
+    pub flake_reruns: Box<[FlakeRerun]>,
+}
+/// A spent key and its durable job cursor (domain/landing-regate.md, 2, 4, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FlakeRerun {
+    pub key: ReceiptKey,
+    pub run: u64,
+    pub findings: Box<[u32]>,
+    pub pending: Box<[skein_forge::api::JobAttempt]>,
+    pub redispatch: bool,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEntry {
@@ -2391,6 +2431,8 @@ pub enum Event {
         status: change::Status,
         /// The child explicitly concluded that no change applies.
         no_change: bool,
+        /// A repair concluded with the flake verdict.
+        flake: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.

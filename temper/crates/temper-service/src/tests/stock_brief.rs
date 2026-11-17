@@ -78,7 +78,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
                 .collect(),
         }
     } else {
-        jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024 }
+        jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024, choices: Box::new([]) }
     };
     assignment.sections = (0..64)
         .map(|index| temper_engine_domain::BriefSection {

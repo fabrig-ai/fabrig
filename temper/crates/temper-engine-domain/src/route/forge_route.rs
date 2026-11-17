@@ -2338,6 +2338,10 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
 
 // Every live pushing child counts, even after a gate takes the current delegate slot
 // (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
+fn repair_verdict(kind: forge_change::Delegate, code: u32) -> bool {
+    if let forge_change::Delegate::Repair(_) = kind { code == forge::REPAIR_FLAKE } else { false }
+}
+
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
@@ -2574,6 +2578,7 @@ pub(super) fn start_recovered_change(
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 kept: None,
+                regate: None,
                 source: source.clone(),
                 task_release: None,
                 job: None,
@@ -2630,6 +2635,8 @@ pub(super) fn start_recovered_change(
                 effect: forge_change::EffectResult::None,
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
+                delegate_flake: false,
+                delegate_head: None,
                 verdicts: Box::new([]),
                 goal,
                 milestone,
@@ -2726,7 +2733,7 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
         // A retired delegate's inbox terminal is not fresh evidence (change/repairs.md, A release).
-        let Some((current, _)) = domain.forge.change(task).expect("registered change").delegate else { continue };
+        let Some((current, kind)) = domain.forge.change(task).expect("registered change").delegate else { continue };
         if child != current {
             continue;
         }
@@ -2745,6 +2752,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
                 child,
                 status,
                 no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
+                flake: if let tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) = word.kind {
+                    repair_verdict(kind, code)
+                } else {
+                    false
+                },
                 failed,
                 cancelled,
                 words: if held {
@@ -2786,6 +2798,7 @@ fn change_step(
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
             delegate_running: change_delegate_running(domain, task),
+            flake: false,
             delegate_live: change_delegate_live(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
@@ -3555,6 +3568,7 @@ pub(super) fn chat_change(
             connector: domain.config.forge_connector,
             kind: 1,
             words: env.limits.tasks.result_bytes,
+            choices: Box::new([]),
         },
         authority,
         llm: None,
@@ -3753,10 +3767,31 @@ fn change_delegate(
     };
     parameters.push(tasks::Parameter::Bytes { name: 2, value: base }).ok()?;
     parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).ok()?;
+    let failure = match kind {
+        forge_change::Delegate::Repair(why) => domain.forge.landing_failure(task, why),
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Close
+        | forge_change::Delegate::Gate { .. }
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => None,
+    };
+    let choices: Box<[tasks::Verdict]> = if let forge_change::Delegate::Repair(why) = kind
+        && repair_flake(why, failure.as_ref())
+    {
+        Box::from([tasks::Verdict {
+            code: forge::REPAIR_FLAKE,
+            words: env.limits.tasks.result_bytes,
+            followups: 0,
+            fields: Box::new([]),
+        }])
+    } else {
+        Box::new([])
+    };
     let change_contract = tasks::Contract::Change {
         connector: domain.config.forge_connector,
         kind: 2,
         words: env.limits.tasks.result_bytes,
+        choices,
     };
     let (executor, mut words, contract, llm) = match kind {
         forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
@@ -3768,13 +3803,7 @@ fn change_delegate(
         ),
         forge_change::Delegate::Repair(why) => (
             tasks::Executor::Agent { charter: row.producing_charter },
-            repair_words(
-                row,
-                why,
-                domain.forge.landing_failure(task, why).as_ref(),
-                parameters.as_slice(),
-                env.limits.tasks.spec_bytes,
-            )?,
+            repair_words(row, why, failure.as_ref(), parameters.as_slice(), env.limits.tasks.spec_bytes)?,
             change_contract,
             row.producing_llm.clone(),
         ),
@@ -4235,6 +4264,31 @@ fn blamed_repair_words(
     Some(words.into_boxed())
 }
 
+/// The choice and its instruction use the same receipt snapshot (change/repairs.md).
+fn repair_flake(why: forge_change::Repair, failure: Option<&forge::LandingFailure>) -> bool {
+    match why {
+        forge_change::Repair::Landing { .. } | forge_change::Repair::LandingAt { .. } => {
+            if let Some(failure) = failure
+                && let forge::ReceiptReport::Tests(tests) = &failure.report
+            {
+                !tests.is_empty()
+            } else {
+                false
+            }
+        }
+        forge_change::Repair::Ci
+        | forge_change::Repair::Semantic
+        | forge_change::Repair::Gate(_)
+        | forge_change::Repair::Review { .. } => false,
+    }
+}
+
+const REPAIR_FLAKE_LINE: &[u8] = b"\nFlake: if every failed test below is a flake (an open \
+flake finding names it, or it passes when run again at this head) and \
+nothing needs changing, finish with verdict 1, naming each test and how \
+you saw it pass; a person then releases the change to run its gate once \
+more.";
+
 /// Required failure lines take room before the optional changes below a blamed unit.
 fn repair_failure_lines(
     why: forge_change::Repair,
@@ -4249,6 +4303,12 @@ fn repair_failure_lines(
         | forge_change::Repair::Review { .. } => return Some(Box::new([])),
     }
     let mut words = List::with_capacity(room);
+    if repair_flake(why, failure) {
+        if skein_lib::len_u64(REPAIR_FLAKE_LINE.len()) > u64::from(words.room()) {
+            return None;
+        }
+        append(&mut words, REPAIR_FLAKE_LINE);
+    }
     let Some(failure) = failure else {
         let line = b"\nGate run: the landing no longer keeps its failure";
         if skein_lib::len_u64(line.len()) > u64::from(room) {
@@ -4273,7 +4333,7 @@ fn repair_failure_lines(
         b": ",
         &failure.run.url,
     ]);
-    if skein_lib::len_u64(gate.len()) > u64::from(room) {
+    if skein_lib::len_u64(gate.len()) > u64::from(words.room()) {
         return None;
     }
     append(&mut words, &gate);
@@ -4515,6 +4575,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
             connector: domain.config.forge_connector,
             kind: 1,
             words: env.limits.tasks.result_bytes,
+            choices: Box::new([]),
         },
         holdings,
     }));
@@ -4813,7 +4874,8 @@ fn hold_change_decision(
         forge_change::Hold::Repairs
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates
-        | forge_change::Hold::Questions => tasks::Hold::Procedure,
+        | forge_change::Hold::Questions
+        | forge_change::Hold::Flake => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
     let end = if let Some(words) = account

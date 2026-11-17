@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod flake;
 mod reds;
 mod room;
 mod settling;
@@ -896,10 +897,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
     let tags = [forge::tag(1, 1), forge::tag(3, 1)];
     let resources = super::saved_resources(4, &tags).expect("valid tags");
     assert_ne!(resources[0].path, resources[1].path);
-    assert_eq!(
-        resources[0].path.as_ref(),
-        &[alloc::boxed::Box::from(1_u16.to_be_bytes()), alloc::boxed::Box::from(1_u32.to_be_bytes())]
-    );
+    assert_eq!(resources[0].path.as_ref(), &[Box::from(1_u16.to_be_bytes()), Box::from(1_u32.to_be_bytes())]);
     let decoded = super::saved_tags(&resources, 4).expect("valid saved paths");
     assert_eq!(decoded.as_ref(), tags.as_slice());
     let (domain, _) = two_forges();
@@ -908,7 +906,7 @@ fn saved_resources_keep_the_forge_in_their_path() {
     }
     assert!(super::saved_resources(4, &[0x0001_0001_0000_0001]).is_none());
     let mut malformed = resources.clone();
-    malformed[0].path[0] = alloc::boxed::Box::from(1_u32.to_be_bytes());
+    malformed[0].path[0] = Box::from(1_u32.to_be_bytes());
     assert!(super::saved_tags(&malformed, 4).is_none(), "a forge wider than u16 is invalid");
 }
 
@@ -1326,6 +1324,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -1365,6 +1364,8 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -2526,6 +2527,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                     child: 9,
                     status: forge_change::Status::Failed,
                     no_change: false,
+                    flake: false,
                     failed: false,
                     cancelled: true,
                     words: reason.into(),

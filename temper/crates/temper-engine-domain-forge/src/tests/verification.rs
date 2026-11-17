@@ -213,6 +213,7 @@ fn opening_row() -> ChangeRow {
     ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -252,6 +253,8 @@ fn opening_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -349,6 +352,7 @@ fn verifying() -> Domain {
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
         delegate_running: false,
+        flake: false,
         delegate_live: false,
         review_request: None,
         start_conflict: None,

@@ -2,6 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [charters.md](charters.md).
 
+
 - **Not yet:**  the inline capability remains `README.status.md`, 3, 5.2 and 9.  held-assignment answers remain `README.status.md`, 4.
    the engine hello remains `hub.status.md`, 1. the whole document: the test root puts
   a task's message together itself, rendering its words by

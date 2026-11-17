@@ -364,7 +364,7 @@ fn a_change_into_a_goals_unfollowed_branch_ends_at_landed() {
     world.external(1, raw::Op::Git(raw::Git::Create { branch: BASE.into(), commit: 1 }));
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Small fix", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256, choices: Box::new([]) };
     delegate.authority = task(&world, chat.task).authority.clone();
     delegate.authority.delegation.depth = delegate.authority.delegation.depth.saturating_sub(1);
     delegate.authority.delegation.tasks = 6;

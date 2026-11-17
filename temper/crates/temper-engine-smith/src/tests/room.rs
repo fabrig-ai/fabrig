@@ -63,7 +63,7 @@ fn configured(policy: &engine::RunPolicy) -> engine::Charter {
 fn largest() -> engine::Assignment {
     let mut assignment = assignment();
     assignment.run.authority.tools = engine::RunPolicy::EVERY_FAMILY;
-    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: u32::MAX };
+    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: u32::MAX, choices: Box::new([]) };
     assignment
 }
 

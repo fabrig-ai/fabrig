@@ -291,6 +291,7 @@ fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -330,6 +331,8 @@ fn repair() -> forge::ChangeRow {
         effect: change::EffectResult::None,
         delegate: Some((8, change::Delegate::Repair(change::Repair::Ci))),
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

@@ -893,6 +893,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
     top::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
         job: None,
         signed: Box::new([]),
@@ -938,6 +939,8 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         effect: EffectResult::Made,
         delegate: Some((18, Delegate::Gate { number: 19, head: [20; 32] })),
         delegate_status: Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
         goal: None,

@@ -879,7 +879,7 @@ mod tests {
     const CHUNK_BYTES: u32 = 6; // The producer/review character at byte 41 crosses a window boundary.
 
     fn change_contract(limits: &Limits) -> tasks::Contract {
-        tasks::Contract::Change { connector: 1, kind: 1, words: limits.tasks.result_bytes }
+        tasks::Contract::Change { connector: 1, kind: 1, words: limits.tasks.result_bytes, choices: Box::new([]) }
     }
 
     fn verdict_contract(limits: &Limits) -> tasks::Contract {

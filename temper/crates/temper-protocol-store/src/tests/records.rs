@@ -1426,6 +1426,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    flake_reruns: Box::new([]),
                     job: Some(forge::history::JobRecord {
                         step: forge::history::JobStep {
                             task: 71,
@@ -1492,6 +1493,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        flake_reruns: Box::new([]),
         job: None,
         landing: l::Landing {
             task: 61,
@@ -1620,6 +1622,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             let row = v25::LandingRow::new(
                 &v25::CEILINGS,
                 v25::LandingRowParts {
+                    flake_reruns: List::with_capacity(0),
                     landing,
                     asks: List::with_capacity(0),
                     entries: List::with_capacity(0),
@@ -3360,6 +3363,7 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn a_stale_updates_first_refusal_survives_the_store() {
     use temper_engine_domain_forge_change::{EffectResult, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -3373,5 +3377,41 @@ fn a_stale_updates_first_refusal_survives_the_store() {
         row.change.stale = stale;
         let stored = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+=======
+fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
+    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::Flake }] {
+        let mut row = fixtures::change_row(state);
+        row.delegate_flake = true;
+        row.delegate_head = Some([6; 32]);
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+    }
+}
+
+#[test]
+fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for check in [forge::Check::Gate(b"gate".as_slice().into()), forge::Check::Tier(b"tier".as_slice().into())] {
+        let mut row = fixtures::change_row(State::Ready { head: [3; 32], ready_since: skein_lib::Wall::EPOCH });
+        row.regate = Some(forge::Regate {
+            receipt: forge::ReceiptKey { project: 5, repository: row.repository, check, key: [7; 32] },
+            run: u64::MAX,
+        });
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot.clone()));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+        assert_eq!(hot.regate, row.regate);
+>>>>>>> 8599bda064065a5dcc76c481cdbd8c5338b78aaf
     }
 }

@@ -54,6 +54,7 @@ pub fn turn_in(mut world: World) -> World {
 #[must_use]
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
+        flake_reruns: Box::new([]),
         job: None,
         landing: landing::Landing {
             last_left: None,

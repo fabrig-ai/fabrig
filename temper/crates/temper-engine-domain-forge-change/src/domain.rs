@@ -102,7 +102,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             && !facts.writer_taken
             && facts.pull != Pull::Closed
         {
-            next.state = released_state(was, *why, facts.pull);
+            next.state = released_state(&next, was, *why, facts.pull);
             next.since = now;
             next.owns_turn = false;
             return Stepped { change: next, decision: Decision::EndHold };
@@ -443,7 +443,8 @@ pub fn held_on_ci(state: &State) -> bool {
         | Hold::Resolutions
         | Hold::Updates
         | Hold::Rejected
-        | Hold::Questions => false,
+        | Hold::Questions
+        | Hold::Flake => false,
     }
 }
 
@@ -572,7 +573,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         Hold::BranchMoved => {
             change.clean = Box::new([]);
             if let State::WaitingProducer { .. } = was {
-                change.state = released_state(was, why, facts.pull);
+                change.state = released_state(&change, was, why, facts.pull);
                 return Stepped { change, decision: Decision::None };
             }
             change.state = match facts.branch {
@@ -594,20 +595,33 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Resolutions
         | Hold::Updates
         | Hold::Failed
+        | Hold::Flake
         | Hold::Rejected
         | Hold::Authority(_) => {
-            change.state = released_state(was, why, facts.pull);
+            if why == Hold::Flake {
+                change.clean = Box::new([]);
+                change.last_head = facts.branch.or(change.last_head);
+            }
+            change.state = released_state(&change, was, why, facts.pull);
             Stepped { change, decision: Decision::None }
         }
     }
 }
 
-fn released_state(was: &State, why: Hold, pull: Pull) -> State {
+fn released_state(change: &Change, was: &State, why: Hold, pull: Pull) -> State {
     let open = match pull {
         Pull::Open { .. } => true,
         Pull::Missing | Pull::Closed | Pull::Merged { .. } => false,
     };
     match was {
+        State::Repairing { .. } if why == Hold::Flake => {
+            let Some(head) = change.last_head else { return State::Opening { requested: false } };
+            match pull {
+                Pull::Open { .. } => pushed(change, head),
+                Pull::Closed => State::Reopening { requested: false, retarget: false },
+                Pull::Missing | Pull::Merged { .. } => State::Opening { requested: false },
+            }
+        }
         State::Checking { .. }
         | State::Judging { .. }
         | State::Gating { .. }
@@ -1750,6 +1764,12 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
+            if standing.flake
+                && Some(head) == change.last_head
+                && let Delegate::Repair(Repair::Landing { .. } | Repair::LandingAt { .. }) = delegate
+            {
+                return hold(change, Hold::Flake);
+            }
             take_pushed_head(change, head, now)
         }
         Status::Failed => hold(change, Hold::Failed),

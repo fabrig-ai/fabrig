@@ -23,6 +23,9 @@ pub enum RestoreSet {
     LandingGates,
     LandingAsks,
     LandingEntries,
+    LandingFlakeReruns,
+    LandingFlakeFindings,
+    LandingFlakeJobs,
     NameBytes,
     ContextProjects,
 }

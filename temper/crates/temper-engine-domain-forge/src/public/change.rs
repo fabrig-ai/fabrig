@@ -185,6 +185,7 @@ fn hold_kind(why: c::Hold) -> w::PublicHold {
         c::Hold::PullClosed => w::PublicHold::Closed,
         c::Hold::Retargeted => w::PublicHold::Retargeted,
         c::Hold::Failed => w::PublicHold::Failed,
+        c::Hold::Flake => w::PublicHold::Flake,
         c::Hold::Rejected => w::PublicHold::Rejected,
         c::Hold::Authority(_) => w::PublicHold::Authority,
         c::Hold::Questions => w::PublicHold::Questions,

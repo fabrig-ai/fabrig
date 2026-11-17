@@ -156,6 +156,8 @@ pub enum Hold {
     Retargeted,
     /// A delegate or effect failed permanently.
     Failed,
+    /// A landing repair found only flakes; release runs its gate once more.
+    Flake,
     /// A person rejected a required gate.
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
@@ -485,6 +487,8 @@ pub struct Heard {
     pub lacking: Option<AuthorityHold>,
     pub spend: Option<DelegateSpend>,
     pub delegate: Status,
+    /// The repair's successful ending was the flake verdict.
+    pub flake: bool,
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge/change/repairs.md).
     pub delegate_running: bool,

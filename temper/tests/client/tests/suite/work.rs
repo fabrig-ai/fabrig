@@ -210,7 +210,7 @@ fn change(front: &mut Joint, chat: u64) -> u64 {
         tasks::Parameter::Bytes { name: 3, value: BRANCH.into() },
         tasks::Parameter::Bytes { name: 10, value: CHANGE.into() },
     ]);
-    child.contract = tasks::Contract::Change { connector: fixtures::FORGE, kind: 4, words: 128 };
+    child.contract = tasks::Contract::Change { connector: fixtures::FORGE, kind: 4, words: 128, choices: Box::new([]) };
     let owner = &front.engine.task(chat).expect("requesting chat").authority;
     child.authority.grants.clone_from(&owner.grants);
     child.authority.budget.spend = CHANGE_SPEND;

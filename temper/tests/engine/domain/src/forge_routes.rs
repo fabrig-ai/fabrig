@@ -3233,7 +3233,12 @@ pub fn change_world_funded(
                         inputs: Box::new([]),
                     },
                     // Reserve 32 bytes for landing identity beside its live result label.
-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
+                    contract: tasks::Contract::Change {
+                        connector: 0,
+                        kind: 1,
+                        words: 32 + RESULT_MESSAGE_BYTES,
+                        choices: Box::new([]),
+                    },
                     authority: child_authority,
                     symbolic_grants: [2, 17]
                         .map(|kind| tasks::Grant {
@@ -3410,6 +3415,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

@@ -44,7 +44,7 @@ mod public;
 pub use public::{public_bounds, public_limits};
 
 /// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
-pub const PUBLIC_VERSION: u16 = 2;
+pub const PUBLIC_VERSION: u16 = 3;
 /// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
 /// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).

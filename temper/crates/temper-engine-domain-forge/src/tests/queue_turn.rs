@@ -58,6 +58,7 @@ fn pending(task: u64) -> PendingStep {
         stage: StepStage::Reviews(1),
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -263,6 +264,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     child: REVIEWER,
                     status: change::Status::Failed,
                     no_change: false,
+                    flake: false,
                     failed: true,
                     cancelled: false,
                     words: Box::from(b"review failed".as_slice()),

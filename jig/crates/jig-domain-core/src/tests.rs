@@ -1701,6 +1701,28 @@ fn documents_person_task_has_the_current_revision_holder_and_answer_form() {
 }
 
 #[test]
+fn a_done_verdict_notifies_the_requester_with_its_code_and_fields() {
+    let result = tasks::TaskResult::Verdict {
+        code: 1,
+        fields: Box::new([tasks::ResultField { name: b"reason".as_slice().into(), value: b"test".as_slice().into() }]),
+        words: b"flaky".as_slice().into(),
+    };
+    assert_eq!(
+        crate::routing::task::result_notice(tasks::Ending::Done(result)),
+        (
+            tasks::ResultKind::Verdict {
+                code: 1,
+                fields: Box::new([tasks::ResultField {
+                    name: b"reason".as_slice().into(),
+                    value: b"test".as_slice().into()
+                }]),
+            },
+            b"flaky".as_slice().into(),
+        )
+    );
+}
+
+#[test]
 fn documents_retained_results_and_ended_delegates_preserve_cancellation_facts() {
     let (core, limits) = make_tree();
     let mut row = core.tasks.task(2).unwrap().clone();

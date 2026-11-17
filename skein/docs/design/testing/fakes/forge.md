@@ -254,7 +254,12 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   (`flaky: [id]`, bounded as `fails`, empty by default): each fails in
   a run not given the selection input and passes in a run whose
   selection lists it, stateless, so that a world shows a flake's rerun
-  passing. `Read::Artifact` reads it, and
+  passing. It may name ids that fail once (`once: [id]`, bounded as
+  `fails`, empty by default): each fails at the first attempt of the
+  workflow's first run over a commit's tree, and passes in a job's rerun
+  and in every later run over that tree, read from the runs it keeps, so
+  that a world shows a gate run once more at the same content passing.
+  `Read::Artifact` reads it, and
   `Read::Commits` a range's commits with their messages.
 
 ### 2.4 Seen from outside

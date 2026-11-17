@@ -45,7 +45,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
                 contract: if number == LATCH {
                     tasks::Contract::Report { words: 32 }
                 } else {
-                    tasks::Contract::Change { connector: 0, kind: 1, words: 32 }
+                    tasks::Contract::Change { connector: 0, kind: 1, words: 32, choices: Box::new([]) }
                 },
                 deadline: tasks::Deadline::Named,
                 authority: template.authority.clone(),

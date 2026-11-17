@@ -2976,7 +2976,7 @@ fn a_plan_of_spikes_a_choice_and_changes_runs_in_dependency_order() {
         choices: Box::new([tasks::Verdict { code: 7, words: 128, followups: 0, fields: Box::new([]) }]),
     };
     let mut change = report_delegate(b"change", Box::new([engine::Dependency::Batch(1)]));
-    change.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 128 };
+    change.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 128, choices: Box::new([]) };
     let numbers = call_batch(&mut driver, &parent, 110, Box::new([spike, choice, change]));
     assert_eq!(numbers.len(), 3);
     assert!(!driver.delivered.iter().any(|item| matches!(item, Delivery::Assigned { assignment, .. }

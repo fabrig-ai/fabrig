@@ -900,12 +900,12 @@ whole.
 - **CI asked again at an unchanged head** (`change/repairs.md`; `../landing.md`): a change
   whose CI the runner failed has it run again (`change/README.md`, 2, step 3), but one
   that failed for another infrastructure fault inside a workflow's step (a network
-  outage, a flaky test) cannot have its CI run again until a new commit or a cancel,
-  nor can a landing's failed receipt be superseded; a person's ask, and a
-  repair's verdict that the cause is outside the change, would rerun a change's
-  failed jobs or supersede a landing's failed receipt. It needs a client
-  request, stored retry state and a repair's contract, so the restart work of
-  2026-11-10 left it for a plan of its own. Default: a new commit or a cancel.
+  outage, a flaky test) cannot have its CI run again until a new commit or a cancel;
+  a person's ask would rerun a change's failed jobs. It needs a client request and
+  stored retry state, so the restart work of 2026-11-10 left it for a plan of its
+  own. Default: a new commit or a cancel. A landing's failed receipt is superseded
+  by a repair's flake verdict and its release (`../landing-regate.md`, 3), and a
+  red of known flakes is rerun before its receipt (`../landing-regate.md`, 2).
 - **A keyed creation lost across a restart** (section 4, 9): a review, a
   comment or an issue whose answer a restart lost, and that its find does not
   see by its deadline, holds its task for a person, though a find that read

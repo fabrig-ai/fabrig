@@ -844,6 +844,7 @@ mod tests {
         forge::ChangeRow {
             source: None,
             kept: None,
+            regate: None,
             task_release: None,
             job: None,
             signed: Box::new([]),
@@ -889,6 +890,8 @@ mod tests {
             effect: change::EffectResult::None,
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
+            delegate_flake: false,
+            delegate_head: None,
             verdicts: Box::new([]),
             milestone: None,
             goal: None,

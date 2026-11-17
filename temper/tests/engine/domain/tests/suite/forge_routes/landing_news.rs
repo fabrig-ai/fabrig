@@ -389,7 +389,12 @@ fn ready_goal_change_with_failure(world: &mut World, goal: &engine::Assignment, 
             ]),
             inputs: Box::new([]),
         },
-        contract: tasks::Contract::Change { connector: 0, kind: 1, words: world.env.limits.tasks.result_bytes },
+        contract: tasks::Contract::Change {
+            connector: 0,
+            kind: 1,
+            words: world.env.limits.tasks.result_bytes,
+            choices: Box::new([]),
+        },
         authority,
         ..temper_engine_domain_world::fixtures::report_delegate(b"fix", Box::new([]))
     };

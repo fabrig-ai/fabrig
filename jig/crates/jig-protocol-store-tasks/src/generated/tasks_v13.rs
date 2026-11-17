@@ -18,6 +18,7 @@ pub struct Limits {
     pub verdict_fields: u32,
     pub approval_state: u32,
     pub choices_choices: u32,
+    pub change_contract_choices: u32,
     pub llm_later_subagents: u32,
     pub llm_choice_subagents: u32,
     pub authority_segment_bytes: u32,
@@ -121,6 +122,7 @@ pub const CEILINGS: Limits = Limits {
     verdict_fields: 1_048_576,
     approval_state: 524_288,
     choices_choices: 64,
+    change_contract_choices: 64,
     llm_later_subagents: 64,
     llm_choice_subagents: 64,
     authority_segment_bytes: 4_096,
@@ -211,7 +213,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 99] = [
+pub const LIMIT_NAMES: [&str; 100] = [
     "bytes_parameter_value",
     "job_spec_bytes",
     "job_result_bytes",
@@ -224,6 +226,7 @@ pub const LIMIT_NAMES: [&str; 99] = [
     "verdict_fields",
     "approval_state",
     "choices_choices",
+    "change_contract_choices",
     "llm_later_subagents",
     "llm_choice_subagents",
     "authority_segment_bytes",
@@ -316,21 +319,21 @@ pub const LIMIT_NAMES: [&str; 99] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 99] {
+    pub fn values(&self) -> [u32; 100] {
         [
             self.bytes_parameter_value, self.job_spec_bytes, self.job_result_bytes, self.spec_words, self.spec_parameters, self.spec_inputs, self.part_segment_bytes, self.part_path_segments,
-            self.field_rule_name, self.verdict_fields, self.approval_state, self.choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.authority_segment_bytes, self.pattern_segments,
-            self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.segment_bytes, self.name_path, self.member_dependencies, self.member_holdings, self.recurring_template_batch,
-            self.result_field_name, self.result_field_value, self.approved_state, self.approved_words_some, self.report_result_words, self.verdict_result_fields, self.verdict_result_words, self.change_result_title,
-            self.change_result_words, self.failure_result_reason, self.cancelled_reason, self.circle_tasks, self.hold_account_words, self.hold_preparation_words, self.rejected_proposal_reason, self.amendment_instructions_some,
-            self.amendment_dependencies_some, self.amendment_reason, self.proposed_batch_members, self.proposed_settings_items, self.proposed_settings_projects, self.proposal_reason, self.settings_instructions_some, self.settings_dependencies,
-            self.history_reason, self.rejected_person_proposal_reason, self.person_proposal_reason, self.grace_reason, self.failed_retry_reason_some, self.refused_retry_reason_some, self.approval_message_state, self.verdict_message_fields,
-            self.word_words, self.activity_words_words, self.kept_line_pending, self.now_written_line_line, self.stood_line_words, self.rejected_escalation_reason, self.recurring_state_last_batch, self.saved_resource_path,
-            self.task_history_question_lines, self.task_history_proposal_rows, self.task_history_instructions_some, self.task_history_refused, self.task_run_replies, self.task_definition_dependencies, self.task_definition_waiting_on, self.task_definition_added,
-            self.task_interests_holdings, self.task_interests_delegates, self.task_interests_result_followups, self.task_interests_references, self.task_interests_subscriptions, self.task_interests_inbox, self.task_interests_saved, self.before_talk_started_from,
-            self.hot_history_question_lines, self.hot_history_proposal_rows, self.hot_history_refused, self.hot_definition_dependencies, self.hot_definition_waiting_on, self.hot_definition_added, self.live_hot_started_from, self.live_cold_instructions_some,
-            self.placed_hold_reason, self.placed_hold_exempt, self.summary_result_words, self.task_summary_title, self.task_summary_reason, self.model_name_value, self.row_models, self.task_problem_blocked_by_some,
-            self.result_followups_delegates_value, self.end_failed_with_reason_reason, self.end_refused_with_reason_reason,
+            self.field_rule_name, self.verdict_fields, self.approval_state, self.choices_choices, self.change_contract_choices, self.llm_later_subagents, self.llm_choice_subagents, self.authority_segment_bytes,
+            self.pattern_segments, self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.segment_bytes, self.name_path, self.member_dependencies, self.member_holdings,
+            self.recurring_template_batch, self.result_field_name, self.result_field_value, self.approved_state, self.approved_words_some, self.report_result_words, self.verdict_result_fields, self.verdict_result_words,
+            self.change_result_title, self.change_result_words, self.failure_result_reason, self.cancelled_reason, self.circle_tasks, self.hold_account_words, self.hold_preparation_words, self.rejected_proposal_reason,
+            self.amendment_instructions_some, self.amendment_dependencies_some, self.amendment_reason, self.proposed_batch_members, self.proposed_settings_items, self.proposed_settings_projects, self.proposal_reason, self.settings_instructions_some,
+            self.settings_dependencies, self.history_reason, self.rejected_person_proposal_reason, self.person_proposal_reason, self.grace_reason, self.failed_retry_reason_some, self.refused_retry_reason_some, self.approval_message_state,
+            self.verdict_message_fields, self.word_words, self.activity_words_words, self.kept_line_pending, self.now_written_line_line, self.stood_line_words, self.rejected_escalation_reason, self.recurring_state_last_batch,
+            self.saved_resource_path, self.task_history_question_lines, self.task_history_proposal_rows, self.task_history_instructions_some, self.task_history_refused, self.task_run_replies, self.task_definition_dependencies, self.task_definition_waiting_on,
+            self.task_definition_added, self.task_interests_holdings, self.task_interests_delegates, self.task_interests_result_followups, self.task_interests_references, self.task_interests_subscriptions, self.task_interests_inbox, self.task_interests_saved,
+            self.before_talk_started_from, self.hot_history_question_lines, self.hot_history_proposal_rows, self.hot_history_refused, self.hot_definition_dependencies, self.hot_definition_waiting_on, self.hot_definition_added, self.live_hot_started_from,
+            self.live_cold_instructions_some, self.placed_hold_reason, self.placed_hold_exempt, self.summary_result_words, self.task_summary_title, self.task_summary_reason, self.model_name_value, self.row_models,
+            self.task_problem_blocked_by_some, self.result_followups_delegates_value, self.end_failed_with_reason_reason, self.end_refused_with_reason_reason,
         ]
     }
 }
@@ -502,6 +505,8 @@ pub enum Path {
     ChangeContractKind,
     /// The `words` field of `ChangeContract`.
     ChangeContractWords,
+    /// The `choices` field of `ChangeContract`.
+    ChangeContractChoices,
     /// Bytes after `ChangeContract`.
     ChangeContractTail,
     /// The tag of `Contract`.
@@ -2606,6 +2611,7 @@ impl Path {
             Self::ChangeContractConnector => "ChangeContract.connector",
             Self::ChangeContractKind => "ChangeContract.kind",
             Self::ChangeContractWords => "ChangeContract.words",
+            Self::ChangeContractChoices => "ChangeContract.choices",
             Self::ChangeContractTail => "ChangeContract (tail)",
             Self::ContractTag => "Contract (tag)",
             Self::ToolsBits => "Tools.bits",
@@ -3644,6 +3650,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.verdict_fields > CEILINGS.verdict_fields { return Err(Problem { path: Path::VerdictFields, reason: skein_codec::Reason::Bound }); }
     if limits.approval_state > CEILINGS.approval_state { return Err(Problem { path: Path::ApprovalState, reason: skein_codec::Reason::Bound }); }
     if limits.choices_choices > CEILINGS.choices_choices { return Err(Problem { path: Path::ChoicesChoices, reason: skein_codec::Reason::Bound }); }
+    if limits.change_contract_choices > CEILINGS.change_contract_choices { return Err(Problem { path: Path::ChangeContractChoices, reason: skein_codec::Reason::Bound }); }
     if limits.llm_later_subagents > CEILINGS.llm_later_subagents { return Err(Problem { path: Path::LlmLaterSubagents, reason: skein_codec::Reason::Bound }); }
     if limits.llm_choice_subagents > CEILINGS.llm_choice_subagents { return Err(Problem { path: Path::LlmChoiceSubagents, reason: skein_codec::Reason::Bound }); }
     if limits.authority_segment_bytes > CEILINGS.authority_segment_bytes { return Err(Problem { path: Path::AuthoritySegmentBytes, reason: skein_codec::Reason::Bound }); }
@@ -3721,11 +3728,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.live_hot_started_from > CEILINGS.live_hot_started_from { return Err(Problem { path: Path::LiveHotStartedFrom, reason: skein_codec::Reason::Bound }); }
     if limits.live_cold_instructions_some > CEILINGS.live_cold_instructions_some { return Err(Problem { path: Path::LiveColdInstructions, reason: skein_codec::Reason::Bound }); }
     if limits.placed_hold_reason > CEILINGS.placed_hold_reason { return Err(Problem { path: Path::PlacedHoldReason, reason: skein_codec::Reason::Bound }); }
-    if limits.placed_hold_exempt > CEILINGS.placed_hold_exempt { return Err(Problem { path: Path::PlacedHoldExempt, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.placed_hold_exempt > CEILINGS.placed_hold_exempt { return Err(Problem { path: Path::PlacedHoldExempt, reason: skein_codec::Reason::Bound }); }
     if limits.summary_result_words > CEILINGS.summary_result_words { return Err(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Bound }); }
     if limits.task_summary_title > CEILINGS.task_summary_title { return Err(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Bound }); }
     if limits.task_summary_reason > CEILINGS.task_summary_reason { return Err(Problem { path: Path::TaskSummaryReason, reason: skein_codec::Reason::Bound }); }
@@ -4906,6 +4913,8 @@ pub struct ChangeContractParts {
     pub kind: u16,
     /// The `words` field.
     pub words: u32,
+    /// The `choices` field.
+    pub choices: List<Verdict>,
 }
 
 /// `ChangeContract` in this codec family.
@@ -4914,13 +4923,15 @@ pub struct ChangeContract {
     connector: u16,
     kind: u16,
     words: u32,
+    choices: List<Verdict>,
 }
 
 impl ChangeContract {
     /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: ChangeContractParts) -> Result<Self, Problem> {
-        let ChangeContractParts { connector, kind, words } = parts;
-        let value = Self { connector, kind, words };
+    pub fn new(limits: &Limits, parts: ChangeContractParts) -> Result<Self, Problem> {
+        let ChangeContractParts { connector, kind, words, choices } = parts;
+        let value = Self { connector, kind, words, choices };
+        value.check(limits)?;
         Ok(value)
     }
 
@@ -4936,10 +4947,21 @@ impl ChangeContract {
     #[must_use]
     pub fn words(&self) -> u32 { self.words }
 
+    /// Reads the `choices` field.
+    #[must_use]
+    pub fn choices(&self) -> &List<Verdict> { &self.choices }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeContractParts { ChangeContractParts { connector: self.connector, kind: self.kind, words: self.words } }
+    pub fn into_parts(self) -> ChangeContractParts { ChangeContractParts { connector: self.connector, kind: self.kind, words: self.words, choices: self.choices } }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.choices.capacity() > limits.change_contract_choices.min(CEILINGS.change_contract_choices) { return Err(Problem { path: Path::ChangeContractChoices, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.choices.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
 }
 
 /// `Contract` in this codec family.
@@ -4968,7 +4990,8 @@ impl Contract {
         match self {
             Self::Approval(record) => Approval::check(record, limits),
             Self::Verdict(record) => Choices::check(record, limits),
-            Self::Report(_) | Self::Change(_) | Self::Job(_) => Ok(()),
+            Self::Change(record) => ChangeContract::check(record, limits),
+            Self::Report(_) | Self::Job(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -19091,6 +19114,11 @@ impl ChangeContract {
         size = size.checked_add(2).expect("schema ceilings fit u32");
         size = size.checked_add(2).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_choices = &self.choices;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_choices.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -19102,6 +19130,11 @@ impl ChangeContract {
         writer.put(&field_kind.to_be_bytes())?;
         let field_words = &self.words;
         writer.put(&field_words.to_be_bytes())?;
+        let field_choices = &self.choices;
+        writer.put(&field_choices.len().to_be_bytes())?;
+        for item_0 in field_choices.as_slice() {
+        item_0.encode(writer)?;
+        }
         Ok(())
     }
 
@@ -19112,11 +19145,12 @@ impl ChangeContract {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_connector = reader.u16().ok_or(Problem { path: Path::ChangeContractConnector, reason: skein_codec::Reason::Short })?;
         let decoded_kind = reader.u16().ok_or(Problem { path: Path::ChangeContractKind, reason: skein_codec::Reason::Short })?;
         let decoded_words = reader.u32().ok_or(Problem { path: Path::ChangeContractWords, reason: skein_codec::Reason::Short })?;
-        Ok(Self { connector: decoded_connector, kind: decoded_kind, words: decoded_words })
+        let decoded_choices = { let count = match skein_codec::read_count(reader, limits.change_contract_choices.min(CEILINGS.change_contract_choices)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeContractChoices, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::ChangeContractChoices, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Verdict::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { connector: decoded_connector, kind: decoded_kind, words: decoded_words, choices: decoded_choices })
     }
 }
 
@@ -33186,10 +33220,10 @@ impl ChangeContract {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(2_u64)?.checked_add(2_u64)?;
-        size = size.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.change_contract_choices).checked_mul(Verdict::encoded_bound_within(limits)?)?)?)?;
         size.checked_add(0)
     }
 
@@ -33200,10 +33234,10 @@ impl ChangeContract {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<Verdict>::price(limits.change_contract_choices)?.checked_add(u64::from(limits.change_contract_choices).checked_mul(Verdict::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
 }

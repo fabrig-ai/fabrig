@@ -59,6 +59,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::PullClosed => w::ChangeHold::PullClosed,
         d::Hold::Retargeted => w::ChangeHold::Retargeted,
         d::Hold::Failed => w::ChangeHold::Failed,
+        d::Hold::Flake => w::ChangeHold::Flake,
         d::Hold::Rejected => w::ChangeHold::Rejected,
         d::Hold::Authority(cause) => w::ChangeHold::Authority(
             w::AuthorityHold::new(
@@ -93,6 +94,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::PullClosed => d::Hold::PullClosed,
         w::ChangeHold::Retargeted => d::Hold::Retargeted,
         w::ChangeHold::Failed => d::Hold::Failed,
+        w::ChangeHold::Flake => d::Hold::Flake,
         w::ChangeHold::Rejected => d::Hold::Rejected,
         w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
             lack: match cause.lack() {
@@ -866,6 +868,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
+        regate,
         kept,
         task_release,
         job,
@@ -883,6 +886,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -894,10 +898,21 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value;
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
+            regate: match regate {
+                Some(value) => Some(
+                    w::Regate::new(
+                        &w::CEILINGS,
+                        w::RegateParts { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             kept: *kept,
             task_release: match task_release {
                 Some(release) => Some(
@@ -939,6 +954,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
                 None => None,
             },
             delegate_status: encode_status(*delegate_status),
+            delegate_flake: *delegate_flake,
+            delegate_head: *delegate_head,
             verdicts: encode_gate_reports(verdicts),
             gate_remarks: encode_gate_remarks(gate_remarks),
             drift: match drift {
@@ -977,6 +994,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
+        regate,
         kept,
         task_release,
         job,
@@ -994,6 +1012,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -1005,8 +1024,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value.into_parts();
     Ok(top::ChangeHot {
+        regate: decode_regate(regate),
         kept,
         task_release: match task_release {
             Some(release) => {
@@ -1042,6 +1063,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         delegate_status: decode_status(delegate_status),
+        delegate_flake,
+        delegate_head,
         verdicts: decode_gate_reports(verdicts),
         gate_remarks: decode_gate_remarks(gate_remarks),
         drift: match drift {
@@ -1069,6 +1092,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
     })
+}
+fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
+    let w::RegateParts { receipt, run } = value?.into_parts();
+    Some(top::Regate { receipt: super::landing::decode_receipt_key(receipt), run })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));

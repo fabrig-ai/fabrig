@@ -1,5 +1,7 @@
 use super::*;
 use temper_engine_domain_forge_landing as policy;
+#[path = "landing/flake_rerun.rs"]
+mod flake_rerun;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -263,7 +265,7 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
     }
 }
 
-fn landing_fixture() -> Domain {
+pub(super) fn landing_fixture() -> Domain {
     landing_fixture_with(domain())
 }
 fn landing_fixture_with(mut d: Domain) -> Domain {
@@ -290,6 +292,7 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        flake_reruns: Box::new([]),
         job: None,
         landing: policy::Landing {
             last_left: None,
@@ -2848,4 +2851,278 @@ fn reporting_failed_gate(
         }]),
     };
     (d, key, run)
+}
+
+pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+    let (mut d, key, mut run) = clocked_gate();
+    d.landing.flights.remove(&key);
+    d.entries.remove(&9);
+    let row = d.landing.rows.get_mut(&61).unwrap();
+    row.entries = Box::new([]);
+    row.landing.members[0].gates[0].proof = policy::Proof::Keyed { key: key.key };
+    row.landing.members[0].gates[0].posted = policy::Posted::Nothing;
+    let receipt = Receipt {
+        passed: false,
+        run: ReceiptRun { id: 41, number: 42, url: b"https://forge/run/41".as_slice().into() },
+        candidate: fixtures::HEAD,
+        ended: env().wall,
+        base: Some(fixtures::BASE),
+        jobs: Box::new([]),
+        logs: Box::new([]),
+        report: ReceiptReport::Unset,
+        failures: None,
+    };
+    d.landing.receipts.insert(key.clone(), receipt).unwrap();
+    d.changes.get_mut(&fixtures::CHANGE).unwrap().regate = Some(Regate { receipt: key.clone(), run: 41 });
+    run.id = 57;
+    run.number = 58;
+    run.created = env().now.saturating_add(Duration::from_secs(1));
+    run.url = b"https://forge/run/57".as_slice().into();
+    run.state = skein_forge::api::RunState::Completed;
+    run.conclusion = Some(skein_forge::api::Conclusion::Success);
+    (d, key, run)
+}
+
+pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Run) -> policy::Decision {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut requests = outputs(
+        d,
+        Event::StepLanding {
+            task,
+            entry,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: Some(policy::Preparation::Idle),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    for _ in 0..20_u32 {
+        for request in &requests {
+            if let Request::LandingDecision { decision, .. } = request {
+                return *decision;
+            }
+        }
+        let (call, op) = fixtures::next_call(d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Runs { commit, .. }) => {
+                assert_eq!(commit, fixtures::HEAD);
+                Answer::Runs { runs: Box::new([run.clone()]), more: false }
+            }
+            Op::Read(Read::Run { run: id }) => {
+                assert_eq!(id, run.id);
+                Answer::Run(run.clone())
+            }
+            Op::Read(Read::Job { attempt, .. }) => {
+                assert_eq!((attempt.head, attempt.run), (fixtures::HEAD, run.id));
+                requests = fixtures::answer(d, call, Err(skein_forge::api::Error::Missing));
+                continue;
+            }
+            Op::Read(Read::Artifact { run: id, .. }) => {
+                assert_eq!(id, run.id);
+                Answer::File {
+                    head: run.commit,
+                    path: b"report".as_slice().into(),
+                    bytes: b"test a::t x\n".as_slice().into(),
+                    truncated: false,
+                }
+            }
+            Op::Read(_) | Op::Write(_) => panic!("unexpected regate read {op:?}"),
+        };
+        requests = fixtures::answer(d, call, Ok(answer));
+    }
+    panic!("regate landing decides");
+}
+
+pub(super) fn commit_gate_effect(d: &mut Domain, entry: u64) {
+    use skein_forge::api::{Answer, Op, Read};
+    outputs(d, Event::Committed { entry });
+    for _ in 0..4_u32 {
+        let (call, op) = fixtures::next_call(d);
+        let answer = match op {
+            Op::Read(Read::Items { .. }) => {
+                Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }
+            }
+            Op::Write(_) => {
+                fixtures::answer(d, call, Ok(Answer::Done));
+                return;
+            }
+            Op::Read(_) => panic!("unexpected gate effect read {op:?}"),
+        };
+        fixtures::answer(d, call, Ok(answer));
+    }
+    panic!("gate effect written");
+}
+
+pub(super) fn dispatch_regate(d: &mut Domain, key: &ReceiptKey, run: &skein_forge::api::Run) {
+    assert_eq!(step_regate(d, 61, 91, run), policy::Decision::Dispatch { member: 0, gate: 0, key: key.key, try_: 1 });
+    assert_eq!(
+        d.entries.get(&91).unwrap().entry.effect.write,
+        skein_forge::api::Write::Dispatch {
+            workflow: b"gate.yml".as_slice().into(),
+            branch: b"temper/1/l61".as_slice().into(),
+            inputs: Box::new([
+                skein_forge::api::Input {
+                    name: b"temper_commit".as_slice().into(),
+                    value: commit_text(&fixtures::HEAD)
+                },
+                skein_forge::api::Input { name: b"temper_key".as_slice().into(), value: commit_text(&key.key) },
+            ]),
+        }
+    );
+    assert_eq!(d.receipt(key).unwrap().run.id, 41, "the failed receipt stands until the new run ends");
+    commit_gate_effect(d, 91);
+    assert_eq!(
+        step_regate(d, 61, 92, run),
+        policy::Decision::Post { member: 0, gate: 0, posting: policy::Posting::Pending }
+    );
+    commit_gate_effect(d, 92);
+}
+
+#[test]
+fn a_regate_dispatches_at_the_same_candidate_and_replaces_the_failed_receipt_with_a_pass() {
+    let (mut d, key, run) = regate_landing();
+    dispatch_regate(&mut d, &key, &run);
+    assert_eq!(
+        step_regate(&mut d, 61, 93, &run),
+        policy::Decision::Post { member: 0, gate: 0, posting: policy::Posting::Ran { passed: true } }
+    );
+    let receipt = d.receipt(&key).unwrap();
+    assert!(receipt.passed);
+    assert_eq!((receipt.run.id, receipt.candidate), (57, fixtures::HEAD));
+    commit_gate_effect(&mut d, 93);
+    assert_eq!(step_regate(&mut d, 61, 94, &run), policy::Decision::Proved);
+    assert_eq!(d.changes.get(&fixtures::CHANGE).unwrap().regate, Some(Regate { receipt: key, run: 41 }));
+}
+
+#[test]
+fn a_failed_regate_replaces_the_receipt_repairs_and_is_spent_in_a_later_landing() {
+    use skein_forge::api::{Conclusion, RunJob, RunState, Step};
+    let (mut d, key, mut run) = regate_landing();
+    run.conclusion = Some(Conclusion::Failure);
+    run.jobs = Box::new([RunJob {
+        id: 9,
+        attempt: 1,
+        name: b"test".as_slice().into(),
+        state: RunState::Completed,
+        conclusion: Some(Conclusion::Failure),
+        steps: 3,
+        step: Some(Step { number: 1, name: b"tests".as_slice().into() }),
+    }]);
+    dispatch_regate(&mut d, &key, &run);
+    let mut later = d.landing.rows.get(&61).unwrap().clone();
+    let repair = step_regate(&mut d, 61, 93, &run);
+    assert_eq!(repair, policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: 58 } });
+    assert!(!d.receipt(&key).unwrap().passed);
+    assert_eq!(d.receipt(&key).unwrap().run.id, 57);
+    later.landing.task = 62;
+    later.landing.members[0].left = None;
+    later.landing.members[0].leave_told = false;
+    later.landing.members[0].gates[0].proof = policy::Proof::Keyed { key: key.key };
+    later.entries = Box::new([]);
+    d.landing.rows.insert(62, later).unwrap();
+    assert_eq!(step_regate(&mut d, 62, 94, &run), repair);
+    assert!(!d.landing.flights.contains_key(&key));
+}
+
+#[test]
+fn a_regate_in_flight_is_rebuilt_from_saved_rows_and_followed_without_another_dispatch() {
+    let (mut d, key, run) = regate_landing();
+    dispatch_regate(&mut d, &key, &run);
+    let mut restarted = landing_fixture();
+    let (cold, hot) = d.changes.get(&fixtures::CHANGE).unwrap().clone().split();
+    outputs(&mut restarted, Event::Restore { record: Stored::ChangeCold(Box::new(cold)) });
+    outputs(&mut restarted, Event::Restore { record: Stored::ChangeHot(Box::new(hot)) });
+    let (way, gates, _, _, _, settings, _) = d.landing.projects.get(&5).unwrap();
+    assert!(restarted.project_landing(5, *way, gates.clone(), *settings, d.after_landing(5).unwrap()));
+    outputs(&mut restarted, Event::Restore { record: Stored::Landing(d.landing.rows.get(&61).unwrap().clone()) });
+    outputs(
+        &mut restarted,
+        Event::Restore { record: Stored::Receipt { key: key.clone(), receipt: d.receipt(&key).unwrap().clone() } },
+    );
+    outputs(
+        &mut restarted,
+        Event::Restore { record: Stored::Entry { entry: d.entries.get(&91).unwrap().entry.clone(), held: false } },
+    );
+    fixtures::connect(&mut restarted);
+    outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut restarted, Event::ReadAfresh);
+    outputs(&mut restarted, Event::SettleOutbox);
+    assert!(
+        restarted.landing.flights.contains_key(&key),
+        "the standing failed receipt does not hide the saved dispatch"
+    );
+    restarted.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).unwrap();
+    assert_eq!(
+        step_regate(&mut restarted, 61, 93, &run),
+        policy::Decision::Post { member: 0, gate: 0, posting: policy::Posting::Ran { passed: true } }
+    );
+    assert_eq!(restarted.receipt(&key).unwrap().run.id, 57);
+    assert!(restarted.receipt(&key).unwrap().passed);
+}
+
+#[test]
+fn only_a_regate_naming_the_failed_receipts_whole_key_and_run_supersedes_it() {
+    for mismatch in 0..7_u32 {
+        let (mut d, key, run) = regate_landing();
+        let regate = d.changes.get_mut(&fixtures::CHANGE).unwrap().regate.as_mut().unwrap();
+        match mismatch {
+            0 => d.changes.get_mut(&fixtures::CHANGE).unwrap().regate = None,
+            1 => regate.run = 42,
+            2 => regate.receipt.key = [8; 32],
+            3 => regate.receipt.project = 6,
+            4 => regate.receipt.repository.repository += 1,
+            5 => regate.receipt.check = Check::Gate(b"other".as_slice().into()),
+            6 => regate.receipt.check = Check::Tier(b"gate".as_slice().into()),
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            step_regate(&mut d, 61, 91, &run),
+            policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: 42 } }
+        );
+        assert_eq!(d.receipt(&key).unwrap().run.id, 41);
+        assert!(!d.landing.flights.contains_key(&key));
+    }
+}
+
+#[test]
+fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_receipt() {
+    let (mut d, key, mut run) = regate_landing();
+    dispatch_regate(&mut d, &key, &run);
+    let mut waiter = d.landing.rows.get(&61).unwrap().clone();
+    waiter.landing.task = 62;
+    waiter.entries = Box::new([]);
+    waiter.landing.members[0].gates[0].proof = policy::Proof::Keyed { key: key.key };
+    waiter.landing.members[0].gates[0].posted = policy::Posted::Nothing;
+    let mut change = d.changes.get(&fixtures::CHANGE).unwrap().clone();
+    change.task = 52;
+    change.change.task = 52;
+    change.regate = None;
+    waiter.landing.members[0].change = 52;
+    d.changes.insert(52, change).unwrap();
+    d.landing.rows.insert(62, waiter).unwrap();
+    run.state = skein_forge::api::RunState::Running;
+    run.conclusion = None;
+    assert!(matches!(step_regate(&mut d, 62, 93, &run), policy::Decision::Wait { .. }));
+    assert_eq!(d.receipt(&key).unwrap().run.id, 41);
+    run.state = skein_forge::api::RunState::Completed;
+    run.conclusion = Some(skein_forge::api::Conclusion::Success);
+    assert_eq!(
+        step_regate(&mut d, 62, 94, &run),
+        policy::Decision::Post { member: 0, gate: 0, posting: policy::Posting::Received }
+    );
+    assert_eq!(d.receipt(&key).unwrap().run.id, 57);
+    assert!(d.receipt(&key).unwrap().passed);
 }

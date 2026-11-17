@@ -184,6 +184,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
     d::Stored::Change(Box::new(d::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -223,6 +224,8 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         effect: change::EffectResult::Made,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

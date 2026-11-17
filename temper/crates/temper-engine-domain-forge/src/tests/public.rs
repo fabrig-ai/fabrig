@@ -222,6 +222,7 @@ fn change_row() -> ChangeRow {
     ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -261,6 +262,8 @@ fn change_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -419,6 +422,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                flake_reruns: Box::new([]),
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -916,6 +920,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    flake_reruns: Box::new([]),
                     job: None,
                     landing: policy::Landing {
                         last_left: None,

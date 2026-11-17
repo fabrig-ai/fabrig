@@ -413,7 +413,7 @@ fn a_charters_mode_is_its_tasks_ending() {
     {
         let mut assignment = assignment();
         assignment.run.ended_by = ended_by;
-        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
         let charter = crate::charter(&assignment);
         assert_eq!(charter.mode, mode);
         assert!(charter.grants.wait);
@@ -490,7 +490,7 @@ fn an_open_run_cannot_deliver_its_repository() {
 fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
     assignment.run.ended_by = tasks::EndedBy::Requester;
-    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
     assignment.run.policy.modify = true;
     assignment.run.policy.shell = true;
     let charter = crate::charter(&assignment);
@@ -504,7 +504,7 @@ fn an_open_run_cannot_modify_even_when_policy_requests_it() {
 fn a_finite_change_run_keeps_its_modify_policy() {
     for modify in [false, true] {
         let mut assignment = assignment();
-        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
+        assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) };
         assignment.run.policy.modify = modify;
         let charter = crate::charter(&assignment);
         assert_eq!(charter.mode, run::Mode::Finite);
@@ -2962,6 +2962,45 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
         tasks::Refusal::PersonAnswers { question: 42 },
         None,
         b"Refused: task 99 your person answers question 42 in their inbox",
+    );
+}
+
+#[test]
+fn a_numbered_verdict_preserves_its_fields_and_cannot_claim_a_resource() {
+    let answer = || run::Answer::Accepted {
+        outcome: run::outcome::Declared::Verdict(run::outcome::Verdict {
+            name: b"1".as_slice().into(),
+            text: b"flaky".as_slice().into(),
+            fields: Box::new([run::outcome::Field {
+                name: b"reason".as_slice().into(),
+                value: b"test".as_slice().into(),
+            }]),
+            items: Box::new([]),
+        }),
+        spent: spend(3),
+        turns: 1,
+    };
+    assert_eq!(
+        result(answer(), None),
+        Ok(crate::Terminal {
+            cumulative: 3,
+            turns: 1,
+            end: tasks::End::Finished {
+                result: tasks::TaskResult::Verdict {
+                    code: 1,
+                    words: b"flaky".as_slice().into(),
+                    fields: Box::new([tasks::ResultField {
+                        name: b"reason".as_slice().into(),
+                        value: b"test".as_slice().into()
+                    }]),
+                },
+                cancel_delegates: false,
+            },
+        })
+    );
+    assert_eq!(
+        result(answer(), Some(ChangeResource { connector: 1, kind: 2, resource: 42 })),
+        Err(Problem::Type(b"verdict"))
     );
 }
 

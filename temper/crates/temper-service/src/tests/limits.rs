@@ -181,7 +181,7 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
 }
 
 #[test]
-fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
+fn standard_changes_at_the_tier_bound_fit_the_stock_store() {
     // The stock map admits the tier cap with an explicit large operation carrier.
     let document = fixtures::with(
         &fixtures::document(),
