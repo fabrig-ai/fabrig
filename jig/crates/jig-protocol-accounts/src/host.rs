@@ -287,6 +287,8 @@ fn untagged(mut event: store::Event) -> store::Event {
         store::Event::Census { .. }
         | store::Event::Checkpointed { .. }
         | store::Event::CheckpointRefused { .. }
+        | store::Event::CheckpointHeld { .. }
+        | store::Event::CheckpointRemoved { .. }
         | store::Event::Opened { .. }
         | store::Event::Switched { .. }
         | store::Event::OpenRefused { .. }

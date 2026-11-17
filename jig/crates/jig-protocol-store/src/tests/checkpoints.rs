@@ -13,6 +13,7 @@ use crate::{
 };
 use crate::{CheckpointRefusal, Event, Request};
 use skein_lib::{List, Reader, Token, Writer};
+mod keeping;
 
 #[test]
 fn a_selection_distinguishes_live_and_ended_files_and_bounds_the_prefixes() {

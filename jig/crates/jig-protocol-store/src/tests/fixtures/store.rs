@@ -137,7 +137,10 @@ pub fn opened_with_budget(budget: u64) -> Store {
     let mut limits = limits();
     limits.store.budget = budget;
     let mut store = Store::over(&limits, APPLICATION, &[], stores_with(&limits));
-    let events = run(&mut store, Request::Open { owner: Token::new(1), root: ROOT, installation: INSTALLATION });
+    let events = run(
+        &mut store,
+        Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: ROOT, installation: INSTALLATION },
+    );
     let [Event::Opened { owner: _, last: 0, installation: _, pending: false }, Event::Census { .. }] = &*events else {
         panic!("empty store opens: {events:?}");
     };
@@ -310,7 +313,7 @@ pub fn directory() -> (Store, Below) {
     crate::down(
         &mut store,
         &env(),
-        Request::Open { owner: Token::new(1), root: ROOT, installation: INSTALLATION },
+        Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: ROOT, installation: INSTALLATION },
         &mut above,
         &mut below,
     );

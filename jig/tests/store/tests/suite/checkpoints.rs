@@ -103,6 +103,41 @@ pub(super) fn recovered(world: &mut World, name: CheckpointName) {
         "secrets map at C: {events:?}"
     );
 }
+#[test]
+fn retention_removes_only_names_and_each_kept_checkpoint_and_the_live_store_recovers() {
+    let mut world = populated(27);
+    let mut limits = root::limits();
+    limits.checkpoints.keep = 2;
+    world.restart_with_limits(28, limits);
+    world.reopen();
+    world.mark_if_needed();
+    let mut taken = Vec::new();
+    for round in 0..4_u8 {
+        let number = world.model.acknowledged + 1;
+        assert_eq!(
+            world
+                .commit(Box::new([Write::Save(root::header(number)), Write::Save(root::person(u64::from(round) + 2))])),
+            Some(number)
+        );
+        let checkpoint = checkpoint(&world.request(Request::Checkpoint { owner: OWNER, draw: [round; 16] }));
+        assert_eq!(checkpoint.removed, u32::from(round >= 2));
+        taken.push(checkpoint.name);
+    }
+    let mut names: Vec<_> = world
+        .paths()
+        .iter()
+        .filter_map(|path| path.strip_prefix(b"checkpoints/").and_then(CheckpointName::parse))
+        .collect();
+    names.sort();
+    assert_eq!(names, taken[2..]);
+    for name in names {
+        recovered(&mut world, name);
+    }
+    world.crash(29);
+    let restored = world.checkpoint_reopen();
+    Referee::check(&world.model, &restored).expect("live files survive removal of their other names");
+}
+
 fn acknowledge(world: &mut World, events: &[Event]) {
     for event in events {
         if let Event::Committed { number, .. } = event {

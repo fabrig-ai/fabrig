@@ -17,7 +17,12 @@ fn opened() -> Store {
     let events = ask(
         &mut store,
         0,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { last: 0, .. }, Event::Census { census }] = events.as_ref() else {
         panic!("opened then recovery's census: {events:?}");

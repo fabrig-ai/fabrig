@@ -4,7 +4,12 @@ use crate::{Event, OpenRefusal, Request, Restore, Store, Write, keys, restore};
 use skein_lib::{List, Queue, Token};
 
 fn open_ask() -> Request {
-    Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION }
+    Request::Open {
+        purpose: crate::Purpose::Serve,
+        owner: Token::new(1),
+        root: fixtures::ROOT,
+        installation: fixtures::INSTALLATION,
+    }
 }
 
 fn cold() -> Store {
@@ -29,7 +34,12 @@ fn installation(bytes: Option<Box<[u8]>>) -> Store {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Corrupt { .. }] = events.as_ref() else { panic!("corrupt: {events:?}") };
     store
@@ -42,7 +52,15 @@ fn missing_and_corrupt_installation_are_distinct_and_first_detail_survives_input
     let expected = restore::OpenFailure::Missing(restore::site(&missing, &key));
     assert_eq!(missing.start_open_failure(), Some(&expected));
     // Rejected Open/Restore, background work and synchronous readers never reset it.
-    fixtures::run(&mut missing, Request::Open { owner: Token::new(2), root: fixtures::ROOT, installation: [7; 16] });
+    fixtures::run(
+        &mut missing,
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(2),
+            root: fixtures::ROOT,
+            installation: [7; 16],
+        },
+    );
     fixtures::run(
         &mut missing,
         Request::Restore { owner: Token::new(2), range: Restore::Jig(Box::new([])), after: None, rows: 1, bytes: 1 },
@@ -75,7 +93,12 @@ fn ordinary_refusals_and_coarse_failures_remain_truthful_and_sticky() {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let why = OpenRefusal::Numbers { store: 1, header: 2 };
     let [Event::OpenRefused { why: found, .. }] = events.as_ref() else { panic!("numbers refusal") };
@@ -85,7 +108,12 @@ fn ordinary_refusals_and_coarse_failures_remain_truthful_and_sticky() {
     for _ in 0_u32..2 {
         fixtures::run(
             &mut store,
-            Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
         );
     }
     assert_eq!(store.start_open_failure(), Some(&restore::OpenFailure::Refused(OpenRefusal::Failed)));
@@ -136,7 +164,12 @@ fn a_real_get_refusal_keeps_its_category_and_bounded_site() {
     );
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::OpenRefused { why: OpenRefusal::Failed, .. }] = events.as_ref() else { panic!("old terminal mapping") };
     let site = restore::site(&store, &keys::encode_own(&keys::Own::Format, fixtures::KEY_LIMIT).expect("format key"));

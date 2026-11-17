@@ -36,6 +36,8 @@ pub(crate) struct Cut {
     pub linked: u32,
     pub copied: u32,
     pub bytes: u64,
+    pub removed: u32,
+    pub skipped: u32,
 }
 #[derive(Debug)]
 pub(crate) enum Taking {
@@ -381,6 +383,8 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
                                 linked: 0,
                                 copied: 0,
                                 bytes: 0,
+                                removed: 0,
+                                skipped: 0,
                             };
                             let step = files::begin(&mut cut, below);
                             Taking::Files { cut, step }
@@ -503,8 +507,8 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: 
                         paused: cut.paused,
                         took: env.now.as_nanos().saturating_sub(cut.session.ask.began.as_nanos()),
                         held,
-                        removed: 0,
-                        skipped: 0,
+                        removed: cut.removed,
+                        skipped: cut.skipped,
                     };
                     above.push(Event::Checkpointed { owner: cut.session.ask.owner, checkpoint });
                     Taking::Idle

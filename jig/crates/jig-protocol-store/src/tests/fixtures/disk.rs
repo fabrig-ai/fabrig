@@ -161,7 +161,15 @@ impl Disk {
         Store::on_directory(&limits, APPLICATION, &[], self.seeded)
     }
     pub fn open(&mut self, store: &mut Store) -> Box<[Event]> {
-        self.request(store, Request::Open { owner: Token::new(1), root: self.root, installation: INSTALLATION })
+        self.request(
+            store,
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: self.root,
+                installation: INSTALLATION,
+            },
+        )
     }
     pub fn request(&mut self, store: &mut Store, request: Request) -> Box<[Event]> {
         let mut above = Queue::with_capacity(QUEUE);

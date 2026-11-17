@@ -857,6 +857,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             }
             event @ (jig_protocol_store::Event::Checkpointed { .. }
             | jig_protocol_store::Event::CheckpointRefused { .. }
+            | jig_protocol_store::Event::CheckpointHeld { .. }
+            | jig_protocol_store::Event::CheckpointRemoved { .. }
             | jig_protocol_store::Event::Census { .. }
             | jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
@@ -937,6 +939,7 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Check { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Unready { .. } => stop::open(engine, &why),
     }
 }
 

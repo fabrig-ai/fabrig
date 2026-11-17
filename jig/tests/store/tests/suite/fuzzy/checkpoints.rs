@@ -6,10 +6,12 @@ use skein_lib::{Rng, Token};
 #[test]
 fn seeded_checkpoint_races_and_crashes_recover_each_selected_cut_and_the_live_store() {
     let mut found = 0;
+    let mut removed = 0;
     for seed in 0..8 {
         let mut random = Rng::new(seed);
         let mut world = World::history_world();
         let mut limits = root::limits();
+        limits.checkpoints.keep = 1;
         limits.store.snapshot_after = 1;
         limits.store.segment = 1;
         world.restart_with_limits(seed, limits);
@@ -35,14 +37,17 @@ fn seeded_checkpoint_races_and_crashes_recover_each_selected_cut_and_the_live_st
             enqueue(&mut world, first + 1, random.below(3));
             let start = world.operation_count();
             let cut =
-                if round == 0 { u32::MAX } else { start + u32::try_from(random.below(100)).expect("bounded cut") };
+                if round <= 1 { u32::MAX } else { start + u32::try_from(random.below(100)).expect("bounded cut") };
             world.cut_at(cut);
             let events = world.settle();
             let mut answered = Vec::new();
             for event in &events {
                 match event {
                     Event::Committed { number, .. } => world.model.acknowledge(*number),
-                    Event::Checkpointed { checkpoint, .. } => answered.push(checkpoint.name),
+                    Event::Checkpointed { checkpoint, .. } => {
+                        removed += checkpoint.removed;
+                        answered.push(checkpoint.name);
+                    }
                     Event::Census { .. } => {}
                     other => panic!("checkpoint race, seed {seed}, round {round}: {other:?}"),
                 }
@@ -68,6 +73,7 @@ fn seeded_checkpoint_races_and_crashes_recover_each_selected_cut_and_the_live_st
         }
     }
     assert!(found >= 8, "each seed leaves at least one checkpoint");
+    assert!(removed >= 8, "each seed exercises retention before random cuts");
 }
 fn enqueue(world: &mut World, number: u64, kind: u64) {
     let writes = match kind {

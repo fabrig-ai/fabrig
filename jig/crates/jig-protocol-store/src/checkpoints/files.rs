@@ -40,6 +40,7 @@ pub(crate) enum Step {
     ParentOpen,
     ParentSync { root: Root },
     ParentClose,
+    Retaining(Box<super::retention::Retention>),
     MeasureOpen { index: u32, held: u64 },
     MeasureStat { index: u32, held: u64, file: skein_lib::Token },
     MeasureClose { index: u32, held: u64 },
@@ -84,6 +85,7 @@ pub(super) fn holding(step: &Step) -> bool {
         | Step::ParentOpen
         | Step::ParentSync { .. }
         | Step::ParentClose
+        | Step::Retaining(_)
         | Step::MeasureOpen { .. }
         | Step::MeasureStat { .. }
         | Step::MeasureClose { .. }
@@ -94,6 +96,7 @@ pub(super) fn published(step: &Step) -> bool {
     match step {
         Step::ParentSync { .. }
         | Step::ParentClose
+        | Step::Retaining(_)
         | Step::MeasureOpen { .. }
         | Step::MeasureStat { .. }
         | Step::MeasureClose { .. }
@@ -244,12 +247,12 @@ fn opened(session: &mut Session, arrived: Arrived) -> Result<(skein_lib::Token, 
         | file::Event::Failed { .. }) => Err(failure(&session.path, &event)),
     }
 }
-fn directory(cut: &mut Cut, arrived: Arrived) -> Result<Root, CheckpointRefusal> {
+pub(super) fn directory(cut: &mut Cut, arrived: Arrived) -> Result<Root, CheckpointRefusal> {
     let fd = arrived.fd;
     let (token, _) = opened(&mut cut.session, arrived)?;
     Ok(Root { token, fd: fd.expect("file lane reports opened descriptor") })
 }
-fn close(cut: &mut Cut, file: skein_lib::Token, below: &mut Below) {
+pub(super) fn close(cut: &mut Cut, file: skein_lib::Token, below: &mut Below) {
     let index = cut.session.handles.len().checked_sub(1).expect("closing owned handle");
     assert!(cut.session.handles.swap_remove(index) == Some(file), "checkpoint closes in reverse opening order");
     below.checkpoints.push(file::Request::Close { owner: OWNER, file });
@@ -449,7 +452,7 @@ pub(super) fn text(path: &[u8]) -> Box<str> {
     let prefix = path.get(..path.len().min(128)).expect("bounded path prefix");
     Box::from(core::str::from_utf8(prefix).unwrap_or("<non-UTF8 path>"))
 }
-pub(super) fn failure(path: &[u8], event: &file::Event) -> CheckpointRefusal {
+pub(crate) fn failure(path: &[u8], event: &file::Event) -> CheckpointRefusal {
     let error = error(event).unwrap_or(Error::Other(0));
     CheckpointRefusal::Failed { path: text(path), error }
 }
@@ -736,8 +739,16 @@ pub(super) fn up(
         }
         Step::ParentSync { root } => {
             success(&arrived.event, Success::Synced, cut)?;
-            close(cut, root.token, below);
-            Step::ParentClose
+            Step::Retaining(Box::new(super::retention::Retention::begin(root, store.limits.checkpoints.keep, below)))
+        }
+        Step::Retaining(mut retention) => {
+            if retention.up(cut, arrived, below)? {
+                let parent = *cut.session.handles.iter().last().expect("checkpoint parent retained");
+                close(cut, parent, below);
+                Step::ParentClose
+            } else {
+                Step::Retaining(retention)
+            }
         }
         Step::ParentClose => {
             success(&arrived.event, Success::Closed, cut)?;
@@ -812,6 +823,7 @@ pub(super) fn up(
         | Step::ParentOpen
         | Step::ParentSync { .. }
         | Step::ParentClose
+        | Step::Retaining(_)
         | Step::MeasureOpen { .. }
         | Step::MeasureStat { .. }
         | Step::MeasureClose { .. }

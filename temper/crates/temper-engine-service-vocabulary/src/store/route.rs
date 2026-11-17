@@ -304,6 +304,8 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::Decoded { .. }
         | store::Event::Checkpointed { .. }
         | store::Event::CheckpointRefused { .. }
+        | store::Event::CheckpointHeld { .. }
+        | store::Event::CheckpointRemoved { .. }
         | store::Event::Undecodable { .. }
         | store::Event::Rehearsing { .. }
         | store::Event::Back { .. }

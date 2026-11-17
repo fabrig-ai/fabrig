@@ -286,6 +286,8 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::Census { .. }
         | Event::Checkpointed { .. }
         | Event::CheckpointRefused { .. }
+        | Event::CheckpointHeld { .. }
+        | Event::CheckpointRemoved { .. }
         | Event::Decoded { .. }
         | Event::Undecodable { .. }
         | Event::Rehearsing { .. }

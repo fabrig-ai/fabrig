@@ -81,10 +81,13 @@ impl Disk {
     /// Typed requests pass through the production host; fixture faults stay above it.
     pub fn request(&mut self, store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>) {
         match request {
-            Request::Open { owner, root, installation } => {
+            Request::Open { owner, root, installation, purpose } => {
+                assert_eq!(purpose, jig_protocol_store::Purpose::Serve, "serving fixture adoption");
                 self.host.adopt(root.fd, 0, owner, installation).expect("one fixture adoption");
             }
             request @ (Request::Checkpoint { .. }
+            | Request::HoldCheckpoint { .. }
+            | Request::RemoveCheckpoint { .. }
             | Request::Rehearse { .. }
             | Request::Back { .. }
             | Request::Close { .. }

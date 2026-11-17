@@ -76,6 +76,8 @@ impl Bridge {
             Event::SecretsLoaded { .. }
             | Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
             | Event::Switched { .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }

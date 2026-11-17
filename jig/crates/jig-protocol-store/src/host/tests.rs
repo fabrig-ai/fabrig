@@ -6,6 +6,7 @@ use skein_io::kernel::{Complete, Error, Fd, Op};
 use skein_lib::{Queue, Token};
 use skein_sim::{Config, Handle, Pid, Sim};
 
+mod checkpoints;
 mod rehearsal;
 
 struct World {
@@ -59,7 +60,7 @@ impl World {
     fn settle(&mut self) {
         for _ in 0_u32..1000 {
             self.step();
-            if self.host.idle() && !self.host.work_pending(fixtures::env().now) {
+            if self.host.idle() && !self.host.work_pending(fixtures::env().now) && !self.store.work_pending() {
                 return;
             }
         }

@@ -12,11 +12,16 @@ use skein_lib::{Queue, Secret, Token};
 pub enum Request {
     /// Take a serving checkpoint at its ordered cut (protocol/store/checkpoints.md, 3).
     Checkpoint { owner: Token, draw: [u8; 16] },
+    /// Hold a checkpoint's directory lock until Close (checkpoints.md, 6).
+    HoldCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
+    /// Remove a checkpoint under its lock, without opening the deployment.
+    RemoveCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
     /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
     Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
     /// Name the previous generation again, before the active one's first own commit.
     Back { owner: Token, root: Root },
-    /// End a rehearsal in any state and empty its scratch root.
+    /// End a rehearsal and empty its scratch root, close a checkpoint-only open,
+    /// or release this owner's checkpoint reader lock.
     Close { owner: Token },
     /// Open both stores in the deployment's directory (protocol/store/opening.md); the
     /// component's own rows and the core's header are checked before
@@ -24,7 +29,7 @@ pub enum Request {
     /// `installation` is the identifier the shell drew for this start
     /// (configuration.md 7): an empty store keeps it in its first commit; a
     /// store that holds one answers its own instead.
-    Open { owner: Token, root: Root, installation: [u8; 16] },
+    Open { owner: Token, root: Root, installation: [u8; 16], purpose: Purpose },
     /// Activate the copy opened pending, once every earlier commit is durable
     /// (protocol/store/opening.md 2, step 7). Once, after `Opened`; terminal `Switched` or `OpenRefused`.
     Switch { owner: Token },
@@ -48,6 +53,20 @@ pub enum Request {
     Secrets { owner: Token, request: Secrets },
     /// A written site's answer (protocol/store/opening.md 3), with its machine handed back.
     Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
+}
+
+/// Whether open may upgrade or make a deployment (protocol/store/checkpoints.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Purpose {
+    Serve,
+    Checkpoint,
+}
+
+/// Why a stopped deployment cannot be checkpointed by this build (checkpoints.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unready {
+    Empty,
+    Upgrade,
 }
 
 /// One write of a commit (protocol/store/README.md 5).
@@ -312,6 +331,8 @@ impl Check {
 /// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/README.md, 5, protocol/store/opening.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenRefusal {
+    /// This open would make or upgrade a deployment (checkpoints.md, 5).
+    Unready { why: Unready },
     /// A held layout cannot be read by this binary (protocol/store/layouts.md, 5.3).
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned },
     /// The format row names another version of `family`.
@@ -421,6 +442,14 @@ impl OpenRefusal {
     #[must_use]
     pub fn words(&self) -> &'static [&'static str] {
         match self {
+            Self::Unready { why: Unready::Empty } => &[
+                "",
+                " holds no deployment to take a checkpoint of: no `active` names a generation, and nothing in it has changed.",
+            ],
+            Self::Unready { why: Unready::Upgrade } => &[
+                "The store in ",
+                " needs an upgrade before it serves, so this build takes no checkpoint of it, and nothing in it has changed. Take it with the build that served it, or start this build, which upgrades it, and take one while it serves.",
+            ],
             Self::Format { family, .. } => family.version_words(),
             Self::Deployment => &[
                 "The store in ",
@@ -596,6 +625,12 @@ pub enum Event {
     Checkpointed {
         owner: Token,
         checkpoint: Checkpointed,
+    },
+    CheckpointHeld {
+        owner: Token,
+    },
+    CheckpointRemoved {
+        owner: Token,
     },
     CheckpointRefused {
         owner: Token,

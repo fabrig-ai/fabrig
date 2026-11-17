@@ -44,12 +44,15 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
-/// Operation issued once its roots are adopted (protocol/store/opening.md, 5).
+/// Operation issued once its roots are adopted (protocol/store/opening.md, 5; checkpoints.md, 5–6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,
     Rehearse { scratch: Fd },
     Back,
+    Checkpoint { draw: [u8; 16] },
+    HoldCheckpoint { name: crate::CheckpointName },
+    RemoveCheckpoint { name: crate::CheckpointName },
 }
 
 impl Hosted {
@@ -104,6 +107,8 @@ impl Hosted {
                 }
             }
             request @ (crate::Request::Checkpoint { .. }
+            | crate::Request::HoldCheckpoint { .. }
+            | crate::Request::RemoveCheckpoint { .. }
             | crate::Request::Switch { .. }
             | crate::Request::Rehearse { .. }
             | crate::Request::Back { .. }
@@ -313,6 +318,8 @@ pub struct Drivers {
     root: Option<Fd>,
     scratch: Option<crate::Root>,
     adoption: Adoption,
+    adoption_events: Queue<crate::Event>,
+    checkpoint_terminal: Option<crate::Event>,
     owner: Token,
     installation: [u8; 16],
     closing: bool,
@@ -342,6 +349,8 @@ impl Drivers {
             root: None,
             scratch: None,
             adoption: Adoption::Open,
+            adoption_events: Queue::uncapped(),
+            checkpoint_terminal: None,
             owner: Token::new(0),
             installation: [0; 16],
             closing: false,
@@ -442,7 +451,7 @@ impl Drivers {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        if !self.submitted.is_empty() {
+        if !self.submitted.is_empty() || !self.adoption_events.is_empty() {
             return true;
         }
         for index in 0..4 {
@@ -458,7 +467,11 @@ impl Drivers {
     }
     fn root_count(&self) -> u32 {
         match self.adoption {
-            Adoption::Open | Adoption::Back => 1,
+            Adoption::Open
+            | Adoption::Back
+            | Adoption::Checkpoint { .. }
+            | Adoption::HoldCheckpoint { .. }
+            | Adoption::RemoveCheckpoint { .. } => 1,
             Adoption::Rehearse { .. } => 2,
         }
     }
@@ -547,6 +560,126 @@ impl Drivers {
         None
     }
     pub fn iterate(&mut self, component: &mut crate::Store, env: &Env<crate::Limits>, above: &mut Queue<crate::Event>) {
+        let mut events = core::mem::replace(&mut self.adoption_events, Queue::uncapped());
+        self.iterate_inner(component, env, &mut events);
+        for _ in 0..events.len() {
+            let event = events.pop().expect("host events");
+            match self.adoption {
+                Adoption::Checkpoint { draw } => self.checkpoint_event(component, env, draw, event, above),
+                Adoption::Open
+                | Adoption::Rehearse { .. }
+                | Adoption::Back
+                | Adoption::HoldCheckpoint { .. }
+                | Adoption::RemoveCheckpoint { .. } => {
+                    above.push(event);
+                }
+            }
+        }
+    }
+    fn checkpoint_event(
+        &mut self,
+        component: &mut crate::Store,
+        env: &Env<crate::Limits>,
+        draw: [u8; 16],
+        event: crate::Event,
+        above: &mut Queue<crate::Event>,
+    ) {
+        match event {
+            crate::Event::Opened { .. } => {
+                crate::down(
+                    component,
+                    env,
+                    crate::Request::Checkpoint { owner: self.owner, draw },
+                    &mut self.adoption_events,
+                    &mut self.below,
+                );
+            }
+            crate::Event::Census { .. } => {}
+            terminal @ (crate::Event::Checkpointed { .. }
+            | crate::Event::CheckpointRefused { .. }
+            | crate::Event::OpenRefused { .. }) => {
+                if component.checkpoint_open.is_some() {
+                    self.checkpoint_terminal = Some(terminal);
+                    crate::down(
+                        component,
+                        env,
+                        crate::Request::Close { owner: self.owner },
+                        &mut self.adoption_events,
+                        &mut self.below,
+                    );
+                } else {
+                    above.push(terminal);
+                }
+            }
+            crate::Event::Closed { .. } => {
+                above.push(self.checkpoint_terminal.take().expect("checkpoint terminal retained through close"));
+            }
+            event @ (crate::Event::CheckpointHeld { .. }
+            | crate::Event::CheckpointRemoved { .. }
+            | crate::Event::Rehearsing { .. }
+            | crate::Event::Decoded { .. }
+            | crate::Event::Undecodable { .. }
+            | crate::Event::Back { .. }
+            | crate::Event::BackRefused { .. }
+            | crate::Event::Switched { .. }
+            | crate::Event::Committed { .. }
+            | crate::Event::Failed { .. }
+            | crate::Event::FrameTooLarge { .. }
+            | crate::Event::Page { .. }
+            | crate::Event::PageRefused { .. }
+            | crate::Event::Loaded { .. }
+            | crate::Event::Read { .. }
+            | crate::Event::Got { .. }
+            | crate::Event::Turns { .. }
+            | crate::Event::Unread { .. }
+            | crate::Event::SecretsNotReady { .. }
+            | crate::Event::Kept { .. }
+            | crate::Event::Carried { .. }
+            | crate::Event::Stale { .. }
+            | crate::Event::Erased { .. }
+            | crate::Event::Secret { .. }
+            | crate::Event::SecretsLoaded { .. }
+            | crate::Event::Corrupt { .. }
+            | crate::Event::Site { .. }
+            | crate::Event::Job { .. }
+            | crate::Event::Ran { .. }
+            | crate::Event::Patched { .. }) => {
+                above.push(event);
+            }
+        }
+    }
+    fn adoption_request(&self, fd: Fd) -> crate::Request {
+        let root = crate::Root { token: Token::new(1), fd };
+        match self.adoption {
+            Adoption::Open => crate::Request::Open {
+                owner: self.owner,
+                root,
+                installation: self.installation,
+                purpose: crate::Purpose::Serve,
+            },
+            Adoption::Checkpoint { .. } => crate::Request::Open {
+                owner: self.owner,
+                root,
+                installation: self.installation,
+                purpose: crate::Purpose::Checkpoint,
+            },
+            Adoption::Rehearse { .. } => crate::Request::Rehearse {
+                owner: self.owner,
+                directory: root,
+                scratch: self.scratch.expect("adopted scratch"),
+                installation: self.installation,
+            },
+            Adoption::Back => crate::Request::Back { owner: self.owner, root },
+            Adoption::HoldCheckpoint { name } => crate::Request::HoldCheckpoint { owner: self.owner, root, name },
+            Adoption::RemoveCheckpoint { name } => crate::Request::RemoveCheckpoint { owner: self.owner, root, name },
+        }
+    }
+    fn iterate_inner(
+        &mut self,
+        component: &mut crate::Store,
+        env: &Env<crate::Limits>,
+        above: &mut Queue<crate::Event>,
+    ) {
         if self.adopted && !self.closing {
             crate::fire(component, env, above, &mut self.below);
         }
@@ -564,8 +697,14 @@ impl Drivers {
                     if fd.is_none() {
                         if self.root.take().is_some() {
                             above.push(match self.adoption {
-                                Adoption::Open | Adoption::Rehearse { .. } => {
+                                Adoption::Open | Adoption::Rehearse { .. } | Adoption::Checkpoint { .. } => {
                                     crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed }
+                                }
+                                Adoption::HoldCheckpoint { .. } | Adoption::RemoveCheckpoint { .. } => {
+                                    crate::Event::CheckpointRefused {
+                                        owner: self.owner,
+                                        why: crate::checkpoints::files::failure(b"checkpoints", &event),
+                                    }
                                 }
                                 Adoption::Back => {
                                     crate::Event::BackRefused { owner: self.owner, why: crate::BackRefusal::Unreadable }
@@ -577,29 +716,7 @@ impl Drivers {
                         && let Some(fd) = self.root.take()
                     {
                         self.started = true;
-                        crate::down(
-                            component,
-                            env,
-                            match self.adoption {
-                                Adoption::Open => crate::Request::Open {
-                                    owner: self.owner,
-                                    root: crate::Root { token: Token::new(1), fd },
-                                    installation: self.installation,
-                                },
-                                Adoption::Rehearse { .. } => crate::Request::Rehearse {
-                                    owner: self.owner,
-                                    directory: crate::Root { token: Token::new(1), fd },
-                                    scratch: self.scratch.expect("adopted scratch"),
-                                    installation: self.installation,
-                                },
-                                Adoption::Back => crate::Request::Back {
-                                    owner: self.owner,
-                                    root: crate::Root { token: Token::new(1), fd },
-                                },
-                            },
-                            above,
-                            &mut self.below,
-                        );
+                        crate::down(component, env, self.adoption_request(fd), above, &mut self.below);
                     }
                     continue;
                 }

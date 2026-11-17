@@ -382,8 +382,15 @@ fn a_second_open_of_a_locked_deployment_is_refused_busy() {
     let before = disk.contents();
     let root = disk.second_root();
     let mut second = disk.store();
-    let events =
-        disk.request(&mut second, Request::Open { owner: Token::new(2), root, installation: fixtures::INSTALLATION });
+    let events = disk.request(
+        &mut second,
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(2),
+            root,
+            installation: fixtures::INSTALLATION,
+        },
+    );
     assert_refused(&events, OpenRefusal::Generations { why: Generations::Busy });
     assert_eq!(disk.contents(), before);
 }

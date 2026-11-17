@@ -50,7 +50,12 @@ fn open(limits: &crate::Limits) -> Store {
     store.patch_sets(SETS);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let Some(Event::Opened { .. }) = events.first() else { panic!("{events:?}") };
     fixtures::committed(&mut store, Box::new([fixtures::header(1)]));

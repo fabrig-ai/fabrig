@@ -234,6 +234,8 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             // This shell never hands patch sets; routing answers Site with NoSite.
             other @ (protocol::Event::Checkpointed { .. }
             | protocol::Event::CheckpointRefused { .. }
+            | protocol::Event::CheckpointHeld { .. }
+            | protocol::Event::CheckpointRemoved { .. }
             | protocol::Event::Page { .. }
             | protocol::Event::Job { .. }
             | protocol::Event::Ran { .. }

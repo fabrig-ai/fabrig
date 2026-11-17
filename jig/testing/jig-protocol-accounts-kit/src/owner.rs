@@ -340,7 +340,16 @@ impl Owner {
     fn open(&mut self, drawn: [u8; 16]) -> [u8; 16] {
         // Memory stores open no file: the root is never read.
         let root = store::Root { token: OPEN, fd: kernel::Fd::new(3) };
-        self.ask(Time::ZERO, Wall::EPOCH, store::Request::Open { owner: OPEN, root, installation: drawn });
+        self.ask(
+            Time::ZERO,
+            Wall::EPOCH,
+            store::Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: OPEN,
+                root,
+                installation: drawn,
+            },
+        );
         let Some(store::Event::Opened { owner: OPEN, last, installation, pending }) = self.store_above.pop() else {
             panic!("the memory store opens at once");
         };

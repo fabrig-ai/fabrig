@@ -346,6 +346,7 @@ impl Harness {
         }
         store
     }
+    #[expect(clippy::too_many_lines, reason = "the existing open driver includes Open's explicit purpose")]
     fn open(&mut self, store: &mut Store) -> Box<[Event]> {
         let mut env = fixtures::env();
         env.wall = self.wall;
@@ -354,7 +355,12 @@ impl Harness {
         crate::down(
             store,
             &env,
-            Request::Open { owner: Token::new(1), root: self.root, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: self.root,
+                installation: fixtures::INSTALLATION,
+            },
             &mut above,
             &mut below,
         );

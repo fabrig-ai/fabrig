@@ -111,7 +111,15 @@ impl Disk {
         self.seeded
     }
     pub fn open(&mut self, store: &mut Store) -> Vec<Event> {
-        self.request(store, Request::Open { owner: Token::new(1), root: self.root, installation: [0; 16] })
+        self.request(
+            store,
+            Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(1),
+                root: self.root,
+                installation: [0; 16],
+            },
+        )
     }
     pub fn request(&mut self, store: &mut Store, request: Request) -> Vec<Event> {
         let mut above = Queue::uncapped();

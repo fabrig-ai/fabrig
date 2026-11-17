@@ -118,7 +118,12 @@ fn changed_sets_get_a_new_verdict_after_serving_and_refusal() {
         store.patch_sets(sets);
         let events = fixtures::run(
             &mut store,
-            Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
         );
         if accepted {
             assert_opened(&events, 0);

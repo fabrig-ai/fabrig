@@ -63,7 +63,12 @@ fn build_component() -> Component {
     let mut component = Component { store, files: crate::Files::new(), limits };
     let root = component.files.root();
     let mut above = skein_lib::Queue::uncapped();
-    let open = jig_protocol_store::Request::Open { owner: Token::new(900), root, installation: [0; 16] };
+    let open = jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
+        owner: Token::new(900),
+        root,
+        installation: [0; 16],
+    };
     send(&mut component, open, &mut above);
     assert!(matches_opened(&mut above));
     component
@@ -203,6 +208,8 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
         | jig_protocol_store::Request::Switch { .. }
         | jig_protocol_store::Request::Site { .. }
         | jig_protocol_store::Request::Job { .. }
+        | jig_protocol_store::Request::HoldCheckpoint { .. }
+        | jig_protocol_store::Request::RemoveCheckpoint { .. }
         | jig_protocol_store::Request::Open { .. }
         | jig_protocol_store::Request::Restore { .. }
         | jig_protocol_store::Request::Load { .. }

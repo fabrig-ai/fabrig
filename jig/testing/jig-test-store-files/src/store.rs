@@ -509,7 +509,12 @@ impl Store {
             None => self.files.root(),
         };
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen after their files are cut");
@@ -657,6 +662,8 @@ impl Store {
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
             | Event::Job { .. }
             | Event::Ran { .. }
             | Event::Site { .. }

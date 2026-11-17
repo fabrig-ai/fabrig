@@ -19,8 +19,10 @@ pub use census::{CENSUS_EVERY, Keyspaces};
 
 /// The oldest store this build serves (protocol/store/records.md, 3).
 pub const FLOOR: u32 = 1;
+mod checkpoint_open;
 mod directory;
 pub mod ended;
+mod file_handles;
 pub mod format;
 mod generations;
 mod gets;
@@ -133,6 +135,8 @@ pub struct Store {
     start_open_failure: Option<Box<restore::OpenFailure>>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
+    checkpoint_open: Option<checkpoint_open::State>,
+    named_checkpoints: Box<checkpoints::named::Named>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
     census: Box<census::State>,
     view: Box<view::State>,
@@ -268,6 +272,8 @@ impl Store {
             start_open_failure: None,
             rehearsal: None,
             back: None,
+            checkpoint_open: None,
+            named_checkpoints: Box::new(checkpoints::named::Named::new()),
         }
     }
 
@@ -459,32 +465,52 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
 }
 fn accounted(store: &mut Store, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::issued(store, below, lengths);
+    checkpoint_open::issued(store, below, lengths);
     let lengths = rehearsal::lengths(below);
     rehearsal::advance_close(store, above, below);
+    checkpoint_open::advance(store, above, below);
     rehearsal::issued(store, below, lengths);
+    checkpoint_open::issued(store, below, lengths);
 }
 fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
     if let Request::Close { owner } = request {
-        rehearsal::close(store, owner, above);
+        if checkpoints::named::close(store, owner, below) {
+            return;
+        }
+        if store.checkpoint_open.is_some() {
+            checkpoint_open::close(store, owner, above);
+        } else {
+            rehearsal::close(store, owner, above);
+        }
         return;
     }
     if let Request::Checkpoint { owner, draw } = request {
         checkpoints::taking::ask(store, env, owner, draw, above, below);
         return;
     }
+    if let Request::HoldCheckpoint { owner, root, name } = request {
+        checkpoints::named::ask(store, owner, root, name, false, above, below);
+        return;
+    }
+    if let Request::RemoveCheckpoint { owner, root, name } = request {
+        checkpoints::named::ask(store, owner, root, name, true, above, below);
+        return;
+    }
     if store.phase == Phase::Stopped {
         return;
     }
     match request {
-        Request::Checkpoint { .. } => unreachable!("checkpoint routed before stopped guard"),
+        Request::Checkpoint { .. } | Request::HoldCheckpoint { .. } | Request::RemoveCheckpoint { .. } => {
+            unreachable!("checkpoint routed before stopped guard")
+        }
         Request::Rehearse { owner, directory, scratch, installation } => {
             rehearsal::begin(store, owner, directory, scratch, installation, above, below);
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
-        Request::Open { owner, root, installation } => {
-            directory::open(store, owner, root, installation, above, below);
+        Request::Open { owner, root, installation, purpose } => {
+            directory::open(store, owner, root, installation, purpose, above, below);
         }
         Request::Site { owner, patcher, result } => match store.phase {
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
@@ -521,6 +547,17 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
 }
 fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::arriving(store, &io);
+    checkpoint_open::arriving(store, &io);
+    if checkpoint_open::closing(store) {
+        return;
+    }
+    if let Io::Checkpoints(arrived) = &io
+        && arrived.event.owner() == checkpoints::named::OWNER
+    {
+        let Io::Checkpoints(arrived) = io else { unreachable!("checkpoint lane") };
+        checkpoints::named::up(store, arrived, above, below);
+        return;
+    }
     if rehearsal::closing(store) {
         rehearsal::closing_up(store, io, above, below);
     } else if rehearsal::preparing(store) {
@@ -560,7 +597,9 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, belo
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
         directory::fire(store, env, above, below);
-        secrets::sweep(store, env, above, below);
+        if store.directory.purpose == Purpose::Serve {
+            secrets::sweep(store, env, above, below);
+        }
         transcripts::read::fire(store, above, below);
         if !view::held(store) {
             transcripts::write::fire(store, env, above, below);
@@ -584,8 +623,8 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded,
-    Unplanned, WorkerOpening, Write,
+    OpenedWire, Purpose, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead,
+    Undecoded, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]

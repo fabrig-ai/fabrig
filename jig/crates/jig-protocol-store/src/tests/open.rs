@@ -11,7 +11,10 @@ fn open(store: &mut Store) -> Box<[Event]> {
 }
 
 fn open_drawing(store: &mut Store, installation: [u8; 16]) -> Box<[Event]> {
-    fixtures::run(store, Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation })
+    fixtures::run(
+        store,
+        Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: fixtures::ROOT, installation },
+    )
 }
 
 fn planted(ops: &[skein_kv::Op]) -> Store {

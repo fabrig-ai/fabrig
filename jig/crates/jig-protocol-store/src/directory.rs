@@ -88,6 +88,7 @@ pub(crate) struct Directory {
     /// The open's verdict survives the copy and its reopen (protocol/store/opening.md, 3).
     pub checked: Option<Result<crate::patching::plan::Checked, crate::patching::plan::Unplanned>>,
     pub disk: bool,
+    pub purpose: crate::Purpose,
     pub patch: Option<Box<Pending>>,
     pub active: Option<Active>,
     pub transcripts: Option<Root>,
@@ -108,6 +109,7 @@ impl Directory {
         Directory {
             checked: None,
             disk: false,
+            purpose: crate::Purpose::Serve,
             patch: None,
             active: None,
             transcripts: None,
@@ -134,11 +136,13 @@ pub(crate) fn open(
     owner: Token,
     root: Root,
     installation: [u8; 16],
+    purpose: crate::Purpose,
     above: &mut Queue<Event>,
     below: &mut Below,
 ) {
     if store.phase == Phase::Closed {
         store.installation = installation;
+        store.directory.purpose = purpose;
     }
     if !store.directory.disk {
         reset_checked(store);
@@ -152,6 +156,9 @@ pub(crate) fn open(
     }
     reset_checked(store);
     store.directory.root = Some(root);
+    if purpose == crate::Purpose::Checkpoint {
+        store.checkpoint_open = Some(crate::checkpoint_open::State::new(root));
+    }
     store.directory.opening = Opening::Locking;
     below.store.push(file::Request::Lock { owner: OWNER, root: root.token });
 }
@@ -366,6 +373,11 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         crate::transcripts::cut::begin(store, above, below);
         return;
     }
+    if store.directory.purpose == crate::Purpose::Checkpoint {
+        store.directory.opening = Opening::TranscriptsOpen;
+        open_directory(deployment(store), Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
+        return;
+    }
     if store.rehearsal.is_some() {
         if store.directory.transcripts.is_some() {
             crate::transcripts::cut::begin(store, above, below);
@@ -508,6 +520,9 @@ fn read_active(store: &mut Store, below: &mut Below) {
 }
 fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
+        if store.directory.purpose == crate::Purpose::Checkpoint {
+            return refusal(store, OpenRefusal::Unready { why: crate::Unready::Empty }, above);
+        }
         // A first start writes the manifest's counts: its sets fit them first.
         if let Err(why) = crate::patching::plan::checked(store) {
             return refusal(store, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);

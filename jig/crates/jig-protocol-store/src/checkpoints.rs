@@ -1,5 +1,7 @@
 //! Checkpoint names and bounds (protocol/store/checkpoints.md, 2.1, 2.3 and 7).
 pub(crate) mod files;
+pub(crate) mod named;
+pub(crate) mod retention;
 pub(crate) mod selection;
 pub(crate) mod sweep;
 pub(crate) mod taking;

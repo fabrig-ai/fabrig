@@ -118,7 +118,12 @@ fn scene(bytes: &[u8], sets: PatchSets) -> (Disk, Store) {
     store.patch_sets(sets);
     let opened = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: disk.root(),
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = &*opened else { panic!("opened: {opened:?}") };
     fixtures::plant(
@@ -204,6 +209,8 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             }
             other @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
             | Event::Switched { .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
@@ -465,7 +472,12 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
         store.patch_sets(sets);
         let events = fixtures::run(
             &mut store,
-            Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
         );
         let [Event::OpenRefused { why: crate::OpenRefusal::Set { owner: found, patch: 0 }, .. }] = &*events else {
             panic!("set refusal {events:?}")
@@ -767,7 +779,12 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     crate::down(
         &mut store,
         &env,
-        Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: disk.root(),
+            installation: fixtures::INSTALLATION,
+        },
         &mut above,
         &mut below,
     );

@@ -119,6 +119,7 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
         component,
         env,
         Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
             owner: OWNER,
             root: Root { token: Token::new(1), fd: Fd::new(3) },
             installation: root::DEPLOYMENT,
@@ -186,6 +187,8 @@ pub(crate) fn decode(
                 }
                 other @ (Event::Checkpointed { .. }
                 | Event::CheckpointRefused { .. }
+                | Event::CheckpointHeld { .. }
+                | Event::CheckpointRemoved { .. }
                 | Event::Switched { .. }
                 | Event::Opened { .. }
                 | Event::OpenRefused { .. }

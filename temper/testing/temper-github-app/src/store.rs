@@ -80,7 +80,12 @@ pub(super) fn run_with(
         },
         completions: Queue::with_capacity(OPERATIONS),
         submissions: Queue::with_capacity(OPERATIONS),
-        request: Some(Request::Open { owner: OWNER, root: protocol::Root { token, fd }, installation: [0; 16] }),
+        request: Some(Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: OWNER,
+            root: protocol::Root { token, fd },
+            installation: [0; 16],
+        }),
         records: records.iter().cloned().collect(),
         writes,
         rows: Vec::new(),

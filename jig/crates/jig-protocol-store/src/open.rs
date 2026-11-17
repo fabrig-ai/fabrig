@@ -42,6 +42,8 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
                 },
                 above,
             );
+        } else if last == 0 && store.directory.purpose == crate::Purpose::Checkpoint {
+            refuse(store, owner, OpenRefusal::Unready { why: crate::Unready::Upgrade }, above);
         } else if last == 0 {
             if let Err(why) = crate::registry::open(store, true) {
                 return refuse(store, owner, why, above);
@@ -163,6 +165,9 @@ fn found_levels(
 }
 
 fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
+    if store.directory.purpose == crate::Purpose::Checkpoint {
+        return Err(OpenRefusal::Unready { why: crate::Unready::Upgrade });
+    }
     let checked = match plan::checked(store) {
         Ok(checked) => checked,
         Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),

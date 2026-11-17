@@ -704,7 +704,12 @@ impl World {
         self.patched.clear();
         self.refusal = None;
         let mut contexts = Contexts::default();
-        let mut events = self.request(Request::Open { owner: OWNER, root: self.root, installation: self.drawn });
+        let mut events = self.request(Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: OWNER,
+            root: self.root,
+            installation: self.drawn,
+        });
         for _ in 0..10_000 {
             let mut answer = None;
             for event in events {
@@ -741,6 +746,8 @@ impl World {
                     }
                     other @ (Event::Checkpointed { .. }
                     | Event::CheckpointRefused { .. }
+                    | Event::CheckpointHeld { .. }
+                    | Event::CheckpointRemoved { .. }
                     | Event::Decoded { .. }
                     | Event::Undecodable { .. }
                     | Event::Rehearsing { .. }

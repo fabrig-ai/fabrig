@@ -39,7 +39,12 @@ fn raw_store(rows: &[skein_kv::Op]) -> Store {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        crate::Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [crate::Event::Opened { .. }, crate::Event::Census { .. }] = events.as_ref() else { panic!("fixture opens") };
     store

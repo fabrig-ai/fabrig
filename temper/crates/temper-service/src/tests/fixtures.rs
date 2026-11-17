@@ -707,6 +707,7 @@ pub fn mark_store(store: &mut crate::store::Store) {
 
 fn open_seeded(store: &mut crate::store::Store) {
     store.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1002,6 +1003,7 @@ pub fn memory_store_for(
     );
     assert!(host.component.wires(&crate::store::WIRES));
     host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,

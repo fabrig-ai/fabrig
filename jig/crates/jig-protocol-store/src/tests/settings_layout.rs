@@ -28,7 +28,12 @@ fn a_pre_settings_proposal_people_layout_refuses_as_older_people() {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::OpenRefused { why: OpenRefusal::OlderBuild { why: Older::Layout(Family::People) }, .. }] =
         events.as_ref()

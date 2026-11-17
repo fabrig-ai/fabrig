@@ -508,7 +508,12 @@ impl Store {
     fn open(&mut self) {
         let root = self.files.root();
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen");
@@ -625,6 +630,8 @@ impl Store {
             | Event::SecretsNotReady { .. } => self.failed = true,
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Turns { .. }
@@ -639,6 +646,8 @@ impl Store {
             }
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
             | Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }

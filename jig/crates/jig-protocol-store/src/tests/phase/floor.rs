@@ -160,7 +160,12 @@ fn patch_upgrade_writes_floor_only_in_the_seal_and_keeps_equal_or_higher_rows() 
         let changes = old.is_none_or(|n| n < crate::FLOOR);
         let expected =
             if changes { (crate::FLOOR, b"test-build".as_slice()) } else { (old.unwrap(), b"older-build".as_slice()) };
-        let request = Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION };
+        let request = Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: disk.root(),
+            installation: fixtures::INSTALLATION,
+        };
         traced_request(&mut disk, &mut upgraded, request, old.map(|n| (n, b"older-build".as_slice().into())), changes);
         assert_eq!(floor(&mut upgraded), Some((expected.0, expected.1.into())));
     }
