@@ -123,8 +123,9 @@ writes only `slots`.
   to a worker holds: that link's cap is a u32, slots times a slot's
   assignment, message frames and inbox, near 61 MB a slot at jig's
   stock. It holds at jig's stock and at the figures temper's engine
-  starts with, so the generated deployment starts: 48 on 2026-11-16
-  (init's documents' `hub.transcript_bytes` of 67,215,250), where jig's
+  starts with, so the generated deployment starts: 40 on 2026-11-17
+  (temper's base with its derived carriers: 4,134,901,580 bytes at 40,
+  past the u32 at 48), where jig's
   stock alone holds 64. It is never below dev's 36. Where temper's
   derived figures make a slot larger still, temper's base sets its own
   lower `fleet.slots` by the same rule. The
