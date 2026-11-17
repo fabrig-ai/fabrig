@@ -27,7 +27,8 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
 
 - **What stays** is `engine.md`'s other members and jig's other parts:
   the directories, the listeners, the workers and their secrets' files,
-  the limits, the first owners and the sign-in providers, `machine`,
+  a worker alone's limits (the engine's are settings,
+  `limit-settings.md`), the first owners and the sign-in providers, `machine`,
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
   providers and their endpoints (`engine.llm`), which are configuration of
   the work too, and leave the document by a design of their own, later. Of their
@@ -76,6 +77,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
+| 21, temper's limits, `temper-limits` | the deployment | 1 | a list of overrides of temper's limits, each a name, a value and a reason (`limit-settings.md`, 2.3) | the deployment's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../../client/pages/settings.md`, 2):

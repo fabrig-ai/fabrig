@@ -557,6 +557,7 @@ Design documents:
 - [`protocol/configuration/derived.md`](protocol/configuration/derived.status.md)
 - [`protocol/configuration/directories.md`](protocol/configuration/directories.status.md)
 - [`protocol/configuration/engine.md`](protocol/configuration/engine.status.md)
+- [`protocol/configuration/limit-settings.md`](protocol/configuration/limit-settings.status.md)
 - [`protocol/configuration/limits.md`](protocol/configuration/limits.status.md)
 - [`protocol/configuration/moved.md`](protocol/configuration/moved.status.md)
 - [`protocol/configuration/reference.md`](protocol/configuration/reference.status.md)

@@ -28,7 +28,10 @@ bundle`) stay as they are until then.
   set up (section 5); a project's landing, temper's kinds 4 and 5
   (`../../domain/landing-settings.md`, 1.1), with the operator's hold that
   lets a deployment set them before anything lands
-  (`../../domain/landing-settings.md`, 1.3).
+  (`../../domain/landing-settings.md`, 1.3); the engine's limits and
+  its memory budget, two kinds of settings (`limit-settings.md`). A
+  worker alone's `limits` and `application.limits` stay until its
+  figures come from the engine (`../../draft/config.md`, 6.3).
 - **What stays** for now: the members `README.md` and `engine.md` give
   that this document doesn't name, among them the OpenID provider,
   `engine.clients.provider`, which a managed Forgejo's sign-in through
@@ -89,6 +92,10 @@ at most 120 bytes:
 | `application.welcome` | `moved: the welcome is a setting; change it with temper ctl settings` |
 | `application.landing` | `moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply` |
 | `application.machine` | `moved: a forge's place is chosen when it's set up, and kept with the forge` |
+| `engine.limits` (engine and standalone) | `moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply` |
+| `engine.memory_bytes` (engine and standalone) | `moved: the root's budget is transcript_memory, in the setting temper-limits` |
+| `application.limits` (engine and standalone) | `moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply` |
+| `workers[i].memory_bytes`, a worker alone's `memory_bytes` | `moved: nothing read a worker's memory_bytes; remove it` |
 
 The reference pages give the same words in each member's row, so a
 person who meets a refusal finds where the member went.

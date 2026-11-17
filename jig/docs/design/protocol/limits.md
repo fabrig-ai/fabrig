@@ -23,6 +23,16 @@
     `draft/cli.md`, 3.2), for tests alone.
   - **Reading this document.** Below, "standard" means the stock and
     "small" means the fixtures' figures.
+- **Limits as settings** (`../domain/engine/settings.md`, 1): the core's
+  kind `limits` holds overrides of jig's limits, each a dotted name of
+  `names::NAMES`, a value and a reason. The core keeps it and checks its
+  shape alone. An application reads it at its start over its base with
+  `with_overrides(base, overrides)`, by the names and checks a document's
+  overrides take, and the problems it gives name the setting rather than
+  a document's path. A document's `limits` and `memory_bytes` are then
+  optional members: absent, `engine_over` and `worker_over` read the
+  base, and `Engine.memory` is none. temper's engine and box refuse them
+  (temper's `protocol/configuration/limit-settings.md`).
 - **Sized from fabrig's development:** the stock sizes its counts,
   times and other figures as temper's stock does (temper's
   `protocol/configuration/limits.md`, sized from what): a

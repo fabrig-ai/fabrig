@@ -20,6 +20,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   | template | the template's, from 1 | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
+  | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
   | model | the model's, 1 to 64, never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
 
@@ -65,8 +66,13 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
   requester).
-- **What is not a setting:** the limits, which size memory at the
-  start; the hosts, the LLM providers and their endpoints, the connectors, the
+- **The limits are a setting the core keeps and never applies:** they
+  size the core's tables at the start, so the core checks the limits
+  setting's shape alone (each name's bytes, the order, each reason,
+  their count; fault *shape*), keeps it, shows it, and the application
+  reads it at its next start (`../../protocol/limits.md`, limits as
+  settings).
+- **What is not a setting:** the hosts, the LLM providers and their endpoints, the connectors, the
   clients and the first owners, the document's; and each project's own
   policy, which its owners change (../people/acts.md, 2).
 
