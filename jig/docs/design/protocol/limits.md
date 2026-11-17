@@ -56,8 +56,13 @@
 - **Client pressure overrides.** `clients.queued_bytes` is a u32 byte
   ceiling for one stream, including its in-flight record, at least 128;
   `clients.exchanges_per_client` is a positive u32 count of exchanges in
-  flight per sign-in, shared by its clients. The reader checks both
-  through the component's validity predicate after applying overrides.
+  flight per sign-in, shared by its clients, a batch one whatever its
+  members; `clients.reads_per_client` and `clients.openings_per_client`
+  are positive u32 counts of reads and of watches' openings in flight per
+  sign-in, each a read's or an opening's whether alone or a batch's
+  member, 32 and 31 in both profiles (`client/README.md`, section 10). The
+  reader checks them through the component's validity predicate after
+  applying overrides.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers
