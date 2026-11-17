@@ -81,27 +81,35 @@ fn entries() -> &'static [Name] {
     ENTRIES.get_or_init(|| parse(LIST_TEXT).unwrap_or_else(|why| panic!("{why}")))
 }
 
+/// Indices in list order, shared by the prefilter and the matching (tools/outward/design.md, 3).
+fn starting(byte: u8) -> &'static [usize] {
+    static STARTING: OnceLock<[Vec<usize>; 256]> = OnceLock::new();
+    let table = STARTING.get_or_init(|| {
+        let mut table = std::array::from_fn(|_| Vec::new());
+        for (index, entry) in entries().iter().enumerate() {
+            table[usize::from(entry.text[0])].push(index);
+            if entry.text[0].is_ascii_lowercase() {
+                table[usize::from(entry.text[0].to_ascii_uppercase())].push(index);
+            }
+        }
+        table
+    });
+    &table[usize::from(byte)]
+}
+
 fn word(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
 /// The lab's names on `line`, left to right, never overlapping, each as the line spells it.
 fn names(line: &[u8]) -> Vec<&[u8]> {
-    // Keep the list's precedence, but inspect only names with this initial byte.
-    static INITIALS: OnceLock<[Vec<&'static Name>; 256]> = OnceLock::new();
-    let initials = INITIALS.get_or_init(|| {
-        let mut initials: [Vec<&Name>; 256] = std::array::from_fn(|_| Vec::new());
-        for entry in entries() {
-            initials[usize::from(entry.text[0].to_ascii_lowercase())].push(entry);
-        }
-        initials
-    });
     let mut result = Vec::new();
     let mut start = 0;
     while start < line.len() {
         let left = start == 0 || !word(line[start - 1]);
         let rest = &line[start..];
-        let length = initials[usize::from(rest[0].to_ascii_lowercase())].iter().find_map(|entry| {
+        let length = starting(line[start]).iter().find_map(|&index| {
+            let entry = &entries()[index];
             let name = &entry.text;
             if (entry.left && !left) || !rest.get(..name.len()).is_some_and(|text| text.eq_ignore_ascii_case(name)) {
                 return None;
@@ -126,17 +134,36 @@ fn names(line: &[u8]) -> Vec<&[u8]> {
     result
 }
 
-/// A case-folded literal search derived from the list, never another list of names.
+/// A whole name, case folded, whatever its marks ask (tools/outward/design.md, 3).
 fn may_hold_name(text: &[u8]) -> bool {
-    static SEARCH: OnceLock<aho_corasick::AhoCorasick> = OnceLock::new();
-    SEARCH
-        .get_or_init(|| {
-            aho_corasick::AhoCorasick::builder()
-                .ascii_case_insensitive(true)
-                .build(entries().iter().map(|entry| entry.text.as_slice()))
-                .expect("bounded nonempty ASCII names")
+    static GATES: OnceLock<([bool; 256], Box<[bool]>)> = OnceLock::new();
+    let (single, pairs) = GATES.get_or_init(|| {
+        let mut single = [false; 256];
+        let mut pairs = vec![false; 65_536].into_boxed_slice();
+        for entry in entries() {
+            let first = usize::from(entry.text[0]);
+            if let Some(&second) = entry.text.get(1) {
+                pairs[(first << 8) | usize::from(second)] = true;
+            } else {
+                single[first] = true;
+            }
+        }
+        (single, pairs)
+    });
+    text.iter().enumerate().any(|(start, &byte)| {
+        let first = usize::from(byte.to_ascii_lowercase());
+        if single[first] {
+            return true;
+        }
+        let Some(&second) = text.get(start + 1) else { return false };
+        if !pairs[(first << 8) | usize::from(second.to_ascii_lowercase())] {
+            return false;
+        }
+        starting(byte).iter().any(|&index| {
+            let name = &entries()[index].text;
+            text[start..].get(..name.len()).is_some_and(|part| part.eq_ignore_ascii_case(name))
         })
-        .is_match(text)
+    })
 }
 
 /// Every name in a file's `text`: its line, from 1, and its text.
@@ -375,6 +402,72 @@ fn product_words_pass() {
     ] {
         assert!(names(line.as_bytes()).is_empty(), "{line}");
     }
+}
+
+#[test]
+fn the_prefilter_agrees_with_a_naive_search() {
+    let mut texts = vec![Vec::new()];
+    for (index, entry) in entries().iter().enumerate() {
+        let mixed: Vec<u8> = entry
+            .text
+            .iter()
+            .enumerate()
+            .map(|(place, byte)| if place % 2 == 0 { byte.to_ascii_uppercase() } else { *byte })
+            .collect();
+        for name in [&entry.text, &entry.text.to_ascii_uppercase(), &mixed] {
+            // Alone, at either edge, and between word and non-word neighbours.
+            for (before, after) in [
+                (b"".as_slice(), b"".as_slice()),
+                (b"", b"x"),
+                (b"", b"!"),
+                (b"x", b"x"),
+                (b"!", b"!"),
+                (b"x", b""),
+                (b"!", b""),
+            ] {
+                texts.push([before, name, after].concat());
+            }
+        }
+        texts.push(entry.text[..entry.text.len() - 1].to_vec());
+        let mut changed = entry.text.clone();
+        *changed.last_mut().expect("a nonempty name") ^= 1;
+        texts.push(changed);
+        let other = &entries()[(index + 1) % entries().len()].text;
+        texts.push([&entry.text[..entry.text.len() / 2], &other[other.len() / 2..]].concat());
+    }
+    for line in [
+        "tool-heavy",
+        "the director task",
+        "/home/<user>/",
+        "fabric",
+        "fabrig",
+        "prefab",
+        "a heavy test",
+        "a heavy environment",
+        "heavy cargoes",
+        "spawned agents report their errors",
+        "the agent's repository",
+        "smith/benchmarks/agents/codex",
+        "hetzner",
+        "hel80",
+        "/home/freebsd/",
+        "~/src/fabrig",
+        "_fab fab_ 1fab fab2",
+        "agents repository_",
+        "heavy  cargo",
+        "fabrig-ai/agents_report",
+    ] {
+        texts.push(line.as_bytes().to_vec());
+    }
+    let mut outcomes = [false; 2];
+    for text in texts {
+        let expected = entries()
+            .iter()
+            .any(|entry| text.windows(entry.text.len()).any(|part| part.eq_ignore_ascii_case(&entry.text)));
+        outcomes[usize::from(expected)] = true;
+        assert_eq!(may_hold_name(&text), expected, "{:?}", String::from_utf8_lossy(&text));
+    }
+    assert_eq!(outcomes, [true, true], "the reference holds and refuses texts");
 }
 
 #[test]
