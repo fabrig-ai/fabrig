@@ -140,7 +140,12 @@ The provider kind joins `settings.md`, 1's one check:
   are restored, not judged.
 
 A refusal names the setting, `Provider(number)`, and its `at` the item,
-as every change's does (`settings.md`, 2).
+as every change's does (`settings.md`, 2); but a *reference* refusal
+names the model that holds the reference, `Model(number)`, as a charter
+removal that strands a template names `Template(number)`, and its `at`
+is the last item naming that model, or 0 when none does (the dispatch's
+`malformed_refusal`). The refusal's detail stays empty: no member of
+`SettingDetail` is added for it.
 
 ## 5. At a start, and while it runs
 
