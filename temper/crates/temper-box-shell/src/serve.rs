@@ -204,8 +204,11 @@ fn prepare_agent(
     environment: &[EnvironmentEntry],
 ) -> Result<agent::Prepared, String> {
     box_inputs_worker(part, directories)?;
-    let claude =
-        part.claude.as_deref().map(path).map(std::path::Path::to_path_buf).or_else(|| worker::find_claude(environment));
+    let claude = match crate::fake_backends::configured_claude(directories)? {
+        Some(claude) => Some(claude),
+        None => part.claude.as_deref().map(path).map(std::path::Path::to_path_buf)
+            .or_else(|| worker::find_claude(environment)),
+    };
     let bytes = agent::figures::configuration(
         part.figures.as_ref().expect("box figures"),
         claude.as_deref(),

@@ -143,8 +143,6 @@ pub(crate) fn link_limits_from(
     payload: &v1::Limits,
     forges: u32,
 ) -> Option<link::Limits> {
-    let core = jig.core;
-    let hub = jig.hub;
     let profile = jig.link;
     let sizes = temper_service_core::derived::worker_sizes(jig, worker.slots, payload, forges)?;
     Some(link::Limits {

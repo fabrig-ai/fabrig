@@ -1,4 +1,5 @@
 //! Named limits round trips (temper/docs/design/protocol/configuration/figures.md, 9).
+#![cfg(test)]
 use skein_lib::Duration;
 use temper_engine_service_vocabulary::limits;
 
@@ -29,4 +30,3 @@ fn temper_limits_by_name_round_trip_both_stocks() {
         assert_eq!(shared.peer.token_bytes, source.forge_component.token_bytes);
     }
 }
-

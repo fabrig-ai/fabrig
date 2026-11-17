@@ -32,9 +32,15 @@ pub fn configuration(
         } else {
             format!("{host}:{}", endpoint.port())
         };
+        // Smith names the protocol provider; engine providers may have local names such as demo.
+        let provider = match endpoint.dialect() {
+            3 => "openai",
+            2 => "anthropic",
+            dialect => return Err(format!("the engine's figures: unsupported endpoint dialect {dialect}")),
+        };
         let mut value = json!({
             "name":text(endpoint.name())?, "number":endpoint.number(), "dialect":endpoint.dialect(),
-            "provider":text(endpoint.provider())?, "address":address,
+            "provider":provider, "address":address,
             "connect":endpoint.connect().as_millis(), "handshake":endpoint.handshake().as_millis(),
             "limits": { "window":limits.window(), "output":limits.output(), "reasoning_item":limits.reasoning_item(),
                 "head":limits.head().as_millis(), "idle":limits.idle().as_millis(),

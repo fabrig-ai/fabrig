@@ -1088,14 +1088,12 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             Some(value) => Some(super::history::decode_change_history(value)),
             None => None,
         },
-        effect_account: match effect_account {
-            Some(account) => {
-                let w::EffectAccountParts { entry, words } = account.into_parts();
-                Some(top::EffectAccount { entry, words })
-            }
-            None => None,
-        },
+        effect_account: decode_effect_account(effect_account),
     })
+}
+fn decode_effect_account(value: Option<w::EffectAccount>) -> Option<top::EffectAccount> {
+    let w::EffectAccountParts { entry, words } = value?.into_parts();
+    Some(top::EffectAccount { entry, words })
 }
 fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
     let w::RegateParts { receipt, run } = value?.into_parts();

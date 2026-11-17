@@ -22,7 +22,8 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
-const REQUIRED: &[&str] = &["temper.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
+const ADAPTER: &str = "fake-claude.path";
+const REQUIRED: &[&str] = &["temper.json", "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
@@ -473,12 +474,8 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
-    let tree = Json::decode(bytes)?;
-    let adapter = tree.string("application/workers/0/claude").map_err(|_| {
-        "application/workers/0/claude: unsupported adapter; remove this sandbox directory explicitly to reset it"
-            .to_string()
-    })?;
-    adapter_identity(adapter, expected)?;
+    let adapter = peer_document(dirs, ADAPTER, 4096)?;
+    adapter_identity(&adapter, expected)?;
     provisioned_program(expected)?;
     for file in &named.files {
         if !file.private {
@@ -563,9 +560,29 @@ fn sibling(binary: &Path) -> Result<PathBuf, String> {
 }
 fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
     if given != expected.as_os_str().as_bytes() {
-        return Err("application/workers/0/claude: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
+        return Err("fake-claude.path: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
     }
     Ok(())
+}
+/// The sandbox pins its fake adapter outside the deployment's fixed worker members.
+pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
+    let record = crate::path(&dirs.config).join(ADAPTER);
+    match fs::symlink_metadata(&record) {
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
+            let marker = record.parent().and_then(Path::parent).map(|root| root.join("prepared"));
+            if marker.is_some_and(|marker| marker.exists()) {
+                return Err(format!("{ADAPTER}: missing pinned adapter; remove this sandbox directory explicitly to reset it"));
+            }
+            return Ok(None);
+        }
+        Err(why) => return Err(format!("{}: {why}", record.display())),
+        Ok(_) => {}
+    }
+    let expected = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let adapter = peer_document(dirs, ADAPTER, 4096)?;
+    adapter_identity(&adapter, &expected)?;
+    provisioned_program(&expected)?;
+    Ok(Some(expected))
 }
 fn provisioned_program(path: &Path) -> Result<(), String> {
     let executable = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.mode() & 0o111 != 0);
@@ -718,6 +735,7 @@ fn prepare(
         &forge.github_app_key().expect("generated GitHub App"),
         false,
     )?;
+    write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
     validate(&effective, &documents.temper, adapter)?;
     let peers = checked_peers(&effective, &documents.temper)?;
     let steps = scripts_for_start(&effective, &peers, options)?;

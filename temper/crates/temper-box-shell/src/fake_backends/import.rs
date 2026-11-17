@@ -15,7 +15,6 @@ pub(super) struct Source {
 }
 const RESOURCES: &[(&str, bool, &str)] = &[
     ("workers/0/secret", false, "worker.secret"),
-    ("application/machine/fake/git", false, "demo/bin/git"),
     ("application/demo/llm/key", false, "demo/llm.key"),
 ];
 impl Source {
@@ -68,19 +67,6 @@ fn expected_documents(
 ) -> Result<Json, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let git = temper_shell::lookup::find(environment, b"git");
-    let claude = match temper.at("application/workers/0/claude") {
-        Ok(Json::String(name)) => {
-            let path = crate::path(name);
-            if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
-                return Err("application/workers/0/claude: expected a bounded absolute adapter path".into());
-            }
-            Some(path.to_path_buf())
-        }
-        Ok(Json::Null | Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_)) => {
-            return Err("application/workers/0/claude: expected an absolute adapter path".into());
-        }
-        Err(_) => None,
-    };
     let ports = ports(temper)?;
     let login = temper
         .string("engine/owners/0/subject")?
@@ -91,7 +77,7 @@ fn expected_documents(
             sign_in: temper.at("engine/clients/provider")? != &Json::Null,
             binary: binary.as_os_str().as_bytes(),
             git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
-            claude: claude.as_ref().map(|path| path.as_os_str().as_bytes()),
+            claude: None,
             ports,
             login: Some(login),
         },

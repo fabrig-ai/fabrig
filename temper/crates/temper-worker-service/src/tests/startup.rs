@@ -18,8 +18,9 @@ fn a_checked_worker_alone_has_its_shape_and_refuses_engine_application_members()
 fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() {
     let input = fixtures::worker_alone_document();
     let mut value: serde_json::Value = serde_json::from_slice(&input).unwrap();
-    value["application"]["workers"] = serde_json::json!([{"root":"../escape","git":"git"}]);
-    let found = crate::startup::shape(&serde_json::to_vec(&value).unwrap(), &config::Directories::working()).unwrap_err();
+    value["application"]["workers"] = serde_json::from_slice(br#"[{"root":"../escape","git":"git"}]"#).unwrap();
+    let found =
+        crate::startup::shape(&serde_json::to_vec(&value).unwrap(), &config::Directories::working()).unwrap_err();
     assert_eq!(found.problems.get(0).unwrap().path, Path::root().member(b"application").member(b"workers"));
     assert_eq!(found.problems.get(0).unwrap().what, What::Jig(config::What::Fixed));
 }
@@ -44,7 +45,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         document.len(),
     )
     .unwrap();
-    let worker = config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker()).unwrap();
+    let worker =
+        config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker())
+            .unwrap();
     let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
     let engine = config::engine(
         &document,

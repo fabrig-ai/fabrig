@@ -768,6 +768,36 @@ impl StartStore {
         }
     }
 
+    fn load(
+        &self,
+        range: &engine::Range,
+        after: Option<&engine::Key>,
+        most: u32,
+    ) -> (Box<[engine::Record]>, Option<engine::Key>) {
+        let mut ordered = alloc::collections::BTreeMap::new();
+        for (key, row) in &self.rows {
+            if range.contains(key) {
+                ordered.insert(start_position(range, key), row.clone());
+            }
+        }
+        let mut rows = skein_lib::List::with_capacity(most);
+        let mut more = false;
+        for (position, row) in ordered {
+            if let Some(key) = after
+                && position <= start_position(range, key)
+            {
+                continue;
+            }
+            if rows.room() == 0 {
+                more = true;
+                break;
+            }
+            rows.push(row).unwrap();
+        }
+        let next = if more { Some(rows.as_slice().last().unwrap().key()) } else { None };
+        (rows.into_boxed(), next)
+    }
+
     pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
         let mut out = skein_lib::Queue::uncapped();
         for _ in 0_u32..1024 {
@@ -800,36 +830,11 @@ impl StartStore {
                         engine::step(root, env, engine::Event::Store(engine::StoreInput::Switched));
                     }
                     engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                        let mut ordered = alloc::collections::BTreeMap::new();
-                        for (key, row) in &self.rows {
-                            if range.contains(key) {
-                                ordered.insert(start_position(&range, key), row.clone());
-                            }
-                        }
-                        let mut rows = skein_lib::List::with_capacity(most);
-                        let mut more = false;
-                        for (position, row) in ordered {
-                            if let Some(key) = &after
-                                && position <= start_position(&range, key)
-                            {
-                                continue;
-                            }
-                            if rows.room() == 0 {
-                                more = true;
-                                break;
-                            }
-                            rows.push(row).unwrap();
-                        }
-                        let next = if more { Some(rows.as_slice().last().unwrap().key()) } else { None };
+                        let (rows, next) = self.load(&range, after.as_ref(), most);
                         engine::step(
                             root,
                             env,
-                            engine::Event::Store(engine::StoreInput::Loaded {
-                                owner,
-                                rows: rows.into_boxed(),
-                                next,
-                                texts: None,
-                            }),
+                            engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         );
                     }
                     engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),

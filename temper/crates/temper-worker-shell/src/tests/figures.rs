@@ -7,6 +7,9 @@ use std::{
 fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/bare.json")).expect("stock document");
+    configured_figures(input)
+}
+fn configured_figures(input: serde_json::Value) -> jig_protocol_worker_wire::Figures {
     let input = serde_json::to_vec(&input["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(
         &input,
@@ -18,6 +21,23 @@ fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let own =
         temper_limits_fixtures::small();
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
+}
+#[test]
+fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
+    let mut input: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
+    input["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    input["engine"]["llm"]["endpoints"][3]["address"]["socket"] = "127.0.0.1:8370".into();
+    let figures = configured_figures(input);
+    assert_eq!(figures.agents().endpoints().get(3).expect("demo endpoint").provider(), b"demo");
+    let scratch = skein_scratch::Scratch::new("demo-agent-endpoint");
+    let bytes = agent::figures::configuration(&figures, None, scratch.path(), &[]).expect("written agent");
+    let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
+    assert_eq!(written["endpoints"][3]["name"], "demo");
+    assert_eq!(written["endpoints"][3]["number"], 3);
+    assert_eq!(written["endpoints"][3]["dialect"], 3);
+    assert_eq!(written["endpoints"][3]["provider"], "openai");
+    let _decoded = agent::decoded_bytes(&bytes).expect("smith reads every box endpoint");
 }
 #[test]
 fn written_figures_decode_as_the_stock_agent_and_keep_machine_members() {

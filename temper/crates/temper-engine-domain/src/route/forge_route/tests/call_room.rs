@@ -74,12 +74,18 @@ fn fixture_with_proposal(full: bool, proposal: bool) -> (Domain, Env<Limits>, Ca
     let mut repository = adopted(1);
     repository.project = 1;
     domain.forge.restore_begin(env.wall);
-    for event in [
-        forge::Event::Restore { record: forge::Stored::Repository(repository) },
+    step(&mut domain, &env, forge::Event::Restore { record: forge::Stored::Repository(repository) });
+    step(
+        &mut domain,
+        &env,
         forge::Event::Connection {
             forge: 1,
             state: forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
         },
+    );
+    step(
+        &mut domain,
+        &env,
         forge::Event::Restore {
             record: forge::Stored::BranchHead(forge::BranchHead {
                 name: forge::Name {
@@ -91,13 +97,11 @@ fn fixture_with_proposal(full: bool, proposal: bool) -> (Domain, Env<Limits>, Ca
                 owned: false,
             }),
         },
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        forge::Event::ReadAfresh,
-        forge::Event::SettleOutbox,
-        forge::Event::Client(skein_forge_client::Event::PauseOutbox),
-    ] {
-        step(&mut domain, &env, event);
-    }
+    );
+    step(&mut domain, &env, forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    step(&mut domain, &env, forge::Event::ReadAfresh);
+    step(&mut domain, &env, forge::Event::SettleOutbox);
+    step(&mut domain, &env, forge::Event::Client(skein_forge_client::Event::PauseOutbox));
     let key = CallKey { task, attempt: 1, completion: 1, position: 0 };
     domain
         .call_renders

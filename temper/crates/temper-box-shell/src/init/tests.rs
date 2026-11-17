@@ -131,7 +131,7 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         let binary = root.join("bin/temper");
         let (preferred, holder) = preferred_ports(held, same);
         let first = write(&dirs, &env, &binary, preferred).expect("first init");
-        let ports = check_deployment(&dirs, &binary, &first, &row, claude, git);
+        let ports = check_deployment(&dirs, &binary, &first, &row, git);
         for (at, available) in [!held, !held && !same, !held && !same].into_iter().enumerate() {
             assert_eq!(ports[at] == preferred[at], available, "{row}: preferred port {at}");
         }
@@ -140,7 +140,7 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         let second_dirs = directories(&second_root);
         // The first deployment holds all three preferred ports while the second initializes.
         let second = write(&second_dirs, &env, &binary, ports).expect("second init beside the first");
-        let second_ports = check_deployment(&second_dirs, &binary, &second, &row, claude, git);
+        let second_ports = check_deployment(&second_dirs, &binary, &second, &row, git);
         for port in second_ports {
             assert!(!ports.contains(&port), "{row}: deployments have disjoint ports");
         }
@@ -167,14 +167,7 @@ fn preferred_ports(held: bool, same: bool) -> ([u16; 3], Option<[TcpListener; 3]
     (preferred, holder)
 }
 
-fn check_deployment(
-    dirs: &Directories,
-    binary: &Path,
-    written: &Written,
-    row: &str,
-    claude: bool,
-    git: bool,
-) -> [u16; 3] {
+fn check_deployment(dirs: &Directories, binary: &Path, written: &Written, row: &str, git: bool) -> [u16; 3] {
     check_files(dirs, binary, written, row);
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
@@ -182,10 +175,7 @@ fn check_deployment(
     assert!(document["application"]["clients"]["bundle"].is_null());
     assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
     assert!(document["application"]["clients"]["public"].is_null());
-    assert_eq!(
-        agent["programs"]["claude_code"]["path"],
-        serde_json::json!("fetched")
-    );
+    assert_eq!(agent["programs"]["claude_code"]["path"], serde_json::json!("fetched"));
     assert_eq!(written.missing_git, !git);
     assert!(document["application"].get("workers").is_none());
     let ports = check_listeners(&document, &agent, written, row);

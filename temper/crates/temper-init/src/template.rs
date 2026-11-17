@@ -8,7 +8,7 @@
     reason = "init embeds its default documents, as protocol/setup/init.md 2 requires"
 )]
 
-use crate::{Bare, Directories, Facts, path};
+use crate::{Bare, Directories, Facts};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
 use skein_lib::{Decimal, List, Writer, bytes};
@@ -86,7 +86,6 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
             json.array_end();
             json.object_end();
         }
-
     }
 }
 

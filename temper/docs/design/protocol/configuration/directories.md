@@ -179,11 +179,11 @@ ordinary managed Forgejo backed by its separate fake. Program login is the
 ordinary command with its configured fake adapter, not an automatic login.
 The fake program way uses the pinned `fake-claude` executable provisioned
 beside `temper`, resolved to that exact absolute sibling path, and its
-private adapter directory D'/programs. Preparation supplies that path as
-init's program fact; source import takes an existing adapter's `"fetched"`
-(../setup/init.md, 2) or its bounded absolute shape, without looking for Claude on
-PATH. The pure rewrite writes the exact sibling and private directory
-whichever the source names.
+private adapter directory D'/programs. Preparation keeps the exact sibling
+in the private effective-config file `fake-claude.path`, outside the
+deployment's fixed worker members. Serve and program-login read this bounded
+file, check it against their binary's sibling, and use it instead of discovering
+Claude on PATH. Source import does not carry an adapter or login state.
 Init writes Anthropic's provider, number 2 (../setup/init.md, 3), so the rewrite
 finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
@@ -201,8 +201,8 @@ is absent, it retains the named profile's capacity, raised to at least 3,
 alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
-Reuse requires application.workers[0].claude to equal that sibling.
-A different retained path refuses with that member named and explicit reset
+Reuse requires `fake-claude.path` to equal that sibling.
+A different retained path refuses with that file named and explicit reset
 instructions; no credential or login state is imported. A correct path with
 a missing or nonexecutable sidecar instead refuses with the executable path
 and the provisioning command `cargo build -p temper-fake-claude`, without

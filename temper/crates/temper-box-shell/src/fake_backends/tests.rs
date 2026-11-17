@@ -1112,14 +1112,12 @@ fn missing_required_retained_documents_refuse_without_writes() {
 fn foreign_retained_adapter_refuses_without_resetting_or_rewriting_it() {
     let scratch = Scratch::new("foreign-adapter");
     let (source, first) = prepared_source(&scratch);
-    let path = first.directories.document();
-    let mut deployment = read_json(&path);
-    deployment["application"]["workers"][0]["claude"] = "/foreign/claude".into();
-    store_json(&path, &deployment);
+    let path = crate::path(&first.directories.config).join(ADAPTER);
+    write(&path, b"/foreign/claude", true).expect("replace retained adapter");
     let before = fs::read(&path).expect("fixture bytes");
     drop(first);
     let error = start(&source, None).err().expect("foreign adapter refused");
-    assert!(error.contains("application/workers/0/claude") && error.contains("reset"), "{error}");
+    assert!(error.contains(ADAPTER) && error.contains("reset"), "{error}");
     assert!(fs::read(path).expect("unchanged") == before);
 }
 
@@ -1146,16 +1144,17 @@ fn exact_sibling_and_provisioning_refusals_use_explicit_paths() {
 }
 
 #[test]
-fn source_adapter_is_a_bounded_fact_without_path_discovery() {
+fn fake_adapter_is_retained_outside_fixed_worker_configuration() {
     let scratch = Scratch::new("source-program-fact");
     let source = provisioned_source(&scratch);
-    let path = source.document();
-    let mut temper = read_json(&path);
-    temper["application"]["workers"][0]["claude"] = "/absent/source/claude".into();
-    store_json(&path, &temper);
-    let first = start(&source, None).expect("source adapter does not need to exist or match PATH");
+    let first = start(&source, None).expect("prepare fake box");
     let effective = read_json(&first.directories.document());
-    assert_ne!(effective["application"]["workers"][0]["claude"], temper["application"]["workers"][0]["claude"]);
+    assert!(effective["application"].get("workers").is_none());
+    let record = crate::path(&first.directories.config).join(ADAPTER);
+    assert_eq!(fs::read(&record).expect("pinned adapter"), bytes(&scratch.0.join("fake-claude")).as_ref());
+    assert_eq!(fs::metadata(&record).expect("adapter record").mode() & 0o777, 0o600);
+    fs::remove_file(&record).expect("remove pinned adapter");
+    assert!(configured_claude(&first.directories).expect_err("never fall back to PATH").contains(ADAPTER));
 }
 
 #[test]

@@ -122,7 +122,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     let effective = json(&docs.temper);
     assert!(effective["application"].get("charter").is_none());
     assert!(effective["application"].get("landing").is_none());
-    let forge = &effective["application"]["machine"]["github"];
+    let forge = &effective["application"]["test"]["github"];
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));
     assert_eq!(forge["remote"], "http://127.0.0.1:9101");
     assert_eq!(forge["web"], "http://127.0.0.1:9101");
@@ -166,7 +166,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     assert!(endpoint.get("server_name").is_none());
     assert_eq!(effective["engine"]["deployment"]["seed"], 99);
     assert_eq!(effective["application"]["clients"]["bundle"], "/effective/config/bundle-loopback");
-    assert_eq!(effective["application"]["workers"][0]["claude"], "/fixture/fake-claude");
+    assert!(effective["application"].get("workers").is_none());
     assert!(effective["workers"][0].get("agent").is_none());
     assert!(effective["workers"][0].get("limits").is_none());
     assert_eq!(docs, write(&temper, &paths, &peers).expect("deterministic rewrite"));

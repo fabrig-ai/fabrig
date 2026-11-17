@@ -545,17 +545,14 @@ fn jig_refusals_print_words() {
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.files.len(), 1, "all files listed");
-    for (name, path, max, private) in [
-        (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true),
-    ] {
-        let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
-        assert_eq!(file.max, max, "bound {name:?}");
-        assert_eq!(file.private, private, "privacy {name:?}");
-        let mut problems = Problems::empty();
-        problems.push(file.at.clone(), What::Jig(config::What::Missing));
-        let expected = [path, b": missing\n"].concat();
-        assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
-    }
+    let (name, path, max, private) = (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true);
+    let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
+    assert_eq!(file.max, max, "bound {name:?}");
+    assert_eq!(file.private, private, "privacy {name:?}");
+    let mut problems = Problems::empty();
+    problems.push(file.at.clone(), What::Jig(config::What::Missing));
+    let expected = [path, b": missing\n"].concat();
+    assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
     let document = fixtures::with(&fixtures::document(), b"workers[0].secret", br#""agent.json""#);
     let named = crate::named(&document, &config::Directories::working()).unwrap();
     assert!(named.files.iter().any(|file| file.private && file.path.as_ref() == b"agent.json"));

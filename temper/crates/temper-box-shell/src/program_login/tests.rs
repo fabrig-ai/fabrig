@@ -17,17 +17,14 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     let source = programs.join("source");
     let (_, deployment) = crate::tests::configuration::documents(&directory, "/fixture/temper");
     std::fs::write(directory.join("temper.json"), deployment).expect("configuration");
-    let mut deployment: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("document")).expect("JSON");
-    deployment["application"]["workers"][0]["claude"] = serde_json::json!(executable);
-    std::fs::write(directory.join("temper.json"), serde_json::to_vec(&deployment).expect("JSON")).expect("document");
     let benign = OsString::from_vec(b"value-\xff".to_vec());
+    let search = OsString::from(format!("{}:/bin", directory.display()));
     let command = super::command(
         &crate::tests::configuration::directories(&directory),
         OsStr::new("source"),
         [
             ("HOME".into(), "/home/person".into()),
-            ("PATH".into(), "/bin".into()),
+            ("PATH".into(), search.clone()),
             ("BENIGN_SETTING".into(), benign.clone()),
             ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
             ("ANTHROPIC_API_KEY".into(), "private".into()),
@@ -48,7 +45,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     let anthropic = source.join("anthropic");
     for (name, value) in [
         ("HOME", OsStr::new("/home/person")),
-        ("PATH", OsStr::new("/bin")),
+        ("PATH", search.as_os_str()),
         ("BENIGN_SETTING", benign.as_os_str()),
         ("CLAUDE_CONFIG_DIR", source.as_os_str()),
         ("ANTHROPIC_CONFIG_DIR", anthropic.as_os_str()),

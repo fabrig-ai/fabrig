@@ -791,6 +791,41 @@ impl World {
         self.root_events.push_back(event);
     }
 
+    fn store_request(&mut self, request: engine::StoreRequest) {
+        match request {
+            engine::StoreRequest::Catalogue { .. } => {}
+            engine::StoreRequest::Checkpoint { token } => {
+                let answer = self.store.checkpoint(token);
+                self.root_events.push_back(engine::Event::Store(answer));
+            }
+            engine::StoreRequest::Switch => {
+                let answer = self.store.switch();
+                self.root_events.push_back(engine::Event::Store(answer));
+            }
+            engine::StoreRequest::Commit { number, writes } => {
+                let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
+                self.store.submit(number, writes, delay);
+            }
+            engine::StoreRequest::PartRead { waiter, range } => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+            }
+            engine::StoreRequest::Read { load, range } => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
+            }
+            engine::StoreRequest::Load { owner, range, after, most, .. } => {
+                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
+                    owner,
+                    rows,
+                    next,
+                    texts,
+                }));
+            }
+        }
+    }
+
     /// One root output: the protocol layer's hand-outs first, then the
     /// store, the forge, and deliveries to the worker and the party.
     fn root_request(&mut self, request: engine::Request) {
@@ -810,38 +845,9 @@ impl World {
             }
             engine::Request::Drained => self.absence.drained = true,
             engine::Request::Worker(engine::WorkerRequest::Settings(_))
-            | engine::Request::Store(engine::StoreRequest::Catalogue { .. })
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
-            engine::Request::Store(engine::StoreRequest::Checkpoint { token }) => {
-                let answer = self.store.checkpoint(token);
-                self.root_events.push_back(engine::Event::Store(answer));
-            }
-            engine::Request::Store(engine::StoreRequest::Switch) => {
-                let answer = self.store.switch();
-                self.root_events.push_back(engine::Event::Store(answer));
-            }
-            engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
-                let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
-                self.store.submit(number, writes, delay);
-            }
-            engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
-                let result = self.store.read(range);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
-            }
-            engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
-                let result = self.store.read(range);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
-            }
-            engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                let (rows, next, texts) = self.store.page_with_texts(&range, after.as_ref(), most);
-                self.root_events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                    owner,
-                    rows,
-                    next,
-                    texts,
-                }));
-            }
+            engine::Request::Store(request) => self.store_request(request),
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
             engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
             | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),

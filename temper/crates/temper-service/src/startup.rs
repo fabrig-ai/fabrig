@@ -366,15 +366,22 @@ fn load_document_over(
         }
     }
     let engine = match engine_at {
-        Some(at) => match temper_engine_service::startup::engine_with_sources(document, at, directories, given, sources) {
-            Ok(mut engine) => {
-                temper_engine_service::startup::check_fleet_grace(&engine, &mut problems);
-                if check_start { checks::figures(&engine, &mut problems); }
-                engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
-                Some(engine)
+        Some(at) => {
+            match temper_engine_service::startup::engine_with_sources(document, at, directories, given, sources) {
+                Ok(mut engine) => {
+                    temper_engine_service::startup::check_fleet_grace(&engine, &mut problems);
+                    if check_start {
+                        checks::figures(&engine, &mut problems);
+                    }
+                    engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
+                    Some(engine)
+                }
+                Err(found) => {
+                    problems.append(found, &root.member(b"engine"));
+                    None
+                }
             }
-            Err(found) => { problems.append(found, &root.member(b"engine")); None }
-        },
+        }
         None => None,
     };
     let ats = match worker_at {
@@ -607,10 +614,16 @@ impl CheckedStart {
 /// Check the box with its already composed worker figures.
 #[expect(clippy::too_many_arguments, reason = "the box hands over its composed worker beside startup inputs")]
 pub fn checked_start_with_worker(
-    document: &[u8], directories: &config::Directories, files: &settings::Files,
-    agent: Option<&settings::Agent>, seeds: &settings::Seeds, forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>, given: &crate::stock::Given,
-    git: Option<&[u8]>, part: Option<WorkerPart>,
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    git: Option<&[u8]>,
+    part: Option<WorkerPart>,
 ) -> Result<CheckedStart, Problems> {
     checked_start_using(document, directories, files, agent, seeds, forges, setup, given, git, part)
 }
@@ -673,16 +686,24 @@ fn checked_start_using(
         Some(agent) => temper_service_core::derived::Sources::agent(&agent.declaration()),
         None => temper_service_core::derived::STOCK,
     };
-    let mut parsed = load_with_sources(document, directories, true, given, sources)?.1
+    let mut parsed = load_with_sources(document, directories, true, given, sources)?
+        .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
         let mut found = temper_worker_service::startup::Problems::empty();
         let own = worker::application::fixed(directories, git, &mut found);
-        if !found.is_empty() { return Err(problems::from_worker(found)); }
+        if !found.is_empty() {
+            return Err(problems::from_worker(found));
+        }
         parsed.application.workers = Box::new([own.expect("fixed paths checked")]);
     }
-    let figures = part.as_ref().and_then(|part| part.figures.clone());
-    if let Some(part) = part { parsed.workers = Box::new([part.worker.jig]); }
+    let figures = match &part {
+        Some(part) => part.figures.clone(),
+        None => None,
+    };
+    if let Some(part) = part {
+        parsed.workers = Box::new([part.worker.jig]);
+    }
 
     let agent = match parsed.workers.first() {
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
@@ -928,12 +949,20 @@ pub fn with_setup_given(
 /// Construct the box with its worker already composed from engine figures.
 #[expect(clippy::too_many_arguments, reason = "startup accepts the composed worker beside its runtime facts")]
 pub fn with_setup_worker_given(
-    document: &[u8], directories: &config::Directories, files: &settings::Files,
-    agent: Option<&settings::Agent>, seeds: &settings::Seeds, accounts: Option<AccountsRuntime>,
-    runtime: Option<WorkerRuntime>, forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>, box_line_bytes: Option<u32>,
-    program_login: Option<Box<[u8]>>, given: &crate::stock::Given,
-    program_environment: Box<[u8]>, part: Option<WorkerPart>,
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    runtime: Option<WorkerRuntime>,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    box_line_bytes: Option<u32>,
+    program_login: Option<Box<[u8]>>,
+    given: &crate::stock::Given,
+    program_environment: Box<[u8]>,
+    part: Option<WorkerPart>,
 ) -> Result<Service, Problems> {
     let checked = checked_start_using(document, directories, files, agent, seeds, forges, setup, given, None, part)?;
     from_checked(checked, files, agent, seeds, accounts, runtime, box_line_bytes, program_login, program_environment)
@@ -941,9 +970,15 @@ pub fn with_setup_worker_given(
 /// Construct from typed startup configuration (protocol/configuration/moved.md, 2).
 #[expect(clippy::too_many_arguments, reason = "the prepared start takes the same runtime facts as its document entry")]
 pub fn from_checked(
-    checked: CheckedStart, files: &settings::Files, agent: Option<&settings::Agent>,
-    seeds: &settings::Seeds, accounts: Option<AccountsRuntime>, runtime: Option<WorkerRuntime>,
-    box_line_bytes: Option<u32>, program_login: Option<Box<[u8]>>, program_environment: Box<[u8]>,
+    checked: CheckedStart,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    runtime: Option<WorkerRuntime>,
+    box_line_bytes: Option<u32>,
+    program_login: Option<Box<[u8]>>,
+    program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
     let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings, figures } = checked;
     engine.program_environment = program_environment;

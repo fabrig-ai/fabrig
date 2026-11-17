@@ -248,8 +248,12 @@ pub fn worker_part(
     let at = member(&document, 0, b"workers").expect("checked workers");
     let ats = read::list(&document, at, document.len()).expect("checked worker list");
     let jig = temper_service_core::derived::worker_document(
-        &document, *ats.get(0).expect("one worker"), directories, temper_service_core::derived::STOCK
-    ).expect("checked worker");
+        &document,
+        *ats.get(0).expect("one worker"),
+        directories,
+        temper_service_core::derived::STOCK,
+    )
+    .expect("checked worker");
     let mut problems = Problems::empty();
     let (_, limits) = application::read(
         &document,
@@ -335,13 +339,21 @@ fn checked_worker_part(
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
-    if part.figures.is_none() && let Some(document) = &part.document {
+    if part.figures.is_none()
+        && let Some(document) = &part.document
+    {
         let sources = temper_service_core::derived::Sources::agent(&agent.declaration());
         let at = member(document, 0, b"workers").expect("checked workers");
         let ats = read::list(document, at, document.len()).expect("checked worker list");
-        part.worker.jig = temper_service_core::derived::worker_document(
-            document, *ats.get(0).expect("one worker"), &part.directories, sources
-        ).map_err(|found| Problems::jig(found, &indexed(0)))?;
+        part.worker.jig = match temper_service_core::derived::worker_document(
+            document,
+            *ats.get(0).expect("one worker"),
+            &part.directories,
+            sources,
+        ) {
+            Ok(worker) => worker,
+            Err(found) => return Err(Problems::jig(found, &indexed(0))),
+        };
         let at = member(document, 0, b"application").expect("checked application");
         let Some((_, limits)) = application::read_over(document, at, &part.directories, sources, &mut problems) else {
             return Err(problems);

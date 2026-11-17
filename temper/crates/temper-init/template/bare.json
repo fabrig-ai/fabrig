@@ -3,6 +3,9 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48,
         "authority.executors": 22,
         "clients.exchanges": 12,
         "clients.streams": 8,

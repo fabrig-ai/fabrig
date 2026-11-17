@@ -396,7 +396,6 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
         let _value = read::text(&d, bundle, 4096, &ap.member(b"clients").member(b"bundle"))?;
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
-    worker(&d, &paths.claude, &mut edits)?;
     capacity(&d, &mut edits)?;
     Ok(Documents {
         temper: edits.finish(&d)?,
@@ -527,14 +526,6 @@ fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path
     edits.text(d, transport, b"plaintext", &sp.member(b"transport"))?;
     tls(d, sign_in, edits, &sp)?;
     Ok(())
-}
-fn worker(d: &Document, claude: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
-    let root = Path::root();
-    let application = member(d, 0, b"application", &root)?;
-    let workers = member(d, application, b"workers", &root.member(b"application"))?;
-    let workers = read::list(d, workers, 1, &root.member(b"application").member(b"workers"))?;
-    let worker = *workers.get(0).ok_or(read::why(&root, b"one worker required"))?;
-    object_member(d, worker, b"claude", &text(claude)?, edits)
 }
 fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Result<Box<[u8]>, Refusal> {
     let p = Path::root().member(b"application").member(b"clients").member(b"listener");

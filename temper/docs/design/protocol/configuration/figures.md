@@ -183,7 +183,9 @@ written as JSON by the worker's start:
   `address` as `HOST:PORT`, its `connect` and `handshake` in
   milliseconds, its `transport`, `server_name` and `trust`, its
   `headers`, its `program` when it names one, and its `limits`, with
-  `head` and `idle` in milliseconds and `oversized_reasoning`.
+  `head` and `idle` in milliseconds and `oversized_reasoning`. Smith's
+  protocol provider is `openai` for dialect 3 and `anthropic` for dialect 2;
+  an engine-local provider name such as `demo` remains in the figures.
 - **`programs.claude_code.path`** is the `claude` found on
   `PATH` at start, or `"fetched"` with none (`../setup/owned.md`, 6).
   Its `directory` is `programs` in the data directory.

@@ -469,7 +469,14 @@ impl Component {
     fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
         let Some(figures) = &self.figures else { return true };
         let mut parts = figures.clone().into_parts();
-        let Some(worker) = self.workers.iter().find(|worker| worker.number.checked_sub(1) == state.worker) else {
+        let mut admitted = None;
+        for worker in &self.workers {
+            if worker.number.checked_sub(1) == state.worker {
+                admitted = Some(worker);
+                break;
+            }
+        }
+        let Some(worker) = admitted else {
             self.refuse(now, connection, state, Reason::NotAdmitted.code(), Box::new([]), out);
             return false;
         };

@@ -1,4 +1,5 @@
 //! Named stock and fixture limits (jig/docs/design/protocol/limits.md).
+#![cfg(test)]
 use jig_protocol_config::{self as config, DocumentLimits, Limits, Path, Problems, What, overrides};
 
 fn path(segments: &[&[u8]]) -> Path {
@@ -17,21 +18,20 @@ fn parse(bytes: &[u8]) -> Result<Limits, Problems> {
 }
 
 fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
-    let errors = parse(bytes).unwrap_err();
-    assert_eq!(errors.problems.len(), 1);
-    assert_eq!(errors.problems.get(0).unwrap().path, path(segments));
-    assert_eq!(errors.problems.get(0).unwrap().what, what);
+    let errors = parse(bytes).expect_err("invalid override is refused");
+    assert_eq!(errors.problems.len(), 1, "one problem per invalid override");
+    let error = errors.problems.get(0).expect("one override problem");
+    assert_eq!(error.path, path(segments), "the problem names the invalid override");
+    assert_eq!(error.what, what, "the problem describes the invalid override");
 }
 
 #[test]
 fn named_limits_round_trip_between_both_profiles() {
-    for (from, to) in [
-        (jig_protocol_config_fixtures::small(), config::stock()),
-        (config::stock(), jig_protocol_config_fixtures::small()),
-    ] {
-        let wanted = from;
-        let mut got = to;
-        let values = overrides::list(&wanted);
+    let small = jig_protocol_config_fixtures::small();
+    let stock = config::stock();
+    for (wanted, to) in [(&small, &stock), (&stock, &small)] {
+        let mut got = *to;
+        let values = overrides::list(wanted);
         assert_eq!(values.len(), u32::try_from(config::names::NAMES.len()).unwrap());
         for (index, (name, value)) in values.iter().enumerate() {
             for (prior, _) in values.iter().take(index) {
@@ -40,7 +40,7 @@ fn named_limits_round_trip_between_both_profiles() {
             overrides::apply(&mut got, name.as_bytes(), *value).unwrap();
         }
         for name in &config::names::NAMES {
-            assert_eq!((name.value)(&got), (name.value)(&wanted), "{}", name.name);
+            assert_eq!((name.value)(&got), (name.value)(wanted), "{}", name.name);
         }
     }
 }

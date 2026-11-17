@@ -8,6 +8,23 @@ fn set(value: &mut Value, path: &str, replacement: Value) {
 }
 
 #[test]
+fn engine_figures_keep_the_hub_capacity_required_by_the_stock_agent() {
+    let facts = fixtures::facts();
+    let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
+    for files in [boxed.files.as_ref(), bare.as_ref()] {
+        let document = parse(file_bytes(files, b"temper.json"));
+        let overrides = &document["engine"]["limits"]["overrides"];
+        assert_eq!(overrides["hub.accounts"], 4);
+        assert_eq!(overrides["hub.event_bytes"], 10660);
+        assert_eq!(overrides["hub.run_calls"], 48);
+        for worker in document["workers"].as_array().unwrap() {
+            assert!(worker.get("limits").is_none());
+        }
+    }
+}
+
+#[test]
 fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
     let facts = fixtures::facts();
     let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();

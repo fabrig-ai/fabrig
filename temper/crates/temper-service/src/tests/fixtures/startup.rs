@@ -58,10 +58,9 @@ pub fn parsed() -> skein_json::Document {
 }
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
-    for (path, value) in [
-        (b"worker-secret".as_slice(), super::worker::WORKER_SECRET),
-        (super::AGENT_JSON, b"{}".as_slice()),
-    ] {
+    for (path, value) in
+        [(b"worker-secret".as_slice(), super::worker::WORKER_SECRET), (super::AGENT_JSON, b"{}".as_slice())]
+    {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
     }
     settings::Files { entries }
@@ -170,9 +169,6 @@ fn engine_turn_limits() -> String {
     let mut result = overrides.split_once('}').unwrap().0.to_string();
     result.push('}');
     result
-}
-fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {

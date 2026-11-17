@@ -311,91 +311,95 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             };
             engine.events.push(crate::tools::result(payload, &outcome, change));
         }
-        root::WorkerRequest::Deliver(delivery) => match delivery {
-            root::Delivery::AssignedJob { channel, job, workspace } => {
-                let (run, attempt) = (job.run, job.attempt);
-                match job_assignment(engine, channel, job, workspace.as_ref()) {
-                    Some(event) => engine.workers.down(engine.env.now, event, &mut engine.events),
-                    None => engine.events.push(root::Event::Worker(root::WorkerInput::Link {
-                        channel,
-                        link: root::Link::Up {
-                            up: jig_domain_host::LinkUp::JobAnswer {
-                                run,
-                                attempt,
-                                answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
-                                    jig_domain_host::JobInvalid::Start {
-                                        why: b"assignment cannot encode".as_slice().into(),
-                                    },
-                                )),
-                            },
-                            parts: root::Parts::none(),
-                        },
-                    })),
-                }
-            }
-            root::Delivery::Assigned { channel, assignment } => {
-                // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 8.1).
-                engine.workers.encoding.deployment = engine.domain.deployment().id;
-                engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
-            }
-            root::Delivery::Link { channel, down } => {
-                // Includes addressed retryable capacity refusals, without a retained call flight.
-                engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
-            }
-            root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
-                engine.env.now,
-                jig_protocol_engine_workers::Event::TurnBusy {
+        root::WorkerRequest::Deliver(delivery) => worker_delivery(engine, delivery),
+    }
+}
+
+fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
+    match delivery {
+        root::Delivery::AssignedJob { channel, job, workspace } => {
+            let (run, attempt) = (job.run, job.attempt);
+            match job_assignment(engine, channel, job, workspace.as_ref()) {
+                Some(event) => engine.workers.down(engine.env.now, event, &mut engine.events),
+                None => engine.events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
-                    run: skein_lib::Token::new(task),
-                    attempt: skein_lib::Token::new(attempt),
-                    turn,
-                },
-                &mut engine.events,
-            ),
-            root::Delivery::Refuse { channel, hello } => {
-                let event = refuse(engine, channel, hello);
-                engine.workers.down(engine.env.now, event, &mut engine.events);
+                    link: root::Link::Up {
+                        up: jig_domain_host::LinkUp::JobAnswer {
+                            run,
+                            attempt,
+                            answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
+                                jig_domain_host::JobInvalid::Start {
+                                    why: b"assignment cannot encode".as_slice().into(),
+                                },
+                            )),
+                        },
+                        parts: root::Parts::none(),
+                    },
+                })),
             }
-            root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
-            root::Delivery::Push(_)
-            | root::Delivery::WorkerFigures { .. }
-            | root::Delivery::PlaygroundNote { .. }
-            | root::Delivery::Procedure { .. }
-            | root::Delivery::Application { .. }
-            | root::Delivery::Forges { .. }
-            | root::Delivery::ForgeDocument { .. }
-            | root::Delivery::Trials { .. }
-            | root::Delivery::Ways { .. }
-            | root::Delivery::Approvals { .. }
-            | root::Delivery::Panel { .. }
-            | root::Delivery::Public { .. }
-            | root::Delivery::WebReply { .. }
-            | root::Delivery::CarriedUnused { .. }
-            | root::Delivery::ForgeRead { .. }
-            | root::Delivery::Read { .. }
-            | root::Delivery::Document { .. }
-            | root::Delivery::WatchEnded { .. }
-            | root::Delivery::SourceSignedOut { .. }
-            | root::Delivery::Result { .. }
-            | root::Delivery::ProjectMade { .. }
-            | root::Delivery::ProjectReleased { .. }
-            | root::Delivery::MoveStanding { .. }
-            | root::Delivery::FindingsOwned { .. }
-            | root::Delivery::ForgeCommitted { .. }
-            | root::Delivery::ForgeCall { .. }
-            | root::Delivery::Bound { .. }
-            | root::Delivery::Relay { .. }
-            | root::Delivery::ReadEscalationDecision { .. }
-            | root::Delivery::Fleet(_)
-            | root::Delivery::PartLoad { .. }
-            | root::Delivery::ReadLoad { .. }
-            | root::Delivery::PublicWait { .. }
-            | root::Delivery::NotesLoad { .. }
-            | root::Delivery::Start(_)
-            | root::Delivery::Load { .. }
-            | root::Delivery::Restarting { .. }
-            | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
-        },
+        }
+        root::Delivery::Assigned { channel, assignment } => {
+            // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 8.1).
+            engine.workers.encoding.deployment = engine.domain.deployment().id;
+            engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
+        }
+        root::Delivery::Link { channel, down } => {
+            // Includes addressed retryable capacity refusals, without a retained call flight.
+            engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
+        }
+        root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
+            engine.env.now,
+            jig_protocol_engine_workers::Event::TurnBusy {
+                channel,
+                run: skein_lib::Token::new(task),
+                attempt: skein_lib::Token::new(attempt),
+                turn,
+            },
+            &mut engine.events,
+        ),
+        root::Delivery::Refuse { channel, hello } => {
+            let event = refuse(engine, channel, hello);
+            engine.workers.down(engine.env.now, event, &mut engine.events);
+        }
+        root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
+        root::Delivery::Push(_)
+        | root::Delivery::WorkerFigures { .. }
+        | root::Delivery::PlaygroundNote { .. }
+        | root::Delivery::Procedure { .. }
+        | root::Delivery::Application { .. }
+        | root::Delivery::Forges { .. }
+        | root::Delivery::ForgeDocument { .. }
+        | root::Delivery::Trials { .. }
+        | root::Delivery::Ways { .. }
+        | root::Delivery::Approvals { .. }
+        | root::Delivery::Panel { .. }
+        | root::Delivery::Public { .. }
+        | root::Delivery::WebReply { .. }
+        | root::Delivery::CarriedUnused { .. }
+        | root::Delivery::ForgeRead { .. }
+        | root::Delivery::Read { .. }
+        | root::Delivery::Document { .. }
+        | root::Delivery::WatchEnded { .. }
+        | root::Delivery::SourceSignedOut { .. }
+        | root::Delivery::Result { .. }
+        | root::Delivery::ProjectMade { .. }
+        | root::Delivery::ProjectReleased { .. }
+        | root::Delivery::MoveStanding { .. }
+        | root::Delivery::FindingsOwned { .. }
+        | root::Delivery::ForgeCommitted { .. }
+        | root::Delivery::ForgeCall { .. }
+        | root::Delivery::Bound { .. }
+        | root::Delivery::Relay { .. }
+        | root::Delivery::ReadEscalationDecision { .. }
+        | root::Delivery::Fleet(_)
+        | root::Delivery::PartLoad { .. }
+        | root::Delivery::ReadLoad { .. }
+        | root::Delivery::PublicWait { .. }
+        | root::Delivery::NotesLoad { .. }
+        | root::Delivery::Start(_)
+        | root::Delivery::Load { .. }
+        | root::Delivery::Restarting { .. }
+        | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
     }
 }
 
