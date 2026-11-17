@@ -199,6 +199,8 @@ pub fn worker<E>(limits: &worker_domain::Limits, problems: &mut SharedProblems<S
     reason = "the shell reads the worker handover; raw override provenance stays service-private"
 )]
 pub struct WorkerPart {
+    document: Option<skein_json::Document>,
+    directories: config::Directories,
     pub(crate) call_answer: CallAnswer,
     pub worker: settings::Worker,
     pub limits: Limits,
@@ -218,6 +220,8 @@ impl WorkerPart {
         limits: Limits,
     ) -> Self {
         Self {
+            document: None,
+            directories: directories.clone(),
             call_answer: CallAnswer::Explicit,
             named: NamedWorker {
                 root: own.root.clone(),
@@ -235,20 +239,25 @@ impl WorkerPart {
     }
 }
 /// Read exactly a worker's part for serve and program-login (protocol/cluster.md, 1).
-pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
+pub fn worker_part(
+    input: &[u8],
+    directories: &config::Directories,
+    git: Option<&[u8]>,
+) -> Result<WorkerPart, Problems> {
     let document = document(input, directories, true)?;
     let at = member(&document, 0, b"workers").expect("checked workers");
     let ats = read::list(&document, at, document.len()).expect("checked worker list");
-    let mut jig = config::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
+    let jig = temper_service_core::derived::worker_document(
+        &document, *ats.get(0).expect("one worker"), directories, temper_service_core::derived::STOCK
+    ).expect("checked worker");
     let mut problems = Problems::empty();
-    let (own, limits) = application::read(
+    let (_, limits) = application::read(
         &document,
         member(&document, 0, b"application").expect("checked application"),
         directories,
         &mut problems,
     )
     .expect("checked worker part");
-    jig.limits = Some(config::profile(config::Profile::Standard));
     let mut files = config::worker_files(&jig);
     for file in &mut files {
         let mut path = indexed(0);
@@ -257,7 +266,13 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
         }
         file.at = path;
     }
+    let own = application::fixed(directories, git, &mut problems);
+    if !problems.is_empty() {
+        return Err(problems);
+    }
+    let own = own.expect("constant worker paths checked");
     Ok(WorkerPart {
+        directories: directories.clone(),
         call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
         named: NamedWorker {
             root: own.root.clone(),
@@ -271,6 +286,7 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
         claude: own.claude,
         environment: own.environment,
         figures: None,
+        document: Some(document),
     })
 }
 /// Construct a worker-only service.
@@ -319,6 +335,20 @@ fn checked_worker_part(
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
+    if part.figures.is_none() && let Some(document) = &part.document {
+        let sources = temper_service_core::derived::Sources::agent(&agent.declaration());
+        let at = member(document, 0, b"workers").expect("checked workers");
+        let ats = read::list(document, at, document.len()).expect("checked worker list");
+        part.worker.jig = temper_service_core::derived::worker_document(
+            document, *ats.get(0).expect("one worker"), &part.directories, sources
+        ).map_err(|found| Problems::jig(found, &indexed(0)))?;
+        let at = member(document, 0, b"application").expect("checked application");
+        let Some((_, limits)) = application::read_over(document, at, &part.directories, sources, &mut problems) else {
+            return Err(problems);
+        };
+        part.limits = limits;
+    }
+
     if let Err(what) = part.call_answer.compose(
         part.worker.jig.limits.as_mut().expect("checked worker limits"),
         agent.tool_payload(),
@@ -416,7 +446,12 @@ fn validate(
         if moved {
             continue;
         }
-        match config::worker(document, *at, directories) {
+        match temper_service_core::derived::worker_document(
+            document,
+            *at,
+            directories,
+            temper_service_core::derived::STOCK,
+        ) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
             }
@@ -466,7 +501,7 @@ pub fn check(
     files: &settings::Files,
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
-    let mut part = worker_part(input, directories)?;
+    let mut part = worker_part(input, directories, None)?;
     check_worker_part(&mut part, files, agent)
 }
 

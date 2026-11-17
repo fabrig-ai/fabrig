@@ -38,7 +38,7 @@ fn given(document: &Value, agents: &temper_client_protocol_wire::v1::AgentFigure
     )
     .expect("engine configuration");
     let own =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Standard);
+        temper_engine_service_vocabulary::limits::stock();
     let figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(agents);
     let own = &input["application"]["workers"][0];
     let claude = own.get("claude").and_then(Value::as_str).map(std::path::Path::new);
@@ -82,7 +82,7 @@ fn data(config: &std::path::Path) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
     if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
 }
-/// Apply a fixture's agent changes to the engine document and the kind-20 startup copy.
+/// Apply a fixture's agent changes to the engine document and the kind-21 startup copy.
 pub fn install(directory: &std::path::Path, agent: &Value) {
     let path = directory.join("temper.json");
     let mut document = serde_json::from_slice(&std::fs::read(&path).expect("temper fixture")).expect("temper JSON");

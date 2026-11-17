@@ -101,6 +101,7 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     let mut part = temper_worker_service::startup::worker_part(
         &serde_json::to_vec(&document).expect("pin fixture"),
         &temper_service_shell::jig_directories(&super::configuration::directories(directory)),
+        None,
     )
     .expect("pin fixture");
     let program = directory.join("temper-agent");

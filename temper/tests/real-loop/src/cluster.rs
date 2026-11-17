@@ -109,6 +109,16 @@ pub(crate) enum Shape {
     Worker { name: &'static str, engine: Option<SocketAddr>, started: bool, grace: skein_lib::Duration },
 }
 impl Shape {
+    pub(crate) fn graces(&self, agent: &serde_json::Value) -> jig_protocol_config::Graces {
+        let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
+        jig_protocol_config::Graces {
+            grace: *grace,
+            drain: skein_lib::Duration::from_millis(10),
+            agent_stop: agent_stop_bound(agent),
+            delivery: skein_lib::Duration::from_millis(5),
+            save: skein_lib::Duration::from_millis(5),
+        }
+    }
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
@@ -136,7 +146,7 @@ impl Shape {
         let silence_ms = 3 * ping_ms;
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
-        let agent: serde_json::Value = serde_json::from_slice(
+        let mut agent: serde_json::Value = serde_json::from_slice(
             &std::fs::read(if data.join("agent.json").exists() {
                 data.join("agent.json")
             } else {
@@ -169,7 +179,7 @@ impl Shape {
                 document["engine"]["llm"]["providers"][0]["name"] = "openai".into();
                 document["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
-                document["application"]["workers"] = json!([]);
+
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
                 document["engine"]["hosts"]["workers"] =
                     workers.iter().map(|name| json!({"name":name,"digest":format!("secrets/{name}.digest")})).collect();
@@ -177,7 +187,6 @@ impl Shape {
                 document["engine"]["limits"]["overrides"]["fleet.workers"] = workers.len().into();
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
                 document["engine"]["limits"]["overrides"]["fleet.attempts"] = workers.len().into();
-                document["engine"]["limits"]["overrides"]["fleet.grace_ms"] = (stop_bound_ms + 1).into();
                 document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
                 document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
@@ -208,14 +217,10 @@ impl Shape {
                 worker["name"] = (*name).into();
                 worker["secret"] = format!("secrets/{name}.secret").into();
                 worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
-                worker["graces"] = json!({"grace_ms":grace_ms,"drain_ms":graces.drain.as_millis(),"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
-                document =
-                    json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"]}});
-                fixtures::private(
-                    &data.join(format!("secrets/{name}.secret")),
-                    format!("{name}-fixture-secret").as_bytes(),
-                )
-                .expect("fixture secret");
+                worker.as_object_mut().expect("worker").remove("graces");
+                worker.as_object_mut().expect("worker").remove("programs");
+                document = json!({"workers":document["workers"],"application":{}});
+
             }
         }
         fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
@@ -303,7 +308,7 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
     temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
 }
 
-/// Keep test-sized kind 20 after the engine's first durable initialization.
+/// Keep test-sized kind 21 after the engine's first durable initialization.
 pub(crate) fn seed_agents(data: &Path, agent: &serde_json::Value) {
     use temper_client_protocol_wire::v1 as w;
     use temper_engine_domain_forge::{self as forge, settings as s};
@@ -356,7 +361,7 @@ pub(crate) fn seed_agents(data: &Path, agent: &serde_json::Value) {
     let value =
         w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
     let size = value.measure();
-    let key = s::SettingKey { kind: 20, scope: 0, number: 1, slot: s::SettingSlot::Change };
+    let key = s::SettingKey { kind: 21, scope: 0, number: 1, slot: s::SettingSlot::Change };
     let row = forge::Stored::Setting(s::SettingRow {
         key,
         edit: s::Edit::Set(s::SizedValue { value: s::Value::AgentFigures(value), size }),

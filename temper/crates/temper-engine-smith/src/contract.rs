@@ -14,8 +14,11 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v3.txt"),
     include_str!("../contract/host-tools-v4.txt"),
     include_str!("../contract/host-tools-v5.txt"),
+    include_str!("../contract/host-tools-v6.txt"),
 ];
 const ADAPTERS: &[Adapter] = &[
+    Adapter { version: 5, tool: b"settings", map: settings },
+    Adapter { version: 5, tool: b"propose_settings", map: propose_settings },
     Adapter { version: 1, tool: b"decided", map: decided },
     Adapter { version: 2, tool: b"decided", map: decided },
     Adapter { version: 1, tool: b"settings", map: settings },
@@ -83,6 +86,16 @@ fn propose_settings(input: &run::HostInput) -> Result<Mapped, Problem> {
 #[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
 fn delegate(input: &run::HostInput) -> Result<Mapped, Problem> {
     Ok(Mapped { tool: b"delegate".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"settings".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn propose_settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"propose_settings".as_slice().into(), input: input.clone() })
 }
 
 impl Contract {

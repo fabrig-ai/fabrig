@@ -268,3 +268,34 @@ fn milestone_tag_count_and_state_words_keep_their_styles() {
         }
     }
 }
+
+#[test]
+fn milestone_rows_cut_the_title_at_eighty_but_goal_names_at_forty() {
+    for (title, cut) in f::row_titles() {
+        let mut next = 50;
+        let mut milestone = pure::Milestone::new(f::PROJECT, 99, &mut next);
+        milestone.goals.push(line(7, title)).unwrap();
+        let goal_name = crate::common::chat::cut_title(title, 40, false);
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            milestones::row(
+                &mut b,
+                &words,
+                &mut bindings,
+                &line(99, title),
+                &milestone,
+                &temper_client_domain::pages::goals::Goals::new(1),
+                &Names::new(),
+            );
+            let tree = b.finish();
+            let link = tree.nodes().iter().find(|node| node.role == Role::Link).unwrap();
+            assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let headline =
+                tree.nodes().iter().position(|node| node.styles.as_slice().contains(&look::GOALS_LINE)).unwrap();
+            assert!(skein_lib::bytes::find(&f::node_text(&tree, headline), &goal_name).is_some());
+            assert!(goal_name.len() < cut.len());
+        }
+    }
+}

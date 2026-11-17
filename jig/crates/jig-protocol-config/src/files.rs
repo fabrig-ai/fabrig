@@ -87,7 +87,7 @@ fn trust(files: &mut List<File>, transport: &Transport, at: &Path) {
 #[must_use]
 pub fn worker_files(worker: &Worker) -> Box<[File]> {
     let mut files = List::with_capacity(2);
-    let limits = worker.limits.unwrap_or(crate::profile(crate::Profile::Standard));
+    let limits = worker.limits.unwrap_or(crate::stock());
     push(&mut files, Path::root().member(b"secret"), &worker.secret, limits.link.secret.saturating_add(1), true);
     if let Some(agent) = &worker.agent {
         push(

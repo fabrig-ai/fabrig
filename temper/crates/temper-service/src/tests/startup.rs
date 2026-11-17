@@ -40,38 +40,6 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 }
 
 #[test]
-fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_862);
-    fixtures::start(
-        &document,
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    )
-    .expect("a whole frame exactly at Small's page ceiling starts");
-    let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .unwrap();
-    assert_eq!(opened.store.store.page.bytes, 4_582_931);
-}
-
-#[test]
-fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_863);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4582932 bytes, needs a store page past the profile's ceiling of 4582931 bytes\n";
-    let named = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(lines(&named).as_ref(), expected);
-    let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .unwrap_err();
-    assert_eq!(lines(&opened).as_ref(), expected);
-}
-
-#[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
     let document = transcript_document(33_554_433);
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
@@ -116,7 +84,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
-    const TRANSCRIPT: u32 = 3_000_000;
+    const TRANSCRIPT: u32 = 10_000_000;
     // With a smaller agent turn the page drives the requirement; with a turn
     // as large as the transcript the decoded row drives it instead.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
@@ -232,8 +200,8 @@ fn startup_names_a_whole_file_bound_below_the_manifest() {
 
 #[test]
 fn startup_checks_the_effective_codec_envelope_before_generic_sizing() {
-    let jig = config::profile(config::Profile::Small);
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let mut own = temper_limits_fixtures::small();
     // Parsed core limits remain valid. Deliberately corrupt the effective root
     // answer bound to exercise this check independently of parsed admission;
     // journal capacity no longer widens the configured answer bound (R3-114).
@@ -255,8 +223,8 @@ fn startup_checks_the_effective_codec_envelope_before_generic_sizing() {
 
 #[test]
 fn startup_checks_a_single_policy_row_at_its_bound_and_one_byte_past_it() {
-    let jig = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let mut root = crate::limits::engine_candidate(&jig, &own);
     let bound = temper_engine_domain::policy_row_bound(&root).expect("policy row bound");
     for (capacity, expected) in [
@@ -275,8 +243,8 @@ fn startup_checks_a_single_policy_row_at_its_bound_and_one_byte_past_it() {
 
 #[test]
 fn startup_refuses_policy_row_arithmetic_overflow_by_name() {
-    let jig = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let mut root = crate::limits::engine_candidate(&jig, &own);
     root.policy_bytes = u64::MAX;
     assert_eq!(temper_engine_domain::policy_row_bound(&root), None);
@@ -312,35 +280,16 @@ fn the_template_shaped_demo_reads_into_its_public_fields() {
     assert!(demo.key_file.ends_with(b"llm.key"));
 }
 #[test]
-fn the_welcome_member_reads_as_the_document_says() {
-    let document = fixtures::document();
-    let input = fixtures::value(&document, b"application");
-    for (member, expected) in [("\"welcome\":true,", true), ("\"welcome\":false,", false), ("", false)] {
-        let input = format!("{{{member}{}", &core::str::from_utf8(&input).unwrap()[1..]);
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(lines(&problems).as_ref(), b"", "{member}");
-        assert_eq!(members.unwrap().welcome, expected, "{member}");
-        let document = fixtures::with(&fixtures::document(), b"application", input.as_bytes());
-        fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        )
-        .expect("a boolean or absent welcome starts");
-    }
-}
-#[test]
-fn a_welcome_that_is_no_boolean_is_refused_at_its_path() {
-    for value in ["\"yes\"", "1", "null", "{}", "[]"] {
+fn the_welcome_member_is_refused_with_its_moved_words() {
+    for value in ["true", "false", "\"yes\"", "1", "null", "{}", "[]"] {
         let input = format!("{{\"welcome\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
         let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
         assert!(members.is_none(), "{value}");
-        assert_eq!(lines(&problems).as_ref(), b"application.welcome: wrong value kind\n", "{value}");
+        assert_eq!(
+            lines(&problems).as_ref(),
+            b"application.welcome: moved: the welcome is a setting; change it with temper ctl settings\n",
+            "{value}"
+        );
     }
 }
 #[test]
@@ -430,7 +379,7 @@ fn the_standalone_example_reads_into_its_members() {
     let (members, problems) = application(fixtures::APPLICATION, &jig);
     assert_eq!(&*lines(&problems), b"", "example accepted");
     let members = members.unwrap();
-    assert_eq!(members.workers[0].git.as_deref(), Some(b"/usr/bin/git".as_slice()));
+    assert_eq!(members.workers.len(), 0, "an application part carries no worker configuration");
     assert_eq!(application::files(&members).len(), 0, "all private files");
     let resolved = application::resolve(&members, &fixtures::files(), &mut Problems::empty()).unwrap();
     assert!(resolved.webhooks.is_none());
@@ -462,8 +411,8 @@ fn refused(input: &[u8]) -> Box<[u8]> {
 }
 #[test]
 fn an_unknown_profile_is_refused_naming_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"small\"", "\"large\"");
-    assert_eq!(&*refused(input.as_bytes()), b"application.limits.profile: the only profile is \"small\"\n");
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"standard\"", "\"large\"");
+    assert_eq!(&*refused(input.as_bytes()), b"application.limits.profile: the only profile is \"standard\"\n");
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests format input and diagnostics")]
@@ -518,15 +467,18 @@ fn stored_application_members_are_refused_with_their_paths_and_reads() {
         (
             b"landing".as_slice(),
             br#"{"deployment":null,"projects":[]}"#.as_slice(),
-            "application.landing.deployment: landing rules live in the store; read them with temper ctl settings show landing-rule\n",
+            "application.landing: moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply\n",
         ),
         (
             b"landing".as_slice(),
             br#"{"projects":[{"project":1,"rules":null}]}"#.as_slice(),
-            "application.landing.projects[0].rules: landing rules live in the store; read them with temper ctl settings show landing-rule --project\n",
+            "application.landing: moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply\n",
         ),
     ] {
-        let input = fixtures::with(fixtures::APPLICATION, path, value);
+        let mut input = format!("{{\"{}\":", core::str::from_utf8(path).unwrap()).into_bytes();
+        input.extend_from_slice(value);
+        input.push(b',');
+        input.extend_from_slice(&fixtures::APPLICATION[1..]);
         let (members, problems) = application(&input, &jig);
         assert!(members.is_none());
         assert_eq!(lines(&problems).as_ref(), expected.as_bytes());
@@ -590,22 +542,6 @@ fn jig_refusals_print_words() {
     }
 }
 #[test]
-fn members_and_references_are_checked() {
-    let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
-    for (from, to, expected) in [
-        ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
-        ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
-    ] {
-        let (members, problems) = application(input.replace(from, to).as_bytes(), &jig);
-        assert_eq!(members.is_some(), expected.is_empty(), "row {from}: {to}");
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "row {from}");
-        if expected.is_empty() {
-            assert_eq!(members.unwrap().workers[0].git, None);
-        }
-    }
-}
-#[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.files.len(), 2, "all files listed");
@@ -629,8 +565,8 @@ fn named_lists_each_file_with_its_bound_and_privacy() {
 fn named_returns_the_worker_root_and_the_agent_configuration() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"worker-root");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
+    assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
+    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), fixtures::AGENT_JSON);
 }
 #[test]
 fn a_file_named_but_not_given_refuses_the_start_naming_it() {
@@ -651,24 +587,18 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 }
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
-    let input = fixtures::document();
-    let input = core::str::from_utf8(&input)
-        .unwrap()
-        .replace("\"memory_bytes\": 1152921504606846976,", "\"memory_bytes\": \"bad\",");
-    let problems = crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
+    let input = fixtures::with(&fixtures::document(), b"engine.memory_bytes", br#""bad""#);
+    let problems = crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
 fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
     let input = fixtures::document();
-    let input = core::str::from_utf8(&input).unwrap();
-    let needle = "\"memory_bytes\": 1152921504606846976,";
-    assert_eq!(input.matches(needle).count(), 1);
-    let zero = input.replace(needle, "\"memory_bytes\": 0,");
-    let problems = crate::named(zero.as_bytes(), &config::Directories::working()).unwrap_err();
+    let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");
+    let problems = crate::named(&zero, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
-    let one = input.replace(needle, "\"memory_bytes\": 1,");
-    crate::named(one.as_bytes(), &config::Directories::working()).expect("a positive byte budget is valid");
+    let one = fixtures::with(&input, b"engine.memory_bytes", b"1");
+    crate::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
 }
 
 #[test]
@@ -752,21 +682,16 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_missing_setup_or_demo_is_refused_naming_its_path() {
-    for (member, expected) in [
-        ("\"machine\":{},", b"application.machine: missing\n".as_slice()),
-        ("\"demo\":null,", b"application.demo: missing\n".as_slice()),
-    ] {
-        let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(member, "");
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert!(members.is_none());
-        assert_eq!(&*lines(&problems), expected);
-    }
+fn a_missing_demo_is_refused_naming_its_path() {
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert!(members.is_none());
+    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
 }
 
 #[test]
 fn a_setup_or_box_override_is_handed_on_with_its_value() {
-    for (override_value, repositories) in [("", 2_u64), (",\"forge.client.repositories\":3", 3)] {
+    for (override_value, repositories) in [("", 6_u64), (",\"forge.client.repositories\":3", 3)] {
         let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
             "\"overrides\":{}",
             &["\"overrides\":{\"setup.backoff_ms\":2,\"box.steps\":3", override_value, "}"].concat(),
@@ -788,11 +713,8 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
 // client secret as private files, refusing either one missing by its path.
 #[test]
 fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
-    let document = core::str::from_utf8(&fixtures::document()).unwrap().replace(
-        "\"clients\": {",
-        r#""clients": {"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]},"#,
-    );
-    let named = crate::named(document.as_bytes(), &jig_protocol_config::Directories::working()).unwrap();
+    let document = fixtures::with(&fixtures::document(), b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]}}"#);
+    let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     for (name, expected) in [
         (b"provider.pem".as_slice(), b"engine.clients.provider.key: missing\n".as_slice()),
         (b"app.secret", b"engine.clients.provider.clients[0].secret: missing\n"),
@@ -854,15 +776,10 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
 fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values() {
     let directories = config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
     for (member, input, expected, refused) in [
-        (b"application.workers[0].root".as_slice(), br#""root""#.as_slice(), b"/data/root".as_slice(), false),
-        (b"application.workers[0].root", br#""/kept/root""#, b"/kept/root", false),
-        (b"engine.deployment.directory", br#""state""#, b"/data/state", false),
-        (b"engine.deployment.directory", br#""/kept/state""#, b"/kept/state", false),
-        (b"workers[0].secret", br#""secret""#, b"/data/secret", false),
+        (b"workers[0].secret".as_slice(), br#""secret""#.as_slice(), b"/data/secret".as_slice(), false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
         (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
         (b"engine.hosts.workers[0].digest", br#""/kept/digest""#, b"/kept/digest", false),
-        (b"application.workers[0].git", br#""git""#, b"", true),
         (b"application.clients.bundle", br#""bundle""#, b"", true),
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
     ] {
@@ -875,8 +792,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         } else {
             let named = result.unwrap();
             let value = match member {
-                b"application.workers[0].root" => &*named.worker.as_ref().expect("standalone worker").root,
-                b"engine.deployment.directory" => &*named.deployment,
                 b"application.clients.bundle" => named.bundle.as_deref().unwrap(),
                 _ => &*named.files.iter().find(|file| file.path.as_ref() == expected).expect("resolved file key").path,
             };
@@ -1097,542 +1012,6 @@ fn clients_public_bounds_dns_labels_and_the_host() {
     }
 }
 
-fn turn_projects(project: u32) -> Box<[u8]> {
-    format!(
-        r#"[{{"project":{project},"by":"turn","gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}}]}}]}}]"#
-    )
-    .into_bytes()
-    .into_boxed_slice()
-}
-fn turn_configuration(project: u32) -> (Option<application::Members>, Problems) {
-    let jig = fixtures::turn_jig();
-    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &turn_projects(project));
-    application(&input, &jig)
-}
-
-fn assert_landing_projects_start(projects: &[u8]) {
-    let document = fixtures::with(&fixtures::turn_document(), b"application.landing.projects", projects);
-    if let Err(problems) = fixtures::start(
-        &document,
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::turn_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    ) {
-        panic!("configured landing starts: {}", core::str::from_utf8(&lines(&problems)).unwrap());
-    }
-}
-
-#[test]
-fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
-    const ADOPTED: u32 = 2;
-    let (members, problems) = turn_configuration(ADOPTED);
-    assert!(problems.is_empty(), "{:?}", lines(&problems));
-    let members = members.unwrap();
-    let landing = members.landings.get(&ADOPTED).unwrap();
-    assert_eq!(landing.by, temper_engine_domain::Way::Turn);
-    assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
-    assert_landing_projects_start(&turn_projects(ADOPTED));
-}
-
-#[test]
-fn an_adopted_projects_batch_past_its_members_names_the_bound_not_the_project() {
-    // A staging deployment at batch 4 with forge.landing_members 2 was told only that its
-    // adopted project was an unknown reference.
-    const ADOPTED: u32 = 2;
-    let jig = fixtures::turn_jig();
-    let projects = format!(
-        r#"[{{"project":{ADOPTED},"by":"turn","batch":9,"gates":[{{"forge":1,"repository":1,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true}}],"tiers":[]}}]}}]"#
-    );
-    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-    let (_, problems) = application(&input, &jig);
-    let rendered = lines(&problems);
-    let text = core::str::from_utf8(&rendered).unwrap();
-    assert!(text.contains("batch passes forge.landing_members"), "{text}");
-    assert!(!text.contains("unknown reference"), "{text}");
-}
-
-#[test]
-fn queue_tiers_can_name_a_project_adopted_after_the_seed() {
-    use skein_forge::api::Repository;
-    use temper_engine_domain::{AfterLandingCheck, TierCheck, Way};
-    use temper_engine_domain_forge::Follows;
-    use temper_engine_domain_forge_tiers::Format;
-    const ADOPTED: u32 = 2;
-    let jig = fixtures::turn_jig();
-    for project in &jig.projects {
-        assert_ne!(project.number, ADOPTED);
-    }
-    for by in [r#""by":"queue","#, ""] {
-        let projects = format!(
-            r#"[{{"project":{ADOPTED},{by}"tier_retries":2,"verification_bound_ms":7200000,"gates":[{{"forge":1,"repository":1,"gates":[],"tiers":[{{"name":"slow","workflow":"slow.yml","ignored":[],"artifact":"report","format":"lines"}}]}}]}}]"#
-        );
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-        let (members, problems) = application(&input, &jig);
-        assert!(problems.is_empty(), "{by}: {:?}", lines(&problems));
-        let members = members.unwrap();
-        let landing = members.landings.get(&ADOPTED).unwrap();
-        assert_eq!(landing.by, Way::Queue);
-        assert_eq!(landing.after, AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 });
-        assert_eq!(landing.repositories.len(), 1);
-        let repository = &landing.repositories[0];
-        assert_eq!(repository.repository, Repository { forge: 1, repository: 1 });
-        assert!(repository.gates.is_empty());
-        assert_eq!(
-            repository.tiers.as_ref(),
-            &[TierCheck {
-                name: Box::from(b"slow".as_slice()),
-                workflow: Box::from(b"slow.yml".as_slice()),
-                ignored: Box::new([]),
-                artifact: Box::from(b"report".as_slice()),
-                format: Format::Lines,
-                follows: Follows::Landing,
-                span_ms: 0,
-                description: Box::default(),
-            }]
-        );
-        assert_landing_projects_start(projects.as_bytes());
-    }
-}
-
-#[test]
-fn restored_projects_cannot_configure_stored_landing_rules() {
-    let jig = fixtures::turn_jig();
-    for by in [r#""by":"queue","#, r#""by":"turn","#, ""] {
-        let projects = format!(r#"[{{"project":2,{by}"rules":[]}}]"#);
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-        let (members, problems) = application(&input, &jig);
-        assert!(members.is_none());
-        assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].rules: landing rules live in the store; read them with temper ctl settings show landing-rule --project\n");
-    }
-}
-
-#[test]
-fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
-    let jig = fixtures::turn_jig();
-    let (members, problems) = turn_configuration(1);
-    assert!(problems.is_empty(), "{:?}", lines(&problems));
-    let members = members.unwrap();
-    let landing = members.landings.get(&1).unwrap();
-    assert_eq!(landing.by, temper_engine_domain::Way::Turn);
-    assert_eq!(landing.repositories[0].repository.repository, 2);
-    let check = &landing.repositories[0].gates[0];
-    assert_eq!(check.name.as_ref(), b"gate");
-    assert_eq!(check.workflow.as_ref(), b"gate.yml");
-    assert_eq!(check.ignored.as_ref(), &[Box::from(b"docs".as_slice())]);
-    assert!(check.blocking);
-    assert!(landing.repositories[0].tiers.is_empty());
-    assert_eq!(
-        landing.after,
-        temper_engine_domain::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 }
-    );
-    let (members, problems) = application(fixtures::APPLICATION, &jig);
-    assert!(problems.is_empty());
-    let members = members.unwrap();
-    let landing = members.landings.get(&1).unwrap();
-    assert_eq!(landing.by, temper_engine_domain::Way::Queue);
-    assert!(landing.repositories.is_empty());
-    assert_eq!(
-        landing.after,
-        temper_engine_domain::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 }
-    );
-}
-
-#[test]
-fn landing_check_timeout_is_optional_and_reads_milliseconds() {
-    for by in ["queue", "turn"] {
-        for (setting, expected) in [
-            ("", None),
-            (r#""check_timeout_ms":900000,"#, Some(skein_lib::Duration::from_secs(900))),
-            (r#""check_timeout_ms":1000,"#, Some(skein_lib::Duration::from_secs(1))),
-            (r#""check_timeout_ms":86400000,"#, Some(skein_lib::Duration::from_secs(86_400))),
-        ] {
-            let projects = tier_projects("[]", &format!(r#""by":"{by}",{setting}"#));
-            assert_landing_projects_start(&projects);
-            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-            let (members, problems) = application(&input, &fixtures::turn_jig());
-            assert!(problems.is_empty(), "{:?}", lines(&problems));
-            assert_eq!(members.unwrap().landings.get(&1).unwrap().check_timeout, expected);
-        }
-    }
-}
-
-#[test]
-fn landing_check_timeout_refuses_out_of_range_at_its_member() {
-    for milliseconds in [999_u64, 86_400_001] {
-        let projects = tier_projects("[]", &format!(r#""check_timeout_ms":{milliseconds},"#));
-        let document = fixtures::with(&fixtures::turn_document(), b"application.landing.projects", &projects);
-        let Err(problems) = fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        ) else {
-            panic!("out-of-range delivery bound started")
-        };
-        assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].check_timeout_ms: past its bound\n");
-    }
-}
-
-#[test]
-fn landing_attempts_defaults_and_keeps_endpoints_by_queue_and_turn() {
-    for by in ["queue", "turn"] {
-        for (setting, expected) in [("", 3), (r#""landing_attempts":1,"#, 1), (r#""landing_attempts":255,"#, 255)] {
-            let projects = format!(r#"[{{"project":1,"by":"{by}",{setting}"gates":[]}}]"#);
-            assert_landing_projects_start(projects.as_bytes());
-            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-            let (members, problems) = application(&input, &fixtures::turn_jig());
-            assert!(problems.is_empty(), "{:?}", lines(&problems));
-            assert_eq!(members.unwrap().landings.get(&1).unwrap().landing_attempts, expected);
-        }
-    }
-}
-
-#[test]
-fn landing_attempts_refuses_invalid_values_at_its_member_by_queue_and_turn() {
-    for by in ["queue", "turn"] {
-        for (value, refusal) in [
-            ("0", "past its bound"),
-            ("256", "past its bound"),
-            ("-1", "past its bound"),
-            (r#""3""#, "wrong value kind"),
-        ] {
-            let projects = format!(r#"[{{"project":1,"by":"{by}","landing_attempts":{value}}}]"#);
-            let document =
-                fixtures::with(&fixtures::turn_document(), b"application.landing.projects", projects.as_bytes());
-            let Err(problems) = fixtures::start(
-                &document,
-                &config::Directories::working(),
-                &fixtures::files(),
-                &fixtures::startup_agent(),
-                &fixtures::seeds(),
-                None,
-                fixtures::worker_runtime(),
-                fixtures::forge_runtime(),
-            ) else {
-                panic!("invalid landing attempts started: {by}, {value}")
-            };
-            assert_eq!(
-                lines(&problems).as_ref(),
-                format!("application.landing.projects[0].landing_attempts: {refusal}\n").as_bytes()
-            );
-        }
-    }
-}
-
-const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0,"description":"the slow suites"}"#;
-
-fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
-    format!(
-        r#"[{{"project":1,{settings}"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true}}],"tiers":{tiers}}}]}}]"#
-    )
-    .into_bytes()
-    .into_boxed_slice()
-}
-
-#[test]
-fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
-    use temper_engine_domain::{AfterLandingCheck, TierCheck, Way};
-    use temper_engine_domain_forge_tiers::Format;
-    let longest = "a".repeat(32);
-    let tiers =
-        format!(r#"[{TIER},{{"name":"{longest}","workflow":"lines.yml","artifact":"{longest}","format":"lines"}}]"#);
-    for (by, way) in [("queue", Way::Queue), ("turn", Way::Turn)] {
-        let projects =
-            tier_projects(&tiers, &format!(r#""by":"{by}","tier_retries":7,"verification_bound_ms":123456,"#));
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.unwrap();
-        let landing = members.landings.get(&1).unwrap();
-        assert_eq!(landing.by, way);
-        assert_eq!(landing.after, AfterLandingCheck { tier_retries: 7, verification_bound_ms: 123_456 });
-        assert_eq!(landing.repositories[0].gates[0].name.as_ref(), b"gate");
-        assert_eq!(
-            landing.repositories[0].tiers.as_ref(),
-            &[
-                TierCheck {
-                    name: Box::from(b"slow-1_A".as_slice()),
-                    workflow: Box::from(b"slow.yml".as_slice()),
-                    ignored: Box::new([Box::from(b"docs".as_slice()), Box::from(b"fixtures/data".as_slice())]),
-                    artifact: Box::from(b"failures".as_slice()),
-                    format: Format::Junit,
-                    follows: temper_engine_domain_forge::Follows::Branch(Box::from(b"release/next".as_slice())),
-                    span_ms: 0,
-                    description: b"the slow suites".as_slice().into(),
-                },
-                TierCheck {
-                    name: longest.as_bytes().into(),
-                    workflow: Box::from(b"lines.yml".as_slice()),
-                    ignored: Box::new([]),
-                    artifact: longest.as_bytes().into(),
-                    format: Format::Lines,
-                    follows: temper_engine_domain_forge::Follows::Landing,
-                    span_ms: 0,
-                    description: Box::default(),
-                },
-            ]
-        );
-        assert_landing_projects_start(&projects);
-    }
-}
-
-/// A project's merge command is optional (temper/docs/design/protocol/configuration/engine.md).
-#[test]
-fn landing_configuration_reads_a_projects_merge_job() {
-    let longest = "a".repeat(4_096);
-    for by in ["queue", "turn"] {
-        for (command, expected) in [
-            ("", None),
-            (r#""merge_job":".temper/merge","#, Some(b".temper/merge".as_slice())),
-            (r#""merge_job":"x","#, Some(b"x".as_slice())),
-            (&format!(r#""merge_job":"{longest}","#), Some(longest.as_bytes())),
-        ] {
-            let projects = tier_projects("[]", &format!(r#""by":"{by}",{command}"#));
-            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-            let (members, problems) = application(&input, &fixtures::turn_jig());
-            assert!(problems.is_empty(), "{:?}", lines(&problems));
-            assert_eq!(members.unwrap().landings.get(&1).unwrap().merge_job.as_deref(), expected);
-        }
-    }
-}
-
-/// Invalid merge commands refuse their member (temper/docs/design/protocol/configuration/engine.md).
-#[test]
-fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
-    let longest = "a".repeat(4_097);
-    for (command, words) in [
-        (r#""""#, "invalid form"),
-        (r#""/x""#, "invalid form"),
-        (r#""a/../merge""#, "invalid form"),
-        (r#""../merge""#, "invalid form"),
-        (r#""a/..""#, "invalid form"),
-        (r#""..""#, "invalid form"),
-        (r#"".temper/\u0000merge""#, "invalid form"),
-        (&format!(r#""{longest}""#), "past its bound"),
-        ("null", "wrong value kind"),
-    ] {
-        let projects = tier_projects("[]", &format!(r#""merge_job":{command},"#));
-        let input = fixtures::with(&fixtures::turn_document(), b"application.landing.projects", &projects);
-        let Err(problems) = fixtures::start(
-            &input,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        ) else {
-            panic!("an invalid merge command refuses startup");
-        };
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].merge_job: {words}\n").as_bytes(),
-            "{command}"
-        );
-    }
-}
-
-/// A project's close command is optional (temper/docs/design/protocol/configuration/engine.md).
-#[test]
-fn landing_configuration_reads_a_projects_close_job() {
-    let longest = "a".repeat(4_096);
-    for by in ["queue", "turn"] {
-        for (command, expected) in [
-            ("", None),
-            (r#""close_job":".temper/close","#, Some(b".temper/close".as_slice())),
-            (r#""close_job":"x","#, Some(b"x".as_slice())),
-            (&format!(r#""close_job":"{longest}","#), Some(longest.as_bytes())),
-        ] {
-            let projects = tier_projects("[]", &format!(r#""by":"{by}",{command}"#));
-            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-            let (members, problems) = application(&input, &fixtures::turn_jig());
-            assert!(problems.is_empty(), "{:?}", lines(&problems));
-            assert_eq!(members.unwrap().landings.get(&1).unwrap().close_job.as_deref(), expected);
-        }
-    }
-}
-
-/// Invalid close commands refuse their member (temper/docs/design/protocol/configuration/engine.md).
-#[test]
-fn a_close_job_path_out_of_bounds_refuses_the_start_at_its_member() {
-    let longest = "a".repeat(4_097);
-    for (command, words) in [
-        (r#""""#, "invalid form"),
-        (r#""/x""#, "invalid form"),
-        (r#""a/../close""#, "invalid form"),
-        (r#""../close""#, "invalid form"),
-        (r#""a/..""#, "invalid form"),
-        (r#""..""#, "invalid form"),
-        (r#"".temper/\u0000close""#, "invalid form"),
-        (&format!(r#""{longest}""#), "past its bound"),
-        ("null", "wrong value kind"),
-    ] {
-        let projects = tier_projects("[]", &format!(r#""close_job":{command},"#));
-        let input = fixtures::with(&fixtures::turn_document(), b"application.landing.projects", &projects);
-        let Err(problems) = fixtures::start(
-            &input,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        ) else {
-            panic!("an invalid close command refuses startup");
-        };
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].close_job: {words}\n").as_bytes(),
-            "{command}"
-        );
-    }
-}
-
-#[test]
-fn landing_configuration_defaults_tier_settings_when_tiers_are_present() {
-    let projects = tier_projects(&format!("[{TIER}]"), "");
-    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-    let (members, problems) = application(&input, &fixtures::turn_jig());
-    assert!(problems.is_empty(), "{:?}", lines(&problems));
-    let members = members.unwrap();
-    let landing = members.landings.get(&1).unwrap();
-    assert_eq!(landing.by, temper_engine_domain::Way::Queue);
-    assert_eq!(landing.repositories[0].tiers.len(), 1);
-    assert_eq!(
-        landing.after,
-        temper_engine_domain::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 }
-    );
-}
-
-#[test]
-fn landing_configuration_tier_refusals_name_the_member() {
-    let projects = tier_projects(&format!("[{TIER}]"), "");
-    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-    for (member, value, words) in [
-        ("name", r#""""#, "invalid form"),
-        ("name", r#""slow.tier""#, "invalid form"),
-        ("name", r#""slöw""#, "invalid form"),
-        ("name", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, "past its bound"),
-        ("name", r#""gate""#, "must be unique"),
-        ("artifact", r#""""#, "invalid form"),
-        ("artifact", r#""reports/failures""#, "invalid form"),
-        ("artifact", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, "past its bound"),
-        ("description", r#""""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
-        (
-            "description",
-            r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#,
-            "expected 1 to 120 bytes of UTF-8 without control characters",
-        ),
-        ("description", r#""the slow\nsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
-        ("description", r#""the slow\tsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
-        ("description", r#""the slow\u0085suites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
-        ("description", "null", "expected 1 to 120 bytes of UTF-8 without control characters"),
-        ("format", r#""json""#, "invalid form"),
-        ("branch", r#""""#, "invalid form"),
-        ("branch", "null", "wrong value kind"),
-        ("span_ms", r#""1200000""#, "wrong value kind"),
-        ("span_ms", "null", "wrong value kind"),
-        ("span_ms", "true", "wrong value kind"),
-        ("span_ms", "-1", "past its bound"),
-        ("span_ms", "1.5", "past its bound"),
-        ("span_ms", "18446744073709551616", "past its bound"),
-    ] {
-        let path = format!("landing.projects[0].gates[0].tiers[0].{member}");
-        let changed = fixtures::with(&input, path.as_bytes(), value.as_bytes());
-        let (members, problems) = application(&changed, &fixtures::turn_jig());
-        assert!(members.is_none(), "{member}={value}");
-        assert_eq!(lines(&problems).as_ref(), format!("application.{path}: {words}\n").as_bytes(), "{value}");
-    }
-}
-
-#[test]
-fn landing_configuration_tier_names_are_unique_and_the_count_is_bounded() {
-    for (tiers, path, words) in [
-        (format!("[{TIER},{TIER}]"), "tiers[1].name", "must be unique"),
-        (format!("[{TIER},{TIER},{TIER}]"), "tiers", "past its bound"),
-    ] {
-        let projects = tier_projects(&tiers, "");
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].gates[0].{path}: {words}\n").as_bytes()
-        );
-    }
-}
-
-#[test]
-fn landing_configuration_tiers_use_the_configured_limits() {
-    use temper_engine_domain_forge::TierLimits;
-    let projects = tier_projects(&format!("[{TIER}]"), "");
-    let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-    let (members, problems) = application(&input, &fixtures::turn_jig());
-    assert!(problems.is_empty());
-    assert_eq!(members.unwrap().limits.forge.tiers, TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 });
-    let overrides = br#"{"forge.tiers.tiers":1,"forge.tiers.failing_tests":8,"forge.tiers.test_id_bytes":128}"#;
-    let input = fixtures::with(&input, b"limits.overrides", overrides);
-    let (members, problems) = application(&input, &fixtures::turn_jig());
-    assert!(problems.is_empty(), "{:?}", lines(&problems));
-    assert_eq!(members.unwrap().limits.forge.tiers, TierLimits { tiers: 1, failing_tests: 8, test_id_bytes: 128 });
-    let tiers =
-        format!(r#"[{TIER},{{"name":"another","workflow":"slow.yml","artifact":"failures","format":"lines"}}]"#);
-    let changed = fixtures::with(&input, b"landing.projects[0].gates[0].tiers", tiers.as_bytes());
-    let (members, problems) = application(&changed, &fixtures::turn_jig());
-    assert!(members.is_none());
-    assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].gates[0].tiers: past its bound\n");
-}
-
-#[test]
-fn landing_configuration_tier_settings_keep_their_integer_bounds() {
-    use temper_engine_domain::AfterLandingCheck;
-    for (settings, expected, refusal) in [
-        (
-            r#""tier_retries":0,"verification_bound_ms":0,"#,
-            Some(AfterLandingCheck { tier_retries: 0, verification_bound_ms: 0 }),
-            "",
-        ),
-        (
-            r#""tier_retries":255,"verification_bound_ms":18446744073709551615,"#,
-            Some(AfterLandingCheck { tier_retries: u8::MAX, verification_bound_ms: u64::MAX }),
-            "",
-        ),
-        (r#""tier_retries":256,"#, None, "tier_retries: past its bound"),
-        (r#""tier_retries":-1,"#, None, "tier_retries: past its bound"),
-        (r#""tier_retries":"2","#, None, "tier_retries: wrong value kind"),
-        (r#""verification_bound_ms":18446744073709551616,"#, None, "verification_bound_ms: past its bound"),
-        (r#""verification_bound_ms":-1,"#, None, "verification_bound_ms: past its bound"),
-        (r#""verification_bound_ms":"7200000","#, None, "verification_bound_ms: wrong value kind"),
-    ] {
-        let projects = tier_projects("[]", settings);
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        match expected {
-            Some(after) => {
-                assert!(problems.is_empty(), "{:?}", lines(&problems));
-                assert_eq!(members.unwrap().landings.get(&1).unwrap().after, after);
-            }
-            None => {
-                assert!(members.is_none());
-                assert_eq!(
-                    lines(&problems).as_ref(),
-                    format!("application.landing.projects[0].{refusal}\n").as_bytes()
-                );
-            }
-        }
-    }
-}
-
 #[test]
 fn a_document_without_demo_forge_and_project_is_read() {
     let input = fixtures::demo_application();
@@ -1706,32 +1085,11 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 }
 
 #[test]
-fn landing_configuration_reads_goal_tiers_and_optional_spans() {
-    use temper_engine_domain_forge::Follows;
-    for (settings, follows, span_ms) in [
-        (r#","branch":"goal","span_ms":1200000"#, Follows::Goals, 1_200_000),
-        ("", Follows::Landing, 0),
-        (r#","span_ms":0"#, Follows::Landing, 0),
-        (r#","span_ms":18446744073709551615"#, Follows::Landing, u64::MAX),
-        (r#","branch":"Goal""#, Follows::Branch(b"Goal".as_slice().into()), 0),
-    ] {
-        let tiers = format!(r#"[{{"name":"g","workflow":"g.yml","artifact":"report","format":"lines"{settings}}}]"#);
-        let projects = tier_projects(&tiers, "");
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.unwrap();
-        let tier = &members.landings.get(&1).unwrap().repositories[0].tiers[0];
-        assert_eq!(tier.follows, follows);
-        assert_eq!(tier.span_ms, span_ms);
-    }
-}
-
-#[test]
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 129, &["tasks.tasks", "129", "people.inbox_tasks", "258"][..]),
+        (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
+        (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
         (
             b"tasks.batch",
@@ -1780,158 +1138,4 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
         What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
-}
-
-#[test]
-fn landing_gates_read_an_optional_boolean_base_at_its_path() {
-    for (member, expected) in [
-        ("", Some(false)),
-        (r#", "base":true"#, Some(true)),
-        (r#", "base":false"#, Some(false)),
-        (r#", "base":"true""#, None),
-    ] {
-        let projects = format!(
-            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
-        );
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        if let Some(expected) = expected {
-            assert!(problems.is_empty(), "{:?}", lines(&problems));
-            assert_eq!(members.unwrap().landings.get(&1).unwrap().repositories[0].gates[0].base, expected);
-        } else {
-            assert!(members.is_none());
-            assert_eq!(
-                lines(&problems).as_ref(),
-                b"application.landing.projects[0].gates[0].gates[0].base: wrong value kind\n"
-            );
-        }
-    }
-}
-
-#[test]
-fn landing_gates_read_an_optional_report_with_required_members() {
-    use temper_engine_domain_forge_tiers::Format;
-    for (member, expected, artifact) in [
-        ("", None, b"".as_slice()),
-        (r#", "report":{"artifact":"failed", "format":"junit"}"#, Some(Format::Junit), b"failed".as_slice()),
-        (r#", "report":{"artifact":"failed", "format":"lines"}"#, Some(Format::Lines), b"failed".as_slice()),
-        (
-            r#", "report":{"artifact":"12345678901234567890123456789012", "format":"lines"}"#,
-            Some(Format::Lines),
-            b"12345678901234567890123456789012".as_slice(),
-        ),
-    ] {
-        let projects = format!(
-            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
-        );
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.unwrap();
-        let report = &members.landings.get(&1).unwrap().repositories[0].gates[0].report;
-        assert_eq!(report.as_ref().map(|report| report.format), expected);
-        if let Some(report) = report {
-            assert_eq!(report.artifact.as_ref(), artifact);
-        }
-    }
-    for (member, refused) in [
-        (r#", "report":{"artifact":"failed"}"#, "format"),
-        (r#", "report":{"format":"lines"}"#, "artifact"),
-        (r#", "report":{"artifact":"", "format":"lines"}"#, "artifact"),
-        (r#", "report":{"artifact":"a/b", "format":"lines"}"#, "artifact"),
-        (r#", "report":{"artifact":"123456789012345678901234567890123", "format":"lines"}"#, "artifact"),
-        (r#", "report":{"artifact":"failed", "format":"xml"}"#, "format"),
-    ] {
-        let projects = format!(
-            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
-        );
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(members.is_none());
-        let rendered = lines(&problems);
-        let text = core::str::from_utf8(&rendered).unwrap();
-        assert!(
-            text.starts_with(&format!("application.landing.projects[0].gates[0].gates[0].report.{refused}: ")),
-            "{text}"
-        );
-        assert_eq!(text.lines().count(), 1, "{text}");
-    }
-}
-
-#[test]
-fn landing_gate_bounds_read_defaults_and_refuse_out_of_range_at_the_member() {
-    for (setting, timeout, retries) in [
-        ("", 3_600_000, 2),
-        (r#""gate_timeout_ms":60000,"gate_retries":0,"#, 60_000, 0),
-        (r#""gate_timeout_ms":86400000,"gate_retries":255,"#, 86_400_000, 255),
-    ] {
-        let projects = tier_projects("[]", setting);
-        assert_landing_projects_start(&projects);
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.unwrap();
-        let landing = members.landings.get(&1).unwrap();
-        assert_eq!(landing.gate_timeout, skein_lib::Duration::from_millis(timeout));
-        assert_eq!(landing.gate_retries, retries);
-    }
-    for (value, why) in [
-        ("59999", "past its bound"),
-        ("86400001", "past its bound"),
-        ("-1", "past its bound"),
-        (r#""60000""#, "wrong value kind"),
-    ] {
-        let projects = tier_projects("[]", &format!(r#""gate_timeout_ms":{value},"#));
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].gate_timeout_ms: {why}\n").as_bytes()
-        );
-    }
-}
-
-#[test]
-fn landing_gate_retries_refuse_non_u8_values_at_the_member() {
-    for (value, why) in [("256", "past its bound"), ("-1", "past its bound"), (r#""2""#, "wrong value kind")] {
-        let projects = tier_projects("[]", &format!(r#""gate_retries":{value},"#));
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].gate_retries: {why}\n").as_bytes()
-        );
-    }
-}
-
-#[test]
-fn landing_combine_reads_stock_each_value_and_problems_at_the_member() {
-    use temper_engine_domain::Combine::{Merge, Squash};
-    for (setting, main, other) in [
-        ("", Merge, Squash),
-        (r#""combine":{},"#, Merge, Squash),
-        (r#""combine":{"main":"squash"},"#, Squash, Squash),
-        (r#""combine":{"main":"merge","other":"merge"},"#, Merge, Merge),
-        (r#""combine":{"main":"squash","other":"squash"},"#, Squash, Squash),
-    ] {
-        let projects = tier_projects("[]", setting);
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.expect("valid combining");
-        let landing = members.landings.get(&1).expect("project");
-        assert_eq!((landing.combine_main, landing.combine_other), (main, other));
-    }
-    for member in ["main", "other"] {
-        let projects = tier_projects("[]", &format!(r#""combine":{{"{member}":"rebase"}},"#));
-        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.landing.projects[0].combine.{member}: invalid form\n").as_bytes()
-        );
-    }
 }

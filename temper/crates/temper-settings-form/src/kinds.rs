@@ -8,6 +8,7 @@ use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 mod agents;
 mod follow;
+mod landing;
 
 fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
     let fields = d.object(at, &[b"project"])?;
@@ -44,6 +45,15 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
     }
 }
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+    if kind == b"welcome" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"welcome has no number"));
+        }
+        if optional(fields, b"project").is_some() {
+            return Err(error(b"project", b"unknown member"));
+        }
+        return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    }
     if kind == b"agents" {
         if optional(fields, b"number").is_some() {
             return Err(error(b"number", b"agents has no number"));
@@ -51,13 +61,15 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         if optional(fields, b"project").is_some() {
             return Err(error(b"project", b"agents has no project"));
         }
-        return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+        return Ok(c::Setting::Application { kind: 21, scope: 0, number: 1 });
     }
     if [
         b"project-ways".as_slice(),
         b"project-questions",
         b"project-classes",
         b"project-words",
+        b"project-landing",
+        b"project-gates",
         b"project-areas",
         b"project-triager",
     ]
@@ -76,6 +88,8 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
                 b"project-questions" => 6,
                 b"project-classes" => 8,
                 b"project-words" => 10,
+                b"project-landing" => 4,
+                b"project-gates" => 5,
                 b"project-areas" => 14,
                 b"project-triager" => 15,
                 _ => unreachable!("project kind selected"),
@@ -129,6 +143,14 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
     if kind == 20 {
+        let fields = d.object(at, &[b"shown"])?;
+        let record = w::Welcome::new(&d.kinds, w::WelcomeParts { shown: boolean(d, &fields, b"shown")? })
+            .or(Err(error(b"welcome", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 21 {
         return agents::value(d, at);
     }
     if kind == 14 || kind == 15 {
@@ -439,7 +461,17 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        20 => return agents::render(bytes, out),
+        20 => {
+            let Ok(value) = w::Welcome::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"shown");
+            out.boolean(value.shown());
+            out.object_end();
+        }
+        21 => return agents::render(bytes, out),
         14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

@@ -1,7 +1,6 @@
 {{
   "engine": {{
     "limits": {{
-      "profile": "standard",
       "overrides": {{
         "authority.executors": 22,
         "authority.grants": 15,
@@ -25,17 +24,13 @@
         "fleet.attempts": 2,
         "fleet.calls": 1,
         "fleet.engine_slots": 0,
-        "fleet.grace_ms": 3000,
+        "fleet.grace_ms": 360000,
         "fleet.turns": 8,
-        "hub.accounts": 4,
-        "hub.event_bytes": 10660,
-        "hub.inbox": 82,
-        "hub.run_calls": 48,
-        "hub.transcript_bytes": 67215250,
-        "hub.turn_bytes": 16803810,
-        "hub.turn_queue_bytes": 134430480,
-        "hub.turns": 8,
-        "io.output": 16804602,
+        "hub.transcript_bytes": 16777216,
+        "hub.turn_bytes": 1327470,
+        "hub.turn_queue_bytes": 10619760,
+        "hub.turns": 1,
+        "io.output": 1328262,
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
         "notes.entries_per_scope": 1,
@@ -61,11 +56,12 @@
         "tasks.delegates": 4,
         "tasks.dependencies": 1,
         "tasks.executor_kinds": 22,
+        "tasks.exemptions": 8,
         "tasks.funders": 4,
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,
         "tasks.message_bytes": 4094,
-        "tasks.inbox_bytes": 874120,
+        "tasks.inbox_bytes": 4096,
         "tasks.parameters": 5,
         "tasks.project_goals": 1,
         "tasks.project_tasks": 8,
@@ -73,7 +69,7 @@
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
-        "tasks.exemptions": 8,
+        "tasks.run_inbox": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 1,
         "views.text_bytes": 1024
@@ -125,40 +121,14 @@
         }}
       ]
     }},
-    "clients": {{
-      "heartbeat_ms": 10000,
-      "link": true
-    }},
-    "deployment": {{
-      "directory": "state",
-      "seed": 7
-    }},
+    "clients": {{}},
     "owners": [
       {{
         "provider": 1,
         "subject": "owner-a"
       }}
     ],
-    "providers": [
-      {{
-        "number": 1,
-        "kind": "link"
-      }},
-      {{
-        "number": 2,
-        "kind": "deployment"
-      }}
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": [
-      {{
-        "number": 1,
-        "policy": 1
-      }}
-    ]
+    "memory_bytes": 4503599627370496
   }},
   "workers": [],
   "application": {{
@@ -174,11 +144,9 @@
       "bundle": null,
       "public": null
     }},
-    "machine": {{}},
     "demo": null,
     "sign_in": null,
     "limits": {{
-      "profile": "standard",
       "overrides": {{
         "checkout.message_bytes": 10662,
         "forge.client.op_bytes": 10660,
@@ -188,6 +156,7 @@
         "checkout.workspaces": 4,
         "forge.client.calls": 4,
         "forge.client.pending": 8,
+        "forge.landing_members": 1,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
         "forge_component.connections": 4,
@@ -199,7 +168,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }}
-    }},
-    "workers": []
+    }}
   }}
 }}

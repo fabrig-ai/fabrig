@@ -1,7 +1,6 @@
 {{
   "engine": {{
     "limits": {{
-      "profile": "standard",
       "overrides": {{
         "authority.executors": 22,
         "authority.grants": 15,
@@ -24,7 +23,7 @@
         "fleet.attempts": 4,
         "fleet.calls": 1,
         "fleet.engine_slots": 0,
-        "fleet.grace_ms": 10000,
+        "fleet.grace_ms": 360000,
         "fleet.turns": 8,
         "hub.transcript_bytes": 67215250,
         "hub.turn_bytes": 16803810,
@@ -61,7 +60,7 @@
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,
         "tasks.message_bytes": 4094,
-        "tasks.inbox_bytes": 874120,
+        "tasks.inbox_bytes": 4096,
         "tasks.parameters": 5,
         "tasks.project_goals": 1,
         "tasks.project_tasks": 8,
@@ -69,6 +68,7 @@
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
+        "tasks.run_inbox": 8,
         "tasks.exemptions": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 2,
@@ -111,7 +111,7 @@
     "hosts": {{
       "listener": [
         {{
-          "socket": "{story.workers}"
+          "socket": "{{story.workers}}"
         }}
       ],
       "workers": [
@@ -121,60 +121,32 @@
         }}
       ]
     }},
-    "clients": {{
-      "heartbeat_ms": 10000,
-      "link": true
-    }},
-    "deployment": {{
-      "directory": "state",
-      "seed": 7
-    }},
+    "clients": {{}},
     "owners": [
       {{
         "provider": 1,
         "subject": "owner-a"
       }}
     ],
-    "providers": [
-      {{
-        "number": 1,
-        "kind": "link"
-      }},
-      {{
-        "number": 2,
-        "kind": "deployment"
-      }}
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": [
-      {{
-        "number": 1,
-        "policy": 1
-      }}
-    ]
+    "memory_bytes": 4503599627370496
   }},
   "workers": [],
   "application": {{
     "webhooks": {{
       "listener": {{
-        "socket": "{story.webhooks}"
+        "socket": "{{story.webhooks}}"
       }}
     }},
     "clients": {{
       "listener": {{
-        "socket": "{story.clients}"
+        "socket": "{{story.clients}}"
       }},
       "bundle": null,
       "public": null
     }},
-    "machine": {{}},
     "demo": null,
     "sign_in": null,
     "limits": {{
-      "profile": "standard",
       "overrides": {{
         "checkout.message_bytes": 10662,
         "forge.client.op_bytes": 10660,
@@ -185,6 +157,7 @@
         "forge.client.pending": 8,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
+        "forge.landing_members": 1,
         "forge_component.connections": 4,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 16803814,
@@ -193,35 +166,9 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810,
         "forge.client.poll_ms": 50,
-        "forge.landing_members": 1,
         "checkout.workspaces": 4,
         "git_component.operations": 4
       }}
-    }},
-    "workers": [],
-    "landing": {{
-      "projects": [
-        {{
-          "project": 1,
-          "by": "turn",
-          "batch": 1,
-          "gates": [
-            {{
-              "forge": 1,
-              "repository": 1,
-              "gates": [
-                {{
-                  "name": "gate",
-                  "workflow": "gate.yml",
-                  "ignored": [],
-                  "blocking": true,
-                  "base": true
-                }}
-              ]
-            }}
-          ]
-        }}
-      ]
     }}
   }}
 }}

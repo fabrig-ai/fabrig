@@ -2,6 +2,7 @@
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::FileTypeExt;
 use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
@@ -40,11 +41,13 @@ pub fn prepare_with_store(
         &service::stock::Given::Stock,
         None,
         false,
+        &[],
     )
     .map(|(service, store, _)| (service, store))
 }
 #[expect(
     clippy::too_many_arguments,
+    clippy::too_many_lines,
     reason = "the standalone start supplies the binary beside the resolved process facts"
 )]
 fn prepare_with_limits(
@@ -61,6 +64,7 @@ fn prepare_with_limits(
     given: &service::stock::Given,
     program: Option<&std::path::Path>,
     sizing: bool,
+    projects: &[jig_protocol_config::Project],
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
@@ -72,7 +76,7 @@ fn prepare_with_limits(
     let setup::Deployment { mut named, checked, limits, .. } =
         setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = engine::settings(bytes, directories, given);
-    let engine::Runtimes { roots, github } = engine::runtimes(&named.machine)?;
+    let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
     let copy = path(&directories.data).join("agents.setting");
     let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
@@ -115,25 +119,46 @@ fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
-    let mut service = service::startup::with_setup_worker_given(
-        bytes,
-        &jig_directories(directories),
+    let git = temper_shell::lookup::find(environment, b"git");
+    let mut start = service::startup::checked_start_with_worker(
+        bytes, &jig_directories(directories), &files,
+        agent.as_ref().map(|prepared| &prepared.agent), &seeds,
+        List::with_capacity(0), Some(&checked), given,
+        git.as_ref().map(|path| path.as_os_str().as_bytes()), part,
+    ).map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if !projects.is_empty() {
+        let engine = start.engine_mut();
+        engine.jig.owners = engine
+            .jig
+            .owners
+            .iter()
+            .flat_map(|owner| {
+                projects.iter().map(|project| jig_domain_people::InitialOwner {
+                    project: project.number,
+                    identity: owner.identity.clone(),
+                })
+            })
+            .collect();
+        engine.jig.projects = projects.into();
+    }
+    let mut service = service::startup::from_checked(
+        start,
         &files,
         agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
         runtime,
-        List::with_capacity(0),
-        Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
         program_login,
-        given,
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
-        part,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if named.worker.is_some() {
         service.engine_component().keep_agents(copy.as_os_str().as_encoded_bytes().into(), initial);
+    }
+    if let Some(line) = engine::landing_hold(path(&directories.data))? {
+        eprintln!("{line}");
+        service.engine_component().hold_landings(true);
     }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
@@ -296,8 +321,7 @@ fn operations_in_mode(
         None,
         None,
         &service::stock::Given::Stock,
-        None,
-        true,
+        &[],
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -336,6 +360,25 @@ pub fn prepare_in_with_program(
     given: &service::stock::Given,
     program: Option<&std::path::Path>,
 ) -> Result<Service, String> {
+    prepare_in_with_inputs(binary, environment, working, directories, given, program, &[])
+}
+/// Prepare typed project seeds supplied by a world.
+pub fn prepare_in_with_projects(
+    binary: &str, environment: &[EnvironmentEntry], working: &[u8],
+    directories: &Directories, given: &service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
+    prepare_in_with_inputs(binary, environment, working, directories, given, None, projects)
+}
+pub fn prepare_in_with_inputs(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
@@ -352,6 +395,7 @@ pub fn prepare_in_with_program(
         given,
         program,
         false,
+        projects,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -384,6 +428,7 @@ pub fn operations_in_with(
         given,
         None,
         true,
+        &[],
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -418,6 +463,7 @@ pub fn run(
                 &service::stock::Given::Stock,
                 None,
                 false,
+                &[],
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

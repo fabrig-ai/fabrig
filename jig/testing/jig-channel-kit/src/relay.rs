@@ -147,7 +147,7 @@ impl Peer {
                     b"worker-secret".as_slice().into()
                 }),
                 wires: Self::statement(case),
-                output: jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.output,
+                output: jig_protocol_config_fixtures::small().io.output,
             },
         )
         .expect("peer credential");

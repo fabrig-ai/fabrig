@@ -16,7 +16,7 @@ fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
         .expect("stock engine");
     let own =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+        temper_limits_fixtures::small();
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]

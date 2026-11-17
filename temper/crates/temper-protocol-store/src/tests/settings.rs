@@ -52,6 +52,53 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (1, d::Value::Rule(rule())),
         (2, d::Value::Rule(open)),
         (3, d::Value::Charter(u32::MAX)),
+        (
+            4,
+            d::Value::Landing(d::ProjectLanding {
+                by: temper_engine_domain_forge_change::Way::Turn,
+                batch: 2,
+                combine_main: temper_engine_domain_forge_landing::Combine::Squash,
+                combine_other: temper_engine_domain_forge_landing::Combine::Merge,
+                merge_job: Some(b"tools/merge".as_slice().into()),
+                close_job: Some(b"tools/close".as_slice().into()),
+                landing_attempts: 7,
+                check_timeout_ms: Some(60000),
+                gate_retries: 3,
+                gate_timeout_ms: 70000,
+                tier_retries: 4,
+                verification_bound_ms: 90000,
+            }),
+        ),
+        (
+            5,
+            d::Value::Gates(d::ProjectGates {
+                repositories: Box::new([forge::RepositoryGates {
+                    repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+                    gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                        name: b"gate".as_slice().into(),
+                        workflow: b"gate.yml".as_slice().into(),
+                        ignored: Box::new([b"docs".as_slice().into()]),
+                        blocking: true,
+                        base: true,
+                        report: Some(temper_engine_domain_forge_landing::GateReport {
+                            artifact: b"report".as_slice().into(),
+                            format: temper_engine_domain_forge_tiers::Format::Lines,
+                            fuzzy: Some(b"fuzzy_".as_slice().into()),
+                        }),
+                    }]),
+                    tiers: Box::new([forge::Tier {
+                        name: b"slow".as_slice().into(),
+                        workflow: b"slow.yml".as_slice().into(),
+                        ignored: Box::new([]),
+                        artifact: b"report".as_slice().into(),
+                        format: temper_engine_domain_forge_tiers::Format::Junit,
+                        follows: forge::Follows::Goals,
+                        span: Some(skein_lib::Duration::from_millis(60000)),
+                        description: b"slow tests".as_slice().into(),
+                    }]),
+                }]),
+            }),
+        ),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
@@ -229,7 +276,7 @@ fn setting_rules_decode_at_each_bound_and_refuse_one_more() {
 #[test]
 fn setting_records_refuse_unknown_kinds_and_slot_tags() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for kind in [0, 4, u32::MAX] {
+    for kind in [0, u32::MAX] {
         let row = w::SettingRow::new(
             &w::CEILINGS,
             w::SettingRowParts {

@@ -7,14 +7,12 @@ use skein_lib::{Duration, List};
 use temper_client_protocol_wire::v1 as s;
 
 #[test]
-fn temper_limits_by_name_round_trip_both_profiles() {
-    for (source, other) in
-        [(limits::Profile::Small, limits::Profile::Standard), (limits::Profile::Standard, limits::Profile::Small)]
-    {
-        let mut source = limits::profile(source);
+fn temper_limits_by_name_round_trip_both_stocks() {
+    let small = temper_limits_fixtures::small();
+    let stock = limits::stock();
+    for (mut source, mut restored) in [(small, stock), (stock, small)] {
         source.checkout.workspaces = 7;
         source.checkout.remote_timeout = Duration::from_millis(321);
-        let mut restored = limits::profile(other);
         let values = limits::list(&source);
         let mut unique = skein_lib::Set::with_capacity(values.len());
         for &(name, _) in &values {
@@ -24,7 +22,7 @@ fn temper_limits_by_name_round_trip_both_profiles() {
             limits::apply(&mut restored, name.as_bytes(), value).unwrap();
         }
         assert_eq!(restored, source);
-        let mut shared = temper_service_core::limits::profile(other);
+        let mut shared = temper_service_core::limits::stock();
         for &(name, value) in &values {
             temper_service_core::limits::apply(&mut shared, name.as_bytes(), value).unwrap();
         }
@@ -152,8 +150,8 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
     for limit in figures.limits() {
         assert!(unique.insert(limit.name()).unwrap());
     }
-    let mut jig = config::profile(config::Profile::Standard);
-    let mut own = limits::profile(limits::Profile::Standard);
+    let mut jig = config::stock();
+    let mut own = limits::stock();
     for limit in figures.limits() {
         if limits::find(limit.name()).is_some() {
             limits::apply(&mut own, limit.name(), limit.value()).unwrap();

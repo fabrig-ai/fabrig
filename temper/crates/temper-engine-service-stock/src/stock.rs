@@ -909,7 +909,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
-        (20, 1, settings::Value::AgentFigures(agents())),
+        (21, 1, settings::Value::AgentFigures(agents())),
     ];
     let mut stock = List::with_capacity(17);
     for (kind, number, value) in values {
@@ -935,4 +935,28 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
         gates: Box::new([settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]),
         approvals: Box::default(),
     }
+}
+
+/// The welcome's default comes from the box flag at each start
+/// (temper/docs/design/protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn with_welcome(
+    stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    shown: bool,
+) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use temper_engine_domain_forge::settings;
+    let mut defaults = List::uncapped();
+    for row in stock {
+        defaults.push(row).expect("stock defaults");
+    }
+    let value = settings::Value::Welcome(settings::Welcome { shown });
+    defaults
+        .push(settings::Stock {
+            kind: 20,
+            scope: 0,
+            number: 1,
+            value: settings::SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        })
+        .expect("welcome default");
+    defaults.into_boxed()
 }

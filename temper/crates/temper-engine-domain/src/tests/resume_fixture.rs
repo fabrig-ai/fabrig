@@ -138,10 +138,10 @@ pub fn limits() -> engine::Limits {
     };
     engine::Limits {
         streams: 1,
-        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
+        routes: jig_protocol_config_fixtures::small().routes,
         // The same configured core byte budgets as the engine world fixture.
-        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
-        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
+        call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
@@ -371,7 +371,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),
@@ -827,6 +827,7 @@ impl StartStore {
                     request @ (engine::Request::Unsettled(_)
                     | engine::Request::Bound { .. }
                     | engine::Request::BoxRemove { .. }
+                    | engine::Request::ChoosePlace { .. }
                     | engine::Request::BoxGroup { .. }
                     | engine::Request::ForgeGone { .. }
                     | engine::Request::PlaygroundActs { .. }

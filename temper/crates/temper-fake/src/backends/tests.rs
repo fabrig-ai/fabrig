@@ -23,8 +23,6 @@ fn fixture() -> (Value, Paths, Peers) {
             login: Some(b"person"),
             ports: temper_init::Ports {
                 clients: port(8367).expect("port"),
-                owned: port(8368).expect("port"),
-                forge: port(8369).expect("port"),
                 llm: port(8370).expect("port"),
                 webhooks: port(8371).expect("port"),
             },
@@ -131,18 +129,17 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     assert_eq!(forge["transport"], "plaintext");
     let document = crate::read::document(&docs.temper).expect("effective document");
     let app = super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
-    let at = super::member(&document, app, b"machine", &jig_protocol_config::Path::root()).expect("machine");
-    let mut problems = temper_forge_setup::problem::Problems::empty();
-    let machine = temper_forge_setup::machine::read(
+    assert!(effective["application"].get("machine").is_none());
+    let at = super::member(&document, app, b"test", &jig_protocol_config::Path::root()).expect("test");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let github = temper_forge_setup::machine::read_test(
         &document,
-        at,
-        &temper_forge_setup::limits::small(),
+        Some(at),
         &jig_protocol_config::Directories::working(),
         &mut problems,
     )
-    .expect("ordinary machine format");
+    .expect("fake GitHub");
     assert!(problems.is_empty());
-    let github = machine.github.expect("fake GitHub");
     assert!(!github.tls);
     assert_eq!(github.git.as_deref(), Some(b"/effective/data/demo/bin/git".as_slice()));
     let peer: Value = serde_json::from_slice(&docs.forgejo).expect("peer document");
@@ -485,7 +482,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines;
+    let standard = jig_protocol_config::stock().core.documents.lines;
     for (receiving, expected) in [(Some(2), 3), (Some(8), 8), (None, standard)] {
         let (mut temper, paths, peers) = fixture();
         let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
@@ -529,7 +526,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let admitted = admit(&docs.temper);
     assert_eq!(
         admitted.limits.core.documents.lines,
-        jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines,
+        jig_protocol_config::stock().core.documents.lines,
         "the rewrite preserves the profile's creating lists"
     );
     let effective = json(&docs.temper);
@@ -698,6 +695,7 @@ fn admit(bytes: &[u8]) -> jig_protocol_config::Engine {
         engine,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap()
 }

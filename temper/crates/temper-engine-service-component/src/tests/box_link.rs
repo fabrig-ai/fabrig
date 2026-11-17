@@ -400,9 +400,10 @@ fn reset_diagnostics_reach_serves_named_notes() {
 #[test]
 fn box_group_writes_start_with_its_kind() {
     use temper_engine_domain_forge::BoxKind;
-    for (kind, line) in [(BoxKind::Owned, b"start 7 owned\n".as_slice()), (BoxKind::Fake, b"start 7 fake\n")] {
+    for (kind, line) in [(BoxKind::Owned, b"start 7\n".as_slice()), (BoxKind::Fake, b"start 7\n")] {
         let mut service = super::fixtures::ready();
         let engine = service.engine.as_mut().unwrap();
+        engine.places = None; // This step test isolates the link after the setup file has been kept.
         crate::route::request(engine, temper_engine_domain::Request::BoxGroup { forge: FORGE, kind, request: REQUEST });
         assert_eq!(engine.box_link.write.take().as_deref(), Some(line));
         let Some(temper_engine_domain::Event::Forge(event)) = engine.events.iter().last() else {
@@ -485,7 +486,7 @@ fn a_remove_drops_a_held_start_of_its_forge() {
         if same_forge {
             tells(&mut out, &[Out::Removed { forge: OTHER }]);
         } else {
-            tells(&mut out, &[Out::Removed { forge: FORGE }, Out::Write(b"start 8 fake\n".as_slice().into())]);
+            tells(&mut out, &[Out::Removed { forge: FORGE }, Out::Write(b"start 8\n".as_slice().into())]);
         }
     }
 }
@@ -493,7 +494,7 @@ fn a_remove_drops_a_held_start_of_its_forge() {
 #[test]
 fn a_held_box_group_keeps_its_kind_and_maps_start_replies() {
     use temper_engine_domain_forge::BoxKind;
-    for (kind, command) in [(BoxKind::Owned, b"start 8 owned\n".as_slice()), (BoxKind::Fake, b"start 8 fake\n")] {
+    for (kind, command) in [(BoxKind::Owned, b"start 8\n".as_slice()), (BoxKind::Fake, b"start 8\n")] {
         for ending in [b"started 8\n".as_slice(), b"failed 8 run exited 1\n"] {
             let (mut link, mut out) = asked();
             link.group(OTHER, kind, OTHER_REQUEST, &mut out);

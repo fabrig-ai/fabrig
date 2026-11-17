@@ -11,6 +11,7 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+settings-form.workspace = true
 skein-fake-forge-http.workspace = true
 skein-playground.workspace = true
 skein-ui-web.workspace = true
@@ -66,6 +67,8 @@ temper-worker-protocol-git.workspace = true
 wasm-bindgen.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
+jig-protocol-config-fixtures.workspace = true
 temper-worker-checkout-world.workspace = true
 smith-domain-run.workspace = true
 smith-agent-world.workspace = true

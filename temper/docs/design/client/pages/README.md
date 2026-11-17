@@ -73,6 +73,58 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **Links are by number:** a chip, an entry or a line naming a task
   opens its page, from any page (jig's `client/domain/pages.md`,
   section 2).
+- **A task's title on a line:** a task's title is its words' first line,
+  as jig takes it, and a writer may leave it long. Every line, row and
+  card that names a task by its title draws it cut past 80 characters,
+  by one function of the views' shared parts, `shared::row_title`
+  (`common::chat::row_title`, at `common::chat::ROW_TITLE`, 80): Work's
+  goal row's cut (`work.md`, 1, *Its title*), at the last space that
+  leaves it at most 80 with "…", or at a character's edge where there
+  is none, its punctuation kept. It holds in the browser and the
+  terminal alike, and in the TUI's lines from the same parts:
+  - *Where:* Needs you's from line, its milestone and goal included,
+    and its cards: a question, a proposal (its proposed tasks' headings
+    and the question line a reasonless batch takes from them), a held
+    task, a person task, an approval ("Approve TITLE on …"), funds, a
+    group of findings' asking task (`needs-you.md`, 1); a card's SHORT
+    and the need lines built from it; Home's lines, its cards, chats,
+    milestones and Decided for you's rows (`home.md`, 1); the inbox's,
+    the terminal's cards, their updates and the answered lines; a
+    goal's task rows and its milestone's link (`goal.md`, 2); a task's
+    plan rows (`goal.md`, 2, **A plan row's cells**) and its lineage
+    bar (`task.md`, 2); Work's rows, cards and
+    milestone groups (`work.md`, 1); the chats' rows and the chat
+    switcher's list; a chat's goal bar, a delegation's card and line
+    (`../view.md`, 5) and a proposal's line; the Changes rows; a close's
+    delegate rows (`../README.md`, 3.6); a result's card; How it runs'
+    budget rows; Tell's About line; the public pages' rows, whose
+    "title cut" word follows only a title the cut left whole.
+  - *A link's name* is the cut title too, as Work's goal row's is. The
+    cut is drawn alone: the domain keeps the title whole.
+  - *Whole:* a task's own page's heading, its taskbar's "TN · TITLE"
+    and a change's or a person's header (`task.md`), and a goal's title
+    in its page's header (`goal.md`, 2). A chat's heading keeps its own
+    short form (`chat::short_title`, at 72), a wait's or a dependency's
+    name its cut at 40 (`work.md`, 1, *A wait's names*), and the TUI's
+    launchpad its cut to the row's room, after this one.
+- **A task's words after its title:** a card or page that draws a
+  task's title and then its words leaves the words out when they are
+  only the title: whole, not cut, with nothing past their first line
+  feed but spaces, tabs, carriage returns and line feeds. One function
+  of the shared parts says it, `shared::only_title(&DocumentText) ->
+  bool` (`common::chat::only_title`). It holds on Needs you's held
+  task, funds and person task cards (`needs-you.md`, 1), the
+  terminal's inbox cards, the goal's page's needs bands, which draw
+  those cards, and an agent's task's "Task brief" (`task.md`, 2). A
+  title the card cuts is then read whole on its task's own page, whose
+  heading keeps it. A proposal's card differs, since its tasks have no
+  page yet: each proposed task's heading is its title, cut, and the
+  words under it are those past the first line, or, where the heading
+  is cut, its words whole, so that its whole first line is on the card
+  once. A person task in words reads as a question and draws no title
+  heading over its words (`needs-you.md`, 1). A goal's page draws no
+  words of its goal (`goal.md`, 2, **Not drawn**), and a chat's request
+  is its conversation's first message, kept.
 - **Away** (the greenfield mock's `home.html`, `phone.html` and
   `settings.html`'s `#away`; `../../domain/forge/attention.md`, 4 and 6;
   `../../draft/what-reaches-you.md`, section 3): a person's switch on a

@@ -15,7 +15,7 @@ pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Over
 /// The engine and worker members, with values from init's filled document.
 pub fn engine_configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# Engine configuration\n\nKind: reference\n\nThe engine and worker configuration members, their bounds and what temper-box init --box writes.\n")?;
-    out.put(b"\nA seeded project's policy must be a number; inline policies are refused.\n")?;
+
     render(init, &config::members::SHAPES, &config::members::MEMBERS, true, out)
 }
 
@@ -45,6 +45,15 @@ fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
 }
 
 fn accepted(path: &str, engine: bool) -> bool {
+    for member in temper_service_core::startup::moved::MEMBERS {
+        if path.starts_with(member.path)
+            && (path.as_bytes().get(member.path.len()) == Some(&b'.')
+                || path.as_bytes().get(member.path.len()) == Some(&b'[')
+                || path == member.path)
+        {
+            return false;
+        }
+    }
     if engine {
         for stored in [
             "workers[].agent",
@@ -72,11 +81,14 @@ fn render(init: &[u8], shapes: &[Shape], rows: &[Member], engine: bool, out: &mu
     let bytes = u32::try_from(init.len()).expect("init document fits the configuration byte bound");
     let document = config::document(init, &config::DocumentLimits { bytes, tokens: bytes, depth: 32 })
         .expect("reference input is init's filled document");
-    out.put(b"\nEvery member is read at startup; a change to any member needs a restart.\n\nObjects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.\n")?;
+    out.put(b"\nConfiguration is read at startup; changing a permitted member needs a restart.\n\nObjects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.\n")?;
     if !engine {
         out.put(b"Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.\n")?;
     }
     for shape in shapes {
+        if shape.name == "test" || shape.name.starts_with("test-") {
+            continue;
+        }
         let mut heading = None;
         for path in &paths(shape, engine) {
             if accepted(path, engine) {
@@ -98,7 +110,11 @@ fn render(init: &[u8], shapes: &[Shape], rows: &[Member], engine: bool, out: &mu
             }
         }
         out.put(b". ")?;
-        out.put(shape.line.as_bytes())?;
+        if engine && shape.name == "clients" {
+            out.put(b"The clients' OpenID provider and fixed members.")?;
+        } else {
+            out.put(shape.line.as_bytes())?;
+        }
         out.put(b"\n\n")?;
         for row in rows {
             if row.shape == shape.name {
@@ -116,6 +132,9 @@ fn render_row(
     engine: bool,
     out: &mut Writer,
 ) -> Result<(), Overflow> {
+    if shape.name == "application" && row.name == "test" {
+        return Ok(());
+    }
     if engine && row.name == "models" && (shape.name == "llm" || shape.name == "llm-provider") {
         return Ok(());
     }
@@ -136,6 +155,13 @@ fn render_row(
     out.put(b"- `")?;
     out.put(row.name.as_bytes())?;
     out.put(b"`: ")?;
+    for path in &paths(shape, engine) {
+        if let Some(member) = temper_service_core::startup::moved::child(path, row.name) {
+            out.put(b"refused: ")?;
+            out.put(member.words.as_bytes())?;
+            return out.put(b"\n");
+        }
+    }
     if let Some(gone) = row.gone {
         out.put(b"refused: ")?;
         out.put(gone.as_bytes())?;
@@ -146,7 +172,8 @@ fn render_row(
         out.put(b", ")?;
         out.put(row.bound.as_bytes())?;
     }
-    let required = row.required || engine && shape.name == "llm-provider" && row.name == "endpoint";
+    let required = row.required && !(engine && shape.name == "engine" && row.name == "clients")
+        || engine && shape.name == "llm-provider" && row.name == "endpoint";
     out.put(if required { b"; required; " } else { b"; optional; " })?;
     let whole = row.name == "overrides" || row.kind == "address";
     let mut values = List::with_capacity(document.len());
@@ -177,7 +204,13 @@ fn render_row(
         }
         out.put(b". ")?;
     }
-    out.put(row.line.as_bytes())?;
+    if engine && shape.name == "engine" && row.name == "clients" {
+        out.put(b"Configures the optional OpenID provider.")?;
+    } else if engine && shape.name == "engine" && row.name == "owners" {
+        out.put(b"Names the deployment's first owners.")?;
+    } else {
+        out.put(row.line.as_bytes())?;
+    }
     out.put(b"\n")
 }
 
@@ -301,6 +334,9 @@ fn paths(shape: &Shape, engine: bool) -> List<&'static str> {
     }
     if engine && shape.name == "address" {
         for path in members::ADDRESS_PATHS {
+            if path.starts_with("application.test.") {
+                continue;
+            }
             paths.push(*path).expect("shared address paths counted");
         }
     }

@@ -1,4 +1,6 @@
-//! The small and standard profiles and checked field overrides (protocol/configuration/limits.md).
+//! The stock and checked field overrides (protocol/configuration/limits.md).
+#[cfg(test)]
+mod development;
 mod names;
 mod reference;
 use alloc::boxed::Box;
@@ -82,131 +84,130 @@ pub struct Forges {
     /// Maximum configured job-log origins per forge (protocol/configuration/limits.md).
     pub log_origins: u32,
 }
-pub use temper_service_core::limits::{FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES, Profile, Refused};
+pub use temper_service_core::limits::{FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES, Refused};
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
-    // Logical calls retained, queued and in flight, from the engine forge world fixture.
+    // Two calls in flight and one queued replacement per call.
     pending: 4,
-    // Calls in flight, from the engine forge world fixture.
+    // Two simultaneous forge requests, shared across the six retained repositories.
     calls: 2,
-    // Requests allowed per rate window, from the engine forge world fixture.
+    // Ten requests per second over the ten-second rate window.
     rate: 100,
-    // Requests reserved for writes, from the engine forge world fixture.
+    // No reserved write quota; reads and writes share the rate window.
     reserve: 0,
-    // Rate window duration, from the engine forge world fixture.
+    // A ten-second rate window smooths the stock’s two concurrent requests.
     window: Duration::from_secs(10),
-    // Owned bytes of one operation, from the engine forge world fixture.
-    op_bytes: 512,
-    // Decoded bytes of one answer: the small profile's 65,536-byte ceiling.
-    answer_bytes: 65_536,
-    // Rows in one answer page, from the engine forge world fixture.
+    // Jig’s stock tasks.result_bytes before payload derivation (derived.md, 5.1).
+    op_bytes: 262_144,
+    // Decoded answer bytes: fabrig’s development of 2026-11-16 uses 1,048,576.
+    answer_bytes: 1_048_576,
+    // Eight rows per read page, bounding work per request independently of retained resources.
     rows: 8,
-    // Comment and review delivery stamps per resource, from the engine forge world fixture.
+    // Two pages of eight delivery stamps per resource before polling catches up.
     inbox: 16,
-    // Attempts of a read, from the engine forge world fixture.
+    // One read and two retries before reporting a failed request.
     read_attempts: 3,
-    // First read retry delay, from the engine forge world fixture.
+    // One second before the first of the two read retries.
     backoff: Duration::from_secs(1),
-    // Maximum read retry delay, from the engine forge world fixture.
+    // The read retry delay doubles to at most four seconds.
     backoff_max: Duration::from_secs(4),
-    // Durable outbox entries, from the engine forge world fixture.
+    // Eight durable writes, four times the two calls in flight.
     entries: 8,
-    // Attempts of a write, from the engine forge world fixture.
+    // One write and two retries before its resource is held.
     write_attempts: 3,
     // Room for a real forge's merge, under Forgejo's 360 s git timeout
     // (temper/docs/design/protocol/configuration/limits.md, "The forge client's lifetime and the forge call's deadline").
     lifetime: Duration::from_secs(300),
-    // Allowance for clock movement, from the engine forge world fixture.
+    // One second of clock movement around a forge write’s lifetime.
     clock_margin: Duration::from_secs(1),
-    // Three chat branches, six change names, two followed tier branches and
-    // four departing reads fit sixteen slots (domain/forge/keeping-up.md, 1).
-    resources: 16,
-    // Repositories retained, from the engine forge world fixture.
-    repositories: 2,
-    // Normal resource polling interval, from the engine forge world fixture.
+    // Fabrig’s development of 2026-11-16: twice dev’s 1,024.
+    resources: 2_048,
+    // Fabrig’s development of 2026-11-16: twice dev’s 3.
+    repositories: 6,
+    // Five-second reads while a watched resource is active.
     poll: Duration::from_secs(5),
-    // Maximum resource polling interval, from the engine forge world fixture.
+    // Thirty seconds between reads of a quiet resource.
     poll_max: Duration::from_secs(30),
-    // Delay before a hinted read, from the engine forge world fixture.
+    // One second to coalesce deliveries before their hinted read.
     hinted: Duration::from_secs(1),
-    // Delay before a slow read, from the engine forge world fixture.
+    // Forty seconds between slow resource reads, above the normal polling maximum.
     slow: Duration::from_secs(40),
     // Bound Forgejo's settling of mergeability and hinted CI after a move.
     settle: Duration::from_secs(30),
     // Events first; timed reads fall back while deliveries arrive (forge/client.md, 4.1).
     fallback: Duration::from_secs(300),
-    // Facts awaiting drain, from the engine forge world fixture.
+    // Two eight-row pages of facts between drains.
     facts: 16,
 };
 const FORGE: forge::Limits = forge::Limits {
     // Forges kept at most (temper/docs/design/protocol/forge/README.md, 6).
-    forges: temper_service_core::limits::profile(Profile::Small).peer.forges,
-    // Repositories retained, from the engine forge world fixture.
-    repositories: 2,
-    // Tasks participating in the forge, from the engine forge world fixture.
-    tasks: 8,
-    // Held task resources, from the engine forge world fixture.
-    holds: 8,
+    forges: temper_service_core::limits::stock().peer.forges,
+    // Fabrig’s development of 2026-11-16: twice dev’s 3.
+    repositories: 6,
+    // Room for the project’s 128 participating tasks (configuration/stock.md).
+    tasks: 128,
+    // Fabrig’s development of 2026-11-16: 32 live landings times 5 members.
+    holds: 160,
     branch_reds: 64,
     red_key_bytes: 256,
-    // Subscriptions to forge topics, from the engine forge world fixture.
-    subscriptions: 8,
-    // Durable outbox entries, from the engine forge world fixture.
+    // Fabrig’s development of 2026-11-16: twice dev’s 64.
+    subscriptions: 128,
+    // Eight durable writes, four times the two calls in flight.
     entries: 8,
-    // At least jig small core.call_records: the root's worst case.
-    named_calls: 32,
-    // Live changes, from the engine forge world fixture.
-    changes: 8,
-    // Live issue projections, from the engine forge world fixture.
+    // Named calls retained by jig’s stock core.call_records.
+    named_calls: 128,
+    // The store’s tier-row cap, (759 - 1) / 2 (temper/docs/design/protocol/configuration/limits.md, forge.changes).
+    changes: 379,
+    // Eight active issue projections beside the project’s changes.
     issues: 8,
-    // A goal watches its held g and r branches and landings on main.
-    resources_per_task: 3,
-    // Paths retained by one subscription, from the engine forge world fixture.
+    // Fabrig’s development of 2026-11-16: twice dev’s 5.
+    resources_per_task: 10,
+    // Four watched paths per subscription, independent of the 128 subscriptions.
     paths_per_subscription: 4,
-    // Direct connector fixture; engine() takes the configured authority.segments.
+    // engine() takes the configured authority.segments.
     authority_segments: 8,
     // Names retained by the forge connector.
     name_bytes: 64,
-    // Output records reserved per forge step, from the engine forge world fixture.
-    output: 80,
-    // Facts awaiting drain, from the engine forge world fixture.
+    // Fabrig’s development of 2026-11-16: twice dev’s 82 rounded up.
+    output: 192,
+    // Two eight-row pages of facts between drains.
     facts: 16,
-    // Adoptions in flight, from the engine forge world fixture.
+    // One adoption per concurrent forge request.
     adoptions: 2,
     makings: 32,
     // Product capacity: keyed adoption answers retained for the request retention.
     applications: 32,
-    // protocol/sign-in.md, 5: small permits 64 durable member bindings.
+    // protocol/sign-in.md, 5: room for 64 durable member bindings.
     bindings: 64,
-    // Collaborators kept by the forge, from the engine forge world fixture.
+    // Eight collaborators per repository read, one page of the forge client.
     collaborators: 8,
     // Live landing tasks (domain/landing.md, 12).
-    landings: 2,
-    landing_members: 2,
+    landings: 32,
+    // Fabrig’s development of 2026-11-16: dev’s 4, capped by the worker wire’s five prefixes.
+    landing_members: 5,
     landings_kept: 16,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
-    // Entries of one tree a landing key reads: a real repository's root runs past the
-    // fixture's 16 (domain/landing.md, 6.1); forge.key_entries overrides it.
+    // Entries of a repository root read to make one landing key (domain/landing.md, 6.1).
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
-    // Project judge tables, from the engine forge world fixture.
-    judge_projects: 2,
+    // Fabrig’s development of 2026-11-16: twice dev’s 8.
+    judge_projects: 16,
     decided_per_project: 1024,
     findings_per_project: 256,
     history_days: 14,
     history_events: 131_072,
-    // Criteria in each judge table, from the engine forge world fixture.
+    // Eight judge criteria in each project’s table.
     judge_criteria: 8,
     landing_rules: 4,
-    follows: 2,
-    dependencies: 4,
+    follows: 8,
+    dependencies: 16,
     follow_paths: 8,
-    follow_queue: 16,
+    follow_queue: 64,
     follow_merge: 8,
     follow_commits: 8,
     follow_files: 32,
@@ -219,100 +220,53 @@ const FORGE: forge::Limits = forge::Limits {
     // Two gathers of ten sections, each with a second fetch while cutting.
     brief_sections: 40,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
-    brief_bytes: 4608,
+    brief_bytes: BRIEF.budgets.task,
     // Forge client calls, retries and outbox room.
     client: CLIENT,
     issue_policy: temper_engine_domain_forge_issues::Limits {
-        // Items in an issue plan, from the engine forge world fixture.
-        plan_items: 8,
-        // Milestones in an issue projection, from the engine forge world fixture.
+        // Three plan items for each of the stock's 128 participating forge tasks.
+        plan_items: 384,
+        // Eight milestones per active issue projection.
         milestones: 8,
-        // Bytes in an issue title, from the engine forge world fixture.
+        // A 128-byte title for each issue projection.
         title_bytes: 128,
-        // Bytes in an issue body, from the engine forge world fixture.
+        // A 512-byte issue body preview; full bodies remain in the forge.
         body_bytes: 512,
-        // Bytes in an issue comment, from the engine forge world fixture.
+        // A 256-byte issue comment preview; full comments remain in the forge.
         comment_bytes: 256,
-        // Interval between issue projection checks, from the engine forge world fixture.
+        // Five seconds between an issue projection’s checks, the client’s active polling interval.
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
-        // Repair attempts, from the engine forge world fixture.
-        repairs: 3,
-        // Resolution attempts, from the engine forge world fixture.
-        resolutions: 3,
-        // Update attempts, from the engine forge world fixture.
-        updates: 3,
-        // The reference's bound (draft/reference-code-production.md, section 8).
-        questions: 4,
-        // Small's producer, a review, and two repairs each followed by its review.
-        tasks: 6,
+        // One repair per task in the change's eighty-task lifetime.
+        repairs: 80,
+        // One resolution per task in the change's eighty-task lifetime.
+        resolutions: 80,
+        // One update per task in the change's eighty-task lifetime.
+        updates: 80,
+        // One question per task in the change's eighty-task lifetime (configuration/limits.md).
+        questions: 80,
+        // A change’s task lifetime at the stock’s policy count.
+        tasks: 80,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge/change/repairs.md).
         stall: Duration::from_secs(30 * 60),
         // Execution unknown to CI has a grace before it counts (domain/forge/change/stalls.md, 2).
         unknown_grace: Duration::from_secs(30 * 60),
         // Waiting or blocked for a runner at checking has its own bound.
         runner_wait: Duration::from_secs(4 * 60 * 60),
-        // Gates retained by a change, from the engine forge world fixture.
+        // Eight gates retained per change, independent of the number of live changes.
         gates: 8,
-        // Clean branch heads retained, from the engine forge world fixture.
+        // Eight checked heads retained per change before its oldest is replaced.
         clean_heads: 8,
     },
-    // Time to gather a landing queue, from the engine forge world fixture.
+    // Thirty seconds to gather compatible changes into one landing.
     queue_window: Duration::from_secs(30),
     sitting: temper_engine_domain_forge::SITTING,
 };
-// A project of fabrig's scale (temper/docs/design/protocol/configuration/stock.md).
-const STANDARD_FORGE: forge::Limits = forge::Limits {
-    follows: 8,
-    dependencies: 16,
-    follow_queue: 64,
-    // One gathered section shares the root task section's read bound.
-    brief_bytes: STANDARD_BRIEF.budgets.task,
-    // Tasks following live changes in a project, 18 changes seen.
-    tasks: 128,
-    // Holds for live changes in a project, 18 seen.
-    holds: 128,
-    // Live changes in a project, 18 seen.
-    changes: 128,
-    // Named calls retained by jig standard core.call_records.
-    named_calls: 128,
-    // Live landings alongside the project's changes.
-    landings: 32,
-    client: skein_forge_client::Limits {
-        // Watched resources, at least one for each held branch.
-        resources: 128,
-        // Whole task results, as jig-protocol-config/src/profile/standard.rs sets tasks.result_bytes.
-        op_bytes: 262_144,
-        ..CLIENT
-    },
-    change_policy: temper_engine_domain_forge_change::Limits {
-        reruns: 1,
-        // Questions per change or task, 15 seen.
-        questions: 80,
-        // Tasks across a change's runs and retries, 14 runs seen.
-        tasks: 80,
-        // Repair attempts across a change's runs, 14 seen.
-        repairs: 80,
-        // Resolution attempts across a change's runs, 14 seen.
-        resolutions: 80,
-        // Update attempts across a change's runs, 14 seen.
-        updates: 80,
-        ..FORGE.change_policy
-    },
-    issue_policy: temper_engine_domain_forge_issues::Limits {
-        // Tasks in one goal's lifetime plan, 73 seen.
-        plan_items: 384,
-        ..FORGE.issue_policy
-    },
-    ..FORGE
-};
-/// Root room follows the domain world; byte carriers take jig's small profile
-/// bounds where its children require more than the world's reduced fixtures.
 const ROOT: Root = Root {
     journal: engine::JournalLimits {
-        // Commits awaiting durability, from the root world.
+        // Three journal commit stages: queued, syncing and durable.
         commits: 3,
         // At least deliveries * 3: the root's worst case.
         held: 1536,
@@ -320,106 +274,68 @@ const ROOT: Root = Root {
         writes: 12288,
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
-        // The 65,536-byte forge answer dominates small's deep task row,
-        // including its four AuthorityExecutor values and 56-byte Option<OpenAttempt> (engine::row_bound).
-        transcript_bytes: 65_536,
-        // At least brief.brief_bytes and jig small people.words: the root's worst case.
-        result_bytes: 14_592,
+        // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
+        transcript_bytes: 22_468_264,
+        // At least brief.brief_bytes and jig stock people.words: the root's worst case.
+        result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.
         run_bytes: 65_536,
     },
     loads: engine::loads::Limits {
-        // Concurrent loads, from the root world.
+        // One owner read beside one gather’s load.
         loads: 2,
-        // Rows in one page, from the root world.
+        // Two rows per load page, bounding each owner read’s work.
         rows: 2,
-        // Kept page bytes in loads' worst case; jig small core.load_bytes.
-        bytes: 65_536,
-        // At least loads.bytes: loads' worst case; jig small core.load_bytes.
-        reply_bytes: 65_536,
-        // One authenticated read's owned bytes; jig small core.load_bytes.
-        read_bytes: 65_536,
-        // Deep row admission bound for the root's largest forge.client.answer_bytes.
-        transcript_bytes: 65_536,
+        // The whole note's 70,208 owned bytes and its 248-byte temper record slot.
+        bytes: 70_456,
+        // The same whole note and record slot fit the reply before source derivation.
+        reply_bytes: 70_456,
+        // One authenticated read's owned bytes; jig stock core.load_bytes.
+        read_bytes: 131_072,
+        // A whole stock note: body 65,536, description and pattern 256 each,
+        // 256 segment places of 16 bytes, and eight references of eight bytes.
+        transcript_bytes: 70_208,
     },
-    brief: engine::BriefLimits {
-        // Concurrent gathers, from the root world.
-        briefs: 2,
-        // Core sections and two charter documents per gather.
-        sections: 10,
-        // Parts per section, from the root world.
-        parts: 2,
-        // One section's read bytes: at least the task section's.
-        read_bytes: 4608,
-        budgets: engine::BriefBudgets {
-            // Bytes of each charter document section the forge prepares.
-            document: 4096,
-            // Task section's bytes: a whole jig small spec (4096) with its contract and
-            // requester lines, so an agent always reads all of what it was asked.
-            task: 4608,
-            // Dependencies section's bytes, from the root world.
-            dependencies: 128,
-            // CI section: a failed job's last lines, with five failed checks sharing.
-            ci: 4096,
-            // Gate remarks share the task and pull sections' working room (domain/forge/change/repairs.md).
-            reviews: 4608,
-            // A review receives a pull's title, body, files and diff, within the
-            // same read bound as the task section (domain/forge/change/gates.md, 1).
-            pull: 4608,
-            // Attempts section's bytes, from the root world.
-            attempts: 128,
-            // Plan section's bytes, from the root world.
-            plan: 128,
-            // Notes section's bytes, from the root world.
-            notes: 64,
-            preferences: 2048,
-            now: 4096,
-        },
-        // Whole task, pull and review sections, with 768 bytes for other context.
-        brief_bytes: 14_592,
-        // Outlast sequential forge reads and a retry; bound a stuck connector (domain/root.md, 9).
-        gather: Duration::from_secs(30),
-    },
+    brief: BRIEF,
 };
-// Standard carries a whole jig standard spec (131,072) plus 512 bytes for its
-// contract and requester, as small carries 4,096 plus 512.
-const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
+const BRIEF: engine::BriefLimits = engine::BriefLimits {
+    // Two simultaneous gathers; their ten sections account for forge.brief_sections.
+    briefs: 2,
+    // Core sections and two charter documents per gather.
+    sections: 10,
+    // Two source parts per brief section.
+    parts: 2,
+    // One section's read bytes: at least the task section's.
     read_bytes: 131_584,
     budgets: engine::BriefBudgets {
+        // Bytes of each charter document section the forge prepares.
+        document: 4096,
+        // Task section’s bytes: a whole jig stock spec (131,072) with its contract and
+        // requester lines, so an agent always reads all of what it was asked.
         task: 131_584,
-        // Pull and reviews share the task section's read bound, as in small.
-        pull: 131_584,
+        // A 128-byte dependency preview; complete dependencies stay in their document.
+        dependencies: 128,
+        // CI section: a failed job's last lines, with five failed checks sharing.
+        ci: 4096,
+        // Gate remarks share the task and pull sections' working room (domain/forge/change/repairs.md).
         reviews: 131_584,
-        ..ROOT.brief.budgets
+        // A review receives a pull's title, body, files and diff, within the
+        // same read bound as the task section (domain/forge/change/gates.md, 1).
+        pull: 131_584,
+        // A 128-byte attempt preview; complete history stays in the forge.
+        attempts: 128,
+        // A 128-byte plan preview; complete plans stay in their document.
+        plan: 128,
+        // A 64-byte notes preview; complete notes stay readable by their names.
+        notes: 64,
+        preferences: 2048,
+        now: 4096,
     },
-    // tests/stock_brief.rs derives charter 5's room (337,300). This brief plus
-    // 1,472 bytes for 64 titles and framing leaves 829, above the 195 margin;
-    // keep the conservative cap below 395,520.
+    // Three 131,584-byte task, pull and review sections, cut within the stock agent’s
+    // 337,300-byte charter room after 64 titles and framing (1,472) and a 195-byte margin.
     brief_bytes: 334_999,
-    ..ROOT.brief
-};
-const STANDARD_ROOT: Root = Root {
-    loads: engine::loads::Limits {
-        // A whole note: body 65,536 + description 256 + pattern bytes 256,
-        // 256 pattern segment slots * 16 and 8 references * 8 = 70,208.
-        transcript_bytes: 70_208,
-        // The row's owned bytes plus its 248-byte record slot.
-        bytes: 70_456,
-        reply_bytes: 70_456,
-        read_bytes: 131_072,
-        ..ROOT.loads
-    },
-    brief: STANDARD_BRIEF,
-    journal: engine::JournalLimits {
-        // Deep task row at jig standard's bounds (engine::row_bound):
-        // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
-        // + 22 executor places * 8 bytes per AuthorityExecutor
-        // + 8 bytes for the question wake watermark
-        // + 56 bytes for Option<OpenAttempt> and 24 for Option<Concluded> = 22,467,928.
-        transcript_bytes: 22_467_928,
-        result_bytes: STANDARD_BRIEF.brief_bytes,
-        ..ROOT.journal
-    },
+    // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
+    gather: Duration::from_secs(300),
 };
 const CLIENTS: Clients = Clients {
     // Files of a bundle, the page and both forms among them (client/web/README.md, 2.2).
@@ -430,41 +346,52 @@ const CLIENTS: Clients = Clients {
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
 pub const SOCKETS: u32 = 256;
 
-/// Constant profile values in each owner's limits.
+/// The stock before source derivations and document overrides.
 #[must_use]
-pub fn profile(profile: Profile) -> Limits {
-    let shared = temper_service_core::limits::profile(profile);
-    let mut limits = match profile {
-        Profile::Standard => Limits { root: STANDARD_ROOT, forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
-        Profile::Small => Limits {
-            picker: Picker { page: 30 },
-            routes: Routes { query_bytes: 2048 },
-            setup: temper_forge_setup::limits::host(),
-            records: Records { value_bytes: 4096 },
-            forges: Forges { installations: FORGE_INSTALLATIONS, log_origins: 20 },
-            forge_component: crate::forge::small(&FORGE),
-            root: ROOT,
-            forge: FORGE,
-            checkout: shared.checkout,
-            git_component: shared.git_component,
-            clients: CLIENTS,
-            sign_in: SignIn {
-                members: 64,
-                pending: 64,
-                deadline: Duration::from_secs(600),
-                fetches: 8,
-                body_bytes: 65_536,
-                url_bytes: 2048,
-                secret_bytes: 512,
-            },
+pub fn stock() -> Limits {
+    let shared = temper_service_core::limits::stock();
+    Limits {
+        picker: Picker { page: 30 },
+        routes: Routes { query_bytes: 2048 },
+        setup: temper_forge_setup::limits::host(),
+        records: Records { value_bytes: 4096 },
+        forges: Forges { installations: FORGE_INSTALLATIONS, log_origins: 20 },
+        forge_component: crate::forge::stock(&FORGE),
+        root: ROOT,
+        forge: FORGE,
+        checkout: shared.checkout,
+        git_component: shared.git_component,
+        clients: CLIENTS,
+        sign_in: SignIn {
+            members: 64,
+            pending: 64,
+            deadline: Duration::from_secs(600),
+            fetches: 8,
+            body_bytes: 65_536,
+            url_bytes: 2048,
+            secret_bytes: 512,
         },
-    };
-    limits.checkout = shared.checkout;
-    limits.git_component = shared.git_component;
-    limits.forge.forges = shared.peer.forges;
-    limits.forges.installations = shared.peer.installations;
-    limits.forge_component.token_bytes = shared.peer.token_bytes;
-    limits
+    }
+}
+/// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
+pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {
+    use temper_service_core::derived;
+    limits.checkout.message_bytes = sources.payload;
+    limits.root.journal.transcript_bytes = derived::resume(sources.turn)?;
+    limits.root.loads.transcript_bytes = sources.turn;
+    let record = u32::try_from(size_of::<engine::Record>()).ok()?;
+    limits.root.loads.bytes = derived::loaded(sources.turn, record)?;
+    limits.root.loads.reply_bytes = derived::loaded(sources.turn, record)?;
+    limits.root.loads.read_bytes = derived::read(
+        sources.turn,
+        u64::try_from(size_of::<jig_domain_core::reads::Row>()).ok()?,
+        u64::try_from(size_of::<jig_domain_core::Record>()).ok()?,
+    )?;
+    limits.forge.client.op_bytes = derived::message(sources.payload)?;
+    limits.forge_component.body_bytes = derived::forge_body(limits.forge.client.op_bytes)?;
+    let answer = derived::forge_answer(&limits.forge_component, limits.forge.client.answer_bytes)?;
+    apply(limits, b"forge.client.answer_bytes", u64::from(answer)).ok()?;
+    Some(())
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
@@ -570,7 +497,7 @@ pub fn host_setup(name: &[u8]) -> bool {
     .contains(&name)
 }
 
-/// Server connections admit the mount's calls, with at least small's eight connections.
+/// Server connections admit the mount's calls, with at least the stock’s eight connections.
 #[must_use]
 pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
     crate::server::Limits {
@@ -642,7 +569,7 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 mod making_tests {
     #[test]
     fn retention_overrides_reach_the_effective_core_limits() {
-        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+        let mut jig = jig_protocol_config::stock();
         for (name, value) in [
             (b"retention.turns_ms".as_slice(), 13),
             (b"retention.records_ms".as_slice(), 23),
@@ -650,28 +577,21 @@ mod making_tests {
         ] {
             jig_protocol_config::overrides::apply(&mut jig, name, value).unwrap();
         }
-        let root = engine(&jig, &profile(Profile::Small)).expect("coherent projected limits");
+        let root = engine(&jig, &stock()).expect("coherent projected limits");
         assert_eq!(root.retention, jig.core.retention);
         assert_eq!(engine::core_limits(&root).retention, jig.core.retention);
     }
 
     #[test]
-    fn small_forge_calls_have_room_for_a_merge() {
-        let limits = profile(Profile::Small);
-        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
-        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
-    }
-
-    #[test]
     fn standard_forge_calls_have_room_for_a_merge() {
-        let limits = profile(Profile::Standard);
+        let limits = stock();
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
         assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
     }
 
     #[test]
     fn a_shorter_forge_lifetime_moves_the_derived_deadline() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 100_000), Ok(()));
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(100));
         assert_eq!(limits.forge_component.deadline, Duration::from_secs(100));
@@ -679,7 +599,7 @@ mod making_tests {
 
     #[test]
     fn a_longer_forge_lifetime_keeps_the_github_deadline_cap() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 600_000), Ok(()));
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(600));
         assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
@@ -687,7 +607,7 @@ mod making_tests {
 
     #[test]
     fn a_forge_deadline_override_before_the_lifetime_stays() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
         assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
@@ -696,7 +616,7 @@ mod making_tests {
 
     #[test]
     fn a_forge_deadline_override_after_the_lifetime_stays() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
         assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
         assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
@@ -706,8 +626,8 @@ mod making_tests {
     #[test]
     fn checking_clock_limits_default_parse_and_are_named() {
         let maximum = u64::MAX / 1_000_000;
-        for selected in [Profile::Small, Profile::Standard] {
-            let stock = profile(selected);
+        {
+            let stock = stock();
             assert_eq!(stock.forge.change_policy.unknown_grace, Duration::from_secs(1800));
             assert_eq!(stock.forge.change_policy.runner_wait, Duration::from_secs(14_400));
             for (name, default) in [
@@ -741,8 +661,8 @@ mod making_tests {
 
     #[test]
     fn forge_fallback_defaults_and_dotted_overrides() {
-        for selected in [Profile::Small, Profile::Standard] {
-            let mut limits = profile(selected);
+        {
+            let mut limits = stock();
             assert_eq!(limits.forge.client.fallback, Duration::from_secs(300));
             for millis in [0, 1, 300_000] {
                 assert_eq!(apply(&mut limits, b"forge.client.fallback_ms", millis), Ok(()));
@@ -753,13 +673,13 @@ mod making_tests {
     use super::*;
     #[test]
     fn making_limits_default_to_thirty_two() {
-        for selected in [Profile::Small, Profile::Standard] {
-            assert_eq!(profile(selected).forge.makings, 32);
+        {
+            assert_eq!(stock().forge.makings, 32);
         }
     }
     #[test]
     fn making_limits_parse_at_both_bounds() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         for count in [1, 64] {
             assert_eq!(apply(&mut limits, b"forge.makings", count), Ok(()));
             assert_eq!(u64::from(limits.forge.makings), count);
@@ -768,7 +688,7 @@ mod making_tests {
     }
     #[test]
     fn making_limits_refuse_both_sides_outside_the_bound() {
-        let mut limits = profile(Profile::Small);
+        let mut limits = stock();
         let before = limits.forge.makings;
         for count in [0, 65, u64::MAX] {
             assert_eq!(apply(&mut limits, b"forge.makings", count), Err(Refused::Range));
@@ -785,11 +705,10 @@ mod making_tests {
 #[cfg(test)]
 mod key_entry_tests {
     use super::*;
-    // A staging prepare read 17 entries of a real repository's root past the fixture's 16.
     #[test]
     fn a_landing_key_reads_a_real_root_and_takes_a_dotted_override() {
-        for selected in [Profile::Small, Profile::Standard] {
-            let limits = profile(selected);
+        {
+            let limits = stock();
             assert_eq!(limits.forge.key_entries, 256);
             for value in [1, 17, 4096] {
                 let mut changed = limits;
@@ -809,8 +728,8 @@ mod red_tests {
     use super::*;
     #[test]
     fn goal_red_limits_have_stock_values_and_bounded_dotted_overrides() {
-        for selected in [Profile::Small, Profile::Standard] {
-            let limits = profile(selected);
+        {
+            let limits = stock();
             assert_eq!((limits.forge.branch_reds, limits.forge.red_key_bytes), (64, 256));
             for (name, most) in [(b"forge.branch_reds".as_slice(), 256), (b"forge.red_key_bytes".as_slice(), 512)] {
                 for value in [1, most] {

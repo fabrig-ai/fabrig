@@ -28,10 +28,8 @@ pub struct Fetch {
 }
 impl Fetch {
     pub fn new(worker: &settings::Worker, files: &settings::Files, seed: u64) -> Result<Self, Problems> {
-        let stock = config::profile(config::Profile::Standard);
-        let own = worker_settings::Limits::shared(temper_service_core::limits::profile(
-            temper_service_core::limits::Profile::Standard,
-        ));
+        let stock = config::stock();
+        let own = worker_settings::Limits::shared(temper_service_core::limits::stock());
         let payload = worker_settings::payload_limits(&own).ok_or(worker_settings::problem(b"limits", What::Bound))?;
         let limits = worker_settings::link_limits_from(&worker.jig, &stock, &payload, own.peer.forges)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;

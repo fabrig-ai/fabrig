@@ -35,7 +35,7 @@ fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
     world.driver.settle();
 }
 
-fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (engine::Config, engine::Limits) {
+fn project_people_setup(mode: temper_engine_domain_forge::Mode, _login: &[u8]) -> (engine::Config, engine::Limits) {
     use temper_engine_domain_forge as forge;
     let mut config = member_config();
     let other = core::SeedProject {
@@ -53,13 +53,7 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
         git: b"http://forge.example:3847".as_slice().into(),
         web: None,
     };
-    config.machine = Some(forge::Machine {
-        owned_person: login.into(),
-        owned: Some(place.clone()),
-        fake: None,
-        github: place,
-        github_git_program: None,
-    });
+    config.machine = Some(forge::Machine { github: place, github_git_program: None });
     let mut bounds = limits();
     bounds.people.people = 6; // Five people and the deployment service.
     bounds.people.sign_ins = 4; // Owner, member, writer and other project's owner.
@@ -74,6 +68,10 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
 fn project_people_world(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (World, u64) {
     let (config, bounds) = project_people_setup(mode, login);
     let mut world = World::with_limits(config, &bounds);
+    world
+        .driver
+        .send(Event::Forge(Box::new(temper_engine_domain_forge::Event::SetupPerson { forge: 1, login: login.into() })));
+    world.driver.settle();
     let member = world.member();
     sign_in_person(&mut world, 1, b"temper-writer", 13);
     sign_in_person(&mut world, 9, b"elsewhere", 14);
@@ -2558,6 +2556,69 @@ fn project_area_owners_are_judged_from_the_core() {
                 key,
                 Box::new([s::Item { setting: s::Setting::Application { kind, scope: PROJECT, number: 1 }, edit }]),
             );
+        }
+    }
+}
+
+#[test]
+fn an_owner_can_change_and_reset_welcome_through_the_runs_named_tools() {
+    use serde_json::json;
+    for under_box in [true, false] {
+        let mut config = config();
+        config.under_box = under_box;
+        config.kinds_stock = temper_engine_service_stock::stock::with_welcome(config.kinds_stock, under_box);
+        let mut world = World::new(config);
+        let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+        assert_eq!(world.driver.root.welcome(), under_box);
+        assert_eq!(
+            settings_value(&mut world.driver, &run, 1, json!({"setting":{"kind":"welcome"}})),
+            json!({"shown":under_box})
+        );
+        assert_eq!(see_value(&mut world.driver, &run, 2, "settings welcome"), json!({"shown":under_box}));
+        let items = json!([{"setting":{"kind":"welcome"},"set":{"shown":!under_box}}]);
+        let proposal = propose(&mut world.driver, &run, 3, 1, &items);
+        assert_eq!(world.driver.root.welcome(), under_box, "a proposal changes nothing");
+        let core::documents::ProposalAction::Settings { review: Some(review), .. } =
+            world.review(&run, proposal).action
+        else {
+            panic!("welcome review")
+        };
+        assert_eq!(review.items.get(0).unwrap().setting, s::Setting::Application { kind: 20, scope: 0, number: 1 });
+        world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 2);
+        assert_eq!(world.driver.root.welcome(), !under_box);
+        assert_eq!(see_value(&mut world.driver, &run, 4, "settings welcome"), json!({"shown":!under_box}));
+        let reset = json!([{"setting":{"kind":"welcome"},"edit":"reset"}]);
+        let proposal = propose(&mut world.driver, &run, 5, 2, &reset);
+        world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 3);
+        assert_eq!(world.driver.root.welcome(), under_box);
+        assert_eq!(
+            settings_value(&mut world.driver, &run, 6, json!({"setting":{"kind":"welcome"}})),
+            json!({"shown":under_box})
+        );
+
+        let setting = s::Setting::Application { kind: 20, scope: 0, number: 1 };
+        world.driver.send(Event::Party(PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(23)),
+            sign_in: world.owner,
+            key: [23; 16],
+            digest: [23; 32],
+            kinds: Box::new([]),
+            change: Box::new(s::Change {
+                against: 3,
+                running: s::Running::Stays,
+                items: Box::new([s::Item { setting, edit: s::Edit::Set(s::Value::Application(Box::new([255]))) }]),
+            }),
+        }));
+        world.driver.settle();
+        assert!(matches!(
+            world.reply(23),
+            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { .. }))
+        ));
+        assert_eq!(world.head().number, 3, "a nondecoding value cannot be accepted");
+        for (key, edit) in [(24, s::Edit::Removed), (25, s::Edit::Reset)] {
+            world.change(world.head().number, key, Box::new([s::Item { setting, edit }]));
         }
     }
 }

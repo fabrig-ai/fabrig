@@ -381,19 +381,7 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
     let mut edits = Edits::new();
     let application = member(&d, 0, b"application", &root)?;
     let ap = root.member(b"application");
-    let machine_at = member(&d, application, b"machine", &ap)?;
-    let mut problems = temper_forge_setup::problem::Problems::empty();
-    let directories = jig_protocol_config::Directories::given(&paths.config, &paths.data, &paths.cache)
-        .expect("checked effective directories");
-    let machine = temper_forge_setup::machine::read(
-        &d,
-        machine_at,
-        &temper_forge_setup::limits::small(),
-        &directories,
-        &mut problems,
-    )
-    .ok_or(read::why(&ap.member(b"machine"), b"invalid machine"))?;
-    let git = machine.fake.ok_or(read::why(&ap.member(b"machine"), b"fake machine required"))?.git;
+    let git = path(&paths.data, b"demo/bin/git");
     forge(&d, application, &github, &git, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
     let ep = root.member(b"engine").member(b"llm");
@@ -488,7 +476,6 @@ fn forge(
     edits: &mut Edits,
     ap: &Path,
 ) -> Result<(), Refusal> {
-    let machine = member(d, application, b"machine", ap)?;
     let origin = text(&read::joined(&[b"http://", github]))?;
     let value = read::joined(&[
         b"{\"api\":",
@@ -501,7 +488,11 @@ fn forge(
         &origin,
         b"}",
     ]);
-    object_member(d, machine, b"github", &value, edits)
+    let mut object = read::object(d, application, ap)?;
+    match object.member(d, b"test") {
+        Some(test) => object_member(d, test, b"github", &value, edits),
+        None => object_member(d, application, b"test", &read::joined(&[b"{\"github\":", &value, b"}"]), edits),
+    }
 }
 fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path) -> Result<(), Refusal> {
     let providers = member(d, llm_at, b"providers", ep)?;

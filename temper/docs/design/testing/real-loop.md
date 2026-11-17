@@ -442,7 +442,7 @@ in the lower world that owns it, never here.
   loopback beside its Forgejo face (skein's `testing/fakes/github.md`, section
   1), over the same forge as the fake git program. No story calls
   github.com or holds a real credential.
-  - **The configuration** points `application.machine.github`'s `api`,
+  - **The configuration** points `application.test.github`'s `api`,
     `transport`, `remote` and `web` at the peer
     (../protocol/configuration/engine.md), which the GitHub forge's
     record takes as its place at its connect (../protocol/forge/engine.md,

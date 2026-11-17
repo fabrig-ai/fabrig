@@ -36,6 +36,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::LandingRule::decode(&limits, &mut reader).ok()?;
             settings::Value::Rule(rule(record))
         }
+        4 => settings::Value::Landing(settings::landing_from(
+            v1::ProjectLanding::decode(&v1::CEILINGS, &mut reader).ok()?,
+        )),
+        5 => settings::Value::Gates(settings::gates_from(v1::ProjectGates::decode(&v1::CEILINGS, &mut reader).ok()?)?),
         3 => {
             let record = v1::ForgeCharter::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Charter(record.charter())
@@ -76,10 +80,14 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectAreas(areas_from(record))
         }
-        20 => settings::Value::AgentFigures(v1::AgentFigures::decode(&v1::CEILINGS, &mut reader).ok()?),
+        21 => settings::Value::AgentFigures(v1::AgentFigures::decode(&v1::CEILINGS, &mut reader).ok()?),
         15 => {
             let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
+        }
+        20 => {
+            let record = v1::Welcome::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::Welcome(settings::Welcome { shown: record.shown() })
         }
         _ => return None,
     };
@@ -94,6 +102,24 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
         settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Gates(value) => {
+            let record = settings::gates_record(value);
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Landing(value) => {
+            let record = settings::landing_record(value);
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Welcome(value) => {
+            let record = wire_welcome(*value);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             writer.finish()
@@ -177,7 +203,13 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
-        settings::Value::AgentFigures(record) => record.measure(),
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Gates(v) => settings::gates_record(v).measure(),
+        settings::Value::Landing(v) => settings::landing_record(v).measure(),
         settings::Value::Rule(rule) => wire_rule(rule).measure(),
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),
@@ -194,6 +226,7 @@ pub fn size(value: &settings::Value) -> u32 {
         }
         settings::Value::ProjectAreas(value) => wire_areas(value).measure(),
         settings::Value::ProjectTriager(value) => wire_triager(value).measure(),
+        settings::Value::Welcome(value) => wire_welcome(*value).measure(),
     }
 }
 
@@ -241,6 +274,11 @@ fn rule(record: v1::LandingRule) -> settings::LandingRule {
 
 fn freshness(value: &v1::RuleFreshness) -> JudgeFreshness {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         v1::RuleFreshness::Exact => JudgeFreshness::Exact,
         v1::RuleFreshness::Clean => JudgeFreshness::Clean,
     }
@@ -248,6 +286,11 @@ fn freshness(value: &v1::RuleFreshness) -> JudgeFreshness {
 
 fn wire_freshness(value: JudgeFreshness) -> v1::RuleFreshness {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         JudgeFreshness::Exact => v1::RuleFreshness::Exact,
         JudgeFreshness::Clean => v1::RuleFreshness::Clean,
     }
@@ -353,6 +396,11 @@ fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
 
 fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::AreaOwner::Task(number) => v1::AreaOwner::Task(
             v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number"),
         ),
@@ -369,6 +417,11 @@ fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
 }
 fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
     match value {
+        settings::Value::AgentFigures(record) => {
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         v1::AreaOwner::Task(number) => settings::AreaOwner::Task(number.number()),
         v1::AreaOwner::Party(number) => settings::AreaOwner::Party(number.number()),
         v1::AreaOwner::Role(number) => settings::AreaOwner::Role(number.number()),
@@ -405,4 +458,8 @@ fn areas_from(value: v1::ProjectAreas) -> settings::ProjectAreas {
         areas.push(settings::Area { name, words, owner: owner_from(owner) }).expect("decoded areas");
     }
     settings::ProjectAreas { areas: areas.into_boxed() }
+}
+
+fn wire_welcome(value: settings::Welcome) -> v1::Welcome {
+    v1::Welcome::new(&v1::CEILINGS, v1::WelcomeParts { shown: value.shown }).expect("fixed welcome field")
 }

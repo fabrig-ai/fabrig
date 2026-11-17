@@ -1,5 +1,6 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
+pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 mod reference;
 pub use crate::limits::{engine_reference, reference};
@@ -75,8 +76,6 @@ pub struct RedirectPort {
 pub enum Listener {
     Clients,
     Webhooks,
-    Owned(u32),
-    Fake(u32),
     Demo,
 }
 fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
@@ -116,7 +115,8 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 /// The files and directories the binary reads and opens before startup.
 #[derive(Debug)]
 pub struct Named {
-    pub machine: temper_forge_setup::machine::Machine,
+    pub provider: bool,
+    pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub files: Box<[config::File]>,
     pub asked_files: Box<[config::File]>,
     pub redirects: Box<[RedirectPort]>,
@@ -235,6 +235,73 @@ fn problem(path: Path, what: What) -> Problems {
     problems.push(path, what);
     problems
 }
+/// Worker stop bound plus a margin, rounded up to a minute (moved.md, 2).
+#[must_use]
+pub fn fleet_grace(stop_bound: skein_lib::Duration) -> skein_lib::Duration {
+    use skein_lib::Duration;
+    let minute = Duration::from_secs(60).as_nanos();
+    let nanos = stop_bound.as_nanos().saturating_add(Duration::from_secs(30).as_nanos());
+    let minutes = nanos.div_ceil(minute);
+    Duration::from_nanos(minutes.saturating_mul(minute))
+}
+fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
+    let graces = fixed_worker().graces.expect("temper fixes worker graces");
+    fleet_grace(
+        config::stop_bound(&graces, limits.link.ping, limits.link.silence)
+            .unwrap_or(skein_lib::Duration::from_nanos(u64::MAX)),
+    )
+}
+fn fleet_override(document: &skein_json::Document, at: u32) -> bool {
+    let Some(limits) = member(document, at, b"limits") else { return false };
+    let Some(overrides) = member(document, limits, b"overrides") else { return false };
+    member(document, overrides, b"fleet.grace_ms").is_some()
+}
+/// Check the override against the derived minimum in every engine shape.
+pub fn check_fleet_grace(engine: &config::Engine, problems: &mut Problems) {
+    let derived = worker_fleet_grace(&engine.limits);
+    if engine.limits.core.fleet.grace < derived {
+        problems.push(
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"fleet.grace_ms"),
+            What::Half(EngineWhat::FleetGrace { offered: engine.limits.core.fleet.grace, derived }),
+        );
+    }
+}
+/// temper's engine constants (protocol/configuration/moved.md, 2).
+/// # Errors
+/// A data directory whose joined store path exceeds the path bound.
+pub fn fixed(directories: &config::Directories) -> Result<config::Fixed, config::Problems> {
+    let directory = match directories.join(config::Directory::Data, b"state") {
+        Ok(directory) => directory,
+        Err(what) => {
+            let mut problems = config::Problems::empty();
+            problems.push(Path::root().member(b"deployment").member(b"directory"), what);
+            return Err(problems);
+        }
+    };
+    Ok(config::Fixed {
+        deployment: Some(config::Deployment { directory, seed: Some(7) }),
+        providers: Some(Box::new([
+            config::IdentityProvider { number: 1, kind: config::ProviderKind::Link },
+            config::IdentityProvider { number: 2, kind: config::ProviderKind::Deployment },
+            config::IdentityProvider { number: 3, kind: config::ProviderKind::Application },
+        ])),
+        connectors: Some(Box::new([1])),
+        acts: Some(Box::new([jig_domain_people::ActGrant {
+            connector: 1,
+            may: Box::new([
+                jig_domain_people::ActKind::RemoveProject,
+                jig_domain_people::ActKind::RemoveAccount,
+                jig_domain_people::ActKind::Adopt,
+            ]),
+        }])),
+        projects: Some(Box::new([])),
+        clients: Some(config::FixedClients {
+            heartbeat: skein_lib::Duration::from_millis(10_000),
+            link: true,
+            approval: true,
+        }),
+    })
+}
 /// Parse jig's engine member and pass the supplied defaults, refusing document
 /// settings members (protocol/configuration/settings.md, 4 and 5).
 /// # Errors
@@ -245,7 +312,23 @@ pub fn engine_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<config::Engine, config::Problems> {
-    let mut engine = config::engine(document, at, directories, config::Defaults::Passed)?;
+    engine_with_sources(document, at, directories, given, temper_service_core::derived::STOCK)
+}
+pub fn engine_with_sources(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+) -> Result<config::Engine, config::Problems> {
+    let mut base = config::stock();
+    if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
+        let mut problems = config::Problems::empty();
+        problems.push(found.path, found.what);
+        return Err(problems);
+    }
+    let mut engine =
+        config::engine_over(document, at, directories, config::Defaults::Passed, &fixed(directories)?, &base)?;
     let stock = match given {
         crate::stock::Given::Stock => true,
         crate::stock::Given::Own { .. } => false,
@@ -263,6 +346,9 @@ pub fn engine_with(
         );
         return Err(problems);
     };
+    if !fleet_override(document, at) {
+        engine.limits.core.fleet.grace = worker_fleet_grace(&engine.limits);
+    }
     config::pass(&mut engine, defaults)?;
     Ok(engine)
 }
@@ -319,25 +405,6 @@ fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Prob
         );
     }
 }
-// Temper seeds name settings; jig also serves callers that accept inline policies.
-fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
-    let Some(projects) = member(document, engine, b"projects") else { return };
-    let Ok(projects) = read::list(document, projects, document.len()) else { return };
-    for (index, project) in projects.iter().enumerate() {
-        if let Some(policy) = member(document, *project, b"policy")
-            && document.token(policy).expect("policy token").kind == skein_json::document::Kind::ObjectStart
-        {
-            problems.push(
-                Path::root()
-                    .member(b"engine")
-                    .member(b"projects")
-                    .child(Segment::Index(u32::try_from(index).expect("bounded projects")))
-                    .member(b"policy"),
-                What::Half(EngineWhat::InlineSeedPolicy),
-            );
-        }
-    }
-}
 #[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
 fn load_document(
     document: &skein_json::Document,
@@ -373,7 +440,6 @@ fn load_document(
     if let Some(at) = engine_at {
         let before = problems.problems.len();
         watch_rooms(document, at, &mut problems);
-        inline_seed_policies(document, at, &mut problems);
         if problems.problems.len() != before {
             return Err(problems);
         }
@@ -384,6 +450,7 @@ fn load_document(
                 if check_start {
                     checks::figures(&engine, &mut problems);
                 }
+                check_fleet_grace(&engine, &mut problems);
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
             }
@@ -413,7 +480,7 @@ fn load_document(
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories) {
+        match config::worker(document, *at, directories, &fixed_worker()) {
             Ok(worker) => {
                 if worker.agent.is_none() {
                     problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
@@ -483,11 +550,6 @@ fn load_document(
         &workers,
         &mut problems,
     );
-    if shape == Shape::EngineAlone && !application.workers.is_empty() {
-        problems.push(root.member(b"application").member(b"workers"), What::Half(EngineWhat::EngineAlone));
-    } else if workers.len() != application.workers.len() {
-        problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
-    }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
@@ -501,7 +563,7 @@ fn load_document(
     checks::records(engine.as_ref().expect("required engine checked"), &application.limits, &mut problems);
     checks::limits(&application.limits, &application.limits.git_component, &mut problems);
     checks::names(
-        checks::machine_remote(&application.machine, application.limits.forge.name_bytes),
+        checks::machine_remote(application.test_github.as_ref(), application.limits.forge.name_bytes),
         &application.limits,
         &mut problems,
     );
@@ -564,7 +626,8 @@ pub fn named_with(
     check_memory_bytes(parsed.engine.memory)?;
     let files = all_files(&parsed);
     Ok(Named {
-        machine: parsed.application.machine,
+        provider: parsed.engine.clients.provider.is_some(),
+        test_github: parsed.application.test_github,
         files,
         asked_files: Box::new([]),
         redirects: redirects(&parsed.engine),
@@ -662,9 +725,10 @@ pub fn checked_start_with(
     let own = &parsed.application.limits;
     checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
-    let remote =
-        u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
-            .ok();
+    let remote = u32::try_from(
+        checks::longest_remote(parsed.application.test_github.as_ref(), own.forge.name_bytes).unwrap_or(u64::MAX),
+    )
+    .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
         repositories: own.checkout.repositories,
         name_bytes: own.forge.name_bytes,
@@ -689,7 +753,7 @@ pub fn checked_start_with(
     checks::channel(
         Some(&engine_bounds),
         if agent.is_some() { Some(&worker_bounds) } else { None },
-        Some(&parsed.application.machine),
+        parsed.application.test_github.as_ref(),
         own,
         &mut problems,
     );
@@ -714,6 +778,8 @@ pub fn checked_start_with(
     let not_set_up = List::with_capacity(0);
 
     let mut engine = settings::Engine {
+        landing_held: false,
+        setups: Box::new([]),
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
             None => None,
@@ -723,7 +789,7 @@ pub fn checked_start_with(
             None => None,
         },
         host_part,
-        machine: parsed.application.machine,
+        test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
@@ -732,7 +798,6 @@ pub fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
-        welcome: parsed.application.welcome,
         program_environment: Box::new([]),
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
@@ -741,7 +806,6 @@ pub fn checked_start_with(
             crate::stock::Given::Stock => crate::stock::ways(),
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
-        landings: parsed.application.landings,
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
@@ -752,7 +816,7 @@ pub fn checked_start_with(
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),
     };
-    checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
+    checks::root(core, &engine, seeds, &[], &root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }

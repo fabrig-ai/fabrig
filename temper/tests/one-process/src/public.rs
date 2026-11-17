@@ -78,7 +78,8 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
     value["application"]["clients"]["public"] = "https://one.example".into();
-    value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
+    value["world_settings"]["settings"] =
+        serde_json::json!({"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn"}}]});
     for (name, count) in [
         ("clients.public.reads", 4),
         ("clients_http.public_calls", 4),

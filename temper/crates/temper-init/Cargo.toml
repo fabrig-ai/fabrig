@@ -15,6 +15,7 @@ skein-forge-setup.workspace = true
 
 [dev-dependencies]
 temper-fixtures.workspace = true
+temper-service-core.workspace = true
 jig-protocol-config.workspace = true
 serde_json.workspace = true
 skein-fake-checkout.workspace = true

@@ -27,6 +27,7 @@ skein-io.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
 temper-fixtures.workspace = true
 skein-scratch.workspace = true
 temper-engine-service-vocabulary.workspace = true

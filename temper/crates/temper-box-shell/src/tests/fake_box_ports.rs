@@ -26,8 +26,6 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
             .expect("deployment JSON");
     for pointer in [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ] {

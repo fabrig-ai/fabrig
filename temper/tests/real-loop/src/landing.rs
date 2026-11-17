@@ -150,7 +150,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
 
 fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
     let jig = crate::settings::configuration(value);
-    let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let mut own = temper_service::limits::stock();
     for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
         temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))
             .expect("application override");

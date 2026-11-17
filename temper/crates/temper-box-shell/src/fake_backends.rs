@@ -655,12 +655,12 @@ fn prepare(
         &effective,
         environment,
         &binary,
-        chosen.map_or([0; 5], |ports| ports.listeners),
+        chosen.map_or([0; 3], |ports| [ports.listeners[0], ports.listeners[3], ports.listeners[4]]),
         Some(adapter),
     )?;
     let mut held = Listeners(written.listeners);
     if let Some(chosen) = chosen {
-        for ((_, port), wanted) in held.0.iter().zip(chosen.listeners) {
+        for ((_, port), wanted) in held.0.iter().zip([chosen.listeners[0], chosen.listeners[3], chosen.listeners[4]]) {
             if port.get() != wanted {
                 return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
             }

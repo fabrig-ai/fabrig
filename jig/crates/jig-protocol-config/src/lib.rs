@@ -4,6 +4,8 @@
 extern crate alloc;
 use alloc::boxed::Box;
 mod acts;
+mod fixed;
+pub use fixed::{Fixed, FixedClients};
 mod charters;
 mod core;
 mod templates;
@@ -18,10 +20,10 @@ pub use domain::{
     Deployment, Provider as IdentityProvider, ProviderKind, amendment_bytes_max, check_effective_limits,
     policy_bytes_max,
 };
-pub use projects::{Policy, Project};
+pub use projects::{Policy, Project, policies};
 mod check;
 mod worker;
-pub use worker::{Agent, Graces, Worker, stop_bound, worker, worker_with_limits};
+pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker, worker_over};
 pub mod clients;
 mod files;
 pub mod hosts;
@@ -36,7 +38,7 @@ pub mod members;
 pub mod names;
 pub mod overrides;
 pub mod profile;
-pub use profile::{JournalSizes, Limits, Link, Profile, profile};
+pub use profile::{JournalSizes, Limits, Link, stock};
 pub mod forms;
 mod problem;
 pub mod read;
@@ -82,15 +84,30 @@ pub fn engine(
     at: u32,
     directories: &Directories,
     defaults: Defaults,
+    fixed: &Fixed,
+) -> Result<Engine, Problems> {
+    engine_over(document, at, directories, defaults, fixed, &stock())
+}
+
+/// Parse jig's engine member over an application's base (protocol/limits.md, the stock).
+#[expect(clippy::too_many_lines, reason = "one ordered read before the engine whole-check")]
+#[expect(clippy::manual_map, reason = "step code uses no closures")]
+pub fn engine_over(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &Directories,
+    defaults: Defaults,
+    fixed: &Fixed,
+    base: &Limits,
 ) -> Result<Engine, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "engine") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Standard);
+    let mut limits = *base;
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+        let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
             problems.push(problem.path.clone(), problem.what);
@@ -106,20 +123,32 @@ pub fn engine(
         hosts = hosts::parse(document, at, &path.member(b"hosts"), &limits, directories, &mut problems);
     }
     let mut clients = None;
-    if let Some(at) = object.required(document, b"clients", &path, &mut problems) {
-        clients = clients::parse(document, at, &path.member(b"clients"), directories, &mut problems);
+    let clients_at = if fixed.clients.is_some() {
+        object.member(document, b"clients")
+    } else {
+        object.required(document, b"clients", &path, &mut problems)
+    };
+    if let Some(at) = clients_at {
+        clients =
+            clients::parse(document, at, &path.member(b"clients"), directories, fixed.clients.as_ref(), &mut problems);
+    } else if let Some(given) = &fixed.clients {
+        clients = Some(given.clients());
     }
     let offers = defaults::offers(document, &mut object, llm.as_ref(), &limits, directories, defaults, &mut problems);
     let configured = match &llm {
         Some(llm) => llm.models(),
         None => Box::default(),
     };
-    let mut deployment = None;
-    if let Some(at) = object.required(document, b"deployment", &path, &mut problems) {
+    let mut deployment = fixed.deployment.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"deployment", fixed.deployment.is_some(), &path, &mut problems)
+    {
         deployment = domain::deployment(document, at, &path.member(b"deployment"), directories, &mut problems);
     }
-    let mut providers = None;
-    if let Some(at) = object.required(document, b"providers", &path, &mut problems) {
+    let mut providers = fixed.providers.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"providers", fixed.providers.is_some(), &path, &mut problems)
+    {
         providers = domain::providers(document, at, &path.member(b"providers"), &mut problems);
     }
     let mut rules = if defaults == Defaults::Passed { Some(defaults::empty_rules()) } else { None };
@@ -129,8 +158,12 @@ pub fn engine(
         let authority = &limits.core.authority;
         rules = projects::rules(document, at, &path.member(b"rules"), authority, &configured, &mut problems);
     }
-    let mut projects = None;
-    if let Some(at) = object.required(document, b"projects", &path, &mut problems) {
+    let mut projects = match &fixed.projects {
+        Some(values) => Some(projects::Projects { values: values.clone(), policies: Box::default() }),
+        None => None,
+    };
+    if let Some(at) = fixed::member(&mut object, document, b"projects", fixed.projects.is_some(), &path, &mut problems)
+    {
         projects = projects::projects(document, at, &path.member(b"projects"), &limits, &configured, &mut problems);
     }
     let policies = if defaults == Defaults::Document {
@@ -138,13 +171,22 @@ pub fn engine(
     } else {
         Some(Box::default())
     };
-    let mut connectors = None;
-    if let Some(at) = object.required(document, b"connectors", &path, &mut problems) {
+    let mut connectors = fixed.connectors.clone();
+    if let Some(at) =
+        fixed::member(&mut object, document, b"connectors", fixed.connectors.is_some(), &path, &mut problems)
+    {
         connectors =
             domain::connectors(document, at, &path.member(b"connectors"), limits.core.connectors, &mut problems);
     }
-    let acts = acts::parse(&mut object, document, &path, connectors.as_deref().unwrap_or(&[]), &mut problems);
-    limits.core.people.act_grants = u32::try_from(acts.len()).expect("document count fits u32");
+    let acts = if let Some(given) = &fixed.acts {
+        fixed::refuse(&mut object, document, b"acts", &path, &mut problems);
+        acts::check(given, connectors.as_deref().unwrap_or(&[]), &path.member(b"acts"), &mut problems);
+        given.clone()
+    } else {
+        acts::parse(&mut object, document, &path, connectors.as_deref().unwrap_or(&[]), &mut problems)
+    };
+    fixed::check(fixed, &limits, &mut problems);
+    limits.core.people.act_grants = u32::try_from(acts.len()).expect("act-grant count fits u32");
     let memory = check::integer(&mut object, document, b"memory_bytes", &path, &mut problems);
     let owners = object.required(document, b"owners", &path, &mut problems);
     object.finish(document, &path, &mut problems);

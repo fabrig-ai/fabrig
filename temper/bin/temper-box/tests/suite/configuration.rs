@@ -233,7 +233,7 @@ fn the_clusters_documents_check_as_their_shapes() {
             }
             Shape::WorkerAlone => {
                 let mut part =
-                    startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
+                    startup::worker_part(&bytes, &jig_directories(&directories), None).expect("checked worker alone");
                 temper_worker_service::figures::apply(&mut part, support::cluster::figures(&engine))
                     .expect("applied engine figures");
                 let worker = &part.worker.jig;

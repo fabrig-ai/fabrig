@@ -55,7 +55,7 @@ fn sign_in_reader(world: &mut World) {
 }
 
 fn change_world_with_lines(lines: u32) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.lines = lines;
     let world = World::configured_policy(true, true, true, 1000, Gate::default(), Some(documents));
     change_world_in(world, Change::default())

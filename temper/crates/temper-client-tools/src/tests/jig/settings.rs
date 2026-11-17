@@ -2162,7 +2162,7 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
     } else if kind == 14 {
         br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
-    } else if kind == 20 {
+    } else if kind == 21 {
         br#"{"items":[{"setting":{"kind":"agents"},"set":{"profile":{"policy.max_turns":900},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"drop"}}}]}"#.as_slice()
     } else if kind == 15 {
         br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
@@ -2245,8 +2245,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
         (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
         (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
-        (vec!["settings", "show", "agents"], 20, 0, "agents", false),
-        (vec!["settings", "show", "agents"], 20, 0, "agents", true),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", true),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
@@ -2309,7 +2309,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     12 => "\"workflow\":\"tests.yml\"",
                     14 => "\"owner\":{\"task\":42}",
                     15 => "\"owner\":{\"charter\":14}",
-                    20 => "\"profile\":{\"policy.max_turns\":900}",
+                    21 => "\"profile\":{\"policy.max_turns\":900}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2395,7 +2395,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 12 => "\"workflow\":\"tests.yml\"",
                 14 => "\"owner\":{\"task\":42}",
                 15 => "\"owner\":{\"charter\":14}",
-                20 => "\"policy.max_turns\":900",
+                21 => "\"policy.max_turns\":900",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");

@@ -1,6 +1,5 @@
 {
   "engine": {
-    "acts": [{"connector": 1, "may": ["remove_project", "remove_account", "adopt"]}],
     "limits": {
       "profile": "standard",
       "overrides": {
@@ -34,8 +33,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -50,8 +59,17 @@
               "keys": "https://auth.openai.com/.well-known/jwks.json",
               "transport": "tls",
               "server_name": "auth.openai.com",
-              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-              "must_grant": ["chatgpt.tokens.use.direct"],
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
               "resource": "https://api.openai.com/v1",
               "redirect_path": "auth/callback",
               "redirect_port": 1455
@@ -90,41 +108,14 @@
         }
       ]
     },
-    "clients": {
-      "heartbeat_ms": 10000,
-      "link": true,
-      "approval": true
-    },
-    "deployment": {
-      "directory": "state",
-      "seed": 7
-    },
+    "clients": {},
     "owners": [
       {
         "provider": 1,
         "subject": "owner-a"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 1073741824,
-    "projects": [
-      {
-        "number": 1,
-        "policy": 1
-      }
-    ]
+    "memory_bytes": 1073741824
   },
   "workers": [
     {
@@ -133,40 +124,10 @@
       },
       "name": "worker",
       "secret": "secrets/worker.secret",
-      "slots": 4,
-      "graces": {
-        "grace_ms": 10000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      }    }
+      "slots": 4
+    }
   ],
   "application": {
-    "machine": {
-      "owned": {
-        "forgejo": "/opt/forgejo/forgejo",
-        "runner": {
-          "binary": "/opt/forgejo/forgejo-runner",
-          "labels": [
-            "temper-host:host"
-          ],
-          "capacity": 1,
-          "path": "/usr/local/bin:/usr/bin:/bin"
-        },
-        "listen": {
-          "socket": "127.0.0.1:3000"
-        },
-        "person": {
-          "login": "ada",
-          "email": "ada@example.invalid"
-        },
-        "remote": "http://127.0.0.1:3000"
-      },
-      "github": null
-    },
     "clients": {
       "listener": {
         "socket": "127.0.0.1:7100"
@@ -179,7 +140,8 @@
         "socket": "127.0.0.1:7101"
       }
     },
-    "demo": null, "sign_in": null,
+    "demo": null,
+    "sign_in": null,
     "limits": {
       "profile": "standard",
       "overrides": {
@@ -198,12 +160,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }
-    },
-    "workers": [
-      {
-        "root": "workspaces",
-        "git": "/usr/bin/git"
-      }
-    ]
+    }
   }
 }

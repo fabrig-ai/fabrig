@@ -135,6 +135,9 @@ fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper
                 | settings::Value::Follow(_)
                 | settings::Value::ProjectAreas(_)
                 | settings::Value::AgentFigures(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_) => {}
             },
         }
@@ -207,6 +210,9 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::Classes(_)
                 | settings::Value::ProjectAreas(_)
                 | settings::Value::AgentFigures(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_)
                 | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)

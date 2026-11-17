@@ -241,11 +241,11 @@ fn changed(engine: &mut Engine, agents: &s::AgentFigures, against: u32) {
         sign_in: 1,
         key: [u8::try_from(against).unwrap(); 16],
         digest: [u8::try_from(against).unwrap(); 32],
-        kinds: Box::new([root::KindValue { kind: 20, scope: 0, number: 1, value }]),
+        kinds: Box::new([root::KindValue { kind: 21, scope: 0, number: 1, value }]),
         change: Box::new(settings::Change {
             against,
             items: Box::new([settings::Item {
-                setting: settings::Setting::Application { kind: 20, scope: 0, number: 1 },
+                setting: settings::Setting::Application { kind: 21, scope: 0, number: 1 },
                 edit: settings::Edit::Set(settings::Value::Application(Box::new([]))),
             }]),
             running: settings::Running::Stays,

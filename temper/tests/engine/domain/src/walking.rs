@@ -149,9 +149,9 @@ pub fn limits() -> engine::Limits {
     };
     let mut limits = engine::Limits {
         streams: 1,
-        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
-        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
-        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        routes: jig_protocol_config_fixtures::small().routes,
+        policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
+        call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
@@ -161,9 +161,9 @@ pub fn limits() -> engine::Limits {
             permissions: 32,
             proposals: 4,
         },
-        templates: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.templates,
+        templates: jig_protocol_config_fixtures::small().core.templates,
         documents: jig_domain_core::documents::DocumentLimits {
-            roles: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents.roles,
+            roles: jig_protocol_config_fixtures::small().core.documents.roles,
             segments: 9,
             grants: authority_limits().grants.max(tasks.authority_grants),
             executors: authority_limits().executors.max(tasks.executor_kinds),
@@ -383,7 +383,7 @@ pub fn config(seed: u64) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),
@@ -870,6 +870,7 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }

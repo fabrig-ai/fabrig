@@ -41,12 +41,12 @@ fn limits() -> w::AgentLimitsParts {
     }
 }
 fn item(value: w::AgentFigures) -> Item {
-    Item { kind: 20, scope: 0, number: 1, value: Some(Value::AgentFigures(value)) }
+    Item { kind: 21, scope: 0, number: 1, value: Some(Value::AgentFigures(value)) }
 }
 #[test]
 fn agent_figures_judge_names_each_invalid_item() {
-    assert_eq!(s::Kind::of(20), Some(s::Kind::Agents));
-    assert_eq!(s::Kind::Agents.number(), 20);
+    assert_eq!(s::Kind::of(21), Some(s::Kind::Agents));
+    assert_eq!(s::Kind::Agents.number(), 21);
     for &(name, maximum) in PROFILE_FIGURES {
         assert_eq!(judge(&item(figures(&[(name, maximum)], &[b"openai"], limits())), &BOUNDS), Ok(()));
         if maximum < u64::MAX {
@@ -115,7 +115,7 @@ fn agent_figures_read_defaults_and_changes_and_resets() {
     let changed = figures(&[(b"policy.max_turns", 900)], &[], limits());
     let mut domain = super::super::domain();
     domain.give_settings_defaults(Box::new([s::Stock {
-        kind: 20,
+        kind: 21,
         scope: 0,
         number: 1,
         value: s::SizedValue { size: default.measure(), value: Value::AgentFigures(default.clone()) },
@@ -131,7 +131,7 @@ fn agent_figures_read_defaults_and_changes_and_resets() {
         (3, s::Edit::Remove, &default),
         (4, s::Edit::Reset, &default),
     ] {
-        let asked = s::Asked { kind: 20, scope: 0, number: 1, edit };
+        let asked = s::Asked { kind: 21, scope: 0, number: 1, edit };
         assert!(matches!(domain.judge_settings(&BOUNDS, core::slice::from_ref(&asked))[0], s::Judged::Accept { .. }));
         domain.keep_settings(&super::super::env(), revision, None, &[asked], &mut out);
         assert_eq!(domain.agent_figures(), expected);

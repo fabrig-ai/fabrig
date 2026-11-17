@@ -4,7 +4,7 @@ use crate::directories::tests::scratch;
 use std::fs;
 
 fn store_limits() -> jig_protocol_store::Limits {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let mut limits = jig_protocol_config_fixtures::small().store;
     // Skein's real KV fixture, with chunk >= key + value + 20, and room
     // for the format and the eight rows of the tag-filter case.
     limits.store = skein_kv::Limits {

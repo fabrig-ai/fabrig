@@ -88,9 +88,6 @@ pub fn standalone(
             );
         }
     }
-    if engine.connectors.as_ref() != [1] {
-        problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
-    }
     if alone {
         return;
     }
@@ -119,14 +116,12 @@ pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: 
 pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
-    machine: Option<&temper_forge_setup::machine::Machine>,
+    test_github: Option<&temper_forge_setup::machine::GitHubMachine>,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
-    if engine.is_some()
-        && let Some(machine) = machine
-    {
-        names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
+    if engine.is_some() {
+        names(machine_remote(test_github, limits.forge.name_bytes), limits, problems);
     }
     // Both sides carry checkout repositories; forge watches need no directories.
     let repository_shape = match (engine, worker) {

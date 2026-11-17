@@ -9,6 +9,11 @@ use skein_lib::List;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
 const BOUNDS: Bounds = Bounds {
+    landing_members: 4,
+    repositories: 2,
+    landing_gates: 2,
+    tiers: 2,
+    ignored_paths: 4,
     landing_rules: 4,
     gates: 2,
     roles: 2,
@@ -162,8 +167,8 @@ fn judge_accepts_rules_within_their_bounds() {
         (1, Some(Kind::DeploymentRules)),
         (2, Some(Kind::ProjectRules)),
         (3, Some(Kind::Charters)),
-        (4, None),
-        (5, None),
+        (4, Some(Kind::ProjectLanding)),
+        (5, Some(Kind::ProjectGates)),
         (11, Some(Kind::TemplateGoal)),
         (u32::MAX, None),
     ] {
@@ -186,7 +191,7 @@ fn judge_refuses_each_fault_by_name() {
     }
     extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
     let rows = [
-        ("kind 4", Item { kind: 4, ..base.clone() }, Err(Refusal::Kind)),
+        ("unknown kind", Item { kind: u32::MAX, ..base.clone() }, Err(Refusal::Kind)),
         (
             "deployment set",
             with_rule(LandingRule { sets: Box::new([1]), ..valid.clone() }),
@@ -321,7 +326,7 @@ fn judge_refuses_each_fault_by_name() {
             }),
             Err(Refusal::Approvals),
         ),
-        ("removal kind", Item { kind: 4, value: None, ..base.clone() }, Err(Refusal::Kind)),
+        ("removal kind", Item { kind: u32::MAX, value: None, ..base.clone() }, Err(Refusal::Kind)),
         ("removal scope", Item { scope: PROJECT, value: None, ..base.clone() }, Err(Refusal::Scope)),
         ("removal number", Item { number: 0, value: None, ..base }, Err(Refusal::Number)),
     ];
@@ -750,3 +755,124 @@ fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
 
 #[path = "settings_agents.rs"]
 mod agents;
+fn landing_gates() -> crate::settings::ProjectGates {
+    crate::settings::ProjectGates {
+        repositories: Box::new([crate::RepositoryGates {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: Some(temper_engine_domain_forge_landing::GateReport {
+                    artifact: b"report".as_slice().into(),
+                    format: temper_engine_domain_forge_tiers::Format::Lines,
+                    fuzzy: Some(b"fuzzy_".as_slice().into()),
+                }),
+            }]),
+            tiers: Box::new([crate::Tier {
+                name: b"slow".as_slice().into(),
+                workflow: b"slow.yml".as_slice().into(),
+                ignored: Box::new([]),
+                artifact: b"report".as_slice().into(),
+                format: temper_engine_domain_forge_tiers::Format::Junit,
+                follows: crate::Follows::Goals,
+                span: Some(skein_lib::Duration::from_millis(5000)),
+                description: b"slow tests".as_slice().into(),
+            }]),
+        }]),
+    }
+}
+#[test]
+fn landing_fields_and_gate_names_are_judged() {
+    use crate::settings::{ProjectGates, ProjectLanding};
+    let default = ProjectLanding::default();
+    let mut batch_zero = default.clone();
+    batch_zero.batch = 0;
+    let mut batch_past = default.clone();
+    batch_past.batch = u16::try_from(BOUNDS.landing_members + 1).expect("tiny bound");
+    let mut timeout_low = default.clone();
+    timeout_low.check_timeout_ms = Some(999);
+    let mut timeout_high = default.clone();
+    timeout_high.check_timeout_ms = Some(86_400_001);
+    let mut gate_low = default.clone();
+    gate_low.gate_timeout_ms = 59_999;
+    let mut gate_high = default.clone();
+    gate_high.gate_timeout_ms = 86_400_001;
+    let mut attempts = default.clone();
+    attempts.landing_attempts = 0;
+    let mut job = default.clone();
+    job.merge_job = Some(b"tools/../merge".as_slice().into());
+    for (value, field) in [
+        (batch_zero, b"batch".as_slice()),
+        (batch_past, b"batch"),
+        (timeout_low, b"check_timeout_ms"),
+        (timeout_high, b"check_timeout_ms"),
+        (gate_low, b"gate_timeout_ms"),
+        (gate_high, b"gate_timeout_ms"),
+        (attempts, b"landing_attempts"),
+        (job, b"merge_job"),
+    ] {
+        let refusal = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS)
+            .expect_err("invalid landing");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(
+        judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(default)) }, &BOUNDS),
+        Ok(())
+    );
+    let valid = landing_gates();
+    let mut bad_name = valid.clone();
+    bad_name.repositories[0].gates[0].name = b"bad name".as_slice().into();
+    let duplicate =
+        ProjectGates { repositories: Box::new([valid.repositories[0].clone(), valid.repositories[0].clone()]) };
+    let mut tiers = valid.clone();
+    tiers.repositories[0].tiers =
+        Box::new([tiers.repositories[0].tiers[0].clone(), tiers.repositories[0].tiers[0].clone()]);
+    for (value, field) in [(bad_name, b"name".as_slice()), (duplicate, b"repository"), (tiers, b"tiers.name")] {
+        let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(value)) }, &BOUNDS)
+            .expect_err("invalid gates");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(valid)) }, &BOUNDS), Ok(()));
+    for kind in [4, 5] {
+        assert_eq!(judge(&Item { kind, scope: PROJECT, number: 1, value: None }, &BOUNDS), Ok(()));
+    }
+}
+#[test]
+fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
+    use crate::settings::{CARRIER, gates_bytes, gates_record};
+    let bounds = Bounds { ignored_paths: 2000, name_bytes: 1024, ..BOUNDS };
+    let mut gates = landing_gates();
+    gates.repositories[0].tiers = Box::new([]);
+    gates.repositories[0].gates[0].report = None;
+    let before = gates_bytes(&gates).expect("small shape");
+    let remaining = CARRIER - before;
+    let mut paths = List::with_capacity(bounds.ignored_paths);
+    for _ in 0..remaining / 1028 {
+        paths.push(alloc::vec![b'x'; 1024].into_boxed_slice()).expect("bounded paths");
+    }
+    let remainder = remaining % 1028;
+    assert!(remainder > 4);
+    paths
+        .push(alloc::vec![b'x'; usize::try_from(remainder - 4).expect("small remainder")].into_boxed_slice())
+        .expect("bounded paths");
+    gates.repositories[0].gates[0].ignored = paths.into_boxed();
+    assert_eq!(gates_bytes(&gates), Some(CARRIER));
+    assert_eq!(gates_record(&gates).measure(), CARRIER, "judge counts the codec's bytes");
+    assert_eq!(
+        judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
+        Ok(())
+    );
+    let path = gates.repositories[0].gates[0].ignored.last_mut().expect("tail path");
+    let mut bytes = skein_lib::Writer::new(path.len() + 1);
+    bytes.put(path).expect("tail path");
+    bytes.put(b"x").expect("one extra byte");
+    *path = bytes.finish();
+    let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates)) }, &bounds)
+        .expect_err("carrier cap");
+    assert_eq!(refusal, Refusal::LandingCarrier);
+    assert!(skein_lib::bytes::find(&refusal.words(), b"repositories").is_some());
+    assert!(skein_lib::bytes::find(&refusal.words(), skein_lib::Decimal::of(u64::from(CARRIER)).as_bytes()).is_some());
+}

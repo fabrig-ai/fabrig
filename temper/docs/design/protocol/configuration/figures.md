@@ -124,10 +124,9 @@ filled so:
 
 ## 5. The `agents` setting
 
-- **Kind 20,** one of temper's (`settings.md`, section 2): the
+- **Kind 21,** one of temper's (`settings.md`, section 2): the
   deployment's scope, number 1, decided by the deployment's owners. It
-  applies at each worker's next start. Kinds 16 to 19 are left for the
-  draft's other milestones.
+  applies at each worker's next start. Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
 - **Its value,** a record of the client's wire:
 
   ```
@@ -185,13 +184,12 @@ written as JSON by the worker's start:
   milliseconds, its `transport`, `server_name` and `trust`, its
   `headers`, its `program` when it names one, and its `limits`, with
   `head` and `idle` in milliseconds and `oversized_reasoning`.
-- **`programs.claude_code.path`** is the worker entry's `claude` (7). If
-  it names none, it's the `claude` found on `PATH` at start, as
-  `temper-box init` finds it today, and with none, `"fetched"`
-  (`../setup/owned.md`, 6). Its `directory` is `programs` in the data
-  directory (`directories.md`).
-- **`environment`** is the worker entry's `environment` (7). With none,
-  it's empty, as `temper-box init` writes it today.
+- **`programs.claude_code.path`** is the `claude` found on
+  `PATH` at start, or `"fetched"` with none (`../setup/owned.md`, 6).
+  Its `directory` is `programs` in the data directory.
+- **`environment`** is the machine facts supplied to the worker's
+  typed start, empty when none are supplied.
+
 - **Pinned as today's file is:** `agent/agent.json` under the worker's
   root, private, with the agent program copied beside it, both afresh at
   each start (`../../domain/worker/README.md`, section 5). smith's
@@ -215,12 +213,11 @@ written as JSON by the worker's start:
 - **The box keeps `application.limits`,** since they're its engine's.
   It loses its worker part's `limits` and `agent`, and its `agent.json`,
   as a worker alone does.
-- **An `application.workers` entry gains two members,** each optional:
-  - `claude`, an absolute path to Claude Code's program;
-  - `environment`, a list of `{"name", "value"}`, the variables its
-    agents' programs get.
+- **Machine facts follow `moved.md`.** A worker's workspace is
+  `workspaces` under its data directory, its git is found on `PATH`,
+  and its graces and source-login interval are temper's constants.
+  No `application.workers` entry is written.
 
-  `root` and `git` stay as they are (`README.md`, section 3).
 - **`temper-box init`** writes neither the worker's `limits` and
   `agent` nor `agent.json` (`../setup/init.md`, 2 and 3).
 
@@ -231,7 +228,7 @@ written as JSON by the worker's start:
   engine and its workers redeploy together. Before the redeploy, each
   worker's document loses its limits and `agent`, and its `agent.json`
   goes (`../../draft/config.execution.md`, N3).
-- **No store patch.** Kind 20 starts empty, over its default.
+- **No store patch.** Kind 21 starts empty, over its default.
 - **A worker on another host reaches the endpoints `engine.llm` names,**
   as the copies it kept did before.
 
@@ -246,7 +243,7 @@ compiled, and run after landing.
   limits lists apply back to the limits they were made from.
 - **The engine:** once restored, it gives its host figures, and a
   worker's figures opening hears them. Before that, the opening is
-  refused *starting*. A change of kind 20 reaches every linked worker.
+  refused *starting*. A change of kind 21 reaches every linked worker.
 - **The agent configuration:** figures of the stock and a machine with
   no `claude` give bytes that smith's decoder reads as today's
   `bare-agent.json` reads, with `"fetched"` as its path.
@@ -256,12 +253,12 @@ compiled, and run after landing.
   A worker that hears changed figures logs them and runs on.
 - **Refused by name:** each member of 7, and an `agent.json`.
 - **The box:** a start with `agents.setting` builds its worker from it,
-  and a change of kind 20 writes the file.
-- **Kind 20:** applied, shown and refused as section 5 gives it.
+  and a change of kind 21 writes the file.
+- **Kind 21:** applied, shown and refused as section 5 gives it.
 
 ## 10. Open questions
 
-- **The judge and the carriers.** Kind 20's judge could refuse a profile
+- **The judge and the carriers.** Kind 21's judge could refuse a profile
   whose turn the engine's carriers can't hold, rather than leaving it to
   a worker's start. That waits for limits as settings
   (`../../draft/config.md`, 6.1), when the carriers move with the

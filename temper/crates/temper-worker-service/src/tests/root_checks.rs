@@ -6,9 +6,7 @@ fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
     let mut agent = fixtures::startup_agent();
     agent.host_limits.directories = 1;
     let worker = fixtures::worker_settings();
-    let own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
     let mut found = Problems::empty();
     check_worker(&crate::worker_settings::root_limits(&worker, &agent, &own), &mut found);
     assert_eq!(
@@ -22,9 +20,7 @@ fn worker_limits() -> temper_worker_domain::Limits {
     crate::worker_settings::root_limits(
         &fixtures::worker_settings(),
         &fixtures::startup_agent(),
-        &crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-            temper_service_core::limits::Profile::Small,
-        )),
+        &crate::worker_settings::Limits::shared(temper_service_core::limits::stock()),
     )
 }
 

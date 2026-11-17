@@ -7,25 +7,8 @@
       "name": "w2",
       "secret": "secrets/w2.secret",
       "slots": 1,
-      "programs": {{
-        "check_interval_ms": 60000
-      }},
-      "graces": {{
-        "grace_ms": 1000,
-        "drain_ms": 1000,
-        "agent_stop_ms": 100,
-        "delivery_ms": 100,
-        "save_ms": 100
-      }},
       "memory_bytes": 4503599627370496
     }}
   ],
-  "application": {{
-    "workers": [
-      {{
-        "root": "workspaces",
-        "git": "{artifact.git}"
-      }}
-    ]
-  }}
+  "application": {{}}
 }}

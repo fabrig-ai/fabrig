@@ -243,7 +243,7 @@ impl Judge<'_> {
 // Sign-in/account setup, inventory, charter/template reads and one settings change.
 const SETUP_CALLS: usize = 8;
 fn sign_in_within() -> Duration {
-    jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).driver.client.sign_in_time
+    jig_protocol_config_fixtures::small().driver.client.sign_in_time
 }
 impl Judge<'_> {
     fn drive(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {

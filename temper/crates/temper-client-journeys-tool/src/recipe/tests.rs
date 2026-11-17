@@ -263,7 +263,7 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     assert_eq!(recipe.config.len(), 5);
     assert_eq!(
         recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [b"ctl project show Hello".as_slice(), b"ctl forge list", b"ctl forge repositories 1"]
+        [b"ctl project show Hello".as_slice(), b"ctl forge list --until connected:1", b"ctl forge repositories 1"]
     );
 
     let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
@@ -382,9 +382,9 @@ fn turn_landing_clients_plans_a_full_deployment_walk_from_the_turn_landing_copy(
     assert_eq!(
         shown(chain.lines(Some("turn-landing")).expect("from turn-landing copy")),
         [
-            "turn-landing:8 ctl project show Hello",
-            "turn-landing:9 ctl forge list",
-            "turn-landing:10 ctl forge repositories 1",
+            "turn-landing:9 ctl project show Hello",
+            "turn-landing:10 ctl forge list --until connected:1",
+            "turn-landing:11 ctl forge repositories 1",
             "turn-landing-clients:3 web reload \"/projects/1\"",
             "turn-landing-clients:4 web see \"work/hello is in Hello\"",
             "turn-landing-clients:5 tui see \"Ask temper\"",
@@ -1268,4 +1268,24 @@ fn recipe_keeps_a_push_line_and_its_files_for_a_ctl_walk() {
     assert!(chain.lines(None).expect("walk lines").iter().any(|line| line.line.as_ref() == source.as_bytes()));
     files.get_mut("pushed").expect("recipe").remove(OsStr::new("files/a.txt"));
     assert!(read(&files, "pushed").map(|_| ()).expect_err("missing push file").why.contains("missing"));
+}
+
+#[test]
+fn settings_files_belong_to_their_recipe_and_its_hash() {
+    let mut files = Files::new();
+    let source = b"recipe 1\nctl settings apply landing.json --against 1 --key landing\ncheck\nctl settings show\n";
+    put(&mut files, "root", "recipe", source);
+    let refusal = read(&files, "root").expect_err("settings input missing");
+    assert!(refusal.to_string().contains("files/landing.json"), "{refusal}");
+    put(&mut files, "root", "files/landing.json", b"first settings");
+    let first = read(&files, "root").expect("settings file belongs to the recipe");
+    put(&mut files, "root", "files/landing.json", b"changed settings");
+    assert_ne!(first.hash(), read(&files, "root").expect("changed settings").hash());
+    put(&mut files, "child", "recipe", b"recipe 1\nafter \"root\"\nctl settings propose landing.json --against 1 --key proposal\ncheck\nctl settings show\n");
+    assert!(
+        read(&files, "child").expect_err("parent's file is not child's").to_string().contains("files/landing.json")
+    );
+    put(&mut files, "child", "files/landing.json", b"child settings");
+    let chain = read(&files, "child").expect("each recipe has its file");
+    assert_ne!(chain.recipes[0].files, chain.recipes[1].files);
 }

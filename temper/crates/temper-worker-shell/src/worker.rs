@@ -19,7 +19,8 @@ pub fn alone(
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
-    let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
+    let mut part = service::startup::worker_part(bytes, &jig_directories(directories),
+        temper_shell::lookup::find(environment, b"git").as_ref().map(|path| path.as_os_str().as_bytes()))
         .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
     inputs(&mut part, directories, &std::env::current_exe().map_err(|why| why.to_string())?)?;
     let files = temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())?;

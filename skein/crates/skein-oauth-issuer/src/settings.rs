@@ -67,29 +67,8 @@ impl Issuer {
         if settings.clients.len() > limits.clients {
             return Err(Error::Limits);
         }
-        if settings.clients.is_empty() {
-            return Err(Error::Client);
-        }
         for (index, client) in settings.clients.iter().enumerate() {
-            if client.id.is_empty() {
-                return Err(Error::Client);
-            }
-            bounded(&client.id, limits.client_bytes)?;
-            if let Some(secret) = &client.secret {
-                if secret.is_empty() {
-                    return Err(Error::Client);
-                }
-                bounded(secret.expose(), limits.client_bytes)?;
-            }
-            for &byte in &client.id {
-                if !(0x21..=0x7e).contains(&byte) {
-                    return Err(Error::Client);
-                }
-            }
-            bounded(&client.redirect_uri, limits.uri_bytes)?;
-            if !address(&client.redirect_uri) {
-                return Err(Error::Address);
-            }
+            check_client(client, &limits)?;
             for prior in settings.clients.as_slice().get(..index).expect("prior clients") {
                 if prior.id == client.id {
                     return Err(Error::Client);
@@ -101,19 +80,78 @@ impl Issuer {
         let exponent = documents::encoded(&public.exponent)?;
         let thumbprint = documents::thumbprint(&modulus, &exponent)?;
         let kid = documents::encoded(&skein_lib::sha256::digest(&thumbprint))?;
-        let clients = core::mem::replace(&mut settings.clients, List::with_capacity(0)).into_boxed();
-        Ok(Issuer { settings, clients, limits, modulus, exponent, kid })
+        if settings.clients.capacity() != limits.clients {
+            let configured = core::mem::replace(&mut settings.clients, List::with_capacity(0)).into_boxed();
+            let mut clients = List::with_capacity(limits.clients);
+            for client in configured {
+                clients.push(client).expect("client count checked");
+            }
+            settings.clients = clients;
+        }
+        Ok(Issuer { settings, limits, modulus, exponent, kid })
+    }
+
+    /// Register a client under the same rules as configured clients.
+    pub fn add_client(&mut self, client: Client) -> Result<(), crate::ClientError> {
+        if let Err(error) = check_client(&client, &self.limits) {
+            return Err(crate::ClientError::Invalid(error));
+        }
+        if self.client(&client.id).is_some() {
+            return Err(crate::ClientError::Duplicate);
+        }
+        if self.settings.clients.room() == 0 {
+            return Err(crate::ClientError::Full);
+        }
+        self.settings.clients.push(client).expect("client room checked");
+        Ok(())
+    }
+
+    /// Remove a registration. The caller drops its codes and access tokens.
+    pub fn remove_client(&mut self, id: &[u8]) -> Result<(), crate::ClientError> {
+        let mut found = None;
+        for (index, client) in self.settings.clients.iter().enumerate() {
+            if client.id.as_ref() == id {
+                found = Some(u32::try_from(index).expect("bounded client count"));
+                break;
+            }
+        }
+        let Some(index) = found else { return Err(crate::ClientError::Unknown) };
+        self.settings.clients.swap_remove(index);
+        Ok(())
     }
 
     #[expect(clippy::manual_find, reason = "step code uses a bounded scan without closures")]
     pub(crate) fn client(&self, id: &[u8]) -> Option<&Client> {
-        for client in &self.clients {
+        for client in &self.settings.clients {
             if client.id.as_ref() == id {
                 return Some(client);
             }
         }
         None
     }
+}
+
+fn check_client(client: &Client, limits: &Limits) -> Result<(), Error> {
+    if client.id.is_empty() {
+        return Err(Error::Client);
+    }
+    bounded(&client.id, limits.client_bytes)?;
+    if let Some(secret) = &client.secret {
+        if secret.is_empty() {
+            return Err(Error::Client);
+        }
+        bounded(secret.expose(), limits.client_bytes)?;
+    }
+    for &byte in &client.id {
+        if !(0x21..=0x7e).contains(&byte) {
+            return Err(Error::Client);
+        }
+    }
+    bounded(&client.redirect_uri, limits.uri_bytes)?;
+    if !address(&client.redirect_uri) {
+        return Err(Error::Address);
+    }
+    Ok(())
 }
 
 pub(crate) fn bounded(value: &[u8], cap: u32) -> Result<(), Error> {

@@ -14,10 +14,12 @@ use skein_json::writer::{Encoder, Limits};
 use skein_lib::{Decimal, List, Writer, bytes};
 
 pub(crate) const TEMPER: &[u8] = include_bytes!("../template/temper.json");
+pub(crate) const AGENT: &[u8] = include_bytes!("../template/agent.json");
 
 pub(crate) const BARE: &[u8] = include_bytes!("../template/bare.json");
+pub(crate) const BARE_AGENT: &[u8] = include_bytes!("../template/bare-agent.json");
 
-pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> Box<[u8]> {
+pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
     let common = common_values(
         &Bare {
             binary: facts.binary,
@@ -28,55 +30,31 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
         },
         directories,
     );
-    let forge = listener(facts.ports.forge);
-    let mut forge_git = Writer::new(7_usize.checked_add(forge.len()).expect("an HTTP base fits"));
-    forge_git.put(b"http://").expect("the scheme was counted");
-    forge_git.put(&forge).expect("the socket was counted");
-    let forge_git = forge_git.finish();
-    let owned = listener(facts.ports.owned);
-    let mut owned_git = Writer::new(7_usize.checked_add(owned.len()).expect("an HTTP base fits"));
-    owned_git.put(b"http://").expect("the scheme was counted");
-    owned_git.put(&owned).expect("the socket was counted");
-    let owned_git = owned_git.finish();
     let mut email = Writer::new(login.len().checked_add(10).expect("a login and @localhost fit"));
     email.put(login).expect("the login was counted");
     email.put(b"@localhost").expect("the domain was counted");
     let email = email.finish();
     let llm = listener(facts.ports.llm);
-    let provider = if facts.sign_in {
-        let redirect = path::join(&owned_git, b"user/oauth2/temper/callback");
-        json(Value::Provider { redirect: &redirect })
-    } else {
-        json(Value::Text(None))
-    };
+    let provider = if facts.sign_in { json(Value::Provider) } else { json(Value::Text(None)) };
 
     let values = [
         (b"provider".as_slice(), provider),
-        (b"owned_sign_in".as_slice(), json(Value::Text(if facts.sign_in { Some(b"forgejo") } else { None }))),
-        (b"forge".as_slice(), json(Value::Text(Some(&forge)))),
-        (b"forge_git".as_slice(), json(Value::Text(Some(&forge_git)))),
-        (b"owned".as_slice(), json(Value::Text(Some(&owned)))),
-        (b"owned_git".as_slice(), json(Value::Text(Some(&owned_git)))),
         (b"login".as_slice(), json(Value::Text(Some(login)))),
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
         (b"llm".as_slice(), json(Value::Text(Some(&llm)))),
     ];
-    fill(TEMPER, &values, &common)
+    (fill(TEMPER, &values, &common), fill(AGENT, &values, &common))
 }
 
-pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> Box<[u8]> {
+pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> (Box<[u8]>, Box<[u8]>) {
     let values = common_values(facts, directories);
-    fill(BARE, &values, &[])
+    (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
 }
 
-fn common_values(facts: &Bare<'_>, _directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 3] {
+fn common_values(facts: &Bare<'_>, _directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 2] {
     let clients = listener(facts.clients);
     let webhooks = listener(facts.webhooks);
-    [
-        (b"worker", json(Value::Worker { git: facts.git, claude: facts.claude })),
-        (b"listener", json(Value::Text(Some(&clients)))),
-        (b"webhooks", json(Value::Text(Some(&webhooks)))),
-    ]
+    [(b"listener", json(Value::Text(Some(&clients)))), (b"webhooks", json(Value::Text(Some(&webhooks))))]
 }
 
 fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
@@ -90,28 +68,19 @@ fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
 #[derive(Clone, Copy, Debug)]
 enum Value<'a> {
     Text(Option<&'a [u8]>),
-    Provider { redirect: &'a [u8] },
-    Worker { git: Option<&'a [u8]>, claude: Option<&'a [u8]> },
+    Provider,
 }
 
 fn encode(json: &mut Encoder, value: Value<'_>) {
     match value {
         Value::Text(Some(text)) => json.string(text),
         Value::Text(None) => json.null(),
-        Value::Provider { redirect } => {
+        Value::Provider => {
             json.object_start();
             json.key(b"key");
             json.string(b"provider.key");
             json.key(b"clients");
             json.array_start();
-            json.object_start();
-            json.key(b"id");
-            json.string(b"forgejo");
-            json.key(b"secret");
-            json.null();
-            json.key(b"redirect_uri");
-            json.string(redirect);
-            json.object_end();
             json.array_end();
             json.key(b"addresses");
             json.array_start();
@@ -119,21 +88,7 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
             json.array_end();
             json.object_end();
         }
-        Value::Worker { git, claude } => {
-            json.object_start();
-            json.key(b"root");
-            json.string(b"workspaces");
-            json.key(b"git");
-            match git {
-                Some(git) => json.string(git),
-                None => json.null(),
-            }
-            if let Some(claude) = claude {
-                json.key(b"claude");
-                json.string(claude);
-            }
-            json.object_end();
-        }
+
     }
 }
 

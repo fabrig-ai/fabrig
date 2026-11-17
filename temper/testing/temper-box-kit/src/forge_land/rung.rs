@@ -124,7 +124,7 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 /// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
 /// before the first start.
 pub fn deployment(paths: &[PathBuf; 3]) {
-    let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
+    super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
     let mut value = read_json(&config);
     let mut worker = temper_fixtures::agent::read(&paths[0]);

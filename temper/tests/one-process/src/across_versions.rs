@@ -22,7 +22,7 @@ fn cap(wire: &Spoken, versions: &[(&str, u16)]) -> Spoken {
 /// Omitted versions mean each wire's floor. The engine is never capped.
 #[must_use]
 pub fn wires(versions: &[(&str, u16)]) -> Wires {
-    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let limits = temper_limits_fixtures::small();
     let payload = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&limits))
         .expect("world payload limits");
     let mut application = temper_protocol_worker_wire::application(&payload).expect("world application");

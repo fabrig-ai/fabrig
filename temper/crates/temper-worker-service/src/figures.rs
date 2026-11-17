@@ -8,8 +8,8 @@ use temper_service_core::limits;
 
 /// Apply over stock, retaining unknown names once for the caller's diagnostic.
 pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>, Problems> {
-    let mut jig = config::profile(config::Profile::Standard);
-    let mut own = limits::profile(limits::Profile::Standard);
+    let mut jig = config::stock();
+    let mut own = limits::stock();
     let names = config::overrides::list(&jig);
     let mut unknown: List<Box<[u8]>> = List::uncapped();
     let mut found = Problems::empty();
@@ -59,6 +59,10 @@ pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>,
             return Err(found);
         }
     };
+    jig.hub.slots = part.worker.jig.slots;
+    jig.hub.source_interval = part.worker.jig.check_interval;
+    own.checkout.workspaces = part.worker.jig.slots;
+    own.git_component.operations = own.checkout.workspaces;
     part.worker.jig.limits = Some(jig);
     part.limits = crate::worker_settings::Limits::shared(own);
     part.call_answer = temper_service_core::startup::CallAnswer::Explicit;

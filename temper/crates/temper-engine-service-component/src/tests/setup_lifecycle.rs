@@ -33,9 +33,14 @@ fn restored_owned_forge_reads_a_present_handover_before_using_kept_admin() {
 fn restored_box(sign_in: bool) -> crate::Service {
     let mut config = local_config(true, false);
     let entries = core::mem::replace(&mut config.setup, Box::new([]));
-    config.machine = runtime_config().machine.clone();
+    let mut files = runtime_config().setups.clone();
+    files[0].0 = 1;
+    config.setups = files;
     if sign_in {
-        config.machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
+        let temper_forge_setup::setup_file::SetupFile::Owned(owned) = &mut config.setups[0].1 else {
+            panic!("owned setup")
+        };
+        owned.sign_in = Some(b"forgejo".as_slice().into());
     }
     let mut service = local_service(config, local_store(true));
     let mut record = fixtures::forge_record(1);

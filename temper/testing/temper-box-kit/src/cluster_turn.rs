@@ -59,6 +59,14 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     engine["application"]["limits"]["overrides"]["checkout.message_bytes"] = payload.into();
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);
+
+    write(
+        &cluster.dir("engine").join("config/landing-settings.json"),
+        &json!({"items":[
+            {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":1}},
+            {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true,"base":true}],"tiers":[]}]}}
+        ]}),
+    );
     write(&engine_path, &engine);
     write(&worker_path, &worker);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
@@ -150,4 +158,14 @@ pub fn proof_cut(panel: &Value) -> Result<Option<u64>, String> {
         }
         phase => Err(format!("read landing past proving before kill ({phase}): pace.ci_ms={CI_MS}; {panel}")),
     }
+}
+
+/// Initialize settings before the first work in the process story; offline document checks do not call this.
+pub fn seed(cluster: &Cluster) {
+    let engine = cluster.dir("engine");
+    super::forgejo::bootstrap(&engine.join("config"), &engine.join("data"), &engine.join("cache"));
+    temper_real_loop_world::fixtures::seed_settings_file(
+        &engine.join("data/state"),
+        &fs::read(engine.join("config/landing-settings.json")).expect("landing settings"),
+    );
 }

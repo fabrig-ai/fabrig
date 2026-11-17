@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`. u8, u16, u32 and u64 are unsigned integers: respectively 0 to 255, 65,535, 4,294,967,295 and 18,446,744,073,709,551,615.";
+pub const INTRO: &[u8] = b"JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -24,21 +24,17 @@ pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
 }
 
 fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
-    out.put(b"# Settings fields\n\nKind: reference\n\nEvery member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.\n");
+    out.put(b"# Settings fields\n\nKind: reference\n\nSettings value types, bounds and effects, for settings files and `settings show`.\n");
     out.put(b"\n");
     out.put(INTRO);
     out.put(b"\n");
     for form in forms {
         out.put(b"\n## ");
         out.put(form.name);
-        out.put(b"\n\n");
+        out.put(b"\n");
         if !form.line.is_empty() {
             out.put(form.line);
             out.put(b"\n");
-            match form.choice {
-                Choice::Number | Choice::Text => {}
-                Choice::Every | Choice::One { .. } => out.put(b"\n"),
-            }
         }
         match form.choice {
             Choice::Every | Choice::Number | Choice::Text => {}
@@ -76,9 +72,9 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             out.put(field.name);
             out.put(b"`: ");
             if let Some(bound) = field.list {
-                out.put(b"list of at most ");
+                out.put(b"list[");
                 number(most(bound, limits), out);
-                out.put(b", each ");
+                out.put(b"] ");
             }
             value(&field.value, forms, limits, out);
             if field.null {
@@ -104,7 +100,21 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
 fn line(bytes: &[u8], out: &mut Text) {
     if !bytes.is_empty() {
         out.put(b" ");
-        out.put(bytes);
+        if let Some(rest) = bytes.strip_prefix(b"Optional; ") {
+            out.put(b"? ");
+            out.put(rest);
+        } else if let Some(rest) = bytes.strip_prefix(b"Required; ") {
+            out.put(b"! ");
+            out.put(rest);
+        } else if let Some(rest) = bytes.strip_prefix(b"Required: ") {
+            out.put(b"! ");
+            out.put(rest);
+        } else if let Some(rest) = bytes.strip_prefix(b"Required.") {
+            out.put(b"!");
+            out.put(rest);
+        } else {
+            out.put(bytes);
+        }
     }
 }
 fn quoted(word: &[u8], out: &mut Text) {
@@ -134,12 +144,12 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
         }),
         Value::Nanoseconds => out.put(b"nanoseconds"),
         Value::Time => out.put(b"nanoseconds since 1970 UTC"),
-        Value::Boolean => out.put(b"true or false"),
+        Value::Boolean => out.put(b"bool"),
         Value::Text(bound) | Value::Hex(bound) => {
             out.put(if let Value::Text(_) = value { b"text" } else { b"hex" });
-            out.put(b", at most ");
+            out.put(b"[");
             number(most(*bound, limits), out);
-            out.put(b" bytes");
+            out.put(b"]");
         }
         Value::Words(values) => words(values, out),
         Value::Shape(shape) => {

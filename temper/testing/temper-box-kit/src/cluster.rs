@@ -20,9 +20,8 @@ use std::{
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
-// bin/temper-box/tests/fixtures/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
-pub const FLEET_GRACE_MS: u64 = 3000;
-const _: () = assert!(FLEET_GRACE_MS < STOP_SECONDS * 1000);
+// The stock worker stop bound and the engine's derived fleet grace (configuration/moved.md, 2).
+pub const FLEET_GRACE_MS: u64 = 360_000;
 const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/cluster.md, 5): run them where it delegates them";
 
 /// bin/temper-box/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.
@@ -44,12 +43,7 @@ pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
     let engine = temper_service::startup::engine(&parsed, 0, &jig_protocol_config::Directories::working())
         .expect("fixture engine");
     let application = &document["application"]["limits"];
-    let profile = if application["profile"] == "standard" {
-        temper_service::limits::Profile::Standard
-    } else {
-        temper_service::limits::Profile::Small
-    };
-    let mut own = temper_engine_service_vocabulary::limits::profile(profile);
+    let mut own = temper_limits_fixtures::small();
     for (name, value) in application["overrides"].as_object().expect("limits overrides") {
         temper_engine_service_vocabulary::limits::apply(&mut own, name.as_bytes(), value.as_u64().expect("scalar"))
             .expect("fixture limit");
@@ -161,7 +155,17 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        Self { experiment, specs, bindings, prepared: BTreeSet::new() }
+        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new() };
+        for index in 0..cluster.specs.len() {
+            if list(&cluster.specs[index]["ready"])
+                .iter()
+                .any(|ready| ready["prefix"].as_str().is_some_and(|prefix| prefix.starts_with("linked ")))
+            {
+                let name = string(&cluster.specs[index]["name"]).to_owned();
+                cluster.git_on_path(&name, scratch);
+            }
+        }
+        cluster
     }
     /// The deployment's binaries in place of the box's for the engine and the workers,
     /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
@@ -182,6 +186,11 @@ impl Cluster {
                 spec["argv"][0] = "{artifact.temper-worker}".into();
             }
         }
+    }
+    /// Put the fixture's git first on this worker's search path.
+    pub fn git_on_path(&mut self, process: &str, directory: &Path) {
+        let index = self.index(process);
+        self.specs[index]["env"]["PATH"] = format!("{}:/usr/bin:/bin", directory.display()).into();
     }
     /// Rename one member and its template bindings before any files are rendered.
     pub fn rename(&mut self, member: &str, name: &str) {
@@ -668,6 +677,10 @@ impl Members {
     #[must_use]
     pub fn dir(&self, process: &str) -> PathBuf {
         self.cluster.dir(process)
+    }
+    /// Choose the worker's executable search path before it starts.
+    pub fn git_on_path(&mut self, process: &str, directory: &Path) {
+        self.cluster.git_on_path(process, directory);
     }
     /// Start these processes and their predecessors, ties in name order.
     pub fn up(&mut self, processes: &[&str]) {

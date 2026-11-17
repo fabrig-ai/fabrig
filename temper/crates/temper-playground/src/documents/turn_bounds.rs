@@ -55,14 +55,8 @@ pub fn apply(document: &mut Value, turn: u32) {
     }
 }
 fn worker_output(limits: &Value, turn: u64) -> u64 {
-    use jig_protocol_config::{Profile, profile};
     use jig_protocol_worker_wire::v16;
-
-    let defaults = profile(match limits["profile"].as_str().expect("worker profile") {
-        "small" => Profile::Small,
-        "standard" => Profile::Standard,
-        other => panic!("unknown worker profile: {other}"),
-    });
+    let defaults = jig_protocol_config::stock();
     let overrides = &limits["overrides"];
     let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
     let bodies = v16::Limits {

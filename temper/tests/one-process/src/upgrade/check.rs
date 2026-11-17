@@ -291,7 +291,9 @@ pub fn golden(directory: &Path) {
     stories::set(world::Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let mut document: serde_json::Value =
-        serde_json::from_slice(&crate::golden::read_configuration(directory)).expect("golden JSON");
+        serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
+            .expect("golden JSON");
+    crate::golden::bridge_kept_profiles(&mut document);
     let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
     *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
     let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {

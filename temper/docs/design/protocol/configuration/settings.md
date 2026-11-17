@@ -69,14 +69,14 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
 | 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
-| 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../../domain/landing.md`, 13.1) | that project's owners |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../../domain/landing.md`, 13.1) | that project's owners |
+| 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../../domain/landing-settings.md`, 1.1), taken at the next start | that project's owners |
+| 5, a project's gates | each project | 1 | each of the project's repositories' test gates and tiers (`../../domain/landing-settings.md`, 1.1), taken at the next start | that project's owners |
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none or up (`../../domain/forge/change/questions.md`, 1) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
-| 20, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
+| 21, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../../client/pages/settings.md`, 2):
@@ -398,6 +398,36 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     and the forge's `findings` subject (`../../client/forge/records.md`);
     a save of either moves the findings it concerns, and tells their new
     owners (`../../domain/areas.md`, section 5).
+- **The deployment's welcome, kind 20** (`../../draft/config.md`, 6.5;
+  `moved.md`, section 4), which was the document's `application.welcome`:
+  a kind of temper's beside the table's, owned by the forge's connector
+  and kept, read and never pinned as kind 9 is. Kinds 16 to 19 are left to
+  the configuration's other milestones, which run beside the one that
+  made it (`../../draft/config.execution.md`):
+  - *its scope and number:* the deployment's, number 1; decided by the
+    deployment's owners;
+  - *its value,* a `Welcome` record in temper's codec, `shown`, a bool:
+    whether the welcome shows (`../../client/pages/README.md`) and the
+    deployment offers the playground (`../setup/playground.md`). Its
+    bound, the kind's, is its encoding;
+  - *its default,* from how the deployment was made: shown under the box,
+    whose `temper-box internal serve` is given `--box` at every start
+    (`../setup/box.md`, 1), as a deployment `temper-box init --box` made
+    is; not shown otherwise. The root gives it with the stock's defaults
+    at each start (2), so a deployment made by `temper-box init` and
+    served by a hand-written unit shows none until an owner sets it;
+  - *judged by the forge,* as the table's kinds are: a value that does not
+    decode. A removal or a reset is always good, back to the default;
+  - *named* `welcome`, with no scope, in a settings file and a run's
+    `settings`, `see` and `propose_settings`; its value `{"shown": true}`;
+    read by any signed-in party, as the deployment's read is
+    (`../../client/forge/records.md`);
+  - *read at once* by the deployment's read, whose `welcome` is the
+    setting's current value, so a change reaches each client as any change
+    of that read does, and by `StartPlayground`, refused *not offered*
+    while the welcome isn't shown (`../setup/playground.md`). The
+    playground is configured at start whatever the welcome says, so that
+    turning it on offers the playground with no restart.
 
 ## 3. How the landing rules are enforced
 

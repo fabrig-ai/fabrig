@@ -1,5 +1,5 @@
 //! The application's limits and channel edges (protocol/limits.md).
-use jig_protocol_config::{Profile, profile};
+
 use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_lib::Duration;
@@ -56,12 +56,19 @@ pub struct Limits {
     pub clients_http: jig_protocol_engine_clients_http::Limits,
     pub server: crate::server::Limits,
 }
+/// The test service's small bounds over the application's base, for tests alone.
 #[must_use]
-pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
-    let connector = match name {
-        Profile::Small => SMALL,
-        Profile::Standard => STANDARD,
-    };
+pub fn small(jig: &jig_protocol_config::Limits) -> Limits {
+    over(jig, SMALL, 8)
+}
+
+/// The test service's standard bounds over the application's base.
+#[must_use]
+pub fn stock(jig: &jig_protocol_config::Limits) -> Limits {
+    over(jig, STANDARD, 16)
+}
+
+fn over(jig: &jig_protocol_config::Limits, connector: connector::Limits, connections: u32) -> Limits {
     let accounts = jig.driver;
     let journal = root::JournalSizes {
         commits: jig.journal.commits,
@@ -91,10 +98,7 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
         clients_http: jig.clients_http,
         server: crate::server::Limits {
             peer_end: crate::server::PeerEnd::Call,
-            connections: match name {
-                Profile::Small => 8,
-                Profile::Standard => 16,
-            },
+            connections,
             http: skein_http::server::Limits {
                 head: 4096,
                 headers: 32,
@@ -106,10 +110,6 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
             stall: Duration::from_secs(30),
         },
     }
-}
-#[must_use]
-pub fn profile_limits(name: Profile) -> Limits {
-    for_profile(name, &profile(name))
 }
 
 fn workers(jig: &jig_protocol_config::Limits) -> jig_protocol_engine_workers::Limits {
@@ -193,10 +193,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn small_uses_the_test_services_small_bounds() {
+        let jig = jig_protocol_config_fixtures::small();
+        let limits = small(&jig);
+        assert_eq!(limits.server.connections, 8);
+        assert_eq!(limits.root.connector.tasks, SMALL.tasks);
+    }
+
+    #[test]
+    fn stock_uses_the_test_services_standard_bounds() {
+        let jig = jig_protocol_config::stock();
+        let limits = stock(&jig);
+        assert_eq!(limits.server.connections, 16);
+        assert_eq!(limits.root.connector.tasks, 32);
+    }
+
+    #[test]
+    fn both_constructors_translate_the_given_base() {
+        // A distinct body bound shows that the supplied base is translated.
+        const BODY: u32 = 1234;
+        let mut jig = jig_protocol_config::stock();
+        jig.clients_http.body = BODY;
+        for limits in [small(&jig), stock(&jig)] {
+            assert_eq!(limits.server.http.body, u64::from(BODY));
+        }
+    }
+
+    #[test]
     fn each_profile_reserves_a_largest_piece_fact_and_maps_the_hubs_bound() {
         use jig_protocol_worker_wire::{Kind, sizes};
-        for name in [Profile::Small, Profile::Standard] {
-            let profile = profile(name);
+        for name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+            let profile = name;
             let sizes = workers(&profile).sizes;
             assert_eq!(sizes.piece, profile.hub.piece_bytes);
             let codec = sizes::limits(&sizes).expect("profile codec limits");
@@ -216,11 +243,11 @@ mod public_tests {
 
     #[test]
     fn public_admission_follows_the_effective_watermark_and_clients() {
-        for name in [Profile::Small, Profile::Standard] {
-            let mut jig = profile(name);
+        for name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+            let mut jig = name;
             // Distinct from OFF to show that the effective client limit is copied.
             jig.clients.public.reads = 8;
-            let limits = for_profile(name, &jig);
+            let limits = small(&jig);
             assert_eq!(limits.root.public_watermark, limits.root.watermark / 2);
             assert_eq!(limits.root.public_reads, 8);
         }

@@ -55,8 +55,6 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
         "/application/clients/listener/socket",
         "/application/webhooks/listener/socket",
         "/application/demo/llm/listen/socket",
-        "/application/machine/fake/listen/socket",
-        "/application/machine/owned/listen/socket",
     ]
     .map(|pointer| {
         value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
@@ -136,7 +134,7 @@ pub(super) fn issuer(
     let address = listener.local_addr().expect("issuer address");
     let bytes =
         |member: &str| -> Box<[u8]> { registration[member].as_str().expect("registration member").as_bytes().into() };
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let limits = skein_fake_oauth::Limits {
         document: profile.driver.client.document,
         uri_bytes: 1024,

@@ -507,6 +507,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
     });
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive routing of the forge's change outputs")]
 fn land_change(world: &mut Protocol) -> bool {
     let mut finished = false;
     for entry in 4..24 {
@@ -542,6 +543,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
@@ -876,8 +878,8 @@ const PENDING_INSTALLATION_REQUESTS_PER_MINUTE: u64 =
 fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
     use skein_lib::Duration;
-    use temper_engine_service_vocabulary::limits::{Profile, profile};
-    let shipped = profile(Profile::Small).forge;
+    use temper_limits_fixtures::small;
+    let shipped = small().forge;
     let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =
         Wall::from_nanos(verdict.as_nanos() + shipped.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos());

@@ -255,7 +255,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    let brief = crate::limits::stock().root.brief;
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
@@ -441,9 +441,13 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
-    jig.limits = Some(engine(&generated()).limits);
-    jig.agent = Some(fixtures::worker_runtime().agent);
+    let jig = jig_protocol_config::worker(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service_core::startup::fixed_worker(),
+    )
+    .unwrap();
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
     let agent = worker_agent(configured());
@@ -453,7 +457,7 @@ fn measure_worker() {
         .push((worker.jig.secret.clone(), skein_lib::Secret::new(b"worker-secret-value".as_slice().into())))
         .unwrap();
     let overrides = fixtures::value(&generated(), b"application.limits.overrides");
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let overrides = jig_protocol_config::document(
         &overrides,
         &jig_protocol_config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 },
@@ -512,7 +516,7 @@ fn measure_worker() {
 
 fn measure_turn(number: u32) {
     let config = configured();
-    let body = usize::try_from(crate::limits::profile(crate::limits::Profile::Small).root.brief.brief_bytes).unwrap();
+    let body = usize::try_from(temper_limits_fixtures::small().root.brief.brief_bytes).unwrap();
     let assignment = assignment(number, false, body);
     let limits = config.service.limits.domain;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

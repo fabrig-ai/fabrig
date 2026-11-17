@@ -205,13 +205,8 @@ impl Link {
     }
 }
 
-fn start(forge: u16, kind: Option<BoxKind>) -> Box<[u8]> {
-    let suffix = match kind {
-        None => b"".as_slice(),
-        Some(BoxKind::Owned) => b" owned",
-        Some(BoxKind::Fake) => b" fake",
-    };
-    joined(&[b"start ", Decimal::of(u64::from(forge)).as_bytes(), suffix, b"\n"])
+fn start(forge: u16, _kind: Option<BoxKind>) -> Box<[u8]> {
+    joined(&[b"start ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
 }
 
 enum Reply {

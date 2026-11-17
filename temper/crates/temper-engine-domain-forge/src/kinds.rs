@@ -28,7 +28,9 @@ impl Domain {
                     None => None,
                 },
             };
-            let answer = match settings::judge(&check, bounds) {
+            let cleared = (item.kind == 4 || item.kind == 5) && (item.edit == Edit::Remove || item.edit == Edit::Reset);
+            let checked = if cleared { Ok(()) } else { settings::judge(&check, bounds) };
+            let answer = match checked {
                 Err(refusal) => settings::Judged::Refuse(refusal),
                 Ok(()) => {
                     let same = match &item.edit {
@@ -219,7 +221,9 @@ impl Domain {
                     None => None,
                 },
             };
-            let answer = match settings::judge(&check, bounds) {
+            let cleared = (item.kind == 4 || item.kind == 5) && (edit == Edit::Remove || edit == Edit::Reset);
+            let checked = if cleared { Ok(()) } else { settings::judge(&check, bounds) };
+            let answer = match checked {
                 Err(why) => settings::Judged::Refuse(why),
                 Ok(()) => {
                     let (size, charter) = value_state(value);
@@ -366,7 +370,9 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2
+            if (key.kind == 4
+                || key.kind == 5
+                || key.kind == 2
                 || key.kind == 6
                 || key.kind == 7
                 || key.kind == 8
@@ -385,6 +391,33 @@ impl Domain {
         }
         self.rebuild_settings();
         self.held_rules.projects.remove(&project);
+    }
+
+    /// The current welcome, read without a restart (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        match self.setting(20, 0, 1) {
+            Some(settings::SizedValue { value: Value::Welcome(value), .. }) => value.shown,
+            None => false,
+            Some(settings::SizedValue {
+                value:
+                    Value::AgentFigures(_) | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_),
+                ..
+            }) => unreachable!("welcome setting type"),
+        }
     }
 
     /// Kind 6 of a project, or no route with none stored
@@ -406,6 +439,9 @@ impl Domain {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -432,6 +468,9 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -458,6 +497,9 @@ impl Domain {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -484,6 +526,9 @@ impl Domain {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ..
             })
@@ -509,6 +554,9 @@ impl Domain {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -587,7 +635,7 @@ impl Domain {
         let key = SettingKey { kind, scope, number, slot: SettingSlot::Change };
         match self.setting_rows.get(&key) {
             Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Remove | Edit::Reset) if kind == 20 => self.setting_default(kind, scope, number),
+            Some(Edit::Remove | Edit::Reset) if kind == 20 || kind == 21 => self.setting_default(kind, scope, number),
             Some(Edit::Remove | Edit::Reset) => self.every_project_default(kind, scope, number),
             None => self.setting_default(kind, scope, number),
         }
@@ -597,7 +645,7 @@ impl Domain {
     /// (temper/docs/design/protocol/configuration/figures.md, 5).
     #[must_use]
     pub fn agent_figures(&self) -> &settings::AgentFigures {
-        let value = self.setting(20, 0, 1).expect("agents default installed at startup");
+        let value = self.setting(21, 0, 1).expect("agents default installed at startup");
         let Value::AgentFigures(value) = &value.value else { unreachable!("agents setting judged") };
         value
     }
@@ -751,6 +799,9 @@ impl Domain {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -809,6 +860,9 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
                 | Value::AgentFigures(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             size,

@@ -124,7 +124,7 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
 
 pub fn worker_settings() -> crate::settings::Worker {
     use jig_protocol_config as config;
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
         application_ask_bytes: 0,
@@ -178,9 +178,7 @@ pub fn worker_settings() -> crate::settings::Worker {
     }
 }
 pub fn worker_limits() -> crate::worker_settings::Limits {
-    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
     own.checkout.workspaces = 1;
     own.checkout.repositories = 1;
     own.checkout.name_bytes = 64;

@@ -29,18 +29,18 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
-    for directory in [&config, &cache] {
+    for directory in [&config, &data, &cache] {
         std::fs::create_dir(directory).expect("tool directory");
     }
     let floor = skein_scratch::paths::tree().join("tests/one-process/golden/floor");
-    copy(&floor.join("state"), &data);
+    copy(&floor.join("state"), &data.join("state"));
     // Git omits empty directories; the manifest keeps the deployment's transcripts root.
     for line in std::fs::read_to_string(floor.join("modes.txt")).expect("floor modes").lines() {
         let fields: Vec<_> = line.split(' ').collect();
         if fields[0] == "d"
             && let Some(path) = fields[3].strip_prefix("state/")
         {
-            let path = data.join(path);
+            let path = data.join("state").join(path);
             std::fs::create_dir_all(&path).expect("kept deployment directory");
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("private directory");
         }
@@ -48,8 +48,7 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned example");
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
-    document["engine"]["deployment"]["directory"] = data.to_str().expect("data path").into();
+
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
     let mut workers = Vec::new();
     for (name, digit) in [("worker-a", '0'), ("worker-b", '1'), ("worker-c", '2')] {
@@ -81,7 +80,7 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     provider["number"] = 2.into();
     provider["endpoint"] = "second".into();
     document["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
-    document["application"]["machine"]["github"] = serde_json::json!({
+    document["application"]["test"]["github"] = serde_json::json!({
         "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
         "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"
     });
@@ -99,10 +98,15 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
 #[test]
 fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
     let (_scratch, directories) = deployment();
-    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("active");
+    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("state/active");
     let active = std::fs::read(&active_path).expect("floor active generation");
-    let code = run("temper-engine", &directories, &Request::Check(directories.data.clone()), "test-build")
-        .expect("upgrade reaches its report");
+    let code = run(
+        "temper-engine",
+        &directories,
+        &Request::Check([directories.data.as_ref(), b"/state"].concat().into()),
+        "test-build",
+    )
+    .expect("upgrade reaches its report");
     assert_eq!(code, 0, "the floor rehearses through restores");
     assert_eq!(std::fs::read(active_path).expect("active after rehearsal"), active);
 }

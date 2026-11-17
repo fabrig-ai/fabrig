@@ -27,10 +27,10 @@ fn record(places: u32, values: &[(&str, u64)]) -> w::Figures {
 }
 #[test]
 fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
-    let mut source = config::profile(config::Profile::Small);
+    let mut source = jig_protocol_config_fixtures::small();
     source.hub.slots = 9;
     source.link.ping = Duration::from_millis(4321);
-    let mut own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::shared();
     own.checkout.workspaces = 7;
     let mut values = config::overrides::list(&source).into_boxed().into_vec();
     values.extend(temper_service_core::limits::list(&own).into_boxed().into_vec());

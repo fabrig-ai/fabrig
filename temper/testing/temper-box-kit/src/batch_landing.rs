@@ -174,7 +174,7 @@ pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    turn_restart::selected_gate(&mut value);
+    turn_restart::selected_gate(root);
     value["workers"][0]["slots"] = 8.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();

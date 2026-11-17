@@ -19,8 +19,6 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                owned: NonZeroU16::new(8368).unwrap(),
-                forge: NonZeroU16::new(8369).unwrap(),
                 llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
@@ -50,7 +48,9 @@ fn single_model() -> Box<[u8]> {
     ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let mut base = config::stock();
+    temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
+    fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
     let mut engine = engine(&single_model());
@@ -61,7 +61,7 @@ fn single_engine() -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
 }
 
 #[test]
@@ -1167,7 +1167,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             let charter = jig_domain_core::settings::charters::resolved(
                 charter,
                 &defaults.models,
-                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+                &jig_protocol_config::stock().core,
             )
             .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
@@ -1363,16 +1363,10 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
-    let engine_bytes = fixtures::value(&document, b"engine");
-    let engine = fixtures::parse_engine(&engine_bytes);
+    let document = generated();
+    let engine = engine(&document);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let core = config::core(&engine, [1; 16], 7);
-    for ceiling in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).unwrap().policy.ceiling,
-        &core.seed_projects[0].policy.policy.ceiling,
-    ] {
+    for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;
         for executor in [Executor::Procedure(6), Executor::Job(4)] {
             assert!(ceiling.delegation.kinds.contains(&executor));
@@ -1689,6 +1683,28 @@ fn kinds_are_declared_with_their_bounds() {
                 charters: 1
             },
             Kind {
+                number: 4,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: u32::try_from(
+                    temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                        &temper_client_protocol_wire::v1::CEILINGS
+                    )
+                    .expect("landing bound")
+                )
+                .expect("bounded encoding"),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 5,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: settings::CARRIER,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
                 number: 6,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
@@ -1790,9 +1806,19 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 20,
                 scope: KindScope::Deployment,
                 connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Welcome(settings::Welcome {
+                    shown: true
+                })),
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 21,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
                 value_bytes: 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29,
                 per_scope: 1,
-                charters: 0
+                charters: 0,
             },
         ]
     );
@@ -2355,12 +2381,12 @@ fn agents_default_is_declared() {
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let kinds = crate::stock::kinds(&limits, 1);
-    let kind = kinds.iter().find(|kind| kind.number == 20).unwrap();
+    let kind = kinds.iter().find(|kind| kind.number == 21).unwrap();
     assert_eq!(
         (kind.scope, kind.connector, kind.per_scope, kind.charters),
         (jig_domain_core::settings::KindScope::Deployment, 1, 1, 0)
     );
     assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
-    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (20, 0, 1)
+    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
         && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
 }

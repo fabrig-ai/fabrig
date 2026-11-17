@@ -2,30 +2,13 @@
   "workers": [
     {{
       "engine": {{
-        "socket": "{story.workers}"
+        "socket": "{{story.workers}}"
       }},
       "name": "w1",
       "secret": "secrets/w1.secret",
       "slots": 2,
-      "programs": {{
-        "check_interval_ms": 60000
-      }},
-      "graces": {{
-        "grace_ms": 1000,
-        "drain_ms": 1000,
-        "agent_stop_ms": 100,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      }},
       "memory_bytes": 4503599627370496
     }}
   ],
-  "application": {{
-    "workers": [
-      {{
-        "root": "workspaces",
-        "git": "{artifact.git}"
-      }}
-    ]
-  }}
+  "application": {{}}
 }}

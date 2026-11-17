@@ -403,6 +403,7 @@ fn chat(
     let Some(page) = root.pages().chats() else { return };
     let Some(line) = chat_line(root, task) else { return };
     if draft {
+        let title = crate::common::chat::row_title(line.chip.title.bytes());
         from(b, words, Word::WorkDraftTag, look::WORK_PERSON);
         if let Some(document) = page.documents.get(&task) {
             let name = words.say(
@@ -414,17 +415,21 @@ fn chat(
         separated(b, words, &words.say(Word::WorkAChatWithYou, &[]));
         separated(b, words, &times.say(words, TimeForm::Clock, line.last_activity));
         b.close();
-        text(b, Role::Paragraph, look::WORK_QUOTE, line.chip.title.bytes());
+        text(b, Role::Paragraph, look::WORK_QUOTE, &title);
         link(b, words, bindings, &words.say(Word::WorkOpenDraft, &[]), Address::Chat { task });
         b.close();
     } else {
         // The chat list carries no creation time; activity and phase times do not name its start.
-        let label = crate::accounts::words::join(&[
-            &words.say(Word::WorkWithYou, &[]),
-            &words.say(Word::ToolSeparator, &[]),
-            &words.say(Word::WorkChatTitle, &[Hole::Name(line.chip.title.bytes().into())]),
-        ]);
-        linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
+        linked_from(
+            b,
+            words,
+            bindings,
+            Word::WorkChatTag,
+            look::WORK_PERSON,
+            line.chip.title.bytes(),
+            Address::Chat { task },
+            &[],
+        );
     }
 }
 fn landed_draft(
@@ -454,7 +459,7 @@ fn landed_draft(
     );
     b.close();
     if !row.title().is_empty() {
-        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+        text(b, Role::Paragraph, look::WORK_QUOTE, &crate::common::chat::row_title(row.title()));
     }
     let Some(me) = root.pages().me(root.client()) else { return };
     let ways = super::goals::ways(me, project, words);
@@ -674,7 +679,7 @@ pub(crate) fn work_row(
     b.text(Run::Plain, mark);
     b.close();
     b.open(Role::Paragraph);
-    link(b, words, bindings, title, Address::Task { task });
+    link(b, words, bindings, &crate::common::chat::row_title(title), Address::Task { task });
     b.close();
     if let Some(byline) = byline {
         text(
@@ -738,10 +743,20 @@ fn linked_from(
     address: Address,
     parts: &[Box<[u8]>],
 ) {
+    let title = crate::common::chat::row_title(title);
+    let title = if tag == Word::WorkChatTag {
+        crate::accounts::words::join(&[
+            &words.say(Word::WorkWithYou, &[]),
+            &words.say(Word::ToolSeparator, &[]),
+            &words.say(Word::WorkChatTitle, &[Hole::Name(title)]),
+        ])
+    } else {
+        title
+    };
     match words.shell {
         Shell::Browser => {
             from(b, words, tag, style);
-            link(b, words, bindings, title, address);
+            link(b, words, bindings, &title, address);
             b.close();
             for part in parts {
                 separated(b, words, part);
@@ -754,7 +769,7 @@ fn linked_from(
             } else {
                 crate::accounts::words::join(&[&words.say(tag, &[]), b" "])
             };
-            let mut label = crate::accounts::words::join(&[&prefix, title]);
+            let mut label = crate::accounts::words::join(&[&prefix, &title]);
             for part in parts {
                 label = crate::accounts::words::join(&[&label, &words.say(Word::ToolSeparator, &[]), part]);
             }

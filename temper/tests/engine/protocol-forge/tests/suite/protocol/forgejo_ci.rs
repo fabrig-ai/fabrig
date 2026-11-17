@@ -2,10 +2,10 @@
 use super::*;
 use skein_lib::Duration;
 use std::fmt::Write;
-use temper_engine_service_vocabulary::limits::{Profile, profile};
+use temper_limits_fixtures::small;
 
 fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
-    let shipped = profile(Profile::Small).forge;
+    let shipped = small().forge;
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.client = shipped.client;
     // Thirty job rows fit one bounded HTTP page; only shape bounds grow, not paces.
@@ -99,7 +99,7 @@ fn waiting_step(world: &mut Protocol, entry: u64) {
 )]
 fn pace(hearing: bool) {
     let (mut world, pushed, verdict, head) = pending(hearing);
-    let poll_max = profile(Profile::Small).forge.client.poll_max;
+    let poll_max = small().forge.client.poll_max;
     let deadline = Wall::from_nanos(verdict.as_nanos() + poll_max.as_nanos());
     let (mut due, mut until, mut entry, mut named) = (true, None, 4, false);
     let (mut job, mut written) = (0, 0);

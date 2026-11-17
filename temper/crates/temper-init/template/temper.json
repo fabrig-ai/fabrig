@@ -1,12 +1,8 @@
 {
   "engine": {
-    "acts": [{"connector": 1, "may": ["remove_project", "remove_account", "adopt"]}],
     "limits": {
       "profile": "standard",
       "overrides": {
-        "hub.accounts": 4,
-        "hub.event_bytes": 10660,
-        "hub.run_calls": 48,
         "authority.executors": 22,
         "clients.exchanges": 12,
         "clients.streams": 8,
@@ -34,8 +30,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -50,8 +56,17 @@
               "keys": "https://auth.openai.com/.well-known/jwks.json",
               "transport": "tls",
               "server_name": "auth.openai.com",
-              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-              "must_grant": ["chatgpt.tokens.use.direct"],
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
               "resource": "https://api.openai.com/v1",
               "redirect_path": "auth/callback",
               "redirect_port": 1455
@@ -63,8 +78,12 @@
           "number": 2,
           "endpoint": "anthropic",
           "direct": "anthropic-api",
-          "keep": ["claude-*"],
-          "drop": ["*-20??????"],
+          "keep": [
+            "claude-*"
+          ],
+          "drop": [
+            "*-20??????"
+          ],
           "signed_in_plan": false,
           "manage_usage": "https://claude.ai/settings/usage",
           "sources": {
@@ -79,7 +98,9 @@
           "number": 3,
           "endpoint": "demo",
           "signed_in_plan": false,
-          "sources": {"keys": true}
+          "sources": {
+            "keys": true
+          }
         }
       ],
       "endpoints": [
@@ -133,7 +154,7 @@
           "name": "demo",
           "number": 3,
           "dialect": 3,
-          "provider": "openai",
+          "provider": "demo",
           "address": {
             "socket": "$llm"
           },
@@ -158,14 +179,7 @@
       ]
     },
     "clients": {
-      "provider": "$provider",
-      "heartbeat_ms": 10000,
-      "link": true,
-      "approval": true
-    },
-    "deployment": {
-      "directory": "deployment",
-      "seed": 7
+      "provider": "$provider"
     },
     "owners": [
       {
@@ -173,21 +187,7 @@
         "subject": "$email"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 1073741824,
-    "projects": []
+    "memory_bytes": 1073741824
   },
   "workers": [
     {
@@ -196,50 +196,10 @@
       },
       "name": "worker",
       "secret": "worker.secret",
-      "slots": 4,
-      "graces": {
-        "grace_ms": 300000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      }
+      "slots": 4
     }
   ],
   "application": {
-    "welcome": true,
-    "machine": {
-      "owned": {
-        "forgejo": "fetched",
-        "runner": {
-          "binary": "fetched",
-          "labels": [
-            "temper-host:host"
-          ],
-          "capacity": 1,
-          "path": "/usr/local/bin:/usr/bin:/bin"
-        },
-        "listen": {
-          "socket": "$owned"
-        },
-        "sign_in": "$owned_sign_in",
-        "person": {
-          "login": "$login",
-          "email": "$email"
-        },
-        "remote": "$owned_git"
-      },
-      "fake": {
-        "listen": {
-          "socket": "$forge"
-        },
-        "remote": "$forge_git",
-        "git": "demo/bin/git"
-      },
-      "github": null
-    },
     "clients": {
       "listener": {
         "socket": "$listener"
@@ -267,7 +227,7 @@
               {
                 "lines": [
                   {
-                    "text": "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."
+                    "text": "I\u2019ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."
                   },
                   {
                     "call": "delegate",
@@ -399,7 +359,7 @@
               {
                 "lines": [
                   {
-                    "text": "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change."
+                    "text": "CSV export is available from widget\u2019s table. The change landed on Playground forge. This was a scripted change."
                   },
                   {
                     "call": "wait",
@@ -497,7 +457,16 @@
             "turns": [
               {
                 "lines": [
-                  {"call": "finish", "arguments": {"form": "verdict", "label": "1", "text": "Checked widget CSV export.", "fields": {}, "items": []}}
+                  {
+                    "call": "finish",
+                    "arguments": {
+                      "form": "verdict",
+                      "label": "1",
+                      "text": "Checked widget CSV export.",
+                      "fields": {},
+                      "items": []
+                    }
+                  }
                 ],
                 "finish": "tool_calls",
                 "tokens": 24
@@ -575,7 +544,7 @@
           {
             "lines": [
               {
-                "text": "I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key."
+                "text": "I am the scripted model, the playground\u2019s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key."
               }
             ],
             "finish": "stop",
@@ -602,8 +571,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }
-    },
-    "workers": ["$worker"
-    ]
+    }
   }
 }

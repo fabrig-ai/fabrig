@@ -10,6 +10,8 @@ pub enum Kind {
     DeploymentRules,
     ProjectRules,
     Charters,
+    ProjectLanding,
+    ProjectGates,
     ProjectQuestions,
     ProjectWays,
     ProjectClasses,
@@ -26,6 +28,7 @@ pub enum Kind {
     ProjectAreas,
     ProjectTriager,
     Agents,
+    Welcome,
 }
 
 impl Kind {
@@ -35,6 +38,8 @@ impl Kind {
             Self::DeploymentRules => 1,
             Self::ProjectRules => 2,
             Self::Charters => 3,
+            Self::ProjectLanding => 4,
+            Self::ProjectGates => 5,
             Self::ProjectQuestions => 6,
             Self::ProjectWays => 7,
             Self::ProjectClasses => 8,
@@ -45,7 +50,8 @@ impl Kind {
             Self::Dependency => 13,
             Self::ProjectAreas => 14,
             Self::ProjectTriager => 15,
-            Self::Agents => 20,
+            Self::Agents => 21,
+            Self::Welcome => 20,
         }
     }
 
@@ -55,6 +61,8 @@ impl Kind {
             1 => Some(Self::DeploymentRules),
             2 => Some(Self::ProjectRules),
             3 => Some(Self::Charters),
+            4 => Some(Self::ProjectLanding),
+            5 => Some(Self::ProjectGates),
             6 => Some(Self::ProjectQuestions),
             7 => Some(Self::ProjectWays),
             8 => Some(Self::ProjectClasses),
@@ -65,7 +73,8 @@ impl Kind {
             13 => Some(Self::Dependency),
             14 => Some(Self::ProjectAreas),
             15 => Some(Self::ProjectTriager),
-            20 => Some(Self::Agents),
+            21 => Some(Self::Agents),
+            20 => Some(Self::Welcome),
             _ => None,
         }
     }
@@ -102,6 +111,12 @@ pub struct ProjectWays {
     pub goals: bool,
     pub changes: bool,
     pub way: u32,
+}
+
+/// The deployment's welcome (temper/docs/design/protocol/configuration/settings.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Welcome {
+    pub shown: bool,
 }
 
 /// A charter's line's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
@@ -226,6 +241,9 @@ pub struct Dependency {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
+    Landing(ProjectLanding),
+    Gates(ProjectGates),
+    Welcome(Welcome),
     Rule(LandingRule),
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
@@ -356,6 +374,11 @@ pub struct SettingRow {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
+    pub landing_members: u32,
+    pub repositories: u32,
+    pub landing_gates: u32,
+    pub tiers: u32,
+    pub ignored_paths: u32,
     pub landing_rules: u32,
     pub gates: u32,
     pub roles: u32,
@@ -380,6 +403,11 @@ pub struct Item {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Refusal {
+    Landing {
+        field: &'static [u8],
+        rule: &'static [u8],
+    },
+    LandingCarrier,
     Kind,
     Scope,
     Number,
@@ -421,6 +449,27 @@ pub enum Refusal {
 impl Refusal {
     #[must_use]
     pub fn words(&self) -> Box<[u8]> {
+        if let Self::Landing { field, rule } = self {
+            let mut words = skein_lib::List::uncapped();
+            for part in [*field, b": ", *rule] {
+                for &byte in part {
+                    words.push(byte).expect("bounded landing refusal");
+                }
+            }
+            return words.into_boxed();
+        }
+        if let Self::LandingCarrier = self {
+            let number = skein_lib::Decimal::of(u64::from(CARRIER));
+            let mut words = skein_lib::List::uncapped();
+            for part in
+                [b"repositories: encoded bytes pass the settings carrier bound of ".as_slice(), number.as_bytes()]
+            {
+                for &byte in part {
+                    words.push(byte).expect("bounded carrier refusal");
+                }
+            }
+            return words.into_boxed();
+        }
         if let Self::Owner { name, owner } = self {
             let (kind, number) = match owner {
                 AreaOwner::Task(n) => (b"task".as_slice(), *n),
@@ -470,7 +519,9 @@ impl Refusal {
             Self::FollowFixed => b"its source and target are fixed; remove it and add another",
             Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
-            Self::Area { .. } | Self::Agent { .. } | Self::Owner { .. } => unreachable!("area refusal rendered above"),
+            Self::Landing { .. } | Self::LandingCarrier | Self::Agent { .. } | Self::Area { .. } | Self::Owner { .. } => {
+                unreachable!("area refusal rendered above")
+            }
             Self::Classes(refusal) => match refusal {
                 temper_protocol_reaches::Refusal::Items => b"more than 20 items in a classes table",
                 temper_protocol_reaches::Refusal::Sets => b"more than 6 path sets in a classes table",
@@ -502,12 +553,14 @@ fn within(len: usize, bound: u32) -> bool {
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal | Kind::Agents
+        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal | Kind::Agents | Kind::Welcome
             if item.scope != 0 =>
         {
             return Err(Refusal::Scope);
         }
         Kind::ProjectRules
+        | Kind::ProjectLanding
+        | Kind::ProjectGates
         | Kind::ProjectQuestions
         | Kind::ProjectWays
         | Kind::ProjectClasses
@@ -523,6 +576,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules
         | Kind::ProjectRules
         | Kind::Charters
+        | Kind::ProjectLanding
+        | Kind::ProjectGates
         | Kind::ProjectQuestions
         | Kind::ProjectWays
         | Kind::ProjectClasses
@@ -533,19 +588,21 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectTriager
         | Kind::Dependency
         | Kind::Follow
-        | Kind::Agents => {}
+        | Kind::Agents | Kind::Welcome => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
         Kind::CharterWords => bounds.charters,
-        Kind::ProjectQuestions
+        Kind::ProjectLanding
+        | Kind::ProjectGates
+        | Kind::ProjectQuestions
         | Kind::ProjectWays
         | Kind::ProjectClasses
         | Kind::ProjectAreas
         | Kind::ProjectTriager
         | Kind::ProjectWords
-        | Kind::Agents => 1,
+        | Kind::Agents | Kind::Welcome => 1,
         Kind::TemplateGoal => bounds.templates,
         Kind::Follow => bounds.follows,
         Kind::Dependency => bounds.dependencies,
@@ -554,6 +611,52 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         return Err(Refusal::Number);
     }
     let rule = match kind {
+        Kind::ProjectLanding => {
+            return match &item.value {
+                Some(Value::Landing(v)) => landing::judge_landing(v, bounds),
+                None => Ok(()),
+                Some(
+                    Value::AgentFigures(_)
+                    |                     Value::Gates(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectGates => {
+            return match &item.value {
+                Some(Value::Gates(v)) => landing::judge_gates(v, bounds),
+                None => Ok(()),
+                Some(
+                    Value::AgentFigures(_)
+                    |                     Value::Landing(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
+                    | Value::ProjectTriager(_),
+                ) => Err(Refusal::Value),
+            };
+        }
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
             Some(
@@ -567,6 +670,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
                 | Value::AgentFigures(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             ) => return Err(Refusal::Value),
@@ -587,6 +693,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -606,6 +715,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -629,6 +741,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -648,6 +763,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -674,6 +792,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -701,6 +822,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ) => Err(Refusal::Value),
             };
@@ -721,6 +845,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ) => Err(Refusal::Value),
             };
@@ -730,7 +857,10 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(Value::AgentFigures(value)) => agents::judge(value),
                 None => Ok(()),
                 Some(
-                    Value::Rule(_)
+                    Value::Landing(_)
+                    |                     Value::Gates(_)
+                    |                     Value::Welcome(_)
+                    |                     Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -760,7 +890,10 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
-                    | Value::ProjectAreas(_),
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::ProjectAreas(_)
+                    | Value::Welcome(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -771,6 +904,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(
                     Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::Dependency(_)
                     | Value::Follow(_)
@@ -792,6 +928,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(
                     Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::Dependency(_)
                     | Value::Rule(_)
@@ -802,6 +941,28 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_)
                     | Value::Goal(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::Welcome => {
+            return match &item.value {
+                Some(Value::Welcome(_)) | None => Ok(()),
+                Some(
+                    Value::AgentFigures(_)
+                    |                     Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::ProjectTriager(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -819,6 +980,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
                     | Value::AgentFigures(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -923,6 +1087,8 @@ pub fn rows(l: &Limits) -> Option<u32> {
     let values = rules
         .checked_add(3)?
         .checked_add(l.judge_projects.checked_mul(2)?)?
+        // Project landing and project gates, kinds 4 and 5.
+        .checked_add(l.judge_projects.checked_mul(2)?)?
         .checked_add(l.judge_projects.checked_mul(l.follows)?)?
         .checked_add(l.judge_projects.checked_mul(l.dependencies)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
@@ -994,3 +1160,8 @@ pub fn retired_words(key: SettingKey) -> Box<[u8]> {
 pub use temper_client_protocol_wire::v1::{AgentEndpointLimits, AgentFigure, AgentFigures, AgentLimits, Oversized};
 #[path = "settings/agents.rs"]
 pub mod agents;
+mod landing;
+pub use landing::{
+    CARRIER, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
+    landing_record,
+};

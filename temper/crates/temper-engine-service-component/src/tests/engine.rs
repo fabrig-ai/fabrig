@@ -25,7 +25,7 @@ fn the_root_reports_the_earliest_credentials_expiry() {
 
 #[test]
 fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     let mut domain = temper_engine_domain_forge::Domain::new(
         &own.forge,
         7,
@@ -595,6 +595,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Bound { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
+                | root::Request::ChoosePlace { .. }
                 | root::Request::BoxGroup { .. }
                 | root::Request::PlaygroundActs { .. }
                 | root::Request::ResetAct { .. }
