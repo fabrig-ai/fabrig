@@ -889,6 +889,11 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
+    let asking = goal
+        .split("\n\n")
+        .find(|paragraph| paragraph.starts_with("**Asking your requester.**"))
+        .expect("goal's asking paragraph");
+    assert!(asking.contains("(see settings project-classes). Write its question in one sentence, the situation as a person reads it, and each option in one line; commits, figures and task or pull numbers go in its why. On Decided, carry on with it and ask no one; on Ask, ask as the answer says."));
     assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
         "Before you ask anything, call `decided`",
