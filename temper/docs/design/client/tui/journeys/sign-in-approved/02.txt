@@ -1,9 +1,9 @@
 
-  ▄█▀▀   temper 0.0.0 (114b68258532-dirty)
- ▄█▄█▄█  127.0.0.1:46505
+  ▄█▀▀   temper 0.0.0 (aa699a65adfb-dirty)
+ ▄█▄█▄█  127.0.0.1:35223
 
  No project yet
- Setting temper up makes your first project: open http://127.0.0.1:46505 in a
+ Setting temper up makes your first project: open http://127.0.0.1:35223 in a
  browser.
 
 

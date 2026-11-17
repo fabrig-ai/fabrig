@@ -140,6 +140,8 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
+        | core::Event::Parts { .. }
+        | core::Event::PartsMarked { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicRead { .. }
@@ -229,6 +231,8 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
+        | core::Event::Parts { .. }
+        | core::Event::PartsMarked { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }

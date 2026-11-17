@@ -49,10 +49,6 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
         }
         let accepted = Issuer::new(settings, limits).expect("exact bound");
         let mut past = accepted.settings;
-        past.clients = List::with_capacity(2);
-        for client in accepted.clients {
-            past.clients.push(client).expect("slot");
-        }
         match field {
             0 => past.issuer = [past.issuer.as_ref(), b"x"].concat().into_boxed_slice(),
             1 => past.authorization_endpoint = [past.authorization_endpoint.as_ref(), b"x"].concat().into_boxed_slice(),
@@ -78,7 +74,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
     let mut limits = limits();
     limits.clients = 1;
     let issuer = Issuer::new(settings(), limits).expect("exact one client despite spare input capacity");
-    assert_eq!(issuer.clients.len(), 1);
+    assert_eq!(issuer.settings.clients.len(), 1);
     let mut settings = settings();
     settings
         .clients
@@ -222,7 +218,7 @@ fn every_bound_at_once_stays_within_the_heap_ceiling() {
     let issuer = Issuer::new(settings, cap).expect("issuer at bounds");
     let auth = Authorization {
         client: boxed(&[b'c'; 64]),
-        redirect_uri: issuer.clients[0].redirect_uri.clone(),
+        redirect_uri: issuer.settings.clients.get(0).expect("client").redirect_uri.clone(),
         state: Some(boxed(&[1; 64])),
         nonce: Some(boxed(&[1; 64])),
         challenge: *CHALLENGE,

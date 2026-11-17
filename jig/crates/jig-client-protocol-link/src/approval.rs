@@ -1,7 +1,8 @@
 //! Approval exchanges are transient and answered once (jig/docs/design/protocol/client/sign-in.md).
 use crate::component::{Attempt, ExchangeKind};
 use crate::{Approval, ApprovalCode, ApprovalState, Decided, Link, Message, NotAsked, Request, Signing};
-use jig_client_protocol_wire::{VERSION, v28 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Wall, Writer};
 
 #[derive(Clone, Copy, Debug)]
@@ -84,6 +85,7 @@ impl Link {
             .insert(
                 exchange,
                 Attempt {
+                    parts: skein_lib::List::with_capacity(0),
                     token: exchange,
                     owner: w::Owner::Jig,
                     version: VERSION,

@@ -2,6 +2,17 @@
 use super::fixtures;
 
 #[test]
+fn stock_sources_equal_smiths_derivation() {
+    use temper_service_core::derived::{STOCK, Sources};
+    let config = fixtures::stock_configuration(63_740, 48_000).unwrap();
+    let agent = fixtures::parsed_agent(config);
+    let sources = Sources::agent(&agent.declaration());
+    assert_eq!(sources, STOCK);
+    assert_eq!(sources.turn, 18_431_842);
+    assert_eq!(sources.payload, 63_740);
+}
+
+#[test]
 fn declaration_preserves_the_agents_engine_facing_fields() {
     let mut agent = fixtures::agent();
     agent.limits.bodies.host_reply_text = 40_960;

@@ -52,6 +52,13 @@ impl Domain {
     }
 }
 
+/// Pending place choices reserve a record slot and a number until their answer.
+pub(crate) fn room(d: &Domain) -> bool {
+    let reserved = d.choosing.len();
+    d.records.len().saturating_add(reserved) < d.records.capacity()
+        && reserved < u32::from(u16::MAX.saturating_sub(d.forge_number))
+}
+
 /// Make a record numbered next; refuse at the kept-forges bound or when numbers are spent.
 #[expect(clippy::too_many_arguments, reason = "shared forge-making surface carries the record fields")]
 pub(crate) fn make(
@@ -66,7 +73,7 @@ pub(crate) fn make(
     first: Option<FirstIntent>,
     out: &mut Queue<Request>,
 ) -> Option<u16> {
-    if d.records.len() >= d.records.capacity() {
+    if !room(d) {
         return None;
     }
     let number = d.forge_number.checked_add(1)?;

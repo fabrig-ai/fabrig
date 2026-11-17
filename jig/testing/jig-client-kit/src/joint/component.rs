@@ -65,7 +65,7 @@ impl Composition {
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v28::CEILINGS,
+                wire: jig_client_protocol_wire::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -710,6 +710,7 @@ impl Composition {
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
+            | link::Request::NotWritten { .. }
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
         };
         self.callbacks.push(Incoming::Callback { client, event: crate::test::up(up) });
@@ -720,6 +721,7 @@ fn jig_test_domain_family(request: clients::ToApplication, limits: &root::Limits
     use jig_client_test_protocol_wire::codec::{self, Undecodable};
     use jig_protocol_engine_clients::{FromApplication, ToApplication};
     match request {
+        ToApplication::ProviderClientChanged { .. } => panic!("joint application requests no provider changes"),
         ToApplication::Request { reply_to, sign_in, key, family, version, scope, record, digest, carried } => {
             let decoded = if family == 1 && version == jig_client_test_protocol_wire::VERSION {
                 codec::request(&record, &limits.connector)

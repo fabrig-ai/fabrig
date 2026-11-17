@@ -112,11 +112,7 @@ impl Peer {
         use jig_protocol_worker_wire as wire;
         use skein_lib::{Duration, Secret, Writer};
         let (mut schema, limits) = crate::fixtures::peer_bounds();
-        let chosen = if matches!(case, Some(Opening::Version)) {
-            wire::VERSION.checked_add(1).expect("one past the worker version")
-        } else {
-            wire::VERSION
-        };
+        let chosen = if matches!(case, Some(Opening::Version)) { 14 } else { wire::VERSION };
         if matches!(case, Some(Opening::Family)) {
             schema.magic = *b"else";
         }
@@ -139,6 +135,11 @@ impl Peer {
         let credential = wire::Credential::new(
             &wire::CEILINGS,
             wire::CredentialParts {
+                opening: if matches!(case, Some(Opening::Figures)) {
+                    wire::Opening::Figures
+                } else {
+                    wire::Opening::Link
+                },
                 name: b"worker-a".as_slice().into(),
                 secret: Secret::new(if matches!(case, Some(Opening::Secret)) {
                     b"wrong-secret".as_slice().into()
@@ -146,7 +147,7 @@ impl Peer {
                     b"worker-secret".as_slice().into()
                 }),
                 wires: Self::statement(case),
-                output: jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.output,
+                output: jig_protocol_config_fixtures::small().io.output,
             },
         )
         .expect("peer credential");
@@ -198,6 +199,9 @@ impl Peer {
             frame_reads: false,
             limits,
         }
+    }
+    pub(crate) fn figures_taken(&self) -> bool {
+        self.ended && self.scripted.observed().iter().map(|record| record.kind).collect::<Vec<_>>() == [0x018d, 0x0190]
     }
     pub(crate) fn shutdown(&mut self) {
         if !self.closing

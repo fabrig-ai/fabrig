@@ -10,6 +10,9 @@ pub(in super::super) fn account(
     evidence: Option<&forge::ChangeEvidence>,
 ) -> Option<Box<[u8]>> {
     let row = domain.forge.change(task)?;
+    if why == change::Hold::Flake {
+        return row.producer_failure.clone();
+    }
     let change::State::Held { was, .. } = &row.change.state else { return None };
     if let change::State::Taking { .. } = was.as_ref()
         && (why == change::Hold::Stalled || why == change::Hold::Failed)
@@ -99,6 +102,7 @@ pub(in super::super) fn fallback(domain: &Domain, env: &Env<Limits>, task: u64, 
             change::Hold::PullClosed => b"its pull request closed without merging; release to reopen it",
             change::Hold::Retargeted => b"its pull request targets another base; release to restore its target",
             change::Hold::Failed => b"its delegate or forge effect failed without an account",
+            change::Hold::Flake => b"its repair found only flakes; release to run its gate once more",
             change::Hold::Rejected => b"a person rejected its required gate; resolve the rejection before releasing",
             change::Hold::Authority(_) => {
                 b"its next delegate exceeds its authority; amend the authority before releasing"

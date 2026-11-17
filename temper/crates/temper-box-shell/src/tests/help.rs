@@ -38,7 +38,7 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "preserve the rest of the document",
         "exactly the configured environment",
         "deployment-specific absolute paths",
@@ -71,7 +71,7 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in ["`agent.json`'s `environment` is a list, not a map", "temper help box"] {
+    for required in ["Entry `environment`: optional list, not a map; unique names:", "temper help box"] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
     let (_, recipe) = step.split_once("`environment`").expect("agent environment");
@@ -100,11 +100,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let init: serde_json::Value = serde_json::from_slice(&super::configuration::init_document()).expect("init JSON");
-    let profile = jig_protocol_config::profile(match init["engine"]["limits"]["profile"].as_str().unwrap() {
-        "small" => jig_protocol_config::Profile::Small,
-        "standard" => jig_protocol_config::Profile::Standard,
-        other => panic!("unknown profile {other}"),
-    });
+    let profile = jig_protocol_config::stock();
     let timeout = profile.core.fleet.grace;
     for worker in init["workers"].as_array().expect("init workers") {
         let bytes = serde_json::to_vec(worker).expect("worker JSON");
@@ -113,11 +109,14 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
         )
         .expect("worker document");
-        let worker = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("init worker");
-        let bound =
-            jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
-                .expect("stop bound");
+        let worker = jig_protocol_config::worker(
+            &document,
+            0,
+            &jig_protocol_config::Directories::working(),
+            &temper_service::startup::fixed_worker(),
+        )
+        .expect("init worker");
+        let bound = worker.stop_bound;
         assert!(bound < timeout, "the unit must outlast the worker's stop bound");
         let seconds = |duration: skein_lib::Duration| {
             assert_eq!(duration.as_millis() % 1_000, 0, "whole seconds in the unit's explanation");
@@ -164,26 +163,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
-    let facts = temper_init::Facts {
-        sign_in: false,
-        binary: b"/opt/temper/bin/temper-box",
-        git: Some(b"/usr/bin/git"),
-        claude: Some(b"/opt/temper/bin/claude"),
-        ports: temper_init::Ports {
-            clients: port(8367),
-            owned: port(8368),
-            forge: port(8369),
-            llm: port(8370),
-            webhooks: port(8371),
-        },
-        login: Some(b"coder"),
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init files");
-    let file = answer.files.iter().find(|file| file.name == b"agent.json").expect("init agent document");
-    let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("agent document bytes") };
-    let mut document: serde_json::Value = serde_json::from_slice(bytes).expect("init agent JSON");
+    let mut document = temper_fixtures::agent::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();
@@ -259,8 +239,8 @@ fn configure_example_preserves_stock_landing_gate() {
         &temper_engine_smith::kinds::Bounds { segments: 9, segment_bytes: 4096, gates: 64, approvals: 64 },
     )
     .expect("documented landing rule");
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let temper = temper_limits_fixtures::small();
     let limits = temper_service::limits::engine(&jig, &temper).expect("stock limits");
     let stock = temper_service::stock::forge(&limits);
     let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (2, 0, 1)).expect("stock rule");
@@ -281,6 +261,7 @@ fn tester_stock() -> jig_domain_core::settings::Defaults {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .expect("engine configuration");
     temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
@@ -338,11 +319,8 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
     // charter calls tools_for; the report/workspace gate is already pinned by
     // temper-engine-smith's a_report_run_cannot_modify_without_delivery.
     let charter = temper_engine_smith::charter(&assignment);
-    for name in [b"change".as_slice(), b"goal", b"delegate"] {
+    for name in [b"change".as_slice(), b"goal", b"delegate", b"effect_forge", b"propose"] {
         assert!(!charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "not declared: {name:?}");
-    }
-    for name in [b"effect_forge".as_slice(), b"propose"] {
-        assert!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "still declared: {name:?}");
     }
 }
 
@@ -519,7 +497,11 @@ fn substitute_placeholders(word: &str) -> String {
             && run.as_bytes()[0].is_ascii_uppercase()
             && run.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
         {
-            result.push_str(if run == "PROPOSAL" { "t1/1" } else { "1" });
+            result.push_str(match run {
+                "PROPOSAL" => "t1/1",
+                "HEX" => "0000000000000000000000000000000000000000000000000000000000000000",
+                _ => "1",
+            });
         } else {
             result.push_str(run);
         }
@@ -833,12 +815,12 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "local model",
         "`endpoint` in `engine.llm.providers`",
         "`CONFIG/temper.json`",
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
-        "`head`",
-        "`idle`",
+        "`head_ms`",
+        "`idle_ms`",
         "Preserve",
         "stop",
         "restart, then change the model",
@@ -854,7 +836,10 @@ fn account_and_deployment_help_explain_offering_another_model() {
 
 #[test]
 fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
-    for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
+    for (page, heading, shell) in [
+        ("box", "Before you start", "shell's PATH alone is insufficient"),
+        ("tier", "Acting on it", "interactive shell is insufficient"),
+    ] {
         let text = help::answer(&configured(&["help", page])).expect("help page");
         let section = text
             .split(&format!("## {heading}\n"))
@@ -877,7 +862,7 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
             "`application.machine.owned.runner.path`",
             "`/usr/local/bin:/usr/bin:/bin`",
             "restart",
-            "interactive shell is insufficient",
+            shell,
         ] {
             assert!(section.contains(prerequisite), "{page}: missing {prerequisite}: {section}");
         }
@@ -905,8 +890,8 @@ fn box_help_names_delivery_checks_path_and_tools() {
         .join(" ");
     for required in [
         "`.temper/pre-pr`",
-        "inherit the box process's `PATH` captured at startup",
-        "box unit's `PATH`",
+        "inherit the box's startup `PATH`",
+        "unit's `PATH` in a service",
         "before step 2",
         "fabrig",
         "`cargo`",
@@ -925,19 +910,21 @@ fn box_help_names_delivery_checks_path_and_tools() {
 
 #[test]
 fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
-    for page in ["box", "tier"] {
+    for (page, default, wait) in
+        [("box", "default and minimum 1", "Wait for exit"), ("tier", "defaults to 1", "wait for it to exit")]
+    {
         let text = help::answer(&configured(&["help", page])).expect("help page");
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for required in [
             "CI and tiers",
             "`temper-host`",
             "`application.machine.owned.runner.capacity`",
-            "defaults to 1",
+            default,
             "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
             "multi-job workflows",
             "other repositories",
             "Ctrl-C or SIGTERM",
-            "wait for it to exit",
+            wait,
             "`CONFIG/temper.json`",
             "same",
             "registration and secrets",
@@ -1005,18 +992,16 @@ fn tier_help_contains_a_complete_landing_configuration_example() {
     let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
     let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
     let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
-    let landing = &example["application"]["landing"];
-    assert!(landing.get("deployment").is_none());
-    let projects = landing["projects"].as_array().expect("landing projects");
-    assert_eq!(projects.len(), 1);
-    let project = &projects[0];
-    assert_eq!(project["project"], 1);
-    assert!(project.get("rules").is_none());
+    let items = example["items"].as_array().expect("landing settings items");
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0]["setting"], serde_json::json!({"kind":"project-landing","project":1}));
+    assert_eq!(items[1]["setting"], serde_json::json!({"kind":"project-gates","project":1}));
+    let project = &items[0]["set"];
     assert_eq!(project["by"], "queue");
     assert_eq!(project["check_timeout_ms"], 900_000);
     assert_eq!(project["tier_retries"], 2);
     assert_eq!(project["verification_bound_ms"], 7_200_000);
-    let repositories = project["gates"].as_array().expect("project repository entries");
+    let repositories = items[1]["set"]["repositories"].as_array().expect("project repository entries");
     assert_eq!(repositories.len(), 1);
     let repository = &repositories[0];
     assert_eq!(repository["forge"], 1);
@@ -1037,14 +1022,16 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
     let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for instruction in [
-        "CONFIG/temper.json",
-        "application.landing.projects[].gates[].tiers",
+        "`project-landing`",
+        "`project-gates`",
+        "temper ctl settings apply",
+        "at the next start",
         "`junit` for JUnit reports",
         "`lines` for one failing test id per line",
-        "project's `gates` array holds repository entries",
+        "`repositories` array holds repository entries",
         "repository's `gates` array holds workflow gates",
         "project, forge and repository numbers",
-        "Preserve the existing configuration",
+        "Preserve the existing settings",
         "restart",
         "`tier_retries` and `verification_bound_ms` beside the project's `by`",
     ] {

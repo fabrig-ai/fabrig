@@ -220,8 +220,10 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -248,6 +250,7 @@ fn change_row() -> ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: env().wall,
             ready_since: None,
             owns_turn: false,
@@ -260,6 +263,8 @@ fn change_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -418,6 +423,8 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                flake_reruns: Box::new([]),
+                room: None,
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -915,6 +922,8 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    flake_reruns: Box::new([]),
+                    room: None,
                     job: None,
                     landing: policy::Landing {
                         last_left: None,

@@ -11,7 +11,7 @@ pub const AGENT: Token = Token::new(0);
 pub const CALL: Token = Token::new(19);
 
 pub fn limits() -> Limits {
-    let hub = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).hub;
+    let hub = jig_protocol_config_fixtures::small().hub;
     let agent = smith::Limits {
         agents: 2,
         directories: 1,

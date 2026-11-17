@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 mod accounts;
 mod ask_bound;
+mod figures;
 mod first_model;
 pub(crate) mod fixtures;
 mod forge_sign_in;
@@ -11,3 +12,5 @@ mod start_shapes;
 mod stock;
 
 mod reds;
+
+mod fixed;

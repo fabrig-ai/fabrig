@@ -50,7 +50,7 @@ fn report() -> Report {
     }
 }
 fn word(words: &Words, headline: Headline, lines: &[c::TaskLine], report: Option<&Report>) -> Box<[u8]> {
-    milestones::headline(words, headline, lines, report, &Names::new())
+    milestones::headline(words, headline, lines, report.map(|report| report.headline.as_ref()), &Names::new())
 }
 
 #[test]
@@ -185,12 +185,19 @@ fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
         Action, Address,
         pages::{Act, goals::Goals},
     };
-    let mut next = 50;
-    let mut milestone = pure::Milestone::new(f::PROJECT, 99, &mut next);
+    let mut goals = Vec::new();
     for task in 1..=8 {
-        milestone.goals.push(if task == 7 { line(task, b"S7 logs") } else { done(task, b"S1 done") }).unwrap();
+        let mut goal = if task == 7 { line(task, b"S7 logs") } else { done(task, b"S1 done") };
+        if task != 7 {
+            goal.ended_at = Some(Wall::EPOCH);
+        }
+        goals.push((goal, None));
     }
-    milestone.totals = Some(totals(7, 0, 1));
+    let mut listed = line(99, b"Store shape");
+    listed.parts = List::from_boxed(Box::new([f::milestones::part(None, totals(7, 0, 1), &goals, 0)]));
+    let limits = f::domain_limits();
+    let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+    let milestone = pure::Milestone::from_line(&listed, &link);
     for ended in [false, true] {
         let listed = if ended { done(99, b"Store shape") } else { line(99, b"Store shape") };
         for words in [f::browser_words(), f::words()] {
@@ -265,6 +272,44 @@ fn milestone_tag_count_and_state_words_keep_their_styles() {
             let (word, token) = milestones::state_word(&words, state);
             assert_eq!(word.as_ref(), text.as_bytes());
             assert_eq!(token, style);
+        }
+    }
+}
+
+#[test]
+fn milestone_rows_cut_the_title_at_eighty_but_goal_names_at_forty() {
+    for (title, cut) in f::row_titles() {
+        let mut listed = line(99, title);
+        listed.parts =
+            List::from_boxed(Box::new([f::milestones::part(None, totals(0, 0, 1), &[(line(7, title), None)], 0)]));
+        // The part's goal line carries the whole title, past the kit's text bound.
+        let mut limits = f::domain_limits();
+        limits.client.domain.text = 1024;
+        limits.client.domain.long_text = 1024;
+        limits.client.domain.turn_text = 1024;
+        let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+        let milestone = pure::Milestone::from_line(&listed, &link);
+        let goal_name = crate::common::chat::cut_title(title, 40, false);
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            milestones::row(
+                &mut b,
+                &words,
+                &mut bindings,
+                &listed,
+                &milestone,
+                &temper_client_domain::pages::goals::Goals::new(1),
+                &Names::new(),
+            );
+            let tree = b.finish();
+            let link = tree.nodes().iter().find(|node| node.role == Role::Link).unwrap();
+            assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let headline =
+                tree.nodes().iter().position(|node| node.styles.as_slice().contains(&look::GOALS_LINE)).unwrap();
+            assert!(skein_lib::bytes::find(&f::node_text(&tree, headline), &goal_name).is_some());
+            assert!(goal_name.len() < cut.len());
         }
     }
 }

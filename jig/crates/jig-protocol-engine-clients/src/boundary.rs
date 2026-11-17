@@ -56,6 +56,11 @@ pub enum Event {
         exchange: Token,
         identity: people::Identity,
     },
+    /// The application's runtime registration request (protocol/client/openid.md).
+    ProviderClient {
+        reply: ReplyTo,
+        change: ProviderClientChange,
+    },
     Redeem {
         exchange: Token,
         authorization: Option<Secret>,
@@ -124,6 +129,10 @@ pub enum Request {
 }
 #[derive(Debug)]
 pub enum ToApplication {
+    ProviderClientChanged {
+        reply: ReplyTo,
+        result: Result<(), ProviderClientRefusal>,
+    },
     Request {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -155,6 +164,18 @@ pub enum ToApplication {
         window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
+}
+/// A registration's secret bytes have already been read privately by the application.
+#[derive(Debug)]
+pub enum ProviderClientChange {
+    Add(skein_oauth_issuer::Client),
+    Remove { id: Box<[u8]> },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderClientRefusal {
+    NoProvider,
+    NotReady,
+    Client(skein_oauth_issuer::ClientError),
 }
 #[derive(Debug)]
 pub enum FromApplication {
@@ -401,5 +422,5 @@ impl ::core::fmt::Debug for Reply {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamFailure {
     QueueBound { queued_bytes: u32 },
-    Translation(jig_client_protocol_wire::v28::Problem),
+    Translation(jig_client_protocol_wire::Problem),
 }

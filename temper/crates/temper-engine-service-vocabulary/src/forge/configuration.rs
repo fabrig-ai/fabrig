@@ -116,9 +116,9 @@ pub(crate) fn deadline(lifetime: Duration) -> Duration {
     lifetime.min(skein_forge_connection::limits::APP_DEADLINE)
 }
 
-/// The small profile's component room, derived from the forge where they agree.
+/// The stock component room, derived from the forge where they agree.
 #[must_use]
-pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
+pub fn stock(forge: &forge::Limits) -> skein_forge_connection::Limits {
     skein_forge_connection::Limits {
         forges: forge.forges,
         token_bytes: limits::FORGE_TOKEN_BYTES,

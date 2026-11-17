@@ -6,7 +6,9 @@ use jig_domain_accounts as accounts;
 pub use jig_domain_core_vocabulary::documents::task_wait::*;
 use jig_domain_tasks as tasks;
 
-pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
+/// The same next-run wait carried by a Task document, without making the document.
+#[must_use]
+pub fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
     match row.executor {
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return None,
         tasks::Executor::Agent { .. } => {}

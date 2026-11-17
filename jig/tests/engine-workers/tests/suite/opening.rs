@@ -27,6 +27,7 @@ mod opening {
         let value = wire::Credential::new(
             &wire::CEILINGS,
             wire::CredentialParts {
+                opening: jig_protocol_worker_wire::Opening::Link,
                 name: WORKER_A.into(),
                 secret: skein_lib::Secret::new(SECRET_A.into()),
                 wires,
@@ -154,7 +155,7 @@ mod opening {
             (ENGINE + 1, SECRET_A, APPLICATION_VERSION, Some(2)),
             (18_432_634, SECRET_A, APPLICATION_VERSION, Some(2)),
             (u32::MAX, SECRET_A, APPLICATION_VERSION, Some(2)),
-            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(256)),
+            (18_432_634, b"wrong".as_slice(), APPLICATION_VERSION, Some(260)),
             (18_432_634, SECRET_A, OTHER_VERSION, Some(257)),
         ] {
             let limits = jig_protocol_engine_workers::Limits { room: ENGINE, ..fixtures::limits() };
@@ -191,11 +192,11 @@ mod opening {
         }
     }
     #[test]
-    fn a_wrong_secret_is_refused_as_unauthorized() {
+    fn a_wrong_secret_is_refused_as_not_admitted() {
         let mut world = world();
         let connection = world.connect(fixtures::worker(WORKER_A, b"wrong", APPLICATION_VERSION));
         world.run();
-        assert_eq!(refused(&world, connection), 256);
+        assert_eq!(refused(&world, connection), 260);
         assert!(world.root().is_empty());
     }
     #[test]
@@ -223,7 +224,7 @@ mod opening {
     #[test]
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
-        let other = 9; // The previous channel is refused before reading its credential.
+        let other = 15; // The previous channel is refused before reading its credential.
         schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
@@ -237,11 +238,11 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..15, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 16..16, offered 15..15".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 12..15, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 16..16, offered 15..15");
         assert!(world.root().is_empty());
     }
     #[test]

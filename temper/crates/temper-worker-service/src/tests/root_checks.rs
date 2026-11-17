@@ -6,9 +6,7 @@ fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
     let mut agent = fixtures::startup_agent();
     agent.host_limits.directories = 1;
     let worker = fixtures::worker_settings();
-    let own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
     let mut found = Problems::empty();
     check_worker(&crate::worker_settings::root_limits(&worker, &agent, &own), &mut found);
     assert_eq!(
@@ -22,17 +20,15 @@ fn worker_limits() -> temper_worker_domain::Limits {
     crate::worker_settings::root_limits(
         &fixtures::worker_settings(),
         &fixtures::startup_agent(),
-        &crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-            temper_service_core::limits::Profile::Small,
-        )),
+        &crate::worker_settings::Limits::shared(temper_service_core::limits::stock()),
     )
 }
 
 #[test]
 fn payload_event_refusals_name_the_configured_and_required_bytes() {
     for (configured, expected) in [
-        (4096, "4096 bytes, short of agent.json profile.declared.tool_payload less the 2-byte separator, 8192 bytes"),
-        (8193, "8193 bytes, past agent.json profile.declared.tool_payload less the 2-byte separator of 8192"),
+        (4096, "4096 bytes, short of agents setting declared.tool_payload less the 2-byte separator, 8192 bytes"),
+        (8193, "8193 bytes, past agents setting declared.tool_payload less the 2-byte separator of 8192"),
     ] {
         let mut limits = worker_limits();
         limits.agent.message_bytes = 8194;
@@ -52,7 +48,7 @@ fn payload_checkout_refusals_name_the_configured_and_required_bytes() {
     limits.checkout.message_bytes = 4098;
     let mut found = Problems::empty();
     check_worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agent.json profile.declared.tool_payload), 8194 bytes\n");
+    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agents setting declared.tool_payload), 8194 bytes\n");
 }
 
 #[test]

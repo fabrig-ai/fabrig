@@ -19,7 +19,7 @@ pub(crate) fn bar(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut 
     let Some(chat) = root.pages().chat() else { return };
     if chat.goal_from(root).is_some() {
         if let Some(chip) = chat.goal_chip(root) {
-            let name = words.say(Word::ChatGoalLink, &[Hole::Name(skein_lib::bytes::copy_of(chip.title.bytes()))]);
+            let name = words.say(Word::ChatGoalLink, &[Hole::Name(crate::common::chat::row_title(chip.title.bytes()))]);
             crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: chip.task } }));
             b.style(look::CHAT_GOAL);
             b.text(Run::Plain, &name);
@@ -79,7 +79,7 @@ pub(crate) fn before(
     crate::cards::text(b, Role::Paragraph, &words.say(Word::DelegationLineGoal, &[]));
     b.open(Role::Paragraph);
     b.style(look::TOOL_FILE);
-    b.text(Run::Plain, chip.title.bytes());
+    b.text(Run::Plain, &crate::common::chat::row_title(chip.title.bytes()));
     b.close();
     let state = words.say_word(jig_client::words::Word::Phase(chip.phase), &[]);
     b.open(Role::Status);

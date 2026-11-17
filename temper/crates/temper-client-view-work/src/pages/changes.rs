@@ -356,19 +356,20 @@ fn row_start(
     when: &[u8],
 ) {
     let from = match root.pages().changes() {
-        Some(page) => page.from(root.client(), task),
+        Some(page) => page.from(task),
         None => None,
     };
     let from = match from {
-        Some(From::Goal(title)) => title.into(),
+        Some(From::Goal(title)) => crate::common::chat::row_title(title),
         Some(From::Chat(task)) => words.say(Word::ChangesChat, &[Hole::Number(task)]),
         None => Box::default(),
     };
-    let label = crate::accounts::words::join(&[title, b" ", &from, &words.say(Word::ToolSeparator, &[]), when]);
+    let title = crate::common::chat::row_title(title);
+    let label = crate::accounts::words::join(&[&title, b" ", &from, &words.say(Word::ToolSeparator, &[]), when]);
     b.open(Role::Item);
     crate::bindings::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.open(Role::Text);
-    b.run(Run::Plain, title);
+    b.run(Run::Plain, &title);
     if !from.is_empty() {
         b.run(Run::Plain, b" ");
         b.open(Role::Text);

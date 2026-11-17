@@ -9,10 +9,17 @@ use crate::{
     reference::{reference, render},
 };
 
-const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nA run calls only the tools in its own list: a tool here that your list lacks is not yours.\n\nFile, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.\n";
+const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nA run calls only the tools in its own list: a tool here that your list lacks is not yours.\n\nMembers are optional unless marked required. Numeric bounds in brackets are inclusive.\n\nFile, pull-file and compare replies fit min(core.call_answer_bytes minus tool name, agents setting declared.tool_payload); raising the former cannot override the latter. Oversized comparisons give measured size and recovery. Forge refusals name the bound and exact size or at least bytes read; unknown checks say an unnamed bound, and figureless forge bounds say a bound of the forge's. All refusals say how to read on. Fitted file prefixes keep [file truncated] and size/recovery feedback if room permits. max_bytes selects a raw prefix without offset; cuts are incomplete. If metadata leaves no content room, shorten the path or raise the allowance. Oversized pull-file pages keep paths as room permits, distinguishing omitted contents from absent sides. Recover omitted paths by listing head/base directories; read paths at head/base commits, resolving base separately. Later pages list other files.\n";
 
 fn fixture(schema: &'static [u8], effect: HostEffect) -> Box<[u8]> {
-    let specs = [Spec { name: b"fixture_read", description: b"Read a fixture.", schema, effect, offer: Offer::Every }];
+    let specs = [Spec {
+        name: b"fixture_read",
+        description: b"Read a fixture.",
+        schema,
+        effect,
+        whole: None,
+        offer: Offer::Every,
+    }];
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     render(&specs, &mut out).expect("fixture fits page bound");
     let mut exact = Writer::new(out.written());
@@ -38,15 +45,15 @@ fn a_tool_renders_its_description_effect_and_members() {
         "required":["number","name"]
     }"#;
     let expected = b"\n## fixture_read\n\nRead a fixture.\n\nA read.\nOffered to every run but an asking one.\n\n\
-- `number`: an integer from 1 to 9; required. a number\n\
-- `page`: an integer of at least 1, 1 when absent; optional.\n\
-- `kind`: one of `issue` or `pull`; optional. which\n\
+- `number`: integer [1, 9]; required. a number\n\
+- `page`: integer >=1, 1 when absent.\n\
+- `kind`: one of `issue|pull`. which\n\
 - `name`: text; required.\n\
-- `limit`: an integer of at most 7; optional.\n\
-- `flag`: true or false; optional.\n\
-- `shape`: an object; optional.\n\
-- `list`: a list; optional.\n\
-- `any`: any value; optional.\n";
+- `limit`: integer <=7.\n\
+- `flag`: boolean.\n\
+- `shape`: object.\n  - `nested`: text.\n\
+- `list`: array.\n\
+- `any`: any value.\n";
     assert_eq!(fixture(schema, HostEffect::Read).as_ref(), [HEAD, expected].concat());
 }
 
@@ -78,7 +85,7 @@ fn the_page_holds_every_declared_tool_in_the_tables_order() {
         assert_eq!(heading, Some(spec.name));
     }
     for line in headings {
-        assert!(!line.starts_with("## "), "no undeclared tool heading");
+        assert!(!line.starts_with("## ") || line == "## Shared forms", "no undeclared tool heading");
     }
     let mut tail = SPECS.iter().rev();
     for name in [b"remember".as_slice(), b"document", b"see", b"read_docs"] {
@@ -123,22 +130,32 @@ fn each_offered_line_agrees_with_the_runs_declarations() {
                 let line = entry.lines().find(|line| line.starts_with("Offered ")).expect("offering line");
                 let expected = match line {
                     "Offered to every run but an asking one." => !asking,
-                    "Offered where the run's charter names the delegate family." => {
-                        !asking && charter & families.delegate.0 != 0
-                    }
-                    "Offered where the run's authority holds the message family." => {
-                        !asking && authority & families.message.0 != 0
-                    }
-                    "Offered where the run's authority holds the read family." => {
-                        !asking && authority & families.read.0 != 0
-                    }
                     "Offered where the run's charter names the settings family and its authority holds it." => {
                         charter & authority & families.settings != 0 && (!asking || name == "propose_settings")
                     }
                     "Offered to an asking run, where its authority holds the asking family." => {
                         asking && authority & families.ask.0 != 0
                     }
-                    other => panic!("unknown offering line: {other}"),
+                    other => {
+                        let family = other
+                            .strip_prefix("Offered where the run's charter names the ")
+                            .and_then(|rest| rest.strip_suffix(" family and its authority holds it."))
+                            .expect("family offer line");
+                        let bit = match family {
+                            "delegate" => families.delegate.0,
+                            "message" => families.message.0,
+                            "control" => families.control.0,
+                            "decide" => families.decide.0,
+                            "propose" => families.propose.0,
+                            "subscribe" => families.subscribe.0,
+                            "effect" => families.effect.0,
+                            "note" => families.note.0,
+                            "recall" => families.recall.0,
+                            "read" => families.read.0,
+                            other => panic!("unknown offering family: {other}"),
+                        };
+                        !asking && charter & authority & bit != 0
+                    }
                 };
                 assert_eq!(
                     offered.iter().any(|tool| tool.name.as_ref() == spec.name),
@@ -167,11 +184,11 @@ Read a fixture.
 A read.
 Offered to every run but an asking one.
 
-- `one`: one of `a`; optional.
-- `two`: one of `b` or `a`; optional.
-- `three`: one of `a`, `b` or `c`; optional.
-- `number`: a number from -1.20e2 to 4.5, 1e+2 when absent; optional.
-- `integer`: an integer; optional.
+- `one`: one of `a`.
+- `two`: one of `b|a`.
+- `three`: one of `a|b|c`.
+- `number`: number [-1.20e2, 4.5], 1e+2 when absent.
+- `integer`: integer.
 ";
     assert_eq!(fixture(schema, HostEffect::Read).as_ref(), [HEAD, expected].concat());
 }
@@ -201,6 +218,15 @@ fn every_description_is_within_its_bound() {
         assert!(spec.description.len() <= DESCRIPTION_BYTES, "{tool}: description exceeds {DESCRIPTION_BYTES} bytes");
         let schema = json::parse(spec.schema).expect("declared schema");
         member_descriptions(&schema, tool, "input");
+        let whole = json::parse(spec.whole()).expect("whole schema");
+        member_descriptions(&whole, tool, "input");
+        let properties = whole.required(b"properties").unwrap();
+        let Value::Object(properties) = properties else { panic!("whole properties") };
+        for (name, member) in properties {
+            let name = core::str::from_utf8(name).unwrap();
+            let description = member.required(b"description").unwrap().text(b"description").unwrap();
+            assert!(!description.is_empty(), "{tool}.{name}: top-level description present");
+        }
     }
 }
 
@@ -211,16 +237,10 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
                 match key.as_ref() {
                     b"description" => {
                         let Value::String(text) = value else { panic!("{tool}.{member}: description is text") };
-                        // note.first states both replacement and overshooting append semantics.
-                        let bound = if tool == "note" && member == "input.first" {
-                            128
-                        } else if tool == "delegate" && member == "input.batch[].contract" {
-                            // The contract gives both its shapes and the person report floor.
-                            169
-                        } else {
-                            MEMBER_BYTES
-                        };
-                        assert!(text.len() <= bound, "{tool}.{member}: description exceeds {bound} bytes");
+                        assert!(
+                            text.len() <= MEMBER_BYTES,
+                            "{tool}.{member}: description exceeds {MEMBER_BYTES} bytes"
+                        );
                     }
                     b"properties" => {
                         let Value::Object(properties) = value else { panic!("declared properties are an object") };
@@ -240,5 +260,185 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
             }
         }
         Value::String(_) | Value::Number(_) | Value::Boolean(_) | Value::Null => {}
+    }
+}
+
+#[test]
+fn a_whole_form_renders_nested_members_and_alternatives() {
+    let whole = br#"{"properties":{"batch":{"type":"array","items":{"type":"object","properties":{"executor":{"type":"object","properties":{"kind":{"type":"string"}},"required":["kind"]}},"required":["executor"]}},"tracked":{"oneOf":[{"type":"object","properties":{"priority":{"type":"integer","minimum":0}},"required":["priority"]},{"type":"string"}]}} ,"required":["batch"]}"#;
+    let specs = [Spec {
+        name: b"fixture_read",
+        description: b"Read a fixture.",
+        schema: b"{}",
+        whole: Some(whole),
+        effect: HostEffect::Read,
+        offer: Offer::Every,
+    }];
+    let mut out = Writer::new(temper_docs::PAGE_BYTES);
+    render(&specs, &mut out).unwrap();
+    let mut exact = Writer::new(out.written());
+    render(&specs, &mut exact).unwrap();
+    let page = exact.finish();
+    let text = core::str::from_utf8(&page).unwrap();
+    assert!(text.ends_with("- `batch`: array; required.\n  - `executor`: object; required.\n    - `kind`: text; required.\n- `tracked`: object or string.\n  - `priority`: integer >=0; required.\n"));
+}
+
+fn page_for(specs: &[Spec]) -> Box<[u8]> {
+    let mut measured = Writer::new(temper_docs::PAGE_BYTES);
+    render(specs, &mut measured).expect("whole forms fit page");
+    let mut out = Writer::new(measured.written());
+    render(specs, &mut out).unwrap();
+    out.finish()
+}
+
+#[test]
+fn every_whole_form_fact_is_on_the_page() {
+    let page = page_for(&SPECS);
+    let text = core::str::from_utf8(&page).unwrap();
+    let (members, values) = page_facts(text);
+    for spec in &SPECS {
+        whole_form_facts(&json::parse(spec.whole()).unwrap(), text, &members, &values);
+    }
+}
+
+type Members<'a> = alloc::collections::BTreeMap<&'a str, skein_lib::List<&'a str>>;
+type Values<'a> = alloc::collections::BTreeSet<&'a str>;
+
+fn page_facts(page: &str) -> (Members<'_>, Values<'_>) {
+    let mut members = Members::new();
+    let capacity = u32::try_from(page.lines().count()).unwrap();
+    for line in page.lines() {
+        if let Some(line) = line.trim_start().strip_prefix("- `")
+            && let Some((name, rest)) = line.split_once("`: ")
+        {
+            members
+                .entry(name)
+                .or_insert_with(|| skein_lib::List::with_capacity(capacity))
+                .push(rest)
+                .expect("at most one member per page line");
+        }
+    }
+    let mut values = Values::new();
+    for span in page.split('`').skip(1).step_by(2) {
+        for item in span.split('|') {
+            values.insert(item);
+        }
+    }
+    (members, values)
+}
+
+fn whole_form_facts(schema: &Value, page: &str, members: &Members<'_>, values: &Values<'_>) {
+    if let Some(Value::Object(properties)) = schema.field(b"properties").unwrap() {
+        for (name, member) in properties {
+            let name = core::str::from_utf8(name).unwrap();
+            let required = match schema.field(b"required").unwrap() {
+                Some(Value::Array(names)) => names.contains(&Value::String(name.as_bytes().into())),
+                _ => false,
+            };
+            let description = match member.field(b"description").unwrap() {
+                Some(Value::String(text)) => core::str::from_utf8(text).unwrap(),
+                _ => "",
+            };
+            let kind = match member.field(b"type").unwrap() {
+                Some(Value::String(text)) if text.as_ref() == b"string" => "text",
+                Some(Value::String(text)) => core::str::from_utf8(text).unwrap(),
+                _ => "",
+            };
+            assert!(
+                members.get(name).is_some_and(|lines| lines.iter().any(|line| {
+                    let kind_present = if member.field(b"enum").unwrap().is_some() {
+                        line.starts_with("one of `") || line.starts_with("text")
+                    } else if member.field(b"oneOf").unwrap().is_some() {
+                        // The variants' types are all on the carrier's line.
+                        let variants = member.required(b"oneOf").unwrap().array(b"oneOf").unwrap();
+                        variants.iter().all(|variant| match variant.field(b"type").unwrap() {
+                            Some(Value::String(kind)) => line.contains(core::str::from_utf8(kind).unwrap()),
+                            _ => true,
+                        })
+                    } else {
+                        line.starts_with(kind)
+                    };
+                    kind_present && line.contains("; required.") == required && line.contains(description)
+                })),
+                "{name}: type {kind}, required {required}, description {description}"
+            );
+            whole_form_facts(member, page, members, values);
+        }
+    }
+    if let Some(Value::Array(variants)) = schema.field(b"enum").unwrap() {
+        for value in variants {
+            let Value::String(value) = value else { panic!("enum strings") };
+            let value = core::str::from_utf8(value).unwrap();
+            assert!(values.contains(value), "enum value {value}");
+        }
+    }
+    if let Some(items) = schema.field(b"items").unwrap() {
+        if let Some(Value::String(description)) = items.field(b"description").unwrap() {
+            assert!(page.contains(core::str::from_utf8(description).unwrap()));
+        }
+        whole_form_facts(items, page, members, values);
+    }
+    for alternative in [b"oneOf".as_slice(), b"anyOf", b"allOf"] {
+        if let Some(Value::Array(variants)) = schema.field(alternative).unwrap() {
+            for variant in variants {
+                whole_form_facts(variant, page, members, values);
+            }
+        }
+    }
+}
+
+#[test]
+fn repeated_shapes_are_shared_by_value_with_distinct_names() {
+    let wake_a = br#"{"properties":{"wake":{"type":"object","description":"First wake.","properties":{"words":{"type":"object","properties":{"count":{"type":"integer","description":"How many."}},"required":["count"]}},"required":["words"]},"kind":{"enum":["a","b"]}}}"#;
+    let wake_b = br#"{"properties":{"wake":{"description":"Second wake.","type":"object","required":["words"],"properties":{"words":{"required":["count"],"properties":{"count":{"description":"How many.","type":"integer"}},"type":"object"}}},"kind":{"enum":["b","a"]}}}"#;
+    let other = br#"{"properties":{"kind":{"enum":["x","y"]}}}"#;
+    let specs = [
+        Spec {
+            name: b"one",
+            description: b"One.",
+            schema: wake_a,
+            whole: None,
+            effect: HostEffect::Read,
+            offer: Offer::Every,
+        },
+        Spec {
+            name: b"two",
+            description: b"Two.",
+            schema: wake_b,
+            whole: None,
+            effect: HostEffect::Read,
+            offer: Offer::Every,
+        },
+        Spec {
+            name: b"three",
+            description: b"Three.",
+            schema: other,
+            whole: None,
+            effect: HostEffect::Read,
+            offer: Offer::Every,
+        },
+        Spec {
+            name: b"four",
+            description: b"Four.",
+            schema: other,
+            whole: None,
+            effect: HostEffect::Read,
+            offer: Offer::Every,
+        },
+    ];
+    let page = page_for(&specs);
+    let text = core::str::from_utf8(&page).unwrap();
+    assert_eq!(text.matches("the `wake` form, under Shared forms.").count(), 2);
+    assert_eq!(text.matches("\n### wake\n").count(), 1);
+    assert_eq!(text.matches("- `count`: integer; required. How many.").count(), 1);
+    assert!(text.contains("First wake. the `wake` form"));
+    assert!(text.contains("Second wake. the `wake` form"));
+    assert!(text.contains("\n## Shared forms\n\n### wake\n"), "largest subtree is factored first");
+    assert!(!text.contains("\n### words\n"), "a subtree carried only by the shared wake isn't repeated");
+    assert_eq!(text.matches("the `kind` form, under Shared forms.").count(), 2);
+    assert_eq!(text.matches("the `kind-2` form, under Shared forms.").count(), 2);
+    let (members, values) = page_facts(text);
+    for spec in &specs {
+        whole_form_facts(&json::parse(spec.whole()).unwrap(), text, &members, &values);
     }
 }

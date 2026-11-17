@@ -130,11 +130,11 @@ fn inbox(driver: &mut Driver, session: u64) -> Vec<reads::PageRow> {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(1500)),
         sign_in: session,
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::PersonTasks,
             filter: reads::Filter { project: None, goal: None },
             from: None,
-        },
+        }),
     }));
     driver.settle();
     driver

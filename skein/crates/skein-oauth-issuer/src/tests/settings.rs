@@ -39,10 +39,7 @@ fn settings_refuse_each_invalid_entity() {
     }
 }
 #[test]
-fn clients_are_present_unique_and_bounded_and_the_key_is_checked() {
-    let mut empty = settings();
-    empty.clients.clear();
-    assert_eq!(Issuer::new(empty, limits()).expect_err("no client"), Error::Client);
+fn clients_are_unique_and_bounded_and_the_key_is_checked() {
     let mut duplicate = settings();
     duplicate
         .clients
@@ -56,6 +53,63 @@ fn clients_are_present_unique_and_bounded_and_the_key_is_checked() {
     bad.key = secret(b"not a key");
     assert_eq!(Issuer::new(bad, limits()).expect_err("bad key"), Error::Key);
 }
+#[test]
+fn runtime_clients_are_unique_bounded_and_removable() {
+    let mut settings = settings();
+    settings.clients = List::with_capacity(0);
+    let mut issuer = Issuer::new(settings, limits()).expect("empty provider");
+    assert_eq!(issuer.authorize(QUERY), Err(Refusal::UnknownClient));
+    let client = || Client { id: boxed(b"client"), secret: Some(secret(b"secret")), redirect_uri: boxed(REDIRECT) };
+    issuer.add_client(client()).expect("first client, despite zero input capacity");
+    let auth = issuer.authorize(QUERY).expect("added client");
+    assert_eq!(issuer.add_client(client()), Err(ClientError::Duplicate));
+    issuer.add_client(Client { id: boxed(b"other"), secret: None, redirect_uri: boxed(REDIRECT) }).expect("at limit");
+    assert_eq!(
+        issuer.add_client(Client { id: boxed(b"past"), secret: None, redirect_uri: boxed(REDIRECT) }),
+        Err(ClientError::Full)
+    );
+    issuer.remove_client(b"client").expect("held client");
+    assert_eq!(issuer.authorize(QUERY), Err(Refusal::UnknownClient));
+    assert_eq!(issuer.redirect(&auth, &secret(b"code")), Err(Error::Client));
+    assert_eq!(issuer.remove_client(b"client"), Err(ClientError::Unknown));
+    assert!(
+        issuer.authorize(&replace(QUERY, "client_id=client", "client_id=other")).is_ok(),
+        "other registration kept"
+    );
+    issuer.add_client(client()).expect("removed slot reusable");
+    issuer.authorize(QUERY).expect("added again");
+    issuer.remove_client(b"other").expect("remove public client");
+    issuer.remove_client(b"client").expect("remove last client");
+    assert_eq!(issuer.authorize(QUERY), Err(Refusal::UnknownClient));
+}
+
+#[test]
+fn runtime_clients_use_configured_client_validation() {
+    let cap = limits();
+    let mut issuer = issuer();
+    for (id, secret_bytes, redirect, error) in [
+        (boxed(b""), None, boxed(REDIRECT), Error::Client),
+        (boxed(b"a b"), None, boxed(REDIRECT), Error::Client),
+        (boxed(b"\xff"), None, boxed(REDIRECT), Error::Client),
+        (boxed(&[b'a'; 65]), None, boxed(REDIRECT), Error::Limits),
+        (boxed(b"other"), Some(boxed(b"")), boxed(REDIRECT), Error::Client),
+        (boxed(b"other"), Some(boxed(&[b's'; 65])), boxed(REDIRECT), Error::Limits),
+        (boxed(b"other"), None, boxed(b"http://remote.example:80"), Error::Address),
+        (boxed(b"other"), None, boxed(&[b'u'; 257]), Error::Limits),
+    ] {
+        let client = Client { id, secret: secret_bytes.map(Secret::new), redirect_uri: redirect };
+        assert_eq!(issuer.add_client(client), Err(ClientError::Invalid(error)));
+        assert_eq!(issuer.settings.clients.len(), 1, "refusal changes nothing");
+    }
+    issuer
+        .add_client(Client {
+            id: boxed(&vec![b'i'; skein_lib::usize_of(cap.client_bytes)]),
+            secret: Some(secret(&vec![b's'; skein_lib::usize_of(cap.client_bytes)])),
+            redirect_uri: boxed(&[b"https://r/".as_slice(), &[b'x'; 246]].concat()),
+        })
+        .expect("all client fields at bound");
+}
+
 #[test]
 fn endpoint_rules_accept_https_and_each_loopback_spelling() {
     for url in [

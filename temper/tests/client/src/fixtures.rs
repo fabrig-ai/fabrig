@@ -1043,7 +1043,7 @@ pub fn task_budget(front: &mut Joint, task: u64) -> jig_domain_core::documents::
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: skein_lib::ReplyTo::new(BUDGET_READ),
         sign_in,
-        read: reads::Read::Task { task },
+        read: Box::new(reads::Read::Task { task }),
     }));
     driver.settle();
     driver

@@ -65,6 +65,7 @@ pub const LIMITS: Limits = Limits {
 #[must_use]
 pub fn credential() -> Credential {
     Credential {
+        opening: jig_protocol_worker_wire::Opening::Link,
         name: WORKER_A.into(),
         secret: Secret::new(SECRET_A.into()),
         application: jig_protocol_worker_wire::Application::opaque(application()),
@@ -106,7 +107,7 @@ fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
     let mut peer = skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Responder,
-        channel_limits(),
+        engine_channel_limits(),
         wire::VERSION,
         Box::new([]),
     )
@@ -143,7 +144,7 @@ fn prepared_agreement_body() -> &'static [u8] {
                 .expect("wire"),
             )
             .expect("application wire");
-        let record = wire::v15::Agreed::new(&limits, wire::v15::AgreedParts { wires }).expect("agreement");
+        let record = wire::v16::Agreed::new(&limits, wire::v16::AgreedParts { wires }).expect("agreement");
         let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut body).expect("measured agreement");
         body.finish()
@@ -151,7 +152,7 @@ fn prepared_agreement_body() -> &'static [u8] {
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v15::Agreed::new(&codec(), wire::v15::AgreedParts { wires }).expect("agreement");
+    let record = wire::v16::Agreed::new(&codec(), wire::v16::AgreedParts { wires }).expect("agreement");
     let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("measured agreement");
     let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
@@ -163,7 +164,7 @@ pub fn engine_without_statement() -> skein_fake_channel::ScriptedPeer {
     skein_fake_channel::ScriptedPeer::new(
         schema(),
         skein_channel::Role::Responder,
-        channel_limits(),
+        engine_channel_limits(),
         wire::VERSION,
         Box::new([]),
     )
@@ -205,7 +206,7 @@ pub const TOKEN_TWO: &[u8] = b"app-access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
 #[must_use]
-pub fn codec() -> wire::v15::Limits {
+pub fn codec() -> wire::v16::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 #[must_use]
@@ -504,7 +505,12 @@ pub fn acknowledge() -> skein_channel::Frame {
 pub fn engine_accepting_with(limits: &Limits) -> skein_fake_channel::ScriptedPeer {
     let codec = wire::sizes::limits(&limits.sizes).expect("sizes");
     let schema = wire::schema(&codec).expect("schema");
-    let channel = jig_protocol_worker_link::channel_limits(limits).expect("channel limits");
+    let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+    let channel = skein_channel::Limits {
+        output_bytes: cap.bytes,
+        output_frames: cap.frames,
+        ..jig_protocol_worker_link::channel_limits(limits).expect("channel limits")
+    };
     let mut engine = skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Responder,
@@ -564,4 +570,22 @@ pub fn relay_answer(name: &[u8]) -> host::LinkDown {
         call: name.into(),
         answer: host::Relayed::Answer { error: false, text: b"answer".as_slice().into() },
     }
+}
+
+/// The scripted engine can send the fixed schema-bound figures record.
+#[must_use]
+pub fn engine_channel_limits() -> skein_channel::Limits {
+    let cap = wire::sizes::engine_cap(&SIZES).expect("engine cap");
+    skein_channel::Limits { output_bytes: cap.bytes, output_frames: cap.frames, ..channel_limits() }
+}
+
+#[must_use]
+pub fn figures() -> wire::Figures {
+    let agents = wire::Agents::new(
+        &wire::CEILINGS,
+        wire::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
+    )
+    .expect("no agents");
+    wire::Figures::new(&wire::CEILINGS, wire::FiguresParts { places: 0, limits: List::with_capacity(0), agents })
+        .expect("empty figures")
 }

@@ -449,8 +449,9 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
     command
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let mut config = support::configuration::check_document(directory);
-    support::configuration::fake_entry(&mut config["application"]["machine"]["fake"], listen);
+    let config = support::configuration::check_document(directory);
+    let setup = serde_json::json!({"kind":"fake","listen":{"socket":listen},"remote":format!("http://{listen}"),"git":"demo/bin/git"});
+    support::configuration::setup(directory, 1, setup);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
     config
@@ -489,10 +490,10 @@ fn refused_deployment_start(root: &Path) {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        let mut config = forge_setup(&dir, "127.0.0.1:9");
+        let config = forge_setup(&dir, "127.0.0.1:9");
         match mode {
-            "owned" => support::owned::document(
-                &mut config,
+            "owned" => support::owned::setup(
+                &dir,
                 &support::owned::Names {
                     forgejo: Path::new("/usr/bin/false"),
                     runner: None,
@@ -506,7 +507,7 @@ fn refused_deployment_start(root: &Path) {
         }
         document(&dir.join("temper.json"), &config);
         if let Some(token) = token {
-            fs::create_dir(dir.join("playground-1")).expect("token directory");
+            fs::create_dir_all(dir.join("playground-1")).expect("token directory");
             fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
             support::write_private(&dir.join("playground-1/admin_token"), token);
         }
@@ -1551,13 +1552,15 @@ fn check_run() {
     let scratch = support::Scratch::startup("fake-check-run");
     let directory = scratch.path();
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper-box"));
-    support::write_private(&directory.join("agent.json"), &agent);
     support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    document(&directory.join("temper.json"), &support::configuration::check_document(directory));
+    let data = directory.join("data");
+    fs::create_dir(&data).expect("fixture data");
+    let mut value = support::configuration::check_document(directory);
+    temper_fixtures::agent::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
+    document(&directory.join("temper.json"), &value);
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
-    let data = directory.join("data");
     let cache = directory.join("cache");
     let ended = Command::new(skein_scratch::paths::binary("temper-box"))
         .env_clear()
@@ -1582,7 +1585,8 @@ fn check_run() {
         )
         .as_bytes()
     );
-    assert!(!data.exists());
+    assert_eq!(fs::read_dir(&data).expect("fixture data").count(), 1, "the check creates no data resources");
+    assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
     scratch.remove();
 }

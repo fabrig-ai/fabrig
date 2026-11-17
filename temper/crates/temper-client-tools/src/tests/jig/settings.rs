@@ -218,6 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
                 | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
@@ -1058,6 +1059,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
+            c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -2162,6 +2164,8 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
     } else if kind == 14 {
         br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
+    } else if kind == 21 {
+        br#"{"items":[{"setting":{"kind":"agents"},"set":{"profile":{"policy.max_turns":900},"endpoints":{"openai":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"fail"}},"fallback":{"window":1048576,"output":8192,"reasoning_item":65536,"head_ms":60000,"idle_ms":300000,"oversized":"drop"}}}]}"#.as_slice()
     } else if kind == 15 {
         br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
@@ -2243,6 +2247,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
         (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
         (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", false),
+        (vec!["settings", "show", "agents"], 21, 0, "agents", true),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
@@ -2305,6 +2311,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     12 => "\"workflow\":\"tests.yml\"",
                     14 => "\"owner\":{\"task\":42}",
                     15 => "\"owner\":{\"charter\":14}",
+                    21 => "\"profile\":{\"policy.max_turns\":900}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2390,6 +2397,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 12 => "\"workflow\":\"tests.yml\"",
                 14 => "\"owner\":{\"task\":42}",
                 15 => "\"owner\":{\"charter\":14}",
+                21 => "\"policy.max_turns\":900",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");
@@ -3796,3 +3804,51 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+
+#[test]
+fn ctl_applies_proposes_and_shows_a_worker_setting() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([0xab; 32]),
+        withdrawn: false,
+    }));
+    let file = file_from_setting(&setting_json(setting, value.clone()));
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).unwrap();
+    assert_eq!(
+        decoded.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig change") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(change.items, decoded);
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig proposal") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, decoded);
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "worker", "2", "--revision", "5"]);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    assert!(text.starts_with("worker 2, revision 5\n"), "{text}");
+    assert!(text.contains("abababababababababababababababababababababababababababababababab"), "{text}");
+}

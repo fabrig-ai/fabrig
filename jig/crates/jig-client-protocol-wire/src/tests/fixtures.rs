@@ -467,7 +467,7 @@ pub fn not_served() -> NotServed {
     let lim = limits();
     let mut served = List::with_capacity(1);
     served
-        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 27, last: 27 }).expect("range"))
+        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 28, last: 28 }).expect("range"))
         .expect("range slot");
     NotServed::new(&lim, NotServedParts { owner: Owner::Jig, served }).expect("version refusal")
 }

@@ -72,7 +72,12 @@ pub(super) fn world(name: &str) -> Domain {
                 } else {
                     List::with_capacity(0)
                 };
-                deliver(&mut root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })), &mut out);
+                deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })),
+                    &mut out,
+                );
             }
             Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } if role => {
                 deliver(&mut root, watch, c::Delivery::Task(Box::new(prover(reader))), &mut out);
@@ -247,13 +252,16 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
     let mut rows = List::with_capacity(5);
     if !alone {
         let at = super::now(crate::samples::World::Solo).as_nanos().saturating_sub(86_400_000_000_000);
-        let both = [reader, SAM];
-        let sam = [SAM];
+        let both = [(reader, "Reader"), (SAM, "Sam")];
+        let sam = [(SAM, "Sam")];
         for task in 1..=5 {
             rows.push(
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task,
                         title: b"A signed change".as_slice().into(),
                         at,
@@ -357,7 +365,7 @@ fn sams_tasks() -> c::Tasks {
     task.requester = c::Requester::Person(SAM);
     task.waits_on =
         c::WaitsOn::Party { whom: c::Whom::Person(SAM), entries: 1, task: SAM_CHAT, kind: c::WaitedFor::Question };
-    c::Tasks { rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
+    c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
 }
 
 fn approvals(alone: bool) -> w::Approvals {

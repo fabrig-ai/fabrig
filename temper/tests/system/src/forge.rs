@@ -78,8 +78,7 @@ impl World {
     ) -> Self {
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
             let mut limits = walking::limits();
-            limits.people.amendment_bytes =
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
+            limits.people.amendment_bytes = jig_protocol_config_fixtures::small().core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
             limits.journal.writes = BASE_WRITES;
@@ -99,11 +98,7 @@ impl World {
                 limits.brief.budgets.pull = 384;
                 limits.brief.brief_bytes = 1024;
                 // Both sections complete their sequential reads within the stock gather deadline.
-                limits.brief.gather =
-                    temper_engine_service_vocabulary::limits::profile(temper_service_core::limits::Profile::Small)
-                        .root
-                        .brief
-                        .gather;
+                limits.brief.gather = temper_limits_fixtures::small().root.brief.gather;
                 limits.tasks.tasks = 12;
                 limits.tasks.project_tasks = 12;
                 limits.tasks.delegates = 4;
@@ -247,6 +242,9 @@ impl World {
                 config.core.defaults.rules = domain.rules().clone();
             }
             limits.notes.scopes = 3 + limits.authority.grants;
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
+            }
             (config, limits)
         });
         let mut fake_config = forge_world::fake_config();
@@ -445,6 +443,7 @@ impl World {
                 engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }
@@ -461,6 +460,7 @@ impl World {
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
                 | engine::Request::Setup { .. }
+                | engine::Request::Worker(engine::WorkerRequest::Settings(_))
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Busy(_)

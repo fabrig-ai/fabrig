@@ -486,7 +486,12 @@ fn reopen(store: Store) -> Store {
     let mut store = fixtures::over(store.into_stores());
     fixtures::run(
         &mut store,
-        crate::Request::Open { owner: Token::new(800), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(800),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     store
 }
@@ -698,7 +703,12 @@ fn framed_readable(raw: &[u8]) -> Store {
     store.owner_sets(super::frame_patches::SETS);
     fixtures::run(
         &mut store,
-        crate::Request::Open { owner: Token::new(800), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(800),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     fixtures::plant(
         &mut store.stores,
@@ -1146,7 +1156,12 @@ fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) 
     crate::down(
         &mut store,
         &fixtures::env(),
-        crate::Request::Open { owner: Token::new(801), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        crate::Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(801),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
         &mut above,
         &mut below,
     );

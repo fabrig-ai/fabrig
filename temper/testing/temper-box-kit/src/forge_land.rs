@@ -896,8 +896,7 @@ pub fn assert_cached_binary_unchanged(cached: &std::path::Path, source: &std::pa
 
 /// Init's shipped charters on the process story's three roots. The model
 /// choice changes only ordinary provider and program configuration.
-#[must_use]
-pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::SocketAddr {
+pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
     initialize(paths);
     super::own_listener_files(&paths[0]);
     if let LiveModel::ClaudeCode { .. } = model {
@@ -920,11 +919,6 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    value["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("owned listen")
-        .parse()
-        .expect("socket")
 }
 
 /// Select the launcher's store and admit it before starting any process; a
@@ -1086,7 +1080,6 @@ pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
         ("data/deployment", true),
         ("data/forge-1/forgejo", true),
         ("config/temper.json", false),
-        ("config/agent.json", false),
         ("data/box/started/1", false),
         ("data/forge-1/forgejo/app.ini", false),
         ("data/forge-1/forgejo/forgejo.db", false),
@@ -1571,9 +1564,8 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     }
     let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
-    let agent_path = config.join("agent.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
+    let mut agent = temper_fixtures::agent::read(config);
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1621,7 +1613,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "path":executable, "directory":login.parent().expect("held login parent")
     });
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
+    temper_fixtures::agent::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.
@@ -2051,24 +2043,23 @@ impl LiveJudge<'_> {
         Ok(())
     }
     fn setup(&mut self, now: skein_lib::Time, calls: &super::ctl::Calls) -> Result<(), String> {
+        let owned = super::first_repository::check_owned_forge(self.plan.client)?;
+        let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let address = if let Some(address) = self.address {
             address
         } else {
-            // first_repository::live's configuration socket read, without
-            // its started-record or transcript reads on a kept deployment.
-            let document: serde_json::Value = serde_json::from_slice(
-                &fs::read(self.plan.paths[0].join("temper.json")).map_err(|error| error.to_string())?,
+            let setup: serde_json::Value = serde_json::from_slice(
+                &fs::read(self.plan.paths[1].join(format!("forge-{number}/setup")))
+                    .map_err(|error| error.to_string())?,
             )
             .map_err(|error| error.to_string())?;
-            document["application"]["machine"]["owned"]["listen"]["socket"]
+            setup["listen"]["socket"]
                 .as_str()
                 .ok_or("forge address missing")?
                 .parse()
                 .map_err(|_| "forge socket invalid")?
         };
         self.address = Some(address);
-        let owned = super::first_repository::check_owned_forge(self.plan.client)?;
-        let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let token = oracle_token(self.plan.paths, self.plan.first, number)?;
         self.setup_project(calls, address, &token, u16::try_from(number).map_err(|_| "forge number invalid")?)?;
         self.token = Some(token);

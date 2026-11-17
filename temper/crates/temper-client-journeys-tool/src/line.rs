@@ -41,6 +41,7 @@ pub enum Forge {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Deployment {
     Patch { document: Document, path: Box<[u8]> },
+    Restart,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Document {
@@ -114,6 +115,9 @@ impl Line {
                         }
                         args.push(bytes);
                     }
+                    for path in settings_paths(&args) {
+                        relative_path(path.into())?;
+                    }
                     Record::Ctl(args)
                 }
                 other => {
@@ -150,9 +154,15 @@ fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
 }
 fn deployment(fields: &mut Fields) -> Result<Deployment, String> {
-    let record = word(fields, "deployment record: patch")?;
+    let record = word(fields, "deployment record: patch or restart")?;
+    if record.as_ref() == b"restart" {
+        return Ok(Deployment::Restart);
+    }
     if record.as_ref() != b"patch" {
-        return Err(format!("unknown deployment record {}; expected patch", String::from_utf8_lossy(&record)));
+        return Err(format!(
+            "unknown deployment record {}; expected patch or restart",
+            String::from_utf8_lossy(&record)
+        ));
     }
     let name = word(fields, "DOCUMENT engine, worker or agent")?;
     let document = match name.as_ref() {
@@ -170,6 +180,20 @@ fn deployment(fields: &mut Fields) -> Result<Deployment, String> {
     let (Field::Word(path) | Field::Bytes(path)) = field;
     let path = relative_path(path)?;
     Ok(Deployment::Patch { document, path })
+}
+/// Settings inputs before the first flag; stdin remains closed even for `-`.
+pub(crate) fn settings_paths(args: &[Box<[u8]>]) -> Vec<&[u8]> {
+    if args.first().map(AsRef::as_ref) != Some(b"settings")
+        || !args.get(1).is_some_and(|arg| [b"apply".as_slice(), b"propose"].contains(&arg.as_ref()))
+    {
+        return vec![];
+    }
+    args.iter()
+        .skip(2)
+        .take_while(|arg| arg.as_ref() == b"-" || !arg.starts_with(b"-"))
+        .filter(|arg| arg.as_ref() != b"-")
+        .map(AsRef::as_ref)
+        .collect()
 }
 fn relative_path(path: Box<[u8]>) -> Result<Box<[u8]>, String> {
     if path.is_empty()

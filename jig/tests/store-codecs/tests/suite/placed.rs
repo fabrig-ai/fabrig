@@ -34,7 +34,7 @@ fn hold_placed_round_trips_with_its_number_at_the_existing_tag() {
 
 #[test]
 fn placed_hold_rows_round_trip_and_enforce_configured_reason_and_exemption_bounds() {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let limits = codec::tasks::limits(&profile.core.tasks).expect("small bounds");
     let value = tasks::PlacedHold {
         number: 71,

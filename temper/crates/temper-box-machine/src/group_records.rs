@@ -13,6 +13,7 @@ use skein_io::{
 };
 use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes};
 use temper_forge_setup::machine::{BoxKind, group_file, group_path, parse_group_file};
+pub(crate) type SetupRead = (u16, BoxKind, Result<Box<[u8]>, Error>);
 const TAG: u64 = 1_u64 << 62;
 const OWNER: Token = Token::new(1);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +28,9 @@ enum Phase {
     List { dir: Token },
     ListClose { dir: Token },
     Load,
+    Setup { forge: u16, kind: BoxKind, alternate: bool },
+    Removal { forge: u16, kind: BoxKind },
+    RemovalClose { forge: u16, file: Token },
     Probe { forge: u16, kind: BoxKind },
     ProbeClose { forge: u16, kind: BoxKind, file: Token },
     Idle,
@@ -53,10 +57,13 @@ pub(crate) struct GroupFiles {
     waiting: bool,
     notice: Option<Box<[u8]>>,
     answer: Option<Input>,
+    setup: Option<SetupRead>,
+    removal: Option<(u16, Result<bool, Error>)>,
 }
 impl GroupFiles {
     pub fn new(groups: u32, enabled: bool) -> Self {
-        let limits = Limits { files: 2, read: 8, entries: groups.max(1), whole: 8, timeout: Duration::from_secs(30) };
+        let limits =
+            Limits { files: 2, read: 65536, entries: groups.max(1), whole: 65536, timeout: Duration::from_secs(30) };
         Self {
             io: FileIo::with_limits(&limits),
             limits,
@@ -70,13 +77,33 @@ impl GroupFiles {
             waiting: false,
             notice: None,
             answer: None,
+            setup: None,
+            removal: None,
         }
+    }
+    pub fn read_setup(&mut self, forge: u16, kind: Option<BoxKind>) {
+        assert!(self.ready(), "one group file operation");
+        self.phase = Phase::Setup { forge, kind: kind.unwrap_or(BoxKind::Owned), alternate: kind.is_none() };
+    }
+    pub fn take_setup(&mut self) -> Option<SetupRead> {
+        self.setup.take()
+    }
+    pub fn probe_removal(&mut self, forge: u16, kind: BoxKind) {
+        assert!(self.ready(), "one group file operation");
+        self.phase = Phase::Removal { forge, kind };
+    }
+    pub fn take_removal(&mut self) -> Option<(u16, Result<bool, Error>)> {
+        self.removal.take()
     }
     pub fn groups(&self) -> &[Group] {
         self.groups.as_slice()
     }
     pub fn ready(&self) -> bool {
-        (self.phase == Phase::Idle || self.phase == Phase::Closed) && self.answer.is_none() && self.notice.is_none()
+        (self.phase == Phase::Idle || self.phase == Phase::Closed)
+            && self.answer.is_none()
+            && self.notice.is_none()
+            && self.setup.is_none()
+            && self.removal.is_none()
     }
     pub fn pending(&self) -> bool {
         !self.raw.is_empty() || !self.events.is_empty() || !self.waiting && !self.ready()
@@ -157,12 +184,18 @@ impl GroupFiles {
         if self.io.is_due(now) && self.raw.room() > 0 {
             step::expire(&mut self.io, &env, &mut self.raw);
         }
-        if self.notice.is_none() && self.answer.is_none() {
+        if self.notice.is_none() && self.answer.is_none() && self.setup.is_none() && self.removal.is_none() {
             if let Some(event) = self.events.pop() {
                 self.waiting = false;
                 self.event(event);
             }
-            if !self.waiting && self.notice.is_none() && self.answer.is_none() && self.io.takes() && self.raw.room() > 0
+            if !self.waiting
+                && self.notice.is_none()
+                && self.answer.is_none()
+                && self.setup.is_none()
+                && self.removal.is_none()
+                && self.io.takes()
+                && self.raw.room() > 0
             {
                 let owner = OWNER;
                 let token = self.root.expect("adopted root");
@@ -174,6 +207,19 @@ impl GroupFiles {
                         Request::List { owner, root: self.io.descriptor(dir).expect("groups directory") }
                     }
                     Phase::ListClose { dir } | Phase::UnlinkClose { dir, .. } => Request::Close { owner, file: dir },
+                    Phase::Setup { forge, kind, .. } => Request::Load {
+                        owner,
+                        root: token,
+                        path: temper_forge_setup::setup_file::path(forge, kind),
+                        max: 65536,
+                        no_follow: true,
+                    },
+                    Phase::Removal { forge, kind } => Request::OpenDirectory {
+                        owner,
+                        root,
+                        name: temper_forge_setup::machine::directory(forge, kind),
+                        no_follow: true,
+                    },
                     Phase::Load => {
                         let Some(forge) = self.names.get(self.at) else {
                             self.phase = Phase::Idle;
@@ -182,7 +228,7 @@ impl GroupFiles {
                         Request::Load { owner, root: token, path: group_path(*forge), max: 8, no_follow: true }
                     }
                     Phase::Probe { forge, .. } => Request::OpenReadNoFollow { owner, root, name: path(forge) },
-                    Phase::ProbeClose { file, .. } => Request::Close { owner, file },
+                    Phase::ProbeClose { file, .. } | Phase::RemovalClose { file, .. } => Request::Close { owner, file },
                     Phase::Idle | Phase::Closed => return,
                     Phase::RootClose => Request::Close { owner, file: token },
                     Phase::MakeBox { .. } => {
@@ -265,14 +311,21 @@ impl GroupFiles {
             subs.push(submit);
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one completion dispatches the group's kind, setup and removal file operations"
+    )]
     fn event(&mut self, event: Event) {
         match event {
             Event::Opened { file, .. } => match self.phase {
                 Phase::Open => self.phase = Phase::List { dir: file },
+                Phase::Removal { forge, .. } => self.phase = Phase::RemovalClose { forge, file },
                 Phase::Probe { forge, kind } => self.phase = Phase::ProbeClose { forge, kind, file },
                 Phase::UnlinkOpen { forge, started } => self.phase = Phase::Unlink { forge, started, dir: file },
                 Phase::List { .. }
                 | Phase::ListClose { .. }
+                | Phase::Setup { .. }
+                | Phase::RemovalClose { .. }
                 | Phase::Load
                 | Phase::ProbeClose { .. }
                 | Phase::Idle
@@ -286,6 +339,11 @@ impl GroupFiles {
             },
             Event::Listed { entries, .. } => self.listed(entries),
             Event::Loaded { bytes, .. } => {
+                if let Phase::Setup { forge, kind, .. } = self.phase {
+                    self.setup = Some((forge, kind, Ok(bytes)));
+                    self.phase = Phase::Idle;
+                    return;
+                }
                 let forge = *self.names.get(self.at).expect("loading group");
                 match parse_group_file(&bytes) {
                     Some(kind) => self.phase = Phase::Probe { forge, kind },
@@ -303,6 +361,9 @@ impl GroupFiles {
                     Phase::Open
                     | Phase::List { .. }
                     | Phase::ListClose { .. }
+                    | Phase::Setup { .. }
+                    | Phase::Removal { .. }
+                    | Phase::RemovalClose { .. }
                     | Phase::Load
                     | Phase::Probe { .. }
                     | Phase::ProbeClose { .. }
@@ -324,6 +385,9 @@ impl GroupFiles {
                     Phase::Open
                     | Phase::List { .. }
                     | Phase::ListClose { .. }
+                    | Phase::Setup { .. }
+                    | Phase::Removal { .. }
+                    | Phase::RemovalClose { .. }
                     | Phase::Load
                     | Phase::Probe { .. }
                     | Phase::ProbeClose { .. }
@@ -359,6 +423,9 @@ impl GroupFiles {
             Phase::List { dir } => dir,
             Phase::Open
             | Phase::ListClose { .. }
+            | Phase::Setup { .. }
+            | Phase::Removal { .. }
+            | Phase::RemovalClose { .. }
             | Phase::Load
             | Phase::Probe { .. }
             | Phase::ProbeClose { .. }
@@ -389,6 +456,10 @@ impl GroupFiles {
     fn closed_event(&mut self) {
         match self.phase {
             Phase::RootClose => self.phase = Phase::Closed,
+            Phase::RemovalClose { forge, .. } => {
+                self.removal = Some((forge, Ok(true)));
+                self.phase = Phase::Idle;
+            }
             Phase::ListClose { .. } => self.phase = Phase::Load,
             Phase::ProbeClose { forge, kind, .. } => {
                 self.remember(forge, kind, true);
@@ -400,6 +471,8 @@ impl GroupFiles {
             },
             Phase::Open
             | Phase::List { .. }
+            | Phase::Setup { .. }
+            | Phase::Removal { .. }
             | Phase::Load
             | Phase::Probe { .. }
             | Phase::Idle
@@ -418,6 +491,9 @@ impl GroupFiles {
             Phase::Open
             | Phase::List { .. }
             | Phase::ListClose { .. }
+            | Phase::Setup { .. }
+            | Phase::Removal { .. }
+            | Phase::RemovalClose { .. }
             | Phase::Load
             | Phase::Probe { .. }
             | Phase::ProbeClose { .. }
@@ -439,7 +515,10 @@ impl GroupFiles {
                 match self.phase {
                     Phase::List { dir } => self.phase = Phase::ListClose { dir },
                     Phase::Open | Phase::ListClose { .. } => self.phase = Phase::Idle,
-                    Phase::Load
+                    Phase::Setup { .. }
+                    | Phase::Removal { .. }
+                    | Phase::RemovalClose { .. }
+                    | Phase::Load
                     | Phase::Probe { .. }
                     | Phase::ProbeClose { .. }
                     | Phase::Idle
@@ -452,6 +531,21 @@ impl GroupFiles {
                     | Phase::Unlink { .. }
                     | Phase::UnlinkClose { .. } => unreachable!("listing phase"),
                 }
+            }
+            Phase::Setup { forge, kind: BoxKind::Owned, alternate: true } if error == Error::NotFound => {
+                self.phase = Phase::Setup { forge, kind: BoxKind::Fake, alternate: false };
+            }
+            Phase::Setup { forge, kind, .. } => {
+                self.setup = Some((forge, kind, Err(error)));
+                self.phase = Phase::Idle;
+            }
+            Phase::Removal { forge, .. } if error == Error::NotFound => {
+                self.removal = Some((forge, Ok(false)));
+                self.phase = Phase::Idle;
+            }
+            Phase::Removal { forge, .. } | Phase::RemovalClose { forge, .. } => {
+                self.removal = Some((forge, Err(error)));
+                self.phase = Phase::Idle;
             }
             Phase::Load => {
                 self.notice = Some(bytes::copy_of(b"box: cannot read group file\n"));

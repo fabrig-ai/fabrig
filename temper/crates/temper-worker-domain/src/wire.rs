@@ -40,11 +40,17 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    /// A started dependency's landing (temper/docs/design/domain/worker/checkouts.md, Its ask).
+    Landed {
+        head: [u8; 32],
+    },
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Answer {
     Kept,
+    Landed,
+    Unlanded,
     Reds { reds: Box<[Red]> },
 }
 

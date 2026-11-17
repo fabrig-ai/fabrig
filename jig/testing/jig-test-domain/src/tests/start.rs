@@ -158,6 +158,7 @@ impl Host {
                         return;
                     }
                     Request::StoreCatalogue { .. }
+                    | Request::Workers(_)
                     | Request::ClientsCatalogue { .. }
                     | Request::Deliver(_)
                     | Request::Now(_) => {}

@@ -58,6 +58,8 @@ pub struct Place {
 /// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
+    /// Move HEAD and the index to a local commit, keeping all working files. Ends Committed.
+    Reset { at: Place, commit: Commit },
     /// Best-effort check files (domain/forge/reds.md, 5.2).
     Reds { at: Place, action: Reds },
     /// Make the workspace's directory empty: rename the old tree aside
@@ -183,6 +185,8 @@ pub enum Want {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
+    /// A snapshot's second parent is no longer reached by the remote. Nothing staged.
+    ParentUnreachable { head: Commit, merging: Option<Commit>, parent: Commit },
     /// A bounded results file, removed after reading; one extra byte marks oversize.
     Results { bytes: Option<Box<[u8]>> },
     /// Complete changed-path list, bounded by the checkout's conflict/path limits.
@@ -266,6 +270,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Reset,
     Reds,
     Store,
     Look,
@@ -287,6 +292,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Reset { .. } => Kind::Reset,
             Op::Reds { .. } => Kind::Reds,
             Op::Store { .. } => Kind::Store,
             Op::Make { .. } => Kind::Make,
@@ -317,6 +323,7 @@ impl Op {
             | Op::Merge { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
             Op::Reds { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }

@@ -5,6 +5,7 @@
 
 
 
+
 `settings.md`, section 7 has no known gap in the engine and workers' shared output
 room. Init's templates and the owned example give the engine the
 workers' 16,804,602 bytes; the turn-bound writer derives one worker room
@@ -180,8 +181,8 @@ it unchanged, while temper's own translation refusal counts from 1.
 `reference.md`'s delivery hook batches format roots by edition and
 configuration, runs every baseline with the private snapshot index, names
 its checks and uses the worker's landing pin for package selection and
-inherited failures. Its cache is keyed by tree and base
-(`tools/pre-pr/design.status.md`). The delivery check's tests
+inherited failures. Its cache is keyed by tree, base, the goal's reds and
+main's ledgers (`tools/pre-pr/design.md`, 7; `tools/pre-pr/design.status.md`). The delivery check's tests
 (`tools/pre-pr/design.md`, 9) exercise these rules; they do not measure a deployment under load. `README.md`, section 9's
 60-second `check_timeout` remains unchanged.
 

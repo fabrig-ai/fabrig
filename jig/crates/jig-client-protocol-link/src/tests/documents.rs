@@ -469,7 +469,7 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     assert_eq!(limits.wire().policy_edit_templates_overrides, 16);
     assert_eq!(limits.wire().setting_model_efforts, 16);
     assert_eq!(limits.wire().setting_policy_templates, 16);
-    assert_eq!(limits.receiving().settings_document_settings, 256);
+    assert_eq!(limits.receiving().settings_document_settings, 512);
     assert_eq!(limits.wire().model_set_names_names_item, 4096);
     assert_eq!(limits.wire().setting_model_name, 4096);
     assert_eq!(limits.wire().setting_model_program_some, 32);

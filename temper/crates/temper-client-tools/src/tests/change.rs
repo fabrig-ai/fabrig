@@ -13,6 +13,7 @@ pub(super) fn panel(step: w::Step) -> w::ChangePanel {
     w::ChangePanel::new(
         &w::CEILINGS,
         w::ChangePanelParts {
+            wait: None,
             source: None,
             way: w::Way::Queue,
             in_landing: None,

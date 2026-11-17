@@ -47,7 +47,7 @@ impl Side {
         }
     }
     fn send(&mut self, now: Time, request: Request) {
-        use jig_client_protocol_wire::v28 as w;
+        use jig_client_protocol_wire as w;
         use skein_lib::Reader;
         if matches!(&request, Request::CloseStream) {
             self.stream_epoch += 1;
@@ -78,7 +78,7 @@ impl Side {
         self.connections.down(now, request, &mut self.down);
     }
     fn receipts(&mut self, event: &Event) -> Vec<Receipt> {
-        use jig_client_protocol_wire::v28 as w;
+        use jig_client_protocol_wire as w;
         use skein_lib::Reader;
         let mut receipts: Vec<_> = self
             .wire
@@ -161,7 +161,11 @@ impl Bytes {
             name: Box::new([]),
         });
         settings.served = jig_client_kit::test::list([
-            clients::Served { family: None, first: 28, last: 28 },
+            clients::Served {
+                family: None,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            },
             clients::Served { family: Some(1), first: 1, last: 1 },
             clients::Served { family: Some(2), first: 1, last: 1 },
         ]);
@@ -522,6 +526,7 @@ impl Bytes {
     }
     fn application(&mut self, joint: &mut Joint, request: clients::ToApplication) {
         let event = match request {
+            clients::ToApplication::ProviderClientChanged { .. } => panic!("Ops fixture requests no provider changes"),
             clients::ToApplication::Request { reply_to, sign_in, key, family, scope, record, digest, .. } => {
                 assert_eq!(family, 2);
                 joint.engine.peers.application_bytes.push((key, record.clone()));

@@ -314,7 +314,12 @@ fn a_committed_store_reopens_at_its_last_number_with_its_kept_installation() {
     let drawn = [6; 16];
     let events = fixtures::run(
         &mut restarted,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: drawn },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: drawn,
+        },
     );
     let [Event::Opened { owner, last, installation, pending: false }, Event::Census { .. }] = &*events else {
         panic!("committed store opens: {events:?}");

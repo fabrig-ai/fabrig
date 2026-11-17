@@ -96,7 +96,7 @@ fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
 fn trial_row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
     v::TrialRow::new(
         &v::CEILINGS,
-        v::TrialRowParts { account: TRIED_ACCOUNT, task: Some(TRIAL_TASK), took: None, step, state },
+        v::TrialRowParts { run_wait: None, account: TRIED_ACCOUNT, task: Some(TRIAL_TASK), took: None, step, state },
     )
     .unwrap()
 }

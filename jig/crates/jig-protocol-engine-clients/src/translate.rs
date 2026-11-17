@@ -1,6 +1,6 @@
 //! Total translations of the core's client vocabulary (protocol/client/wire.md, 1).
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{List, Writer};
 pub mod accounts;
 pub mod activity;
@@ -18,15 +18,18 @@ pub mod objects;
 pub(crate) mod operations;
 pub mod owner;
 pub mod pages;
+pub(crate) mod parts;
 pub mod programs;
 pub(crate) mod queries;
 pub(crate) mod reads;
 pub(crate) mod refusals;
 pub mod settings;
 pub mod task;
-mod task_wait;
+pub mod task_wait;
 pub(crate) mod watches;
 pub use objects::document;
+/// Translate a task line without application parts (domain/engine/views.md, 2).
+pub use queries::line as task_line;
 
 fn problem(reason: skein_codec::Reason) -> w::Problem {
     w::Problem { path: w::Path::OwnedRecord, reason }

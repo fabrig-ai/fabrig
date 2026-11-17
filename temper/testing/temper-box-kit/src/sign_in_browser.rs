@@ -3,7 +3,7 @@
 // Adapted from jig's protocol-accounts world's private browser at the pinned revision.
 const ROOM: u32 = 64;
 fn limits() -> skein_oauth_accounts::Limits {
-    jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).driver
+    jig_protocol_config_fixtures::small().driver
 }
 use skein_http::{Header, Method, client as http};
 use skein_io::{self as io, kernel};

@@ -104,8 +104,8 @@ and adds to them is `places.md`.
   takes `gpt-6.1-sol`, which the fake model serves.
 - **Its scripts:** `scripts.json` holds `cued` alone, one script: B0's
   twin's review (4.3), cued by `Review this change at the named head`,
-  its four turns the twin's, `read_pull`, `read_pull_files` and
-  `read_checks`, each taking the pull request's number and head from
+  its four turns the twin's, `read_issues what=pull`, `read_issues what=pull_files` and
+  `read_ci what=checks`, each taking the pull request's number and head from
   the review's brief (skein's `testing/fakes/llm.md`, 2.6), then
   `finish` with verdict `1`, approving, all but its text, which reads
   "Approve. QA's scripted review read the pull request, the files it
@@ -270,12 +270,21 @@ machinery alone. A root recipe, at a deployment's place
   the cluster's story does; the project Hello and the fake Forgejo
   connected as its admin with its first repository `work/hello`, by the
   same ctl line as `project-landing`'s (section 2), waited until it is
-  adopted; then `deployment patch engine landing.json`, whose file sets
-  Hello's landing by `turn`, `batch` 2, its repository's gate `gate`,
-  workflow `gate.yml`, blocking, on the forge and repository numbers
-  those lines made (`deployment.md`, 6.2; `../../domain/landing.md`,
-  13.1); its check, after `check`, ctl's reads of the project, its
-  forge and its repository.
+  adopted; then `ctl settings apply landing.json --against 1`, whose file
+  sets Hello's `project-landing` (`turn`, `batch` 2) and `project-gates`
+  (gate `gate`, workflow `gate.yml`, blocking), on the forge and repository
+  numbers those lines made (`../../client/drive.md`, 3.4). A fresh place
+  holds revision 1 there: adding the account, making the project and
+  adopting the repository make no settings decision. Then `deployment
+  restart`, since kinds 4 and 5 are taken at the next start
+  (`../../client/drive.md`, 3.8; `../../domain/landing-settings.md`, 1.1);
+  its check, after `check`, ctl's reads of the project, its forge and its
+  repository. The forge's read waits until it is connected, `ctl forge
+  list --until connected:1`, as the place's own reads do: the engine the
+  restart starts again, and the one a walk from the setup's copy starts,
+  each connects the forge afresh, showing it connecting meanwhile, and its
+  repositories are read only once it is connected
+  (`../../client/ctl/tools.md`, 4), never after a sleep.
 - **Its gate by content:** a dispatched `gate.yml` at a landing's top
   passes unless the top's tree holds `.fake-forge/gate` reading `fail`,
   so a case makes a batch red by a member that writes that file, and

@@ -64,6 +64,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
         | git::Op::Reds { at, .. }
+        | git::Op::Reset { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
@@ -96,6 +97,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
+            | git::Op::Reset { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -417,6 +419,7 @@ pub(crate) fn environment_for(
         None
         | Some(
             git::Kind::Reds
+            | git::Kind::Reset
             | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look
@@ -477,6 +480,7 @@ pub(crate) fn environment_for(
         None
         | Some(
             git::Kind::Reds
+            | git::Kind::Reset
             | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look

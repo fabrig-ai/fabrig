@@ -243,6 +243,7 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
                 | w::Request::FileFinding(_)
                 | w::Request::HandFinding(_)
                 | w::Request::TriageFinding(_)
+                | w::Request::Checkpoint
                 | w::Request::Overturn(_) => return,
             };
             state.sent.entry(*key).or_insert(Pending {
@@ -377,6 +378,8 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::Dismissed
         | w::Outcome::MakeKept

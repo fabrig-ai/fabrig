@@ -1384,7 +1384,8 @@ fn goal_tasks() -> w::Tasks {
     let row = w::TaskLine::new(&w::CEILINGS, row).expect("goal row");
     let mut writer = Writer::new(usize::try_from(row.measure()).expect("goal size"));
     row.encode(&mut writer).expect("goal fits");
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).expect("goal")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false })
+        .expect("goal")
 }
 
 fn goal_host() -> Host {
@@ -1409,7 +1410,9 @@ fn goal_host() -> Host {
             .collect();
         for subject in subjects {
             let watched = watch(&duties, &subject);
-            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+            let w::Subject::Tasks(query) = subject else { unreachable!("task subject") };
+            let rows = tasks_with_parts(&tasks, query.query().parts().len());
+            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(rows));
             duties.asked.extend(admit(&mut host, arrived).asked);
         }
         if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some())
@@ -3644,6 +3647,7 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
     let mut subject = subject.into_parts();
     let mut query = subject.query.into_parts();
     query.project = None;
+    query.parts = skein_lib::List::with_capacity(0);
     subject.query = w::TaskQuery::new(&w::CEILINGS, query).expect("across query");
     let subject = w::Subject::Tasks(w::SubjectTasks::new(&w::CEILINGS, subject).expect("across subject"));
     for _ in 0..host.env.limits.client.domain.watches {
@@ -3656,7 +3660,7 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
         duties.asked.extend(admit(&mut host, again).asked);
     }
     let across = watch(&duties, &subject);
-    let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks.clone()));
+    let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks_with_parts(tasks, 0)));
     duties.asked.extend(admit(&mut host, arrived).asked);
     let window = host.root.pages().inbox().expect("launchpad inbox").window;
     let inbox_watch = watch(
@@ -3808,6 +3812,7 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
             row.waits_on = w::WaitsOn::Nothing;
         }
         row.project = 3;
+        row.parts = skein_lib::List::from_boxed(Box::new([w::RowPart::Unknown]));
         row.last_activity = activity;
         row.ended_at = None;
         let row = w::TaskLine::new(&w::CEILINGS, row).expect("chat line");
@@ -3815,7 +3820,26 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
         row.encode(&mut writer).expect("chat fits");
         rows.push(writer.finish());
     }
-    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats")
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { ended_mark: 0, rows: pieces(&rows), more: false }).expect("two chats")
+}
+
+fn tasks_with_parts(tasks: &w::Tasks, count: u32) -> w::Tasks {
+    let mut tasks = tasks.clone().into_parts();
+    let mut reader = Reader::new(&tasks.rows);
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("row piece") {
+        let mut row = w::TaskLine::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("row").into_parts();
+        row.parts = skein_lib::List::with_capacity(count);
+        for _ in 0..count {
+            row.parts.push(w::RowPart::Unknown).expect("part slot");
+        }
+        let row = w::TaskLine::new(&w::CEILINGS, row).expect("row parts");
+        let mut writer = Writer::new(row.measure().try_into().expect("row size"));
+        row.encode(&mut writer).expect("row encodes");
+        rows.push(writer.finish());
+    }
+    tasks.rows = pieces(&rows);
+    w::Tasks::new(&w::CEILINGS, tasks).expect("tasks parts")
 }
 
 pub(crate) fn home_subject(duties: &Duties) -> w::Subject {

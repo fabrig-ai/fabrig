@@ -92,15 +92,13 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let drawn = free_addresses::<5>(&old);
+    let drawn = free_addresses::<3>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
@@ -112,18 +110,7 @@ pub fn own_listener_files(directory: &Path) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).expect("init document")).expect("JSON");
     own_listeners(&mut document);
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&agent_path).expect("init agent")).expect("JSON");
-    let demo = agent["endpoints"]
-        .as_array_mut()
-        .expect("agent endpoints")
-        .iter_mut()
-        .find(|endpoint| endpoint["number"] == 3)
-        .expect("init demo endpoint");
-    demo["address"] = document["application"]["demo"]["llm"]["listen"]["socket"].clone();
     write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
 
 pub enum Forge<'a> {
@@ -140,7 +127,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
     }
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") {
+        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
             continue;
         }
         write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
@@ -152,9 +139,9 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let (agent, value) =
         configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
-    write_private(&directory.join("agent.json"), &agent);
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
+    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 

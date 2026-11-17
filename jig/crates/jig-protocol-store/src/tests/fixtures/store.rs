@@ -24,6 +24,7 @@ pub fn limits() -> Limits {
         files: 2,
         reads: 4,
         fetch: 16_777_216,
+        checkpoints: crate::checkpoints::Checkpoints { keep: 2 },
         orphan_erases: 1,
         held: 2,
     }
@@ -132,7 +133,10 @@ pub fn opened_with_budget(budget: u64) -> Store {
     let mut limits = limits();
     limits.store.budget = budget;
     let mut store = Store::over(&limits, APPLICATION, &[], stores_with(&limits));
-    let events = run(&mut store, Request::Open { owner: Token::new(1), root: ROOT, installation: INSTALLATION });
+    let events = run(
+        &mut store,
+        Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: ROOT, installation: INSTALLATION },
+    );
     let [Event::Opened { owner: _, last: 0, installation: _, pending: false }, Event::Census { .. }] = &*events else {
         panic!("empty store opens: {events:?}");
     };
@@ -203,17 +207,22 @@ pub fn env() -> Env<Limits> {
     Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits() }
 }
 pub fn below() -> Below {
-    Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() }
+    Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    }
 }
 fn unseeded_driver() -> FileIo {
     FileIo::with_limits(&FileLimits { read: 1, whole: 1, ..super::disk::file_limits() })
 }
 pub fn directory() -> (Store, Below) {
-    let mut drivers = [unseeded_driver(), unseeded_driver(), unseeded_driver()];
-    let [store, secrets, transcripts] = &mut drivers;
+    let mut drivers = [unseeded_driver(), unseeded_driver(), unseeded_driver(), unseeded_driver()];
+    let [store, secrets, transcripts, checkpoints] = &mut drivers;
     // Scripted terminals need no randomness; reuse the fixture's installation bytes as their seed.
     let seeded = crate::seed(
-        [store, secrets, transcripts],
+        [store, secrets, transcripts, checkpoints],
         u64::from_le_bytes(INSTALLATION.get(..8).expect("installation seed").try_into().expect("eight bytes")),
     );
     let mut store = Store::on_directory(&limits(), APPLICATION, &[], seeded);
@@ -222,7 +231,7 @@ pub fn directory() -> (Store, Below) {
     crate::down(
         &mut store,
         &env(),
-        Request::Open { owner: Token::new(1), root: ROOT, installation: INSTALLATION },
+        Request::Open { purpose: crate::Purpose::Serve, owner: Token::new(1), root: ROOT, installation: INSTALLATION },
         &mut above,
         &mut below,
     );

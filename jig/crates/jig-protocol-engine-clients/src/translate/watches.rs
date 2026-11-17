@@ -77,6 +77,7 @@ pub(crate) fn delivery(
     _project: u32,
     rows: u32,
     models: &[crate::Model],
+    slots: &List<super::parts::Slot>,
     limits: &w::Limits,
 ) -> Result<w::DeliveryValue, w::Problem> {
     Ok(match value {
@@ -113,7 +114,7 @@ pub(crate) fn delivery(
             w::DeliveryValue::Chips(w::Chips::new(limits, w::ChipsParts { rows })?)
         }
         d::Document::Inbox(value) => w::DeliveryValue::Inbox(inbox::document(value, limits)?),
-        d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, limits)?),
+        d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, slots, limits)?),
         d::Document::Run(value) => w::DeliveryValue::RunState(live::run(value, limits)?),
         d::Document::Accounts(value) => w::DeliveryValue::Accounts(super::accounts::document(value, limits)?),
         d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value, limits)?),
@@ -138,6 +139,7 @@ pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
     record.finish()
 }
 
+#[expect(clippy::too_many_arguments, reason = "the packet combines the watch identity, translation and row parts")]
 pub(crate) fn document_packet(
     document: &d::Document,
     project: u32,
@@ -145,9 +147,10 @@ pub(crate) fn document_packet(
     watch: u64,
     version: u32,
     models: &[crate::Model],
+    slots: &List<super::parts::Slot>,
     limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
-    let value = delivery(document, project, rows, models, limits)?;
+    let value = delivery(document, project, rows, models, slots, limits)?;
     let document = owned(value, version, limits)?;
     Ok(w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document })?))
 }

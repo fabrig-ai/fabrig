@@ -155,6 +155,10 @@ impl World {
         git::Done::Succeeded
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the harness drives every checkout operation through its command sequence"
+    )]
     fn perform(&self, mut op: git::Op) -> git::Done {
         if let git::Op::Make { workspace, .. } = &op {
             fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
@@ -178,6 +182,7 @@ impl World {
         let at = match &op {
             git::Op::Clone { at, .. }
             | git::Op::Reds { at, .. }
+            | git::Op::Reset { at, .. }
             | git::Op::Point { at, .. }
             | git::Op::Fetch { at, .. }
             | git::Op::Create { at, .. }

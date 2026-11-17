@@ -66,6 +66,7 @@ impl World {
                         self.pending.push(Up::Watched {
                             watch: *watch,
                             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                ended_mark: 0,
                                 rows: List::with_capacity(0),
                                 more: false,
                             }))),
@@ -379,6 +380,7 @@ impl World {
             }
             c::Read::Task { task } => c::ReadValue::Task(Box::new(task_document(*task, 1))),
             c::Read::Tasks { .. } => c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::None,

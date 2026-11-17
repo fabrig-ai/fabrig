@@ -92,6 +92,16 @@ pub fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]
 pub fn heading(title: &[u8]) -> Box<[u8]> {
     crate::common::chat::short_title(title)
 }
+/// A task's title on a line (temper/docs/design/client/pages/README.md, 2).
+#[must_use]
+pub fn row_title(title: &[u8]) -> Box<[u8]> {
+    crate::common::chat::row_title(title)
+}
+/// Whether a task's words are only its title (temper/docs/design/client/pages/README.md, 2).
+#[must_use]
+pub fn only_title(words: &c::DocumentText) -> bool {
+    crate::common::chat::only_title(words)
+}
 /// A command's words (temper/docs/design/client/pages/README.md, Commands).
 #[must_use]
 pub fn description(command: Command) -> &'static [u8] {

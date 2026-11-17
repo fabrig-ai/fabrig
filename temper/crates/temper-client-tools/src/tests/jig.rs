@@ -3,6 +3,7 @@ mod lists;
 mod notes;
 mod reads;
 mod turn;
+mod workers;
 
 mod acts;
 mod conditions;

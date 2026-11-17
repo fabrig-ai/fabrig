@@ -26,7 +26,6 @@ struct DraftsPage {
     root: Domain,
     out: Queue<Request>,
     goal_watch: Option<Token>,
-    note_reads: u32,
 }
 
 impl DraftsPage {
@@ -46,7 +45,6 @@ impl DraftsPage {
             root: temper_client_domain::unlinked(&limits, fixtures::SEED),
             out: Queue::uncapped(),
             goal_watch: None,
-            note_reads: 0,
         };
         for event in [
             Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
@@ -84,6 +82,8 @@ impl DraftsPage {
                     let mut rows = List::with_capacity(2);
                     let mut chat = line();
                     chat.last_activity = Wall::from_nanos(1);
+                    chat.parts =
+                        List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(Some(b"Away mode"))]));
                     if asking {
                         chat.chip.executor = ChipExecutor::Agent { charter: 37 };
                     }
@@ -91,7 +91,11 @@ impl DraftsPage {
                     rows.push(timed(7, 0, None)).unwrap();
                     Up::Watched {
                         watch,
-                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                            ended_mark: 0,
+                            rows,
+                            more: false,
+                        }))),
                     }
                 }
                 Down::Open { watch, subject: Watchable::Jig(Subject::Chips { tasks }) } => {
@@ -161,45 +165,21 @@ impl DraftsPage {
                         },
                     }
                 }
-                Down::Read { read, what: Readable::Jig(Read::Notes { scope, description, after }) } => {
-                    assert_eq!(scope, NoteScope::Tasks { project: fixtures::PROJECT });
-                    assert_eq!((description, after), (None, None));
-                    page.note_reads = page.note_reads.checked_add(1).unwrap();
-                    let mut rows = List::with_capacity(3);
-                    for task in [TASK, 8, 99] {
-                        rows.push(Note {
-                            number: 1,
-                            revision: Revision { value: 1 },
-                            scope: NoteScope::Task { project: fixtures::PROJECT, task },
-                            description: DocumentText::complete(
-                                Text::new(b"Away mode".as_slice().into(), TEXT).unwrap(),
-                            ),
-                            body: DocumentText::complete(Text::new(Box::default(), TEXT).unwrap()),
-                            writer: NoteAuthor::Task { task, attempt: 1 },
-                            tasks: List::with_capacity(0),
-                            changed: None,
-                            acts: List::with_capacity(0),
-                            cut: false,
-                        })
-                        .unwrap();
-                    }
-                    Up::ReadDone {
-                        read,
-                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Notes(Box::new(NotePage {
-                            rows,
-                            before: None,
-                            after: None,
-                            cut: false,
-                        })))),
-                    }
-                }
+                Down::Read { what: Readable::Jig(Read::Notes { .. }), .. } => panic!("Chats reads no notes"),
                 Down::Read { read, what: Readable::Jig(Read::Tasks { .. }) } => Up::ReadDone {
                     read,
                     result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows {
-                            rows: List::from_boxed(Box::new([timed(8, 0, Some(0))])),
+                            rows: List::from_boxed(Box::new([{
+                                let mut row = timed(8, 0, Some(0));
+                                row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(
+                                    Some(b"Away mode"),
+                                )]));
+                                row
+                            }])),
                             after: None,
                             cut: false,
                         },
@@ -252,22 +232,16 @@ fn watches_the_goals_chips_and_closes_them() {
         Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::Drafts }) },
         &mut page.out,
     );
-    assert!(page.root.pages().chats().unwrap().documents.is_empty());
-    let mut reopened = false;
+    assert_eq!(page.root.pages().chats().unwrap().documents.get(&TASK).unwrap().bytes(), b"Away mode");
     while let Some(request) = page.out.pop() {
         if let Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Read {
-                            what: jig_client::Readable::Jig(Read::Notes { scope: NoteScope::Tasks { project }, .. }),
-                            ..
-                        },
+                    down: jig_client::Down::Read { what: jig_client::Readable::Jig(Read::Notes { .. }), .. },
                 },
         } = request
         {
-            reopened |= project == fixtures::PROJECT;
+            panic!("reopening uses the row parts, not another notes read");
         }
     }
-    assert!(reopened, "the next open reads a later document");
 }

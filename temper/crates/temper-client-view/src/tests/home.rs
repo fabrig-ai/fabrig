@@ -124,6 +124,7 @@ fn trial_home(beginning: bool) -> d::Domain {
 fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
     let rows: Box<[d::forge::trials::Row]> = match state {
         Some(state) => Box::new([d::forge::trials::Row {
+            run_wait: None,
             account: 1,
             task: Some(91),
             took: None,
@@ -1123,8 +1124,9 @@ fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixtu
         }
     }
     ChatFixture {
-        live: c::Tasks { rows: live_rows, more },
+        live: c::Tasks { rows: live_rows, more, ended_mark: 0 },
         ended: c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows {
@@ -1145,6 +1147,31 @@ fn home_chats(chats: ChatFixture) -> d::Domain {
     )
     .0
 }
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the view scenario constructs long titles and inspects semantic nodes"
+)]
+fn home_chat_rows_cut_titles_in_the_text_and_link_name() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut chats = chat_fixture(1, 0, false, false);
+    chats.live.rows.get_mut(0).unwrap().chip.title = f::needs::words(&long);
+    let root = home_chats(chats);
+    for browser in [false, true] {
+        let mut view = timed_view(&root, browser);
+        let name = format!("{cut}, waiting on you, 4 min");
+        let link = main_find(view.tree(), Role::Link, name.as_bytes());
+        assert!(f::nodes_text(subtree(view.tree(), link)).starts_with(cut.as_bytes()));
+        absent(&f::main_text(view.tree()), &long);
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task: 9 } }))
+        );
+    }
+}
+
 #[test]
 fn chats_keep_live_then_ended_status_age_names_and_events() {
     for (more, after, name, label) in [
@@ -1639,7 +1666,7 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
     deliver(
         &mut root,
         live.expect("Settings watches chats"),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         let link = f::find(view.tree(), Role::Link, b"Ask temper").unwrap();
@@ -2096,6 +2123,10 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     for row in goals.live.rows.iter_mut() {
         row.tracked = Some(1);
         if row.chip.task == 9 {
+            row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+                Some((b"A goal report.", f::NOW)),
+                None,
+            )]));
             row.delegates_done = 5;
             row.delegates_total = 6;
         }
@@ -2137,7 +2168,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
 #[test]
 fn goals_takes_chats_place() {
     let root = home_goals(2, 3, false);
-    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
+    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home takes the report from its goal part");
     assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
     for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let region = main_find(view.tree(), Role::Region, b"Goals");
@@ -2193,7 +2224,12 @@ fn goals_rows_are_live_first_and_at_least_five() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "the test inspects grouped semantic subtrees")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::too_many_lines,
+    reason = "the test inspects Home's grouped milestone part and its dependency names in both shells"
+)]
 fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     let mut limits = home_limits();
     limits.client.domain.handles = 96;
@@ -2234,8 +2270,7 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         .unwrap()
         .label;
     let goals = f::milestones::watch(&out, Some(goal_label), None, limits.client.domain.rows);
-    let out = f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
-    let children = f::milestones::watch(&out, None, Some(f::milestones::TASK), limits.client.domain.rows);
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     assert!(root.has_goals(f::PROJECT), "a milestone alone replaces Chats");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Region, b"Goals");
@@ -2252,7 +2287,23 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     waiting.chip.phase = c::Phase::Waiting;
     waiting.chip.details.phase =
         c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([3])), more: false, holds: false };
-    f::milestones::live(&mut root, &limits, children, core::slice::from_ref(&child), false);
+    child = f::milestones::in_milestone(child, f::milestones::TASK);
+    let totals = w::MilestoneTotals::new(
+        &w::CEILINGS,
+        w::MilestoneTotalsParts {
+            task: f::milestones::TASK,
+            done: 0,
+            failed: 0,
+            closed: 0,
+            live: 1,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
+    )
+    .unwrap();
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(None, totals, &[(child.clone(), None)], 0)]));
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     // The dependency is held only by the milestone, not the shared goals list.
     for more in [true, false] {
         f::milestones::live(&mut root, &limits, goals, core::slice::from_ref(&waiting), more);

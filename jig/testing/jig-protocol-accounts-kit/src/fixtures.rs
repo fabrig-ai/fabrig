@@ -24,7 +24,7 @@ pub const APPLICATION: jig_protocol_store::sizes::Application =
 /// The small profile's store: its memory maps grow only as rows arrive.
 #[must_use]
 pub fn store_limits() -> jig_protocol_store::Limits {
-    jig_protocol_config::profile(jig_protocol_config::Profile::Small).store
+    jig_protocol_config_fixtures::small().store
 }
 #[must_use]
 pub fn limits() -> accounts::Limits {

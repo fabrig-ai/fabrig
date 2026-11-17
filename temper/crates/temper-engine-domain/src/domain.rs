@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
-use jig_domain_link::{Membership, Problem};
+use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -66,6 +66,9 @@ pub struct Domain {
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
+    pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
+    pub(crate) parts: crate::route::parts::Memory,
+    pub(crate) changes_from: crate::changes_from::Memory,
     pub(crate) journal: Journal,
     pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
@@ -113,6 +116,7 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
+    pub(crate) checkpoints: crate::route::checkpoints::State,
     pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
@@ -164,6 +168,15 @@ impl RunDiagnostics {
 }
 
 impl Domain {
+    /// Supply the shell's start fact before the first input (domain/landing-settings.md, 1.3).
+    pub fn hold_landings(&mut self, held: bool) {
+        self.forge.hold_landings(held);
+    }
+    #[must_use]
+    pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
+        self.forge.landing_way(project)
+    }
+
     /// The phase the start is in, none before the start and once decisions open.
     #[must_use]
     pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
@@ -305,6 +318,11 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        self.forge.welcome()
+    }
     /// The playground row as the service reads it (temper/docs/design/protocol/setup/playground.md).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {
@@ -387,7 +405,6 @@ impl Domain {
                 && limits.forge.judge_criteria >= limits.authority.requirements,
             "forge judge table covers authority policy bounds"
         );
-        assert!(config.landings.capacity() <= limits.authority.projects, "landing project table fits the policy bound");
         assert!(
             config.core.seed_projects.len() <= usize::try_from(limits.authority.projects).expect("project bound"),
             "permission policy project bound"
@@ -454,12 +471,7 @@ impl Domain {
             ),
             "standing landing requirements fit authority configuration"
         );
-        for (&project, landing) in &config.landings {
-            assert!(
-                crate::translate::project_landing(&mut forge, project, landing),
-                "project landing configuration bounded and supported"
-            );
-        }
+        forge.hold_landings(config.landing_held);
         let mut declares_forge_kinds = false;
         for kind in &config.core.kinds {
             declares_forge_kinds |= kind.connector == forge_connector;
@@ -492,11 +504,12 @@ impl Domain {
             forge.close_kind(bound.spec, bound.result);
         }
         let root_config = RootConfig {
+            prepare_capacity: (limits.tasks.spec_bytes, limits.tasks.result_bytes),
+            turn_capacity: turn_capacity(limits),
             prepare_kind,
             merge_kind,
             close_kind,
             forge_connector,
-            landings: config.landings,
             ways_stock: config.ways_stock,
         };
         let link_rng = skein_lib::Rng::new(config.core.seed);
@@ -591,8 +604,12 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
+            checkpoints: crate::route::checkpoints::State::new(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
+            trial_waits: Map::with_capacity(crate::limits::trial_limits(limits).rows),
+            parts: crate::route::parts::Memory::new(),
+            changes_from: crate::changes_from::Memory::new(),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -1012,6 +1029,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Setup { .. }
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
+            | Request::ChoosePlace { .. }
             | Request::BoxGroup { .. }
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }
@@ -1021,10 +1039,12 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Bound { .. }
             | Request::Forge { .. }
             | Request::Store(
-                crate::StoreRequest::Catalogue { .. }
+                crate::StoreRequest::Checkpoint { .. }
+                | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
-                | crate::StoreRequest::Read { .. },
+                | crate::StoreRequest::Read { .. }
+                | crate::StoreRequest::PartRead { .. },
             )
             | Request::ToChild(_)
             | Request::Busy(_)
@@ -1363,6 +1383,7 @@ fn released_into(
         }
         Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::Push(_)
+        | Delivery::WorkerFigures { .. }
         | Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
@@ -1383,6 +1404,7 @@ fn released_into(
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
+        | Delivery::PartLoad { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
@@ -1435,6 +1457,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::Parts(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }
@@ -1457,12 +1480,9 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     let room = u32::try_from(config.core.defaults.charters.len().saturating_add(config.core.owners.len()))
         .expect("bounded configuration")
         .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
-        .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
-    if let Err(problem) =
-        Membership::check(&config.core.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
-    {
+    if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
         refused.push(Refused::Workers(problem)).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {
@@ -1525,7 +1545,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
-    let Ok(mut forge) = forge::Domain::new(
+    let Ok(_forge) = forge::Domain::new(
         &limits.forge,
         config.core.seed,
         forge_config,
@@ -1542,14 +1562,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         &limits.authority,
     ) {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    if config.landings.capacity() > limits.authority.projects {
-        refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    for (&project, landing) in &config.landings {
-        if !crate::translate::project_landing(&mut forge, project, landing) {
-            refused.push(Refused::Landing { project: Some(project) }).expect("counted refusals");
-        }
     }
     for seed in &config.core.seed_projects {
         let bytes = match jig_domain_core::policy_snapshot(
@@ -1602,4 +1614,20 @@ fn brief_connector_capacity(limits: &Limits) -> u32 {
         .expect("validated brief count")
         .checked_mul(2)
         .expect("validated brief connector room")
+}
+
+// A turn needs its carriers and resource slots before it may be selected by settings.
+fn turn_capacity(limits: &Limits) -> Option<&'static [u8]> {
+    let members = limits.forge.landing_members;
+    if limits.authority.writes < members {
+        Some(b"batch: forge.landing_members passes authority.writes")
+    } else if limits.forge.resources_per_task <= members {
+        Some(b"batch: forge.resources_per_task must hold forge.landing_members + 1")
+    } else if limits.forge.holds < limits.forge.landings.saturating_mul(members) {
+        Some(b"batch: forge.holds must hold forge.landings * forge.landing_members")
+    } else if limits.tasks.holdings < members {
+        Some(b"batch: forge.landing_members passes tasks.holdings")
+    } else {
+        None
+    }
 }

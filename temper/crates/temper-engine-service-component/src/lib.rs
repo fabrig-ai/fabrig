@@ -36,8 +36,10 @@ pub use temper_engine_domain::JournalStop;
 pub mod engine;
 pub use engine::Engine;
 mod opened;
+mod places;
 mod route;
 mod runtime;
+pub use places::PlaceIo;
 #[doc(hidden)]
 pub mod setup;
 mod start_refusal;
@@ -252,6 +254,15 @@ pub enum Note {
     Listening {
         listener: Listening,
         addr: core::net::SocketAddr,
+    },
+    /// Figures given to the host (protocol/configuration/figures.md, 2).
+    WorkerFigures {
+        limits: u32,
+        endpoints: u32,
+        revision: u32,
+    },
+    WorkerFiguresTaken {
+        worker: Box<[u8]>,
     },
     /// An accepted opening's agreed versions (protocol/wires.md, 4).
     WorkerTold {

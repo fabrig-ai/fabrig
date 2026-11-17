@@ -178,8 +178,10 @@ start afresh. Staging is made again at dev's build for each drill
   source stays unchanged and its scratch is removed.
 - **Its configuration:** the world's kept test limits are raised in
   the loaded copy only if a build's limits require it; the kept file
-  stays as made. No other configuration member is changed to evade a
-  refusal. Its paths are listed in `.config/fixture-readers.toml`.
+  stays as made. Its retired `limits.profile` `small` is dropped from
+  the loaded copy, which takes small's figures from test fixtures with
+  the kept overrides over them (`../draft/config.md`, 5). No other
+  configuration member is changed to evade a refusal. Its paths are listed in `.config/fixture-readers.toml`.
 
 ## 6. The policy and the gate
 

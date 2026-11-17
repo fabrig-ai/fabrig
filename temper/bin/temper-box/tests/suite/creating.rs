@@ -24,7 +24,16 @@ fn configured_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
 }
 
 fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
-    let config = jig_protocol_config::core(engine, [1; 16], 7);
+    let mut engine = engine.clone();
+    let policy = engine.policies.iter().find(|policy| policy.number == 1).expect("stock policy");
+    engine.projects = Box::new([jig_protocol_config::Project {
+        number: 1,
+        name: "Project 1".into(),
+        roles: policy.roles.clone(),
+        policy: policy.policy.clone(),
+        templates: policy.templates.clone(),
+    }]);
+    let config = jig_protocol_config::core(&engine, [1; 16], 7);
     let mut rows = jig_test_profile::fixtures::seeded_project_rows(&config);
     rows.extend([
         Record::People(people::Stored::Person {
@@ -67,7 +76,7 @@ fn offered(frame: &Frame) -> &[u32] {
 }
 
 fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -> jig_client::contract::Me {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
     let mut writer = Writer::new(usize::try_from(wire.measure()).expect("me bytes"));

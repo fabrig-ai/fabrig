@@ -871,6 +871,9 @@ pub(super) fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> R
         domain::Setting::Model(number) => {
             wire::Setting::Model(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
+        domain::Setting::Worker(number) => {
+            wire::Setting::Worker(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
+        }
         domain::Setting::Rules => wire::Setting::Rules,
         domain::Setting::Application { kind, scope, number } => wire::Setting::Application(
             wire::ApplicationSetting::new(limits, wire::ApplicationSettingParts { kind, scope, number })?,
@@ -887,6 +890,7 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
         domain::SettingFault::Grace => wire::SettingFault::Grace,
         domain::SettingFault::Owner => wire::SettingFault::Owner,
         domain::SettingFault::Judged => wire::SettingFault::Judged,
+        domain::SettingFault::Linked => wire::SettingFault::Linked,
     }
 }
 
@@ -897,6 +901,7 @@ pub(super) fn decode_setting(value: &wire::Setting) -> domain::Setting {
         wire::Setting::Policy(value) => domain::Setting::Policy(value.number()),
         wire::Setting::ProjectPolicy(value) => domain::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Model(value) => domain::Setting::Model(value.number()),
+        wire::Setting::Worker(value) => domain::Setting::Worker(value.number()),
         wire::Setting::Rules => domain::Setting::Rules,
         wire::Setting::Application(value) => {
             domain::Setting::Application { kind: value.kind(), scope: value.scope(), number: value.number() }
@@ -913,6 +918,7 @@ fn decode_setting_fault(value: &wire::SettingFault) -> domain::SettingFault {
         wire::SettingFault::Grace => domain::SettingFault::Grace,
         wire::SettingFault::Owner => domain::SettingFault::Owner,
         wire::SettingFault::Judged => domain::SettingFault::Judged,
+        wire::SettingFault::Linked => domain::SettingFault::Linked,
     }
 }
 

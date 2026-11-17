@@ -3,6 +3,7 @@
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
 
 use crate::kinds::{Bounds, decode, encode, size};
+use skein_lib::Writer;
 
 const BOUNDS: Bounds = Bounds { segments: 5, segment_bytes: 12, gates: 2, approvals: 2 };
 
@@ -117,7 +118,6 @@ fn values() -> [(u32, settings::Value); 21] {
 
 #[test]
 fn each_kind_round_trips_its_value() {
-    assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 29);
     for (kind, value) in values() {
         let bytes = encode(&value);
         let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
@@ -143,7 +143,11 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Dependency(_) => 13,
             settings::Value::Goal(_) => 11,
             settings::Value::ProjectAreas(_) => 14,
+            settings::Value::Landing(_) => 4,
+            settings::Value::Gates(_) => 5,
             settings::Value::ProjectTriager(_) => 15,
+            settings::Value::AgentFigures(_) => 21,
+            settings::Value::Welcome(_) => 20,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
@@ -176,7 +180,7 @@ fn a_value_past_its_bounds_or_cut_short_is_out_of_shape() {
             let prefix = bytes.get(..end).expect("prefix within the encoding");
             assert!(decode(kind, prefix, &BOUNDS).is_none(), "kind {kind}, cut at {end}");
         }
-        let mut writer = skein_lib::Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
+        let mut writer = Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
         writer.put(&bytes).expect("encoding room");
         writer.put(&[0]).expect("trailing byte room");
         let trailing = writer.finish();
@@ -234,9 +238,35 @@ fn follows_round_trip_all_members_and_require_a_whole_record() {
         for end in 0..bytes.len() {
             assert!(decode(12, &bytes[..end], &BOUNDS).is_none());
         }
-        let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+        let mut trailing = Writer::new(bytes.len().checked_add(1).unwrap());
         trailing.put(&bytes).unwrap();
         trailing.put(&[0]).unwrap();
         assert!(decode(12, &trailing.finish(), &BOUNDS).is_none());
+    }
+}
+
+#[test]
+fn project_gates_refuse_unfinished_pieces_at_both_levels() {
+    use temper_client_protocol_wire::v1 as w;
+    let limits = &w::CEILINGS;
+    let mut cases = skein_lib::List::with_capacity(3);
+    cases.push(Box::from([0, 0, 0, 5, 0].as_slice())).expect("three malformed pieces");
+    for gates in [Box::from([0, 0, 0].as_slice()), Box::from([0, 0, 0, 7, 0].as_slice())] {
+        let repository = w::RepositoryGates::new(
+            limits,
+            w::RepositoryGatesParts { forge: 1, repository: 2, gates, tiers: Box::new([]) },
+        )
+        .expect("piece envelope");
+        let mut item = Writer::new(skein_lib::usize_of(repository.measure()));
+        repository.encode(&mut item).expect("measured repository");
+        let mut out = Writer::new(skein_lib::usize_of(repository.measure() + 4));
+        skein_codec::piece::write(&mut out, &item.finish()).expect("measured piece");
+        cases.push(out.finish()).expect("three malformed pieces");
+    }
+    for repositories in cases.into_boxed() {
+        let record = w::ProjectGates::new(limits, w::ProjectGatesParts { repositories }).expect("outer envelope");
+        let mut out = Writer::new(skein_lib::usize_of(record.measure()));
+        record.encode(&mut out).expect("measured project gates");
+        assert!(decode(5, &out.finish(), &BOUNDS).is_none(), "an unfinished repository or check piece is malformed");
     }
 }

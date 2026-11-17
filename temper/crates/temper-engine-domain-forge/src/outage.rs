@@ -196,6 +196,7 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
                     | Error::NothingToMerge
                     | Error::Closed
                     | Error::Stale
+                    | Error::BaseMoved { .. }
                     | Error::Conflict
                     | Error::Protected
                     | Error::Refused
@@ -238,6 +239,7 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
             | Error::NothingToMerge
             | Error::Closed
             | Error::Stale
+            | Error::BaseMoved { .. }
             | Error::Conflict
             | Error::Protected
             | Error::Refused

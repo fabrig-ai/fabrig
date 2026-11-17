@@ -76,6 +76,12 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let mut reader = Reader::new(bytes);
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
+        4 => w::ProjectLanding::decode(&w::CEILINGS, &mut reader).is_ok(),
+        5 => {
+            let mut check =
+                skein_json::writer::Encoder::measure(&skein_json::writer::Limits { depth: 32, length: u32::MAX });
+            return settings_form::render::application_value(5, bytes, &mut check);
+        }
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
         13 => w::Dependency::decode(&w::CEILINGS, &mut reader).is_ok(),
         12 => w::Follow::decode(&w::CEILINGS, &mut reader).is_ok(),
@@ -90,6 +96,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         14 => w::ProjectAreas::decode(&w::CEILINGS, &mut reader).is_ok(),
         15 => w::ProjectTriager::decode(&w::CEILINGS, &mut reader).is_ok(),
+        21 => w::AgentFigures::decode(&w::CEILINGS, &mut reader).is_ok(),
+        20 => w::Welcome::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
@@ -179,6 +187,9 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
     }
 }
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
+    if call.form == 9 || call.form == 10 {
+        return Some(c::Setting::Application { kind: if call.form == 9 { 21 } else { 20 }, scope: 0, number: 1 });
+    }
     if call.form == 4 {
         let Some(Value::Project(Project::Number(project))) = value(call, 1) else { unreachable!("resolved project") };
         let Some(Value::Word(kind)) = value(call, 0) else { unreachable!("setting kind") };
@@ -339,6 +350,14 @@ pub const SETTING: Tool = Tool {
             flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The dependent project"),
             revision_flag(),
         ],
+        &[
+            positional(b"kind", b"agents", Kind::Word { set: &[b"agents"] }, Required, b"The agents' figures"),
+            revision_flag(),
+        ],
+        &[
+            positional(b"kind", b"welcome", Kind::Word { set: &[b"welcome"] }, Required, b"The deployment's welcome"),
+            revision_flag(),
+        ],
     ],
     ..rows::SETTING
 };
@@ -347,6 +366,10 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     let c::Setting::Application { kind, scope, number } = setting else { return false };
     if !wire::settings_kind(kind) {
         return false;
+    }
+    if kind == 20 || kind == 21 {
+        out.put(if kind == 21 { b"agents" } else { b"welcome" });
+        return true;
     }
     out.put(match kind {
         3 => b"forge-charter ",
@@ -378,7 +401,7 @@ mod value;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 | 13 => return settings_form::render::application_value(kind, bytes, out),
+        12 | 13 | 20 | 21 => return settings_form::render::application_value(kind, bytes, out),
         9 => {
             let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

@@ -301,7 +301,7 @@ impl Machine {
             "/jig/v1/read" => Message::Read(body),
             "/jig/v1/unwatch" => Message::Unwatch(body),
             "/jig/v1/stream-gone" => Message::StreamGone(body),
-            "/jig/v1/stream?version=28" => {
+            path if path == format!("/jig/v1/stream?version={}", jig_client_protocol_wire::VERSION) => {
                 self.stream = Some(fd);
                 socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
                 self.front.carry(

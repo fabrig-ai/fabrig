@@ -124,11 +124,10 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 /// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
 /// before the first start.
 pub fn deployment(paths: &[PathBuf; 3]) {
-    let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
+    super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
-    let agent = paths[0].join("agent.json");
     let mut value = read_json(&config);
-    let mut worker = read_json(&agent);
+    let mut worker = temper_fixtures::agent::read(&paths[0]);
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
@@ -148,7 +147,9 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
-    write_json(&agent, &worker);
+    temper_fixtures::agent::apply(&mut value, &paths[1], &worker);
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    write_json(&config, &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
@@ -694,9 +695,9 @@ fn twin_document() -> Value {
             for line in value["lines"].as_array().expect("lines") {
                 if let Some(call) = line["call"].as_str() {
                     let args = line["arguments"].as_object().expect("call arguments");
-                    let identity = args.contains_key("head")
+                    let identity = (args.contains_key("head") || args.contains_key("commit"))
                         || args.contains_key("merge")
-                        || (call.starts_with("read_pull") && args.contains_key("number"));
+                        || (call == "read_issues" && args.contains_key("number"));
                     assert!(!identity, "unbound recorded identity: task {task}, turn {turn}, call {call}");
                 }
             }

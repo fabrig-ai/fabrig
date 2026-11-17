@@ -1,0 +1,9 @@
+worker places WORKER PLACES --key KEY
+  WORKER (worker): a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit, at most 128 bytes; required. The live worker's name
+  PLACES (places): a count from 1 to 4294967295; required. The worker's new places
+Change a worker's places
+Prints: `worker WORKER: revision R`, the new revision
+--json: the record change_settings.
+Key: --key KEY, required.
+A linked worker takes its new places at its next start.
+Changes one setting against the newest revision read; running work stays.

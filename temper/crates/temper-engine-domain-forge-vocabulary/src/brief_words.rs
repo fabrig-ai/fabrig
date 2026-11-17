@@ -114,6 +114,7 @@ fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::Protected
         | Error::Refused => (Permanent, "the forge refused this read"),

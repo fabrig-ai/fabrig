@@ -6,10 +6,7 @@ use super::{
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Line, Piece, Script};
 use skein_lib::{Duration, Time};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 const REPAIR: &str = "Repair the failed CI on the change branch";
 const REPOSITORY: &str = "/api/v1/repos/work/hello";
@@ -62,9 +59,8 @@ pub fn initialize(paths: &[PathBuf; 3]) {
     let stderr = String::from_utf8_lossy(&initialized.stderr);
     assert!(initialized.status.success(), "{stderr}");
     assert!(initialized.stdout.is_empty(), "init prints its instructions on stderr");
-    for name in ["temper.json", "agent.json"] {
-        assert!(stderr.contains(&format!("init: wrote {}\n", paths[0].join(name).display())), "{stderr}");
-    }
+    assert!(stderr.contains(&format!("init: wrote {}\n", paths[0].join("temper.json").display())), "{stderr}");
+    assert!(!paths[0].join("agent.json").exists());
     assert!(stderr.contains("init: start it with temper box"), "{stderr}");
     assert!(!stderr.contains("init: no git on PATH"), "real git is available: {stderr}");
     super::own_listener_files(&paths[0]);
@@ -111,20 +107,18 @@ struct Forge {
 }
 impl Forge {
     fn at(paths: &[PathBuf; 3], client: &Path) -> Self {
-        let document: Value =
-            serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
         let number = first_repository::owned_forge(client)["number"].as_u64().expect("forge number");
+        let setup = super::owned::setup_value(&paths[1], u16::try_from(number).expect("forge u16"), "owned");
         Self {
             number,
-            address: document["application"]["machine"]["owned"]["listen"]["socket"].as_str().expect("address").into(),
+            address: setup["listen"]["socket"].as_str().expect("address").into(),
             header: paths[0].join("person.header"),
         }
     }
     fn person(paths: &[PathBuf; 3], client: &Path) -> Self {
         let forge = Self::at(paths, client);
-        let document: Value =
-            serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
-        let login = document["application"]["machine"]["owned"]["person"]["login"].as_str().expect("person login");
+        let setup = super::owned::setup_value(&paths[1], u16::try_from(forge.number).expect("forge u16"), "owned");
+        let login = setup["person"]["login"].as_str().expect("person login");
         let work = paths[1].join(format!("forge-{}/forgejo", forge.number));
         let output = std::process::Command::new(super::owned::binaries().0)
             .arg("--work-path")

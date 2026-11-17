@@ -4,7 +4,7 @@
 use skein_lib::{Overflow, Writer};
 
 /// The compact line an unknown address answers with, held to this table and ask.txt by a step test.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager | agents | welcome] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
 pub(crate) struct Group {
     pub form: &'static str,
@@ -116,12 +116,12 @@ pub(crate) const GROUPS: &[Group] = &[
         }],
     },
     Group {
-        form: "settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager]",
+        form: "settings [KIND N | rules | landing-rule N | landing-rule N project | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager | agents | welcome]",
         rows: &[
             Address {
                 form: "settings",
                 line: "Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.",
-                next: "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+                next: "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
             },
             Address {
                 form: "settings charter N",
@@ -141,6 +141,11 @@ pub(crate) const GROUPS: &[Group] = &[
             Address {
                 form: "settings model N",
                 line: "The model whole, at the newest revision.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings worker N",
+                line: "The worker whole, at the newest revision.",
                 next: "settings · revisions · help settings-fields",
             },
             Address {
@@ -211,6 +216,16 @@ pub(crate) const GROUPS: &[Group] = &[
             Address {
                 form: "settings project-areas",
                 line: "This project's areas, or that it has none.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings agents",
+                line: "The agents' figures; stock where none is stored, marked so.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings welcome",
+                line: "The deployment's welcome, shown by default under the box and not shown otherwise.",
                 next: "settings · revisions · help settings-fields",
             },
             Address {

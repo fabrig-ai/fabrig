@@ -1,8 +1,9 @@
 //! Independent whole-carrier proofs through the scripted peer's public entries.
 use super::*;
 
-pub(super) fn empty() -> Deployment {
+pub(crate) fn empty() -> Deployment {
     Deployment {
+        worker_settings: List::with_capacity(0),
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,

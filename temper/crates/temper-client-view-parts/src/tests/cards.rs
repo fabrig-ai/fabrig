@@ -115,6 +115,45 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Priority 2").is_none());
 }
 
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary view tests assemble text and inspect semantic nodes"
+)]
+fn proposed_titles_cut_but_unpublished_words_stay_whole() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for (written, heading, body) in [
+        ("Short title\nBody.".to_owned(), "Short title".to_owned(), "Body.".to_owned()),
+        (long.clone(), cut.clone(), long.clone()),
+        (format!("{long}\nBody."), cut, format!("{long}\nBody.")),
+        ("Short title".to_owned(), "Short title".to_owned(), String::new()),
+    ] {
+        let mut page = batch_proposal();
+        let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { panic!("batch") };
+        tasks.get_mut(0).unwrap().spec.specification.words = fixtures::needs::words(&written);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            crate::cards::proposal(&mut builder, &page, &words, 4);
+            let tree = builder.finish();
+            let at = tree.nodes().iter().position(|n| n.role == (Role::Heading { level: 2 })).unwrap();
+            assert_eq!(tree.nodes()[at].name.as_deref(), Some(heading.as_bytes()));
+            assert_eq!(fixtures::node_text(&tree, at).as_ref(), heading.as_bytes());
+            let facts =
+                tree.nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::PROPOSAL_FACTS)).unwrap();
+            let start = at + usize::try_from(tree.nodes()[at].size).unwrap();
+            let drawn: Vec<_> = tree.nodes()[start..facts]
+                .iter()
+                .flat_map(|n| n.text.iter().flat_map(|run| run.text.iter().copied()))
+                .collect();
+            assert_eq!(drawn, body.as_bytes(), "{written}");
+        }
+    }
+}
+
 pub(crate) fn document_proposal() -> c::ReadValue {
     let key = fixtures::chat::PROPOSAL;
     c::ReadValue::Proposal(Box::new({
@@ -259,6 +298,7 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
@@ -826,16 +866,19 @@ fn an_empty_proposal_has_no_items_list() {
 fn a_review_adds_application_and_policy_rows_without_repeating_jigs_heads() {
     let items = [
         (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
-        (c::Setting::Application { kind: 5, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
+        (c::Setting::Application { kind: u32::MAX, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
         (c::Setting::ProjectPolicy { project: 2 }, c::RevisionItemEdit::Reset),
         (c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set),
     ];
     let (mut root, out) = settings_root(settings_page(&items, true));
     proposed_values(&mut root, &out, true, w::QuestionsRoute::None, false);
     let tree = draw_settings(&root, &settings_card(&root), false);
-    for expected in
-        [b"Goals: shown".as_slice(), b"application kind 5, 7, 3 removed", b"project policy 2 reset", b"charter 2"]
-    {
+    for expected in [
+        b"Goals: shown".as_slice(),
+        b"application kind 4294967295, 7, 3 removed",
+        b"project policy 2 reset",
+        b"charter 2",
+    ] {
         let mut count = 0_usize;
         for node in tree.nodes() {
             for run in &node.text {
@@ -978,4 +1021,12 @@ fn a_model_item_reads_as_what_it_changes() {
             );
         }
     }
+}
+
+#[test]
+fn a_worker_item_is_named_on_the_settings_proposal_card() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let (root, _) = settings_root(settings_page(&[(setting, c::RevisionItemEdit::Set)], true));
+    let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
+    assert!(skein_lib::bytes::find(&said, b"worker 2").is_some(), "{said:?}");
 }

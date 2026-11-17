@@ -15,6 +15,13 @@ pub struct Runner {
     pub capacity: u32,
     pub path: Box<[u8]>,
 }
+impl Runner {
+    /// Stock capacity and job PATH (protocol/setup/place.md, 2 and 4).
+    #[must_use]
+    pub fn stock(binary: Box<[u8]>, labels: Box<[Box<[u8]>]>) -> Self {
+        Self { binary, labels, capacity: 1, path: Box::from(b"/usr/local/bin:/usr/bin:/bin".as_slice()) }
+    }
+}
 /// What temper runs for one forge.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Owned {

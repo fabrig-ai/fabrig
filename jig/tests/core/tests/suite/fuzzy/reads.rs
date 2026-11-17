@@ -45,7 +45,7 @@ fn seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts() {
         ask(
             &mut world,
             QUERY_READ,
-            reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: None },
+            reads::Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: None },
         );
         assert_eq!(jig_core_world::fixtures::query_numbers(&world), [task]);
         assert_eq!(world.reads.as_ref().expect("party").receipts.len(), observed + 3);

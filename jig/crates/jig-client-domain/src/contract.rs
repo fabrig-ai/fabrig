@@ -118,6 +118,8 @@ pub use operations::*;
 
 pub mod me;
 pub use me::*;
+mod parts;
+pub use parts::*;
 mod queries;
 pub use queries::*;
 

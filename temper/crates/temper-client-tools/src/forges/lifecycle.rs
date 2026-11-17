@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};
-use skein_lib::{Env, Queue, Reader};
+use skein_lib::{Env, Queue, Reader, Time};
 use temper_client_domain_forge::owner::Owner;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -18,10 +18,12 @@ pub(super) struct Pending {
     request: Ask,
     end: bool,
     called: Option<Called>,
+    checkpoint: bool,
+    until: Option<Time>,
 }
 pub(super) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == REMOVE.name || name == PLAYGROUND_END.name
+    name == REMOVE.name || name == PLAYGROUND_END.name || crate::checkpoint::owns(call)
 }
 pub(super) fn ask(request: w::Request, limits: &Limits) -> Option<Ask> {
     let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
@@ -39,7 +41,11 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
     }
     let bounds = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let end = crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == PLAYGROUND_END.name;
-    let request = if end {
+    let checkpoint = crate::checkpoint::owns(&called.call);
+    let until = if checkpoint { Some(env.now.saturating_add(crate::checkpoint::wait(&called.call))) } else { None };
+    let request = if checkpoint {
+        w::Request::Checkpoint
+    } else if end {
         w::Request::EndPlayground
     } else {
         w::Request::RemoveForge(
@@ -56,7 +62,7 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
         Some(name) => Some(crate::key::engine(name)),
         None => None,
     };
-    state.lifecycle.insert(key, Pending { request: request.clone(), end, called: Some(called) });
+    state.lifecycle.insert(key, Pending { request: request.clone(), end, checkpoint, until, called: Some(called) });
     out.push(Out::Client { event: Event::Send { key, name, request } });
 }
 pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) -> bool {
@@ -68,9 +74,10 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 return false;
             };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
+            let checkpoint = *request.request() == w::Request::Checkpoint;
             let end = match request.request() {
                 w::Request::EndPlayground => true,
-                w::Request::RemoveForge(_) => false,
+                w::Request::Checkpoint | w::Request::RemoveForge(_) => false,
                 w::Request::DismissMaking(_)
                 | w::Request::MakeRepository(_)
                 | w::Request::OpenChange(_)
@@ -101,6 +108,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 Pending {
                     request: Ask::Family { scope: c::Scope::Deployment, record: record.clone() },
                     end,
+                    checkpoint,
+                    until: None,
                     called: None,
                 },
             );
@@ -132,7 +141,13 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
 fn print(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> jig::Printed {
     let kept = pending.called.is_none();
     let mut operation = render::outcome::Operation::of(&pending.request);
-    operation.word = if pending.end { b"playground-end" } else { b"forge-remove" };
+    operation.word = if pending.checkpoint {
+        b"checkpoint"
+    } else if pending.end {
+        b"playground-end"
+    } else {
+        b"forge-remove"
+    };
     let answer = match outcome {
         Outcome::Full { held, room_at } => {
             return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
@@ -179,6 +194,9 @@ fn print(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> j
         }
         return render::outcome::print(&operation, outcome, json, None, &limits.tools, crate::root::DIAGNOSTIC_PREFIX);
     };
+    if pending.checkpoint {
+        return crate::checkpoint::print(answer, json, limits);
+    }
     let Some((word, why, status)) = answer_words(answer, pending.end) else {
         return render::failure(b"forge answer decoding failed", json, 1);
     };
@@ -285,6 +303,8 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::Looked
         | w::Outcome::Dismissed
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)
@@ -302,4 +322,30 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_) => return None,
     })
+}
+
+pub(super) fn next_deadline(state: &Forges) -> Option<Time> {
+    let mut next = None;
+    for pending in state.lifecycle.values() {
+        if let Some(at) = pending.until {
+            next = Some(match next {
+                Some(old) => at.min(old),
+                None => at,
+            });
+        }
+    }
+    next
+}
+pub(super) fn fire(state: &mut Forges, env: &Env<Limits>, out: &mut Queue<Out>) {
+    for pending in state.lifecycle.values_mut() {
+        if let Some(at) = pending.until
+            && at <= env.now
+        {
+            pending.until = None;
+            if let Some(called) = pending.called.take() {
+                let printed = crate::checkpoint::timeout(&called.call);
+                finish(called, printed, out);
+            }
+        }
+    }
 }

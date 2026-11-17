@@ -24,8 +24,8 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
     close-out, neither where it has none;
   - the project's landing, by queue or by turn, whether it names a
     merge job (`repairs.md`, *The merge job*), and the repository's CI, its test
-    gates and its tiers, each with the branch it follows (`../../landing.md`,
-    13.1; `../../after-landing.md`, section 2);
+    gates and its tiers, each with the branch it follows (`../../landing-settings.md`,
+    1.1; `../../after-landing.md`, section 2);
   - the project's path sets, its classes' `sets` (kind 8; `../attention.md`,
     6), each its number, name and patterns, which its rules by path name
     (*A rule by path*, below);

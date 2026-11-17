@@ -6,7 +6,9 @@ use skein_lib::{List, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use temper_engine_domain_forge::parts;
 use temper_engine_domain_forge_change as change;
+mod checkpoints;
 mod findings;
 mod history;
 mod landing_views;
@@ -49,6 +51,9 @@ pub fn to_root(
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
+        kit::ToApplication::ProviderClientChanged { .. } => {
+            unreachable!("provider changes are not client family requests")
+        }
         kit::ToApplication::Request { reply_to, sign_in, key, family, version, record, digest, scope, carried } => {
             let request = match wire::owner(family) {
                 Some(wire::Owner::Forge) if version == wire::CLIENT_VERSION => wire::decode_requesting(&record, limits),
@@ -61,6 +66,17 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::Checkpoint => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Checkpoint,
+                    }));
+                }
                 w::Request::OpenChange(value) => {
                     let value = value.into_parts();
                     let repository = match value.repository {
@@ -289,6 +305,7 @@ pub fn to_root(
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
+                        | w::Request::Checkpoint
                         | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
@@ -721,6 +738,7 @@ pub fn to_root(
 /// (client/forge/served.md, 2). No domain record carries a deployment's web address.
 #[must_use]
 pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let landing_hold = value.landing_hold();
     let pull = match value.pull {
         Some(number) => {
             Some(w::Pull::new(limits, w::PullParts { number, address: address(&value, number, forges) }).ok()?)
@@ -747,7 +765,17 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             head: value.head,
             pull,
             step: panel_step(value.step, limits)?,
-            hold: panel_hold(value.hold),
+            hold: if let Some(reason) = landing_hold {
+                Some(w::Hold::Authority(
+                    w::AuthorityHold::new(limits, w::AuthorityHoldParts { reason: Box::from(reason) }).ok()?,
+                ))
+            } else {
+                panel_hold(value.hold)
+            },
+            wait: match value.wait {
+                Some(forge::PanelWait::OutboxRoom) => Some(w::ChangeWait::OutboxRoom),
+                None => None,
+            },
             runs: value.runs,
             ci_required: value.ci_required,
             ci: match value.ci {
@@ -985,6 +1013,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
         change::Hold::PullClosed => w::Hold::Closed,
         change::Hold::Retargeted => w::Hold::Retargeted,
         change::Hold::Failed => w::Hold::Failed,
+        change::Hold::Flake => w::Hold::Flake,
         change::Hold::Rejected => w::Hold::Rejected,
         change::Hold::Authority(cause) => w::Hold::Authority(
             w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: change::authority_words(cause) })
@@ -1040,9 +1069,10 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v28::Limits,
+    jig: &jig_client_protocol_wire::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
+        Some(root::ApplicationAnswer::Checkpoint(value)) => checkpoints::answer(value, limits)?,
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
             let mut rows = List::with_capacity(limits.page_rows);
             for row in page.rows {
@@ -2093,6 +2123,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                     w::ChangesQueued::new(
                         limits,
                         w::ChangesQueuedParts {
+                            goal: change_from(row.goal, limits).ok()?,
+                            chat: change_from(row.chat, limits).ok()?,
+                            milestone: change_from(row.milestone, limits).ok()?,
                             task: row.task,
                             title: row.title,
                             ready_since: row.ready_since.as_nanos(),
@@ -2123,6 +2156,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                                 w::TrainLanding::new(
                                     limits,
                                     w::TrainLandingParts {
+                                        goal: change_from(value.goal, limits).ok()?,
+                                        chat: change_from(value.chat, limits).ok()?,
+                                        milestone: change_from(value.milestone, limits).ok()?,
                                         probe: value.probe,
                                         task: value.task,
                                         member: value.member,
@@ -2162,6 +2198,15 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
     Some(wire::changes_panel(&panel))
 }
 
+fn change_from(value: Option<forge::ChangeFrom>, limits: &w::Limits) -> Result<Option<w::ChangeFrom>, w::Problem> {
+    match value {
+        Some(value) => {
+            Ok(Some(w::ChangeFrom::new(limits, w::ChangeFromParts { task: value.task, title: value.title })?))
+        }
+        None => Ok(None),
+    }
+}
+
 fn changes_landed(
     rows: Box<[forge::ChangesLanded]>,
     capacity: u32,
@@ -2175,7 +2220,12 @@ fn changes_landed(
                 .push(
                     w::ChangesSigned::new(
                         limits,
-                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                        w::ChangesSignedParts {
+                            name: sign.name,
+                            party: sign.person,
+                            head: sign.head,
+                            at: sign.at.as_nanos(),
+                        },
                     )
                     .ok()?,
                 )
@@ -2186,6 +2236,9 @@ fn changes_landed(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        goal: change_from(row.goal, limits).ok()?,
+                        chat: change_from(row.chat, limits).ok()?,
+                        milestone: change_from(row.milestone, limits).ok()?,
                         signed,
                         task: row.task,
                         title: row.title,
@@ -2494,7 +2547,7 @@ fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::
 
 /// The person's whole trials document (temper/docs/design/domain/trial.md, 6).
 #[must_use]
-pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn trials(rows: Box<[root::TrialRow]>, limits: &w::Limits) -> Option<Box<[u8]>> {
     use temper_engine_domain_trials::{Class, State, Step, Why};
     let mut encoded = List::with_capacity(64);
     for row in rows {
@@ -2534,6 +2587,10 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
                 w::TrialRow::new(
                     limits,
                     w::TrialRowParts {
+                        run_wait: match row.run_wait {
+                            Some(wait) => Some(trial_wait(wait)?),
+                            None => None,
+                        },
                         account: row.account,
                         task: row.task,
                         took: row.took,
@@ -2551,6 +2608,15 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
     let document = w::Trials::new(limits, w::TrialsParts { rows: encoded }).ok()?;
     let mut writer = Writer::new(usize::try_from(document.measure()).ok()?);
     document.encode(&mut writer).ok()?;
+    Some(writer.finish())
+}
+
+fn trial_wait(value: jig_domain_core::documents::TaskRunWait) -> Option<Box<[u8]>> {
+    let value =
+        jig_protocol_engine_clients::translate::task_wait::waiting(Some(value), &jig_client_protocol_wire::CEILINGS)
+            .ok()??;
+    let mut writer = Writer::new(usize::try_from(value.measure()).ok()?);
+    value.encode(&mut writer).ok()?;
     Some(writer.finish())
 }
 

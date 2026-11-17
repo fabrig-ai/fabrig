@@ -7,7 +7,7 @@ mod thread;
 use crate::{engine::Engine, fixtures, net::Net};
 use jig_client::{self as client, Ask, Event, Handle, Key, Latest, Link, Outcome, Readable, Told, Watchable};
 use jig_client_kit::{ClientId, harness::Observed};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_client_shell_native::{Conn, Connections};
 use skein_lib::Reader;
 use skein_lib::{Duration, List, Queue, Time, stream::Down};
@@ -104,6 +104,7 @@ pub struct Front {
     refuse_save: bool,
     seed: u64,
     exchanges: u64,
+    largest_saved_record: usize,
 }
 impl Front {
     fn new(seed: u64) -> Self {
@@ -125,6 +126,7 @@ impl Front {
             refuse_save: false,
             seed,
             exchanges: 0,
+            largest_saved_record: 0,
         }
     }
     fn event(&mut self, now: Time, event: Event) {
@@ -175,6 +177,7 @@ impl Front {
                     for record in records.into_boxed() {
                         self.referee.saved(&record.bytes).expect("no carried value in the small store");
                         if record.key.as_ref() != client::STREAM_KEY {
+                            self.largest_saved_record = self.largest_saved_record.max(record.bytes.len());
                             self.referee.stored(&record);
                         }
                         self.store.insert(record.key, record.bytes);
@@ -232,6 +235,10 @@ impl Front {
                 }
             })
             .collect()
+    }
+    #[must_use]
+    pub fn largest_saved_record(&self) -> usize {
+        self.largest_saved_record
     }
     #[must_use]
     pub fn kept(&self, key: Key) -> bool {
@@ -304,16 +311,17 @@ impl Story {
         Self::configured(seed, limits, jig_test_profile::config(seed))
     }
     fn configured(seed: u64, limits: &jig_test_domain::Limits, config: jig_test_domain::Config) -> Self {
-        Self::configured_peers(seed, limits, config, fixtures::peers())
+        Self::configured_peers(seed, limits, config, fixtures::peers(), fixtures::domain_limits())
     }
     fn configured_peers(
         seed: u64,
         limits: &jig_test_domain::Limits,
         config: jig_test_domain::Config,
         peers: jig_core_kit::peers::Peers,
+        client: jig_client_domain::Limits,
     ) -> Self {
         let mut story = Self {
-            front: Front::new(seed),
+            front: Front::with_limits(seed, client),
             second: None,
             engine: Engine::with_peers(seed, limits, config, peers),
             net: Net::new(seed),
@@ -327,6 +335,24 @@ impl Story {
     #[must_use]
     pub fn live(seed: u64) -> Self {
         let mut story = Self::new(seed);
+        story.sign_in();
+        assert!(story.run_until(|s| s.client.link().state == Link::Live, Duration::from_secs(1)));
+        story
+    }
+    /// A client that can keep a whole request up to the engine profile's intake.
+    #[must_use]
+    pub fn live_with_large_requests(seed: u64) -> Self {
+        let mut client = fixtures::domain_limits();
+        client.document_bytes = 1_048_576;
+        client.ask_bytes = u64::from(fixtures::MESSAGE_BYTES);
+        client.requests.bytes = 1_048_576;
+        let mut story = Self::configured_peers(
+            seed,
+            &fixtures::owner_limits(),
+            jig_test_profile::config(seed),
+            fixtures::peers(),
+            client,
+        );
         story.sign_in();
         assert!(story.run_until(|s| s.client.link().state == Link::Live, Duration::from_secs(1)));
         story

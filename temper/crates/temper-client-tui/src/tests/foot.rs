@@ -2199,19 +2199,21 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                 Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::with_capacity(0),
                         more: false,
                     }))),
                 }
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
-                Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
-                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
-                    )))),
-                }
-            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })))),
+            },
             jig_client::Down::Open { watch, subject }
                 if Some(&subject) == d::forge::decided::watch(1, &f::limits().forge).as_ref() =>
             {

@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Duration, List, Reader, Writer};
@@ -23,7 +23,7 @@ fn a_late_delivery_after_stream_loss_settles_the_core() {
 }
 #[test]
 fn a_wait_and_three_reads_keep_independent_streams_with_four_exchanges_free() {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     for (name, value) in [
         (b"clients.streams".as_slice(), 8),
         (b"clients.exchanges", 12),
@@ -72,7 +72,7 @@ fn a_third_stream_on_the_small_profile_is_refused_full() {
     let third = peer.request_stream();
     let (status, body) = peer.response(third);
     assert_eq!(status, Some(409));
-    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let small = jig_protocol_config_fixtures::small();
     let full = w::StreamsFull::decode(&w::CEILINGS, &mut Reader::new(body)).expect("full record");
     assert_eq!(full.bound(), &w::StreamBound::Transport);
     assert_eq!(full.size(), small.clients_http.streams);
@@ -228,7 +228,15 @@ fn hello(stream: [u8; 16]) -> w::StreamEvent {
     let mut served = List::with_capacity(1);
     served
         .push(
-            w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 28, last: 28 }).expect("literal range"),
+            w::Served::new(
+                &lim,
+                w::ServedParts {
+                    owner: w::Owner::Jig,
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
+            )
+            .expect("literal range"),
         )
         .expect("one range");
     w::StreamEvent::Hello(
@@ -243,8 +251,11 @@ fn frame(watch: u64, needs: u32) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(w::Me::new(&lim, frame).expect("literal frame"));
     let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("literal frame bytes");
-    let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: record.finish() })
-        .expect("literal owner");
+    let document = w::Owned::new(
+        &lim,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .expect("literal owner");
     w::StreamEvent::Delivery(w::Delivery::new(&lim, w::DeliveryParts { watch, document }).expect("literal delivery"))
 }
 fn text(watch: u64) -> w::StreamEvent {
@@ -344,7 +355,7 @@ fn a_gone_terminal_stream_withdraws_its_offer_and_ends_its_login() {
 }
 
 fn opening_me(peer: &mut Peer) -> (skein_lib::Token, skein_lib::Token) {
-    let socket = peer.request_stream_target(b"/jig/v1/stream?version=28");
+    let socket = peer.request_stream_target(b"/jig/v1/stream?version=31");
     let core::Event::Watch { watcher, sign_in, subject, .. } = peer.take_core().expect("stream's me watch") else {
         panic!("me watch");
     };
@@ -368,7 +379,7 @@ fn a_served_stream_opens_with_me_and_delivers_its_later_values() {
     };
     assert_eq!(w::StreamEvent::Hello(opened.hello().clone()), hello(stream));
     assert_eq!(opened.me().owner(), &w::Owner::Jig);
-    assert_eq!(opened.me().version(), 28);
+    assert_eq!(opened.me().version(), jig_client_protocol_wire::VERSION);
     let w::DeliveryValue::Me(me) =
         w::DeliveryValue::decode(&w::CEILINGS, &mut Reader::new(opened.me().record())).expect("me record")
     else {
@@ -395,7 +406,7 @@ fn an_unserved_or_absent_version_keeps_the_hello_alone_and_watch_zero_free() {
 }
 #[test]
 fn a_stream_query_is_exactly_one_decimal_u32_version() {
-    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=28", "28&other=1"] {
+    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=31", "28&other=1"] {
         let mut peer = Peer::signed_in(&fixtures::settings(), fixtures::FIRST_SIGN_IN);
         let target = format!("/jig/v1/stream?version={query}");
         let socket = peer.request_stream_target(target.as_bytes());
@@ -444,7 +455,7 @@ fn a_served_stream_takes_one_watch_of_the_small_stream_room() {
     let mut record = Writer::new(subject.measure().try_into().expect("literal stream record"));
     subject.encode(&mut record).expect("literal stream record");
     let subject =
-        w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: record.finish() })
+        w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() })
             .expect("literal stream record");
     let open = w::Open::new(&w::CEILINGS, w::OpenParts { stream, watch: 99, subject }).expect("literal stream record");
     let mut bytes = Writer::new(open.measure().try_into().expect("literal stream record"));
@@ -472,7 +483,7 @@ fn a_stream_refused_me_by_the_full_small_party_room_is_an_empty_409() {
         ));
     }
     let mut peer = Peer::signed_in(&fixtures::settings(), sign_in);
-    let socket = peer.request_stream_target(b"/jig/v1/stream?version=28");
+    let socket = peer.request_stream_target(b"/jig/v1/stream?version=31");
     let event = peer.take_core().expect("stream watch");
     let mut out = core::step(&mut core, &env, event);
     let Some(core::Request::Now(now)) = out.pop() else {

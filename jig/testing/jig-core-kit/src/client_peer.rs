@@ -13,6 +13,7 @@ pub struct ClientPeer {
     pub delivered: Vec<(u64, root::Delivery)>,
     pub now: Vec<core::Now>,
     replies: Option<BTreeSet<Token>>,
+    ended_reads: BTreeSet<Token>,
 }
 
 impl ClientPeer {
@@ -28,6 +29,11 @@ impl ClientPeer {
         if let Some(replies) = &mut self.replies {
             replies.insert(token);
         }
+    }
+
+    /// End a one-shot read's reply address while its connector parts are pending.
+    pub fn end_read(&mut self, token: Token) {
+        self.ended_reads.insert(token);
     }
 
     /// Explicitly retire a protocol destination, after its waiters have ended.
@@ -53,6 +59,11 @@ impl ClientPeer {
         reason = "return the whole owned envelope without allocating or changing its boundary"
     )]
     pub fn capture(&mut self, commit: u64, delivery: root::Delivery) -> Result<(), root::Delivery> {
+        if let root::Delivery::Core(core::Held::Read { reply, .. }) = &delivery
+            && self.ended_reads.iter().any(|token| *reply == ReplyTo::new(*token))
+        {
+            return Ok(());
+        }
         let delivery = if let Some(replies) = &self.replies {
             if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = delivery {
                 let token = to.into_token();

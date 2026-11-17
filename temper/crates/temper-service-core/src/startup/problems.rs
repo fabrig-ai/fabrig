@@ -95,18 +95,25 @@ impl<E> Problems<What<E>> {
         self.past = self.past.saturating_add(found.past);
     }
 }
-fn words<E>(what: &What<E>) -> &'static [u8] {
+fn words<E>(what: &What<E>, path: &config::Path) -> &'static [u8] {
     match what {
- What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
- What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
- What::Absolute => b"must be an absolute path",
- What::Profile => b"the only profile is \"small\"",
- What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
- What::Override(limits::Refused::Range) => b"outside its type",
- What::Against { .. } => b"must agree with ",
- What::Jig(what) => jig_words(*what),
- What::Checkout { .. } | What::Past { .. } | What::Within { .. } | What::Short { .. } | What::CallInput { .. } | What::Half(_) => b"",
- }
+        What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
+        What::WorkerAlone => {
+            b"a worker alone takes one worker dialling a plaintext loopback socket, and an empty application object"
+        }
+        What::Absolute => b"must be an absolute path",
+        What::Profile => b"the only profile is \"standard\"",
+        What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
+        What::Override(limits::Refused::Range) => b"outside its type",
+        What::Against { .. } => b"must agree with ",
+        What::Jig(what) => jig_words(*what, path),
+        What::Checkout { .. }
+        | What::Past { .. }
+        | What::Within { .. }
+        | What::Short { .. }
+        | What::CallInput { .. }
+        | What::Half(_) => b"",
+    }
 }
 pub fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8]) {
     *length = length.checked_add(bytes.len()).expect("bounded diagnostic fits usize");
@@ -114,7 +121,7 @@ pub fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8
         writer.put(bytes).expect("diagnostic was measured");
     }
 }
-fn jig_words(what: config::What) -> &'static [u8] {
+fn jig_words(what: config::What, path: &config::Path) -> &'static [u8] {
     match what {
         config::What::Because(words) => words,
         config::What::PolicyExecutors { .. }
@@ -126,6 +133,7 @@ fn jig_words(what: config::What) -> &'static [u8] {
         | config::What::Capacity { .. }
         | config::What::CodecArithmetic
         | config::What::StoreCodec => b"",
+        config::What::Fixed => super::moved::words(path),
         config::What::Json => b"invalid JSON",
         config::What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
         config::What::Unknown => b"unknown member",
@@ -271,7 +279,7 @@ pub fn render_problem<E>(problem: &Problem<What<E>>, writer: &mut Writer, measur
         put(writer, &mut length, measuring, file);
         put(writer, &mut length, measuring, b": ");
     }
-    put(writer, &mut length, measuring, words(&problem.what));
+    put(writer, &mut length, measuring, words(&problem.what, &problem.path));
     match &problem.what {
         What::Half(_) => unreachable!("half rendered by its service"),
         What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
@@ -342,6 +350,7 @@ pub fn render_problem<E>(problem: &Problem<What<E>>, writer: &mut Writer, measur
             config::What::Because(_)
             | config::What::Json
             | config::What::Stored
+            | config::What::Fixed
             | config::What::Unknown
             | config::What::Missing
             | config::What::Duplicate

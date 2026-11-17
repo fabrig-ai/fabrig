@@ -756,7 +756,7 @@ fn watch_end(world: &mut World, project: u32, watcher: u64) -> core::WatchRefusa
         watcher: Token::new(watcher),
         sign_in: world.sign_in.expect("signed in"),
         subject: documents::Watched::Query {
-            query: documents::TaskQuery { project: Some(project), requester: None, ..profile_fixtures::OWN_TASKS },
+            query: documents::TaskQuery { project: Some(project), requester: None, ..profile_fixtures::own_tasks() },
         },
         window: documents::Window { rows: 2, after: None },
     }));

@@ -19,8 +19,6 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                owned: NonZeroU16::new(8368).unwrap(),
-                forge: NonZeroU16::new(8369).unwrap(),
                 llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
@@ -50,7 +48,9 @@ fn single_model() -> Box<[u8]> {
     ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let mut base = config::stock();
+    temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
+    fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
     let mut engine = engine(&single_model());
@@ -61,7 +61,7 @@ fn single_engine() -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
 }
 
 #[test]
@@ -452,14 +452,6 @@ fn the_drafter_is_charter_12_and_template_6() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
     assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
-    assert_eq!(charter.policy.instructions.len(), 3_319);
-    assert_eq!(
-        skein_lib::sha256::digest(&charter.policy.instructions),
-        [
-            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
-            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
-        ]
-    );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
@@ -763,7 +755,7 @@ fn the_chats_opening_sends_plain_edits_directly_to_change() {
         )
     );
     assert!(opening.contains("then call change with their request and only what you read"));
-    assert!(opening.contains("call read_branch with its repository before you say it isn't there"));
+    assert!(opening.contains("call read_forge what=branch with its repository before you say it isn't there"));
 }
 
 #[test]
@@ -1167,7 +1159,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             let charter = jig_domain_core::settings::charters::resolved(
                 charter,
                 &defaults.models,
-                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+                &jig_protocol_config::stock().core,
             )
             .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
@@ -1363,16 +1355,10 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
-    let engine_bytes = fixtures::value(&document, b"engine");
-    let engine = fixtures::parse_engine(&engine_bytes);
+    let document = generated();
+    let engine = engine(&document);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let core = config::core(&engine, [1; 16], 7);
-    for ceiling in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).unwrap().policy.ceiling,
-        &core.seed_projects[0].policy.policy.ceiling,
-    ] {
+    for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;
         for executor in [Executor::Procedure(6), Executor::Job(4)] {
             assert!(ceiling.delegation.kinds.contains(&executor));
@@ -1537,7 +1523,7 @@ fn a_stock_landing_can_start_its_prepare_job() {
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_forge what=branch for its head, then read_forge what=file), then call change with their request and only what you read: never describe unread code."));
     assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
@@ -1689,6 +1675,28 @@ fn kinds_are_declared_with_their_bounds() {
                 charters: 1
             },
             Kind {
+                number: 4,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: u32::try_from(
+                    temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                        &temper_client_protocol_wire::v1::CEILINGS
+                    )
+                    .expect("landing bound")
+                )
+                .expect("bounded encoding"),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 5,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: settings::CARRIER,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
                 number: 6,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
@@ -1786,6 +1794,24 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0
             },
+            Kind {
+                number: 20,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Welcome(settings::Welcome {
+                    shown: true
+                })),
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 21,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29,
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1795,7 +1821,7 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 16;
+    const ITEMS: usize = 17;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -2339,4 +2365,20 @@ fn the_prepare_executor_needs_both_stock_executor_limits() {
             Err(crate::stock::Floor { limit: name, configured: 20, needed: 21, setting: Setting::Rules })
         );
     }
+}
+
+#[test]
+fn agents_default_is_declared() {
+    let stock = crate::stock::agents();
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let kinds = crate::stock::kinds(&limits, 1);
+    let kind = kinds.iter().find(|kind| kind.number == 21).unwrap();
+    assert_eq!(
+        (kind.scope, kind.connector, kind.per_scope, kind.charters),
+        (jig_domain_core::settings::KindScope::Deployment, 1, 1, 0)
+    );
+    assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
+    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
+        && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
 }

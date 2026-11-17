@@ -103,7 +103,7 @@ impl Composition {
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v28::CEILINGS,
+                wire: jig_client_protocol_wire::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -1019,6 +1019,7 @@ impl Composition {
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
+            | link::Request::NotWritten { .. }
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
         };
         self.callbacks.push(Incoming::Callback {

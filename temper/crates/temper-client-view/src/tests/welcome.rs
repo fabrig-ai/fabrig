@@ -1965,8 +1965,9 @@ fn ready_creates_and_selects_an_empty_project_while_the_playground_read_is_out()
     let mut out =
         super::home::drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: 77 }) });
     let chats = super::home::ChatFixture {
-        live: c::Tasks { rows: skein_lib::List::uncapped(), more: false },
+        live: c::Tasks { ended_mark: 0, rows: skein_lib::List::uncapped(), more: false },
         ended: c::TaskPage {
+            ended_mark: 0,
             live: skein_lib::List::uncapped(),
             live_after: None,
             ended: c::EndedGroup::Rows { rows: skein_lib::List::uncapped(), after: None, cut: false },

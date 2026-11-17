@@ -4,6 +4,7 @@
 extern crate alloc;
 
 pub mod agent;
+pub mod derived;
 pub mod limits;
 pub mod long_pass;
 pub mod process;

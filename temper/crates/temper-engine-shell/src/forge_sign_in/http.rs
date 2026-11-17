@@ -49,7 +49,7 @@ pub(super) fn get(url: &[u8], until: Time) -> Result<http::Response, String> {
     } else {
         None
     };
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
+    let limits = jig_protocol_config::stock().io;
     let operations = skein_io::operations(&limits).expect("usable io limits");
     let kernel = Kernel::open(Config { operations }).map_err(|why| format!("HTTP kernel: {why:?}"))?;
     let mut connection = Connection {

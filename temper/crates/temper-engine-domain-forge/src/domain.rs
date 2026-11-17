@@ -116,6 +116,7 @@ pub(crate) struct PendingStep {
     branch: Option<skein_forge::api::Commit>,
     branch_fresh: bool,
     base_tip: Option<skein_forge::api::Commit>,
+    base_read: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
@@ -132,6 +133,7 @@ pub(crate) struct PendingStep {
     paths_whole: bool,
     woken: bool,
     retry_at: Option<skein_lib::Time>,
+    progress: List<(change::Change, change::Change)>,
 }
 /// Comparison at its head and the first time the last judged reviews were kept.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -243,6 +245,9 @@ pub struct Domain {
     pub(crate) apps: Map<u16, crate::AppWay>,
     setup_answers: Map<Token, (skein_lib::Wall, crate::SetUpAnswer)>,
     setup_pending: Map<Token, (Token, Duration)>,
+    pub(crate) choosing: Map<Token, make::Choosing>,
+    pub(crate) setup_people: Map<Token, Box<[u8]>>,
+    pub(crate) owned_people: Map<u16, Box<[u8]>>,
     pub(crate) connect: crate::connect::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Box<Repository>>,
@@ -287,10 +292,11 @@ pub struct Domain {
     start_conflicts: Map<u64, skein_forge::api::Commit>,
     // Volatile input for the next change step, never restored (domain/forge/change/gates.md, 1).
     review_requests: Map<u64, skein_forge::api::Commit>,
-    makings: Map<Token, goal_branch::Making>,
+    pub(crate) makings: Map<Token, goal_branch::Making>,
+    pub(crate) room: crate::room::State,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
-    releases: Map<u64, ReleaseRow>,
+    pub(crate) releases: Map<u64, ReleaseRow>,
     pub(crate) kept: Map<u64, Box<[Name]>>,
     pub(crate) namespace: Box<[u8]>,
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
@@ -337,6 +343,8 @@ pub struct Domain {
     merge_kind: Option<(u32, u32)>,
     close_kind: Option<(u32, u32)>,
     projection_due: Map<u64, skein_lib::Wall>,
+    pub(crate) call_room: Set<Token>,
+    pub(crate) projection_room: Set<u64>,
     /// Volatile: a projection met the full outbox since the root's step began
     /// (temper/docs/design/domain/forge/issues.md). Never saved; false after a restore.
     full_outbox_met: bool,
@@ -390,6 +398,10 @@ impl Domain {
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
     }
+    /// The admitted requester's login is routing input, not document configuration.
+    pub fn setup_person(&mut self, request: Token, login: Box<[u8]>) {
+        self.setup_people.insert(request, login).expect("one person per admitted setup");
+    }
     /// The machine's person login for an owned forge (domain/agent/agents.md, 1).
     #[must_use]
     pub fn owned_person(&self, forge: u16) -> Option<&[u8]> {
@@ -397,8 +409,10 @@ impl Domain {
         if config.mode != crate::Mode::Owned {
             return None;
         }
-        let machine = self.machine.as_ref()?;
-        if machine.owned_person.is_empty() { None } else { Some(&machine.owned_person) }
+        match self.owned_people.get(&forge) {
+            Some(login) if !login.is_empty() => Some(login),
+            Some(_) | None => None,
+        }
     }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
@@ -736,7 +750,7 @@ impl Domain {
 
     /// Keep the connector's retry deadline; the root carries no timer policy.
     pub fn wait_change(&mut self, env: &Env<Limits>, task: u64, until: Option<skein_lib::Wall>) {
-        if connection_wait::contains(self, task) {
+        if connection_wait::contains(self, task) || self.waiting_for_room(task) {
             self.change_due.remove(&task);
             return;
         }
@@ -756,6 +770,32 @@ impl Domain {
             }
         };
         self.change_due.insert(task, until).expect("one bounded change deadline");
+    }
+
+    /// A place in the shared outbox line (domain/forge/room.md, 3).
+    #[must_use]
+    pub fn waiting_for_room(&self, task: u64) -> bool {
+        match self.changes.get(&task) {
+            Some(row) => row.room.is_some(),
+            None => false,
+        }
+    }
+
+    /// An ask holds room until this procedure can decide afresh.
+    #[must_use]
+    pub fn room_asked(&self, task: u64) -> bool {
+        if crate::room::asked(self, crate::room::Waiter::Change(task))
+            || crate::room::asked(self, crate::room::Waiter::Landing(task))
+            || crate::room::asked(self, crate::room::Waiter::Release(task))
+        {
+            return true;
+        }
+        for (owner, pending) in &self.makings {
+            if pending.task == task && crate::room::asked(self, crate::room::Waiter::Making(*owner)) {
+                return true;
+            }
+        }
+        false
     }
 
     /// A new offered procedure step replaces its previous waiting deadline.
@@ -785,10 +825,26 @@ impl Domain {
         self.full_outbox_met = false;
     }
 
-    /// Available outbox room including the root's staged descriptions.
+    /// Free outbox room behind the line (domain/forge/room.md, 2).
     #[must_use]
-    pub fn effect_room(&self, limits: &Limits, staged: u32) -> bool {
-        self.entries.len().saturating_add(staged) < limits.entries
+    pub fn effect_room(&self, limits: &Limits) -> bool {
+        crate::room::check(self, limits, None)
+    }
+
+    /// Promise a described call's room until its entry or terminal ask (domain/forge/room.md, 5).
+    pub fn reserve_call(&mut self, limits: &Limits, owner: Token) -> bool {
+        if !crate::room::check(self, limits, None) {
+            return false;
+        }
+        assert!(!self.call_room.contains(&owner), "fresh call flight");
+        self.call_room.insert(owner).expect("call reservations fit the outbox");
+        true
+    }
+
+    /// A call ended without an entry; offer its room to the line's first waiter.
+    pub fn unreserve_call(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+        self.call_room.remove(&owner);
+        crate::room::ask(self, env, out);
     }
 
     /// A connector's durable payload, read again before a holder accepts it.
@@ -892,6 +948,9 @@ impl Domain {
             apps: Map::with_capacity(l.forges),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
+            choosing: Map::with_capacity(l.applications),
+            setup_people: Map::with_capacity(l.applications),
+            owned_people: Map::with_capacity(l.forges),
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
@@ -934,6 +993,7 @@ impl Domain {
             start_conflicts: Map::with_capacity(l.changes),
             review_requests: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
+            room: crate::room::State::new(l),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
             releases: Map::with_capacity(l.tasks),
@@ -988,6 +1048,8 @@ impl Domain {
             merge_kind: None,
             close_kind: None,
             projection_due: Map::with_capacity(l.issues),
+            call_room: Set::with_capacity(l.entries),
+            projection_room: Set::with_capacity(l.entries),
             full_outbox_met: false,
             change_due: Map::with_capacity(
                 l.changes
@@ -1090,7 +1152,7 @@ impl Domain {
             || crate::follows::waiting(self)
             || self.next_handoff().is_some()
             || !self.procedure_wakes.is_empty()
-            || goal_branch::room_waiting(self)
+            || crate::room::waiting(self)
             || self.client.is_ready()
             || ((self.lost_waiting()
                 || brief::waiting(self)
@@ -1553,6 +1615,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::closer::check(d, env, task, step, repository, branch, base, out);
         }
         Event::ChangeEnding { task, ending } => {
+            crate::room::leave(d, crate::room::Waiter::Change(task));
             if let Some(row) = d.changes.get_mut(&task) {
                 let verified = row.ending.is_none()
                     && ending == crate::Ending::Landed
@@ -1560,6 +1623,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 let fresh = row.ending.is_none() && !row.terminal();
                 let owned = row.change.owns_turn;
                 row.change.owns_turn = false;
+                row.room = None;
                 row.ending = Some(ending);
                 let mut row = row.clone();
                 if verified {
@@ -1761,6 +1825,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
             crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
         }
+        Event::SetupPerson { forge, login } => {
+            d.owned_people.insert(forge, login).expect("kept owned person");
+        }
+        Event::PlaceChosen { request, place, git_program } => make::chosen(d, env, request, place, git_program, out),
         Event::Application { request, token, retention, ask, role, carried } => match ask {
             crate::Ask::RemoveForge { forge } => {
                 if let Some(value) = carried {
@@ -1957,11 +2025,16 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 emit(out, Request::Erase { key: Key::ProposedEffect(number) });
             }
         }
-        Event::Enqueue { entry } => enqueue(d, env, entry, out),
+        Event::Enqueue { entry } => enqueue(d, env, None, entry, out),
+        Event::EnqueueCall { owner, entry } => enqueue(d, env, Some(owner), entry, out),
         Event::KeepProjection { row, entry } => {
+            d.projection_room.remove(&entry.number);
             d.issues.insert(row.goal, row.clone()).expect("projection capacity admitted");
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(row) });
             keep_entry(d, entry, None, out);
+        }
+        Event::DropProjection { entry } => {
+            d.projection_room.remove(&entry);
         }
         Event::Milestone { row } => crate::milestone_rows::project(d, row, out),
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
@@ -2024,8 +2097,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
-        Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words } => {
-            delegate_result(d, env, task, child, ended_at, status, no_change, failed, cancelled, &words, out);
+        Event::DelegateResult { task, child, ended_at, status, no_change, flake, failed, cancelled, words } => {
+            delegate_result(d, env, task, child, ended_at, status, no_change, flake, failed, cancelled, &words, out);
         }
         Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
@@ -2185,6 +2258,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             ci_hint(d, env, &hint, out);
             child(d, env, skein_forge_client::Event::Hint { hint }, out);
         }
+        Event::RoomUnavailable { task } => crate::room::pass(d, task),
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
@@ -2196,6 +2270,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         d.retire_pending = false;
         retire_ended(d, env, out);
     }
+    crate::room::ask(d, env, out);
 }
 
 /// Drive one child call after prior saves have committed.
@@ -2218,11 +2293,10 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::follows::resume(d, env, out);
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
-    if goal_branch::resume_room(d, out) {
-        return;
-    }
+    crate::room::ask(d, env, out);
     let before = out.len();
     handoff_one(d, env, out);
+    crate::room::ask(d, env, out);
     if out.len() != before {
         // An admission refusal already spent this step's child output burst.
         return;
@@ -2230,6 +2304,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let child_env = child_env(env);
     skein_forge_client::resume(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
+    crate::room::ask(d, env, out);
     if d.client.has_room() {
         brief::retry(d, out);
         ask_lost_again(d, env, out);
@@ -2306,6 +2381,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let child_env = child_env(env);
     skein_forge_client::fire(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
+    crate::room::ask(d, env, out);
 }
 
 /// Give a forge its writer once access is known (domain/forge/adoption.md, 1).
@@ -2518,6 +2594,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
             skein_forge_client::Request::OutboxDone => {
+                d.room.ready = true;
                 crate::landing::restore_waits(d, env);
                 emit(out, Request::RestartDone { stage: RestartStage::Settled });
             }
@@ -3151,6 +3228,9 @@ fn record_delegate_head(
             && (row.change.last_head != Some(commit) || (checked && row.change.last_checked != Some(commit)))
         {
             let mut row = row.clone();
+            if row.change.last_head != Some(commit) {
+                row.regate = None;
+            }
             row.change.last_head = Some(commit);
             if checked {
                 row.change.last_checked = Some(commit);
@@ -3498,7 +3578,17 @@ fn lost_release(d: &Domain, name: &Name, failed: bool, out: &mut Queue<Request>)
     }
 }
 
-fn enqueue(d: &mut Domain, env: &Env<Limits>, entry: skein_forge_client::Entry, out: &mut Queue<Request>) {
+fn enqueue(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Option<Token>,
+    entry: skein_forge_client::Entry,
+    out: &mut Queue<Request>,
+) {
+    let reserved = match owner {
+        Some(owner) => d.call_room.remove(&owner),
+        None => false,
+    };
     let task = entry.task;
     let Some(repository) = d.repositories.get(&entry.repository) else {
         emit(out, Request::Refused { task });
@@ -3512,16 +3602,10 @@ fn enqueue(d: &mut Domain, env: &Env<Limits>, entry: skein_forge_client::Entry, 
         emit(out, Request::Refused { task });
         return;
     }
-    if d.entries.len() == env.limits.entries {
-        crate::refusal::resource_limit(
-            out,
-            task,
-            b"enqueue effect",
-            None,
-            "forge.entries",
-            env.limits.entries,
-            u64::from(d.entries.len()).saturating_add(1),
-        );
+    if !reserved && !crate::room::check(d, &env.limits, None) {
+        let outcome = skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy);
+        d.named_outcome(entry.number, outcome);
+        emit(out, Request::Outcome { entry: entry.number, task, outcome, account: None });
         return;
     }
     let release = Some(entry.number);
@@ -3695,6 +3779,7 @@ fn delegated(
     }
     match kind {
         change::Delegate::Repair(why) => {
+            row.regate = None;
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
             row.repair_tasks = task_account(&row.repair_tasks, child);
         }
@@ -3705,6 +3790,7 @@ fn delegated(
         | change::Delegate::Gate { .. } => {}
     }
     row.delegate = Some((child, kind));
+    row.delegate_head = row.change.last_head;
     if let Some(read) = d.settling.get_mut(&task) {
         read.branch.producer = change::Status::Unknown;
     }
@@ -3718,6 +3804,7 @@ fn delegated(
     row.producer_failure = None;
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     let mut saved = row.clone();
     crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
@@ -3755,6 +3842,7 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
     let state = unasked(row, kind);
@@ -3889,6 +3977,10 @@ fn delegate_wait(state: &change::State) -> bool {
 
 #[expect(clippy::too_many_arguments, reason = "one child's terminal carries its status, failure standing and words")]
 #[expect(clippy::too_many_lines, reason = "one delegate result records its answer, ending and readiness together")]
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the typed delegate event distinguishes a flake from no-change, failure and cancellation"
+)]
 fn delegate_result(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -3897,6 +3989,7 @@ fn delegate_result(
     ended_at: Option<skein_lib::Wall>,
     status: change::Status,
     no_change: bool,
+    flake: bool,
     failed: bool,
     cancelled: bool,
     words: &[u8],
@@ -3980,6 +4073,15 @@ fn delegate_result(
     }
     d.start_conflicts.remove(&task);
     row.delegate_status = if no_change && !ci_repair { change::Status::Failed } else { status };
+    row.delegate_flake = flake
+        && match kind {
+            change::Delegate::Repair(_) => true,
+            change::Delegate::Produce
+            | change::Delegate::Close
+            | change::Delegate::Gate { .. }
+            | change::Delegate::Resolve { .. }
+            | change::Delegate::Merge { .. } => false,
+        };
     match kind {
         change::Delegate::Gate { number, head } => {
             if let Err(cause) = record_review(row, env, number, head, (status, failed, cancelled), words) {
@@ -4009,7 +4111,9 @@ fn delegate_result(
         ),
         change::Delegate::Resolve { .. } => producer_result(row, false, failed, words),
     }
-    if cancelled {
+    if row.delegate_flake {
+        row.producer_failure = Some(flake_delegate_words(child, words));
+    } else if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     } else if (failed || (no_change && !ci_repair))
         && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
@@ -4143,6 +4247,20 @@ fn failed_delegate_words(
         account.put(part).expect("measured recovery words");
     }
     Some(account.finish())
+}
+
+/// A flake verdict reserves the release instructions within the same account bound as failures.
+fn flake_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
+    let prefix = skein_lib::bytes::concat(&[
+        b"its repair, task ",
+        skein_lib::Decimal::of(child).as_bytes(),
+        b", found only flakes: ",
+        words,
+    ]);
+    let tail = b"; release this change to run its gate once more, or cancel it";
+    let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+    let prefix = crate::text::fit(&prefix, bound.checked_sub(tail.len()).expect("recovery fits hold"), b"...");
+    skein_lib::bytes::concat(&[&prefix, tail])
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -4385,6 +4503,7 @@ fn arm_gather(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
 
 #[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing, containment and connection waits")]
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
+    crate::room::stepping(d, input.task);
     if d.stopping {
         return;
     }
@@ -4517,6 +4636,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         branch: None,
         branch_fresh: read_branch,
         base_tip: None,
+        base_read: None,
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4533,6 +4653,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         paths_whole: false,
         woken: false,
         retry_at: None,
+        progress: List::uncapped(),
     };
     arm_gather(d, env, &pending);
     d.steps.insert(owner, pending).expect("step capacity checked");
@@ -4641,6 +4762,7 @@ fn step_verified(
         branch: row.change.last_head,
         branch_fresh: false,
         base_tip: Some(merge),
+        base_read: Some(merge),
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4657,6 +4779,7 @@ fn step_verified(
         paths_whole: false,
         woken: false,
         retry_at: None,
+        progress: List::uncapped(),
     };
     let facts = change_facts(d, env, &row, &pending, merge);
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
@@ -4852,6 +4975,7 @@ fn step_read(
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
                     let tip = if let change::State::Preparing { main, .. } = preparing { main } else { commit };
                     pending.base_tip = Some(tip);
+                    pending.base_read = Some(commit);
                     branch_changed(
                         d,
                         env,
@@ -5601,6 +5725,7 @@ fn titled_change(
 
 fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change::Heard {
     change::Heard {
+        flake: row.delegate_flake && row.delegate_head == pending.branch,
         // Terminal evidence belongs to the current delegate, not to the read's start.
         delegate: if row.delegate_status == change::Status::Unknown {
             pending.heard.delegate
@@ -5616,10 +5741,14 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
+    pending.progress = List::uncapped();
     let Some(mut row) = titled_change(d, env, &pending, out) else { return };
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
+    if row.room.is_some() {
+        row.change.since = env.wall;
+    }
     crate::readiness::way(d, &mut row);
     // Producing without a head uses no base facts except early starts and catch-ups.
     let base_tip = pending.base_tip.unwrap_or([0; 32]);
@@ -5698,7 +5827,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             reviewed = true;
         }
         let effect_prior = row.change.clone();
-        let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        if d.landing.held
+            && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
+        {
+            stepped.change = row.change.clone();
+            stepped.decision = change::Decision::Wait { until: None };
+        }
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
@@ -5725,13 +5860,18 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             return;
         }
         row.change = stepped.change;
-        crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
-        let decision = stepped.decision;
-        let took_update = matches_updating(&effect_prior.state) && row.change.last_head != effect_prior.last_head;
-        if took_update && let Some(head) = row.change.last_head {
-            record_change_head(d, env, &row, head, out);
-            row.history = d.changes.get(&row.task).expect("retained change").history;
+        if row.change.last_head != effect_prior.last_head {
+            row.regate = None;
+            if row.delegate_flake {
+                row.delegate_flake = false;
+                row.producer_failure = None;
+            }
         }
+        if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
+            row.regate = None;
+        }
+        pending.progress.push((effect_prior.clone(), row.change.clone())).expect("bounded policy transitions");
+        let decision = stepped.decision;
         if matches_updating(&effect_prior.state) && !matches_updating(&row.change.state) && row.pending.is_none() {
             admission::change_writer(d, env, &row, false);
         }
@@ -5755,6 +5895,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 row.result.ci_passed(&head, env.limits.client.answer_bytes);
                 row.producer_failure = None;
                 row.delegate_status = change::Status::Unknown;
+                row.delegate_flake = false;
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
@@ -5788,6 +5929,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
+                row.room = None;
+                crate::room::leave(d, crate::room::Waiter::Change(row.task));
+                keep_step_progress(d, env, &mut row, &pending, &facts, out);
                 if let Some(report) = pending.stall.take() {
                     d.stall_words.insert(row.task, report).expect("bounded tasks");
                 }
@@ -5866,6 +6010,9 @@ fn drive_check(
             emit_change_effect(d, env, &mut row, &pending, prior, change::Effect::FollowCheck { head }, out);
         }
         Action::Read { kind, read } => {
+            let facts = change_facts(d, env, &row, &pending, pending.base_tip.unwrap_or([0; 32]));
+            keep_step_progress(d, env, &mut row, &pending, &facts, out);
+            pending.progress = List::uncapped();
             pending.stage = StepStage::FollowCheck(kind);
             d.sequence = d.sequence.checked_add(1).expect("follow check read sequence");
             let owner = Token::new(d.sequence | (1_u64 << 62));
@@ -5877,6 +6024,10 @@ fn drive_check(
             child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
         }
         Action::Done | Action::Wait | Action::Held => {
+            let facts = change_facts(d, env, &row, &pending, pending.base_tip.unwrap_or([0; 32]));
+            keep_step_progress(d, env, &mut row, &pending, &facts, out);
+            row.room = None;
+            crate::room::leave(d, crate::room::Waiter::Change(row.task));
             let task = row.task;
             d.read_sessions.remove(&task);
             let decision = match action {
@@ -6151,6 +6302,7 @@ fn change_facts(
             status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
         },
         base_tip,
+        base_read: pending.base_read.unwrap_or(base_tip),
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
         updates: requires.up_to_date,
@@ -6235,6 +6387,39 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
     }
 }
 
+fn keep_step_progress(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    row: &mut ChangeRow,
+    pending: &PendingStep,
+    facts: &change::Facts,
+    out: &mut Queue<Request>,
+) {
+    let final_change = row.change.clone();
+    for (prior, next) in &pending.progress {
+        row.change = next.clone();
+        crate::readiness::advanced(d, env, row, prior, facts, out);
+        if matches_updating(&prior.state)
+            && row.change.last_head != prior.last_head
+            && let Some(head) = row.change.last_head
+        {
+            record_change_head(d, env, row, head, out);
+            row.history = d.changes.get(&row.task).expect("retained change").history;
+        }
+    }
+    row.change = final_change;
+}
+
+fn leave_room_change(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Change(task));
+    if let Some(row) = d.changes.get_mut(&task)
+        && row.room.take().is_some()
+    {
+        let row = row.clone();
+        save_change(d, out, row);
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "the outbox admission and its history start share one decision")]
 fn emit_change_effect(
     d: &mut Domain,
@@ -6246,19 +6431,8 @@ fn emit_change_effect(
     out: &mut Queue<Request>,
 ) {
     if d.entries.contains_key(&pending.entry) {
+        leave_room_change(d, row.task, out);
         emit(out, Request::Refused { task: row.task });
-        return;
-    }
-    if d.entries.len() == env.limits.entries {
-        crate::refusal::resource_limit(
-            out,
-            row.task,
-            b"emit change effect",
-            None,
-            "forge.entries",
-            env.limits.entries,
-            u64::from(d.entries.len()).saturating_add(1),
-        );
         return;
     }
     let write = match effect {
@@ -6273,6 +6447,7 @@ fn emit_change_effect(
         | change::Effect::Merge { .. } => change_write(row, effect, &pending.failed, &env.limits),
     };
     let Some(write) = write else {
+        leave_room_change(d, row.task, out);
         if effect == change::Effect::Open && row.pull.is_some() {
             hold_owned_pull(d, env, row, out);
             return;
@@ -6288,6 +6463,15 @@ fn emit_change_effect(
         );
         return;
     };
+    let permitted = match d.repositories.get(&row.repository) {
+        Some(repository) => repository.role != Role::Context && effect_permitted(repository.kinds, &write),
+        None => false,
+    };
+    if !permitted {
+        leave_room_change(d, row.task, out);
+        emit(out, Request::Refused { task: row.task });
+        return;
+    }
     let condition = match effect {
         change::Effect::Update { head, base } | change::Effect::Prepare { head, main: base } => {
             skein_forge_client::Condition::Update { head, base }
@@ -6311,6 +6495,44 @@ fn emit_change_effect(
         failures: 0,
         queued: false,
     };
+    if !skein_forge_client::valid_entry(&entry, &env.limits.client) {
+        leave_room_change(d, row.task, out);
+        emit(
+            out,
+            Request::ChangeDecision {
+                task: row.task,
+                decision: change::Decision::Hold(change::Hold::Failed),
+                entry: None,
+                evidence: None,
+            },
+        );
+        return;
+    } else if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Change(row.task))) {
+        let mut waiting = d.changes.get(&row.task).expect("registered change").clone();
+        // No decided policy state or history is kept by a room wait.
+        if waiting.room.is_none() {
+            waiting.room = Some(crate::room::next_place(d));
+        }
+        crate::room::leave(d, crate::room::Waiter::Change(row.task));
+        d.change_due.remove(&row.task);
+        read_session::pause(d, row.task);
+        d.changes.insert(row.task, waiting.clone()).expect("registered change");
+        save_change(d, out, waiting);
+        emit(
+            out,
+            Request::ChangeDecision {
+                task: row.task,
+                decision: change::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
+        return;
+    }
+    row.room = None;
+    crate::room::leave(d, crate::room::Waiter::Change(row.task));
+    let facts = change_facts(d, env, row, pending, pending.base_tip.unwrap_or([0; 32]));
+    keep_step_progress(d, env, row, pending, &facts, out);
     crate::landing::change_advanced(d, row, &prior, change::Decision::Effect(effect), out);
     row.pending = Some(pending.entry);
     row.effect = change::EffectResult::Pending;
@@ -6337,9 +6559,20 @@ fn emit_change_effect(
     save_queue_change(d, env, before, row.clone(), out);
     admission::update_writer(d, env, &entry, true);
     if let skein_forge::api::Write::Update { style, .. } = entry.effect.write {
-        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style });
+        let forge_base = match &pending.pull {
+            Some(pull) => pull.base_commit,
+            None => None,
+        };
+        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style, forge_base });
         event.head = pending.branch;
-        event.base = pending.base_tip;
+        event.base = match &entry.effect.condition {
+            skein_forge_client::Condition::Update { base, .. } => Some(*base),
+            skein_forge_client::Condition::Merge { .. }
+            | skein_forge_client::Condition::Review { .. }
+            | skein_forge_client::Condition::None => {
+                unreachable!("update write carries its effect's pin")
+            }
+        };
         event.operation = crate::history::Operation::Of(pending.entry);
         crate::change_history::write(d, env.wall, row, event, out);
     }
@@ -6495,6 +6728,10 @@ pub(crate) fn change_outcome(
         },
         None => (false, false),
     };
+    let unsent = match d.entries.get(&entry) {
+        Some(row) => row.entry.attempt.is_none(),
+        None => false,
+    };
     rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
     let account = taking::make_account(d.changes.get(&task).expect("found change row"), account, outcome);
@@ -6528,7 +6765,13 @@ pub(crate) fn change_outcome(
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
         skein_forge_client::Outcome::Failed(
-            skein_forge::api::Error::Timeout | skein_forge::api::Error::Unavailable | skein_forge::api::Error::Stale,
+            skein_forge::api::Error::Stale | skein_forge::api::Error::BaseMoved { .. },
+        ) if update && unsent => change::EffectResult::Stale,
+        skein_forge_client::Outcome::Failed(
+            skein_forge::api::Error::Timeout
+            | skein_forge::api::Error::Unavailable
+            | skein_forge::api::Error::Stale
+            | skein_forge::api::Error::BaseMoved { .. },
         ) if update => change::EffectResult::None,
         skein_forge_client::Outcome::Failed(_)
         | skein_forge_client::Outcome::Raced { .. }
@@ -6542,10 +6785,13 @@ pub(crate) fn change_outcome(
     if update {
         let result = match outcome {
             skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => {
-                (crate::history::UpdateOutcome::Updated, Some(head))
+                (crate::history::UpdateOutcome::Updated, Some(head), updating_base(&saved.change.state))
             }
             skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => {
-                (crate::history::UpdateOutcome::Conflict, None)
+                (crate::history::UpdateOutcome::Conflict, None, None)
+            }
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base }) => {
+                (crate::history::UpdateOutcome::Failed, None, base)
             }
             skein_forge_client::Outcome::Made { .. }
             | skein_forge_client::Outcome::Failed(_)
@@ -6553,9 +6799,13 @@ pub(crate) fn change_outcome(
             | skein_forge_client::Outcome::Uncertain
             | skein_forge_client::Outcome::Queued
             | skein_forge_client::Outcome::Held
-            | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None),
+            | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None, None),
         };
-        let mut event = crate::change_history::step(d, &saved, crate::history::What::Updated { outcome: result.0 });
+        let mut event = crate::change_history::step(
+            d,
+            &saved,
+            crate::history::What::Updated { outcome: result.0, forge_base: result.2 },
+        );
         event.operation = crate::history::Operation::Of(entry);
         event.head = result.1;
         event.base = updating_base(&saved.change.state);
@@ -6710,7 +6960,7 @@ fn record_change_head(
     record_written_head(d, env, resource, name, commit, row.task, out);
 }
 
-fn matches_held(state: &change::State) -> bool {
+pub(crate) fn matches_held(state: &change::State) -> bool {
     match state {
         change::State::Held { .. } => true,
         change::State::Taking { .. }
@@ -6773,7 +7023,7 @@ fn accept_released_branch(
 /// Removing the durable delegate reference retires its terminal from recovery
 /// (temper/docs/design/domain/forge/change/repairs.md, A release).
 fn retire_failed_delegate(row: &mut ChangeRow) {
-    if row.delegate_status != change::Status::Failed {
+    if row.delegate_status != change::Status::Failed && !row.delegate_flake {
         return;
     }
     match row.delegate {
@@ -6786,6 +7036,7 @@ fn retire_failed_delegate(row: &mut ChangeRow) {
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     row.producer_failure = None;
     row.merge_result = None;
 }
@@ -6799,17 +7050,28 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     d.change_due.remove(&task);
     read_session::restart(d, env, task, env.wall);
     branch_due(d, task);
+    let regate = if let Some(row) = d.changes.get(&task)
+        && let change::State::Held { was, why: change::Hold::Flake } = &row.change.state
+        && let change::State::Repairing { why, .. } = was.as_ref()
+    {
+        Some(d.landing_regate(task, *why))
+    } else {
+        None
+    };
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
     };
     let before = crate::panel::ready(row);
+    if let Some(regate) = regate {
+        row.regate = regate;
+    }
     retire_failed_delegate(row);
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;
     row.change = released;
     row.change.since = env.wall;
-    if lifted && row.effect == change::EffectResult::Failed {
+    if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {
         match row.change.state {
             change::State::Taking { .. }
             | change::State::Updating { .. }
@@ -7018,6 +7280,7 @@ fn release_row(
         failed: false,
         effects_settled,
         releasing,
+        room: None,
     }
 }
 
@@ -7167,8 +7430,26 @@ fn release(
     continue_release(d, env, task, entry, out);
 }
 
-#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
 fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
+    crate::room::stepping(d, task);
+    continue_release_inner(d, env, task, entry, out);
+    // A turn waiting on facts rather than room gives its promise back (room.md, 3).
+    if crate::room::asked(d, crate::room::Waiter::Release(task)) {
+        leave_room_release(d, task, out);
+    }
+}
+
+fn leave_room_release(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Release(task));
+    if let Some(row) = d.releases.get_mut(&task)
+        && row.room.take().is_some()
+    {
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
+fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.holds {
         let Some(mut row) = d.releases.get(&task).cloned() else { return };
         if row.failed || row.pending.is_some() {
@@ -7280,6 +7561,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         end_change(d, env, task, out);
         heads::free(d, env, out);
         d.releases.remove(&task);
+        crate::room::leave(d, crate::room::Waiter::Release(task));
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });
         return;
@@ -7310,6 +7592,7 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
 
 /// The panel outlives its task, but never its task's live state (domain/forge/change/gates.md, 1).
 fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    crate::room::leave(d, crate::room::Waiter::Change(task));
     connection_wait::take(d, task);
     let merge = recorded_merge(d, task);
     let cancelled = match d.releases.get(&task) {
@@ -7329,6 +7612,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     {
         row.change.ended_held = Some(*why);
     }
+    row.room = None;
     row.change.state = ended;
     row.ending = match &row.change.state {
         change::State::Landed { .. }
@@ -7451,7 +7735,8 @@ fn enqueue_release(
     resource: Option<Name>,
     out: &mut Queue<Request>,
 ) {
-    if d.entries.len() == env.limits.entries || d.entries.contains_key(&number) {
+    if d.entries.contains_key(&number) {
+        leave_room_release(d, row.task, out);
         emit(out, Request::ReleaseFailed { task: row.task, account: None });
         return;
     }
@@ -7465,6 +7750,27 @@ fn enqueue_release(
         failures: 0,
         queued: false,
     };
+    let permitted = match d.repositories.get(&repository) {
+        Some(repository) => repository.role != Role::Context && effect_permitted(repository.kinds, &entry.effect.write),
+        None => false,
+    };
+    if !permitted || !skein_forge_client::valid_entry(&entry, &env.limits.client) {
+        leave_room_release(d, row.task, out);
+        emit(out, Request::ReleaseFailed { task: row.task, account: None });
+        return;
+    }
+    let waiter = crate::room::Waiter::Release(row.task);
+    if !crate::room::check(d, &env.limits, Some(waiter)) {
+        if row.room.is_none() {
+            row.room = Some(crate::room::next_place(d));
+        }
+        crate::room::leave(d, waiter);
+        d.releases.insert(row.task, row.clone()).expect("replaces release");
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+        return;
+    }
+    row.room = None;
+    crate::room::leave(d, waiter);
     row.pending = Some((number, resource));
     d.releases.insert(row.task, row.clone()).expect("replaces release");
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
@@ -7621,7 +7927,7 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
-            if d.entries.len() == env.limits.entries {
+            if !crate::room::check(d, &env.limits, None) {
                 wait_for_room(d, env, goal, out);
                 return;
             }
@@ -7657,6 +7963,7 @@ fn project(
                 fail_projection(d, env, goal, Some(repository), closing, out);
                 return;
             };
+            d.projection_room.insert(number).expect("projection reservations fit the outbox");
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }
@@ -9027,7 +9334,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Verification(row) => {
             d.verifications.insert((row.repository, row.commit), row).expect("restored verification within limits");
         }
-        Stored::Landing(row) => {
+        Stored::Landing(mut row) => {
+            if row.landing.phase == temper_engine_domain_forge_landing::Phase::Landed
+                || row.landing.phase == temper_engine_domain_forge_landing::Phase::Cancelled
+            {
+                row.room = None;
+            }
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
         Stored::Receipt { key, receipt } => {
@@ -9152,7 +9464,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.change_due.insert(row.task, env.wall).expect("restored change wake room checked");
             d.change_hot.insert(row.task, *row).expect("restored hot change room checked");
         }
-        Stored::Change(row) => {
+        Stored::Change(mut row) => {
+            if row.frozen() {
+                row.room = None;
+            }
             let (cold, _) = row.clone().split();
             d.change_cold.insert(row.task, cold).expect("restored change room checked");
             // Volatile waits are rebuilt by stepping every restored change (domain/forge/README.md, 9).
@@ -9194,6 +9509,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     d.rebuild_settings();
+    d.restore_landing_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -9213,6 +9529,13 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
+        let mut landing = d.landing.rows.contains_key(&row.entry.task);
+        if let skein_forge::api::Write::Merge { .. } = row.entry.effect.write {
+            landing = true;
+        }
+        if d.landing.held && landing {
+            continue;
+        }
         if !row.held && row.handoff != Handoff::Handed {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }
@@ -9331,6 +9654,23 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             {
                 emit(out, Request::ContinueRelease { task });
             }
+        }
+        let mut releases = List::with_capacity(d.releases.capacity());
+        for (task, row) in &d.releases {
+            let mut removed = match d.changes.get(task) {
+                Some(change) => change.repository.forge == forge,
+                None => false,
+            };
+            for (name, hold) in &d.holds {
+                removed |= hold.task == *task && name.forge == forge;
+            }
+            if row.room.is_some() && removed {
+                releases.push(*task).expect("bounded release rows");
+            }
+        }
+        for task in releases.into_boxed() {
+            leave_room_release(d, task, out);
+            emit(out, Request::ContinueRelease { task });
         }
         let mut changes = List::with_capacity(d.changes.capacity());
         for (task, row) in &d.changes {
@@ -9478,7 +9818,10 @@ pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, row: C
 
 /// Every saved record invalidates its own panel (domain/forge/change/README.md, 5).
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
-    if row.terminal() {
+    if row.frozen() {
+        row.room = None;
+        d.changes.get_mut(&row.task).expect("saved change").room = None;
+        crate::room::leave(d, crate::room::Waiter::Change(row.task));
         connection_wait::take(d, row.task);
     }
     retain_terminal_ci(d, &mut row);

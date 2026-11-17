@@ -460,7 +460,7 @@ fn a_chats_ended_goal_is_listed_by_project() {
             requester: None,
             phase: Some(documents::PhaseClass::Ended),
             label,
-            ..jig_test_profile::fixtures::OWN_TASKS
+            ..jig_test_profile::fixtures::own_tasks()
         };
         let answer = super::paths::read(&mut world, reads::Read::Tasks { query, live: None, ended: None });
         let Some(reads::Answer::Tasks(page)) = answer else { panic!("ended project tasks: {answer:?}") };
@@ -496,7 +496,7 @@ fn a_goal_calls_change_and_its_change_is_made() {
     let change_tool =
         charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
     let schema: serde_json::Value = serde_json::from_slice(&change_tool.schema).expect("change schema");
-    for member in ["changes", "name", "landing", "after", "branch"] {
+    for member in ["changes", "producer", "questions"] {
         assert!(schema["properties"].get(member).is_some(), "plan member {member} offered");
     }
     let change = delegated(call(
@@ -550,11 +550,11 @@ fn a_goal_asks_its_requester_and_the_person_sees_the_question() {
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to,
         sign_in: world.signed_in.expect("owner session"),
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::Questions,
             filter: reads::Filter { project: Some(1), goal: None },
             from: None,
-        },
+        }),
     }));
     for _ in 0..200 {
         world.tick();

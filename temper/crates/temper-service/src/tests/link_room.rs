@@ -39,23 +39,32 @@ enum Outcome {
     CannotEncode,
 }
 
-fn settings(profile: config::Profile) -> settings::Engine {
+#[derive(Clone, Copy, Debug)]
+enum Base {
+    Fixture,
+    Stock,
+}
+
+fn settings(profile: Base) -> settings::Engine {
     let mut settings = fixtures::engine();
-    settings.jig.limits = config::profile(profile);
-    settings.limits = limits::profile(match profile {
-        config::Profile::Small => limits::Profile::Small,
-        config::Profile::Standard => limits::Profile::Standard,
-    });
+    settings.jig.limits = match profile {
+        Base::Fixture => jig_protocol_config_fixtures::small(),
+        Base::Stock => config::stock(),
+    };
+    settings.limits = match profile {
+        Base::Fixture => temper_limits_fixtures::small(),
+        Base::Stock => limits::stock(),
+    };
     settings
 }
 
 #[test]
 fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
-    for profile in [config::Profile::Small, config::Profile::Standard] {
+    for profile in [Base::Fixture, Base::Stock] {
         let settings = settings(profile);
         let engine = crate::workers::limits(&settings).expect("stock engine link limits");
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges)
             .expect("stock worker link limits");
@@ -65,7 +74,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
         assert!(jig_protocol_worker_link::valid(&worker), "{profile:?}");
         for rule in wire::KINDS {
             let start = match rule.body {
-                Kind::Assignment | Kind::Job => true,
+                Kind::Assignment | Kind::Job | Kind::Figures => true,
                 Kind::Hello
                 | Kind::Turn
                 | Kind::Call
@@ -111,17 +120,17 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
 #[test]
 fn the_checkout_and_its_raise_fit_both_stock_links() {
     for (profile, conflicts, saved, answer) in [
-        (config::Profile::Small, 512, 265_248, 269_708),
-        (config::Profile::Small, 1024, 530_464, 534_924),
-        (config::Profile::Standard, 512, 265_248, 397_208),
-        (config::Profile::Standard, 1024, 530_464, 662_424),
+        (Base::Fixture, 512, 265_248, 269_708),
+        (Base::Fixture, 1024, 530_464, 534_924),
+        (Base::Stock, 512, 265_248, 397_208),
+        (Base::Stock, 1024, 530_464, 662_424),
     ] {
         let mut settings = settings(profile);
         assert_eq!(settings.limits.checkout.conflicts, 512);
         settings.limits.checkout.conflicts = conflicts;
         let engine = crate::workers::limits(&settings).expect("engine link at checkout capacity");
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges).unwrap();
         assert!(kit::valid(&engine), "{profile:?}, {conflicts}");
@@ -141,11 +150,11 @@ fn the_checkout_and_its_raise_fit_both_stock_links() {
 
 #[test]
 fn a_stock_start_crosses_the_link_or_fails_with_its_numbers() {
-    for profile in [config::Profile::Small, config::Profile::Standard] {
+    for profile in [Base::Fixture, Base::Stock] {
         let inbox = match profile {
-            config::Profile::Small => Outcome::Crosses,
+            Base::Fixture => Outcome::Crosses,
             // 82 messages of 262,144 bytes exceed the 1 MiB room alone.
-            config::Profile::Standard => Outcome::Past,
+            Base::Stock => Outcome::Past,
         };
         for (part, extra, outcome) in [
             (Part::Charter, 0, Outcome::Crosses),
@@ -177,7 +186,7 @@ struct Joint {
 impl Joint {
     fn new(settings: &settings::Engine) -> Self {
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         worker.jig.engine = config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
         let mut agent = fixtures::worker_agent();
         // The peer stops at the worker root; its agent fixture still has to
@@ -240,6 +249,7 @@ impl Joint {
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
+                    | kit::Request::FiguresTaken { .. }
                     | kit::Request::Closed) => {
                         panic!("unexpected engine output; the link must stay up: {other:?}")
                     }
@@ -297,7 +307,7 @@ impl Joint {
         }
         panic!("the socket joint settles");
     }
-    fn keep_live(&mut self, settings: &settings::Engine, profile: config::Profile, part: Part, extra: usize) {
+    fn keep_live(&mut self, settings: &settings::Engine, profile: Base, part: Part, extra: usize) {
         let mut pings = (self.peer.engine_pings, self.peer.worker_pings);
         let ping_seconds = settings.jig.limits.link.ping.as_millis().checked_div(1000).unwrap();
         for second in 1..=SECONDS {
@@ -328,21 +338,19 @@ fn workers(settings: &settings::Engine) -> Workers {
     let remote = usize::try_from(encoding.limits.repository_remote).unwrap();
     forges[0].git = filled(remote.checked_sub(names.checked_mul(2).unwrap()).unwrap().checked_sub(6).unwrap());
     forges[0].git_program = Some(filled(usize::try_from(encoding.limits.repository_git_some).unwrap()));
-    let mut jig = settings.jig.clone();
-    jig.hosts.workers = Box::new([jig.hosts.workers[0].clone()]);
+    let jig = settings.jig.clone();
     Workers::new(
         &jig,
-        &fixtures::files(),
         encoding,
         forges,
-        settings.limits.forge.forges,
+        &settings.limits,
         &crate::workers::limits(settings).unwrap(),
     )
     .unwrap()
 }
 
 #[expect(clippy::disallowed_macros, reason = "the past-the-room refusal names the measured frame bytes and room")]
-fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outcome) {
+fn check_start(profile: Base, part: Part, extra: usize, outcome: Outcome) {
     let settings = settings(profile);
     let mut workers = workers(&settings);
     let values = Values::new(settings.jig.limits.core.accounts.accounts, settings.jig.limits.token);
@@ -457,7 +465,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v16::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -484,7 +492,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v16::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }
@@ -566,22 +574,19 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
 }
 
 fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
-    let charter =
+    let mut charter =
         smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding().endpoints)
             .unwrap();
     assert!(charter.owned_bytes().unwrap() <= workers.encoding().charter_bytes);
     assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding().charter_bytes);
-    assert_eq!(charter.instructions, assignment.run.policy.instructions);
-    if extra == 0 {
-        assert_eq!(charter, temper_engine_smith::charter(assignment), "the whole charter fits");
-    } else {
-        assert_eq!(charter.brief.sections.len(), 1, "the specification section is omitted whole");
-        assert_eq!(
-            charter.brief.sections[0].text.as_ref(),
-            b"Context.\n[1 sections omitted: Task; whole: the task's activity]\n",
-            "the retained context names the omitted specification"
-        );
+    let mut original = temper_engine_smith::charter(assignment);
+    if extra != 0 {
+        assert_ne!(charter.brief, original.brief, "a charter past its room has its brief fitted");
+        assert!(charter.brief.sections[0].text.starts_with(b"Context."), "earlier context stays");
+        charter.brief.sections = Box::new([]);
+        original.brief.sections = Box::new([]);
     }
+    assert_eq!(charter, original, "only the brief may change when fitting the receiving bound");
 }
 
 fn assert_refusal(answers: &[hub::RunAnswer], words: &[u8]) {

@@ -152,7 +152,12 @@ fn corrupt_store() -> Store {
     let mut store = fixtures::over(stores);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = &*events else { panic!("fixture opens: {events:?}") };
     store

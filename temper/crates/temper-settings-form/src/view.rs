@@ -381,6 +381,7 @@ pub enum Running {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
     Model(SettingNumber),
+    Worker(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -412,6 +413,7 @@ pub enum SettingEdit {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
+    Linked,
     Judged,
     Shape,
     Count,
@@ -486,6 +488,7 @@ pub struct SettingSet {
 pub enum SettingValue {
     Overlay(Box<Overlay>),
     Model(Box<CatalogueEntry>),
+    Worker(Box<WorkerSetting>),
     Application(Box<[u8]>),
     Charter(Box<Charter>),
     Template(Box<Template>),
@@ -792,4 +795,14 @@ impl Overlay {
             _ => false,
         }
     }
+}
+
+/// Worker value (jig/docs/design/domain/engine/workers.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerSetting {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub digest: Option<[u8; 32]>,
+    pub withdrawn: bool,
 }

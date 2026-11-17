@@ -112,7 +112,7 @@ fn title(w: &Words, about: &About) -> Box<[u8]> {
         | Address::Talk { task, .. }
         | Address::Chat { task }
         | Address::Team { role: Some(task), .. } => match &about.title {
-            Some(title) => title.clone(),
+            Some(title) => crate::common::chat::row_title(title),
             None => w.say(Word::TeamTaskName, &[Hole::Number(*task)]),
         },
         Address::Team { role: None, .. } => w.say(Word::TeamTitle, &[]),

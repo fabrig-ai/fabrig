@@ -16,8 +16,6 @@ const LATER: Wall = Wall::from_nanos(10);
 // Two rows fill the fixture's live window and each ended page.
 const WINDOW: u32 = 2;
 const LABEL: u32 = 7;
-// The report handle admits one read at a time.
-const REPORTS_AT_ONCE: usize = 1;
 // Two rows of the first ended page, one of the next, and one live row.
 const ENDED_READ: u32 = 3;
 const ALL_READ: u32 = 4;
@@ -41,7 +39,11 @@ fn rows(lines: &[c::TaskLine]) -> List<c::TaskLine> {
     List::from_boxed(lines.into())
 }
 fn page(lines: &[c::TaskLine], more: bool) -> c::ReadValue {
+    page_at(lines, more, 0)
+}
+fn page_at(lines: &[c::TaskLine], more: bool, ended_mark: u64) -> c::ReadValue {
     c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -145,11 +147,18 @@ impl Harness {
         reads.into_boxed()
     }
     fn live(&mut self, lines: &[c::TaskLine], more: bool) {
+        self.live_at(lines, more, 0);
+    }
+    fn live_at(&mut self, lines: &[c::TaskLine], more: bool, ended_mark: u64) {
         self.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched {
                     watch: self.watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows(lines), more }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: rows(lines),
+                        more,
+                        ended_mark,
+                    }))),
                 },
             },
         });
@@ -165,12 +174,13 @@ impl Harness {
     }
 }
 fn maybe_ended_read(reads: &[(Token, c::Read)]) -> Option<Token> {
+    let mut ended = None;
     for (token, read) in reads {
         if let c::Read::Tasks { .. } = read {
-            return Some(*token);
+            assert!(ended.replace(*token).is_none(), "one ended read at a time");
         }
     }
-    None
+    ended
 }
 fn ended_read(reads: &[(Token, c::Read)]) -> Token {
     maybe_ended_read(reads).expect("ended read")
@@ -192,25 +202,17 @@ fn needs_read(reads: &[(Token, c::Read)]) -> Token {
     }
     panic!("needs read")
 }
-fn notes(headline: &[u8]) -> c::ReadValue {
-    let note = c::Note {
-        number: 1,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: fixtures::PROJECT, task: GOAL },
-        description: fixtures::chat::document_text(headline),
-        body: fixtures::chat::document_text(b""),
-        writer: c::NoteAuthor::Task { task: GOAL, attempt: 1 },
-        tasks: List::with_capacity(0),
-        changed: Some(LATER),
-        acts: List::with_capacity(0),
-        cut: false,
+pub(super) fn report_part(headline: Option<&[u8]>) -> c::RowPart {
+    let report = match headline {
+        Some(headline) => Some((headline, LATER)),
+        None => None,
     };
-    c::ReadValue::Notes(Box::new(c::NotePage {
-        rows: List::from_boxed(Box::new([note])),
-        before: None,
-        after: None,
-        cut: false,
-    }))
+    temper_fixtures::client_documents::goal_part(report, Some(42))
+}
+fn with_part(task: u64, part: c::RowPart) -> c::TaskLine {
+    let mut line = line(task, Wall::EPOCH);
+    line.parts = List::from_boxed(Box::new([part]));
+    line
 }
 
 #[test]
@@ -221,6 +223,9 @@ fn goals_read_its_query_and_release_it() {
     let mut out = Queue::uncapped();
     goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, 0, &mut out);
     let query = c::TaskQuery {
+        parts: List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+            temper_client_protocol_wire::GOAL_PART,
+        )])),
         project: Some(fixtures::PROJECT),
         label: Some(LABEL),
         tracked: Some(true),
@@ -235,7 +240,7 @@ fn goals_read_its_query_and_release_it() {
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {
             handle: goals.live,
-            subject: Watchable::Jig(c::Subject::Tasks { query, window: limits.client.domain.rows })
+            subject: Watchable::Jig(c::Subject::Tasks { query: query.clone(), window: limits.client.domain.rows })
         }))
     );
     assert_eq!(
@@ -243,7 +248,7 @@ fn goals_read_its_query_and_release_it() {
         Some(Request::Client(jig_client::Event::Read {
             handle: goals.ended,
             read: Readable::Jig(c::Read::Tasks {
-                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() },
                 live: None,
                 ended: None
             })
@@ -267,7 +272,7 @@ fn goals_read_its_query_and_release_it() {
     let mut changed = me();
     changed.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().label = LABEL + 1;
     goals.configure(Some(&changed), fixtures::PROJECT, root.client(), &limits, 0, &mut out);
-    for handle in [goals.live, goals.ended, goals.needs, goals.report] {
+    for handle in [goals.live, goals.ended, goals.needs] {
         assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
     }
     assert_eq!(
@@ -275,17 +280,17 @@ fn goals_read_its_query_and_release_it() {
         Some(Request::Client(jig_client::Event::Watch {
             handle: goals.live,
             subject: Watchable::Jig(c::Subject::Tasks {
-                query: c::TaskQuery { label: Some(LABEL + 1), ..query },
+                query: c::TaskQuery { label: Some(LABEL + 1), ..query.clone() },
                 window: limits.client.domain.rows
             })
         }))
     );
     while out.pop().is_some() {}
     let next = goals.leave(&mut out);
-    for handle in [goals.live, goals.ended, goals.needs, goals.report] {
+    for handle in [goals.live, goals.ended, goals.needs] {
         assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
     }
-    assert!(Goals::new(next).live.number > goals.report.number);
+    assert!(Goals::new(next).live.number > goals.needs.number);
     assert!(goals::query(&fixtures::chats::me(), fixtures::PROJECT).is_none());
     assert!(goals::query(&me(), OTHER.try_into().unwrap()).is_none());
     assert!(out.is_empty());
@@ -423,55 +428,66 @@ fn a_goals_id_is_its_leading_capitals_and_digits() {
 }
 
 #[test]
-fn reports_are_read_one_at_a_time_and_again_as_activity_moves() {
+fn reports_arrive_with_live_and_ended_rows_without_notes() {
     let mut h = Harness::new();
-    h.reads();
-    h.live(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], false);
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, GOAL);
-    h.live(&[line(GOAL, LATER), line(OTHER, Wall::EPOCH)], false);
-    assert!(reports(&h.reads()).is_empty(), "one report in flight");
-    h.answer(reads[0].0, notes(b"report: Old."));
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, GOAL, "moved activity is next in row order");
-    h.answer(reads[0].0, notes(b"report: New."));
-    let reads = reports(&h.reads());
-    assert_eq!(reads.len(), REPORTS_AT_ONCE);
-    assert_eq!(reads[0].1, OTHER);
-    h.answer(reads[0].0, notes(b"report: Other."));
+    let read = ended_read(&h.reads());
+    h.live(&[with_part(GOAL, report_part(Some(b"Two of three landed")))], false);
+    h.answer(read, page(&[with_part(OTHER, report_part(Some(b"Ended report")))], false));
+    let report = h.goals().report(GOAL).unwrap();
+    assert_eq!(report.headline.as_ref(), b"Two of three landed");
+    assert_eq!(report.at, Some(LATER));
+    assert!(report.paragraphs.is_empty());
+    assert_eq!(h.goals().report(OTHER).unwrap().headline.as_ref(), b"Ended report");
     assert!(reports(&h.reads()).is_empty());
-    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"New.");
-    h.live(&[line(GOAL, LATER), line(OTHER, Wall::EPOCH)], false);
-    assert!(reports(&h.reads()).is_empty(), "same activity keeps reports");
+    h.live(&[with_part(GOAL, report_part(Some(b"Next delivery")))], false);
+    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Next delivery");
+    h.live(&[with_part(GOAL, c::RowPart::Unknown)], false);
+    assert!(h.goals().report(GOAL).is_none(), "an unavailable replacement does not keep a stale report");
+    assert!(reports(&h.reads()).is_empty());
 }
 
 #[test]
-fn no_report_is_no_error() {
-    for value in [
-        Readout::Limit,
-        Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
-        Readout::Jig(c::ReadResult::Value(notes(b"words report: not an opening"))),
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-            rows: List::with_capacity(0),
-            before: None,
-            after: None,
-            cut: false,
-        })))),
+fn unavailable_parts_read_nothing_and_the_next_report_wins() {
+    for part in [
+        c::RowPart::Unknown,
+        c::RowPart::NotServed(c::NotServed {
+            owner: c::Owner::Family(temper_client_protocol_wire::FORGE),
+            served: List::with_capacity(0),
+        }),
+        c::RowPart::Failed(c::PartFailure::Busy),
+        report_part(None),
     ] {
         let mut h = Harness::new();
         h.reads();
-        h.live(&[line(GOAL, Wall::EPOCH)], false);
-        let reads = reports(&h.reads());
-        assert_eq!(reads.len(), REPORTS_AT_ONCE);
-        h.result(reads[0].0, value);
+        h.live(&[with_part(GOAL, part)], false);
         assert!(h.goals().report(GOAL).is_none());
         assert!(reports(&h.reads()).is_empty());
-        h.live(&[line(GOAL, Wall::EPOCH)], false);
-        assert!(reports(&h.reads()).is_empty(), "an absent report is remembered at this activity");
-        h.live(&[line(GOAL, LATER)], false);
-        assert_eq!(reports(&h.reads()).len(), REPORTS_AT_ONCE, "moved activity reads an absent report again");
+        h.live(&[with_part(GOAL, report_part(Some(b"Now written")))], false);
+        assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Now written");
+        assert!(reports(&h.reads()).is_empty());
+    }
+}
+
+#[test]
+fn goal_parts_require_the_forge_version_and_a_complete_record() {
+    use temper_client_domain_forge::parts;
+    let part = report_part(Some(b"Written"));
+    let c::RowPart::Value(value) = &part else { unreachable!() };
+    let decoded = parts::goal(&with_part(GOAL, part.clone())).unwrap().into_parts();
+    assert_eq!(decoded.milestone, Some(42));
+    assert_eq!(decoded.report.unwrap().headline(), b"Written");
+    let mut trailing = List::uncapped();
+    for byte in value.bytes.iter().copied() {
+        trailing.push(byte).unwrap();
+    }
+    trailing.push(0).unwrap();
+    for value in [
+        jig_client::Family { family: 99, ..value.clone() },
+        jig_client::Family { version: 0, ..value.clone() },
+        jig_client::Family { bytes: Box::new([]), ..value.clone() },
+        jig_client::Family { bytes: trailing.into_boxed(), ..value.clone() },
+    ] {
+        assert!(parts::goal(&with_part(GOAL, c::RowPart::Value(value))).is_none());
     }
 }
 
@@ -535,6 +551,52 @@ fn needs_come_from_the_selection_and_read_again_as_needs_total_moves() {
 }
 
 #[test]
+fn ended_goals_read_again_only_when_the_mark_grows() {
+    let mut h = Harness::new();
+    let first = ended_read(&h.reads());
+    h.answer(first, page_at(&[], false, 5));
+    h.reads();
+    h.live_at(&[line(GOAL, Wall::EPOCH)], false, 5);
+    assert_eq!(maybe_ended_read(&h.reads()), None, "the first delivery keeps the opening read");
+    h.live_at(&[line(GOAL, LATER)], false, 5);
+    assert_eq!(maybe_ended_read(&h.reads()), None, "a changed live row is no ended change");
+    h.live_at(&[line(GOAL, LATER)], false, 6);
+    let reads = h.reads();
+    let refresh = ended_read(&reads);
+    let c::Read::Tasks { ended, .. } = &reads[0].1 else { panic!("ended read") };
+    assert_eq!(*ended, None, "even equal live rows can hide a task that started and ended");
+    h.answer(refresh, page_at(&[line(OTHER, LATER)], false, 6));
+    assert_eq!(maybe_ended_read(&h.reads()), None);
+    assert_eq!(h.goals().ended()[0].chip.task, OTHER);
+}
+
+#[test]
+fn ended_goals_coalesce_marks_while_the_read_is_under_way() {
+    for answered_mark in [5, 6, 7] {
+        let mut h = Harness::new();
+        let first = ended_read(&h.reads());
+        h.live_at(&[], false, 6);
+        assert_eq!(maybe_ended_read(&h.reads()), None, "opening read stays in flight");
+        h.live_at(&[], false, 5);
+        assert_eq!(maybe_ended_read(&h.reads()), None, "keep the greatest delivery mark");
+        h.answer(first, page_at(&[], false, answered_mark));
+        let reads = h.reads();
+        if answered_mark < 6 {
+            let refresh = ended_read(&reads);
+            h.live_at(&[], false, 7);
+            h.live_at(&[], false, 6);
+            assert_eq!(maybe_ended_read(&h.reads()), None, "one follow-up stays in flight");
+            h.answer(refresh, page_at(&[], false, 6));
+            let next = ended_read(&h.reads());
+            h.answer(next, page_at(&[], false, 7));
+            assert_eq!(maybe_ended_read(&h.reads()), None, "one follow-up per uncovered mark suffices");
+        } else {
+            assert_eq!(maybe_ended_read(&reads), None, "the answer already covers the delivery");
+        }
+    }
+}
+
+#[test]
 fn more_goals_reads_the_next_page_and_keeps_the_count() {
     let mut h = Harness::new();
     let first = ended_read(&h.reads());
@@ -543,26 +605,26 @@ fn more_goals_reads_the_next_page_and_keeps_the_count() {
     assert_eq!(h.goals().count(h.root.client()), WINDOW);
     assert!(h.goals().more());
     assert!(h.goals().unread(h.root.client()));
-    h.live(&[], false);
+    h.live_at(&[], false, 1);
     let refresh = h.reads();
     let c::Read::Tasks { ended, .. } = &refresh[0].1 else { panic!("first page refresh") };
-    assert_eq!(*ended, None, "live changes refresh the first page");
-    h.answer(ended_read(&refresh), page(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], true));
+    assert_eq!(*ended, None, "a grown mark refreshes the first page");
+    h.answer(ended_read(&refresh), page_at(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], true, 1));
     h.reads();
     assert_eq!(h.goals().count(h.root.client()), WINDOW, "refreshing the first page counts its rows once");
     h.act(Act::MoreGoals);
     let reads = h.reads();
     let c::Read::Tasks { ended, .. } = &reads[0].1 else { panic!("older page") };
     assert!(ended.is_some());
-    h.answer(ended_read(&reads), page(&[line(OTHER, LATER)], false));
+    h.answer(ended_read(&reads), page_at(&[line(OTHER, LATER)], false, 1));
     h.reads();
     assert_eq!(h.goals().ended().len(), CURRENT_ENDED);
     assert_eq!(h.goals().count(h.root.client()), ENDED_READ, "two first rows and one next row");
     assert!(!h.goals().more());
-    h.live(&[], false);
+    h.live_at(&[], false, 2);
     let reads = h.reads();
-    assert_eq!(maybe_ended_read(&reads), None, "older page stays put");
-    h.live(&[line(GOAL, LATER)], true);
+    assert_eq!(maybe_ended_read(&reads), None, "older page stays put even as the mark grows");
+    h.live_at(&[line(GOAL, LATER)], true, 2);
     h.reads();
     assert_eq!(h.goals().count(h.root.client()), ALL_READ, "one live and three ended read");
     assert!(h.goals().unread(h.root.client()), "live more is reachable");
@@ -609,7 +671,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         assert!(out.is_empty());
     }
     pages::step(&mut pages, &fixtures::env(&limits), root.client(), Event::Left, &mut out);
-    let handles = [handle.number - 1, handle.number, handle.number + 1, handle.number + 2];
+    let handles = [handle.number - 1, handle.number, handle.number + 1];
     for number in handles {
         let unwatch =
             Request::Client(jig_client::Event::Unwatch { handle: jig_client::Handle { asker: handle.asker, number } });
@@ -630,7 +692,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
     );
     assert!(pages.goals().unwrap().live.number > *handles.last().unwrap());
     let old = pages.goals().unwrap();
-    let previous = [old.live, old.ended, old.needs, old.report];
+    let previous = [old.live, old.ended, old.needs];
     out.clear();
     pages::step(
         &mut pages,
@@ -647,7 +709,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         }
         assert!(released, "goal read released");
     }
-    assert!(pages.goals().unwrap().live.number > previous[3].number, "another project gets new handles");
+    assert!(pages.goals().unwrap().live.number > previous[2].number, "another project gets new handles");
     assert_eq!((pages.goals().unwrap().ended()).len(), 0);
 }
 
@@ -692,7 +754,11 @@ impl FactHarness {
     fn live(&mut self, watch: Token, lines: &[c::TaskLine]) {
         self.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows(lines), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: rows(lines),
+                more: false,
+            }))),
         });
     }
     fn answer(&mut self, read: Token, lines: &[c::TaskLine]) {
@@ -722,7 +788,7 @@ fn fact_requests(down: &[Down], project: u32) -> (Token, Token) {
             Down::Read { read: token, what: Readable::Jig(c::Read::Tasks { query: got, live, ended }) } => {
                 assert_eq!(
                     *got,
-                    c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query }
+                    c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() }
                 );
                 assert_eq!(*live, None);
                 assert_eq!(*ended, None);
@@ -744,7 +810,7 @@ fn fact_requests(down: &[Down], project: u32) -> (Token, Token) {
 
 fn list_requests(down: &[Down]) -> (Token, Token) {
     let query = goals::query(&me(), fixtures::PROJECT).unwrap();
-    let ended_query = c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query };
+    let ended_query = c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() };
     let mut watch = None;
     let mut read = None;
     for request in down {
@@ -884,10 +950,10 @@ fn goals_opens_on_home_once_the_project_has_one() {
         }
         let goals = h.root.pages().goals().expect("Home opens Goals");
         assert_eq!(goals.filter, GoalsFilter::All);
-        let handles = [goals.live, goals.ended, goals.needs, goals.report];
+        let handles = [goals.live, goals.ended, goals.needs];
         let inbox = h.root.pages().inbox().unwrap();
         assert!(handles[0].number > inbox.entries.number);
-        assert!(inbox.next > handles[3].number, "later inbox cards cannot reuse goal handles");
+        assert!(inbox.next > handles[2].number, "later inbox cards cannot reuse goal handles");
         let requests = h.take();
         if ended {
             // An opening watch's close waits for its first delivery.
@@ -1116,7 +1182,7 @@ fn a_lost_read_keeps_the_page_and_the_count() {
     assert_eq!(h.goals().ended(), before.as_slice());
     assert_eq!(h.goals().count(h.root.client()), count, "lost second page counts no retained row twice");
     h.act(Act::MoreGoals);
-    assert!(!h.reads().is_empty(), "lost read clears reading_page");
+    assert!(!h.reads().is_empty(), "lost read releases the page read");
 }
 #[test]
 fn a_lost_read_keeps_has_goals() {

@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:46505                                     │
+│ Sign in this terminal to 127.0.0.1:35223                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ XDJR-MPHZ, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:46505/terminal?code=XDJR-MPHZ                  │
+│ ZGGW-NGNP, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:35223/terminal?code=ZGGW-NGNP                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:46505/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:35223/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

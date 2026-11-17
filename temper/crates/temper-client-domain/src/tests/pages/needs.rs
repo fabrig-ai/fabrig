@@ -867,6 +867,7 @@ fn a_milestone_filter_takes_approvals_of_its_merged_goals() {
                     read: ended.expect("milestone's ended goals read"),
                     result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
                         c::TaskPage {
+                            ended_mark: 0,
                             live: List::uncapped(),
                             live_after: None,
                             ended: c::EndedGroup::Rows {

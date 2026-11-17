@@ -37,9 +37,6 @@ pub(super) fn parse(
     let key = check::path(&mut object, document, b"key", &path, Directory::Data, directories, problems);
     let mut clients = List::<ProviderClient>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"clients", document.len(), &path, problems) {
-        if items.is_empty() {
-            problems.push(path.member(b"clients"), What::Bound);
-        }
         for (index, at) in items.iter().enumerate() {
             let path = check::index(&path.member(b"clients"), index);
             if let Some(client) = client(document, *at, &path, directories, problems) {

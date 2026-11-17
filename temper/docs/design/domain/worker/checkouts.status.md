@@ -1,6 +1,6 @@
 # checkouts: status
 
-2026-11-15. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
+2026-11-17. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
 
 
@@ -28,6 +28,9 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
+- **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
+  asks the engine nothing and answers its checkout not landed [in
+  flight: change 6018].
 - **Not yet:** the whole document: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written

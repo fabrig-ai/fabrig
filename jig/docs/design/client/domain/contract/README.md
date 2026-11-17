@@ -472,6 +472,9 @@ party reads is therefore never lost by a crash.
   party's conversations, of a project's goals by priority, of a task's
   ended delegates, are each a task query.
 - **Live first, then ended,** in two groups, each with its own cursor.
+- **Parts and the ended mark:** a query may name an application's parts,
+  which each row carries, and its answers carry its ended group's mark
+  (`parts.md`).
 - **Live tasks are scanned,** in the order asked: the tasks child keeps
   no secondary index, and its live tasks are bounded by its limits, so
   any conjunction of the keys costs no more than one scan. The fixed set
@@ -885,9 +888,6 @@ designs (`../../../protocol/client/README.md`):
   `../../../domain/people/README.md`, section 11. Default: the current public records,
   projected from that document's memory-only index (13.9); no history is
   reconstructed by the client contract.
-- **Bundling parts:** whether a jig read's answer should carry the
-  application's parts it names, put together by the engine's root, to
-  save a client the second round trip.
 - **Windows of a large tree:** how a tree watch's window follows what a
   person opened, so that a tree of hundreds of tasks costs what is shown.
 - **Finer cuts among a project's parties**

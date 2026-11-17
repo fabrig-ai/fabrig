@@ -257,7 +257,11 @@ fn home_team(
                 }
                 Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows,
+                        more: false,
+                    }))),
                 }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task }) } => {
@@ -353,14 +357,15 @@ fn home_team(
                     result: jig_client::Readout::Family { family: wire::FORGE, record: Some(f::draft_setting(true)) },
                 }
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
-                Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
-                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
-                    )))),
-                }
-            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })))),
+            },
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 if brief.is_none() {
                     continue;

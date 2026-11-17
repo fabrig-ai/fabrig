@@ -51,6 +51,7 @@ fn chip() -> d::Chip {
 }
 fn row() -> d::TaskLine {
     d::TaskLine {
+        parts: List::with_capacity(0),
         chip: chip(),
         project: 7,
         requester: tasks::Party::Person(9),
@@ -81,7 +82,7 @@ fn tasks_page(rows: &[d::TaskLine]) -> Answer {
     for row in rows {
         live.push(row.clone()).unwrap();
     }
-    Answer::Tasks(Box::new(TaskPage { live, live_next: None, ended: EndedGroup::None }))
+    Answer::Tasks(Box::new(TaskPage { ended_mark: 0, live, live_next: None, ended: EndedGroup::None }))
 }
 
 fn list_row(value: d::TaskLine, ended: bool, more: bool) -> Answer {
@@ -89,9 +90,14 @@ fn list_row(value: d::TaskLine, ended: bool, more: bool) -> Answer {
     rows.push(value).unwrap();
     let next = more.then_some(continuation());
     Answer::Tasks(Box::new(if ended {
-        TaskPage { live: List::uncapped(), live_next: None, ended: EndedGroup::Rows { rows, next, cut: false } }
+        TaskPage {
+            ended_mark: 0,
+            live: List::uncapped(),
+            live_next: None,
+            ended: EndedGroup::Rows { rows, next, cut: false },
+        }
     } else {
-        TaskPage { live: rows, live_next: next, ended: EndedGroup::None }
+        TaskPage { ended_mark: 0, live: rows, live_next: next, ended: EndedGroup::None }
     }))
 }
 fn continuation() -> jig_domain_core::reads::Cursor {
@@ -602,6 +608,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     use temper_engine_domain_forge_change as c;
     Box::new(f::Document::Change(f::Panel {
+        landing_held: false,
         source: None,
         way: c::Way::Queue,
         in_landing: None,
@@ -615,6 +622,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
         pull,
         step: f::PanelStep::Queued { place: 1, ahead: Box::new([]) },
         hold: Some(c::Hold::Repairs),
+        wait: None,
         runs: None,
         ci: c::Status::Passed,
         ci_required: true,
@@ -673,12 +681,18 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 red: false,
                 changes: Box::new([
                     f::ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: 42,
                         title: b"Add export".as_slice().into(),
                         ready_since: AT,
                         checks_since: Some(AT),
                     },
                     f::ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: 41,
                         title: b"Add import".as_slice().into(),
                         ready_since: AT,
@@ -693,6 +707,9 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 branch: b"stable".as_slice().into(),
                 red: false,
                 changes: Box::new([f::ChangesQueued {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 43,
                     title: b"Fix quoting".as_slice().into(),
                     ready_since: AT,
@@ -701,6 +718,9 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
             },
         ]),
         landed: Box::new([f::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,

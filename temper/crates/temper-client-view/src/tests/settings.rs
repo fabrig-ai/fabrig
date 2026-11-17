@@ -182,7 +182,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
         (
             Address::Builders { project: f::PROJECT },
             "Where agents work.",
-            "The machines temper’s agents run on, each with its slots and how many are in use.",
+            "The machines temper’s agents run on, each with its places and whether it’s up. An owner adds one by its secret’s digest.",
             3,
         ),
         (
@@ -315,7 +315,11 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: task_watch.unwrap(),
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows,
+                        more: false,
+                    }))),
                 },
             },
         },

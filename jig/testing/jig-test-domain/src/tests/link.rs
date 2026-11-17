@@ -527,6 +527,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                 }
                 Request::Deliver(Delivery::Projection { .. }) => {}
                 other @ (Request::StoreCatalogue { .. }
+                | Request::Workers(_)
                 | Request::ClientsCatalogue { .. }
                 | Request::Start { .. }
                 | Request::ReadResult { .. }

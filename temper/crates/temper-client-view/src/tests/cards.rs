@@ -133,7 +133,7 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 16] = [
     (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, b"project-questions 1"),
     (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, b"project-ways 1"),
     (c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 }, b"project-classes 1"),
-    (c::Setting::Application { kind: 5, scope: 7, number: 3 }, b"application kind 5, 7, 3"),
+    (c::Setting::Application { kind: u32::MAX, scope: 7, number: 3 }, b"application kind 4294967295, 7, 3"),
     (c::Setting::Application { kind: 9, scope: 0, number: 4 }, b"charter-words 4"),
     (c::Setting::Application { kind: 10, scope: fixtures::PROJECT, number: 1 }, b"project-words 1"),
 ];
@@ -302,6 +302,7 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();

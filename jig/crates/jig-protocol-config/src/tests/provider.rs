@@ -84,17 +84,34 @@ fn provider_is_optional_and_its_private_paths_are_data_paths() {
     assert!(fixtures::engine(fixtures::ENGINE_SMALL).unwrap().clients.provider.is_none());
     let null = fixtures::with(fixtures::ENGINE_SMALL, br#""link": true"#, br#""link":true,"provider":null"#);
     assert!(fixtures::engine(&null).unwrap().clients.provider.is_none());
-    let bytes = bytes();
-    let document = crate::document(&bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
-    let dirs = crate::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document).unwrap();
-    let provider = engine.clients.provider.unwrap();
-    assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
-    assert_eq!(provider.clients[0].secret.as_deref(), Some(b"/data/secrets/app".as_slice()));
-    assert_eq!(provider.addresses.as_ref(), &[3]);
+    for fixed in [
+        crate::Fixed::NONE,
+        crate::Fixed {
+            clients: Some(crate::FixedClients {
+                heartbeat: skein_lib::Duration::from_millis(10_000),
+                link: true,
+                approval: true,
+            }),
+            ..crate::Fixed::NONE
+        },
+    ] {
+        let mut bytes = bytes();
+        if fixed.clients.is_some() {
+            bytes = fixtures::with(&bytes, b"\"heartbeat_ms\": 10000,", b"");
+            bytes = fixtures::with(&bytes, b",\"link\":true", b"");
+        }
+        let document =
+            crate::document(&bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
+        let dirs = crate::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+        let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document, &fixed).unwrap();
+        let provider = engine.clients.provider.unwrap();
+        assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
+        assert_eq!(provider.clients[0].secret.as_deref(), Some(b"/data/secrets/app".as_slice()));
+        assert_eq!(provider.addresses.as_ref(), &[3]);
+    }
 }
 #[test]
-fn client_ids_are_visible_ascii_and_unique_and_there_is_at_least_one_client() {
+fn client_ids_are_visible_ascii_and_unique() {
     for (id, what) in [
         ("", What::Bound),
         ("a b", What::Form),
@@ -114,14 +131,29 @@ fn client_ids_are_visible_ascii_and_unique_and_there_is_at_least_one_client() {
             assert_eq!(fixtures::engine(&document).unwrap_err().problems.get(0).unwrap().what, What::Bound);
         }
     }
-    refuses(
-        br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#,
-        br#""clients":[]"#,
-        provider_path().member(b"clients"),
-        What::Bound,
-    );
     refuses(br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#, br#""clients":[{"id":"app","secret":"a","redirect_uri":"https://app.example.com"},{"id":"app","secret":"b","redirect_uri":"https://app.example.com"}]"#, provider_path().member(b"clients").child(Segment::Index(1)).member(b"id"), What::Unique);
 }
+#[test]
+fn provider_accepts_no_configured_clients() {
+    let document = fixtures::with(
+        &bytes(),
+        br#""clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}]"#,
+        br#""clients":[]"#,
+    );
+    let engine = fixtures::engine(&document).expect("provider may start before its clients are added");
+    let provider = engine.clients.provider.as_ref().expect("provider remains configured");
+    assert!(provider.clients.is_empty());
+    assert_eq!(provider.key.as_ref(), b"secrets/provider.pem");
+    assert_eq!(provider.addresses.as_ref(), &[3]);
+    let mut key_file = false;
+    for file in crate::files(&engine) {
+        if file.at == provider_path().member(b"key") {
+            key_file = true;
+        }
+    }
+    assert!(key_file);
+}
+
 #[test]
 fn provider_redirects_require_https_or_loopback_http_with_a_port_and_no_fragment() {
     for uri in [
@@ -195,21 +227,20 @@ fn address_providers_must_be_application_or_link_and_paths_must_be_data_paths() 
 }
 #[test]
 fn provider_limits_are_positive_named_overrides_with_profile_defaults() {
-    for (profile, codes, tokens) in [(crate::Profile::Small, 16, 64), (crate::Profile::Standard, 256, 1024)] {
-        let mut limits = crate::profile(profile);
-        assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (codes, tokens));
-        for name in [b"clients.provider_codes".as_slice(), b"clients.provider_tokens"] {
-            assert_eq!(crate::overrides::apply(&mut limits, name, 0), Err(What::Override));
-            crate::overrides::apply(&mut limits, name, 7).unwrap();
-            assert_eq!(crate::overrides::apply(&mut limits, name, u64::MAX), Err(What::Override));
-        }
-        assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (7, 7));
-        limits.clients.provider_codes = 0;
-        assert!(!jig_protocol_engine_clients::valid(&limits.clients));
-        limits.clients.provider_codes = 1;
-        limits.clients.provider_tokens = 0;
-        assert!(!jig_protocol_engine_clients::valid(&limits.clients));
+    let (codes, tokens) = (256, 1024);
+    let mut limits = crate::stock();
+    assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (codes, tokens));
+    for name in [b"clients.provider_codes".as_slice(), b"clients.provider_tokens"] {
+        assert_eq!(crate::overrides::apply(&mut limits, name, 0), Err(What::Override));
+        crate::overrides::apply(&mut limits, name, 7).unwrap();
+        assert_eq!(crate::overrides::apply(&mut limits, name, u64::MAX), Err(What::Override));
     }
+    assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (7, 7));
+    limits.clients.provider_codes = 0;
+    assert!(!jig_protocol_engine_clients::valid(&limits.clients));
+    limits.clients.provider_codes = 1;
+    limits.clients.provider_tokens = 0;
+    assert!(!jig_protocol_engine_clients::valid(&limits.clients));
 }
 #[test]
 fn provider_key_refuses_non_rsa_der_and_malformed_armor() {
@@ -366,7 +397,7 @@ fn issuer_member_paths(pem: &[u8], scratch: &std::path::Path) {
         (provider.key.clone(), Secret::new(Box::from(pem))),
         (provider.clients[0].secret.clone().expect("confidential client"), secret),
     ];
-    let limits = crate::profile(crate::Profile::Small).clients;
+    let limits = crate::stock().clients;
     let issuer = provider_issuer(provider, &files, issuer_urls(), &limits).expect("issuer built from private bytes");
     assert!(issuer.discovery().starts_with(b"{\"issuer\":\"https://app.example.com\""));
     assert_eq!(

@@ -11,7 +11,7 @@ const GRANDCHILD: u64 = 3;
 const ALICE: u64 = 1;
 // The Small profile's store join bound (jig-protocol-config/src/profile/small.rs).
 fn small_joins() -> u32 {
-    jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.joins
+    jig_protocol_config_fixtures::small().store.joins
 }
 // A point read has one row; this fixture's bounded task records fit 1 MiB.
 const POINT_ROWS: u32 = 1;
@@ -94,6 +94,7 @@ const QUERY_ROWS: u32 = 2;
 
 fn project_query() -> core::documents::TaskQuery {
     core::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(PROJECT),
         requester: None,
         root: None,
@@ -164,7 +165,7 @@ fn small_chain(
     dependency: bool,
 ) -> (World, Vec<tasks::TaskRecord>) {
     // Use the complete shipped Small store, including its depth, rather than widening the tiny world fixture.
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let limits = jig_protocol_config_fixtures::small().store;
     let mut world = World::unopened_observed(SEED, limits, None);
     assert_eq!(world.open(), Some(0));
     let mut records = Vec::new();
@@ -257,7 +258,7 @@ fn a_row_four_deep_with_a_sibling_dependency_is_too_linked_on_small() {
 fn a_task_query_lists_a_live_task_past_the_bound() {
     use jig_domain_people as people;
     use skein_lib::{Env, Queue, Time};
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let (mut world, records) = small_chain(FIFTH, false, false, false);
     let mut core = core::Core::new(jig_test_profile::config(SEED).core, &profile.core).expect("core");
     core.projects.push(PROJECT).expect("open fixture project");

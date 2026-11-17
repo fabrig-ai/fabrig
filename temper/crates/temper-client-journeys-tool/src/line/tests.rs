@@ -176,7 +176,7 @@ fn deployment_patch_round_trips_document_and_path_and_refuses_bad_fields() {
     let prefix = "deployment patch engine";
     let mut bad = vec![
         ("deployment".into(), "deployment record"),
-        ("deployment restart engine".into(), "restart"),
+        ("deployment restart engine".into(), "extra field"),
         ("deployment patch".into(), "DOCUMENT"),
         ("deployment patch other landing.json".into(), "other"),
         ("deployment patch \"engine\" landing.json".into(), "DOCUMENT"),

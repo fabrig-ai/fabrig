@@ -60,6 +60,7 @@ mod records {
             | Request::Opened { .. }
             | Request::Refused { .. }
             | Request::Ended { .. }
+            | Request::FiguresTaken { .. }
             | Request::Closed => panic!("an up record"),
         }
     }

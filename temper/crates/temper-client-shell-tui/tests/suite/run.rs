@@ -632,7 +632,7 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
-    link_answer: Option<jig_client_protocol_wire::v28::SignInAnswer>,
+    link_answer: Option<jig_client_protocol_wire::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
     terminal_watch: Option<u64>,
@@ -1559,7 +1559,7 @@ fn me_event(watch: u64) -> Box<[u8]> {
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }
 
-fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v28::DeliveryValue) -> Box<[u8]> {
+fn delivery_event(watch: u64, value: &jig_client_protocol_wire::DeliveryValue) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     use skein_lib::Writer;
     let limits = &w::CEILINGS;
@@ -1575,7 +1575,7 @@ fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v28::DeliveryVal
     sse(&delivery)
 }
 
-fn sse(event: &jig_client_protocol_wire::v28::StreamEvent) -> Box<[u8]> {
+fn sse(event: &jig_client_protocol_wire::StreamEvent) -> Box<[u8]> {
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -1887,7 +1887,7 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     world.files.write(file, 0, LOCAL_LINK).expect("file's link");
     world.files.close(file);
     world.files.close(root);
-    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v28::SignInAnswer::LinkUsed);
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::SignInAnswer::LinkUsed);
     world.horizon = Time::ZERO;
     world.settle();
     world.box_child().write(4, b"restarting forge\nlog split");

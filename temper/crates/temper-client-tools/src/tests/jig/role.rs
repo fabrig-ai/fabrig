@@ -299,6 +299,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
             root.reads.get(&call).unwrap().1,
             c::Read::Tasks {
                 query: c::TaskQuery {
+                    parts: List::with_capacity(0),
                     project: Some(f::PROJECT),
                     requester: None,
                     root: None,
@@ -320,6 +321,7 @@ fn role_list_reads_label_three_and_each_now_headline() {
         let mut second = row.clone();
         second.chip.task = 42;
         let tasks = c::TaskPage {
+            ended_mark: 0,
             live: List::from_boxed(Box::new([row, second])),
             live_after: Some(f::cursor()),
             ended: c::EndedGroup::None,

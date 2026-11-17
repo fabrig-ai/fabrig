@@ -13,6 +13,8 @@ pub enum Request {
     Get { owner: Token, key: Box<[u8]> },
     Load { owner: Token, range: Range, max: Page },
     ReadLog { owner: Token, log: u64, at: u64, direction: Direction, max: u32 },
+    Hold { owner: Token },
+    Release { owner: Token },
     Close { owner: Token },
 }
 
@@ -106,6 +108,15 @@ pub enum Event {
         owner: Token,
         at: u64,
     },
+    Held {
+        owner: Token,
+        last: u64,
+        snapshot: bool,
+        segments: Box<[HeldSegment]>,
+    },
+    Released {
+        owner: Token,
+    },
     Closed {
         owner: Token,
     },
@@ -122,6 +133,15 @@ pub enum Event {
         failure: Failure,
     },
 }
+
+/// Files retained for a copy (skein/docs/design/data/kv.md, 2.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct HeldSegment {
+    pub first: u64,
+    pub end: Option<u64>,
+}
+
+pub const HELD_REMOVALS: usize = 4096;
 
 /// Why a request was refused, as bounded data without a key's or value's bytes
 /// (skein/docs/design/data/kv.md, 2).

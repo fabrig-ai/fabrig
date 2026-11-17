@@ -30,7 +30,7 @@ impl Service {
         runtime: WorkerRuntime,
         seed: u64,
     ) -> Result<Self, Problems> {
-        let io_limits = settings.jig.limits.io;
+        let io_limits = settings.jig.limits.as_ref().expect("checked worker limits").io;
         let prepared = worker_settings::prepare(settings, agent, limits)?;
         let worker_operations = worker_settings::configured_operations(&limits.git_component)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
@@ -148,6 +148,9 @@ impl Service {
             }
             Err(fd) => Err(fd),
         }
+    }
+    pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.worker.built_from(figures);
     }
     pub fn reuse_workspaces(&mut self) {
         self.worker.reuse_workspaces();

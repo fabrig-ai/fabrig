@@ -1,8 +1,8 @@
 //! A press opens the sign-in's tab; its answer points it while the page holds.
 use super::*;
 use jig_client_protocol_wire as w;
-use jig_client_protocol_wire::VERSION;
-use skein_lib::Duration;
+    use jig_client_protocol_wire::VERSION;
+use skein_lib::{Duration, Reader};
 use temper_client_protocol_wire as wire;
 
 fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
