@@ -8,8 +8,8 @@ const SECRET_BYTES: usize = 32;
 const SPAN_NANOS: u64 = 600_000_000_000;
 
 #[test]
-fn an_ask_is_answered_as_the_document_enables_the_approval() {
-    for (approval, asked) in [(Some(true), true), (None, false), (Some(false), false)] {
+fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
+    for (approval, asked) in [(Some(true), true), (None, true), (Some(false), false)] {
         let mut service = match approval {
             Some(enabled) => fixtures::started_with_approval(enabled),
             None => fixtures::started(),

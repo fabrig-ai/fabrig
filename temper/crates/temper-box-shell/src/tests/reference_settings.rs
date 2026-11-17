@@ -298,6 +298,7 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);

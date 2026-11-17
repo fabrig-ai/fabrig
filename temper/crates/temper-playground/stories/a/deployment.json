@@ -72,15 +72,6 @@
   },
   "engine": {
     "clients": {
-      "heartbeat_ms": 10000,
-      "link": true
-    },
-    "connectors": [
-      1
-    ],
-    "deployment": {
-      "directory": "state",
-      "seed": 7
     },
     "hosts": {
       "listener": [
@@ -191,17 +182,6 @@
       {
         "provider": 1,
         "subject": "owner-a"
-      }
-    ],
-    "projects": [],
-    "providers": [
-      {
-        "kind": "link",
-        "number": 1
-      },
-      {
-        "kind": "deployment",
-        "number": 2
       }
     ]
   },

@@ -579,6 +579,7 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("fixture engine")
 }

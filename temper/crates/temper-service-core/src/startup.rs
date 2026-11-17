@@ -33,6 +33,7 @@ pub fn nearest(input: &[u8]) -> Option<Shape> {
     Some(nearest_document(&document))
 }
 
+pub mod moved;
 pub mod problems;
 /// Paths shared by the halves' starts (protocol/services.md, 3).
 #[must_use]

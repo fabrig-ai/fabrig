@@ -82,7 +82,7 @@ fn put(base: &Document, parent: &str, name: &str, value: &[u8]) -> Document {
 }
 
 fn engine(document: &Document, defaults: Defaults) -> Problems {
-    match crate::engine(document, 0, &Directories::working(), defaults) {
+    match crate::engine(document, 0, &Directories::working(), defaults, &crate::Fixed::NONE) {
         Ok(_) => Problems::empty(),
         Err(problems) => problems,
     }

@@ -179,7 +179,6 @@ fn process_settings(value: &mut Value) -> Value {
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
     // Fixture records supply credentials without adopting a project before sign-in.
-    value["engine"]["projects"] = json!([]);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }

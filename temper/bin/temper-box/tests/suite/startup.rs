@@ -17,7 +17,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    document["engine"]["projects"] = serde_json::json!([]);
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
     document["application"]["demo"] = serde_json::Value::Null;
     document["application"]["landing"] = serde_json::json!({"projects": []});
@@ -370,7 +369,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
         serde_json::from_slice(&fs::read(&path).expect("configuration bytes")).expect("configuration JSON");
     let original: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("jig fixture");
-    document["engine"]["projects"][0]["policy"] = original["engine"]["projects"][0]["policy"].clone();
+    document["engine"]["projects"] = original["engine"]["projects"].clone();
     support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
     let ended = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
@@ -382,7 +381,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
     assert_eq!((ended.stdout).len(), 0);
     assert_eq!(
         ended.stderr,
-        b"temper serve: engine.projects[0].policy: name a policy, policy: 1; change it with temper ctl settings apply\n"
+        b"temper serve: engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
     );
     scratch.remove();
 }

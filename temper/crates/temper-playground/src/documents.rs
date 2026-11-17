@@ -158,7 +158,6 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     for (name, count) in [
         ("core.load_slots", 8),
         ("core.run_bytes", 32_768),
@@ -207,9 +206,6 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
 /// The chat stories' policy: seed projects on the world's policy 2, delegation depth 4, and the
 /// chat limits.
 pub fn chat_policy(value: &mut serde_json::Value) {
-    for seed in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        seed["policy"] = 2.into();
-    }
     for project in value["world_settings"]["policies"].as_array_mut().expect("world policies") {
         project["policy"]["ceiling"]["delegation"]["depth"] = 4.into();
         for role in project["policy"]["roles"].as_array_mut().expect("roles") {

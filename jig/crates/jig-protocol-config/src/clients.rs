@@ -20,9 +20,19 @@ pub(crate) fn parse(
     at: u32,
     path: &Path,
     directories: &Directories,
+    fixed: Option<&crate::FixedClients>,
     problems: &mut Problems,
 ) -> Option<Clients> {
     let mut object = check::object(document, at, path, problems, "clients")?;
+    if let Some(given) = fixed {
+        for name in [b"heartbeat_ms".as_slice(), b"link", b"approval"] {
+            crate::fixed::refuse(&mut object, document, name, path, problems);
+        }
+        let mut clients = given.clients();
+        clients.provider = provider::parse(&mut object, document, path, directories, problems);
+        object.finish(document, path, problems);
+        return Some(clients);
+    }
     let heartbeat = check::duration(&mut object, document, b"heartbeat_ms", path, problems);
     let mut link = None;
     if let Some(at) = object.required(document, b"link", path, problems) {

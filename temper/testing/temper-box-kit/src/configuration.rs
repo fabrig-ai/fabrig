@@ -34,10 +34,6 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
     use_stock(&mut value);
-    for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        project["policy"] = 1.into();
-        project.as_object_mut().expect("seed").remove("roles");
-    }
     // A Create member owns stock's fourteen grants and eighteen executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
@@ -50,7 +46,6 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.

@@ -26,11 +26,6 @@ pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
 pub fn demo_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
-        .replacen(
-            "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
-            1,
-        )
         .replace("\"setup\":[]", DEMO_SETUP)
         .replace("\"demo\":null", DEMO)
         .into_bytes()
@@ -41,7 +36,7 @@ pub fn demo_service() -> crate::Service {
     let document = with(&document, b"workers", b"[]");
     let document = with(&document, b"application.workers", b"[]");
     let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
-    let start = crate::startup::checked_start_with(
+    let mut start = crate::startup::checked_start_with(
         &document,
         &jig_protocol_config::Directories::working(),
         &files(),
@@ -56,6 +51,18 @@ pub fn demo_service() -> crate::Service {
         },
     )
     .unwrap();
+    let seeded = super::engine().jig;
+    start.engine.jig.projects = seeded.projects;
+    start.engine.jig.owners = seeded.owners;
+    start.engine.jig.acts = Box::new([jig_domain_people::ActGrant {
+        connector: 1,
+        may: Box::new([
+            jig_domain_people::ActKind::Close,
+            jig_domain_people::ActKind::AddKey,
+            jig_domain_people::ActKind::RemoveAccount,
+            jig_domain_people::ActKind::Adopt,
+        ]),
+    }]);
     crate::Service::prepared(start.engine, &super::seeds(), None, start.forges, start.io, None, None).unwrap()
 }
 pub fn document() -> Box<[u8]> {

@@ -517,6 +517,7 @@ pub fn read(directory: &Path) {
 pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    temper_playground::documents::settings::strip_fixed(&mut document);
     let sections =
         document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
     *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();

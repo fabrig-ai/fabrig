@@ -122,7 +122,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
 #[test]
 fn init_targets_change_together_and_preserve_registration_terms() {
     let (mut temper, agent, paths, peers) = fixture();
-    temper["engine"]["deployment"]["seed"] = 99.into();
+    temper["engine"]["memory_bytes"] = 1_152_921_504_606_846_976_u64.into();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
     assert!(effective["application"].get("charter").is_none());
@@ -172,7 +172,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         assert_eq!(endpoint["transport"], "plaintext");
         assert!(endpoint.get("server_name").is_none());
     }
-    assert_eq!(effective["engine"]["deployment"]["seed"], 99);
+    assert_eq!(effective["engine"]["memory_bytes"], 1_152_921_504_606_846_976_u64);
     assert_eq!(effective["application"]["clients"]["bundle"], "/effective/config/bundle-loopback");
     assert_eq!(effective["workers"][0]["agent"]["configuration"], "/effective/config/agent.json");
     assert_eq!(
@@ -727,6 +727,7 @@ fn admit(bytes: &[u8]) -> jig_protocol_config::Engine {
         engine,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap()
 }

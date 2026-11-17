@@ -392,11 +392,12 @@ impl ServiceHost {
     }
     fn prepare_service(&self) -> Driven {
         use std::os::fd::{AsRawFd, IntoRawFd};
-        let prepared = temper_box_shell::prepare_in_with(
+        let prepared = temper_box_shell::prepare_in_with_projects(
             &[],
             b"/",
             &Self::directories(&self.path, self.cluster.is_some()),
             &fixtures::given(&self.path),
+            &fixtures::projects(&self.path),
         )
         .expect("standalone preparation");
         let mut service = Driven::new(prepared);

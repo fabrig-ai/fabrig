@@ -29,15 +29,14 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
-    for directory in [&config, &cache] {
+    for directory in [&config, &data, &cache] {
         std::fs::create_dir(directory).expect("tool directory");
     }
-    copy(&skein_scratch::paths::tree().join("tests/one-process/golden/baseline/state"), &data);
+    copy(&skein_scratch::paths::tree().join("tests/one-process/golden/baseline/state"), &data.join("state"));
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned example");
     document["workers"] = serde_json::json!([]);
     document["application"]["workers"] = serde_json::json!([]);
-    document["engine"]["deployment"]["directory"] = data.to_str().expect("data path").into();
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
     let mut workers = Vec::new();
     for (name, digit) in [("worker-a", '0'), ("worker-b", '1'), ("worker-c", '2')] {
@@ -87,10 +86,15 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
 #[test]
 fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
     let (_scratch, directories) = deployment();
-    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("active");
+    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("state/active");
     let active = std::fs::read(&active_path).expect("baseline active generation");
-    let code = run("temper-engine", &directories, &Request::Check(directories.data.clone()), "test-build")
-        .expect("upgrade reaches its report");
+    let code = run(
+        "temper-engine",
+        &directories,
+        &Request::Check([directories.data.as_ref(), b"/state"].concat().into()),
+        "test-build",
+    )
+    .expect("upgrade reaches its report");
     assert_eq!(code, 1, "baseline's retired milestones refuse the rehearsal");
     assert_eq!(std::fs::read(active_path).expect("active after refusal"), active);
 }

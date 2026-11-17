@@ -61,6 +61,11 @@ impl Harness for Deployment {
     fn agent_settings() -> temper_service::settings::Agent {
         agent_settings()
     }
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+        let mut document = document.clone();
+        document["world_settings"] = fixtures::world_document()["world_settings"].clone();
+        temper_playground::documents::settings::seed_configuration(engine, &document);
+    }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         stories::given(document)
     }

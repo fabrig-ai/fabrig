@@ -84,14 +84,31 @@ fn provider_is_optional_and_its_private_paths_are_data_paths() {
     assert!(fixtures::engine(fixtures::ENGINE_SMALL).unwrap().clients.provider.is_none());
     let null = fixtures::with(fixtures::ENGINE_SMALL, br#""link": true"#, br#""link":true,"provider":null"#);
     assert!(fixtures::engine(&null).unwrap().clients.provider.is_none());
-    let bytes = bytes();
-    let document = crate::document(&bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
-    let dirs = crate::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document).unwrap();
-    let provider = engine.clients.provider.unwrap();
-    assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
-    assert_eq!(provider.clients[0].secret.as_deref(), Some(b"/data/secrets/app".as_slice()));
-    assert_eq!(provider.addresses.as_ref(), &[3]);
+    for fixed in [
+        crate::Fixed::NONE,
+        crate::Fixed {
+            clients: Some(crate::FixedClients {
+                heartbeat: skein_lib::Duration::from_millis(10_000),
+                link: true,
+                approval: true,
+            }),
+            ..crate::Fixed::NONE
+        },
+    ] {
+        let mut bytes = bytes();
+        if fixed.clients.is_some() {
+            bytes = fixtures::with(&bytes, b"\"heartbeat_ms\": 10000,", b"");
+            bytes = fixtures::with(&bytes, b",\"link\":true", b"");
+        }
+        let document =
+            crate::document(&bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
+        let dirs = crate::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+        let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document, &fixed).unwrap();
+        let provider = engine.clients.provider.unwrap();
+        assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
+        assert_eq!(provider.clients[0].secret.as_deref(), Some(b"/data/secrets/app".as_slice()));
+        assert_eq!(provider.addresses.as_ref(), &[3]);
+    }
 }
 #[test]
 fn client_ids_are_visible_ascii_and_unique() {

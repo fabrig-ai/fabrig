@@ -11,7 +11,6 @@ use std::{
 pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["providers"].as_array_mut().expect("providers").push(json!({"number":3,"kind":"application"}));
     value["engine"]["owners"] = json!([{"provider":3,"subject":"sam@example.com"}]);
     value["engine"]["clients"]["provider"] = json!({
         "key":"provider.key", "addresses":[3],

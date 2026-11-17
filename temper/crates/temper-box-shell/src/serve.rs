@@ -38,11 +38,13 @@ pub fn prepare_with_store(
         None,
         None,
         &service::stock::Given::Stock,
+        &[],
     )
     .map(|(service, store, _)| (service, store))
 }
 #[expect(
     clippy::too_many_arguments,
+    clippy::too_many_lines,
     reason = "the standalone start supplies the binary beside the resolved process facts"
 )]
 fn prepare_with_limits(
@@ -57,6 +59,7 @@ fn prepare_with_limits(
     link_secret: Option<Secret>,
     local_secret: Option<Secret>,
     given: &service::stock::Given,
+    projects: &[jig_protocol_config::Project],
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
@@ -104,19 +107,41 @@ fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
-    let mut service = service::startup::with_setup_given(
+    let mut start = service::startup::checked_start_with(
         bytes,
         &jig_directories(directories),
         &files,
         agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
-        Some(accounts),
-        runtime,
         List::with_capacity(0),
         Some(&checked),
+        given,
+    )
+    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if !projects.is_empty() {
+        let engine = start.engine_mut();
+        engine.jig.owners = engine
+            .jig
+            .owners
+            .iter()
+            .flat_map(|owner| {
+                projects.iter().map(|project| jig_domain_people::InitialOwner {
+                    project: project.number,
+                    identity: owner.identity.clone(),
+                })
+            })
+            .collect();
+        engine.jig.projects = projects.into();
+    }
+    let mut service = service::startup::from_checked(
+        start,
+        &files,
+        agent.as_ref().map(|prepared| &prepared.agent),
+        &seeds,
+        Some(accounts),
+        runtime,
         if under_box { Some(limits.line_bytes) } else { None },
         program_login,
-        given,
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -188,6 +213,7 @@ fn operations_in_mode(
         None,
         None,
         &service::stock::Given::Stock,
+        &[],
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -215,6 +241,17 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<Service, String> {
+    prepare_in_with_projects(binary, environment, working, directories, given, &[])
+}
+/// Prepare a world's typed seed configuration after its document is checked.
+pub fn prepare_in_with_projects(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
@@ -229,6 +266,7 @@ pub fn prepare_in_with(
         None,
         None,
         given,
+        projects,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -259,6 +297,7 @@ pub fn operations_in_with(
         None,
         None,
         given,
+        &[],
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -291,6 +330,7 @@ pub fn run(
                 input.link,
                 input.local,
                 &service::stock::Given::Stock,
+                &[],
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

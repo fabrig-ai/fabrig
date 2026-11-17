@@ -155,7 +155,13 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let mut application = object(document, application.expect("required application checked"), &application_path)?;
     let (listener, bundle) =
         server(document, &mut application, link_enabled(document, at), approval_enabled(document, at), &mut problems)?;
-    let engine = match config::engine(document, at, &config::Directories::working(), config::Defaults::Document) {
+    let engine = match config::engine(
+        document,
+        at,
+        &config::Directories::working(),
+        config::Defaults::Document,
+        &config::Fixed::NONE,
+    ) {
         Ok(value) => value,
         Err(found) => {
             for found in &found.problems {

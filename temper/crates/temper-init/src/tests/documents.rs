@@ -82,7 +82,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
     // The closer adds procedure p6 beside p2, p3 and p4 on each configured connector.
-    let procedures = 4 * written["engine"]["connectors"].as_array().unwrap().len();
+    let procedures = 4;
     assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
     // The reference omits the trial, drafter and general standing role from delegation.
     let mut delegated = 0;
@@ -95,15 +95,6 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert_eq!(executors, 18);
     assert!(executors <= usize::try_from(limits.authority.executors).unwrap());
     assert!(executors <= usize::try_from(limits.tasks.executor_kinds).unwrap());
-}
-
-#[test]
-fn the_documents_enable_the_printed_link_and_the_approval() {
-    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
-        let value = parse(source);
-        assert_eq!(value["engine"]["clients"]["link"], true, "engine.clients.link");
-        assert_eq!(value["engine"]["clients"]["approval"], true, "engine.clients.approval");
-    }
 }
 
 #[test]
@@ -207,8 +198,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         );
         let mut expected = owned.clone();
         expected["workers"][0]["graces"]["grace_ms"] = json!(300_000_u64);
-        expected["engine"]["acts"] =
-            json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
@@ -288,9 +277,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     None => Value::Null,
                 },
             ),
-            ("/engine/projects", parse(b"[]")),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
-            ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
             ("/workers/0/agent/program", json!(text(facts.binary))),
             ("/workers/0/agent/configuration", json!("/c/temper/agent.json")),
@@ -298,7 +285,9 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         ] {
             set(&mut expected, path, value);
         }
-        for member in ["charters", "templates", "policies", "rules"] {
+        for member in
+            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
+        {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
@@ -657,13 +646,19 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
 
 #[test]
 fn the_template_seeds_no_project_and_no_settings_members() {
-    let document = parse(template::TEMPER);
-    assert_eq!(document["engine"]["projects"], parse(b"[]"));
-    for member in ["charters", "templates", "policies", "rules"] {
-        assert!(document["engine"].get(member).is_none());
+    for template in [template::TEMPER, template::BARE] {
+        let document = parse(template);
+        for member in
+            ["charters", "templates", "policies", "rules", "deployment", "providers", "connectors", "acts", "projects"]
+        {
+            assert!(document["engine"].get(member).is_none());
+        }
+        assert!(document["application"].get("landing").is_none());
+        assert!(document["application"].get("charter").is_none());
+        for member in ["heartbeat_ms", "link", "approval"] {
+            assert!(document["engine"]["clients"].get(member).is_none());
+        }
     }
-    assert!(document["application"].get("landing").is_none());
-    assert!(document["application"].get("charter").is_none());
 }
 
 #[test]

@@ -7,7 +7,6 @@ fn first_link_named() -> temper_service::startup::Named {
     let directory = std::path::Path::new("/fixture");
     let directories = super::configuration::directories(directory);
     let mut document = super::configuration::check_document(directory);
-    document["engine"]["clients"]["link"] = true.into();
     document["application"]["clients"]["listener"] = serde_json::json!({"socket":"127.0.0.1:8367"});
     document["application"]["clients"]["public"] = "https://temper.example.invalid:8443".into();
     temper_service::startup::named(

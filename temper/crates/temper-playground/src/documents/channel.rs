@@ -52,13 +52,8 @@ const ENGINE: &[u8] = br#"{
 {"number": 2, "name": "goal", "executor": "chosen", "contract": {"report": {"words": 32}}, "shallower": 1, "budget": "given", "deadline": "given", "tracked": {"priority": 1}, "conversation": false, "listed": true, "retention": "kept", "label": 2, "grace_ms": null, "llm": null}
 ],
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
 "owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1,2],
 "memory_bytes": 1152921504606846976,
 "rules": {
 "ceiling": {"tools": 0, "grants": [],
@@ -66,17 +61,7 @@ const ENGINE: &[u8] = br#"{
 "budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
 "period_spend": 100, "minimum_run_spend": 1, "maximum_run_spend": 100,
 "implies": [], "requirements": []
-},
-"projects": [{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
-"policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
-"ceiling": {"tools": 0, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
-"roles": [{"number": 0, "period_spend": 100, "requests": 511, "decides": 31,
-"authority": {"tools": 0, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
-}}]
+}
 }"#;
 
 pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
@@ -89,6 +74,74 @@ pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
 "memory_bytes":1152921504606846976
 }],"application":{"workers":[{"root":"agent-root"}]}}
 "#;
+
+pub(super) const POLICIES: &[u8] = br#"[
+  {
+    "number": 1,
+    "roles": [
+      {
+        "connector": 1,
+        "permission": 1,
+        "role": 0
+      }
+    ],
+    "policy": {
+      "templates": [],
+      "escalation_role": 0,
+      "period_spend": 100,
+      "projections": [],
+      "requirements": [],
+      "ceiling": {
+        "tools": 0,
+        "grants": [],
+        "delegation": {
+          "kinds": [
+            {
+              "kind": "charter",
+              "number": 1
+            }
+          ],
+          "tasks": 8,
+          "depth": 8
+        },
+        "budget": {
+          "spend": 100,
+          "deadline_unix_seconds": null
+        },
+        "notes": 0,
+        "note_resources": []
+      },
+      "roles": [
+        {
+          "number": 0,
+          "period_spend": 100,
+          "requests": 511,
+          "decides": 31,
+          "authority": {
+            "tools": 0,
+            "grants": [],
+            "delegation": {
+              "kinds": [
+                {
+                  "kind": "charter",
+                  "number": 1
+                }
+              ],
+              "tasks": 8,
+              "depth": 8
+            },
+            "budget": {
+              "spend": 100,
+              "deadline_unix_seconds": null
+            },
+            "notes": 0,
+            "note_resources": []
+          }
+        }
+      ]
+    }
+  }
+]"#;
 
 pub(super) fn engine_document() -> Vec<u8> {
     document(ENGINE)

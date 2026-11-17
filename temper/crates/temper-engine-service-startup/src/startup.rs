@@ -232,6 +232,42 @@ fn problem(path: Path, what: What) -> Problems {
     problems.push(path, what);
     problems
 }
+/// temper's engine constants (protocol/configuration/moved.md, 2).
+/// # Errors
+/// A data directory whose joined store path exceeds the path bound.
+pub fn fixed(directories: &config::Directories) -> Result<config::Fixed, config::Problems> {
+    let directory = match directories.join(config::Directory::Data, b"state") {
+        Ok(directory) => directory,
+        Err(what) => {
+            let mut problems = config::Problems::empty();
+            problems.push(Path::root().member(b"deployment").member(b"directory"), what);
+            return Err(problems);
+        }
+    };
+    Ok(config::Fixed {
+        deployment: Some(config::Deployment { directory, seed: Some(7) }),
+        providers: Some(Box::new([
+            config::IdentityProvider { number: 1, kind: config::ProviderKind::Link },
+            config::IdentityProvider { number: 2, kind: config::ProviderKind::Deployment },
+            config::IdentityProvider { number: 3, kind: config::ProviderKind::Application },
+        ])),
+        connectors: Some(Box::new([1])),
+        acts: Some(Box::new([jig_domain_people::ActGrant {
+            connector: 1,
+            may: Box::new([
+                jig_domain_people::ActKind::RemoveProject,
+                jig_domain_people::ActKind::RemoveAccount,
+                jig_domain_people::ActKind::Adopt,
+            ]),
+        }])),
+        projects: Some(Box::new([])),
+        clients: Some(config::FixedClients {
+            heartbeat: skein_lib::Duration::from_millis(10_000),
+            link: true,
+            approval: true,
+        }),
+    })
+}
 /// Parse jig's engine member and pass the supplied defaults, refusing document
 /// settings members (protocol/configuration/settings.md, 4 and 5).
 /// # Errors
@@ -242,7 +278,7 @@ pub fn engine_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<config::Engine, config::Problems> {
-    let mut engine = config::engine(document, at, directories, config::Defaults::Passed)?;
+    let mut engine = config::engine(document, at, directories, config::Defaults::Passed, &fixed(directories)?)?;
     let stock = match given {
         crate::stock::Given::Stock => true,
         crate::stock::Given::Own { .. } => false,
@@ -316,25 +352,6 @@ fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Prob
         );
     }
 }
-// Temper seeds name settings; jig also serves callers that accept inline policies.
-fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
-    let Some(projects) = member(document, engine, b"projects") else { return };
-    let Ok(projects) = read::list(document, projects, document.len()) else { return };
-    for (index, project) in projects.iter().enumerate() {
-        if let Some(policy) = member(document, *project, b"policy")
-            && document.token(policy).expect("policy token").kind == skein_json::document::Kind::ObjectStart
-        {
-            problems.push(
-                Path::root()
-                    .member(b"engine")
-                    .member(b"projects")
-                    .child(Segment::Index(u32::try_from(index).expect("bounded projects")))
-                    .member(b"policy"),
-                What::Half(EngineWhat::InlineSeedPolicy),
-            );
-        }
-    }
-}
 #[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
 fn load_document(
     document: &skein_json::Document,
@@ -370,7 +387,6 @@ fn load_document(
     if let Some(at) = engine_at {
         let before = problems.problems.len();
         watch_rooms(document, at, &mut problems);
-        inline_seed_policies(document, at, &mut problems);
         if problems.problems.len() != before {
             return Err(problems);
         }

@@ -4,9 +4,7 @@ Kind: reference
 
 The engine and worker configuration members, their bounds and what temper-box init --box writes.
 
-A seeded project's policy must be a number; inline policies are refused.
-
-Every member is read at startup; a change to any member needs a restart.
+Configuration is read at startup; changing a permitted member needs a restart.
 
 Objects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.
 
@@ -17,17 +15,17 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 - `limits`: limits; required; init writes object. Selects a limits profile and its named overrides.
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
 - `hosts`: hosts; required; init writes object. Names the workers and their listener addresses.
-- `clients`: clients; required; init writes object. Configures client heartbeats and sign-in entrances.
-- `deployment`: deployment; required; init writes object. Names the deployment's data directory and optional test seed.
-- `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Seeds the deployment's first owners and their roles in every seeded project.
-- `providers`: list of identity-provider; required; init writes list (2 entries). Declares the identity providers' numbers and kinds.
+- `clients`: clients; optional; init writes object. Configures the optional OpenID provider.
+- `deployment`: refused: moved: temper keeps the store in the data directory's state
+- `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Names the deployment's first owners.
+- `providers`: refused: moved: temper fixes its identity providers: 1 link, 2 deployment, 3 Google's
 - `charters`: refused: settings live in the store
 - `templates`: refused: settings live in the store
 - `policies`: refused: settings live in the store
 - `rules`: refused: settings live in the store
-- `projects`: list of project, authority.projects; required; init writes []. Seeds projects, their names, policies and parties' roles on the first start.
-- `connectors`: list of integer, core.connectors; 0 to 65534; required; init writes [1]. Declares the application's connector numbers to the core.
-- `acts`: list of act; optional; init writes list (1 entry). Grants connectors deployment acts in the owners' name, with none granted when absent.
+- `projects`: refused: moved: projects are made at runtime; make one from the client or temper ctl
+- `connectors`: refused: moved: temper fixes its connector, the forge's, 1
+- `acts`: refused: moved: temper fixes the forge connector's acts
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; required; init writes 1073741824. Gives the application's byte budget for the engine.
 
 ## engine.limits
@@ -37,33 +35,12 @@ Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
 - `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
 
-## engine.deployment
-
-Shape: `deployment`. Paths: `engine.deployment`. The deployment's data directory and seed.
-
-- `directory`: text, 4096 bytes; data path; required; init writes "deployment". Names the directory holding the store, transcripts and secrets' store.
-- `seed`: integer, 0 to 18446744073709551615; optional; init writes 7. Supplies the deployment's seed for tests.
-
 ## engine.owners[]
 
 Shape: `owner`. Paths: `engine.owners[]`. An identity seeded as one of the deployment's first owners.
 
 - `provider`: integer, 0 to 65535; required; init writes 1. Names the identity's configured provider.
 - `subject`: text, people.identity_bytes; at most 4096 bytes; required; init writes "person@localhost". Names the owner's subject under that provider.
-
-## engine.providers[]
-
-Shape: `identity-provider`. Paths: `engine.providers[]`. An identity provider number and its kind.
-
-- `number`: integer, 0 to 65535; required; init writes 1 | 2. Gives the provider's number, unique among identity providers.
-- `kind`: text, link, deployment or application; required; init writes "link" | "deployment". Chooses a printed link, deployment credentials or an application sign-in.
-
-## engine.acts[]
-
-Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
-
-- `connector`: integer, 0 to 65535; required; init writes 1. Names the configured connector granted these acts.
-- `may`: list of text, close, add_key, remove_account, adopt, make_project, remove_project; required; init writes ["remove_project","remove_account","adopt"]. Lists the deployment acts the connector may make, each at most once.
 
 ## engine.llm
 
@@ -164,11 +141,11 @@ Shape: `worker-name`. Paths: `engine.hosts.workers[]`. One worker accepted by th
 
 ## engine.clients
 
-Shape: `clients`. Paths: `engine.clients`. Client stream heartbeats and sign-in entrances.
+Shape: `clients`. Paths: `engine.clients`. The clients' OpenID provider and fixed members.
 
-- `heartbeat_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Sets the heartbeat interval of clients' streams.
-- `link`: true or false; required; init writes true. Offers the printed link's one-time secret at start when true.
-- `approval`: true or false; optional; init writes true. Enables browser-approved sign-ins when true, with false when absent.
+- `heartbeat_ms`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
+- `link`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
+- `approval`: refused: moved: temper fixes the clients' heartbeat, printed link and approval
 - `provider`: client-provider or null; optional; init writes object. Configures the deployment's OpenID provider, with none when absent or null.
 
 ## engine.clients.provider
@@ -186,23 +163,6 @@ Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client a
 - `id`: text, 1 to 255 visible ASCII bytes; required; init writes "forgejo". Gives the client's unique identifier.
 - `secret`: text or null, 4096 bytes; data path; required; init writes null. Names the client's secret file, or null for a public client.
 - `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init writes "http://127.0.0.1:8368/user/oauth2/temper/callback". Gives the client's one redirect URI.
-
-## engine.projects[]
-
-Shape: `project`. Paths: `engine.projects[]`. A project seeded on the first start.
-
-- `number`: integer, 1 to 4294967295; required; init leaves it out. Gives the seed project's unique number, with zero reserved for the deployment.
-- `name`: text, people project-name rules; optional; init leaves it out. Gives the seed project's unique name, defaulting to Project N for its number.
-- `policy`: policy or integer, policy number: 0 to 4294967295; required; init leaves it out. Gives an inline policy or names a policy among the current settings to copy.
-- `roles`: list of permission-role, core.policy_bytes; required with inline policy; optional; init leaves it out. Maps connector permissions to roles when the policy is inline.
-
-## engine.projects[].roles[]
-
-Shape: `permission-role`. Paths: `engine.projects[].roles[]`. A connector permission mapped to a policy role.
-
-- `connector`: integer, 0 to 65535; required; init leaves it out. Names the connector whose permission is mapped.
-- `permission`: integer, 0 to 65535; required; init leaves it out. Names the connector's permission.
-- `role`: integer, 0 to 4294967295; required; init leaves it out. Names the policy role assigned on adoption with that permission.
 
 ## workers[]
 

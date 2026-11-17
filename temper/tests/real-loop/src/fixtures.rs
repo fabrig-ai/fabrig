@@ -51,7 +51,6 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
@@ -562,6 +561,23 @@ pub fn standing_chats(directory: &Path) -> std::io::Result<()> {
         private(&path, &serde_json::to_vec(&flags)?)?;
     }
     Ok(())
+}
+
+/// Typed seed projects for these kernel-loop worlds; none is read from startup JSON.
+#[must_use]
+pub fn projects(directory: &Path) -> Box<[jig_protocol_config::Project]> {
+    let deployment: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("world document"))
+            .expect("world JSON");
+    let flags: serde_json::Value = if directory.join("world-settings.json").exists() {
+        serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("world settings"))
+            .expect("world settings JSON")
+    } else {
+        serde_json::json!({})
+    };
+    let mut deployment = deployment;
+    deployment["world_settings"] = flags;
+    crate::settings::configuration(&deployment).projects
 }
 
 #[cfg(test)]

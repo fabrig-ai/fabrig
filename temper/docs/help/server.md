@@ -52,9 +52,8 @@ Copy `owned.json` to `CONFIG/temper.json`, `owned/`'s files to
   "capacity": 1, "path": "/usr/bin:/bin"}` or `null` for no CI,
   `person` your Forgejo login and address, `public`
   `"https://git.example.com"`;
-- `engine.providers` gains `{"number": 3, "kind": "application"}`,
-  Google's; `engine.owners`: `[{"provider": 3, "subject":
-  "sam@example.com"}]`;
+- `engine.owners`: `[{"provider": 3, "subject": "sam@example.com"}]`;
+  provider 3 is Google's, fixed by temper;
 - `application.sign_in`: `{"google": {"provider": 3, "client":
   "CLIENT_ID", "secret": "secrets/google-client.secret", "endpoints":
   null}, "members": [{"address": "sam@example.com", "login": "sam"}]}`.

@@ -42,7 +42,7 @@ pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
 use temper_engine_service::startup::{checked_store, engine_limits, prepare_forges};
-pub use temper_engine_service::startup::{engine, engine_with};
+pub use temper_engine_service::startup::{engine, engine_with, fixed};
 
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
@@ -276,25 +276,6 @@ fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Prob
         );
     }
 }
-// Temper seeds name settings; jig also serves callers that accept inline policies.
-fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
-    let Some(projects) = member(document, engine, b"projects") else { return };
-    let Ok(projects) = read::list(document, projects, document.len()) else { return };
-    for (index, project) in projects.iter().enumerate() {
-        if let Some(policy) = member(document, *project, b"policy")
-            && document.token(policy).expect("policy token").kind == skein_json::document::Kind::ObjectStart
-        {
-            problems.push(
-                Path::root()
-                    .member(b"engine")
-                    .member(b"projects")
-                    .child(Segment::Index(u32::try_from(index).expect("bounded projects")))
-                    .member(b"policy"),
-                What::Half(EngineWhat::InlineSeedPolicy),
-            );
-        }
-    }
-}
 #[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
 fn load_document(
     document: &skein_json::Document,
@@ -327,7 +308,6 @@ fn load_document(
     if let Some(at) = engine_at {
         let before = problems.problems.len();
         watch_rooms(document, at, &mut problems);
-        inline_seed_policies(document, at, &mut problems);
         if problems.problems.len() != before {
             return Err(problems);
         }
@@ -570,13 +550,20 @@ fn check_files(parsed: &Parsed, files: &settings::Files) -> Result<(), Problems>
     }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
-pub(crate) struct CheckedStart {
+#[derive(Debug)]
+pub struct CheckedStart {
     warnings: Problems,
     not_set_up: List<u16>,
     pub(crate) engine: settings::Engine,
     worker: Option<(settings::Worker, crate::worker_settings::Prepared)>,
     io: skein_io::Limits,
     forges: skein_forge_connection::Settings,
+}
+impl CheckedStart {
+    /// The typed configuration, before a service is constructed.
+    pub fn engine_mut(&mut self) -> &mut settings::Engine {
+        &mut self.engine
+    }
 }
 /// Every check startup makes, without constructing a service.
 /// # Errors
@@ -607,7 +594,7 @@ pub fn check(
     clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
-pub(crate) fn checked_start_with(
+pub fn checked_start_with(
     document: &[u8],
     directories: &config::Directories,
     files: &settings::Files,
@@ -862,8 +849,23 @@ pub fn with_setup_given(
     given: &crate::stock::Given,
     program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
-    let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } =
-        checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
+    let checked = checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
+    from_checked(checked, files, agent, seeds, accounts, runtime, box_line_bytes, program_login, program_environment)
+}
+/// Construct from typed startup configuration (protocol/configuration/moved.md, 2).
+#[expect(clippy::too_many_arguments, reason = "the prepared start takes the same runtime facts as its document entry")]
+pub fn from_checked(
+    checked: CheckedStart,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    runtime: Option<WorkerRuntime>,
+    box_line_bytes: Option<u32>,
+    program_login: Option<Box<[u8]>>,
+    program_environment: Box<[u8]>,
+) -> Result<Service, Problems> {
+    let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } = checked;
     engine.program_environment = program_environment;
 
     let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)

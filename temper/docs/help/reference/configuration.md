@@ -4,7 +4,7 @@ Kind: reference
 
 The configuration document's top level and application members, their bounds and what temper-box init --box writes.
 
-Every member is read at startup; a change to any member needs a restart.
+Configuration is read at startup; changing a permitted member needs a restart.
 
 Objects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.
 Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.

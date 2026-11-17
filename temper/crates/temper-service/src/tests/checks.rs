@@ -297,7 +297,6 @@ enum Shape {
     ClientProcess,
     ClientRemote,
     ClientRemoteApproval,
-    Connectors,
     Program,
     Configuration,
 }
@@ -334,14 +333,13 @@ fn apply_shape(
             engine.clients.approval = true;
             engine.clients.link = false;
         }
-        Shape::Connectors => engine.connectors = Box::new([1, 2]),
         Shape::Program => workers[0].agent.program = b"temper".as_slice().into(),
         Shape::Configuration => workers[0].agent.configuration = b"agent.json".as_slice().into(),
     }
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 8] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
         (
@@ -364,11 +362,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Half(crate::startup::EngineWhat::Loopback),
-        ),
-        (
-            Shape::Connectors,
-            Path::root().member(b"engine").member(b"connectors"),
-            What::Half(crate::startup::EngineWhat::Connectors),
         ),
         (
             Shape::Program,
@@ -531,9 +524,14 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     )
     .unwrap();
     let engine_at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
-    let mut engine =
-        config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
-            .unwrap();
+    let mut engine = config::engine(
+        &document,
+        engine_at,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
@@ -673,8 +671,14 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     );
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
-    let mut engine =
-        config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
+    let mut engine = config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();

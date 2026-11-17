@@ -46,15 +46,10 @@ fn expanded() -> Box<[u8]> {
     let input = fixtures::with(&fixtures::turn_document(), b"application", APPLICATION);
     let input = fixtures::with(
         &input,
-        b"engine.providers",
-        br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#,
-    );
-    let input = fixtures::with(
-        &input,
         b"engine.owners",
         br#"[{"provider":1,"subject":"owner-a"},{"provider":3,"subject":"person@example.test"}]"#,
     );
-    fixtures::with(&input, b"engine.clients", br#"{"heartbeat_ms":10000,"link":true,"provider":{"key":"provider.pem","clients":[{"id":"forge-client","secret":"forge.secret","redirect_uri":"https://forge.example.test/user/oauth2/temper/callback"}],"addresses":[]}}"#)
+    fixtures::with(&input, b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"forge-client","secret":"forge.secret","redirect_uri":"https://forge.example.test/user/oauth2/temper/callback"}],"addresses":[]}}"#)
 }
 
 fn objects(document: &skein_json::Document, path: &str) -> Vec<(u32, Path)> {

@@ -61,7 +61,7 @@ fn single_engine() -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
 }
 
 #[test]
@@ -1292,16 +1292,11 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
+    let document = generated();
     let engine_bytes = fixtures::value(&document, b"engine");
     let engine = fixtures::parse_engine(&engine_bytes);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let core = config::core(&engine, [1; 16], 7);
-    for ceiling in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).unwrap().policy.ceiling,
-        &core.seed_projects[0].policy.policy.ceiling,
-    ] {
+    for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;
         for executor in [Executor::Procedure(6), Executor::Job(4)] {
             assert!(ceiling.delegation.kinds.contains(&executor));

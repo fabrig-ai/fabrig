@@ -44,7 +44,6 @@ fn a_public_client_refuses_before_creating_any_file() {
         "clients":[{"id":"forgejo", "secret":null,
             "redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
     });
-    value["engine"]["providers"].as_array_mut().expect("providers").push(json!({"number":3,"kind":"application"}));
     value["engine"]["owners"] = json!([{"provider":3,"subject":"sam@example.com"}]);
     value["application"]["sign_in"] = json!({
         "google":{"provider":3,"client":"temper-test","secret":"google.secret","endpoints":{

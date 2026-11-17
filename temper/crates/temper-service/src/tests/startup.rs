@@ -649,24 +649,18 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 }
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
-    let input = fixtures::document();
-    let input = core::str::from_utf8(&input)
-        .unwrap()
-        .replace("\"memory_bytes\": 1152921504606846976,", "\"memory_bytes\": \"bad\",");
-    let problems = crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
+    let input = fixtures::with(&fixtures::document(), b"engine.memory_bytes", br#""bad""#);
+    let problems = crate::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
 fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
     let input = fixtures::document();
-    let input = core::str::from_utf8(&input).unwrap();
-    let needle = "\"memory_bytes\": 1152921504606846976,";
-    assert_eq!(input.matches(needle).count(), 1);
-    let zero = input.replace(needle, "\"memory_bytes\": 0,");
-    let problems = crate::named(zero.as_bytes(), &config::Directories::working()).unwrap_err();
+    let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");
+    let problems = crate::named(&zero, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
-    let one = input.replace(needle, "\"memory_bytes\": 1,");
-    crate::named(one.as_bytes(), &config::Directories::working()).expect("a positive byte budget is valid");
+    let one = fixtures::with(&input, b"engine.memory_bytes", b"1");
+    crate::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
 }
 
 #[test]
@@ -786,11 +780,8 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
 // client secret as private files, refusing either one missing by its path.
 #[test]
 fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
-    let document = core::str::from_utf8(&fixtures::document()).unwrap().replace(
-        "\"clients\": {",
-        r#""clients": {"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]},"#,
-    );
-    let named = crate::named(document.as_bytes(), &jig_protocol_config::Directories::working()).unwrap();
+    let document = fixtures::with(&fixtures::document(), b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"app","secret":"app.secret","redirect_uri":"https://app.example.com/cb"}],"addresses":[]}}"#);
+    let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     for (name, expected) in [
         (b"provider.pem".as_slice(), b"engine.clients.provider.key: missing\n".as_slice()),
         (b"app.secret", b"engine.clients.provider.clients[0].secret: missing\n"),
@@ -868,8 +859,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
     for (member, input, expected, refused) in [
         (b"application.workers[0].root".as_slice(), br#""root""#.as_slice(), b"/data/root".as_slice(), false),
         (b"application.workers[0].root", br#""/kept/root""#, b"/kept/root", false),
-        (b"engine.deployment.directory", br#""state""#, b"/data/state", false),
-        (b"engine.deployment.directory", br#""/kept/state""#, b"/kept/state", false),
         (b"workers[0].secret", br#""secret""#, b"/data/secret", false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
         (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
@@ -891,7 +880,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
             let named = result.unwrap();
             let value = match member {
                 b"application.workers[0].root" => &*named.worker.as_ref().expect("standalone worker").root,
-                b"engine.deployment.directory" => &*named.deployment,
                 b"application.clients.bundle" => named.bundle.as_deref().unwrap(),
                 _ => &*named.files.iter().find(|file| file.path.as_ref() == expected).expect("resolved file key").path,
             };

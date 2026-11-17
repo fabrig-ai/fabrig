@@ -88,9 +88,6 @@ pub fn standalone(
             );
         }
     }
-    if engine.connectors.as_ref() != [1] {
-        problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
-    }
     if alone {
         return;
     }

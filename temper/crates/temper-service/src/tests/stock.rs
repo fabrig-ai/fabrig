@@ -200,12 +200,15 @@ fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
 
 #[test]
 fn an_inline_seed_policy_is_refused_naming_its_path() {
-    let document = fixtures::with(&generated(), b"engine.projects", fixtures::INLINE_PROJECTS);
+    let init = generated();
+    let original = fixtures::value(&init, b"engine");
+    let engine = [b"{\"projects\":".as_slice(), fixtures::INLINE_PROJECTS, b",", &original[1..]].concat();
+    let document = fixtures::with(&init, b"engine", &engine);
     let problems = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(
         crate::startup::lines(&problems).as_ref(),
-        b"engine.projects[0].policy: name a policy, policy: 1; change it with temper ctl settings apply\n"
+        b"engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
     );
 }
 
@@ -249,7 +252,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
 
 #[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
-    let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
+    let bytes = generated();
     let document =
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
@@ -270,7 +273,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
     assert!(engine.templates[0].flags.listed);
     assert_eq!(engine.policies.iter().find(|policy| policy.number == 1).unwrap().policy.period_spend, 41);
-    assert_eq!(engine.projects[0].policy.period_spend, 41);
+    assert!(engine.projects.is_empty());
     assert_eq!(engine.rules.maximum_run_spend, 2);
 }
 
@@ -408,7 +411,7 @@ fn single_model() -> Box<[u8]> {
 
 fn without_projects() -> Box<[u8]> {
     let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
 }
 
 #[path = "stock_brief.rs"]
@@ -436,13 +439,19 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
 
 // temper/docs/design/protocol/configuration/settings.md, 1 and 5.
 #[test]
-fn a_standard_document_seeds_project_one_from_stock_policy_one() {
+fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
     let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
     document["engine"]["limits"] = serde_json::json!({"profile": "standard"});
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
     let bytes = serde_json::to_vec(&document["engine"]).unwrap();
     let parsed = config::document(&bytes, &config::DocumentLimits { bytes: 65_536, tokens: 8192, depth: 32 }).unwrap();
-    let mut engine = config::engine(&parsed, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
+    let mut engine = config::engine(
+        &parsed,
+        0,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let policy = defaults.policies.get(&1).unwrap();
     let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
@@ -458,9 +467,7 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
         engine.limits.core.authority.executors
     );
     config::pass(&mut engine, defaults).expect("a standard deployment seeds stock policy 1");
-    assert_eq!(engine.projects.len(), 1);
-    assert_eq!(engine.projects[0].number, 1);
-    assert_eq!(engine.projects[0].policy, engine.policies[0].policy);
+    assert!(engine.projects.is_empty());
     let core = config::core(&engine, [1; 16], 7);
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
@@ -469,30 +476,4 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
         jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
         Ok(())
     );
-}
-
-#[test]
-fn a_seeded_stock_document_names_the_executor_limit() {
-    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
-    document["engine"]["limits"]["overrides"]["authority.executors"] = 18_i32.into();
-    let document = serde_json::to_vec(&document).unwrap();
-    let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        concat!(
-            "engine.projects[0].policy.ceiling.delegation.kinds: policy has 21 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[0].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[1].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-            "engine.projects[0].policy.roles[2].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n",
-        ).as_bytes()
-    );
-}
-
-#[test]
-fn inits_document_can_seed_stock_policy_one() {
-    let mut document: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
-    let document = serde_json::to_vec(&document).unwrap();
-    crate::named(&document, &config::Directories::working()).expect("init's limits admit a seeded stock project");
 }

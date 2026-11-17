@@ -10,7 +10,6 @@ pub enum EngineWhat {
     EngineAlone,
     UnbuiltWorker,
     Loopback,
-    Connectors,
     OldAgentCommand,
     NoWebhooks,
     TierChanges { count: u32, bound: u32, ceiling: u32 },
@@ -28,7 +27,6 @@ pub enum EngineWhat {
     BoxSignIn,
     Handover,
     MissingNull,
-    InlineSeedPolicy,
     LandingStored,
     ProjectLandingStored,
     CharterStored,
@@ -41,7 +39,6 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
         EngineWhat::UnbuiltWorker => b"this build serves an engine alone",
         EngineWhat::Loopback => b"must be a socket address on loopback",
-        EngineWhat::Connectors => b"must be [1], the forge connector",
         EngineWhat::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
         EngineWhat::NoWebhooks => b"needs application.webhooks",
         EngineWhat::Agent => AGENT_WORDS,
@@ -54,7 +51,6 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::BoxSignIn => b"a box's sign-in takes application.sign_in null",
         EngineWhat::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
         EngineWhat::MissingNull => b"missing: null for none",
-        EngineWhat::InlineSeedPolicy => b"name a policy, policy: 1; change it with temper ctl settings apply",
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
@@ -224,7 +220,6 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             EngineWhat::EngineAlone
             | EngineWhat::UnbuiltWorker
             | EngineWhat::Loopback
-            | EngineWhat::Connectors
             | EngineWhat::OldAgentCommand
             | EngineWhat::NoWebhooks
             | EngineWhat::Agent
@@ -236,7 +231,6 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             | EngineWhat::BoxSignIn
             | EngineWhat::Handover
             | EngineWhat::MissingNull
-            | EngineWhat::InlineSeedPolicy
             | EngineWhat::LandingStored
             | EngineWhat::ProjectLandingStored
             | EngineWhat::CharterStored => {}

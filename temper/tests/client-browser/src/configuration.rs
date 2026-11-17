@@ -40,10 +40,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
-    for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        project["policy"] = 1.into();
-        project.as_object_mut().expect("seed").remove("roles");
-    }
     temper_playground::documents::settings::strip_models(&mut value);
     // Admit stock policy 1's fourteen grants and fifteen executor kinds.
     for (name, count) in [
@@ -76,7 +72,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();

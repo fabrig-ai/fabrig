@@ -213,10 +213,6 @@ fn deployment_document(directory: &Path) -> serde_json::Value {
 /// Configured sign-in sources must not keep the rehearsal waiting for its start mark.
 pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
-    document["engine"]["providers"] = serde_json::json!([
-        {"number":1,"kind":"link"}, {"number":2,"kind":"deployment"}, {"number":3,"kind":"application"}
-    ]);
-    document["engine"]["acts"] = serde_json::json!([{"connector":1,"may":["remove_account","adopt"]}]);
     // The second endpoint and third identity provider add two settings versions.
     document["engine"]["limits"]["overrides"]["core.settings.versions"] = 10.into();
     let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();

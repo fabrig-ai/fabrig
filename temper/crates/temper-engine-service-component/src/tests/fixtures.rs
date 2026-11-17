@@ -33,22 +33,33 @@ pub const ENGINE: &[u8] = br#"{
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
 "owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1],
-"memory_bytes": 1152921504606846976,
-"projects": [{"number": 1, "policy": 1}]
+"memory_bytes": 1152921504606846976
 }"#;
 
 // Jig's inline input is retained only to exercise policy decoding and typed guards.
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
+    let jig = ENGINE_SETTINGS
+        .get_or_init(|| {
+            let mut jig = parse_engine(ENGINE);
+            let policy = jig.policies.first().unwrap();
+            assert_eq!(policy.number, 1);
+            jig.projects = Box::new([jig_protocol_config::Project {
+                number: 1,
+                name: "Project 1".into(),
+                policy: policy.policy.clone(),
+                roles: policy.roles.clone(),
+                templates: policy.templates.clone(),
+            }]);
+            for owner in &mut jig.owners {
+                owner.project = 1;
+            }
+            jig
+        })
+        .clone();
     // This typed fixture reaches the core's start; policy 1 needs 6074 bytes with the standing charter executors.
 
     let own = small_limits();
@@ -132,6 +143,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -657,12 +669,7 @@ pub fn started() -> crate::Service {
 }
 pub fn started_with_approval(approval: bool) -> crate::Service {
     let mut settings = engine();
-    let clients = if approval {
-        br#"{"heartbeat_ms":10000,"link":true,"approval":true}"#.as_slice()
-    } else {
-        br#"{"heartbeat_ms":10000,"link":true,"approval":false}"#.as_slice()
-    };
-    settings.jig.clients = parse_engine(&with(ENGINE, b"clients", clients)).clients;
+    settings.jig.clients.approval = approval;
     start_configured(settings, &[(1, 100)], None, false, false)
 }
 pub fn started_with_projects(projects: &[(u32, u64)]) -> crate::Service {
@@ -725,7 +732,7 @@ fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> se
     fill_files(&mut settings);
     settings
 }
-fn start_configured(
+pub fn start_configured(
     mut settings: settings::Engine,
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,

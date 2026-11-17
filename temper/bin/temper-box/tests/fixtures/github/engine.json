@@ -113,12 +113,6 @@
       ]
     }},
     "clients": {{
-      "heartbeat_ms": 10000,
-      "link": true
-    }},
-    "deployment": {{
-      "directory": "state",
-      "seed": 7
     }},
     "owners": [
       {{
@@ -126,26 +120,7 @@
         "subject": "owner-a"
       }}
     ],
-    "providers": [
-      {{
-        "number": 1,
-        "kind": "link"
-      }},
-      {{
-        "number": 2,
-        "kind": "deployment"
-      }}
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": [
-      {{
-        "number": 1,
-        "policy": 1
-      }}
-    ]
+    "memory_bytes": 4503599627370496
   }},
   "workers": [],
   "application": {{

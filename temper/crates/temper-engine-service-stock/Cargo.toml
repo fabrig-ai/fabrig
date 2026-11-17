@@ -26,6 +26,7 @@ temper-engine-smith.workspace = true
 temper-protocol-reaches.workspace = true
 
 [dev-dependencies]
+temper-engine-service-startup.workspace = true
 skein-world.workspace = true
 jig-protocol-store.workspace = true
 settings-form.workspace = true

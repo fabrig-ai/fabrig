@@ -70,7 +70,7 @@ impl Harness for Incident {
         value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
-        value["engine"]["acts"] = json!([{"connector":1,"may":["adopt"]}]);
+        value["world_settings"]["adopt_only"] = true.into();
         let grant = |kind| json!({"connector":1,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}});
         let tools = 3 | if crate::across_versions::active() { core::ToolFamilies::JIG.read.0 } else { 0 };
         let authority = json!({"tools":tools,"grants":[grant(3),grant(4),grant(7),grant(8),grant(9),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":5},"budget":{"spend":500,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
@@ -117,12 +117,28 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         path: b"/usr/bin/claude".as_slice().into(),
         directory: b"/worker/programs".as_slice().into(),
     }]);
-    let mut service = temper_service::startup::with_setup_given(
-        &serde_json::to_vec(&document).expect("deployment bytes"),
+    let seeds = Incident::seeds(parameters.seed);
+    let files = Incident::files();
+    let bytes = serde_json::to_vec(&document).expect("deployment bytes");
+    let mut checked = temper_service::startup::checked_start_with(
+        &bytes,
         &jig_protocol_config::Directories::working(),
-        &Incident::files(),
+        &files,
         Some(&agent),
-        &Incident::seeds(parameters.seed),
+        &seeds,
+        temper_playground::documents::forges(),
+        None,
+        &given,
+    )
+    .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    temper_playground::documents::settings::seed_projects(&mut checked.engine_mut().jig, parsed.projects);
+    checked.engine_mut().jig.acts =
+        Box::new([jig_domain_people::ActGrant { connector: 1, may: Box::new([jig_domain_people::ActKind::Adopt]) }]);
+    let mut service = temper_service::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
         None,
         Some(temper_service::WorkerRuntime {
             wires: crate::across_versions::worker_wires(),
@@ -130,11 +146,8 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
         }),
-        temper_playground::documents::forges(),
         None,
         None,
-        None,
-        &given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));

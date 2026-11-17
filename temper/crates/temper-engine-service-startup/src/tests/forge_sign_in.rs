@@ -17,11 +17,6 @@ fn machine_owned_sign_in_is_refused_at_its_path() {
         ),
     ] {
         let input = super::stock::generated();
-        let input = fixtures::with(
-            &input,
-            b"engine.providers",
-            br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#,
-        );
         let input = fixtures::with(&input, b"engine.owners", br#"[{"provider":3,"subject":"ada@localhost"}]"#);
         let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
         let owned = format!(
@@ -40,11 +35,6 @@ fn machine_owned_sign_in_is_refused_at_its_path() {
 fn sign_in_members_login_refuses_the_bot_without_any_forge_entries() {
     for login in ["temper", "TEMPER"] {
         let input = super::stock::generated();
-        let input = fixtures::with(
-            &input,
-            b"engine.providers",
-            br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#,
-        );
         let input = fixtures::with(&input, b"engine.owners", br#"[{"provider":3,"subject":"ada@localhost"}]"#);
         let sign_in = format!(
             r#"{{"google":{{"provider":3,"client":"client","secret":"google.secret","endpoints":null}},"members":[{{"address":"ada@localhost","login":"{login}"}}]}}"#

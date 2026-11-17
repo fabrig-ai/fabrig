@@ -70,8 +70,14 @@ fn accounts_runtime_holds_unresolved_hosts() {
     )
     .expect("owned document");
     let at = super::member(&document, 0, b"engine");
-    let mut engine = config::engine(&document, at, &config::Directories::working(), config::Defaults::Passed)
-        .expect("engine fixture");
+    let mut engine = config::engine(
+        &document,
+        at,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &temper_engine_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .expect("engine fixture");
     let provider =
         engine.llm.providers.iter_mut().find(|provider| provider.sign_in.is_some()).expect("sign-in provider");
     let number = provider.number;
