@@ -43,7 +43,8 @@ an open need on it, whether it has a report, and its direct delegates' total.
     opened once the document says the task is tracked and running inside the
     goal's page, its cards the page's as Needs you's are (`../README.md`, 3.6).
 - **The header,** `header.goal-head`:
-  - `p.meta.mono`, items separated by `<span>·</span>`: `<b>TITLE</b>`; `S`'s
+  - `p.meta.mono`, items separated by `<span>·</span>`: `<b>TITLE</b>`,
+    the goal's whole first line, since this is its own page; `S`'s
     word in its `state-*` class, as a goal's row says it (`README.md`); "6 of 9 tasks"
     when there are tasks; "31 of 40 spent", the budget's numbers as supplied,
     no currency; "since " and `made` in the clock form (`../view.md`, 6).
@@ -114,7 +115,9 @@ an open need on it, whether it has a report, and its direct delegates' total.
       reads it, `../view.md`, 5); a person task's answer, an advisor's report
       or another result is done, and not landed.
     - Each task not landed, `p.task-line`, with class `running` when
-      running: the title, a link to its `Task`, then its state: "done" and its end
+      running: the title, cut past 80 characters as every row's is
+      (`README.md`, 2, *A task's title on a line*), a TITLE below too,
+      a link to its `Task`, then its state: "done" and its end
       in the clock form; "running";
       "waits on TITLE" for one dependency, or "waits on task N" where the title
       is not among these rows; "waits on N tasks" for several; "waits on you"
@@ -213,7 +216,8 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   "Completed", "Failed" or "Cancelled", with its spend and with no
   dependency line or held card; its "Task N" link is muted, as the
   mockup's done row.
-- **A plan row's cells:** the "Task N" link and the task's title; its
+- **A plan row's cells:** the "Task N" link and the task's title, cut
+  past 80 characters (`README.md`, 2, *A task's title on a line*); its
   executor; its state; its spend, "N spent", what the task spent
   itself (its chip's `budget.spent`; not the row's `spent`, which adds
   what the ended tasks it funded spent), in the deployment's unit, a

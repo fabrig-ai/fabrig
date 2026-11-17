@@ -73,6 +73,18 @@ impl Records {
             answer: None,
         }
     }
+    pub fn read_setup(&mut self, forge: u16, kind: Option<BoxKind>) {
+        self.files.read_setup(forge, kind);
+    }
+    pub fn take_setup(&mut self) -> Option<crate::group_records::SetupRead> {
+        self.files.take_setup()
+    }
+    pub fn probe_removal(&mut self, forge: u16, kind: BoxKind) {
+        self.files.probe_removal(forge, kind);
+    }
+    pub fn take_removal(&mut self) -> Option<(u16, Result<bool, Error>)> {
+        self.files.take_removal()
+    }
     pub fn close_root(&mut self) {
         self.files.close_root();
     }

@@ -303,6 +303,10 @@ impl Component {
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
                 self.application_delivery(env, watcher, family, record, out);
             }
+            Event::ProviderClient { reply, change } => {
+                let result = self.provider_client(env, change);
+                out.push(Request::Application(crate::ToApplication::ProviderClientChanged { reply, result }));
+            }
             Event::Redeem { exchange, authorization, content_type, body } => {
                 let answer = self.redeem(env, authorization.as_ref(), content_type.as_deref(), body.expose());
                 out.push(Request::Redeemed { exchange, answer });

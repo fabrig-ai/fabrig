@@ -32,18 +32,12 @@ pub const ENGINE: &[u8] = br#"{
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
 "owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1],
-"memory_bytes": 1152921504606846976,
-"projects": [{"number": 1, "policy": 1}]
+"memory_bytes": 1152921504606846976
 }"#;
 
-// Jig's inline input is retained only to exercise policy decoding and typed guards.
+// An inline project policy is refused with its enclosing moved member.
 pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
 "policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
 "ceiling": {"tools": 1, "grants": [],
@@ -57,7 +51,24 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
+    let jig = ENGINE_SETTINGS
+        .get_or_init(|| {
+            let mut jig = parse_engine(ENGINE);
+            let policy = jig.policies.first().unwrap();
+            assert_eq!(policy.number, 1);
+            jig.projects = Box::new([jig_protocol_config::Project {
+                number: 1,
+                name: "Project 1".into(),
+                policy: policy.policy.clone(),
+                roles: policy.roles.clone(),
+                templates: policy.templates.clone(),
+            }]);
+            for owner in &mut jig.owners {
+                owner.project = 1;
+            }
+            jig
+        })
+        .clone();
     // This typed fixture reaches the core's start; policy 1 includes the train’s merge grants with the standing charter executors.
 
     let own = small_limits();
@@ -68,7 +79,8 @@ pub fn engine() -> settings::Engine {
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -81,7 +93,6 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        welcome: false,
         program_environment: Box::new([]),
         host_part: temper_engine_domain::room::HostPart {
             allowance: u64::MAX,
@@ -89,7 +100,7 @@ pub fn engine() -> settings::Engine {
         },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landings: skein_lib::Map::with_capacity(0),
+        landing_held: false,
         limits: own,
     }
 }
@@ -143,6 +154,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -457,10 +469,6 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     runtime
 }
 
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
-}
-
 #[expect(clippy::disallowed_macros, reason = "the fixture renders its project name")]
 fn project_name(number: u32) -> Box<str> {
     alloc::format!("Project {number}").into_boxed_str()
@@ -771,16 +779,19 @@ fn start_configured_worker(
         runtime.push(second).unwrap();
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
-        settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
+        settings.setups = Box::new([(
+            1,
+            temper_forge_setup::setup_file::SetupFile::Owned(temper_forge_setup::machine::OwnedMachine {
+                sign_in: None,
+                listen: owned.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                person: owned.person,
+                public: owned.public,
+                fetch: owned.fetch,
+                forgejo: owned.forgejo,
+                runner: owned.runner,
+            }),
+        )]);
     }
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
@@ -1102,11 +1113,4 @@ pub fn turn_jig() -> jig_protocol_config::Engine {
     jig.limits.core.tasks.result_bytes = 4_096;
     jig.limits.core.tasks.message_bytes = 4_096;
     jig
-}
-
-/// A turn fixture receives the prepare job's result as a task message.
-pub fn turn_agent() -> settings::Agent {
-    let mut agent = startup_agent();
-    agent.bounds.message_bytes = 4_096;
-    agent
 }

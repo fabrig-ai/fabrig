@@ -48,7 +48,7 @@ pub fn refused(directory: &Path, name: &std::ffi::OsStr) -> String {
 }
 
 pub fn no_deployment_resources(directory: &Path) {
-    for name in [".claude", "state", "worker-root", "worker.secret", "secrets", "accounts", "charters"] {
+    for name in [".claude", "state", "workspaces", "worker.secret", "secrets", "accounts", "charters"] {
         assert!(!directory.join(name).exists(), "{name} was neither needed nor created");
     }
 }

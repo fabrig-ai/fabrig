@@ -151,3 +151,4 @@ f 600 1000 setup/forge-1/admin_token
 f 600 1000 setup/llm.key
 d 700 1000 setup/playground-1
 f 600 1000 setup/playground-1/admin_token
+f 600 1000 setup/playground-1/setup

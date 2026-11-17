@@ -124,8 +124,9 @@ fn setup(policy: Policy, batch: u16) -> (World, engine::Assignment) {
             ..StoryLimits::default()
         },
     )
-    .with_project_policy(copy.clone())
-    .with_settings_owner(&forge_top::user_key(1, 7));
+    .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
+        config.core.seed_projects[0].policy = copy.clone();
+    });
     world.fake_env.limits.limits.files = ROOT_ENTRIES;
     repository(&mut world);
     world.adopt();

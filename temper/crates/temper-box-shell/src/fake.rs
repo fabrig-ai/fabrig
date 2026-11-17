@@ -431,42 +431,8 @@ fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
     skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
 /// The box's group selects its machine kind (temper/docs/design/protocol/setup/box.md, 1).
-fn forge_entry(
-    bytes: &[u8],
-    directories: &super::Directories,
-    forge: u16,
-) -> Result<temper_forge_setup::setup::Entry, String> {
-    use jig_protocol_config as config;
-    use temper_forge_setup::{machine, problem};
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .map_err(|why| format!("{why:?}"))?;
-    let application = config::read::Object::new(&document, 0)
-        .map_err(|why| format!("{why:?}"))?
-        .member(&document, b"application")
-        .ok_or("the document has no application")?;
-    let at = config::read::Object::new(&document, application)
-        .expect("checked application")
-        .member(&document, b"machine")
-        .ok_or("application.machine: missing member")?;
-    let mut problems = problem::Problems::empty();
-    let machine = machine::read(
-        &document,
-        at,
-        &temper_forge_setup::limits::small(),
-        &jig_directories(directories),
-        &mut problems,
-    );
-    if !problems.is_empty() {
-        return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
-    }
-    let machine = machine.ok_or("application.machine: invalid form")?;
-    let path = super::path(&directories.data).join(super::path(&machine::group_path(forge)));
-    let group = skein_shell::read_file(&path, 64).map_err(|why| format!("{}: {why:?}", path.display()))?;
-    let kind = machine::parse_group_file(&group).ok_or_else(|| format!("{}: invalid group kind", path.display()))?;
-    machine::entry(&machine, forge, kind, &jig_directories(directories)).ok_or("the machine has no entry for it".into())
+fn forge_entry(directories: &super::Directories, forge: u16) -> Result<temper_forge_setup::setup::Entry, String> {
+    super::forge::entry(directories, forge)
 }
 fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(forge::Document, [u8; 40]), String> {
     match source {
@@ -482,8 +448,7 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
             Ok((document, token))
         }
         Source::Setup { directories, forge } => {
-            let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
-            let entry = forge_entry(&bytes, directories, *forge)?;
+            let entry = forge_entry(directories, *forge)?;
             let fake = match &entry.mode {
                 temper_forge_setup::setup::Mode::Fake(fake) => fake,
                 temper_forge_setup::setup::Mode::Owned(_) => return Err("it is owned, not fake".into()),

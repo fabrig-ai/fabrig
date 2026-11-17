@@ -9,7 +9,7 @@
 use super::fixtures::{self, http::Peer};
 use crate::{clients::Clients, settings};
 use skein_fake_oauth as fake;
-use skein_lib::{Duration, List, Queue, Secret, Time, Wall};
+use skein_lib::{Duration, Queue, Secret, Time, Wall};
 use skein_oauth as oauth;
 use temper_engine_domain_forge as forge;
 const NOW: Time = Time::from_nanos(1);
@@ -61,14 +61,6 @@ pub(crate) fn world_settings(
     } else {
         None
     };
-    let mut providers = List::with_capacity(3);
-    for provider in config.jig.providers {
-        providers.push(provider).unwrap();
-    }
-    providers
-        .push(jig_protocol_config::IdentityProvider { number: 3, kind: jig_protocol_config::ProviderKind::Application })
-        .unwrap();
-    config.jig.providers = providers.into_boxed();
     config.jig.clients.provider = provider;
     let mut clients = Clients::new(
         &jig_protocol_config::Directories::working(),

@@ -23,6 +23,7 @@ pub struct Engine {
     pub(crate) workers: crate::workers::Workers,
     pub(crate) clients: crate::clients::Clients,
     pub(crate) demo: Option<crate::settings::Demo>,
+    pub(crate) places: Option<crate::places::Places>,
     pub(crate) box_link: route::box_link::Link,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
@@ -159,6 +160,7 @@ impl Engine {
             forge,
             setup,
             box_link: route::box_link::Link::new(0, false),
+            places: None,
             forge_records,
             admission: None,
             facts: 0,
@@ -608,6 +610,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
+    engine.clients.deployment.welcome = engine.domain.welcome();
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     if engine.end.is_none() && engine.store.host.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
@@ -1000,6 +1003,9 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::Listening { addr } => {
                 if let Some(addr) = addr.socket() {
                     engine.setup.webhooks_listening(addr);
+                    if let Some(places) = &mut engine.places {
+                        places.listening(addr);
+                    }
                     let note = crate::Note::Listening { listener: crate::Listening::Webhooks, addr };
                     engine.listening.try_push(note).expect("one note per listener bind");
                 }

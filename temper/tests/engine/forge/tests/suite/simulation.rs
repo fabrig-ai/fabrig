@@ -1453,6 +1453,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ResetAct { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }

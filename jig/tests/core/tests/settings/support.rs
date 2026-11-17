@@ -25,6 +25,7 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());

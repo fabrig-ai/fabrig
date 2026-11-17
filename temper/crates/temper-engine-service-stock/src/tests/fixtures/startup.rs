@@ -57,15 +57,6 @@ pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
     input[member_span(input, path)].into()
 }
 
-pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
-    let json = turn_limits(path, json);
-    let span = member_span(input, path);
-    let mut result = input[..span.start].to_vec();
-    result.extend_from_slice(&json);
-    result.extend_from_slice(&input[span.end..]);
-    result.into_boxed_slice()
-}
-
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     let json = Json::new(input);
     member_span_in(input, &json.document, path)

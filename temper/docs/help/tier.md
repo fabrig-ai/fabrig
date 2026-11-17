@@ -74,61 +74,52 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 ## Acting on it
 
-- **The configuration:** in `CONFIG/temper.json`, a repository's tiers
-  go at `application.landing.projects[].gates[].tiers`.
-  The project's `gates` array holds repository entries; each
-  repository's `gates` array holds workflow gates, beside its `tiers`.
-  For project 1, forge 1, repository 7:
+- **The settings:** a project's landing is `project-landing` (kind 4),
+  its repository gates and tiers `project-gates` (kind 5). Both take
+  effect **at the next start**. Put a settings file in `landing.json`:
 
   ```json
   {
-    "application": {
-      "landing": {
-        "projects": [{
-          "project": 1,
-          "by": "queue",
-          "check_timeout_ms": 900000,
-          "tier_retries": 2,
-          "verification_bound_ms": 7200000,
-          "gates": [{
-            "forge": 1,
-            "repository": 7,
-            "gates": [],
-            "tiers": [{
-              "name": "browser",
-              "workflow": "browser.yml",
-              "ignored": ["docs"],
-              "artifact": "report",
-              "format": "junit"
-            }]
-          }]
-        }]
-      }
-    }
+    "items": [
+      {"setting": {"kind": "project-landing", "project": 1}, "set": {
+        "by": "queue", "check_timeout_ms": 900000,
+        "tier_retries": 2, "verification_bound_ms": 7200000
+      }},
+      {"setting": {"kind": "project-gates", "project": 1}, "set": {
+        "repositories": [{"forge": 1, "repository": 7, "gates": [], "tiers": [{
+          "name": "browser", "workflow": "browser.yml", "ignored": ["docs"],
+          "artifact": "report", "format": "junit"
+        }]}]
+      }}
+    ]
   }
   ```
 
-  Use project, forge and repository numbers from
-  `project show PROJECT`, `forge list` and `forge repositories FORGE`
-  through ctl (temper help ctl). Preserve the existing configuration:
-  add the tier to the matching repository and project, creating missing
-  entries as above. Keep other members,
-  repositories, workflow gates and tiers, and the project's existing
-  `by` (`queue` or `turn`). Set `tier_retries` and
-  `verification_bound_ms` beside the project's `by`; the example shows
-  their defaults. Stop and restart the deployment afterward with the
-  same directories (temper help deployment); set `branch` to another
-  branch's name to follow it instead, or to `goal` to follow the goals'
-  own branches. Set `span_ms` to keep a tier's runs on one branch at
-  least that many milliseconds apart; none when absent. Set optional
-  `description` to what it checks: 1 to 120 UTF-8 bytes without control
-  characters, shown as Checks on its card and by `see settings gates`.
+  Read the current revision with `temper ctl settings show`, then apply:
+  `temper ctl settings apply landing.json --against REVISION --key KEY`.
+  Stop and restart with the same directories (temper help deployment).
+  A setting accepted while running leaves that run's landing unchanged.
+  Use project, forge and repository numbers from `project show PROJECT`,
+  `forge list` and `forge repositories FORGE` through ctl (temper help ctl).
+  Preserve the existing settings: add the tier to the matching repository,
+  keeping other repositories, workflow gates, tiers, and the project's
+  `by` (`queue` or `turn`). The `repositories` array holds repository
+  entries; each repository's `gates` array holds workflow gates beside
+  its `tiers`. Set `tier_retries` and `verification_bound_ms` beside the
+  project's `by`; the example shows their defaults.
+  Set `branch` to another branch's name to follow it instead, or to
+  `goal` to follow the goals' own branches. Set `span_ms` to keep a tier's
+  runs on one branch at least that many milliseconds apart; none when
+  absent. Set optional `description` to what it checks: 1 to 120 UTF-8
+  bytes without control characters, shown as Checks on its card and by
+  `see settings gates`.
   For goal-sized delivery checks, set optional `check_timeout_ms` beside
-  `by`: 1,000 to 86,400,000 milliseconds, 900,000 in the example. It bounds
-  each delivery check of the project's change producers, repairs and
-  resolutions, including goal landings; absent, the agent's bound applies.
-  Other runs keep the agent's bound. Each attempt reads it anew; it need
-  not fit the reserve, and a check is cut at the run's end.
+  `by`: 1,000 to 86,400,000 milliseconds, 900,000 in the example. At the
+  next start it bounds each delivery check of the project's change
+  producers, repairs and resolutions, including goal landings; absent,
+  the agent's bound applies. Other runs keep the agent's bound. Each
+  attempt uses that start's value; it need not fit the reserve, and a
+  check is cut at the run's end.
 - **The report format:** set `format` to `junit` for JUnit reports or
   `lines` for one failing test id per line.
 - **The workflow** is dispatch-only and takes the inputs

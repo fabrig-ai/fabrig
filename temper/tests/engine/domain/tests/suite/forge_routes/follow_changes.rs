@@ -369,7 +369,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
     if cued {
         world = world.with_project_landing(
             2,
-            engine::ProjectLanding {
+            temper_fixtures::landing::ProjectLanding {
                 gate_retries: 2,
                 gate_timeout: Duration::from_millis(3_600_000),
                 batch: 1,
@@ -378,9 +378,10 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
                 check_timeout: None,
                 close_job: None,
                 merge_job: None,
-                by: engine::Way::Queue,
+                by: temper_fixtures::landing::Way::Queue,
                 repositories: Box::new([]),
-                after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                tier_retries: 2,
+                verification_bound_ms: 7_200_000,
                 landing_attempts: engine::LANDING_ATTEMPTS,
             },
         );

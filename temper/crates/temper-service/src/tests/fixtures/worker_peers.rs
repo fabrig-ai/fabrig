@@ -704,7 +704,7 @@ impl AskingChat {
             ways_stock: Box::default(),
             period_span: crate::stock::PERIOD_SPAN,
             core,
-            landings: setup.landings,
+            landing_held: false,
             forge: temper_engine_domain_forge::Config {
                 push: None,
                 namespace: Box::new([31; 16]),

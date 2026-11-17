@@ -69,12 +69,12 @@ fn fixture() -> forge::Fixture {
                 policy["roles"][0]["authority"]["budget"]["spend"] = 4000.into();
                 policy["projections"] = json!(grants);
             }
-            value["application"]["landing"] = json!({"projects":[{
-                "project":1,"by":"turn","batch":2,
-                "gates":[{"forge":1,"repository":2,"gates":[{
-                    "name":"gate","workflow":"gate.yml","ignored":[],"blocking":true
-                }]}]
-            }]});
+            value["world_settings"]["kinds"] = json!({"items":[
+                {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":2}},
+                {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[
+                    {"forge":1,"repository":2,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true}]}
+                ]}}
+            ]});
             let limits = &mut value["application"]["limits"]["overrides"];
             for (name, millis) in
                 [("poll_ms", 100), ("poll_max_ms", 500), ("slow_ms", 1000), ("hinted_ms", 100), ("fallback_ms", 1000)]
