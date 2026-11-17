@@ -230,7 +230,10 @@ fn task_saved(
 
 fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
     match record {
-        tasks::Stored::Ended(task) => touch_task(core, &env.limits, task),
+        tasks::Stored::Ended(task) => {
+            core.ended_index_changed(task.requester, task.project, task.label, task.flags.listed);
+            touch_task(core, &env.limits, task);
+        }
         tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row) => {
             core.touch_deployment();
             core.touch_project_objects(row.project);

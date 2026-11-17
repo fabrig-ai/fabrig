@@ -47,7 +47,9 @@ in the lower world that owns it, never here.
   cloned, pushed and landed on the fake git program (below); a
   welcome's model check answered on a program's source through the
   worker and read on its Ready (`suite::model_check`;
-  `../domain/trial.md`); a case's step (`suite::case_5_3`, below); a chat's document written, and rewritten whole once its
+  `../domain/trial.md`); a case's step (`suite::case_5_3`, below); a
+  person's latch answered once through ctl, releasing together the
+  batch waiting on it (`suite::turn_landing`, below); a chat's document written, and rewritten whole once its
   person's follow-up reaches its run (`suite::notes`;
   `../domain/agent/agents.md`, 3), a long one built in parts and found
   by a fresh run being the system world's; a chat adding a landing dependency to its live report delegate,
@@ -68,7 +70,10 @@ in the lower world that owns it, never here.
   (../client/testing.md); and the fake issuer's admission beside a
   browser's held sockets, and past its cap, is temper-fake's, on
   skein's simulator (`process-tier.md`, *The fake box keeps two walks*;
-  `../protocol/setup/box.md`, 5).
+  `../protocol/setup/box.md`, 5). Two goals' changes released
+  together, forming one landing by `turn` at a `batch` of two and
+  landing on one green gate, are the engine's domain world's
+  (`../domain/landing.md`, 16).
 - **The first run's green light,** one story (`suite::fuzzy::green_light`), on
   the first run's cast (`../client/web/mockups/README.md`, "The first
   run"): the person asks their chat T1 "Add CSV export to widget"; T1
@@ -177,6 +182,26 @@ in the lower world that owns it, never here.
     as `suite::fuzzy::green_light` is, and its forge's records stay
     within the harness's bound. Its fixture, scripts and checks are its
     own, in its test file, on the tier's shared hosts.
+- **The turn-landing setup's stories** (`suite::turn_landing`;
+  `qa/setups.md`, 6), on the fake Forgejo, the project landing by
+  `turn` at a `batch` of two:
+  - **The ctl-released batch,** one story within the 2 s guide: a
+    goal's run delegates one batch of a person task, the latch, and two
+    report tasks that wait on it. The person answers the latch once
+    through `temper ctl task answer TASK --rev REV TEXT`, the setup's
+    release. Before the answer both tasks wait on the latch, neither
+    having run; after it, both run, each started once the latch ended,
+    and end, and so does the goal. It opens no change and runs no
+    review or gate. Its scripts are its own, beside its test, not the
+    setup's.
+  - **The red top,** one story on the setup's scripts, which are the
+    real loop's turn-landing fixture: two goals' scripted changes,
+    reviewed and ready together behind the latch, released by one
+    answer, and a member holding `.fake-forge/gate` reading `fail`
+    turning the dispatched top red, the red member's head not on main.
+  - Their landing of two on one green gate is the engine's domain
+    world's (`../domain/landing.md`, 16), and the setup's green landing
+    on its scripts its walk's (`qa/setups.md`, 6).
 - **The ladder's twins,** one story a rung of `../draft/v0.1.0.md`'s
   ladder from B0 up, added once its acceptance story
   (`../../development/acceptance.md`) passes on real backends

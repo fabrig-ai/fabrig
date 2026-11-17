@@ -49,7 +49,12 @@ fn open(limits: &crate::Limits) -> Store {
     store.owner_sets(SETS);
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let Some(Event::Opened { .. }) = events.first() else { panic!("{events:?}") };
     fixtures::committed(&mut store, Box::new([fixtures::header(1)]));
@@ -74,6 +79,7 @@ fn records(store: &mut Store, task: u64) -> Vec<(u64, Box<[logs::record::Row]>)>
             at: 0,
             direction: skein_kv::Direction::Forward,
             max: store.limits.store.page.bytes,
+            rows: u32::MAX,
         },
         &mut above,
         &mut below,

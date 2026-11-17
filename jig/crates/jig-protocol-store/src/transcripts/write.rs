@@ -73,6 +73,9 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
         | Stage::DirectoryClose
         | Stage::Dropping => return,
     }
+    if super::drop::fire(store, below) {
+        return;
+    }
     for _ in 0..store.limits.queue.saturating_add(1) {
         if store.transcripts.current.is_none() {
             store.transcripts.current = store.transcripts.queue.pop();
@@ -87,8 +90,10 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
         }
         if let Some(task) = pending.drops.pop() {
             let number = pending.number;
-            super::drop::begin(store, number, &[task], above, below);
-            return;
+            if super::drop::begin(store, number, &[task], above, below) {
+                return;
+            }
+            continue;
         }
         let pending = store.transcripts.current.take().expect("current commit");
         commits::submit(store, env, pending.number, pending.ops, above, below);

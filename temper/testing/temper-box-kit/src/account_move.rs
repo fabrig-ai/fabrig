@@ -32,10 +32,6 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     let issuer = sign_in::configuration(directory);
     let mut value = document(directory);
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket": llm.to_string()});
-    let agent_path = directory.join("agent.json");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
-    agent["endpoints"][0]["address"] = llm.to_string().into();
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     // Keep init's LLM registration, charters and worker, with no forge records
     // (temper/docs/design/protocol/setup/init.md, 3).
     let (_, fixture) = super::configuration::documents(

@@ -59,9 +59,8 @@ pub fn initialize(paths: &[PathBuf; 3]) {
     let stderr = String::from_utf8_lossy(&initialized.stderr);
     assert!(initialized.status.success(), "{stderr}");
     assert!(initialized.stdout.is_empty(), "init prints its instructions on stderr");
-    for name in ["temper.json", "agent.json"] {
-        assert!(stderr.contains(&format!("init: wrote {}\n", paths[0].join(name).display())), "{stderr}");
-    }
+    assert!(stderr.contains(&format!("init: wrote {}\n", paths[0].join("temper.json").display())), "{stderr}");
+    assert!(!paths[0].join("agent.json").exists());
     assert!(stderr.contains("init: start it with temper box"), "{stderr}");
     assert!(!stderr.contains("init: no git on PATH"), "real git is available: {stderr}");
     super::own_listener_files(&paths[0]);

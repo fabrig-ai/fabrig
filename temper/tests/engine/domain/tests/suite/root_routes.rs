@@ -1,5 +1,7 @@
 #[path = "root_routes/milestones.rs"]
 mod milestones;
+#[path = "root_routes/parts.rs"]
+mod parts;
 
 #[path = "root_routes/standing.rs"]
 mod standing;
@@ -445,11 +447,11 @@ fn a_person_answers_a_question_its_task_has_already_read() {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(2037)),
         sign_in: driver.session(),
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::Questions,
             filter: reads::Filter { project: Some(1), goal: None },
             from: None,
-        },
+        }),
     }));
     driver.settle();
     let waiting = driver
@@ -2977,7 +2979,7 @@ fn a_plan_of_spikes_a_choice_and_changes_runs_in_dependency_order() {
         choices: Box::new([tasks::Verdict { code: 7, words: 128, followups: 0, fields: Box::new([]) }]),
     };
     let mut change = report_delegate(b"change", Box::new([engine::Dependency::Batch(1)]));
-    change.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 128 };
+    change.contract = tasks::Contract::Change { connector: 1, kind: 2, words: 128, choices: Box::new([]) };
     let numbers = call_batch(&mut driver, &parent, 110, Box::new([spike, choice, change]));
     assert_eq!(numbers.len(), 3);
     assert!(!driver.delivered.iter().any(|item| matches!(item, Delivery::Assigned { assignment, .. }
@@ -4818,6 +4820,10 @@ fn placements(driver: &Driver) -> Vec<(Token, u64, u64)> {
 
 // protocol/cluster.md, 4 and 6: the cluster's placement and fencing.
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the cluster story carries numbered worker settings beside both channel histories"
+)]
 fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const LOST_CHANNEL: Token = Token::new(7);
     const SURVIVING_CHANNEL: Token = Token::new(8);
@@ -4846,8 +4852,22 @@ fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     bounds.journal.held = 3 * bounds.journal.deliveries + 16;
     let configs = [91, 91].map(|seed| {
         let mut configuration = sharing_config(seed);
-        configuration.core.worker_names =
-            Box::new([b"first-worker".as_slice().into(), b"second-worker".as_slice().into()]);
+        configuration.core.defaults.workers = Box::new([
+            jig_domain_core::settings::WorkerSetting {
+                number: 1,
+                name: b"first-worker".as_slice().into(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+            jig_domain_core::settings::WorkerSetting {
+                number: 2,
+                name: b"second-worker".as_slice().into(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+        ]);
         configuration
     });
     let mut driver = Driver::configured(Store::new(), configs, &bounds);
@@ -5144,13 +5164,13 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
         2
     );
     let before = driver.store.rows.clone();
-    let mut task_bounds = limits();
+    let mut task_bounds = bounds;
     task_bounds.people.operations = 1;
     task_bounds.tasks.tasks = 1;
     task_bounds.tasks.exemptions = 1;
     task_bounds.tasks.project_tasks = 1;
     task_bounds.tasks.tree_tasks = 1;
-    let mut claim_bounds = limits();
+    let mut claim_bounds = bounds;
     claim_bounds.fleet.attempts = 1;
     for (bounds, step, expected) in [
         (task_bounds, jig_domain_core::start::Phase::LoadCore, before.clone()),
@@ -5239,7 +5259,7 @@ fn signing_out_routes_to_people_and_expires_the_session() {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(1104)),
         sign_in: session,
-        read: jig_domain_core::reads::Read::Frame,
+        read: Box::new(jig_domain_core::reads::Read::Frame),
     }));
     driver.settle();
     assert!(driver.delivered.iter().any(|delivery| matches!(
@@ -5393,9 +5413,9 @@ fn an_empty_deployment_recovers_after_its_first_start_commit() {
 fn root_startup_returns_the_worker_membership_problem() {
     let mut config = config(91);
     let limits = limits();
-    config.core.worker_names =
-        Box::new([vec![b'w'; usize::try_from(limits.fleet.worker_name_bytes + 1).expect("worker name bound fits")]
-            .into_boxed_slice()]);
+    config.core.defaults.workers[0].name =
+        vec![b'w'; usize::try_from(limits.fleet.worker_name_bytes + 1).expect("worker name bound fits")]
+            .into_boxed_slice();
     assert!(matches!(
         engine::Domain::new(config, &limits),
         Err(Problem::WorkerName { worker: 0, limit }) if limit == limits.fleet.worker_name_bytes
@@ -5412,7 +5432,22 @@ fn a_hello_keeps_its_configured_worker_position() {
     limits.journal.deliveries = TWO_WORKER_DELIVERIES;
     limits.journal.held = 3 * limits.journal.deliveries + 16;
     let configs = [config(91), config(91)].map(|mut config| {
-        config.core.worker_names = Box::new([b"first-worker".as_slice().into(), b"second-worker".as_slice().into()]);
+        config.core.defaults.workers = Box::new([
+            jig_domain_core::settings::WorkerSetting {
+                number: 1,
+                name: b"first-worker".as_slice().into(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+            jig_domain_core::settings::WorkerSetting {
+                number: 2,
+                name: b"second-worker".as_slice().into(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            },
+        ]);
         config
     });
     let mut driver = Driver::configured(Store::new(), configs, &limits);

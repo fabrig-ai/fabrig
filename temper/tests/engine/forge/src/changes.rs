@@ -7,8 +7,10 @@ use temper_engine_domain_forge_change as change;
 #[must_use]
 pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -35,6 +37,7 @@ pub fn change_row() -> top::ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(100_000_000_000),
             ready_since: None,
             owns_turn: false,
@@ -47,6 +50,8 @@ pub fn change_row() -> top::ChangeRow {
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -186,6 +191,7 @@ fn change_step_options(
             spend: None,
             delegate: heard,
             delegate_running,
+            flake: false,
             delegate_live: false,
             effect: change::EffectResult::None,
             released,

@@ -39,7 +39,7 @@
   line when it fits, and marks the missing prefix. A pin for another
   head is never read. On GitHub, streaming retention ends at the runner's
   failed-process line before post-job cleanup (skein's `forge/github.md`,
-  10); without that marker it falls back to the job tail. The `read_job`
+  10); without that marker it falls back to the job tail. The `read_ci what=job`
   host answer reserves its rendered metadata and truncation marker within
   the configured answer allowance, prices escaped bytes, and keeps the
   log suffix that fits. It does not require a larger raw read allowance.
@@ -87,16 +87,22 @@
 - **A landing's repair** (`../../landing.md`, 7.3; `../../landing-search.md`,
   7) names what failed in its words, as a CI repair's name its failed
   check, so that its agent finds the failure without its brief. After its
-  opening and instruction come, each on a line of its own:
+  opening and instruction come, each on a line of its own: where its
+  contract offers the flake verdict (*A landing repair that finds only
+  flakes*, below), `Flake: if every failed test below is a flake (an open
+  flake finding names it, or it passes when run again at this head) and
+  nothing needs changing, finish with verdict 1, naming each test and how
+  you saw it pass; a person then releases the change to run its gate once
+  more.`; then
   `Gate run: RUN at PREFIX, base BASE: LINK`, RUN the run's id as the
-  forge's API gives it, the one `read_job` takes, PREFIX the commit the
+  forge's API gives it, the one `read_ci what=job` takes, PREFIX the commit the
   gate ran at (the candidate, or the red prefix) and BASE the round's
   base, each in full, `base unknown` where the receipt keeps none; then
   `Failed test: KEY (PROFILE)` for each test the run reports failed
   (`../../landing.md`, 7.3), KEY as the check's summary names it
   (`test <binary_id> <name>`) and PROFILE `focused` or `fuzzy`, or
   `Failed tests: more than N` past the report's bound; then `Failed job:
-  NAME: read_job head=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
+  NAME: read_ci what=job commit=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
   failed job the receipt keeps (`../../landing.md`, 6.2). KEY is `test
   CLASS NAME` for a JUnit case, or a `lines` report's line as written;
   PROFILE `fuzzy` where the name (the case's, or the line's last word)
@@ -108,12 +114,12 @@
   These lines are required: their room is taken before an optional
   part's, the changes below a blamed unit, which is cut first; where the
   spec's bound cannot hold them all, whole lines are kept in that order
-  and the last says `[N more failed tests and jobs: read_checks names
-  them]`. `read_checks`, asked by the repair's run about its change's
+  and the last says `[N more failed tests and jobs: read_ci what=checks names
+  them]`. `read_ci what=checks`, asked by the repair's run about its change's
   head or the commit the gate ran at, answers that commit's checks, then
   the gate's failed run from its receipt: for each failed job, a
-  `temper/gate/NAME` line, failed, pinned for `read_job` at the commit the
-  gate ran at, so that `read_job` reads its log as any job's.
+  `temper/gate/NAME` line, failed, pinned for `read_ci what=job` at the commit the
+  gate ran at, so that `read_ci what=job` reads its log as any job's.
 - **A green head ends a CI repair.** A CI repair's reason is CI failed at
   the head: a failed check, or a clean update whose CI then fails. When a
   step of the change reads CI passed at its branch's head (`../keeping-up.md`, 3):
@@ -192,7 +198,41 @@
   gate's, a review's or a check's repair, a person's request for changes,
   a landing's, a resolution and a queue's ejection that change nothing
   hold the change as before (1, *A repair of another reason that changes
-  nothing*).
+  nothing*), but for a landing repair's flake verdict (below).
+- **A landing repair that finds only flakes** (`../../landing-regate.md`,
+  3) says so with a verdict, rather than a no-change taken as a failure:
+  - **Offered** where the repair's reason is a landing's gate
+    (`Landing` or `LandingAt`) and the failed receipt it resolves to (*A
+    landing's repair*, above) names its failed tests (`Failed test:`
+    lines, not `not known` nor `more than N`) when the repair is asked:
+    its change contract lists one choice (jig's `domain/tasks/README.md`,
+    section 3), code 1, `flake`, its words within the contract's words,
+    no fields and no follow-ups, and its words carry the `Flake:` line.
+    Any other repair's contract lists none, and a mixed or unknown
+    failure keeps the repairs it has today.
+  - **Its result:** the repair's task ends done with verdict 1 and its
+    words. Read with the change's branch after its end (as a CI repair's
+    no-change is), still at the head it was asked to repair, it holds the
+    change, its cause `Flake`, its account `its repair, task N, found only
+    flakes: WORDS; release this change to run its gate once more, or
+    cancel it`, WORDS the verdict's words cut to the account's bytes and
+    marked; it is not a failure, and the hold "failed for good" stays a
+    repair's that failed or was cancelled. A branch moved by then is the
+    repair's push, taken as any repair's, the verdict's words its account.
+    The repair stays counted as asked.
+  - **Its release** (*A release*, below, steps 1 to 4) asks no repair:
+    the change names, as its regate, the failed receipt its repair's
+    reason resolves to, by its key and its run (`../../landing-regate.md`,
+    3 and 5), none where none resolves, in the step that decides; and goes
+    on at the head it read as a repair that left that head unchanged
+    would, checked again (`README.md`, 2, step 3), ready and formed into
+    a landing, with no new commit. A restart after the release finds the
+    regate on the row and asks nothing again. The regate is cleared when
+    the change's head moves or a repair is asked for it.
+  - **Bounded as before:** a red from the run its regate gives is a
+    landing's failure, its repair counted against the allowance the
+    release reset; a flake verdict holds every time, so only a person's
+    release runs a gate once more.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
@@ -306,7 +346,7 @@
   what it left out and R the configured rows. A repair's comparison, from
   its last clean head, reads the same. A review's says `Against base:`,
   then its paths, then `[K more files not listed: past forge.client.rows
-  (R); read_pull_files lists them]`. Each line is appended where it fits
+  (R); read_issues what=pull_files lists them]`. Each line is appended where it fits
   the section's room, so the section keeps what fits and names what it
   left out. A comparison refused `TooLarge` keeps the section's pull
   identity and gathered content and appends a comparison-omitted notice
@@ -320,7 +360,7 @@
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
   budget, naming that page, its bound and the tools that read its files:
-  `[files omitted from page P: past BOUND; the pull changes F files; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`,
+  `[files omitted from page P: past BOUND; the pull changes F files; read_issues what=pull_files from page P+1 lists the rest, and read_forge what=file reads a path at the head or the base]`,
   F the forge's count of the pull's changed files from the section's pull
   read (skein's `forge/README.md`, 3.6, `Pull`'s `size`), its clause
   `the pull changes F files; ` left out where the forge gave no count. The section then goes on as after its last page, to its
@@ -351,7 +391,7 @@
     at the brief's deadline, apart from the byte room's notices and a
     bound's (above), which keep their words:
     - its files, a pull section's:
-      `[files cut at the brief's deadline: N of F files read; read_pull_files from page P lists the rest, and read_file reads a path at the head or the base]`,
+      `[files cut at the brief's deadline: N of F files read; read_issues what=pull_files from page P lists the rest, and read_forge what=file reads a path at the head or the base]`,
       N the files its files reads answered, carried or named, F the
       forge's count of the pull's changed files from its pull read, as
       above, and P the page it was reading; where the forge gave no count,
@@ -361,17 +401,17 @@
       started because the files were cut:
       `[comparison cut at the brief's deadline: not read; read it in your checkout]`
       for a resolution's and a repair's, and
-      `[comparison cut at the brief's deadline: not read; read_pull_files lists the pull's files]`
+      `[comparison cut at the brief's deadline: not read; read_issues what=pull_files lists the pull's files]`
       for any other pull section's. A section that would read no
       comparison (above) says nothing of one.
     - its remarks, a reviews section's:
-      `[remarks cut at the brief's deadline: R of V reviews' remarks read; read_remarks reads a review's remarks]`,
+      `[remarks cut at the brief's deadline: R of V reviews' remarks read; read_issues what=remarks reads a review's remarks]`,
       V the reviews the section kept at its head and R those whose remarks
       it read. A section so cut never says `[the request for changes gave
       no remarks]`: it did not read them all.
     - its logs, a CI section's: the failed check being read and each
       failed check after it keep their heads, each with
-      `[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]`
+      `[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]`
       in place of its log, as a log that could not be read keeps its
       check's marker (below).
   - *Short of its identity,* it has nothing usable. A half of a repair's
@@ -697,7 +737,9 @@
   exhaustion. Released at a head CI has not passed at (a green head ends
   its CI repair, above), it asks for a fresh repair with the same reason
   and current forge facts, under its current authority, counted against
-  the reset repair allowance. The
+  the reset repair allowance; held on its repair's flake verdict, it asks
+  none and names its regate instead (*A landing repair that finds only
+  flakes*, above). The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   Released from a resolution or a merge job that failed or was
@@ -839,7 +881,10 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   head again would only ask the next repair, and a landing's, a
   resolution's and an ejection's red is not CI's at the change's head.
   Default: such a repair finding nothing to do holds the change, as a
-  failed one does, until a person decides (2026-11-14).
+  failed one does, until a person decides (2026-11-14). A landing repair
+  that finds only flakes says so with its verdict instead, and its
+  release runs the gate once more (*A landing repair that finds only
+  flakes*; 2026-11-17).
 
 - **Every failed job at once** (`repairs.md`, *A CI repair that changes
   nothing checks its head again*): one job runs again for each repair that

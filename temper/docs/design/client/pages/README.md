@@ -33,7 +33,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 | `Settings { project }` | the whole story's `web/whole-story/how.html`; the greenfield mock's `settings.html` for its foot | How work runs, the first tab of a project's settings: the way the project runs, the path of a change by who acts, the ways as tabs, what reaches the person, a goal's budget, and at its foot what the project shows and its ways of working (`settings.md`, 2, *The page*) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (`settings.md`, 2); the project's `ways` (`../forge/records.md`); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (`settings.md`, 2); show a way's tab and a stop's card in place; "Use this" or "Keep it" (`settings.md`, 2, *A way's acts*) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (`settings.md`, 1) | `me`; the `forges` watch; the playground's read (`../forge/family.md`, 7) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | Deployment's third tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (`settings.md`, 1) | `me`; the accounts document; jig's settings, for an owner's act | none |
-| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | Deployment's fourth tab, Workers: the deployment's hosts, each with its slots and its connection, read-only (`settings.md`, 1) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | Deployment's fourth tab, Workers: the workers' settings, each with its places and whether it is up, and an owner's add, places and remove (`workers.md`) | `me`; jig's `deployment` document, for a person with a role in the deployment; jig's settings, for an owner's act | jig's `ChangeSettings` of one item (`workers.md`, 1) |
 | `Role { project, charter }` | none: the look request `ask-temper-ways`'s card names the role it opens | one role of the project, a charter: its name, who it is and its facts, as Ask temper's `charter N` view draws it (`settings.md`, 1, *A role's or a rule's page*) | `me`; the forge's read `View` of `charter N` in the project (`../forge/records.md`) | none |
 | `Rule { project, kind, number }` | none, as `Role`'s | one landing rule, of the deployment (kind 1) or the project (kind 2): what it covers and asks, as the view `rule K/N` draws it (`settings.md`, 1, *A role's or a rule's page*) | `me`; the forge's read `View` of `rule K/N` in the project (`../forge/records.md`) | none |
 | `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (`ask-temper.md`, 1, *Ask temper's page*) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (`home.md`, 1); the project's `ways` (`../forge/records.md`) | start an Ask temper chat from its composer; show a stock way from "Stock ways", the way the project runs again, and a stop's card, in place; "Use this" or "Keep it", jig's `ChangeSettings` (`settings.md`, 2) |
@@ -73,6 +73,58 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 - **Links are by number:** a chip, an entry or a line naming a task
   opens its page, from any page (jig's `client/domain/pages.md`,
   section 2).
+- **A task's title on a line:** a task's title is its words' first line,
+  as jig takes it, and a writer may leave it long. Every line, row and
+  card that names a task by its title draws it cut past 80 characters,
+  by one function of the views' shared parts, `shared::row_title`
+  (`common::chat::row_title`, at `common::chat::ROW_TITLE`, 80): Work's
+  goal row's cut (`work.md`, 1, *Its title*), at the last space that
+  leaves it at most 80 with "…", or at a character's edge where there
+  is none, its punctuation kept. It holds in the browser and the
+  terminal alike, and in the TUI's lines from the same parts:
+  - *Where:* Needs you's from line, its milestone and goal included,
+    and its cards: a question, a proposal (its proposed tasks' headings
+    and the question line a reasonless batch takes from them), a held
+    task, a person task, an approval ("Approve TITLE on …"), funds, a
+    group of findings' asking task (`needs-you.md`, 1); a card's SHORT
+    and the need lines built from it; Home's lines, its cards, chats,
+    milestones and Decided for you's rows (`home.md`, 1); the inbox's,
+    the terminal's cards, their updates and the answered lines; a
+    goal's task rows and its milestone's link (`goal.md`, 2); a task's
+    plan rows (`goal.md`, 2, **A plan row's cells**) and its lineage
+    bar (`task.md`, 2); Work's rows, cards and
+    milestone groups (`work.md`, 1); the chats' rows and the chat
+    switcher's list; a chat's goal bar, a delegation's card and line
+    (`../view.md`, 5) and a proposal's line; the Changes rows; a close's
+    delegate rows (`../README.md`, 3.6); a result's card; How it runs'
+    budget rows; Tell's About line; the public pages' rows, whose
+    "title cut" word follows only a title the cut left whole.
+  - *A link's name* is the cut title too, as Work's goal row's is. The
+    cut is drawn alone: the domain keeps the title whole.
+  - *Whole:* a task's own page's heading, its taskbar's "TN · TITLE"
+    and a change's or a person's header (`task.md`), and a goal's title
+    in its page's header (`goal.md`, 2). A chat's heading keeps its own
+    short form (`chat::short_title`, at 72), a wait's or a dependency's
+    name its cut at 40 (`work.md`, 1, *A wait's names*), and the TUI's
+    launchpad its cut to the row's room, after this one.
+- **A task's words after its title:** a card or page that draws a
+  task's title and then its words leaves the words out when they are
+  only the title: whole, not cut, with nothing past their first line
+  feed but spaces, tabs, carriage returns and line feeds. One function
+  of the shared parts says it, `shared::only_title(&DocumentText) ->
+  bool` (`common::chat::only_title`). It holds on Needs you's held
+  task, funds and person task cards (`needs-you.md`, 1), the
+  terminal's inbox cards, the goal's page's needs bands, which draw
+  those cards, and an agent's task's "Task brief" (`task.md`, 2). A
+  title the card cuts is then read whole on its task's own page, whose
+  heading keeps it. A proposal's card differs, since its tasks have no
+  page yet: each proposed task's heading is its title, cut, and the
+  words under it are those past the first line, or, where the heading
+  is cut, its words whole, so that its whole first line is on the card
+  once. A person task in words reads as a question and draws no title
+  heading over its words (`needs-you.md`, 1). A goal's page draws no
+  words of its goal (`goal.md`, 2, **Not drawn**), and a chat's request
+  is its conversation's first message, kept.
 - **Away** (the greenfield mock's `home.html`, `phone.html` and
   `settings.html`'s `#away`; `../../domain/forge/attention.md`, 4 and 6;
   `../../draft/what-reaches-you.md`, section 3): a person's switch on a

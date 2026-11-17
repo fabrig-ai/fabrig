@@ -115,7 +115,7 @@ pub struct Inbox {
     pub next: u64,
     pub window: u32,
     pub goal: Option<TaskRead>,
-    pub milestone: Option<Box<super::milestones::Milestone>>,
+    pub milestone: Option<Box<super::milestones::MilestoneRead>>,
     long_text: u32,
 }
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
@@ -190,7 +190,7 @@ impl Inbox {
             && self.milestone.is_none()
         {
             self.milestone =
-                Some(Box::new(super::milestones::Milestone::new(task.project, task.chip.task, &mut self.next)));
+                Some(Box::new(super::milestones::MilestoneRead::new(task.project, task.chip.task, &mut self.next)));
         }
         if let Some(milestone) = &mut self.milestone {
             milestone.configure_goals(client, limits, out);
@@ -447,7 +447,7 @@ impl Inbox {
     }
     pub(super) fn told(&mut self, source: &Client, told: Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
         if let Some(milestone) = &mut self.milestone
-            && milestone.told(&told, limits, out)
+            && milestone.told(&told, source, limits, out)
         {
             return true;
         }

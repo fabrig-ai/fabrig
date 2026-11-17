@@ -187,7 +187,7 @@ fn each_connections_end_says_why_once() {
         (End::Cut(Cut::NotAdmitted), Loss::Refused { reason: Reason::NotAdmitted.code() }),
         (End::Cut(Cut::Replaced), Loss::Refused { reason: Reason::Replaced.code() }),
         (End::Cut(Cut::Framing), Loss::Framing),
-        (End::Unknown, Loss::Refused { reason: Reason::Unauthorized.code() }),
+        (End::Unknown, Loss::Refused { reason: Reason::NotAdmitted.code() }),
         (End::NoRoom, Loss::NoRoom),
         (End::Close, Loss::Stopping),
         (End::HelloDeadline, Loss::Deadline),

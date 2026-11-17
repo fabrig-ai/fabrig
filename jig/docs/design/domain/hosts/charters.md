@@ -13,7 +13,7 @@ Its `assignment` assembles that charter from the core's run charter, the brief a
 
 A Finite run takes `deliver` in one of two ways; an Open run never does (1):
 
-- **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change` and a failure.
+- **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change`, a verdict for each of the change contract's choices, named by its code as a verdict contract's are (`../tasks/README.md`, section 3), and a failure.
 - **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`../connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most the contract's words or 1024 bytes, whichever is larger, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run.md`, 8.4).
 
 Every other run has no `deliver`: a verdict's run, and a report's run whose policy withholds `modify` or whose root doesn't say its workspace delivers.

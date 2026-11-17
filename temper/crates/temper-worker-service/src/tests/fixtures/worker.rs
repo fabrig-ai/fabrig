@@ -72,7 +72,7 @@ pub fn worker() -> crate::Worker {
             wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: pinned_agent(&worker_settings().jig.agent),
+            agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )
@@ -124,7 +124,7 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
 
 pub fn worker_settings() -> crate::settings::Worker {
     use jig_protocol_config as config;
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
         application_ask_bytes: 0,
@@ -165,12 +165,12 @@ pub fn worker_settings() -> crate::settings::Worker {
                 save: skein_lib::Duration::from_secs(10),
             },
             stop_bound: skein_lib::Duration::from_secs(60),
-            agent: config::Agent {
+            agent: Some(config::Agent {
                 program: TEMPER.into(),
                 arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
                 configuration: AGENT_JSON.into(),
-            },
-            limits,
+            }),
+            limits: Some(limits),
             memory: None,
         },
         root: b"worker-root".as_slice().into(),
@@ -178,9 +178,7 @@ pub fn worker_settings() -> crate::settings::Worker {
     }
 }
 pub fn worker_limits() -> crate::worker_settings::Limits {
-    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
-        temper_service_core::limits::Profile::Small,
-    ));
+    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
     own.checkout.workspaces = 1;
     own.checkout.repositories = 1;
     own.checkout.name_bytes = 64;

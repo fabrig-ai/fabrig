@@ -31,6 +31,21 @@ versioned record Manifest {
     secrets: option u64
     written: u64
 }
+record CheckpointFile {
+    part: u8
+    number: u64
+    length: u64
+    way: u8
+}
+versioned record Checkpoint {
+    store: u64
+    secrets: u64
+    made: u64
+    build: text 128
+    deployment: fixed 16
+    levels: Levels
+    files: list 65536 CheckpointFile
+}
 versioned record Transcript { length: u64 window: u64 }
 versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }

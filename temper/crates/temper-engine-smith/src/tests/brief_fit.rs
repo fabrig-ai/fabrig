@@ -70,7 +70,7 @@ fn a_brief_one_byte_past_its_room_cuts_only_the_last_section() {
     fit_brief(&mut selected, None, &limits);
     assert_eq!(selected.brief.sections[0], original.sections[0]);
     assert_ne!(selected.brief.sections[1].text, original.sections[1].text);
-    assert!(selected.brief.sections[1].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(selected.brief.sections[1].text.ends_with(b" bytes; whole: read_ci]\n"));
     admitted(selected, &limits);
 }
 
@@ -87,7 +87,7 @@ fn a_brief_past_its_room_cuts_the_last_section_at_a_utf8_boundary() {
     let prefix = text.trim_start_matches('λ');
     let kept = text.len().checked_sub(prefix.len()).unwrap();
     let lost = 600_usize.checked_sub(kept).unwrap();
-    assert_eq!(prefix, format!("\n[cut {lost} bytes; whole: read_job/read_checks]\n"));
+    assert_eq!(prefix, format!("\n[cut {lost} bytes; whole: read_ci]\n"));
     let once = selected.brief.sections[1].text.clone();
     fit_brief(&mut selected, None, &limits);
     assert_eq!(selected.brief.sections[1].text, once, "a fitted brief is stable");
@@ -134,14 +134,14 @@ fn zero_room_omits_every_section_and_smith_admits_the_empty_brief() {
 #[test]
 fn an_omitted_last_section_is_named_when_the_line_fits_after_the_previous_section() {
     let mut selected = selected();
-    selected.brief.sections[1].title = b"Pull request".as_slice().into();
+    selected.brief.sections[1].title = b"Appendix".as_slice().into();
     let limits = limits(&selected, 88);
     fit_brief(&mut selected, None, &limits);
     assert_eq!(selected.brief.sections.len(), 1);
     assert_eq!(selected.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(
         selected.brief.sections[0].text.as_ref(),
-        b"Keep this task\n[1 sections omitted: Pull request; whole: the task's activity]\n"
+        b"Keep this task\n[1 sections omitted: Appendix; whole: the task's activity]\n"
     );
     admitted(selected, &limits);
 }

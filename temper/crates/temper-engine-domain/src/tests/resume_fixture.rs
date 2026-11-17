@@ -138,10 +138,10 @@ pub fn limits() -> engine::Limits {
     };
     engine::Limits {
         streams: 1,
-        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
+        routes: jig_protocol_config_fixtures::small().routes,
         // The same configured core byte budgets as the engine world fixture.
-        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
-        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
+        call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
@@ -311,13 +311,14 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
+            parts: Box::new([]),
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
             workers_in_process: false,
             jobs: Box::new([]),
             kept_starts: Box::new([]),
-            worker_names: Box::new([Box::from(b"worker".as_slice())]),
+
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
                 project: 1,
@@ -326,6 +327,13 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                workers: Box::new([jig_domain_core::settings::WorkerSetting {
+                    number: 1,
+                    name: Box::from(b"worker".as_slice()),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                }]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
@@ -760,6 +768,36 @@ impl StartStore {
         }
     }
 
+    fn load(
+        &self,
+        range: &engine::Range,
+        after: Option<&engine::Key>,
+        most: u32,
+    ) -> (Box<[engine::Record]>, Option<engine::Key>) {
+        let mut ordered = alloc::collections::BTreeMap::new();
+        for (key, row) in &self.rows {
+            if range.contains(key) {
+                ordered.insert(start_position(range, key), row.clone());
+            }
+        }
+        let mut rows = skein_lib::List::with_capacity(most);
+        let mut more = false;
+        for (position, row) in ordered {
+            if let Some(key) = after
+                && position <= start_position(range, key)
+            {
+                continue;
+            }
+            if rows.room() == 0 {
+                more = true;
+                break;
+            }
+            rows.push(row).unwrap();
+        }
+        let next = if more { Some(rows.as_slice().last().unwrap().key()) } else { None };
+        (rows.into_boxed(), next)
+    }
+
     pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
         let mut out = skein_lib::Queue::uncapped();
         for _ in 0_u32..1024 {
@@ -770,7 +808,8 @@ impl StartStore {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
                     engine::Request::Store(engine::StoreRequest::Catalogue { .. })
                     | engine::Request::ForgeKept(_)
-                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
+                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. })
+                    | engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
                     }
@@ -791,36 +830,11 @@ impl StartStore {
                         engine::step(root, env, engine::Event::Store(engine::StoreInput::Switched));
                     }
                     engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
-                        let mut ordered = alloc::collections::BTreeMap::new();
-                        for (key, row) in &self.rows {
-                            if range.contains(key) {
-                                ordered.insert(start_position(&range, key), row.clone());
-                            }
-                        }
-                        let mut rows = skein_lib::List::with_capacity(most);
-                        let mut more = false;
-                        for (position, row) in ordered {
-                            if let Some(key) = &after
-                                && position <= start_position(&range, key)
-                            {
-                                continue;
-                            }
-                            if rows.room() == 0 {
-                                more = true;
-                                break;
-                            }
-                            rows.push(row).unwrap();
-                        }
-                        let next = if more { Some(rows.as_slice().last().unwrap().key()) } else { None };
+                        let (rows, next) = self.load(&range, after.as_ref(), most);
                         engine::step(
                             root,
                             env,
-                            engine::Event::Store(engine::StoreInput::Loaded {
-                                owner,
-                                rows: rows.into_boxed(),
-                                next,
-                                texts: None,
-                            }),
+                            engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         );
                     }
                     engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),

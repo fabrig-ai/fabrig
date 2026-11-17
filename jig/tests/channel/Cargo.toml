@@ -11,6 +11,8 @@ publish.workspace = true
 jig-channel-kit.workspace = true
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
+jig-protocol-config.workspace = true
 skein-llm.workspace = true
 skein-fake-llm-domain.workspace = true
 serde_json.workspace = true

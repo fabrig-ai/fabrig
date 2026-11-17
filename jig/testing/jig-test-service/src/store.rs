@@ -48,6 +48,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         files: profile.files,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks)?,
         fetch: profile.fetch,
+        checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
         held: profile.held,
     };
@@ -231,7 +232,11 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                 }));
             }
             // This shell never hands patch sets; routing answers Site with NoSite.
-            other @ (protocol::Event::Page { .. }
+            other @ (protocol::Event::Checkpointed { .. }
+            | protocol::Event::CheckpointRefused { .. }
+            | protocol::Event::CheckpointHeld { .. }
+            | protocol::Event::CheckpointRemoved { .. }
+            | protocol::Event::Page { .. }
             | protocol::Event::Job { .. }
             | protocol::Event::Ran { .. }
             | protocol::Event::Site { .. }
@@ -297,13 +302,12 @@ fn answer_routed(engine: &mut crate::Engine) {
 
 #[cfg(test)]
 mod sizing_tests {
-    use jig_protocol_config::Profile;
     use jig_protocol_store::host::max_read;
 
     #[test]
     fn drivers_read_a_whole_page_in_every_admitted_store() {
-        for profile in [Profile::Small, Profile::Standard] {
-            let configured = crate::limits::profile_limits(profile);
+        for profile in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+            let configured = crate::limits::small(&profile);
             let limits = super::limits(&configured.root, &configured.store).expect("admitted profile");
             assert!(max_read(&limits) >= limits.store.page.bytes);
         }

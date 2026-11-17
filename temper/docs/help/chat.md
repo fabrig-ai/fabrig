@@ -35,7 +35,7 @@ A chat is a conversation between a party and an agent in a project: an untracked
 - **A change is another task's.** The stock chat can inspect its workspace;
   its tools cannot write, edit or remove files. Asked for a repository
   change, the chat first reads the code it touches with the forge's reads:
-  `read_branch` for its head, then `read_file`. It asks for the change
+  `read_forge what=branch` for its head, then `read_forge what=file`. It asks for the change
   with the host tool `change`, giving the party's request and only code
   it has read. If a fix's named fault is absent, it changes nothing and
   says what the code has. The coder also writes nothing and finishes

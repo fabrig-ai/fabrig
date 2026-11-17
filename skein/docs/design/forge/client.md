@@ -546,8 +546,12 @@ judge.
    `Fresh` read) as its start time.
 2. **Check.** Only a write carrying a `Condition` (a merge, an update or
    a review) reads its pull request afresh; any other goes to step 3. A
-   closed pull request fails `Closed`; another head or base fails `Stale`,
-   an update's after a lost attempt too (section 7.5).
+   closed pull request fails `Closed`; another head fails `Stale`, as a
+   merge's other base does. An update's pull request at its head but on
+   another base commit fails `BaseMoved { base }`, `base` the commit the
+   read reported (none where it reported none), so its owner can tell
+   which moved. An update's check after a lost attempt fails alike
+   (section 7.5).
 3. **Make.** In the decision that sends the call the client emits
    `Progress` with the entry's `start` (a `Position`, fixed once) and its
    `attempt`: the send, its monotonic `deadline` and its absolute
@@ -571,8 +575,8 @@ judge.
    reached the forge: the entry counts a failure, emits `Progress` and
    `Outcome::Uncertain`, and is looked for (section 7.5). `Exists` is
    looked for too, since every write is sent under an attempt.
-6. **A typed refusal** (conflict, protected branch, stale head, `Closed`
-   and the like) is final, never retried blind. `Unavailable` did not
+6. **A typed refusal** (conflict, protected branch, stale head, a base
+   moved, `Closed` and the like) is final, never retried blind. `Unavailable` did not
    reach the forge: it is tried again after `backoff` doubling to
    `backoff_max` plus jitter, up to `write_attempts` failures.
    `NotConnected` and `NotInstalled` reached no forge either, and fail
@@ -602,9 +606,10 @@ deadline.
   attempt.
 - **An update checked again** may find its head or its base moved: by a
   late copy of its own, by another hand, or a base gone on. It fails
-  `Stale`, as any check does, whichever it was: `Stale` says the state it
-  was decided on has gone, not that the update was not made. The owner
-  reads afresh.
+  as any check does, `Stale` for its head and `BaseMoved` for its base
+  (7.4): each says the state it was decided on has gone, not that the
+  update was not made. Its owner tells this from a refusal before any
+  send by the entry's `attempt`, and reads afresh.
 - **A set** (edit, reviewers, close, reopen, status) is not looked for. It
   waits out the first attempt's lifetime and is written again, so a late
   copy cannot land after the second.

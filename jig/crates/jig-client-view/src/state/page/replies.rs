@@ -18,8 +18,8 @@ fn source(domain: &Ui, fallback: Source, conversations: bool, lent: &jig_client:
         }
         let matches = match watch.subject {
             Subject::Inbox { .. } => !conversations,
-            Subject::Tasks { query, .. } => match domain.frame(lent).document {
-                Some(me) => conversations && crate::state::queries::chats(me, query.project) == Some(query),
+            Subject::Tasks { ref query, .. } => match domain.frame(lent).document {
+                Some(me) => conversations && crate::state::queries::chats(me, query.project).as_ref() == Some(query),
                 None => false,
             },
             Subject::Me

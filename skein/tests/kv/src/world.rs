@@ -2,13 +2,24 @@
 
 use std::collections::BTreeMap;
 
-use skein_fake_machine::{How, Item, Machine, serve};
+use skein_fake_machine::{How, Item, Machine, Opened, serve};
 use skein_io::file;
 use skein_io::file_layer::{FileIo, Limits as FileLimits, step};
 use skein_io::kernel::{Complete, Fd, Submit};
-use skein_kv::{Event, Limits, Request, Store};
+use skein_kv::{Event, HeldSegment, Limits, Request, Store};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle, Pid, Sim, Trace};
+
+fn copy_prefix(machine: &mut Machine, source: Opened, target: Opened, path: &[u8], end: u64) {
+    let file = machine.open(source, path, How::ReadNoFollow).expect("held file opens");
+    let bytes = machine.read(file, 0, u32::try_from(end).expect("test copy length")).expect("held prefix reads");
+    assert_eq!(u64::try_from(bytes.len()).expect("length"), end, "the held end is present");
+    machine.close(file);
+    let file = machine.open(target, path, How::CreateNoFollow { mode: 0o600 }).expect("new copy file");
+    machine.write(file, 0, &bytes).expect("copy writes");
+    machine.sync(file);
+    machine.close(file);
+}
 
 pub struct World {
     machine: Machine,
@@ -103,6 +114,60 @@ impl World {
         self.machine.close(root);
         bytes
     }
+    /// Link immutable recovery files and copy append prefixes into a second root.
+    /// The caller captured payload extents from the map at Held, before later commits.
+    pub fn copy_held(&mut self, snapshot: bool, segments: &[HeldSegment], extents: &[(u64, u64)]) {
+        let root = self.machine.reopen_root(0);
+        self.machine.make_directory(root, b"copy", 0o700).expect("new copy root");
+        let copy = self.machine.open(root, b"copy", How::DirectoryNoFollow).expect("copy directory");
+        if snapshot {
+            self.machine.hard_link(root, b"snapshot", copy, b"snapshot").expect("held snapshot links");
+        }
+        for segment in segments {
+            let name = format!("log-{:020}", segment.first).into_bytes();
+            if let Some(end) = segment.end {
+                copy_prefix(&mut self.machine, root, copy, &name, end);
+            } else {
+                self.machine.hard_link(root, &name, copy, &name).expect("held segment links");
+            }
+        }
+        if !extents.is_empty() {
+            self.machine.make_directory(copy, b"logs", 0o700).expect("payload directory");
+            let logs = self.machine.open(copy, b"logs", How::DirectoryNoFollow).expect("payload directory");
+            let mut directories = std::collections::BTreeSet::new();
+            for &(log, end) in extents {
+                let directory = format!("logs/{:016x}", log >> 12).into_bytes();
+                if directories.insert(directory.clone()) {
+                    let name = format!("{:016x}", log >> 12).into_bytes();
+                    self.machine.make_directory(logs, &name, 0o700).expect("payload shard");
+                }
+                let path = format!("logs/{:016x}/{log:016x}", log >> 12).into_bytes();
+                copy_prefix(&mut self.machine, root, copy, &path, end);
+            }
+            for directory in directories {
+                let file = self.machine.open(copy, &directory, How::DirectoryNoFollow).expect("payload shard");
+                self.machine.sync(file);
+                self.machine.close(file);
+            }
+            self.machine.sync(logs);
+            self.machine.close(logs);
+        }
+        self.machine.sync(copy);
+        self.machine.sync(root);
+        self.machine.close(copy);
+        self.machine.close(root);
+    }
+
+    /// Open the copied root after the serving store has been closed.
+    pub fn open_copy(&mut self) {
+        assert_eq!(self.io.open_files(), 0, "the serving store is closed first");
+        let root = self.machine.reopen_root(0);
+        let copy = self.machine.open(root, b"copy", How::DirectoryNoFollow).expect("copy directory");
+        self.machine.close(root);
+        self.root = self.sim.root(self.pid, Handle::new(copy.raw()));
+        self.reopen();
+    }
+
     pub fn overwrite(&mut self, path: &[u8], at: u64, bytes: &[u8]) {
         let root = self.machine.reopen_root(0);
         let file = self.machine.open(root, path, How::WriteNoFollow).expect("file exists");
@@ -193,6 +258,12 @@ impl World {
             progress = true;
         }
         progress
+    }
+
+    /// A streaming file request or one of its kernel operations is pending.
+    #[must_use]
+    pub fn file_pending(&self) -> bool {
+        !self.below.is_empty() || !self.subs.is_empty() || !self.completions.is_empty() || !self.file_events.is_empty()
     }
 
     pub fn crash(&mut self, seed: u64) {

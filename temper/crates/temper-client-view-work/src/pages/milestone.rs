@@ -134,7 +134,7 @@ impl Shown<'_> {
                 self.needs,
             );
             let report = match headline {
-                ms::Headline::Running { goal, .. } => self.page.report(goal),
+                ms::Headline::Running { goal, .. } => self.page.headline(goal),
                 ms::Headline::Count(_)
                 | ms::Headline::Complete(_)
                 | ms::Headline::Closed(_)
@@ -144,7 +144,13 @@ impl Shown<'_> {
             goal::text(
                 b,
                 Role::Heading { level: 1 },
-                &milestones::headline(words, headline, self.page.milestone.goals.as_slice(), report, &self.names),
+                &milestones::headline(
+                    words,
+                    headline,
+                    self.page.milestone.goals.as_slice(),
+                    report.as_deref(),
+                    &self.names,
+                ),
             );
         }
         self.acts(b, words, bindings);
@@ -260,7 +266,7 @@ impl Shown<'_> {
         times: &mut Times,
         active: bool,
     ) {
-        let report = self.page.report(line.chip.task);
+        let report = self.page.headline(line.chip.task);
         let state = temper_client_domain::pages::goals::state(
             &line.chip,
             self.needing.as_slice().contains(&line.chip.task),
@@ -290,7 +296,11 @@ impl Shown<'_> {
         b.close();
         b.close();
         if active {
-            goal::facts(b, &goals::headline(words, line, state, report, &self.names));
+            let headline = match report {
+                Some(headline) => headline,
+                None => goals::headline(words, line, state, None, &self.names),
+            };
+            goal::facts(b, &headline);
         }
         b.close();
     }

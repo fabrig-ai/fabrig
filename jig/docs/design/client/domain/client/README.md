@@ -404,6 +404,13 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   loses an ordinary kept request the engine may have made. A request
   carrying a value is sent once without a record, and its caller asks
   again (`requests.md`).
+- **A record that can't be written is not kept.** A request whose record
+  the link can't encode for the store (past a kept record's bounds,
+  `../../../protocol/client/README.md`, section 7) is retired as one
+  `NotStored` retires: unsent, answered *not kept* by its key, once, its
+  erase leaving as any retired request's. It is never answered lost, so
+  never sent again under its key, and the requests whose records were
+  encoded go on as before.
 - **A later write holds its requests.** `request_records_durable`
   requires pending writes to finish before held requests are sent; an
   earlier write's completion cannot release a later write's requests.

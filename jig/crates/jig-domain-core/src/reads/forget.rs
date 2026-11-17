@@ -90,6 +90,7 @@ pub(crate) fn forget(core: &mut Core, now: Wall, work: &mut Queue<Work>, owner: 
     let mut out = Queue::uncapped();
     if core.people.ready() && owner.result_position <= core.counters.deployment().messages {
         let party = owner.party;
+        core.ended_index_changed(tasks::Party::Person(party), owner.project, owner.label, owner.listed);
         work.push(Work::Event(crate::Event::People(people::Event::Forget {
             project: owner.project,
             task: owner.task,

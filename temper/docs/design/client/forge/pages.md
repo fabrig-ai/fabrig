@@ -58,12 +58,11 @@
     and at the right its time by `../view.md`, 6's *clock*, newest first. With no
     rows, its rule alone.
 
-  *Where a change came from:* the title of its task's `goal`, the chip
-  in its `lineage_chips` naming that task; else the root of its
-  `lineage_chips`, "chat T6", where that root is on the charter of the
-  project's chat template; else nothing. The page reads each row's task, as a task's
-  page reads a chip, those of the rows shown alone; until one arrives,
-  its row has no mono part. Every row but "and N more" is a link to its
+  *Where a change came from:* its row's `goal`'s title; else its row's
+  `chat`, "chat T6"; else nothing (`records.md`, *A project's changes*,
+  *Where each row came from*). The page reads no row's task: a row the
+  engine names nothing for yet has no mono part until its next
+  delivery. Every row but "and N more" is a link to its
   change's `Task { task }`. Until its first document, the page is Work's
   head; with its watch refused or ended, Work's head and "Shown on the
   forge." (`family.md`, 2). The terminal prints the page; the view is shared.

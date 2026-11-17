@@ -51,10 +51,10 @@ fn a_run_takes_turns_and_progresses_before_its_answer() {
 }
 
 #[test]
-fn a_wrong_secret_is_refused_as_unauthorized() {
+fn a_wrong_secret_is_refused_as_not_admitted() {
     let outcome = run(Story::Opening(Opening::Secret));
     assert_eq!(outcome.verdict, Verdict::Passed);
-    assert_eq!(outcome.refusal, Some(256));
+    assert_eq!(outcome.refusal, Some(260));
     assert_eq!(outcome.turns_committed, 0);
 }
 
@@ -361,4 +361,40 @@ fn a_workers_application_ask_crosses_and_its_root_hears_the_numbered_answer() {
     assert_eq!(outcome.turns_committed, 1);
     assert_eq!(outcome.answers_acknowledged, 1);
     assert!(outcome.services_empty);
+}
+
+#[test]
+fn a_figures_opening_takes_the_reference_engines_named_limits_without_admission() {
+    let outcome = run(Story::Opening(Opening::Figures));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.refusal, None);
+    assert_eq!(outcome.figures.len(), 1);
+    let figures = &outcome.figures[0];
+    let input = fixtures::engine_document();
+    let bytes = u32::try_from(input.len()).expect("figures fixture");
+    let document =
+        jig_protocol_config::document(&input, &jig_protocol_config::DocumentLimits { bytes, tokens: bytes, depth: 32 })
+            .expect("figures fixture");
+    let engine = jig_protocol_config::engine_over(
+        &document,
+        document.member(0, b"engine").expect("figures fixture"),
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .expect("figures fixture");
+    assert_eq!(figures.places(), fixtures::workers()[0].places);
+    assert!(figures.agents().profile().is_empty());
+    assert!(figures.agents().endpoints().is_empty());
+    assert_eq!(
+        figures.limits().len(),
+        u32::try_from(jig_protocol_config::names::NAMES.len()).expect("figures fixture")
+    );
+    for named in &jig_protocol_config::names::NAMES {
+        let limit = figures.limits().iter().find(|limit| limit.name() == named.name.as_bytes()).expect("named figure");
+        assert_eq!(limit.value(), (named.value)(&engine.limits), "{}", named.name);
+    }
+    assert_eq!(outcome.admitted_hellos, 0);
+    assert_eq!(outcome.agent_starts, 0);
 }

@@ -295,11 +295,12 @@ mod tests {
     fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
-        let prepared = temper_box_shell::prepare_in_with(
+        let prepared = temper_box_shell::prepare_in_with_program(
             &[],
             b"/",
             &crate::service::directories(scratch.path()),
             &crate::fixtures::given(scratch.path()),
+            Some(&scratch.path().join("temper-agent")),
         )
         .expect("prepared service");
         let prepared = crate::service::Driven::new(prepared);

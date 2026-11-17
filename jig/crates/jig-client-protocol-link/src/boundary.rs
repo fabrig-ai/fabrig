@@ -106,6 +106,10 @@ pub enum Request {
     NotKept {
         attempt: Token,
     },
+    /// A request whose record cannot be encoded for the store, retired by its key.
+    NotWritten {
+        key: RequestKey,
+    },
     Answer {
         attempt: Token,
         envelope: RequestEnvelope,

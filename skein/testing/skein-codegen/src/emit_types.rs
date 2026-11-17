@@ -190,8 +190,14 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
     }
     let members = names.join(", ");
     let has_bounds = schema.has_bounds(&Type::Named(record.name.clone()));
-    let check = if has_bounds { "        value.check(limits)?;\n" } else { "" };
-    let limits = if has_bounds { "limits" } else { "_limits" };
+    let limits = if !has_bounds {
+        "_limits"
+    } else if names.contains(&"limits") {
+        "skein_limits"
+    } else {
+        "limits"
+    };
+    let check = if has_bounds { format!("        value.check({limits})?;\n") } else { String::new() };
     if schema.bounds.is_empty() {
         out.push_str(&format!("    /// Makes a value; this family has no adjustable bounds.\n    #[must_use]\n    pub fn new(_limits: &Limits, parts: {}Parts) -> Self {{\n        let {}Parts {{ {members} }} = parts;\n        Self {{ {members} }}\n    }}\n\n", record.name, record.name));
     } else {

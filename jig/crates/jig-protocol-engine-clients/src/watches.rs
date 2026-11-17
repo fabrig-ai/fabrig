@@ -185,7 +185,8 @@ impl Component {
         }
         let watcher = self.name();
         let version = subject.version;
-        let Some(opening) = crate::served::watch(subject, watcher, sign_in, self.settings.rows, &env.limits.wire)
+        let Some(opening) =
+            crate::served::watch(subject, watcher, sign_in, self.settings.rows, &env.limits.wire, &self.settings)
         else {
             self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
             return;
@@ -202,6 +203,7 @@ impl Component {
                     version,
                     project: opening.project,
                     rows: opening.rows,
+                    parts: opening.parts,
                     opening: Some(exchange),
                     closing: None,
                     unwatch: false,
@@ -338,6 +340,7 @@ impl Component {
             watch.name,
             watch.version,
             &self.settings.models,
+            &watch.parts,
             &env.limits.wire,
         );
         self.queue_packet(env, watcher, value, Taken::Delivery(watcher), out);

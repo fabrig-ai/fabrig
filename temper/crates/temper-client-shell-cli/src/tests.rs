@@ -574,6 +574,20 @@ fn two_writes_get_two_ordered_terminals() {
     assert!(f.act_sent());
 }
 #[test]
+fn an_unwritable_act_says_not_kept_and_nothing_sent() {
+    let text = vec![b'x'; 32768];
+    let words = [b"chat".as_slice(), b"start", &text, b"--project", b"shop", b"--key", b"start-chat"];
+    let mut f = fixtures::Disk::act_words_with(&words, fixtures::small_store(&[]));
+    f.host.test_document_bytes(32768);
+    f.answer_kept();
+    assert!(!f.act_sent());
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: request not kept; nothing was sent\n");
+    f.advance_past(limits::DEADLINE);
+    assert!(!f.act_sent());
+    assert_eq!(f.stderr(), b"temper ctl: request not kept; nothing was sent\n");
+}
+#[test]
 fn an_unheard_act_stays_kept() {
     let mut f = fixtures::Disk::act_with(fixtures::small_store(&[]));
     f.answer_kept();

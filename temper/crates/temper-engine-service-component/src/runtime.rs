@@ -91,7 +91,7 @@ impl engine::Engine {
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
+        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(
@@ -107,6 +107,14 @@ impl engine::Engine {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
         Ok(engine)
+    }
+    /// Keep kind 21 in the box's data directory (protocol/configuration/figures.md, 4).
+    pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {
+        self.workers.keep_agents(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_agents_write()
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;

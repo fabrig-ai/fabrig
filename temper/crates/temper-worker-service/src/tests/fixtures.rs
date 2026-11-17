@@ -16,7 +16,7 @@ pub fn worker_runtime() -> crate::WorkerRuntime {
         wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
-        agent: pinned_agent(&worker_settings().jig.agent),
+        agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
     }
 }
 pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
@@ -72,7 +72,9 @@ fn charter() -> smith_domain_run::Charter {
 }
 
 mod startup;
-pub use startup::{files, owned_worker_agent, owned_worker_alone_document, startup_agent, with, worker_alone_document};
+pub use startup::{
+    files, owned_worker_agent, owned_worker_alone_document, part, startup_agent, with, worker_alone_document,
+};
 pub use worker::assignment as worker_assignment;
 /// Parse the shipped agent with inert destinations and selected payload/output quantities.
 #[expect(
@@ -81,7 +83,8 @@ pub use worker::assignment as worker_assignment;
     reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
         .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")

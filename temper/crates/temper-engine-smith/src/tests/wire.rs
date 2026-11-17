@@ -60,6 +60,7 @@ fn contract_lines_sort_names_keep_ties_and_escape_schema_bytes() {
             description: b"not in the contract",
             schema: b"{}",
             effect: HostEffect::Read,
+            whole: None,
             offer: Offer::Every,
         },
         Spec {
@@ -67,14 +68,23 @@ fn contract_lines_sort_names_keep_ties_and_escape_schema_bytes() {
             description: b"",
             schema: b"{\n\"x\":\"\\\"\t\r\x01\"}",
             effect: HostEffect::Write,
+            whole: None,
             offer: Offer::Every,
         },
-        Spec { name: b"a", description: b"", schema: b"{}", effect: HostEffect::Read, offer: Offer::Every },
+        Spec {
+            name: b"a",
+            description: b"",
+            schema: b"{}",
+            effect: HostEffect::Read,
+            whole: None,
+            offer: Offer::Every,
+        },
         Spec {
             name: b"a",
             description: b"duplicate offering",
             schema: b"{}",
             effect: HostEffect::Read,
+            whole: None,
             offer: Offer::Every,
         },
     ];

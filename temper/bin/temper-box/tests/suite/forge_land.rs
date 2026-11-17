@@ -382,7 +382,7 @@ fn configure_claude(paths: &[std::path::PathBuf; 3]) {
     support::forge_land::configure_live_model(
         &paths[0],
         support::forge_land::LiveModel::ClaudeCode { login: &paths[1].join("programs/claude-login") },
-        Path::new("/machine/bin/claude"),
+        Path::new("/usr/bin/true"),
     );
 }
 
@@ -392,18 +392,17 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
     let (scratch, paths) = initialized_deployment("live-claude-configuration");
     let config = &paths[0];
-    let agent_before: Value =
-        serde_json::from_slice(&fs::read(config.join("agent.json")).expect("agent")).expect("JSON");
+    let agent_before = temper_fixtures::agent::read(config);
     let before: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     configure_claude(&paths);
-    let agent: Value = serde_json::from_slice(&fs::read(config.join("agent.json")).expect("agent")).expect("JSON");
+    let agent = temper_fixtures::agent::read(config);
     let value: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
     assert_eq!(
         agent["programs"],
         json!({"claude_code":{
-            "path":"/machine/bin/claude", "directory":paths[1].join("programs")
+            "path":"fetched", "directory":paths[1].join("programs")
         }})
     );
     assert_eq!(
@@ -413,7 +412,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "connect":10000, "handshake":10000, "headers":[],
                 "limits": {
-                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000}},
+                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000,"oversized_reasoning":"fail"}},
             agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
     );
@@ -430,10 +429,14 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
         })
     );
-    assert_eq!(value["application"], before["application"], "including init's demo");
+    let application = before["application"].clone();
+    assert_eq!(value["application"], application, "including init’s demo");
     assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
     assert_eq!(value["workers"], before["workers"]);
-    let parsed = smith_agent_shell::config::read(&config.join("agent.json")).expect("ordinary agent schema");
+    let parsed = temper_worker_shell::agent::decoded_bytes(&serde_json::to_vec(&agent).expect("agent JSON"))
+        .expect("ordinary agent schema")
+        .resolve(&mut Vec::new())
+        .expect("resolved agent");
     assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
     eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
     scratch.remove();
@@ -2039,9 +2042,8 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     use std::fs;
     let (scratch, paths) = initialized_deployment("live-key-configuration");
     let path = paths[0].join("temper.json");
-    let agent_path = paths[0].join("agent.json");
     let mut expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
-    let agent = fs::read(&agent_path).expect("init agent");
+    let agent = temper_fixtures::agent::read(&paths[0]);
     let provider = expected["engine"]["llm"]["providers"]
         .as_array_mut()
         .expect("providers")
@@ -2055,7 +2057,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     configure_key(&paths);
     let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
     assert_eq!(configured, expected, "OpenAI, demo and both Anthropic endpoints remain as init writes them");
-    assert_eq!(fs::read(agent_path).expect("key agent"), agent, "Claude Code's program stays as init writes it");
+    assert_eq!(temper_fixtures::agent::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
     scratch.remove();
     assert_live_startup("live-key-startup", configure_key);
 }
@@ -2124,7 +2126,6 @@ fn a_key_store_is_kept_without_a_held_record() {
     }
     for file in [
         "config/temper.json".to_owned(),
-        "config/agent.json".to_owned(),
         "data/box/started/1".to_owned(),
         "data/forge-1/forgejo/app.ini".to_owned(),
         "data/forge-1/forgejo/forgejo.db".to_owned(),

@@ -70,7 +70,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: 28, last: 28 },
+            Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
         providers: jig_client_kit::test::list([0]),
@@ -118,7 +118,7 @@ pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     }])
 }
 // Match this world's HTTP intake and the small profile's component bound.
-pub const MESSAGE_BYTES: u32 = 65536;
+pub const MESSAGE_BYTES: u32 = 131_328;
 #[must_use]
 pub fn engine_limits() -> Limits {
     Limits {
@@ -135,7 +135,7 @@ pub fn engine_limits() -> Limits {
         exchanges: 8,
         exchanges_per_client: 4,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v28::CEILINGS,
+        wire: jig_client_protocol_wire::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -143,7 +143,7 @@ pub fn engine_limits() -> Limits {
 pub fn connections_limits() -> jig_client_shell_native::Limits {
     jig_client_shell_native::Limits {
         exchanges: 8,
-        body_bytes: 65536,
+        body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
@@ -224,7 +224,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
 
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 16;
     limits.http = server_http();
     limits
@@ -265,7 +265,14 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
 }
 #[must_use]
 pub fn server_http() -> skein_http::server::Limits {
-    skein_http::server::Limits { head: 4096, headers: 32, body: 65536, read: 1024, response: 65536, send: 1024 }
+    skein_http::server::Limits {
+        head: 4096,
+        headers: 32,
+        body: u64::from(MESSAGE_BYTES),
+        read: 1024,
+        response: 65536,
+        send: 1024,
+    }
 }
 
 pub const TURN_BYTES: &[u8] =
@@ -375,7 +382,7 @@ pub fn large_turn() -> Box<[u8]> {
 /// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small());
     limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
     limits.clients.public = jig_protocol_engine_clients::PublicLimits {
         reads: 2,

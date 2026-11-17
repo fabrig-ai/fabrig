@@ -12,7 +12,9 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod admission;
 mod budget;
+mod change_facts;
 mod chat_document;
+mod checkpoints;
 mod dismiss;
 mod documents;
 mod forge_route;

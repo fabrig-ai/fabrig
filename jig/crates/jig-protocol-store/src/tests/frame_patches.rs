@@ -118,7 +118,12 @@ fn scene(bytes: &[u8], sets: OwnerSets) -> (Disk, Store) {
     store.owner_sets(sets);
     let opened = fixtures::run(
         &mut store,
-        Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: disk.root(),
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { .. }, Event::Census { .. }] = &*opened else { panic!("opened: {opened:?}") };
     fixtures::plant(
@@ -202,7 +207,11 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
                 let events = disk.request(store, Request::Site { owner, patcher, result: status });
                 result.extend(answer_frame(disk, store, events, refuse, offset));
             }
-            other @ (Event::Switched { .. }
+            other @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Switched { .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
             | Event::Committed { .. }
@@ -309,6 +318,54 @@ fn every_log_read_kind_patches_each_kept_body_without_writing() {
                 assert_eq!(store.stores.store.log_end(log), extent);
                 assert_eq!(&*disk.bytes(PATH), &*bytes);
             }
+        }
+    }
+}
+
+#[test]
+fn a_log_batch_waits_at_each_written_site_before_releasing_a_commit() {
+    for backwards in [false, true] {
+        let bytes = frames::frame(5, &turn(1, REPLAY));
+        let (mut disk, mut store) = log_scene(&bytes);
+        let log = crate::logs::turns(frames::TASK).unwrap();
+        let first_end = store.stores.store.log_end(log);
+        let frame = store.stores.store.frame(crate::transcripts::frame::body(&bytes).unwrap()).unwrap();
+        super::history_logs::raw_commit(&mut store, Box::new([skein_kv::Op::Append { log, frame }]));
+        let number = store.stores.store.last().checked_add(1).unwrap();
+        let mut events = disk.request(
+            &mut store,
+            Request::Transcript {
+                owner: OWNER,
+                read: TranscriptRead::Page { task: frames::TASK, backwards, after: None },
+                rows: 2,
+                bytes: BUDGET,
+            },
+        );
+        let waiting = disk.request(&mut store, fixtures::commit(number, Box::new([fixtures::header(number)])));
+        assert!(waiting.is_empty());
+        for offset in if backwards { [first_end, 0] } else { [0, first_end] } {
+            let mut waiting = events.into_iter();
+            let Some(Event::Site { owner, of, key, site, at, mut patcher }) = waiting.next() else {
+                panic!("one frame waits at its site")
+            };
+            assert!(waiting.next().is_none());
+            assert_eq!((owner, of), (OWNER, Owner::Smith));
+            let mut name =
+                keys::encode_own(&keys::Own::TurnLog { task: frames::TASK }, fixtures::KEY_LIMIT).unwrap().into_vec();
+            name.extend(offset.to_be_bytes());
+            assert_eq!(key.as_ref(), name);
+            assert_eq!(store.stores.store.last(), number.checked_sub(1).unwrap());
+            let (old, new) = patcher.parts();
+            let result = smith::written(site, old, new, at, &mut smith::Context { key });
+            events = disk.request(&mut store, Request::Site { owner, patcher, result });
+        }
+        let [Event::Turns { turns, next: None, cut: None, .. }, Event::Committed { number: got, .. }] = &*events else {
+            panic!("both frames finish before the commit: {events:?}")
+        };
+        assert_eq!(*got, number);
+        assert_eq!(turns.len(), 2);
+        for turn in turns {
+            assert_eq!(turn.transcript, expected(1));
         }
     }
 }
@@ -467,7 +524,12 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
         store.owner_sets(sets);
         let events = fixtures::run(
             &mut store,
-            Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: Token::new(1),
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
         );
         let [Event::OpenRefused { why: crate::OpenRefusal::Set { owner: found }, .. }] = &*events else {
             panic!("set refusal {events:?}")
@@ -770,7 +832,12 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     crate::down(
         &mut store,
         &env,
-        Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: Token::new(1),
+            root: disk.root(),
+            installation: fixtures::INSTALLATION,
+        },
         &mut above,
         &mut below,
     );

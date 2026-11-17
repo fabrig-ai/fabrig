@@ -15,7 +15,7 @@ pub(in crate::tests) fn roles(names: &[&[u8]]) -> c::Tasks {
         row.label = 3;
         rows.push(row).unwrap();
     }
-    c::Tasks { rows, more: false }
+    c::Tasks { ended_mark: 0, rows, more: false }
 }
 pub(in crate::tests) fn project() -> c::Project {
     c::Project {

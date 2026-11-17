@@ -28,7 +28,10 @@ pub use crate::{
         amendments::TaskAmendDenied,
         policy::{grants_to_authority, snapshot as policy_snapshot},
     },
-    documents::Offered,
+    documents::{
+        Offered,
+        parts::{MadePart, PartAsk, PartFailure, PartInputs, PartKind, PartsAsk, RowPart},
+    },
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         connector::PersonSeed,
@@ -101,8 +104,6 @@ pub struct SeedProject {
 /// (`domain/engine/restart.md`; `configuration.md`, 3).
 #[derive(Debug)]
 pub struct Config {
-    /// Configured worker names in authenticated protocol position order.
-    pub worker_names: Box<[Box<[u8]>]>,
     /// Identity committed with the first decision.
     pub deployment: [u8; 16],
     /// Deterministic task scheduling seed.
@@ -129,6 +130,8 @@ pub struct Config {
     pub jobs: Box<[jig_domain_link::JobBound]>,
     /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
+    /// Application task-row parts (domain/engine/views.md, 2).
+    pub parts: Box<[PartKind]>,
 }
 
 /// Deployment and current catalogue settings used by core decisions.

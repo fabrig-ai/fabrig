@@ -179,7 +179,7 @@ fn read_turn(driver: &mut Driver, assignment: &engine::Assignment, reply: Token)
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(reply),
         sign_in: driver.session(),
-        read: reads::Read::Turn { task: assignment.task, attempt: assignment.attempt, turn: 1 },
+        read: Box::new(reads::Read::Turn { task: assignment.task, attempt: assignment.attempt, turn: 1 }),
     }));
     for _ in 0..STEPS {
         if let Some(index) = driver

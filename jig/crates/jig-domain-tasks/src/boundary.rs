@@ -534,6 +534,8 @@ pub enum Contract {
         kind: u16,
         /** Maximum change-report bytes, no greater than `Limits::result_bytes`. */
         words: u32,
+        /// Successful no-resource verdicts; distinct codes bounded as a verdict contract's choices.
+        choices: Box<[Verdict]>,
     },
 }
 

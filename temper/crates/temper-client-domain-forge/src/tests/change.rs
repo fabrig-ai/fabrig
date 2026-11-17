@@ -98,6 +98,24 @@ fn each_step_supplies_its_slot_line_and_held_word() {
     }
 }
 #[test]
+fn a_panel_supplies_its_outbox_wait_phrase() {
+    for (wait, expected) in [(Some(w::ChangeWait::OutboxRoom), Some(W::OutboxRoom)), (None, None)] {
+        let mut parts = p::panel(17, w::Step::Opening).into_parts();
+        parts.wait = wait;
+        let state = crate::forge::panel::State::Shown(Box::new(w::ChangePanel::new(&w::CEILINGS, parts).unwrap()));
+        assert_eq!(change::shown(&state).unwrap().wait(), expected);
+    }
+    let mut found = false;
+    for row in crate::forge::words::CHANGES {
+        if row.0 == W::OutboxRoom {
+            found = true;
+            assert_eq!(row.1, &[b"Waiting for room in the forge outbox.".as_slice()]);
+            assert_eq!(row.2, []);
+        }
+    }
+    assert!(found);
+}
+#[test]
 fn holds_supply_each_reason() {
     for (hold, word) in [
         (w::Hold::Stalled, W::Stalled),

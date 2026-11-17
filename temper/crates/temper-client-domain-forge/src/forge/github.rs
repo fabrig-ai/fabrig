@@ -318,6 +318,8 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::NotTheirs
                 | w::Outcome::Overturned
                 | w::Outcome::OverturnRefused(_)
+                | w::Outcome::Checkpointed(_)
+                | w::Outcome::CheckpointRefused(_)
                 | w::Outcome::EndRefused(_) => None,
             }
         }

@@ -476,7 +476,9 @@ impl World {
                     self.trace.push(format!("output {request:?}"));
                 }
                 match request {
-                    root::Request::StoreCatalogue { .. } | root::Request::ClientsCatalogue { .. } => {}
+                    root::Request::Workers(_)
+                    | root::Request::StoreCatalogue { .. }
+                    | root::Request::ClientsCatalogue { .. } => {}
                     root::Request::Start { phase, census } => self.start_step(phase, census),
 
                     root::Request::Commit { number, mut writes } => {

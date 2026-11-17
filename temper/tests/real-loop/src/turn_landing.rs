@@ -1,4 +1,6 @@
-//! A ctl-released batch on the fake Forgejo (testing/qa/setups.md, 5–6).
+//! A ctl-released report batch and the setup's red top (testing/qa/setups.md, 6).
+pub mod latched;
+
 use crate::{ForgeRecipe, Ran, argv, calls, fixtures, forge, landing, llm};
 use serde_json::{Value, json};
 use skein_fake_forge_domain::api;
@@ -7,7 +9,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const A: &str = "@turn-a First turn member\nPerson: 1; Repository: 4294967298;";
 pub const B: &str = "@turn-b Second turn member\nPerson: 1; Repository: 4294967298;";
 pub const RED: &str = "@turn-red Failing turn member\nPerson: 1; Repository: 4294967298;";
 // Each goal is started only after the preceding review exists, so these are
@@ -83,6 +84,8 @@ fn fixture() -> forge::Fixture {
             }
             limits["forge.landing_members"] = 2.into();
             limits["forge.resources_per_task"] = 3.into();
+            // Sixteen holds cover eight two-member batches.
+            limits["forge.landings"] = 8.into();
             limits["forge.holds"] = 16.into();
 
             limits["root.loads.loads"] = 3.into();
@@ -102,7 +105,7 @@ fn fixture() -> forge::Fixture {
                 ("documents.chips", 32),
                 ("authority.executors", 22),
                 ("tasks.executor_kinds", 22),
-                ("fleet.slots", 2),
+                ("fleet.slots", 4),
                 ("fleet.attempts", 2),
                 ("core.load_bytes", 131_072),
                 ("people.inbox_tasks", 48),
@@ -110,11 +113,8 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             value["workers"][0]["slots"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.slots"] = 2.into();
-            for limits in ["engine", "workers"] {
-                let target = if limits == "engine" { &mut value["engine"] } else { &mut value["workers"][0] };
-                target["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
-            }
+            value["engine"]["limits"]["overrides"]["hub.slots"] = 2.into();
+            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
             // The shared prepare carriers, rather than the small chat profile.
             let prepare = temper_service::limits::prepare_bound();
             for (name, bytes) in [
@@ -125,9 +125,7 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = bytes.into();
             }
             value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-            value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+            value["engine"]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
             value["application"]["limits"]["overrides"]["checkout.message_bytes"] = (prepare.result + 2).into();
             value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
             agent["profile"]["declared"]["tool_payload"] = (prepare.result + 2).into();
@@ -157,12 +155,12 @@ fn recipe(_: SocketAddr, _: &Path) -> llm::Recipe {
 }
 
 #[must_use]
-pub fn run(red: bool) -> Ran {
-    crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, || acts(red))
+pub fn run() -> Ran {
+    crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts)
 }
 
-#[expect(clippy::too_many_lines, reason = "the ordered ctl script keeps its observation indices beside both endings")]
-fn acts(red: bool) -> Vec<calls::Step> {
+#[expect(clippy::too_many_lines, reason = "the ordered ctl script keeps its observation indices beside the red ending")]
+fn acts() -> Vec<calls::Step> {
     use calls::{D1, call, number, sign_in, until};
     let mut acts = vec![
         sign_in(D1),
@@ -198,7 +196,7 @@ fn acts(red: bool) -> Vec<calls::Step> {
                 "2030-01-01T00:00Z",
                 "--key",
                 "first",
-                if red { RED } else { A }
+                RED
             ],
         ),
         call(D1, argv!["task", "show", "1", "--until", "phase:idle", "--json"]),
@@ -267,48 +265,37 @@ fn acts(red: bool) -> Vec<calls::Step> {
         call(D1, argv!["landing", "list", "--project", "1", "--ended", "--json"]),
         call(D1, argv!["task", "answer", number(LATCH), "--rev", "0", "Ready together", "--key", "release"]),
     ];
-    if red {
-        acts.push(until(
+    acts.push(until(
+        D1,
+        argv!["landing", "history", "--project", "1", "--landing", "10", "--json"],
+        b"\"kind\":\"gate-ended\"",
+        b"\"events\"",
+    ));
+    // End at the first gate receipt, not a claim about subsequent narrowing or repair.
+    for goal in [1, 6, 10] {
+        acts.push(call(
             D1,
-            argv!["landing", "history", "--project", "1", "--landing", "10", "--json"],
-            b"\"kind\":\"gate-ended\"",
-            b"\"events\"",
+            argv![
+                "task",
+                "cancel",
+                number(goal),
+                "Stop after the red proof",
+                "--key",
+                match goal {
+                    1 => "stop-a",
+                    6 => "stop-b",
+                    _ => "stop-landing",
+                }
+            ],
         ));
-        // End at the first gate receipt, not a claim about subsequent narrowing or repair.
-        for goal in [1, 6, 10] {
-            acts.push(call(
-                D1,
-                argv![
-                    "task",
-                    "cancel",
-                    number(goal),
-                    "Stop after the red proof",
-                    "--key",
-                    match goal {
-                        1 => "stop-a",
-                        6 => "stop-b",
-                        _ => "stop-landing",
-                    }
-                ],
-            ));
-            acts.push(call(D1, argv!["task", "show", number(goal), "--until", "ended"]));
-        }
-    } else {
-        for change in CHANGES {
-            acts.push(call(D1, argv!["change", "show", number(change), "--until", "landed", "--json"]));
-        }
-        for goal in [1, 6] {
-            acts.push(call(D1, argv!["task", "show", number(goal), "--until", "ended", "--json"]));
-        }
+        acts.push(call(D1, argv!["task", "show", number(goal), "--until", "ended"]));
     }
     acts.push(call(D1, argv!["landing", "list", "--project", "1", "--ended", "--json"]));
     acts.push(call(D1, argv!["landing", "show", "10", "--json"]));
     acts.into_iter()
         .enumerate()
         .map(|(at, step)| {
-            if matches!(step, calls::Step::Call { .. })
-                && (!red || ![RELEASE + 2, RELEASE + 4, RELEASE + 6].contains(&at))
-            {
+            if matches!(step, calls::Step::Call { .. }) && ![RELEASE + 2, RELEASE + 4, RELEASE + 6].contains(&at) {
                 step.succeeds()
             } else {
                 step

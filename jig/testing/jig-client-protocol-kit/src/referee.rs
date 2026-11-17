@@ -1,5 +1,5 @@
 //! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
-use jig_client_protocol_wire::v28 as wire;
+use jig_client_protocol_wire as wire;
 use skein_lib::{Reader, Writer};
 
 macro_rules! same {
@@ -27,7 +27,7 @@ pub enum Broken {
 }
 #[derive(Default)]
 pub struct Rules {
-    secrets: Vec<Vec<u8>>,
+    secrets: Vec<String>,
     pub records: u64,
     pub domains: u64,
     pub cuts: u64,
@@ -35,8 +35,9 @@ pub struct Rules {
 }
 impl Rules {
     pub fn secret(&mut self, bytes: &[u8]) {
-        if !self.secrets.iter().any(|value| value == bytes) {
-            self.secrets.push(bytes.to_vec());
+        let rendered = format!("{bytes:?}");
+        if !self.secrets.contains(&rendered) {
+            self.secrets.push(rendered);
         }
     }
     /// Domain inputs are inspected as whole public values, never root state.
@@ -44,7 +45,7 @@ impl Rules {
     /// Reports an authentication secret carried in that input.
     pub fn domain(&mut self, event: &impl std::fmt::Debug) -> Result<(), Broken> {
         let observed = format!("{event:?}");
-        if self.secrets.iter().any(|bytes| observed.contains(&format!("{bytes:?}"))) {
+        if self.secrets.iter().any(|bytes| observed.contains(bytes)) {
             return Err(Broken::Secret);
         }
         self.domains += 1;

@@ -5,26 +5,29 @@
       "overrides": {
         "authority.executors": 22,
         "authority.grants": 15,
-        "tasks.executor_kinds": 22,
+        "core.resume_bytes": 16803814,
+        "fleet.engine_slots": 0,
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48,
+        "hub.transcript_bytes": 67215250,
+        "hub.turn_bytes": 16803810,
+        "hub.turn_queue_bytes": 134430480,
+        "io.output": 16804602,
+        "notes.scopes": 18,
         "tasks.authority_grants": 15,
         "tasks.charters": 16,
-        "notes.scopes": 18,
-        "fleet.engine_slots": 0,
-        "tasks.spec_bytes": 16384,
-        "tasks.result_bytes": 4096,
-        "tasks.message_bytes": 10660,
+        "tasks.executor_kinds": 22,
         "tasks.inbox_bytes": 874120,
-        "hub.transcript_bytes": 16777216,
-        "hub.turn_bytes": 1334031,
-        "hub.turn_queue_bytes": 10672248,
-        "io.output": 1334823,
-        "core.resume_bytes": 4194304
+        "tasks.message_bytes": 10660,
+        "tasks.result_bytes": 4096,
+        "tasks.spec_bytes": 16384
       }
     },
     "llm": {
       "providers": [
         {
-          "name": "fake-provider",
+          "name": "openai",
           "number": 1,
           "endpoint": "fake",
           "sources": {
@@ -37,7 +40,7 @@
           "name": "fake",
           "number": 0,
           "dialect": 3,
-          "provider": "fake-provider",
+          "provider": "openai",
           "address": {
             "socket": "{place.model}"
           },
@@ -52,12 +55,6 @@
       "listener": [
         {
           "socket": "{place.workers}"
-        }
-      ],
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "{place.data}/engine/secrets/worker.digest"
         }
       ]
     },
@@ -88,13 +85,14 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "forge.client.op_bytes": 10660,
         "forge.judge_projects": 8,
-        "forge.client.op_bytes": 4096,
-        "root.journal.transcript_bytes": 4194304,
-        "root.loads.bytes": 1334279,
-        "root.loads.reply_bytes": 1334279,
-        "root.loads.read_bytes": 2668062,
-        "root.loads.transcript_bytes": 1334031
+        "forge_component.body_bytes": 21341,
+        "root.journal.transcript_bytes": 16803814,
+        "root.loads.bytes": 16804058,
+        "root.loads.read_bytes": 33607620,
+        "root.loads.reply_bytes": 16804058,
+        "root.loads.transcript_bytes": 16803810
       }
     }
   }

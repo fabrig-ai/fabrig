@@ -534,7 +534,7 @@ fn role_read(ctl: &mut Ctl, read: jig_domain_core::reads::Read) -> jig_domain_co
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: skein_lib::ReplyTo::new(REPLY),
         sign_in,
-        read,
+        read: Box::new(read),
     }));
     driver.settle();
     driver

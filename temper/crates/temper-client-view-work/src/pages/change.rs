@@ -149,6 +149,11 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
             &say(words, W::Held, &[Hole::Name(say(words, step, &[])), Hole::Name(say(words, reason, &holes))]),
         );
         b.close();
+    } else if let Some(wait) = change.wait() {
+        b.open(Role::Paragraph);
+        b.style(look::CHANGE_HOLD);
+        b.text(Run::Plain, &say(words, wait, &[]));
+        b.close();
     }
 }
 fn gate(b: &mut Builder, words: &Words, name: W, holes: &[Hole], state: Option<W>) {

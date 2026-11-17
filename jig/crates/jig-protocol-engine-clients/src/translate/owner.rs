@@ -310,7 +310,7 @@ pub fn authority(
         limits.authority_note_resources.min(w::CEILINGS.authority_note_resources),
         w::Path::AuthorityNoteResources,
     )?;
-    let mut kinds = List::with_capacity(value.executors.capacity());
+    let mut kinds = List::with_capacity(value.executors.len());
     for item in &value.executors {
         kinds.push(authority_executor(*item, limits)?).expect("supplied executors");
     }

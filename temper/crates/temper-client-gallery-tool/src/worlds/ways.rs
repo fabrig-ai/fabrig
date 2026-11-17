@@ -961,5 +961,5 @@ pub(super) fn standing() -> c::Tasks {
     task.chip.phase = c::Phase::Running;
     task.budget.numbers.budget = 40;
     task.budget.left = 28;
-    c::Tasks { rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
+    c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
 }

@@ -174,7 +174,7 @@ impl crate::world::World {
         self.send(root::Event::Core(core::Event::NamedAction {
             to: ReplyTo::new(token),
             key,
-            action: core::NamedAction::PersonRead(read),
+            action: core::NamedAction::PersonRead(Box::new(read)),
         }));
         token
     }

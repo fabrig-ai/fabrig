@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/cursor_v1.rs"]
-pub mod cursor_v1;
+#[path = "generated/cursor_v2.rs"]
+pub mod cursor_v2;

@@ -1,7 +1,8 @@
 //! Asked links are transient exchanges (jig/docs/design/client/domain/client/README.md, 9).
 use crate::component::{Attempt, ExchangeKind};
 use crate::{AskedLink, Link, Message, NotAsked, Request, Signing};
-use jig_client_protocol_wire::{VERSION, v28 as w};
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Writer};
 
 impl Link {
@@ -40,6 +41,7 @@ impl Link {
                     version: VERSION,
                     kind: ExchangeKind::LinkAsk,
                     held: None,
+                    parts: skein_lib::List::with_capacity(0),
                 },
             )
             .expect("checked exchange capacity");

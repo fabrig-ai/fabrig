@@ -69,7 +69,7 @@ fn delete(entry: &notes::Entry) -> people::Ask {
 fn read(world: &mut World, session: u64, query: reads::Read) -> reads::Answer {
     let reply_to = ReplyTo::new(Token::new(100));
     let start = world.driver.delivered.len();
-    world.driver.send(Event::Party(PartyInput::Read { reply_to, sign_in: session, read: query }));
+    world.driver.send(Event::Party(PartyInput::Read { reply_to, sign_in: session, read: Box::new(query) }));
     world.driver.settle();
     world.driver.delivered[start..]
         .iter()

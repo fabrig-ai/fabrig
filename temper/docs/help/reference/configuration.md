@@ -37,8 +37,8 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 
 Shape: `application-limits`. Paths: `application.limits`. The application’s limits profile and named overrides.
 
-- `profile`: text, small or standard; required; init writes "standard". The limits profile used before applying overrides.
-- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":10662,"checkout.workspaces":4,"forge.client.op_bytes":10660,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":21341,"git_component.operations":4,"root.journal.transcript_bytes":16803814,"root.loads.bytes":16804058,"root.loads.read_bytes":33607620,"root.loads.reply_bytes":16804058,"root.loads.transcript_bytes":16803810}. The dotted limit names whose values replace the profile’s.
+- `profile`: text, standard; optional; init writes "standard". May be absent or standard; either reads the stock before overrides.
+- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":10662,"checkout.workspaces":4,"forge.client.op_bytes":10660,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":21341,"git_component.operations":4,"root.journal.transcript_bytes":16803814,"root.loads.bytes":16804058,"root.loads.read_bytes":33607620,"root.loads.reply_bytes":16804058,"root.loads.transcript_bytes":16803810}. The dotted limit names whose values replace the stock’s.
 
 ## application.clients
 
@@ -169,8 +169,8 @@ Shape: `demo-line`. Paths: `application.demo.llm.asked[].turns[].lines[]` `appli
 
 ## More slots
 
-`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:
 
-- `hub.slots`, in `workers[0].limits.overrides`.
+- `hub.slots`, in `engine.limits.overrides`. Workers take their limits from the engine.
 - `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
 - `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

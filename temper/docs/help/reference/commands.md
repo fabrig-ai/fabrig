@@ -237,7 +237,7 @@ As temper help, above.
 
 Run one agent for a worker's run, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-agent --list
 
@@ -245,7 +245,7 @@ Run one agent for a worker's run, on smith's agent configuration. Internal: it m
 
 Read one endpoint's model list, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-agent --mcp-relay
 
@@ -292,7 +292,7 @@ Write a deployment that starts, with temper's default configuration, into the th
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-Alone, init chooses two ports on `127.0.0.1`, preferring 8367 for clients and 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground: five ports, preferring 8367 for clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the demo LLM and 8371 for webhooks. Taken ports fall back to the kernel. It writes matching addresses in `temper.json` and `agent.json`.
+Init chooses loopback ports: 8367 for clients, 8371 for webhooks. With `--box`, it adds the welcome, owned Forgejo and playground, and ports 8368 for owned Forgejo, 8369 for the fake forge and 8370 for the demo LLM. Taken ports fall back to the kernel. `temper.json` holds the matching addresses. Worker figures come from the engine; init writes no agent configuration.
 
 To choose ports for another box, leave the first running and give init
 separate empty configuration, data and cache directories. No port flag
@@ -411,7 +411,7 @@ For people; an agent works through temper ctl.
 
 Run one agent for a worker's run, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-box internal agent-list
 
@@ -419,7 +419,7 @@ Run one agent for a worker's run, on smith's agent configuration. Internal: it m
 
 Read one endpoint's model list, on smith's agent configuration. Internal: it may change without notice.
 
-- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### temper-box internal serve
 

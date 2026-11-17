@@ -25,6 +25,7 @@ impl Harness {
         match self.out.iter().last().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
@@ -69,6 +70,7 @@ impl Harness {
                 Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -99,6 +101,7 @@ impl Harness {
                 Request::Read { .. }
                 | Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream

@@ -388,7 +388,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.agent.is_due(env.now) {
         agent::fire(&mut domain.agent, &route::agent_env(env), &mut domain.agent_out);
     }
-    crate::reds::fire(domain, env.now);
+    crate::reds::fire(domain, env);
     host::fire_sources(&mut domain.host, &route::host_env(env), &mut domain.host_out);
     settle(domain, env, out);
     crate::stopping::fire(domain, env, out);

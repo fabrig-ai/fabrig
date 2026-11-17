@@ -47,7 +47,7 @@ use core::mem;
 use crate::wire;
 use jig_domain_host as host;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Env, Id, List, Map, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Token};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
 
@@ -565,8 +565,11 @@ fn record_landings(next: &mut Items, landings: &[checkout::Landing], unchecked: 
             checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => {
                 (commit, !unchecked)
             }
+            checkout::Landing::CaughtUpSaved { commit, .. } => (commit, false),
             checkout::Landing::Prefixes { commit, .. } => (commit, true),
-            checkout::Landing::Moved
+            checkout::Landing::CaughtUp { .. }
+            | checkout::Landing::CaughtUpConflict { .. }
+            | checkout::Landing::Moved
             | checkout::Landing::Unchanged
             | checkout::Landing::Conflicted { .. }
             | checkout::Landing::DesignConflict { .. }
@@ -846,6 +849,22 @@ pub(crate) fn report_repository(domain: &Domain, client: Token, repository: u32)
     let items = domain.items.get(&workspace.items)?;
     Some((workspace.run, *items.tags.get(usize::try_from(repository).ok()?)?))
 }
+/// Ask the engine whether this hold's unreachable starting head has landed.
+pub(crate) fn dependency_landed(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    client: Token,
+    head: checkout::git::Commit,
+    out: &mut Queue<crate::Request>,
+) {
+    let Some(record) = domain.workspaces.get(Id::from_token(client)) else { return };
+    let hold = match record.state {
+        State::Ready { hold, .. } => hold,
+        State::Preparing { .. } | State::Releasing | State::Closed => return,
+    };
+    crate::reds::landed(domain, env, record.run, hold, head, out);
+}
+
 pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
     Some(domain.workspaces.get(Id::from_token(client))?.run)
 }
@@ -889,6 +908,7 @@ mod tests {
         for (write, landing, expected) in [
             (Write::Push { title: Box::new([]), body: Box::new([]) }, checkout::Landing::Landed { commit }, true),
             (Write::Unchecked, checkout::Landing::Landed { commit }, false),
+            (Write::Unchecked, checkout::Landing::CaughtUpSaved { commit, tip: commit }, false),
             (Write::Push { title: Box::new([]), body: Box::new([]) }, checkout::Landing::Landed { commit }, true),
             (Write::Unchecked, checkout::Landing::Prefixes { commit, branch: Box::from(b"prefix".as_slice()) }, true),
             (

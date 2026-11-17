@@ -30,10 +30,11 @@ pub(crate) struct State {
     directory: Option<Root>,
     step: Step,
     orphans: Queue<Orphan>,
+    deferred: Queue<u64>,
 }
 impl State {
     pub fn new() -> State {
-        State { task: 0, directory: None, step: Step::Idle, orphans: Queue::uncapped() }
+        State { task: 0, directory: None, step: Step::Idle, orphans: Queue::uncapped(), deferred: Queue::uncapped() }
     }
 }
 // Bound a sweep's work by the disk budget and admitted transcript reservations.
@@ -181,13 +182,42 @@ fn restore_source(store: &mut Store, log: bool) -> Result<(), ()> {
     }
     Err(())
 }
-pub(crate) fn begin(store: &mut Store, number: u64, tasks: &[u64], _above: &mut Queue<Event>, below: &mut Below) {
+pub(crate) fn begin(
+    store: &mut Store,
+    number: u64,
+    tasks: &[u64],
+    _above: &mut Queue<Event>,
+    below: &mut Below,
+) -> bool {
     assert!(tasks.len() == 1, "the writer removes one queued task at a time");
     assert!(
         store.transcripts.current.as_ref().expect("active commit").number == number,
         "drop belongs to active commit"
     );
     let task = *tasks.first().expect("one dropped task");
+    if crate::checkpoints::taking::defer(store, task) {
+        return false;
+    }
+    start(store, task, below);
+    true
+}
+pub(crate) fn released(store: &mut Store, tasks: Queue<u64>) {
+    for task in &tasks {
+        store.transcripts.drop.deferred.push(*task);
+    }
+}
+pub(crate) fn ready(store: &Store) -> bool {
+    !store.transcripts.drop.deferred.is_empty()
+}
+pub(crate) fn fire(store: &mut Store, below: &mut Below) -> bool {
+    if let Some(task) = store.transcripts.drop.deferred.pop() {
+        start(store, task, below);
+        true
+    } else {
+        false
+    }
+}
+fn start(store: &mut Store, task: u64, below: &mut Below) {
     store.transcripts.drop.task = task;
     store.transcripts.stage = Stage::Dropping;
     if let Some(file) = store.transcripts.files.get(&task) {

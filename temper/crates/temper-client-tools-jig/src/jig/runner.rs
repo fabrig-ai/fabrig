@@ -17,6 +17,7 @@ mod recovery;
 mod role;
 pub(crate) mod specification;
 pub(crate) mod talk;
+mod worker;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
@@ -193,6 +194,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::REPLACE_KEY_AT..=rows::RETRY_AT
         | rows::VERIFY_AT
         | rows::EXPORT_AT
+        | rows::USES_AT
         | rows::SETTINGS_AT..=rows::REVISIONS_AT
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT
@@ -202,7 +204,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::ROLE_LIST_AT
         | rows::ROLE_SHOW_AT
         | rows::PROJECT_SHOW_AT
-        | rows::DEPLOYMENT_CENSUS_AT => {
+        | rows::DEPLOYMENT_CENSUS_AT
+        | rows::WORKER_LIST_AT..=rows::WORKER_REMOVE_AT => {
             reads::start(runner, client, env, called, out);
         }
         rows::CONNECT_AT | rows::ADD_KEY_AT | rows::DECLARE_AT | rows::IMPORT_AT => {

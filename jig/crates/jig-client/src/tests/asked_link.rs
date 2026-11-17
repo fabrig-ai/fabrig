@@ -1,6 +1,6 @@
 use super::*;
 use fixtures::{CREDENTIAL, Client};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Secret, Writer};
 
 fn answer(value: &w::LinkAskAnswer) -> Box<[u8]> {

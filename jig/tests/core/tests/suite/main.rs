@@ -65,6 +65,7 @@ mod restart;
 mod restore_pages;
 mod retention;
 mod route_orders;
+mod row_parts;
 mod run_positions;
 mod runs;
 mod sessions;
@@ -100,6 +101,7 @@ mod fuzzy {
     mod faults;
     mod reads;
     mod retention;
+    mod row_parts;
     mod sessions;
     mod settings;
     mod stories;

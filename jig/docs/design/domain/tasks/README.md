@@ -113,7 +113,19 @@ it is live:
     retains the title; inbox result notices carry the summary words.
     A change contract also accepts a successful `NoChange` result: an
     explanation within both word bounds, with no resulting resource. It
-    ends done and its requester receives a distinct no-change result notice;
+    ends done and its requester receives a distinct no-change result notice.
+    A change contract may also list verdict choices (`choices`, as a
+    verdict contract's: distinct codes, at most `contract_choices`, each
+    with its words' bound and the fields it requires; empty by default),
+    each a successful ending that settles the task with no change, such
+    as a repair finding nothing to repair for a reason its connector
+    names: a `Verdict` result whose code is one of them is admitted as
+    under a verdict contract, ends done, and its requester receives a
+    verdict result notice with its code. A change contract with no
+    choices admits no verdict, as before. A party's or an agent's
+    delegation names none (people's contract, the configuration's and
+    the tools' JSON keep their shapes), and a client's contract document
+    does not show them;
   - *a choice:* one of the options the spec lists, or an answer in
     words, for a person;
   - *an approval,* for a person, of a state a procedure names: the

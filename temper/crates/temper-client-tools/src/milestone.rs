@@ -14,6 +14,7 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
     let (task, _) = render::read_task(value)?;
     if !reading.pages.contains_key(&2) {
         let query = c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(task.project),
             requester: None,
             root: None,
@@ -28,6 +29,7 @@ pub(crate) fn next(reading: &Reading) -> Option<(u32, Readable)> {
     }
     if !reading.pages.contains_key(&6) {
         let query = c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(task.project),
             requester: None,
             root: None,

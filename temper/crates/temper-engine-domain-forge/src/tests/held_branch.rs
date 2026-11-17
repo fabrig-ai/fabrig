@@ -884,7 +884,14 @@ fn a_let_go_updates_forward_head_is_not_drift_before_its_containment_is_read() {
             change::State::Updating { from: fixtures::HEAD, base: fixtures::BASE, ready_since: env().wall };
         row.pending = Some(UPDATE);
         outputs(&mut d, Event::Change { row });
-        outputs(&mut d, Event::Enqueue { entry: update_entry(false) });
+        let mut entry = update_entry(false);
+        entry.attempt = Some(skein_forge_client::Attempt {
+            sent: env().now,
+            deadline: env().now,
+            wall: env().wall,
+            expires: env().wall,
+        });
+        outputs(&mut d, Event::Enqueue { entry });
         domain::change_outcome(
             &mut d,
             &env(),

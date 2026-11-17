@@ -669,6 +669,7 @@ impl Client {
                     Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Lost, answer: None, why: None },
                 );
             }
+            link::Request::NotWritten { key } => self.up(env, Up::NotKept { key }),
             link::Request::StreamsFull { full } => self.up(env, Up::StreamsFull { full }),
             link::Request::Watch { watch, event } => self.up(env, Up::Watched { watch, event }),
             link::Request::FamilyDelivery { watch, record } => self.up(env, Up::FamilyDelivered { watch, record }),

@@ -28,7 +28,10 @@ pub fn home_rows(
                     continue;
                 }
                 let mut activity = line.last_activity;
-                for goal in milestone.goals.iter().chain(live).chain(ended) {
+                for goal in &milestone.goals {
+                    activity = activity.max(goal.last_activity);
+                }
+                for goal in live.iter().chain(ended) {
                     if milestones.of(goal) == Some(task) {
                         activity = activity.max(goal.last_activity);
                     }

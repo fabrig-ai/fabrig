@@ -34,6 +34,7 @@ fn record(kind: Kind) -> &'static [u8] {
         Kind::Asked => b"Asked",
         Kind::Restarting => b"Restarting",
         Kind::Wires => b"Agreed",
+        Kind::Figures => b"Figures",
         Kind::Hello => b"Hello",
         Kind::Turn => b"Turn",
         Kind::Call => b"Call",
@@ -66,7 +67,7 @@ fn record(kind: Kind) -> &'static [u8] {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the kinds test reads the current wire schema")]
 fn kinds_follow_every_schema_variant() {
-    let schema = skein_codec::schema::parse(include_str!("../../schema/worker-wire-v15.schema").as_bytes())
+    let schema = skein_codec::schema::parse(include_str!("../../schema/worker-wire-v16.schema").as_bytes())
         .expect("current schema");
     let mut seen = 0;
     for (name, base, direction) in [

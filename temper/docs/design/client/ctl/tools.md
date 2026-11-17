@@ -24,7 +24,7 @@
   `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
   `repository`, `playground`, `hold`, `landing`, `finding`, `qa`,
   `role`, `need`, and
-  area 3's `project`, `party` and `deployment`; `../../protocol/documentation.md`,
+  area 3's `project`, `party`, `deployment` and `worker` (`workers.md`); `../../protocol/documentation.md`,
   2.4), then a verb of the closed vocabulary, `task show`; or
   one of the seven names of the client and the party, `me`, `inbox`,
   `sign-in`, `sign-out`, `link`, `pending` and `help`. A read of a part of the
@@ -47,7 +47,7 @@
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
   `REASON`, `KEY`, `AREA` (an area's name, `../../domain/areas.md`, section
-  2) and `PARTY` (a party's number). FINDING is written `P/N`, its
+  2), `PARTY` (a party's number), and `WORKER`, `PLACES` and `SHA256` (`workers.md`, 1). FINDING is written `P/N`, its
   project's number or name, then its number in the project. A step test refuses any other `shown` name.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one
@@ -225,6 +225,7 @@ agent must name.
 | `settings apply FILE... --against REVISION [--running stays\|moves]` | changes the settings in one decision: each FILE (or `-`, once) holds items, the files' overlays of one charter joined and every other setting named once (`overlays.md`, 3); REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
 | `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items: jig's kinds, temper's (`../../protocol/configuration/settings.md`, 2) and each project's policy a later revision set; REASON follows jig's "restores revision R"; prints the proposal's number and what it leaves out, a deleted project's settings and policy, by kind, project and number; `proposal show` then shows its items, and an owner decides it with `proposal decide`. A revision forgotten past the history exits 2 naming the oldest kept, `temper ctl: revision R is forgotten; the oldest kept is revision O`, and one too large to restore says so, exit 2, a later revision restorable instead | `Restore` (jig's `domain/engine/settings.md`, 10) | yes |
+| `deployment checkpoint [--timeout DURATION]` | an owner's checkpoint of the serving deployment; prints its name and figures, waiting 10 minutes unless `--timeout` says otherwise (`../../protocol/checkpoints.md`, 3) | the forge family's `Checkpoint` | |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
 | `task move TASK --under TASK` | makes the second task the first's requester (jig's `domain/tasks/changes.md`) | `Move` | yes |
