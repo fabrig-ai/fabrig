@@ -4,11 +4,6 @@
 
 
 
-- **Not yet:** 4, *One temper saw closed takes no close*: a cancelled or
-  no-change release posts its comment and closes a pull request temper
-  saw merged or closed, and a refused close holds it whatever temper saw
-  since (`temper-engine-domain-forge/src/domain.rs`, `release_pull`,
-  `release_outcome`) [in flight: change 7116].
 - **Not yet:** 4, *A pull request already closed counts as closed*: the
   forge's `Close` of a pull request Forgejo shows merged is refused, so
   its change is held (skein's `forge/forgejo.status.md`) [in flight:
