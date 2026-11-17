@@ -33,6 +33,7 @@ pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
     }
     Some(match ask {
         v1::Ask::Reds => engine::wire::Ask::Reds,
+        v1::Ask::Landed(value) => engine::wire::Ask::Landed { head: *value.head() },
         v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
     })
 }
@@ -71,6 +72,8 @@ fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
 pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
     let value = match answer {
         engine::wire::Answer::Kept => v1::Answer::Kept,
+        engine::wire::Answer::Landed => v1::Answer::Landed,
+        engine::wire::Answer::Unlanded => v1::Answer::Unlanded,
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
             for red in reds {

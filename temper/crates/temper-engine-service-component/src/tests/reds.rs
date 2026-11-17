@@ -79,9 +79,17 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
 }
 
 pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
-    use temper_engine_domain_forge_change as change;
     seed_reds(service, 77);
-    let row = forge::ChangeRow {
+    let row = check_change_row(task);
+    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
+        service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
+    }
+    fixtures::settle_root(service, &mut Queue::uncapped());
+}
+
+fn check_change_row(task: u64) -> forge::ChangeRow {
+    use temper_engine_domain_forge_change as change;
+    forge::ChangeRow {
         source: None,
         kept: None,
         task_release: None,
@@ -149,11 +157,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         merge_result: None,
         history: None,
         follow_check: None,
-    };
-    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
-        service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
     }
-    fixtures::settle_root(service, &mut Queue::uncapped());
 }
 
 pub(super) fn answer(
@@ -225,4 +229,125 @@ fn a_run_without_a_goal_gets_empty_reds_and_malformed_asks_are_refused() {
         assert_eq!(answer(&mut service, &run, bytes, 2), host::AskAnswer::Refused, "malformed {bytes:?}");
     }
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
+}
+
+#[test]
+fn landed_values_round_trip_between_worker_and_engine() {
+    use temper_worker_domain::wire as worker;
+    use temper_worker_service::translate as worker_translate;
+    let head = [37; 32];
+    let bytes = worker_translate::ask(worker::Ask::Landed { head });
+    assert_eq!(crate::translate::ask(&bytes, &v1::CEILINGS), Some(root::wire::Ask::Landed { head }));
+    let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+    for malformed in [bytes.get(..32).unwrap(), trailing.as_ref()] {
+        assert_eq!(crate::translate::ask(malformed, &v1::CEILINGS), None);
+    }
+    for (engine, worker) in
+        [(root::wire::Answer::Landed, worker::Answer::Landed), (root::wire::Answer::Unlanded, worker::Answer::Unlanded)]
+    {
+        let bytes = crate::translate::answer(engine, &v1::CEILINGS).unwrap();
+        assert_eq!(worker_translate::answer(&bytes, &v1::CEILINGS), Some(worker));
+    }
+}
+
+#[test]
+fn an_admitted_landed_ask_answers_from_the_domain_without_a_commit() {
+    use temper_engine_domain_forge_change as change;
+    let (mut service, run) = fixtures::claimed_chat();
+    seed_reds(&mut service, 77);
+    let head = [37; 32];
+    let dependency = 78;
+    let mut asking = check_change_row(run.task);
+    asking.change.early = change::Early::Started(Box::new([change::StartedFrom { task: dependency, head }]));
+    let mut upstream = check_change_row(dependency);
+    upstream.change.state = change::State::Landed { merge: [38; 32], since: skein_lib::Wall::EPOCH };
+    for row in [asking, upstream] {
+        service
+            .engine
+            .as_mut()
+            .unwrap()
+            .step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })));
+    }
+    let before = service.engine.as_ref().unwrap().domain.deployment().commits;
+    for (head, expected) in [(head, root::wire::Answer::Landed), ([39; 32], root::wire::Answer::Unlanded)] {
+        assert_eq!(
+            root::wire::answer(
+                &service.engine.as_ref().unwrap().domain,
+                run.task,
+                run.attempt,
+                root::wire::Ask::Landed { head }
+            ),
+            expected
+        );
+        let bytes = payload::ask(&v1::Ask::Landed(v1::Head::new(&v1::CEILINGS, v1::HeadParts { head }).unwrap()));
+        assert_eq!(
+            answer(&mut service, &run, &bytes, 19),
+            host::AskAnswer::Bytes(crate::translate::answer(expected, &v1::CEILINGS).unwrap())
+        );
+    }
+    assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
+}
+
+#[test]
+fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
+    use root::wire::{Answer, Ask};
+    use temper_engine_domain_forge_change as change;
+    let (mut service, run) = fixtures::claimed_chat();
+    let head = [37; 32];
+    assert_eq!(
+        root::wire::answer(&service.engine.as_ref().unwrap().domain, run.task, run.attempt, Ask::Landed { head }),
+        Answer::Unlanded
+    );
+    seed_reds(&mut service, 77);
+    let dependency = 78;
+    let mut asking = check_change_row(run.task);
+    asking.change.early = change::Early::Spent(Box::new([change::StartedFrom { task: dependency, head }]));
+    service
+        .engine
+        .as_mut()
+        .unwrap()
+        .step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(asking)) })));
+    assert_eq!(
+        root::wire::answer(&service.engine.as_ref().unwrap().domain, run.task, run.attempt, Ask::Landed { head }),
+        Answer::Unlanded,
+        "missing dependency row"
+    );
+    for (state, expected) in [
+        (change::State::Producing { requested: true }, Answer::Unlanded),
+        (
+            change::State::Held {
+                was: Box::new(change::State::Producing { requested: true }),
+                why: change::Hold::Failed,
+            },
+            Answer::Unlanded,
+        ),
+        (change::State::NoChange { words: Box::new([]) }, Answer::Unlanded),
+        (change::State::Ended, Answer::Unlanded),
+        (change::State::Red { merge: [38; 32], since: skein_lib::Wall::EPOCH }, Answer::Landed),
+        (change::State::Cleared { merge: [38; 32] }, Answer::Landed),
+        (change::State::Uncleared { merge: [38; 32] }, Answer::Landed),
+    ] {
+        let mut row = check_change_row(dependency);
+        row.change.state = state;
+        service
+            .engine
+            .as_mut()
+            .unwrap()
+            .step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })));
+        assert_eq!(
+            root::wire::answer(&service.engine.as_ref().unwrap().domain, run.task, run.attempt, Ask::Landed { head }),
+            expected
+        );
+    }
+    let asking = check_change_row(run.task);
+    service
+        .engine
+        .as_mut()
+        .unwrap()
+        .step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(asking)) })));
+    assert_eq!(
+        root::wire::answer(&service.engine.as_ref().unwrap().domain, run.task, run.attempt, Ask::Landed { head }),
+        Answer::Unlanded,
+        "no early start"
+    );
 }
