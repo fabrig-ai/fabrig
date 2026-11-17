@@ -81,7 +81,7 @@ fn entries() -> &'static [Name] {
     ENTRIES.get_or_init(|| parse(LIST_TEXT).unwrap_or_else(|why| panic!("{why}")))
 }
 
-/// Indices in list order, shared by the prefilter and the matching (design.md, 3).
+/// Indices in list order, shared by the prefilter and the matching (tools/outward/design.md, 3).
 fn starting(byte: u8) -> &'static [usize] {
     static STARTING: OnceLock<[Vec<usize>; 256]> = OnceLock::new();
     let table = STARTING.get_or_init(|| {
@@ -134,7 +134,7 @@ fn names(line: &[u8]) -> Vec<&[u8]> {
     result
 }
 
-/// A whole name, case folded, whatever its marks ask (design.md, 3).
+/// A whole name, case folded, whatever its marks ask (tools/outward/design.md, 3).
 fn may_hold_name(text: &[u8]) -> bool {
     static GATES: OnceLock<([bool; 256], Box<[bool]>)> = OnceLock::new();
     let (single, pairs) = GATES.get_or_init(|| {
