@@ -381,7 +381,7 @@ impl Referee {
                     crate::world::Story::Adoption => self.adopted > 0,
                     crate::world::Story::Adopt => {
                         let forge = self.forge.borrow();
-                        forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
+                        forge.complete() && forge::Forge::hooks_complete(other)
                     }
                     crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
                     crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),

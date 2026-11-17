@@ -765,7 +765,11 @@ fn setup_and_log_facts_are_ordered_optional_and_replayed() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =
@@ -823,7 +827,11 @@ fn front_reports_replay_through_box_line_read() {
 fn lending_reports_and_duties_replay_through_the_host() {
     use crate::host::tests::{delivery_report, terminal_document, watch};
     use jig_client::contract::LoginExit;
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let (mut walk, duties) = linked_walk_duties(true);
     let duties = walk.admit(duties);
     let subject = w::Subject::Terminal(

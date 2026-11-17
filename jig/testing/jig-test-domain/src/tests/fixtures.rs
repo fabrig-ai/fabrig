@@ -116,6 +116,7 @@ pub fn domain() -> Domain {
             first: jig_test_connector_kit::config(1),
             second: jig_test_connector_kit::config(2),
             core: core::Config {
+                parts: Box::new([]),
                 jobs: Box::new([]),
                 kept_starts: Box::new([]),
 

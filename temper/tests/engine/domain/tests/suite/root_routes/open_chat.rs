@@ -1,7 +1,11 @@
 //! temper's Open chat wiring; jig owns the lifecycle's exhaustive proofs.
 use super::*;
 use jig_client::{contract as c, shapes};
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core::{documents as d, reads};
 use jig_protocol_engine_clients as clients;
 use temper_engine_domain_world::{fixtures, walking};
@@ -367,9 +371,10 @@ fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
 fn assert_ended_conversation(driver: &mut Driver, task: u64) {
     let mut from = None;
     loop {
-        let reads::Answer::Tasks(page) =
-            read(driver, reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: from })
-        else {
+        let reads::Answer::Tasks(page) = read(
+            driver,
+            reads::Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: from },
+        ) else {
             panic!("conversation page")
         };
         let reads::EndedGroup::Rows { rows, next, .. } = &page.ended else { panic!("ended conversations") };

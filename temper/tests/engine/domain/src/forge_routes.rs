@@ -3602,7 +3602,7 @@ impl World {
             window: documents::Window { rows: self.env.limits.documents.rows, after: None },
         }));
         self.oracle_settle();
-        let answer = self
+        let mut answer = self
             .oracle_documents
             .iter()
             .rev()
@@ -3615,6 +3615,15 @@ impl World {
         if answer.is_some() {
             self.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: watch }));
             self.oracle_settle();
+            // Changes provenance may arrive from ended-row loads after the first document.
+            // The restart oracle compares the settled projection, not that first empty view.
+            if let Some(forge_top::Document::Changes(_)) = &answer {
+                answer = self
+                    .oracle_documents
+                    .iter()
+                    .rev()
+                    .find_map(|(watcher, doc)| (*watcher == watch).then(|| doc.clone()));
+            }
         }
         self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();

@@ -15,7 +15,7 @@ use temper_protocol_store as families;
 pub struct Routes {
     random: skein_lib::CryptoRng,
     pending: Map<Token, Flight>,
-    reads: Map<Token, Token>,
+    reads: Map<Token, (Token, bool)>,
     next: u64,
     commit: u64,
     limits: engine::loads::Limits,
@@ -205,9 +205,14 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             routes.commit = number;
             store::Request::Commit { number, writes: out.into_boxed() }
         }
+        engine::StoreRequest::PartRead { waiter, range } => {
+            let owner = routes.token()?;
+            routes.reads.insert(owner, (waiter, true)).ok()?;
+            store::Request::Read { owner, range: *range }
+        }
         engine::StoreRequest::Read { load, range } => {
             let owner = routes.token()?;
-            routes.reads.insert(owner, load).ok()?;
+            routes.reads.insert(owner, (load, false)).ok()?;
             store::Request::Read { owner, range: *range }
         }
         engine::StoreRequest::Load { owner: root, range, after, most, bytes } => {
@@ -302,8 +307,12 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             }
         }
         store::Event::Read { owner, result } => {
-            if let Some(load) = routes.reads.remove(&owner) {
-                root(into, engine::StoreInput::ReadLoaded { load, result });
+            if let Some((load, parts)) = routes.reads.remove(&owner) {
+                if parts {
+                    root(into, engine::StoreInput::PartLoaded { waiter: load, result });
+                } else {
+                    root(into, engine::StoreInput::ReadLoaded { load, result });
+                }
             }
         }
         store::Event::Job { owner, of, job, page } => {

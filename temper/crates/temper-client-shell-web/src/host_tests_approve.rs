@@ -1,6 +1,10 @@
 //! The host keeps the approval place and prints its code as shown (client/web/README.md, 2.3).
 use super::*;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::Reader;
 #[test]
 fn the_approval_address_prints_its_code_and_reads_once() {

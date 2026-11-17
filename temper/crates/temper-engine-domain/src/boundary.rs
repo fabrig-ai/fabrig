@@ -651,6 +651,11 @@ pub enum StoreInput {
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
     },
+    /// A joined milestone-delegates load owned by the root.
+    PartLoaded {
+        waiter: Token,
+        result: core::reads::Loaded,
+    },
     /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
     ReadLoaded {
         load: Token,
@@ -770,6 +775,18 @@ pub enum WorkerInput {
     ResultRead { payload: Token, end: tasks::End },
 }
 /// A keyed request owned by the root, or forwarded to the forge (client/engine.md).
+/// A row made by the root, joining the child's trial to jig's next-run wait
+/// (temper/docs/design/domain/trial.md, 4 and 6).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct TrialRow {
+    pub account: u32,
+    pub task: Option<u64>,
+    pub took: Option<u32>,
+    pub step: temper_engine_domain_trials::Step,
+    pub state: temper_engine_domain_trials::State,
+    pub run_wait: Option<jig_domain_core::documents::TaskRunWait>,
+}
+
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
@@ -1175,6 +1192,11 @@ pub enum StoreRequest {
         /// Hard decoded-page byte limit, enforced before and after protocol decoding.
         bytes: u32,
     },
+    /// Joined rows for a root-owned milestone part, answered by `PartLoaded`.
+    PartRead {
+        waiter: Token,
+        range: Box<core::reads::Range>,
+    },
     /// One core read load after every preceding commit, answered by `ReadLoaded`.
     Read {
         load: Token,
@@ -1225,6 +1247,8 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
+    PartsLoaded { waiter: Token, result: core::reads::Loaded },
+    PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
@@ -1248,6 +1272,7 @@ pub(crate) enum Work {
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
+    ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
     EndedFailed { waiter: Token },
 }
 
@@ -1314,6 +1339,7 @@ pub(crate) struct AssignmentParts {
 /// An ended owner row the core asked the root to load.
 #[derive(Hash, Debug)]
 pub(crate) enum EndedRead {
+    ChangeFrom { task: u64 },
     EndedTask { request: Token, task: u64 },
     SeenConversation { request: Token, task: u64 },
     Position { request: Token, task: u64, party: u64 },
@@ -1334,6 +1360,7 @@ pub(crate) enum Read {
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
+    Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
     Remember(Box<crate::route::remember::RememberRead>),
 }
@@ -1405,6 +1432,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::WatchEnded { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
+        Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::Drained => Request::Drained,

@@ -19,7 +19,11 @@ fn decode(
     inspect: bool,
     withheld: bool,
 ) -> Result<c::Turn, jig_protocol_transcript::Undecodable> {
+<<<<<<< HEAD
     let bound = jig_client_protocol_wire::v28::CEILINGS.turn_carried_bytes;
+=======
+    let bound = jig_client_protocol_wire::CEILINGS.turn_carried_bytes;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut limits = jig_protocol_transcript::Limits::new(
         bound,
         c::TurnLimits {

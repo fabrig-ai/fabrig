@@ -4,7 +4,11 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
+<<<<<<< HEAD
 use jig_client_protocol_wire::{self as wire, v28 as w};
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
@@ -206,7 +210,7 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
             let record = super::asks::ask(value, limits.wire())?;
             let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
-            (w::Owner::Jig, wire::VERSION, writer.finish())
+            (w::Owner::Jig, w::VERSION, writer.finish())
         }
         Ask::Family { scope, record: value } => (
             w::Owner::Family(w::Family::new(limits.wire(), w::FamilyParts { number: value.family })?),
@@ -238,7 +242,7 @@ pub fn restore_table(
 ) -> Result<RequestRecord<jig_client_domain::Held>, w::Problem> {
     let request = match value.owner() {
         w::Owner::Jig => {
-            if value.version() != wire::VERSION {
+            if value.version() != w::VERSION {
                 return Err(super::piece_problem(skein_codec::Reason::Version));
             }
             let mut reader = Reader::new(value.request());

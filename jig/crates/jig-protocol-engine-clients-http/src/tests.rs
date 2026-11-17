@@ -1,5 +1,9 @@
 use super::*;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_http::Method;
 use skein_lib::stream::{Down, Up};
 mod fixtures;
@@ -485,7 +489,11 @@ fn room_is_released_only_after_a_calls_end_is_handled() {
 
 #[test]
 fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut mount = fixtures::mount();
     let mut out = Queue::with_capacity(16);
     let call =

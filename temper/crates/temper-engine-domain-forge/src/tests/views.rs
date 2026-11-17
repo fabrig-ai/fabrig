@@ -663,6 +663,9 @@ fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
         landed_default: Box::new([ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             task: THIRD,
             title: Box::from(TITLE),
@@ -682,6 +685,9 @@ fn changes_owned_bytes_charges_every_field() {
             branch: Box::from(b"next".as_slice()),
             red: true,
             changes: Box::new([ChangesQueued {
+                goal: None,
+                chat: None,
+                milestone: None,
                 task: fixtures::CHANGE,
                 title: Box::from(TITLE),
                 ready_since: env().wall,
@@ -689,6 +695,9 @@ fn changes_owned_bytes_charges_every_field() {
             }]),
         }]),
         landed: Box::new([ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
@@ -751,6 +760,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed.as_ref(),
         &[
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 50,
                 title: TITLE.into(),
@@ -759,6 +771,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: false
             },
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 40,
                 title: TITLE.into(),
@@ -773,6 +788,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed_default.as_ref(),
         &[
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 25,
                 title: TITLE.into(),
@@ -781,6 +799,9 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: true
             },
             ChangesLanded {
+                goal: None,
+                chat: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 20,
                 title: TITLE.into(),

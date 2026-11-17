@@ -1,8 +1,13 @@
 //! Task wait facts are already joined and translated to wall time by the core.
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary::documents as d;
 
-pub(super) fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Option<w::TaskRunWait>, w::Problem> {
+/// Translate a core-derived next-run wait at the current jig wire version.
+pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Option<w::TaskRunWait>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
     Ok(Some(match value {
         d::TaskRunWait::Credential => w::TaskRunWait::Credential,

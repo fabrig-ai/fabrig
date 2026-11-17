@@ -324,6 +324,7 @@ pub fn config(seed: u64) -> engine::Config {
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
+            parts: Box::new([]),
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
@@ -855,6 +856,10 @@ impl World {
                     }
                     self.store.pending.push_back((number, writes));
                 }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
@@ -1029,6 +1034,7 @@ impl World {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

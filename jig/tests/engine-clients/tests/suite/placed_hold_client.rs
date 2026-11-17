@@ -1,6 +1,10 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_core_kit::fixtures;
 use jig_core_kit::reads;
 use jig_core_kit::world::Setup;

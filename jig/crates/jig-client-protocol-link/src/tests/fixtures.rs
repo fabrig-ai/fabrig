@@ -263,6 +263,8 @@ pub use turns::*;
 
 mod link_reads;
 pub use link_reads::*;
+mod row_parts;
+pub use row_parts::*;
 
 mod link_stream;
 pub use link_stream::*;

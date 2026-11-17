@@ -204,6 +204,13 @@ impl Driver {
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
+            let request = if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
+                let result = self.store.read(range);
+                self.events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+                continue;
+            } else {
+                request
+            };
             let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
                 let result = self.store.read(range);
                 self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));

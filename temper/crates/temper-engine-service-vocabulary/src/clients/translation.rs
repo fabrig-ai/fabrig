@@ -67,6 +67,8 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
+        | core::Event::Parts { .. }
+        | core::Event::PartsMarked { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
@@ -218,6 +220,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
+        | root::Delivery::PartLoad { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }

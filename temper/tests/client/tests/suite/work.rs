@@ -19,7 +19,7 @@ type ClientWorld = World<Temper, Joint>;
 
 fn client_limits() -> temper_client_domain::Limits {
     let mut limits = fixtures::domain_limits();
-    limits.client.domain.reads = 16; // Three lists, their refreshes, notes, reports and the change's task.
+    limits.client.domain.reads = 16; // The lists, their refreshes and the change's task.
     // Session watches and both projects' lists overlap while the first project's watches close.
     limits.client.domain.handles = 24;
     limits.client.domain.watches = 24;
@@ -61,6 +61,7 @@ const GRANTS: [u16; 6] = [1, 2, 3, 4, 7, 13];
 fn configuration(limits: &mut engine::Limits) -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
     config.core.connectors = Box::new([fixtures::FORGE]);
+    config.core.parts = temper_engine_domain_forge::parts::kinds(fixtures::FORGE);
     config.core.defaults.rules.ceiling.notes = authority::Scopes(1);
     let executors: Box<[authority::Executor]> =
         Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(2)]);
@@ -355,6 +356,7 @@ fn work_keeps_one_projects_lists_across_filters_then_switches_projects() {
     world.front().next_client_limits(client_limits());
     let person = world.client_with(fixtures::PARTY, all.clone(), client_limits(), client);
     first_project(&mut world, person);
+    assert_eq!(world.front().note_reads, 0, "Work takes reports and documents from row parts");
     let held = handles(&world, person);
     let reads = (world.front().engine.loads.len(), world.front().note_reads, world.front().open_watches());
     for (label, address, shown, hidden) in [

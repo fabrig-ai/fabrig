@@ -1,6 +1,10 @@
 use super::{Exchange, family_record, wire};
 use crate::{Request, stream::Stream};
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Token, Writer};
 impl Exchange {
@@ -91,6 +95,7 @@ pub fn subject_cases() -> [(&'static str, w::Subject, core::documents::Watched, 
                         query: w::TaskQuery::new(
                             &limits,
                             w::TaskQueryParts {
+                                parts: skein_lib::List::with_capacity(0),
                                 project: Some(3),
                                 requester: None,
                                 root: Some(7),
@@ -110,6 +115,7 @@ pub fn subject_cases() -> [(&'static str, w::Subject, core::documents::Watched, 
             ),
             d::Watched::Query {
                 query: d::TaskQuery {
+                    parts: skein_lib::List::with_capacity(0),
                     project: Some(3),
                     requester: None,
                     root: Some(7),

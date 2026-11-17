@@ -66,6 +66,9 @@ pub struct Domain {
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
+    pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
+    pub(crate) parts: crate::route::parts::Memory,
+    pub(crate) changes_from: crate::changes_from::Memory,
     pub(crate) journal: Journal,
     pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
@@ -604,6 +607,9 @@ impl Domain {
             checkpoints: crate::route::checkpoints::State::new(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
+            trial_waits: Map::with_capacity(crate::limits::trial_limits(limits).rows),
+            parts: crate::route::parts::Memory::new(),
+            changes_from: crate::changes_from::Memory::new(),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -1037,7 +1043,8 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
                 | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
-                | crate::StoreRequest::Read { .. },
+                | crate::StoreRequest::Read { .. }
+                | crate::StoreRequest::PartRead { .. },
             )
             | Request::ToChild(_)
             | Request::Busy(_)
@@ -1397,6 +1404,7 @@ fn released_into(
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
+        | Delivery::PartLoad { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
@@ -1449,6 +1457,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::Parts(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }

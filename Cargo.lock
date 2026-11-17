@@ -6123,6 +6123,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-view-kit",
  "temper-client-view-words",
+ "temper-fixtures",
  "temper-protocol-reaches",
  "temper-test-env",
 ]
@@ -6132,6 +6133,8 @@ name = "temper-client-view-setup"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
  "skein-lib",
  "skein-ui",
  "skein-ui-text",
@@ -6163,6 +6166,7 @@ name = "temper-client-view-work"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
  "skein-lib",
  "skein-ui",
  "skein-ui-text",
@@ -6444,6 +6448,7 @@ dependencies = [
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-engine-clients",
  "skein-codec",
  "skein-forge",
  "skein-forge-client",
@@ -7043,9 +7048,12 @@ name = "temper-fixtures"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
  "skein-forge",
  "skein-io",
  "skein-lib",
+ "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",

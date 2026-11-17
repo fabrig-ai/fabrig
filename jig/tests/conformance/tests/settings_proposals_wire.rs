@@ -5,7 +5,11 @@ use skein_world::domain::heap;
 #[global_allocator]
 static HEAP: heap::Counting = heap::Counting;
 
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core::{self as core, settings as s};
 use jig_engine_clients_kit::{Peer, fixtures};
 use skein_lib::Token;

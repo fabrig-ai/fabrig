@@ -145,7 +145,11 @@ fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
 
 #[test]
 fn the_link_view_names_a_watch_refused_busy() {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut c = Client::signed_in();
     assert!(!c.machine.link().watches_full);
     c.step(Event::Watch { handle: TASK, subject: task() });

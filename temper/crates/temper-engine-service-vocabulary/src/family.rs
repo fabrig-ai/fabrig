@@ -6,6 +6,7 @@ use skein_lib::{List, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use temper_engine_domain_forge::parts;
 use temper_engine_domain_forge_change as change;
 mod checkpoints;
 mod findings;
@@ -1068,7 +1069,11 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
+<<<<<<< HEAD
     jig: &jig_client_protocol_wire::v28::Limits,
+=======
+    jig: &jig_client_protocol_wire::Limits,
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Checkpoint(value)) => checkpoints::answer(value, limits)?,
@@ -2122,6 +2127,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                     w::ChangesQueued::new(
                         limits,
                         w::ChangesQueuedParts {
+                            goal: change_from(row.goal, limits).ok()?,
+                            chat: change_from(row.chat, limits).ok()?,
+                            milestone: change_from(row.milestone, limits).ok()?,
                             task: row.task,
                             title: row.title,
                             ready_since: row.ready_since.as_nanos(),
@@ -2152,6 +2160,9 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                                 w::TrainLanding::new(
                                     limits,
                                     w::TrainLandingParts {
+                                        goal: change_from(value.goal, limits).ok()?,
+                                        chat: change_from(value.chat, limits).ok()?,
+                                        milestone: change_from(value.milestone, limits).ok()?,
                                         probe: value.probe,
                                         task: value.task,
                                         member: value.member,
@@ -2191,6 +2202,15 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
     Some(wire::changes_panel(&panel))
 }
 
+fn change_from(value: Option<forge::ChangeFrom>, limits: &w::Limits) -> Result<Option<w::ChangeFrom>, w::Problem> {
+    match value {
+        Some(value) => {
+            Ok(Some(w::ChangeFrom::new(limits, w::ChangeFromParts { task: value.task, title: value.title })?))
+        }
+        None => Ok(None),
+    }
+}
+
 fn changes_landed(
     rows: Box<[forge::ChangesLanded]>,
     capacity: u32,
@@ -2204,7 +2224,12 @@ fn changes_landed(
                 .push(
                     w::ChangesSigned::new(
                         limits,
-                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                        w::ChangesSignedParts {
+                            name: sign.name,
+                            party: sign.person,
+                            head: sign.head,
+                            at: sign.at.as_nanos(),
+                        },
                     )
                     .ok()?,
                 )
@@ -2215,6 +2240,9 @@ fn changes_landed(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        goal: change_from(row.goal, limits).ok()?,
+                        chat: change_from(row.chat, limits).ok()?,
+                        milestone: change_from(row.milestone, limits).ok()?,
                         signed,
                         task: row.task,
                         title: row.title,
@@ -2523,7 +2551,7 @@ fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::
 
 /// The person's whole trials document (temper/docs/design/domain/trial.md, 6).
 #[must_use]
-pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn trials(rows: Box<[root::TrialRow]>, limits: &w::Limits) -> Option<Box<[u8]>> {
     use temper_engine_domain_trials::{Class, State, Step, Why};
     let mut encoded = List::with_capacity(64);
     for row in rows {
@@ -2563,6 +2591,10 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
                 w::TrialRow::new(
                     limits,
                     w::TrialRowParts {
+                        run_wait: match row.run_wait {
+                            Some(wait) => Some(trial_wait(wait)?),
+                            None => None,
+                        },
                         account: row.account,
                         task: row.task,
                         took: row.took,
@@ -2580,6 +2612,15 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
     let document = w::Trials::new(limits, w::TrialsParts { rows: encoded }).ok()?;
     let mut writer = Writer::new(usize::try_from(document.measure()).ok()?);
     document.encode(&mut writer).ok()?;
+    Some(writer.finish())
+}
+
+fn trial_wait(value: jig_domain_core::documents::TaskRunWait) -> Option<Box<[u8]>> {
+    let value =
+        jig_protocol_engine_clients::translate::task_wait::waiting(Some(value), &jig_client_protocol_wire::CEILINGS)
+            .ok()??;
+    let mut writer = Writer::new(usize::try_from(value.measure()).ok()?);
+    value.encode(&mut writer).ok()?;
     Some(writer.finish())
 }
 

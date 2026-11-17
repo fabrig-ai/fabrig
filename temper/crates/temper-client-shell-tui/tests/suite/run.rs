@@ -632,7 +632,11 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
+<<<<<<< HEAD
     link_answer: Option<jig_client_protocol_wire::v28::SignInAnswer>,
+=======
+    link_answer: Option<jig_client_protocol_wire::SignInAnswer>,
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     link_sign_ins: usize,
     approvals: usize,
     terminal_watch: Option<u64>,
@@ -786,7 +790,11 @@ impl Engine {
     }
 
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
+<<<<<<< HEAD
         use jig_client_protocol_wire::v28 as w;
+=======
+        use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
         if open.subject().owner() == &w::Owner::Jig {
             let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
@@ -832,7 +840,11 @@ impl Engine {
     }
 }
 fn approval_response() -> Box<[u8]> {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let answer = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -907,7 +919,11 @@ impl World {
     }
 
     fn lend(&mut self, name: &[u8], cancelled: bool) {
+<<<<<<< HEAD
         use jig_client_protocol_wire::v28 as w;
+=======
+        use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         self.login_name = name.into();
         let engine = self.engine.as_mut().expect("engine");
         let login = w::TerminalLogin::new(
@@ -1482,7 +1498,11 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
 }
 
 fn sign_in_response() -> Box<[u8]> {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -1501,7 +1521,11 @@ fn sign_in_response() -> Box<[u8]> {
 }
 
 fn hello_event() -> Box<[u8]> {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::List;
     let limits = &w::CEILINGS;
     let mut served = List::with_capacity(1);
@@ -1525,7 +1549,11 @@ fn hello_event() -> Box<[u8]> {
     sse(&hello)
 }
 fn me_event(watch: u64) -> Box<[u8]> {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as w;
+=======
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let limits = &w::CEILINGS;
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
@@ -1558,8 +1586,13 @@ fn me_event(watch: u64) -> Box<[u8]> {
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }
 
+<<<<<<< HEAD
 fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v28::DeliveryValue) -> Box<[u8]> {
     use jig_client_protocol_wire::v28 as w;
+=======
+fn delivery_event(watch: u64, value: &jig_client_protocol_wire::DeliveryValue) -> Box<[u8]> {
+    use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::Writer;
     let limits = &w::CEILINGS;
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("document size"));
@@ -1574,7 +1607,11 @@ fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v28::DeliveryVal
     sse(&delivery)
 }
 
+<<<<<<< HEAD
 fn sse(event: &jig_client_protocol_wire::v28::StreamEvent) -> Box<[u8]> {
+=======
+fn sse(event: &jig_client_protocol_wire::StreamEvent) -> Box<[u8]> {
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -1886,7 +1923,11 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     world.files.write(file, 0, LOCAL_LINK).expect("file's link");
     world.files.close(file);
     world.files.close(root);
+<<<<<<< HEAD
     world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v28::SignInAnswer::LinkUsed);
+=======
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::SignInAnswer::LinkUsed);
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     world.horizon = Time::ZERO;
     world.settle();
     world.box_child().write(4, b"restarting forge\nlog split");

@@ -172,7 +172,7 @@ fn watch(driver: &mut Driver, watcher: Token, sign_in: u64) {
     driver.settle();
 }
 
-fn rows(driver: &Driver) -> &[trials::Row] {
+fn rows(driver: &Driver) -> &[engine::TrialRow] {
     driver
         .delivered
         .iter()
@@ -185,7 +185,7 @@ fn rows(driver: &Driver) -> &[trials::Row] {
         .expect("the family's own trials document")
 }
 
-fn row(driver: &Driver) -> &trials::Row {
+fn row(driver: &Driver) -> &engine::TrialRow {
     let rows = rows(driver);
     assert_eq!(rows.len(), 1);
     &rows[0]
@@ -317,6 +317,55 @@ fn a_failed_run_fails_it_and_no_retry_starts() {
         driver.fire_at(Duration::from_secs(31));
         driver.settle();
         assert_eq!(claims(&driver), 1, "the first {class:?} ending is final");
+    }
+}
+
+#[test]
+fn a_trials_row_carries_its_changing_run_wait_without_a_task_watch() {
+    use core::documents::{TaskRunWait, TaskWaitWhy};
+    for fails in [false, true] {
+        let mut driver = driver();
+        let account = account(&driver);
+        driver.send(protocol::lost(CHANNEL));
+        driver.settle();
+        change(&mut driver, people::AccountChange::SetUses { account, uses: Some(Box::new([])) }, 97);
+        let session = driver.session();
+        watch(&mut driver, WATCHER, session);
+        acknowledge(&mut driver);
+        ask(&mut driver, account, false, 96);
+        assert_eq!(row(&driver).state, trials::State::Running);
+        assert_eq!(
+            row(&driver).run_wait,
+            Some(TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty })
+        );
+        assert_eq!(claims(&driver), 0);
+        acknowledge(&mut driver);
+        let before = driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Trials { .. })).count();
+        change(&mut driver, people::AccountChange::SetUses { account, uses: None }, 98);
+        acknowledge(&mut driver);
+        let after = driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Trials { .. })).count();
+        assert!(after > before, "a wait change marks the trials subject");
+        assert_eq!(row(&driver).run_wait, Some(TaskRunWait::Host));
+        assert_eq!((row(&driver).step, row(&driver).took), (trials::Step::Starts, None));
+        if fails {
+            driver.fire_at(Duration::from_secs(60));
+            driver.pump();
+            acknowledge(&mut driver);
+            assert_eq!(row(&driver).state, trials::State::Failed { why: trials::Why::Waited });
+            assert_eq!(row(&driver).run_wait, None, "a failed row drops its last wait");
+            continue;
+        }
+        driver.hello(CHANNEL);
+        driver.settle();
+        acknowledge(&mut driver);
+        assert_eq!(row(&driver).run_wait, None);
+        let run = driver.last_assignment();
+        acknowledge(&mut driver);
+        driver.send(protocol::turn(CHANNEL, run.task, run.attempt, 1, 1, None, b"Word"));
+        driver.settle();
+        assert!(matches!(row(&driver).state, trials::State::Answered { .. }));
+        end_cancelled(&mut driver, &run);
+        assert_eq!(row(&driver).run_wait, None);
     }
 }
 
@@ -792,7 +841,7 @@ fn it_is_in_no_list() {
         assert_eq!(frame.updates, d::Count::Known(0));
         let query = d::TaskQuery {
             requester: Some(tasks::Party::Person(frame.party)),
-            ..jig_test_profile::fixtures::OWN_TASKS
+            ..jig_test_profile::fixtures::own_tasks()
         };
         let r::Answer::Tasks(page) = read(&mut driver, r::Read::Tasks { query, live: None, ended: None }) else {
             panic!("Chats query")

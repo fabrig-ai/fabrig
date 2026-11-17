@@ -1,7 +1,11 @@
 //! A forged chat over jig's `tests/client-browser/src/forgery.rs`, with the chat template's task
 //! (client/web/testing.md, 1 story 5; jig's protocol/browser/testing.md).
 use jig_client::contract as c;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{List, Writer};
 
 const PROJECT: u32 = 1;

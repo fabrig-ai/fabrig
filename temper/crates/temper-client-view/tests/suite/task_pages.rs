@@ -110,7 +110,11 @@ mod tests {
     fn document() -> c::Task {
         let mut parts = jig_client_test_records::task_record().into_parts();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
+<<<<<<< HEAD
         let record = jig_client_protocol_wire::v28::Task::new(&jig_client_protocol_wire::v28::CEILINGS, parts)
+=======
+        let record = jig_client_protocol_wire::Task::new(&jig_client_protocol_wire::CEILINGS, parts)
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
             .expect("checked task record");
         let limits = domain_limits();
         let link =
@@ -228,6 +232,7 @@ mod tests {
     }
     fn empty_page() -> c::TaskPage {
         c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -256,6 +261,7 @@ mod tests {
         details.executor = c::Executor::Agent { charter: 1 };
         details.procedure = None;
         c::TaskLine {
+            parts: List::with_capacity(0),
             chip: task.chip,
             project: 1,
             requester: c::Requester::Task(parent),

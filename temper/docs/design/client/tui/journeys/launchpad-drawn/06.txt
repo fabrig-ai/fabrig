@@ -2,6 +2,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   ▄█▀▀   temper 0.0.0 (2217e002c077-dirty)
  ▄█▄█▄█  127.0.0.1:41237
 =======
@@ -16,10 +17,15 @@
   ▄█▀▀   temper 0.0.0 (8784374d5bef-dirty)
  ▄█▄█▄█  127.0.0.1:33461
 >>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
+=======
+  ▄█▀▀   temper 0.0.0 (dd7a1b3ac4e2-dirty)
+ ▄█▄█▄█  127.0.0.1:34389
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 
  One thing needs you.
 
  Where you left off
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -33,6 +39,9 @@
 =======
    Hello   Add a CSV export to the report, a chat · today 12:38 ·…     /chats 1
 >>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
+=======
+   Hello   Add a CSV export to the report, a chat · today 13:18 ·…     /chats 1
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 
  Needs you
    ? Hello   Add a CSV export to the report: csv-export: comma…    n walks them

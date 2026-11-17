@@ -1,7 +1,11 @@
 //! One paced SSE writer, with one outstanding item of each kind per watch (protocol/client/README.md, 5).
 use crate::{Limits, translate::watches as translate};
 use alloc::boxed::Box;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Env, Map, Time, Token};
 #[derive(Debug)]
@@ -11,6 +15,7 @@ pub(crate) struct Watch {
     pub version: u32,
     pub project: u32,
     pub rows: u32,
+    pub parts: skein_lib::List<crate::translate::parts::Slot>,
     pub opening: Option<Token>,
     pub closing: Option<Token>,
     pub unwatch: bool,

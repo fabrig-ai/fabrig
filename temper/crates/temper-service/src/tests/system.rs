@@ -354,7 +354,11 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     let body = peer::link_body(engine, &link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
+<<<<<<< HEAD
     let jig_client_protocol_wire::v28::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
+=======
+    let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         panic!("deployment owner signed in")
     };
     peer::bearer(answer.token().as_ref().expect("native credential").expose())
@@ -367,7 +371,11 @@ fn box_setup(
     key: u8,
 ) -> temper_client_protocol_wire::v1::Outcome {
     use fixtures::http as peer;
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as j;
+=======
+    use jig_client_protocol_wire as j;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{Reader, Writer};
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();

@@ -71,6 +71,7 @@ pub(crate) fn run_proposal(
         party: 0,
         range: range.clone(),
         tasks: None,
+        parts: None,
     };
     let load = core.reads.insert(pending).expect("proposal read room checked").token();
     let mut out = Queue::uncapped();
@@ -546,6 +547,7 @@ pub fn project_proposal(
             party,
             range,
             tasks: None,
+            parts: None,
         },
     )
 }
@@ -735,6 +737,7 @@ fn load(
             party: recipient.party,
             range,
             tasks: None,
+            parts: None,
         },
     )
 }

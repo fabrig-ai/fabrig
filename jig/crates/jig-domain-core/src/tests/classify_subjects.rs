@@ -51,6 +51,7 @@ fn rows() -> Box<[Row]> {
         Row {
             subject: Subject::Query {
                 query: TaskQuery {
+                    parts: List::with_capacity(0),
                     project: None,
                     requester: None,
                     root: None,

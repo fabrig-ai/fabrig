@@ -1,6 +1,10 @@
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Reader, Token};
 const ENDED_WATCH: u64 = 17;
@@ -399,7 +403,7 @@ fn an_accounts_document_is_watched_but_never_read() {
     }));
     let limits = fixtures::wire();
     assert_eq!(
-        watches::delivery(&document, 0, 1, &[], &limits),
+        watches::delivery(&document, 0, 1, &[], &List::with_capacity(0), &limits),
         Ok(w::DeliveryValue::Accounts(
             w::Accounts::new(
                 &limits,

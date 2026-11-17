@@ -56,9 +56,9 @@ fn a_cursor_round_trips_to_the_same_position() {
 fn a_cursor_that_does_not_decode_is_answered_unknown() {
     let limits = f::wire();
     for (label, bytes) in [
-        ("unknown format", &[0, 2][..]),
-        ("unknown variant", &[0, 1, 2][..]),
-        ("truncated scope", &[0, 1, 0, 1, 10][..]),
+        ("unknown format", &[0, 3][..]),
+        ("unknown variant", &[0, 2, 2][..]),
+        ("truncated scope", &[0, 2, 0, 1, 10][..]),
     ] {
         let mut exchange = f::read_exchange();
         let after = w::Cursor::new(&limits, w::CursorParts { value: bytes.into() }).expect(label);
@@ -71,6 +71,26 @@ fn a_cursor_that_does_not_decode_is_answered_unknown() {
         assert!(exchange.out.is_empty(), "{label}");
         assert!(exchange.component.pending.exchanges.is_empty(), "{label}");
     }
+}
+
+#[test]
+fn a_cursor_from_another_version_is_answered_unknown() {
+    let cursor = reads::Cursor::Store { scope: reads::Scope::Spend { project: 3 }, after: None };
+    let encoded = crate::translate::cursor::encode(&cursor, 1024).unwrap();
+    let mut bytes = skein_lib::Writer::new(encoded.len());
+    bytes.put(&1_u16.to_be_bytes()).unwrap();
+    let mut reader = skein_lib::Reader::new(&encoded);
+    reader.u16().unwrap();
+    bytes.put(reader.bytes(reader.remaining()).unwrap()).unwrap();
+    let limits = f::wire();
+    let after = w::Cursor::new(&limits, w::CursorParts { value: bytes.finish() }).unwrap();
+    let read =
+        w::Read::Spend(w::ReadSpend::new(&limits, w::ReadSpendParts { project: 3, after: Some(after) }).unwrap());
+    let mut exchange = f::read_exchange();
+    let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, w::VERSION, f::encoded_read(&read))));
+    exchange.authenticate();
+    assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown));
+    assert!(exchange.out.is_empty());
 }
 
 #[test]
@@ -137,17 +157,20 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
     }
 }
 
-const TASK_QUERY: jig_domain_core_vocabulary::documents::TaskQuery = jig_domain_core_vocabulary::documents::TaskQuery {
-    project: Some(3),
-    requester: Some(jig_domain_tasks::Party::Person(5)),
-    root: Some(7),
-    parent: Some(11),
-    label: Some(13),
-    phase: None,
-    executor: None,
-    tracked: None,
-    order: jig_domain_core_vocabulary::documents::QueryOrder::Number,
-};
+fn task_query() -> jig_domain_core_vocabulary::documents::TaskQuery {
+    jig_domain_core_vocabulary::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
+        project: Some(3),
+        requester: Some(jig_domain_tasks::Party::Person(5)),
+        root: Some(7),
+        parent: Some(11),
+        label: Some(13),
+        phase: None,
+        executor: None,
+        tracked: None,
+        order: jig_domain_core_vocabulary::documents::QueryOrder::Number,
+    }
+}
 const QUERY_ORDERS: [jig_domain_core_vocabulary::documents::QueryOrder; 5] = {
     use jig_domain_core_vocabulary::documents::QueryOrder as O;
     [O::Number, O::Changed, O::Activity, O::Priority, O::Ended]
@@ -165,10 +188,14 @@ fn task_query_cursors_preserve_their_keys_orders_and_phases() {
     for order in QUERY_ORDERS {
         for phase in QUERY_PHASES {
             for executor in QUERY_EXECUTORS {
-                let query = jig_domain_core_vocabulary::documents::TaskQuery { order, phase, executor, ..TASK_QUERY };
+                let query = jig_domain_core_vocabulary::documents::TaskQuery { order, phase, executor, ..task_query() };
                 for query in [
-                    query,
-                    jig_domain_core_vocabulary::documents::TaskQuery { requester: None, tracked: Some(true), ..query },
+                    query.clone(),
+                    jig_domain_core_vocabulary::documents::TaskQuery {
+                        requester: None,
+                        tracked: Some(true),
+                        ..query.clone()
+                    },
                     jig_domain_core_vocabulary::documents::TaskQuery {
                         requester: Some(jig_domain_tasks::Party::Task(19)),
                         tracked: Some(false),
@@ -311,8 +338,8 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
     let tree = cursor::encode_tree(&after, 7, 3, 1024).expect("tree cursor");
     assert_eq!(cursor::decode(&tree), None);
     assert_eq!(cursor::decode_window(&tree), None);
-    let bare = crate::cursor_v1::DocumentCursor::Number(
-        crate::cursor_v1::Number::new(&crate::cursor_v1::CEILINGS, crate::cursor_v1::NumberParts { value: 7 })
+    let bare = crate::cursor_v2::DocumentCursor::Number(
+        crate::cursor_v2::Number::new(&crate::cursor_v2::CEILINGS, crate::cursor_v2::NumberParts { value: 7 })
             .expect("number"),
     );
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(bare.measure()));

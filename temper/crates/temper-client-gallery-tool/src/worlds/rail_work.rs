@@ -51,7 +51,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         while rows.len() > window {
                             let _row = rows.swap_remove(rows.len() - 1).expect("last window row");
                         }
-                        Some(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })))
+                        Some(c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })))
                     }
                     c::Subject::Inbox { .. } => Some(c::Delivery::Inbox(Box::new(inbox(name)))),
                     c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
@@ -106,12 +106,13 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         Some(c::ReadValue::Question(Box::new(across_question(task))))
                     }
                     c::Read::Tasks { query, .. } => Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: rows(work, &query, true), after: None, cut: false },
                     }))),
-                    c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(notes(work, &scope)))),
-                    c::Read::Task { task } => Some(c::ReadValue::Task(Box::new(change_task(work, task)))),
+                    c::Read::Notes { .. } => panic!("Work reads no per-row notes"),
+                    c::Read::Task { task } => Some(c::ReadValue::Task(Box::new(base_task(task, "Change")))),
                     _ => super::read_value(super::World::Bare, &what, Then::Shown, None),
                 };
                 if let Some(value) = value {
@@ -298,7 +299,7 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
     let mut rows = List::with_capacity(7);
     if query.tracked == Some(true) {
         if matches!(work, Work::Whole) && !ended {
-            for (number, title, _, done, total, spent, budget) in REPORTS {
+            for (number, title, report, done, total, spent, budget) in REPORTS {
                 let mut task = base_task(number, title);
                 task.label = 2;
                 task.flags.conversation = false;
@@ -309,6 +310,10 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
                 task.budget.numbers.spent = spent;
                 task.budget.numbers.budget = budget;
                 let mut line = super::task_line(task);
+                line.parts = List::from_boxed(Box::new([super::documents::goal_part(
+                    Some((report.as_bytes(), at(if number == 81 { -37 } else { -1 }))),
+                    None,
+                )]));
                 line.delegates_done = done;
                 line.delegates_total = total;
                 rows.push(line).expect("two live goals");
@@ -331,43 +336,14 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
             } else {
                 -i64::try_from(*number).expect("few chats")
             });
-            rows.push(super::task_line(task)).expect("seven chats");
+            let mut line = super::task_line(task);
+            let document =
+                if matches!(work, Work::Whole) && *number == 11 { Some(b"read-barriers".as_slice()) } else { None };
+            line.parts = List::from_boxed(Box::new([super::documents::chat_part(document)]));
+            rows.push(line).expect("seven chats");
         }
     }
     rows
-}
-fn note(task: u64, description: &str, body: &str) -> c::Note {
-    c::Note {
-        number: 1,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: 1, task },
-        description: doc(description),
-        body: doc(body),
-        writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::with_capacity(0),
-        changed: Some(at(if task == 81 { -37 } else { -1 })),
-        acts: List::with_capacity(0),
-        cut: false,
-    }
-}
-fn notes(work: Work, scope: &c::NoteScope) -> c::NotePage {
-    let mut rows = List::with_capacity(2);
-    if matches!(work, Work::Whole) {
-        match scope {
-            c::NoteScope::Tasks { project: 1 } => {
-                rows.push(note(11, "read-barriers", "")).expect("one draft being written");
-            }
-            c::NoteScope::Task { task, .. } => {
-                for (number, _, report, ..) in REPORTS {
-                    if *task == number {
-                        rows.push(note(number, &format!("report: {report}"), "")).expect("goal report");
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    c::NotePage { rows, before: None, after: None, cut: false }
 }
 const WHOLE_QUEUED: [(u64, &str); 3] =
     [(100, "Witness rejoin fix"), (101, "Comment rewritten from the code"), (102, "Witness rejoin test")];
@@ -408,6 +384,7 @@ fn drafts(work: Work) -> w::DraftsPanel {
     w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: 1, drafts }).expect("drafts panel")
 }
 type ChangeRows = &'static [(u64, &'static str)];
+#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes(work: Work) -> w::ChangesPanel {
     let (pending, landed): (ChangeRows, ChangeRows) = match work {
         Work::Whole => (&WHOLE_QUEUED, &WHOLE_LANDED),
@@ -431,6 +408,9 @@ fn changes(work: Work) -> w::ChangesPanel {
                     w::ChangesQueued::new(
                         &w::CEILINGS,
                         w::ChangesQueuedParts {
+                            goal: change_origin(work, *task).0,
+                            chat: change_origin(work, *task).1,
+                            milestone: None,
                             task: *task,
                             title: title.as_bytes().into(),
                             ready_since: at(-90).as_nanos(),
@@ -464,8 +444,11 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    goal: change_origin(work, *task).0,
+                    chat: change_origin(work, *task).1,
+                    milestone: None,
                     signed: crate::samples::signoffs(
-                        if matches!(work, Work::Whole) { &[73] } else { &[] },
+                        if matches!(work, Work::Whole) { &[(73, "Owner")] } else { &[] },
                         at(-2482).as_nanos(),
                     ),
                     commit: [0xab; 32],
@@ -505,8 +488,7 @@ fn changes(work: Work) -> w::ChangesPanel {
     )
     .expect("changes panel")
 }
-fn change_task(work: Work, number: u64) -> c::Task {
-    let mut task = base_task(number, "Change");
+fn change_origin(work: Work, number: u64) -> (Option<w::ChangeFrom>, Option<w::ChangeFrom>) {
     let origin = match work {
         Work::Whole => match number {
             100 | 103 | 104 => Some((true, 80, "membership-handoff")),
@@ -516,14 +498,14 @@ fn change_task(work: Work, number: u64) -> c::Task {
         Work::Pair => Some((false, number - 90, PAIR_CHATS[usize::try_from(number - 100).expect("few changes")].1)),
         Work::Empty => None,
     };
-    if let Some((goal, number, title)) = origin {
-        task.goal = goal.then_some(number);
-        let mut chip = base_task(number, title).chip;
-        chip.executor = c::ChipExecutor::Agent { charter: 1 };
-        task.lineage_chips = List::with_capacity(1);
-        task.lineage_chips.push(chip).expect("change origin");
+    match origin {
+        Some((goal, task, title)) => {
+            let from = w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.as_bytes().into() })
+                .expect("change origin");
+            if goal { (Some(from), None) } else { (None, Some(from)) }
+        }
+        None => (None, None),
     }
-    task
 }
 fn project_document(number: u32) -> c::Project {
     let mut members = List::with_capacity(2);

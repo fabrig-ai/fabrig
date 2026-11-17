@@ -347,6 +347,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
+    scripted_parts: Option<Queue<(u16, core::PartsAsk)>>,
     scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
     hub_link: jig_domain_hub_link::Link,
@@ -370,6 +371,15 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Hold the test connector's per-answer part asks until the world answers.
+    pub fn script_parts(&mut self) {
+        self.scripted_parts = Some(Queue::uncapped());
+    }
+
+    pub fn take_parts(&mut self) -> Option<(u16, core::PartsAsk)> {
+        self.scripted_parts.as_mut()?.pop()
+    }
+
     /// Hold workspace completions for deterministic preparation interleavings.
     pub fn script_workspaces(&mut self) {
         self.scripted_workspaces = Some(Queue::uncapped());
@@ -518,6 +528,7 @@ impl Domain {
         Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
+            scripted_parts: None,
             scripted_brief_failure: None,
             brief_failures: Queue::uncapped(),
             hub_link: jig_domain_hub_link::Link::new(
@@ -1150,6 +1161,7 @@ mod application_facts;
 mod client_documents;
 pub mod link;
 mod messages;
+pub mod parts;
 mod routes;
 mod steps;
 pub use steps::procedure_input;

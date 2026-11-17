@@ -70,6 +70,7 @@ impl Side {
             specification: None,
             rows: List::uncapped(),
             ended: c::TaskPage {
+                ended_mark: 0,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows { rows: List::uncapped(), after: None, cut: false },
@@ -277,6 +278,7 @@ pub fn read_value(
             let mut rows = List::uncapped();
             rows.push(line).unwrap();
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: rows,
                 live_after: None,
                 ended: c::EndedGroup::None,

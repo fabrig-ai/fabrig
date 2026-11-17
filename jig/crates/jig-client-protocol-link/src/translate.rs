@@ -11,8 +11,13 @@ pub(crate) mod programs;
 mod task_wait;
 use crate::Limits;
 use alloc::boxed::Box;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::Reader;
+pub use task_wait::waiting as run_wait;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Undecodable {
     Malformed,
@@ -59,7 +64,7 @@ pub mod store;
 
 mod compound;
 
-mod queries;
+pub mod queries;
 
 mod account_hosts;
 

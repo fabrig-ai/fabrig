@@ -26,6 +26,10 @@ impl Ask {
     }
 }
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "read scopes own task queries and their parts; the queue retains each admitted ask inline"
+)]
 enum Work {
     Checkpoint,
     Read(Ask),

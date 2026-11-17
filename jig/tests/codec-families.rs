@@ -24,9 +24,9 @@ pub const FAMILIES: &[Family] = &[
         name: "engine cursor",
         root: "crates/jig-protocol-engine-clients",
         codec_root: "crates/jig-protocol-engine-clients-codec",
-        schemas: &["schema/cursor-v1.schema"],
-        records: "jig_protocol_engine_clients_codec::cursor_v1",
-        generated: &["src/generated/cursor_v1.rs"],
+        schemas: &["schema/cursor-v2.schema"],
+        records: "jig_protocol_engine_clients_codec::cursor_v2",
+        generated: &["src/generated/cursor_v2.rs"],
         golden: "golden",
         fixtures: &[],
     },
@@ -35,7 +35,11 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         schemas: &["schema/client-v28.schema", "schema/client-v28-part1.schema"],
+<<<<<<< HEAD
         records: "jig_client_protocol_wire::v28",
+=======
+        records: "jig_client_protocol_wire",
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         generated: &["src/generated/v28.rs"],
         golden: "golden",
         fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],

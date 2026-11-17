@@ -311,6 +311,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
+            parts: Box::new([]),
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).

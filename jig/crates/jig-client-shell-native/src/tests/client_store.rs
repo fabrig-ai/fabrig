@@ -1,7 +1,12 @@
 //! A linked client's next request must leave after a folded erase and save.
 use super::*;
 use client::{Ask, Asker, Event, Key, Message, Request, contract};
+<<<<<<< HEAD
 use jig_client_protocol_wire::{VERSION, v28 as w};
+=======
+use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::VERSION;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Duration, List, Reader, Wall};
 
 const FIRST: Key = Key { asker: Asker::JIG, number: 1 };

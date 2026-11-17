@@ -700,7 +700,11 @@ fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
 }
 #[test]
 fn a_seeded_github_apps_records_start_one_connected_forge_as_its_bot_and_serve_a_call() {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28::SignInAnswer;
+=======
+    use jig_client_protocol_wire::SignInAnswer;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{List, Secret};
     use temper_engine_domain_forge as domain;
     use temper_github_app::APP;

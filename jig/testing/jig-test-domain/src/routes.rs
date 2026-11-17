@@ -127,6 +127,15 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::Parts(ask) => {
+            if let Some(pending) = &mut domain.scripted_parts {
+                pending.push((number, ask));
+            } else {
+                let parts = crate::parts::make(&ask);
+                work.push(Work::Core(core::Event::Parts { connector: number, token: ask.token, parts }));
+            }
+        }
+
         core::Ask::ReleaseProject { project } => {
             if let Some(releases) = &mut domain.scripted_project_releases {
                 releases.push((number, project));

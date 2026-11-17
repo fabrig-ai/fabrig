@@ -2,6 +2,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 │ Sign in this terminal to 127.0.0.1:43675                                     │
 │ A tab opened in your browser. Check it shows                                 │
 │ VQVX-TDSX, then press Approve.                                               │
@@ -36,6 +37,15 @@
 │ Paste the link temper printed, then Enter.                                   │
 │ ❯ Link: http://127.0.0.1:38761/jig/v1/sign-in/link?secret=… (enter sends)    │
 >>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
+=======
+│ Sign in this terminal to 127.0.0.1:34745                                     │
+│ A tab opened in your browser. Check it shows                                 │
+│ XJPR-TJTB, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:34745/terminal?code=XJPR-TJTB                  │
+│ The code expires in 9 min.                                                   │
+│ Paste the link temper printed, then Enter.                                   │
+│ ❯ Link: http://127.0.0.1:34745/jig/v1/sign-in/link?secret=… (enter sends)    │
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

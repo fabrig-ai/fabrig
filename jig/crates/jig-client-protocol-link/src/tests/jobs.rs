@@ -70,6 +70,7 @@ fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
 fn a_job_executor_filter_round_trips_the_wire() {
     let limits = fixtures::limits();
     let query = c::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(7),
         requester: None,
         root: None,

@@ -1161,6 +1161,7 @@ impl Task {
             ended.handle,
             c::Read::Tasks {
                 query: c::TaskQuery {
+                    parts: List::with_capacity(0),
                     project: None,
                     requester: None,
                     root: None,

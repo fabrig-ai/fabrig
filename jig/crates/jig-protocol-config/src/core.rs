@@ -58,6 +58,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         }
     }
     domain::Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
         deployment,

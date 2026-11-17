@@ -110,7 +110,11 @@ fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access()
 }
 
 fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http::Peer {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as j;
+=======
+    use jig_client_protocol_wire as j;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
@@ -148,7 +152,11 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     client
 }
 fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> temper_client_protocol_wire::v1::Outcome {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as j;
+=======
+    use jig_client_protocol_wire as j;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use temper_client_protocol_wire::v1 as w;
     let engine = service.engine.as_ref().unwrap();
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
@@ -170,7 +178,11 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
 #[test]
 fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_restart() {
     use fixtures::http as peer;
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as j;
+=======
+    use jig_client_protocol_wire as j;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use temper_client_protocol_wire::v1 as w;
     let mut service = local_service(picker_config(), local_store(false));
     restore_local(&mut service);

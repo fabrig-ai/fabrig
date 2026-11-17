@@ -463,6 +463,16 @@ documents, beside jig's (`../client/domain/contract/documents.md`):
   the connector's records keep it (a procedure's result, while it keeps
   that procedure's record); past that, the part is unknown, and its
   connector answers so;
+- **its parts of jig's task rows**
+  (`../client/domain/contract/parts.md`): the kinds it makes, which the
+  application declares in the core's configuration, each with its bytes
+  and its inputs, among its task's line, its task's notes, its delegates'
+  lines, its delegates' notes and the connector's own records of the task
+  (engine/views.md, 2). Asked for a page of rows' parts, it makes each from
+  its state, the core's and the store's, loading as a read loads, and
+  answers each made or failed, within the decision or after its loads. It
+  marks a task's parts through the root when its own records of that task
+  change. jig reads none of a part's bytes;
 - **its keyed requests:** a request about one of its own objects comes
   to it through the root, keyed by the people child; it decides it
   within the decision, asks the core for what it needs on the party's

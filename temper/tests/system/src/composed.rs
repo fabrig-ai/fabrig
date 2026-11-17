@@ -825,6 +825,10 @@ impl World {
                 let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
                 self.store.submit(number, writes, delay);
             }
+            engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                let result = self.store.read(range);
+                self.root_events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+            }
             engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                 let result = self.store.read(range);
                 self.root_events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
@@ -1189,6 +1193,7 @@ impl World {
             | Delivery::Relay { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

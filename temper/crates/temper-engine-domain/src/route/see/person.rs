@@ -339,6 +339,7 @@ fn tracked(part: &Part) -> bool {
 
 fn query(project: u32, order: documents::QueryOrder) -> documents::TaskQuery {
     documents::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,

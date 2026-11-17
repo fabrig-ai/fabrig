@@ -438,6 +438,7 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
 
@@ -2372,6 +2373,7 @@ fn watch_subjects() -> [(&'static str, Watched, Subject); 9] {
     let mut chips = List::with_capacity(1);
     chips.push(1).unwrap();
     let query = TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(1),
         requester: None,
         root: None,
@@ -2389,7 +2391,7 @@ fn watch_subjects() -> [(&'static str, Watched, Subject); 9] {
         ("Chips", Watched::Chips { tasks: chips.clone() }, Subject::Chips { tasks: chips }),
         ("Inbox", Watched::Inbox, Subject::Inbox { party: 1 }),
         ("Accounts", Watched::Accounts, Subject::Accounts { party: 1 }),
-        ("Tasks", Watched::Query { query }, Subject::Query { query }),
+        ("Tasks", Watched::Query { query: query.clone() }, Subject::Query { query }),
         ("Run", Watched::Run { task: 1 }, Subject::Run { task: 1 }),
         ("Deployment", Watched::Deployment, Subject::Deployment),
     ]
@@ -2636,6 +2638,7 @@ fn one_task_change_marks_trees_queries_and_named_chips_once() {
         Watched::Tree { task: 1 },
         Watched::Query {
             query: TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(1),
                 requester: None,
                 root: None,
@@ -3794,6 +3797,7 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
         let subject = if change == 3 {
             Watched::Query {
                 query: TaskQuery {
+                    parts: List::with_capacity(0),
                     project: Some(1),
                     requester: None,
                     root: None,

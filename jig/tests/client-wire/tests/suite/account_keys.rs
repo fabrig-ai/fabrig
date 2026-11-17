@@ -1,5 +1,9 @@
 //! Client v21 account changes and typed outcomes.
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28::*;
+=======
+use jig_client_protocol_wire::*;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{List, Reader, Writer};
 #[test]
 fn all_eight_account_changes_and_their_outcomes_round_trip() {

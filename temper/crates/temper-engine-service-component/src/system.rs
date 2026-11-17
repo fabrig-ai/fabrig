@@ -348,6 +348,7 @@ pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings
         tools.push(Box::from(tool)).expect("private tool names");
     }
     core.settings.private_tools = tools.into_boxed();
+    core.parts = temper_engine_domain_forge::parts::kinds(temper_client_protocol_wire::FORGE);
     core
 }
 

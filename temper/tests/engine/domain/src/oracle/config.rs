@@ -27,6 +27,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         ways_stock: config.ways_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
+            parts: config.core.parts.clone(),
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),
             deployment: c.deployment,

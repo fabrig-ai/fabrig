@@ -113,7 +113,11 @@ fn empty_settings() -> crate::settings::Engine {
     settings
 }
 pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
+<<<<<<< HEAD
     use jig_client_protocol_wire::v28 as j;
+=======
+    use jig_client_protocol_wire as j;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use jig_domain_people as people;
     let mut store = fixtures::records_store();
     fixtures::commit(

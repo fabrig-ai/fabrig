@@ -391,7 +391,11 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
+<<<<<<< HEAD
     wire: jig_client_protocol_wire::v28::CEILINGS,
+=======
+    wire: jig_client_protocol_wire::CEILINGS,
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     link_span: Duration::from_secs(7200),
 };
 
@@ -450,8 +454,13 @@ pub(super) fn limits() -> Limits {
         &limits.clients.wire,
     )
     .expect("standard's first deliveries fit a u32 byte bound");
+<<<<<<< HEAD
     let record = jig_client_protocol_wire::v28::StreamEvent::encoded_bound(&limits.clients.wire)
         .expect("standard stream record");
+=======
+    let record =
+        jig_client_protocol_wire::StreamEvent::encoded_bound(&limits.clients.wire).expect("standard stream record");
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let record = u32::try_from(record).expect("standard stream record fits u32");
     // Base64 data has one `data: ` prefix and two line feeds.
     limits.clients_http.event = skein_lib::base64::encoded_len(skein_lib::base64::Alphabet::Standard, record)

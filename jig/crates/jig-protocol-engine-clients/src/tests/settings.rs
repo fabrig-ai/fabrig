@@ -1,6 +1,10 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
+<<<<<<< HEAD
 use jig_client_protocol_wire::v28 as w;
+=======
+use jig_client_protocol_wire as w;
+>>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
@@ -76,6 +80,7 @@ fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
             0,
             32,
             &f::models(),
+            &List::with_capacity(0),
             &f::wire()
         )
         .unwrap(),

@@ -489,7 +489,8 @@ record ReadNotes { scope: NoteScope description: option text 65536 after: option
 enum PhaseClass { working, waiting, held, closing, ended }
 enum ExecutorKind { agent, procedure, person, job }
 enum QueryOrder { number, changed, activity, priority, ended }
-record TaskQuery { project: option u32 requester: option Requester root: option u64 parent: option u64 label: option u32 phase: option PhaseClass executor: option ExecutorKind tracked: option bool order: QueryOrder }
+record PartAsk { owner: Family kind: u32 version: u32 }
+record TaskQuery { project: option u32 requester: option Requester root: option u64 parent: option u64 label: option u32 phase: option PhaseClass executor: option ExecutorKind tracked: option bool order: QueryOrder parts: list 4 PartAsk }
 record ReadTasks { query: TaskQuery live: option Cursor ended: option Cursor }
 record TurnTooLarge { bytes: u64 }
 record ReadTooLinked { joins: u32 }
@@ -652,7 +653,10 @@ record WaitsOnDependencies { pending: list 32 u64 count: u32 }
 enum WaitsOn { party: WaitsOnParty, delegates, news, nothing, dependencies: WaitsOnDependencies, question: WaitsOnQuestion }
 record ConversationRead { seen: u64 unread: Count }
 record PhaseCounts { waiting: u32 idle: u32 starting: u32 running: u32 backing_off: u32 closing: u32 held: u32 done: u32 failed: u32 cancelled: u32 }
-record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn phases: PhaseCounts delegates_done: u32 delegates_total: u32 held_below: u32 conversation: option ConversationRead }
+enum PartFailure { busy, too_large, unreadable }
+record PartFailed { why: PartFailure }
+enum RowPart { value: Owned, not_served: NotServed, unknown, failed: PartFailed }
+record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn phases: PhaseCounts delegates_done: u32 delegates_total: u32 held_below: u32 conversation: option ConversationRead parts: list 4 RowPart }
 record NoteAuthorParty { party: u64 }
 record NoteAuthorTask { task: u64 attempt: u64 }
 enum NoteAuthor { party: NoteAuthorParty, task: NoteAuthorTask }
@@ -729,10 +733,10 @@ record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 last: u64 }
 record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument tasks_left: u32 hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
 record ReadPosition { task: u64 through: u64 }
-record Tasks { rows: bytes 16777216 more: bool }
+record Tasks { rows: bytes 16777216 more: bool ended_mark: u64 }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }
 enum EndedGroup { rows: EndedRows, none }
-record TaskPage { live: bytes 16777216 live_after: option Cursor ended: EndedGroup }
+record TaskPage { live: bytes 16777216 live_after: option Cursor ended: EndedGroup ended_mark: u64 }
 record Call { number: u64 tool: text 65536 input: text 65536 outcome: option text 65536 failed: bool objects: list 32 ObjectKey parts: bytes 16777216 }
 record CurrentCall { identity: CallIdentity tool: text 65536 input: text 65536 cut: bool began: option u64 }
 record LiveCallDecoded { value: Call }

@@ -326,6 +326,7 @@ impl Driver {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

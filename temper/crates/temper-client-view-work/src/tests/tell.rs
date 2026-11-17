@@ -122,7 +122,11 @@ fn fill_named(root: &mut d::Domain, mut out: Queue<Request>, title: &[u8]) {
                 deliver(
                     root,
                     watch,
-                    c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+                    c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows: List::from_boxed(Box::new([line])),
+                        more: false,
+                    })),
                 )
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {

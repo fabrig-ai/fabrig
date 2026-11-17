@@ -121,6 +121,7 @@ use skein_lib::{List, Token};
 fn task_query(order: d::QueryOrder, phase: Option<d::PhaseClass>, parent: Option<u64>, tracked: Option<bool>) -> Read {
     Read::Tasks {
         query: d::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(7),
             requester: None,
             root: None,
@@ -648,6 +649,7 @@ fn goals_leave_milestones_out_of_live_and_ended_rows() {
         gathered.push(
             &address,
             Part::Jig(Answer::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: rows.clone(),
                 live_next: None,
                 ended: EndedGroup::Rows { rows, next: None, cut: false },
