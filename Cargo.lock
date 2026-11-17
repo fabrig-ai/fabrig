@@ -5530,6 +5530,7 @@ dependencies = [
  "temper-playground",
  "temper-real-loop-world",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",

@@ -79,9 +79,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
 fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     use serde_json::json;
     let scratch = support::Scratch::new("cluster-turn-settings");
-    std::fs::create_dir_all(scratch.path().join("engine")).expect("engine directory");
-    std::fs::copy(cluster_turn_setup::fixture().join("settings.json"), scratch.path().join("engine/settings.json"))
-        .expect("worker settings");
     let calls: Vec<_> = [
         json!({}),
         json!({"newest":7}),

@@ -771,7 +771,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterJudge {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
-        self.members.observe(now, hosts);
+        let (_, processes) = hosts.split_last().ok_or("client root")?;
+        self.members.observe(now, processes);
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
             if self.workers {
@@ -871,8 +872,23 @@ fn an_engine_alone_prints_its_lines_and_drains_on_a_signal() {
 }
 fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     let stderr = std::str::from_utf8(&engine.stderr).map_err(|why| format!("engine lines: {why:?}"))?;
-    let lines: Vec<_> = stderr.lines().collect();
-    let [_, _, _] = lines.as_slice() else { return Err("exactly the three listening lines".into()) };
+    // configuration/figures.md, 2: beside its listeners the engine reports its composed figures.
+    let figures: Vec<_> =
+        stderr.lines().filter_map(|line| line.strip_prefix("temper serve: figures for workers: ")).collect();
+    let [figures] = figures.as_slice() else { return Err("exactly one workers' figures line".into()) };
+    let counts: Vec<_> = figures.split(", ").collect();
+    let [limits, endpoints, "agents setting revision 1"] = counts.as_slice() else {
+        return Err(format!("workers' figures at the first revision: {figures}"));
+    };
+    for (count, suffix) in [(limits, " limits"), (endpoints, " endpoints")] {
+        if count.strip_suffix(suffix).and_then(|value| value.parse::<u32>().ok()).is_none_or(|value| value == 0) {
+            return Err(format!("nonempty workers' figures: {figures}"));
+        }
+    }
+    let lines: Vec<_> = stderr.lines().filter(|line| line.starts_with("listening ")).collect();
+    if lines.len() != 3 || stderr.lines().count() != 4 {
+        return Err("exactly three listening lines and the workers' figures".into());
+    }
     let clients: std::net::SocketAddr = lines
         .iter()
         .find_map(|line| line.strip_prefix("listening clients "))
@@ -1003,7 +1019,7 @@ fn the_cluster_stops_in_reverse_each_exiting_0() {
     scratch.remove();
 }
 
-// The worker retains the owned example's limits.
+// The engine supplies the owned example's limits to its worker.
 fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), String> {
     let directory = members.prepare("w1");
     let configuration = directory.join("config");
@@ -1011,7 +1027,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         .map_err(|why| format!("owned example: {why:?}"))?;
     let mut document = serde_json::json!({
         "workers": example["workers"],
-        "application": {"workers": example["application"]["workers"]}
+        "application": {}
     });
     let worker = &mut document["workers"][0];
     worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});
@@ -1032,13 +1048,27 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
     let arguments: Vec<Box<[u8]>> = arguments.iter().map(|s| s.as_bytes().into()).collect();
     let (directories, _) = temper_box_shell::directories::resolve(&arguments, &[], b"/")
         .map_err(|why| format!("worker directories: {why:?}"))?;
-    let operations = temper_box_shell::operations_in(
-        &[],
-        b"/",
-        &directories,
+    let directories = temper_box_shell::directories::jig_directories(&directories);
+    // config.md, 6.3: size the worker from its engine's figures without opening a link in the referee.
+    let mut part = temper_worker_service::startup::worker_part(
         &serde_json::to_vec(&document).map_err(|why| format!("worker JSON: {why:?}"))?,
+        &directories,
+        None,
     )
-    .map_err(|why| format!("owned worker starts at its declared figures: {why:?}"))?;
+    .map_err(|why| format!("owned worker: {why:?}"))?;
+    let engine: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(members.dir("engine").join("config/temper.json"))
+            .map_err(|why| format!("engine document: {why:?}"))?,
+    )
+    .map_err(|why| format!("engine JSON: {why:?}"))?;
+    temper_worker_service::figures::apply(&mut part, support::cluster::figures(&engine))
+        .map_err(|why| format!("owned worker's engine figures: {why:?}"))?;
+    let operations = temper_service_core::process::Process::operations_for(
+        &part.worker.jig.limits.as_ref().ok_or("worker limits")?.io,
+        temper_worker_service::worker_settings::configured_operations(&part.limits.git_component)
+            .ok_or("worker git operations")?,
+    )
+    .ok_or("worker operations")?;
     if operations > 32_768 {
         return Err("Linux IORING_MAX_ENTRIES".into());
     }
@@ -1131,7 +1161,8 @@ impl skein_world::Referee<support::cluster::Root> for OwnedWorkerJudge {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
-        self.members.observe(now, hosts);
+        let (_, processes) = hosts.split_last().ok_or("client root")?;
+        self.members.observe(now, processes);
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
             if stopped.iter().map(|s| s.name.as_str()).collect::<Vec<_>>() != ["w1", "engine", "llm", "forge"] {
@@ -1270,7 +1301,8 @@ fn cluster_chats_with(
     let key = cluster.dir("llm").join("llm.key");
     let within = story.within();
     let (mut members, hosts) = cluster.members_within(within);
-    members.up(if story == ClusterStory::Each { &["w1", "w2"] } else { &["w1"] });
+    // Figures are pinned at opening; the owner applies the agent setting before workers start.
+    members.up(&["engine"]);
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(ClusterChatJudge {
         finding: None,
@@ -1430,42 +1462,45 @@ impl ClusterChatJudge {
         use support::ctl::{Call, PROJECT, Step};
         self.slot_hold()?;
         let settings = self.settings.clone();
-        self.queue_steps(
-            client,
-            vec![
-                Step::Run(Call::sign_in()),
-                Step::Run(Call::new(&["settings", "show", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
-                Step::Run(Call::new(&["settings", "show", "template", "1", "--json"])),
-                Step::Then(Box::new(move |calls| {
-                    cluster_settings(&settings, &calls[2..]);
-                    support::ctl::settings_change(&calls[1], &settings, "cluster-settings")
-                })),
-                // configuration/moved.md, 3: projects are made at runtime, not in the engine document.
-                Step::Run(Call::new(&["project", "make", "Cluster", "--key", "cluster-project"])),
-                Step::Run(Call::new(&[
-                    "account",
-                    "add-key",
-                    "1",
-                    self.key.to_str().ok_or("LLM key path")?,
-                    "--deployment",
-                    "--key",
-                    "cluster-llm",
-                ])),
-                Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-                Step::Run(Call::new(&[
-                    "chat",
-                    "start",
-                    "--project",
-                    PROJECT,
-                    "--key",
-                    "first",
-                    "cluster-first-chat",
-                    "--json",
-                ])),
-            ],
-        )?;
+        let workers = support::cluster::worker_adds(&settings);
+        let mut steps = vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["settings", "show", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "template", "1", "--json"])),
+            Step::Run(Call::new(&["settings", "show", "agents", "--json"])),
+            Step::Then(Box::new(move |calls| {
+                cluster_settings(&settings, &calls[2..]);
+                support::ctl::settings_change(&calls[1], &settings, "cluster-settings")
+            })),
+        ];
+        steps.extend(workers.into_iter().map(Step::Run));
+        steps.extend([
+            // configuration/moved.md, 3: projects are made at runtime, not in the engine document.
+            Step::Run(Call::new(&["project", "make", "Cluster", "--key", "cluster-project"])),
+            Step::Run(Call::new(&[
+                "account",
+                "add-key",
+                "1",
+                self.key.to_str().ok_or("LLM key path")?,
+                "--deployment",
+                "--key",
+                "cluster-llm",
+            ])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable"])),
+            Step::Run(Call::new(&[
+                "chat",
+                "start",
+                "--project",
+                PROJECT,
+                "--key",
+                "first",
+                "cluster-first-chat",
+                "--json",
+            ])),
+        ]);
+        self.queue_steps(client, steps)?;
         self.stage = ClusterChatStage::Created;
 
         Ok(())
@@ -2005,13 +2040,21 @@ fn cluster_settings(file: &std::path::Path, reads: &[support::Ended]) {
             .iter_mut()
             .find(|item| item["setting"] == current["setting"])
             .expect("cluster setting override");
-        let overrides = item["set"].take();
+        let mut overrides = item["set"].take();
         let mut value = current["value"].clone();
+        if current["setting"]["kind"] == "agents" {
+            value["profile"]
+                .as_object_mut()
+                .expect("agent profile")
+                .extend(overrides["profile"].as_object().expect("profile overrides").clone());
+            overrides.as_object_mut().expect("agent overrides").remove("profile");
+        }
         value.as_object_mut().expect("whole setting").extend(
             overrides.as_object().expect("setting overrides").iter().map(|(key, value)| (key.clone(), value.clone())),
         );
         item["set"] = value;
     }
+    fixture["items"].as_array_mut().expect("settings items").retain(|item| item["setting"]["kind"] != "worker");
     support::write_private(file, &serde_json::to_vec(&fixture).expect("cluster settings JSON"));
 }
 struct ClusterRead {
@@ -2124,6 +2167,9 @@ impl ClusterChatJudge {
                 }
                 match self.stage {
                     ClusterChatStage::Created => {
+                        if self.tasks.is_empty() {
+                            self.members.up(if self.story == ClusterStory::Each { &["w1", "w2"] } else { &["w1"] });
+                        }
                         let created = cluster_call_json(calls.ends().last().ok_or("created chat")?)?;
                         let task = created["outcome"]["done"]["document"]["created"]["first"]
                             .as_u64()
