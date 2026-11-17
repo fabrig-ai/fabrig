@@ -105,7 +105,9 @@ it. Its messages and their bytes are `../../../protocol/client/README.md`'s.
   a request presented with a valid one is that party's, and everything
   after is checked by their role and authority.
 - **Its built-in ways of signing in:** the printed link's one-time
-  secret, on a loopback listener, for one person's machine; a
+  secret, on a loopback listener, for one person's machine; the asked
+  link, a fresh one a person's signed-in client asks for that person's
+  browser, signing in the asker's own party no longer than the asker; a
   service's credential, issued when an owner makes the service; and a
   sign-in approved by a signed-in browser, for that browser's own
   party: a client asks, the browser, by its cookie alone, approves the

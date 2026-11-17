@@ -259,7 +259,7 @@ temper                       the binary: `temper ctl` runs the host
 
 ```
 temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
-temper ctl DIRECTORY me | inbox | sign-in | sign-out | pending [ARGUMENT...] [--json]
+temper ctl DIRECTORY me | inbox | sign-in | sign-out | link | pending [ARGUMENT...] [--json]
 temper ctl DIRECTORY --call FILE [--json]
 temper ctl help [GROUP [VERB]]
 ```
@@ -332,12 +332,17 @@ temper ctl help [GROUP [VERB]]
     above), the same line without ` as party N`;
   - *spent*, *expired* and *unknown*, the engine's three refusals of a
     link (jig's `protocol/client/sign-in.md`, *Why a link can't sign
-    in*), each its own line: `temper ctl: the sign-in link was refused:
-    it was already used; temper-box serve prints a fresh one`; `temper
-    ctl: the sign-in link was refused: it has expired; temper-box serve
-    prints a fresh one`; `temper ctl: the sign-in link was refused:
-    temper does not know it, as another deployment's link or one it no
-    longer remembers; temper-box serve prints a fresh one`;
+    in*), each its own line, naming both ways to a fresh link:
+    `temper ctl: the sign-in link was refused: it was already used;
+    temper-box serve prints a fresh one, and a signed-in client asks one
+    with temper ctl DIRECTORY link --out FILE`; `temper ctl: the sign-in
+    link was refused: it has expired; temper-box serve prints a fresh
+    one, and a signed-in client asks one with temper ctl DIRECTORY link
+    --out FILE`; `temper ctl: the sign-in link was refused: temper does
+    not know it, as another deployment's link or one it no longer
+    remembers; temper-box serve prints a fresh one, and a signed-in
+    client asks one with temper ctl DIRECTORY link --out FILE`, each
+    `DIRECTORY` and `FILE` as written;
   - *refused* (any other refusal of the link): `temper ctl: the
     sign-in link was refused`; `temper-box serve` prints a fresh link;
   - *full* (jig's `domain/people/README.md`, section 3): `temper ctl: all N
@@ -367,6 +372,38 @@ temper ctl help [GROUP [VERB]]
   `nothing listens at ADDRESS; is temper running?`, or `the engine at
   ADDRESS did not answer within 30 s`. Every other tool
   signs in with the token DIRECTORY holds (`SignIn { with: Held }`).
+- **`link --out FILE`** asks the engine, with the token DIRECTORY
+  holds, for a fresh one-time sign-in link for the party DIRECTORY is
+  signed in as (jig's `protocol/client/sign-in.md`, the asked link), and
+  writes it to FILE: one line, the printed link's URL on DIRECTORY's
+  `address`, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, made
+  by jig's mapping (jig's `protocol/client/default-http.md`, 1), so that
+  a browser on the machine opens it as it opens the printed link, and
+  `sign-in` reads it into another DIRECTORY. FILE is written as `party
+  make --out` writes a service's credential (section 7): `0o600`,
+  refused if it exists, before anything is sent, and durable before
+  success prints; the link is never printed, logged or an argument. A
+  link asked again replaces the one before, which signs no one in after.
+  Its answers:
+  - *written:* exit 0, one line, `sign-in link written to FILE; it signs
+    in once, until U`, U the link's expiry, `YYYY-MM-DDTHH:MM:SSZ`, and
+    with `--json` the record `{"file": FILE, "expires": U}`;
+  - *not signed in* (no `address`, no `token` or a zero-byte one):
+    `DIRECTORY is not signed in`, as every call's (above), nothing sent;
+  - *FILE exists:* `party make --out`'s refusal of an existing file,
+    naming FILE, nothing sent;
+  - *refused* (the engine gives asked links only to a person's
+    sign-in, where its printed link is enabled): `temper ctl: the engine
+    refused a sign-in link: it gives one to a person's sign-in alone,
+    where its printed link is enabled`;
+  - *signed out:* as any call answered signed out;
+  - *not ready* and *busy* are sent again as `sign-in`'s are, within the
+    call's deadline (6.2); past it, `temper ctl: temper is busy`, or
+    `temper ctl: temper is not ready: it is starting, or its core is not
+    answering, and temper-box serve's log says why`;
+  - *FILE not written* once the link is asked: `FILE could not be
+    written: ERROR`, exit 1; the link is dropped unwritten, and the next
+    `link` replaces it.
 - **Loopback only,** as `temper-box open`, until the clients' listener
   serves TLS: a call checks that `address` is on loopback, `127.0.0.0/8`
   or `[::1]`, before it sends the token, and otherwise exits 1, "the
@@ -484,7 +521,10 @@ An agent runs a wait while it acts, or several agents share a party.
   results are the same either way, and jig judges each request as the
   party whose credential it is (jig's `domain/people/README.md`, section 3).
 - **The person's own:** the printed link's sign-in. An agent's first
-  identity is the deployment's first owner.
+  identity is the deployment's first owner. A DIRECTORY signed in as a
+  person asks a fresh link for that person (`link --out FILE`, 6.1), so
+  that their browser signs in once the printed links are spent; it signs
+  in that party alone, no longer than the DIRECTORY's own sign-in.
 - **Its own, a service's** (area 3): an owner makes a service in a
   project, with a role (`party make`), and jig's clients' component answers
   its credential once; the tool writes it to the file `--out` names,
@@ -492,7 +532,8 @@ An agent runs a wait while it acts, or several agents share a party.
   signs in with it (`sign-in --service FILE`) and acts within that
   role's authority and pool. QA plays several parties this way.
 - **Credentials are files,** private, never arguments, never printed;
-  the printed link too, which `sign-in` reads from a file or stdin.
+  the printed link too, which `sign-in` reads from a file or stdin, and
+  an asked link, which `link` writes to one.
 - **The agent's LLM is not the deployment's.** The LLM the agent itself
   runs on, to drive `temper ctl`, is its harness's. The deployment's
   runs are paid by jig's LLM accounts, added from the client

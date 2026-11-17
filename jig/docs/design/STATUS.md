@@ -151,6 +151,11 @@ lives beside the printed link, each spent apart, the local one drawn
 again at once and never printed; its first may be given at start, as a
 box gives its front's, and the printed link's sign-ins are said to the
 startup, `LinkSignedIn` (`protocol/client/wire.md`, 2.2 and `protocol/client/sign-in.md`).
+A person's signed-in client asks an asked link, `LinkAsk` on client
+wire 28: one live per sign-in and four in the deployment, its digest in
+memory alone, signing in the asker's own party in a sign-in people caps
+at the asker's saved expiry (`protocol/client/sign-in.md`;
+`domain/people/README.md`, section 3).
 The history of eight digests is memory-only, so forgotten links are unknown; longer history and
 fallback to a live cookie remain deferred (`protocol/client/sign-in.md` and `protocol/client/README.md`, section 12
 ; `client/domain/client/README.md`, sections 9 and 15).

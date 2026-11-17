@@ -24,6 +24,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/approval/ask` | asking an approval |
 | `POST <prefix>/v1/approval/read` | reading an approval by its code |
 | `POST <prefix>/v1/approval/decide` | approving or refusing an approval by its code |
+| `POST <prefix>/v1/link/ask` | asking a link, with a person's credential (`sign-in.md`, the asked link) |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (`openid.md`) |
 | `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (5, `public-reads.md`) |
@@ -46,7 +47,10 @@ prefix; jig's test application mounts it at `/jig`.
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
   (`../browser/README.md`, section 11). A native client sends the secret by the
-  same `POST`.
+  same `POST`. An asked link's URL (`sign-in.md`) is the same, with its
+  secret, on the address its client reaches the engine at: the mapping's
+  client end makes it, byte for byte as the engine end makes the printed
+  link's, and parses it as it parses the printed link's.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
   its own answer with the mapping's function for it (3). So do the

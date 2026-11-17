@@ -191,6 +191,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
   - *`SignIn { with }` and `SignOut`* (section 9);
   - *`AskApproval`, `ReadApproval { code }` and `DecideApproval { code,
     approve }`:* an approval's ask, read and decision (section 9);
+  - *`AskLink`:* an asked link's ask (section 9);
   - *`Watch { handle, subject, window }` and `Unwatch { handle }`:* a
     subject of jig's (../contract/README.md, 5.1), or a family's as bytes, and the
     window its document holds (`watches.md`);
@@ -541,6 +542,17 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
     ): eight letters of its alphabet, read from what a person
     types or an address carries, either case, hyphens and spaces
     ignored, and shown as four letters, a hyphen and four.
+- **An asked link** (`../../../protocol/client/sign-in.md`, the asked
+  link), one exchange whose one answer the client tells the
+  application, `AskedLink`, and keeps nothing of: *`AskLink`,* sent with
+  the credential held, by a client signed in, or with none under
+  `Transport`, is answered `Asked { secret, expires }`, the secret the
+  application's to give the person's browser in the printed link's URL
+  (`../../../protocol/client/default-http.md`, 1) and never show or log,
+  `expires` the link's wall time; `NotAsked`, refused, not ready, busy
+  or lost, as an approval's ask; or `SignedOut`, the client then signed
+  out, as by any exchange (below). A client not signed in sends it with
+  no credential, and the engine refuses it.
 - **The credential is never in the small store.** It is the link's, and
   `client.link()` gives it: a host that keeps a sign-in across its own
   restart keeps the credential where its platform keeps secrets, and
