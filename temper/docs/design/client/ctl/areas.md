@@ -122,8 +122,10 @@ The table grows area by area, each with its stories (`testing.md`).
      - **It needs no `--rev`.** jig compares the spec revision of every
        amendment but a priority alone, so the tool names the spec
        revision of the same read; `--rev`, given, is compared with it
-       as for any change, and the call's other changes need it as the
-       bullet above says. `--rev REV`'s line says it is not needed for
+       as for any change. A priority beside an address needs none
+       either, the read's spec revision named for both; the call's
+       other changes need it, as the bullet above says, refused as
+       usage without it. `--rev REV`'s line says it is not needed for
        a priority or an address alone.
      - **It is a change,** even naming the address the task has now: jig
        then lets go of a party who took it. An amendment naming an
