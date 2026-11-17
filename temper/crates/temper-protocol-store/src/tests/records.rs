@@ -439,6 +439,53 @@ fn a_changes_execution_clock_round_trips_for_each_last_reading() {
     }
 }
 
+#[test]
+fn review_revisions_round_trip_and_older_reports_default_to_zero() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Gating { head: [15; 32], asked: Box::new([21]) });
+    row.spec_revision = 7;
+    row.gate_revision = 5;
+    row.verdicts[0].revision = u64::MAX;
+    let stored = fixtures::change_hot(row.clone());
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored.clone()));
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family
+        .current
+        .replace("status: ChangeStatus revision: u64 = 0", "status: ChangeStatus")
+        .replace(" spec_revision: u64 = 0 gate_revision: u64 = 0", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut bytes = records::encode(&stored);
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.spec_revision = 0;
+    row.gate_revision = 0;
+    row.verdicts[0].revision = 0;
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
+}
+
 /// Registered additions default during layout conversion, without a version move.
 #[test]
 fn a_change_written_without_an_execution_clock_decodes_with_none() {

@@ -1,4 +1,5 @@
 //! Procedure cells, queue order and landing-rule agreement.
+mod amended_review;
 mod clock;
 mod drift;
 use crate::{
@@ -55,6 +56,7 @@ fn change(state: State) -> Change {
 }
 fn facts() -> Facts {
     Facts {
+        revision: 0,
         taken: None,
         fault: crate::Fault::Change,
         rerun: false,
@@ -520,7 +522,7 @@ fn an_unkept_change_is_ready_again_at_its_old_time_with_its_gate_verdict() {
     }]);
     let mut f = facts();
     f.kept = true;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let left = decide(&c, &f, &heard());
     let waiting = step(&left.change, &f, &heard(), at(60), &LIMITS);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
@@ -1090,7 +1092,7 @@ fn a_clean_update_preserves_the_turn_and_carries_a_review() {
     c.owns_turn = true;
     let mut f = facts();
     f.contains_base = Status::Failed;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let one = decide(&c, &f, &heard());
     assert_eq!(one.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
     assert_eq!(one.change.state, State::Updating { from: HEAD, base: BASE, ready_since: at(0) });
@@ -1839,7 +1841,7 @@ fn a_live_gate_keeps_its_delegate_slot_until_it_ends() {
     assert_eq!(waiting.decision, Decision::Wait { until: Some(at(30)) });
     assert_eq!(waiting.change.state, c.state);
     f.live_gate = None;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let second = decide(&waiting.change, &f, &heard());
     assert_eq!(second.decision, Decision::Delegate(Delegate::Gate { number: 10, head: HEAD }));
 }
@@ -2298,7 +2300,7 @@ fn runner_faults_run_again_within_the_head_bound() {
                 let mut f = facts();
                 f.ci.status = Status::Failed;
                 f.fault = fault;
-                f.gates = Box::new([GateReport { number: 11, head: HEAD, status: Status::Passed }]);
+                f.gates = Box::new([GateReport { revision: 0, number: 11, head: HEAD, status: Status::Passed }]);
                 let pending = step(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() }, at(5), &LIMITS);
                 assert_eq!(pending.change, c);
                 assert_eq!(pending.decision, Decision::Wait { until: Some(at(30)) });

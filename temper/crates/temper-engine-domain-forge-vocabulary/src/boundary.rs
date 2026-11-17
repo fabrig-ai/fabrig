@@ -1061,6 +1061,10 @@ pub struct ChangeRow {
     /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// Root projection of the change task's `revisions.spec`; jig owns the revision.
+    pub spec_revision: u64,
+    /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
+    pub gate_revision: u64,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1141,6 +1145,10 @@ pub struct ChangeHot {
     pub effect: change::EffectResult,
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// Root projection of the change task's `revisions.spec`; jig owns the revision.
+    pub spec_revision: u64,
+    /// Spec revision read by the step that asked the live review (gates.md, 1, Valid at a spec revision).
+    pub gate_revision: u64,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1184,6 +1192,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             verdicts,
             gate_remarks,
             drift,
@@ -1246,6 +1256,8 @@ impl ChangeRow {
                 effect,
                 delegate,
                 delegate_status,
+                spec_revision,
+                gate_revision,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1262,6 +1274,7 @@ impl ChangeRow {
     }
     /// Join parts belonging to the same task.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each cold and hot field is joined explicitly")]
     pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
         let ChangeCold {
             source,
@@ -1302,6 +1315,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             verdicts,
             gate_remarks,
             drift,
@@ -1341,6 +1356,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            spec_revision,
+            gate_revision,
             verdicts,
             gate_remarks,
             drift,

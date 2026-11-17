@@ -207,7 +207,7 @@ fn reviewed_row(freshness: temper_engine_domain_forge_change::Freshness) -> forg
     row.change.clean = Box::new([old, head]);
     row.change.gates =
         Box::new([change::Gate { number: 9, kind: change::GateKind::Agent, blocking: true, freshness, eager: false }]);
-    row.verdicts = Box::new([change::GateReport { number: 9, head: old, status: change::Status::Passed }]);
+    row.verdicts = Box::new([change::GateReport { revision: 0, number: 9, head: old, status: change::Status::Passed }]);
     row
 }
 

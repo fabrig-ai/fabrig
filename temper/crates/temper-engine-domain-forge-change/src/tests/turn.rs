@@ -43,7 +43,7 @@ fn a_turn_change_ready_tells_the_top_once_its_gates_hold() {
     c.gates = Box::new([gate(9, Freshness::Exact)]);
     let mut f = facts();
     f.ci.status = Status::Failed;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     f.kept = true;
     let kept = decide(&c, &f, &heard());
     assert_eq!(kept.decision, Decision::Wait { until: None });
@@ -127,8 +127,8 @@ fn a_conflicting_rebase_resolves_and_asks_every_gate_again() {
     let mut f = facts();
     f.branch = Some(NEW);
     f.gates = Box::new([
-        GateReport { number: 9, head: HEAD, status: Status::Passed },
-        GateReport { number: 10, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 10, head: HEAD, status: Status::Passed },
     ]);
     let resolved = decide(&resolving.change, &f, &h);
     assert_eq!(resolved.change.state, State::Gating { head: NEW, asked: Box::new([]) });
@@ -220,8 +220,8 @@ fn a_clean_gate_counts_at_a_clean_prepares_candidate_and_an_exact_one_is_asked_a
     let mut f = facts();
     f.branch = Some(NEW);
     f.gates = Box::new([
-        GateReport { number: 9, head: HEAD, status: Status::Passed },
-        GateReport { number: 10, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 10, head: HEAD, status: Status::Passed },
     ]);
     let mut h = heard();
     h.effect = EffectResult::Made;
@@ -229,8 +229,8 @@ fn a_clean_gate_counts_at_a_clean_prepares_candidate_and_an_exact_one_is_asked_a
     assert_eq!(exact.decision, Decision::Delegate(Delegate::Gate { number: 10, head: NEW }));
     assert_eq!(&*exact.change.clean, &[HEAD]);
     f.gates = Box::new([
-        GateReport { number: 9, head: HEAD, status: Status::Passed },
-        GateReport { number: 10, head: NEW, status: Status::Passed },
+        GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 10, head: NEW, status: Status::Passed },
     ]);
     let next = decide(&exact.change, &f, &heard());
     assert_eq!(next.decision, Decision::Ready);
@@ -266,7 +266,7 @@ fn turn_gate_failures_still_repair_or_hold_and_keep_their_bounds() {
         let mut f = facts();
         f.ci.status = Status::Failed;
         f.contains_base = Status::Unknown;
-        f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Failed }]);
+        f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Failed }]);
         let next = decide(&c, &f, &heard());
         let expected = match kind {
             GateKind::Agent | GateKind::Check | GateKind::Follow => {

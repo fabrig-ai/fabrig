@@ -172,6 +172,8 @@ fn ended_change(repository: Repository) -> forge::Stored {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         verdicts: Box::new([]),
         gate_remarks: Box::new([]),
         drift: None,

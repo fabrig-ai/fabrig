@@ -377,7 +377,7 @@ fn reviewed_members() -> World {
             freshness: change::Freshness::Exact,
             eager: true,
         }]);
-        row.verdicts = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        row.verdicts = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         world.event(top::Event::Change { row });
     }
     Trains::default().judge(&mut world);
@@ -775,7 +775,8 @@ fn a_path_in_the_lower_member_governs_the_turn_for_every_members_evidence() {
                 freshness: change::Freshness::Clean,
                 eager: true,
             }]);
-            row.verdicts = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+            row.verdicts =
+                Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
         }
         world.event(top::Event::Change { row });
     }

@@ -47,6 +47,8 @@ pub fn change_row() -> top::ChangeRow {
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        spec_revision: 0,
+        gate_revision: 0,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

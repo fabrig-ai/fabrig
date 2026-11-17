@@ -204,6 +204,7 @@ fn panel_gates(row: &ChangeRow, head: Option<[u8; 32]>) -> Box<[PanelGate]> {
         let mut verdict = change::Status::Unknown;
         for report in &row.verdicts {
             if gate.number == report.number
+                && report.at_revision(gate.kind, row.spec_revision)
                 && head.is_some()
                 && (Some(report.head) == head
                     || (gate.freshness == change::Freshness::Clean && row.change.clean.contains(&report.head)))

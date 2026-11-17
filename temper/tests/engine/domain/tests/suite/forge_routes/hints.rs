@@ -361,6 +361,7 @@ fn two_change_hint_request_profile() {
             panic!("change {task}")
         };
         let gates = Box::new([change::GateReport {
+            revision: 0,
             number: 9,
             head: row.change.last_head.expect("pushed head"),
             status: change::Status::Passed,

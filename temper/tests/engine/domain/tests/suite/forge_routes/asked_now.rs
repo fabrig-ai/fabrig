@@ -149,12 +149,16 @@ fn an_amended_request_reaches_the_next_review_and_repair() {
     );
     assert_eq!(live_task(&world, change).revisions.spec, 1);
     review(&mut world, &first_review, 2);
-    let repair = next_assignment(&mut world, 4);
+    let revised_review = next_assignment(&mut world, 4);
+    assert_amended(&world, &revised_review);
+    assert_eq!(row(&world, change).change.repairs, 0, "the stale request starts no repair");
+    review(&mut world, &revised_review, 2);
+    let repair = next_assignment(&mut world, 5);
     assert_amended(&world, &repair);
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"amended change", 1)
         .expect("amended repair pushes");
     super::delegates::fixtures::answer_producer(&mut world, &repair);
-    let next_review = next_assignment(&mut world, 5);
+    let next_review = next_assignment(&mut world, 6);
     assert_amended(&world, &next_review);
 }
 

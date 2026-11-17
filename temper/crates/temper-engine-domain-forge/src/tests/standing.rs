@@ -55,7 +55,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
         base_tip: fixtures::BASE,
         contains_base: change::Status::Passed,
         ci: change::Status::Passed,
-        gates: Box::new([change::GateReport { number: 1, head: HEAD, status: change::Status::Passed }]),
+        gates: Box::new([change::GateReport { revision: 0, number: 1, head: HEAD, status: change::Status::Passed }]),
         reviews: Box::new([]),
         reviews_complete: true,
     };
@@ -116,6 +116,42 @@ fn landing(d: &mut Domain) {
             },
         )
         .expect("landing room");
+}
+
+#[test]
+fn a_stale_review_neither_authorizes_nor_refuses_a_merge() {
+    for train in [false, true] {
+        for configured in [false, true] {
+            let (mut d, mut evidence) = fixture();
+            let row = d.changes.get_mut(&CHANGE).expect("change");
+            row.spec_revision = 1;
+            row.change.gates = Box::new([change::Gate {
+                number: 1,
+                kind: change::GateKind::Agent,
+                blocking: true,
+                freshness: change::Freshness::Clean,
+                eager: false,
+            }]);
+            let mut required = rule();
+            if configured {
+                required.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Clean }]);
+            }
+            keep(&mut d, 0, 1, required);
+            let task = if train {
+                landing(&mut d);
+                61
+            } else {
+                CHANGE
+            };
+            for status in [change::Status::Passed, change::Status::Failed] {
+                evidence.gates[0].status = status;
+                assert_eq!(d.judge_landing(5, 5, 0, task, HEAD, &evidence, &[]), Some(JudgeVerdict::Wait));
+            }
+            evidence.gates[0].revision = 1;
+            evidence.gates[0].status = change::Status::Passed;
+            assert_eq!(d.judge_landing(5, 5, 0, task, HEAD, &evidence, &[]), Some(JudgeVerdict::Met));
+        }
+    }
 }
 
 #[test]

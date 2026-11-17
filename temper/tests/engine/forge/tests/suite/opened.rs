@@ -42,7 +42,7 @@ fn an_opened_queue_change_checks_gates_updates_checks_again_and_merges() {
         step(&mut world, 4, Box::new([])),
         change::Decision::Delegate(change::Delegate::Gate { number: 9, head })
     );
-    let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    let gates = Box::new([change::GateReport { revision: 0, number: 9, head, status: change::Status::Passed }]);
     assert_eq!(step(&mut world, 5, gates.clone()), change::Decision::Ready);
     world.push_file(b"main", b"other", b"moved base");
     let base = translate::commit(world.branch(b"main"));

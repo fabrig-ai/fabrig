@@ -25,7 +25,7 @@ fn up_world() -> (World, engine::Assignment, u64, engine::Assignment) {
     (world, requester, change, producer)
 }
 
-fn amend(
+pub(super) fn amend(
     world: &mut World,
     requester: &engine::Assignment,
     change: u64,

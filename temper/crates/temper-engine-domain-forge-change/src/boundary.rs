@@ -58,12 +58,22 @@ pub struct Gate {
     pub eager: bool,
 }
 
-/// A gate's current verdict and the head it names.
+/// A gate's verdict at its head and asked spec revision
+/// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct GateReport {
     pub number: u64,
     pub head: Commit,
     pub status: Status,
+    pub revision: u64,
+}
+
+impl GateReport {
+    /// Only agent reviews judge a spec revision; approvals and checks keep their validity.
+    #[must_use]
+    pub fn at_revision(self, kind: GateKind, revision: u64) -> bool {
+        kind != GateKind::Agent || self.revision == revision
+    }
 }
 
 /// Failures to obtain a gate's verdict at the change's last head.
@@ -369,6 +379,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// The change task's current `revisions.spec`, projected by the root.
+    pub revision: u64,
     /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
     pub taken: Option<Commit>,
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.

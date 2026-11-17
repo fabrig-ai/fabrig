@@ -531,16 +531,16 @@ pub(super) fn decode_gate(value: w::Gate) -> d::Gate {
     d::Gate { number, kind: decode_gate_kind(kind), blocking, freshness: decode_freshness(freshness), eager }
 }
 pub(super) fn encode_gate_report(value: &d::GateReport) -> w::GateReport {
-    let d::GateReport { number, head, status } = value;
+    let d::GateReport { number, head, status, revision } = value;
     w::GateReport::new(
         &w::CEILINGS,
-        w::GateReportParts { number: *number, head: *head, status: encode_status(*status) },
+        w::GateReportParts { number: *number, head: *head, status: encode_status(*status), revision: *revision },
     )
     .expect(FITS)
 }
 pub(super) fn decode_gate_report(value: w::GateReport) -> d::GateReport {
-    let w::GateReportParts { number, head, status } = value.into_parts();
-    d::GateReport { number, head, status: decode_status(status) }
+    let w::GateReportParts { number, head, status, revision } = value.into_parts();
+    d::GateReport { number, head, status: decode_status(status), revision }
 }
 pub(super) fn encode_gate_remark(value: &top::GateRemark) -> w::GateRemark {
     let top::GateRemark { number, head, words } = value;
@@ -871,6 +871,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         effect,
         delegate,
         delegate_status,
+        spec_revision,
+        gate_revision,
         verdicts,
         gate_remarks,
         drift,
@@ -927,6 +929,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
                 None => None,
             },
             delegate_status: encode_status(*delegate_status),
+            spec_revision: *spec_revision,
+            gate_revision: *gate_revision,
             verdicts: encode_gate_reports(verdicts),
             gate_remarks: encode_gate_remarks(gate_remarks),
             drift: match drift {
@@ -982,6 +986,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect,
         delegate,
         delegate_status,
+        spec_revision,
+        gate_revision,
         verdicts,
         gate_remarks,
         drift,
@@ -1030,6 +1036,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         delegate_status: decode_status(delegate_status),
+        spec_revision,
+        gate_revision,
         verdicts: decode_gate_reports(verdicts),
         gate_remarks: decode_gate_remarks(gate_remarks),
         drift: match drift {

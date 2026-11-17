@@ -222,7 +222,7 @@ fn review(words: &[u8]) -> Event {
 fn a_gate_review_names_the_next_kept_verdict() {
     let mut d = reviewing();
     d.changes.get_mut(&fixtures::CHANGE).unwrap().verdicts =
-        Box::new([change::GateReport { number: 2, head: fixtures::HEAD, status: change::Status::Passed }]);
+        Box::new([change::GateReport { revision: 0, number: 2, head: fixtures::HEAD, status: change::Status::Passed }]);
     let mut env = env();
     env.limits.change_policy.gates = 1;
     let out = send(&mut d, &env, review(b"ok"));
@@ -251,7 +251,9 @@ fn a_step_names_its_gate_count_and_the_pending_step_table() {
     else {
         panic!("step fixture")
     };
-    let gates = Box::new([change::GateReport { number: 1, head: fixtures::HEAD, status: change::Status::Passed }; 2]);
+    let gates = Box::new(
+        [change::GateReport { revision: 0, number: 1, head: fixtures::HEAD, status: change::Status::Passed }; 2],
+    );
     let out = send(
         &mut d,
         &env,

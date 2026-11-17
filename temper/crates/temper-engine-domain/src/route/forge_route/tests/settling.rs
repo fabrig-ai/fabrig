@@ -91,7 +91,12 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
             freshness: change::Freshness::Exact,
             eager: false,
         }]);
-        row.verdicts = Box::new([change::GateReport { number: 1, head: super::SHA1, status: change::Status::Passed }]);
+        row.verdicts = Box::new([change::GateReport {
+            revision: 0,
+            number: 1,
+            head: super::SHA1,
+            status: change::Status::Passed,
+        }]);
         row.change.last_head = Some(super::SHA1);
         forge::step(
             &mut domain.forge,

@@ -1414,6 +1414,28 @@ impl Domain {
         tasks.into_boxed()
     }
 
+    /// Refresh jig's revision projection before reading verdicts. The forge never advances it
+    /// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
+    pub fn refresh_spec_revision(&mut self, task: u64, revision: u64, out: &mut Queue<Request>) {
+        let Some(row) = self.changes.get_mut(&task) else { return };
+        if row.frozen() || row.spec_revision == revision {
+            return;
+        }
+        row.spec_revision = revision;
+        let saved = row.clone();
+        let mut reviewing = false;
+        for gate in &row.change.gates {
+            reviewing |= gate.kind == change::GateKind::Agent;
+        }
+        if reviewing {
+            if let Some(landing) = row.change.landing {
+                emit(out, Request::WakeProcedure { task: landing });
+            }
+            emit(out, Request::WakeProcedure { task });
+        }
+        save_change(self, out, saved);
+    }
+
     /// Current durable change state used by the root's procedure route.
     #[must_use]
     pub fn change(&self, task: u64) -> Option<&ChangeRow> {
@@ -4269,14 +4291,20 @@ fn record_review(
     if cancelled || cancelling {
         return Ok(());
     }
-    let report = change::GateReport { number, head, status };
+    let report = change::GateReport { number, head, status, revision: row.gate_revision };
+    let mut stale = false;
+    for gate in &row.change.gates {
+        if gate.number == number {
+            stale = !report.at_revision(gate.kind, row.spec_revision);
+        }
+    }
     let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
     for old in &row.verdicts {
         if old.number != number {
             verdicts.push(*old).expect("bounded prior gate reports");
         }
     }
-    if !failed && verdicts.push(report).is_err() {
+    if (!failed || stale) && verdicts.push(report).is_err() {
         return Err(crate::RefusalCause::Limit {
             member: "forge.change_policy.gates",
             configured: u64::from(env.limits.change_policy.gates),
@@ -4284,7 +4312,7 @@ fn record_review(
         });
     }
     row.verdicts = verdicts.into_boxed();
-    if failed {
+    if failed && !stale {
         row.change = change::review_failed(&row.change, number, head, env.wall, &env.limits.change_policy);
     }
     let mut remarks = List::with_capacity(env.limits.change_policy.gates);
@@ -5727,6 +5755,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         row.change = stepped.change;
         crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
         let decision = stepped.decision;
+        if let change::Decision::Delegate(change::Delegate::Gate { .. }) = decision {
+            row.gate_revision = facts.revision;
+        }
         let took_update = matches_updating(&effect_prior.state) && row.change.last_head != effect_prior.last_head;
         if took_update && let Some(head) = row.change.last_head {
             record_change_head(d, env, &row, head, out);
@@ -6122,6 +6153,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        revision: row.spec_revision,
         taken: row.kept,
         fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
         rerun: match d.configured.get(&row.repository.forge) {

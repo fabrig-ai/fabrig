@@ -2203,6 +2203,22 @@ pub(crate) fn step_core(
     routed
 }
 
+/// Project a task revision before any merge judgement can read its reviews
+/// (temper/docs/design/domain/forge/change/gates.md, 1, Valid at a spec revision).
+pub(crate) fn revision_saved(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    record: &jig_domain_core::Record,
+) {
+    let jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)) = record else {
+        return;
+    };
+    let mut out = Queue::uncapped();
+    domain.forge.refresh_spec_revision(task.number, task.revisions.spec, &mut out);
+    outputs(domain, env, decision, &mut out);
+}
+
 fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
     let Some(row) = domain.core.tasks.task(task) else { return false };
     let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &row.phase else {
@@ -2626,6 +2642,8 @@ pub(super) fn start_recovered_change(
                 effect: forge_change::EffectResult::None,
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
+                spec_revision: 0,
+                gate_revision: 0,
                 verdicts: Box::new([]),
                 goal,
                 milestone,

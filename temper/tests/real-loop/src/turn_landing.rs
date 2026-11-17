@@ -145,11 +145,32 @@ fn recipe(_: SocketAddr, _: &Path) -> llm::Recipe {
         "cued":[],"asked":[],"otherwise":[]
     }))
     .expect("model document");
-    let document = temper_fake::llm::Document::decode_with_scripts(
-        &base,
-        Some(include_bytes!("../tests/fixtures/turn-landing/scripts.json")),
-    )
-    .expect("box --scripts fixture");
+    let mut scripts: Value =
+        serde_json::from_slice(include_bytes!("../tests/fixtures/turn-landing/scripts.json")).expect("copied scripts");
+    let cued = scripts["cued"].as_array_mut().expect("cued scripts");
+    let at =
+        cued.iter().position(|script| script["cue"] == "Review this change at the named head").expect("review script");
+    let review = cued.remove(at);
+    // Only the initial reviews wait for the caller; re-asked reviews approve
+    // after the amendment. Their revision cue precedes the task identity.
+    for task in REVIEWS {
+        let mut initial = review.clone();
+        initial["cue"] = format!("[This task: {task},").into();
+        cued.push(initial);
+    }
+    let mut revised = review;
+    // Adding the batch dependency amends the change. Its in-flight review runs
+    // on, then the new review approves the same head at revision 1 (gates.md, 1).
+    revised["cue"] = "Its request, at spec revision 1:".into();
+    revised["turns"] = json!([revised["turns"][0].clone(), revised["turns"][2].clone()]);
+    revised["inputs"] = json!([
+        {"cue":"Begin the work your brief describes.","turn":0},
+        {"cue":"","turn":1}
+    ]);
+    cued.insert(0, revised);
+    let scripts = serde_json::to_vec(&scripts).expect("scripts with amended review");
+    let document =
+        temper_fake::llm::Document::decode_with_scripts(&base, Some(&scripts)).expect("box --scripts fixture");
     let mut recipe = llm::scripted(Box::new([]));
     recipe.domain_limits = document.limits();
     recipe.domain = document.domain(fixtures::SEED);
@@ -270,12 +291,12 @@ fn acts(red: bool) -> Vec<calls::Step> {
     if red {
         acts.push(until(
             D1,
-            argv!["landing", "history", "--project", "1", "--landing", "10", "--json"],
+            argv!["landing", "history", "--project", "1", "--landing", "12", "--json"],
             b"\"kind\":\"gate-ended\"",
             b"\"events\"",
         ));
         // End at the first gate receipt, not a claim about subsequent narrowing or repair.
-        for goal in [1, 6, 10] {
+        for goal in [1, 6, 12] {
             acts.push(call(
                 D1,
                 argv![
@@ -302,7 +323,7 @@ fn acts(red: bool) -> Vec<calls::Step> {
         }
     }
     acts.push(call(D1, argv!["landing", "list", "--project", "1", "--ended", "--json"]));
-    acts.push(call(D1, argv!["landing", "show", "10", "--json"]));
+    acts.push(call(D1, argv!["landing", "show", "12", "--json"]));
     acts.into_iter()
         .enumerate()
         .map(|(at, step)| {

@@ -140,6 +140,7 @@ mod repairs;
 #[path = "forge_routes/goal_tier.rs"]
 mod goal_tier;
 
+mod amended_review;
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
 

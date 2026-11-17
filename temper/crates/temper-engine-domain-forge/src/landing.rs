@@ -2382,6 +2382,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     &change.verdicts,
                     member.head.expect("round head"),
                     prefix,
+                    change.spec_revision,
                 ) {
                     change::Status::Failed => fact.refused = Some(gate.number),
                     change::Status::Unknown | change::Status::Pending => fact.judgement = policy::Status::Pending,
@@ -4236,6 +4237,7 @@ pub(crate) fn judge(
             clean.as_slice(),
             evidence,
             reviewers,
+            (&change.change.gates, change.spec_revision),
         ));
     }
     None

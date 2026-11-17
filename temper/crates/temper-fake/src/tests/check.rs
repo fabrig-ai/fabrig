@@ -222,6 +222,8 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         effect: change::EffectResult::Made,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

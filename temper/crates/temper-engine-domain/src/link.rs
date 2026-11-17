@@ -888,6 +888,8 @@ mod tests {
             effect: change::EffectResult::None,
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
+            spec_revision: 0,
+            gate_revision: 0,
             verdicts: Box::new([]),
             milestone: None,
             goal: None,

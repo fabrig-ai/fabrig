@@ -195,7 +195,7 @@ impl Domain {
             let status = if !judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
                 c::Status::Unknown
             } else {
-                c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix)
+                c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix, change.spec_revision)
             };
             if gate.blocking {
                 match status {

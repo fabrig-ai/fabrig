@@ -283,10 +283,46 @@ impl Domain {
         let repository = self.repositories.get(&row.repository)?;
         let criteria = self.landing_criteria(row, head, evidence, up_to_date)?;
         let mut result = JudgeVerdict::Met;
+        // An effect's evidence can predate an amendment, including a member of
+        // a landing whose own task did not change. No stale blocking review
+        // authorizes that merge (gates.md, 1, Valid at a spec revision).
+        if !up_to_date {
+            for gate in &row.change.gates {
+                if gate.kind != change::GateKind::Agent || !gate.blocking {
+                    continue;
+                }
+                let mut stale = false;
+                for report in &evidence.gates {
+                    if report.number == gate.number && !report.at_revision(gate.kind, row.spec_revision) {
+                        stale = true;
+                    }
+                }
+                if stale
+                    && change::prefix_verdict(
+                        &row.change,
+                        *gate,
+                        &evidence.gates,
+                        row.change.last_head.unwrap_or(head),
+                        head,
+                        row.spec_revision,
+                    ) == change::Status::Unknown
+                {
+                    result = JudgeVerdict::Wait;
+                }
+            }
+        }
         for criterion in criteria {
             let verdict = match landing {
                 Some(landing) => landing::judge(self, landing, criterion, head, evidence, reviewers)?,
-                None => judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers),
+                None => judge::judge(
+                    criterion,
+                    repository,
+                    head,
+                    &row.change.clean,
+                    evidence,
+                    reviewers,
+                    (&row.change.gates, row.spec_revision),
+                ),
             };
             match verdict {
                 JudgeVerdict::Refuse => return Some((JudgeVerdict::Refuse, Some(criterion))),

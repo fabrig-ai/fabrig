@@ -469,6 +469,7 @@ fn judged(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, receipt: &Rece
     }
     verdicts
         .push(c::GateReport {
+            revision: 0,
             number: c::FOLLOW_CHECK_GATE,
             head,
             status: if receipt.passed { c::Status::Passed } else { c::Status::Failed },
