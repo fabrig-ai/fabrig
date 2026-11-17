@@ -216,21 +216,20 @@ fn dropped_payloads_wait_in_a_bounded_list_and_excess_is_swept_on_open() {
     world.logs(b"e/");
     logs::open(&mut world, 0);
     let total = u64::try_from(HELD_REMOVALS).expect("bound") + 1;
-    let mut number = 0;
-    for first in (0..total).step_by(16) {
-        let ops = (first..(first + 16).min(total)).map(|log| logs::append(&world, log << 8, b"data")).collect();
-        number += 1;
-        logs::commit(&mut world, ops, number);
-    }
+    // Only the observed files need payloads. Drops of absent files still occupy
+    // the held list and issue removals, in the same shard as the retained file.
+    let ops = [7, total - 2, total - 1].map(|log| logs::append(&world, log, b"data"));
+    let mut number = 1;
+    logs::commit(&mut world, Vec::from(ops), number);
     hold(&mut world);
     world.file_requests.clear();
     for first in (0..total).step_by(16) {
-        let ops = (first..(first + 16).min(total)).map(|log| Op::Drop { log: log << 8 }).collect();
+        let ops = (first..(first + 16).min(total)).map(|log| Op::Drop { log }).collect();
         number += 1;
         logs::commit(&mut world, ops, number);
     }
-    assert_eq!(world.store.log_end(7 << 8), 0, "extent is gone although the file stays");
-    assert!(world.file(b"logs/0000000000000000/0000000000000700").is_some());
+    assert_eq!(world.store.log_end(7), 0, "extent is gone although the file stays");
+    assert!(world.file(b"logs/0000000000000000/0000000000000007").is_some());
     assert!(!world.file_requests.iter().any(|r| r.starts_with("RemoveIn")));
     world.file_requests.clear();
     world.start(Request::Release { owner: OWNER });
@@ -241,8 +240,9 @@ fn dropped_payloads_wait_in_a_bounded_list_and_excess_is_swept_on_open() {
         }
     }
     assert!(!world.step(true), "bounded removals settle");
-    assert!(world.file(b"logs/0000000000000000/0000000000000700").is_none());
-    assert!(world.file(b"logs/0000000000000100/0000000000100000").is_some(), "overflow is left on disk");
+    assert!(world.file(b"logs/0000000000000000/0000000000000007").is_none());
+    assert!(world.file(b"logs/0000000000000000/0000000000000fff").is_none(), "the last held removal runs");
+    assert!(world.file(b"logs/0000000000000001/0000000000001000").is_some(), "overflow is left on disk");
     assert_eq!(world.file_requests.iter().filter(|r| r.starts_with("RemoveIn")).count(), HELD_REMOVALS);
     // Each removal is followed by its directory's sync before the next removal.
     let mut needs_sync = false;
@@ -260,7 +260,7 @@ fn dropped_payloads_wait_in_a_bounded_list_and_excess_is_swept_on_open() {
     assert_eq!(world.pop(), Event::Closed { owner: OWNER });
     world.reopen();
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: number });
-    assert!(world.file(b"logs/0000000000000100/0000000000100000").is_none());
+    assert!(world.file(b"logs/0000000000000001/0000000000001000").is_none());
 }
 
 #[test]
