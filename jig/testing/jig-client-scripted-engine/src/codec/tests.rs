@@ -182,3 +182,33 @@ fn job_kinds_hello_refusal_round_trips() {
     let decoded = w::HelloRefusal::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("decoded refusal");
     assert_eq!(decoded, record);
 }
+
+#[test]
+fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec() {
+    let limits = front::limits(&Bounds::default()).expect("valid limits");
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let wire = values::wire_setting(&setting, limits.wire()).unwrap();
+    assert_eq!(translate::settings::restore_setting(&wire).unwrap(), setting);
+    let source = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([9; 32]),
+        withdrawn: true,
+    }));
+    let wire = values::wire_setting_value(&source, limits.wire()).unwrap();
+    assert_eq!(translate::settings::restore_setting_value(&wire, &limits).unwrap(), source);
+    assert_eq!(values::wire_setting_fault(&c::SettingFault::Linked, limits.wire()), Ok(w::SettingFault::Linked));
+    let mut source = crate::tests::deployment::empty();
+    source.worker_settings = List::from_boxed(Box::new([c::WorkerState {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([9; 32]),
+        withdrawn: true,
+        linked: false,
+        since: Some(skein_lib::Wall::from_nanos(123)),
+    }]));
+    let wire = values::wire_deployment(&source, limits.wire()).unwrap();
+    assert_eq!(translate::documents::deployment(wire, &limits).unwrap(), source);
+}

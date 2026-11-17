@@ -55,6 +55,10 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
+    (Some(jig::rows::WORKER_LIST_AT), "help_worker_list"),
+    (Some(jig::rows::WORKER_ADD_AT), "help_worker_add"),
+    (Some(jig::rows::WORKER_PLACES_AT), "help_worker_places"),
+    (Some(jig::rows::WORKER_REMOVE_AT), "help_worker_remove"),
 ];
 #[test]
 fn the_help_is_the_page_ctl_then_the_tools() {
@@ -279,7 +283,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
-    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show welcome [--revision REVISION]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -290,7 +294,7 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 }
 #[test]
 fn each_derivation_names_every_tool() {
-    let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
+    let mut forms = List::with_capacity(fixtures::tool_forms());
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
     for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
@@ -310,7 +314,7 @@ fn each_derivation_names_every_tool() {
         let json = jig::json::write_call(table::TOOLS, &call).expect("call JSON");
         assert_eq!(fixtures::from_json(&json), call, "{words:?}");
     }
-    assert_eq!(forms.len(), fixtures::TOOL_FORMS);
+    assert_eq!(forms.len(), fixtures::tool_forms());
     let help = fixtures::help(None);
     let list = help
         .strip_prefix(temper_docs::find(b"ctl").expect("ctl page").text.as_bytes())
@@ -513,9 +517,10 @@ fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }
 #[test]
-fn the_playground_reference_is_what_the_table_renders() {
+fn the_playground_push_and_deployment_references_are_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
     reference_matches(b"push", b"ctl-push");
+    reference_matches(b"deployment", b"ctl-deployment");
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;

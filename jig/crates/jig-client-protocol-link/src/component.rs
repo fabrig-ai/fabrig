@@ -5,7 +5,7 @@
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
-use jig_client_protocol_wire::{self as wire, v27 as w};
+use jig_client_protocol_wire as w;
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -14,11 +14,12 @@ pub(crate) struct Attempt {
     pub(super) version: u32,
     pub(super) kind: ExchangeKind,
     pub(super) held: Option<Secret>,
+    pub(super) parts: skein_lib::List<jig_client_domain::contract::PartAsk>,
 }
 impl Attempt {
     pub(super) fn carrying(&self) -> bool {
         match self.kind {
-            ExchangeKind::Attempt { carrying } => carrying,
+            ExchangeKind::Attempt { carrying, .. } => carrying,
             ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
@@ -39,7 +40,7 @@ pub(super) enum ExchangeKind {
     SignOut { generation: u64 },
     // `carrying`: an exchange carrying a value either way, sent once and never held
     // behind the store (protocol/client/README.md, 3 and 7).
-    Attempt { carrying: bool },
+    Attempt { carrying: bool, key: RequestKey },
     Read { turn: Option<(u64, u64, u32)> },
     WatchOpen { name: u64 },
     WatchClose { name: u64 },
@@ -189,11 +190,12 @@ impl Link {
         let exchange = Token::new(self.next);
         self.next = next;
         let state = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: attempt,
             owner: record.owner().clone(),
             version: record.version(),
-            kind: ExchangeKind::Attempt { carrying },
+            kind: ExchangeKind::Attempt { carrying, key },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -221,14 +223,24 @@ impl Link {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         };
+        let parts = match &what {
+            Readable::Jig(jig_client_domain::contract::Read::Tasks { query, .. }) => query.parts.clone(),
+            Readable::Jig(_) | Readable::Family { .. } => skein_lib::List::with_capacity(0),
+        };
         let Ok(record) = translate::reads::owned(what, self.limits.wire()) else {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         };
         let exchange = Token::new(self.next);
         self.next = next;
-        let state =
-            Attempt { held: None, token: read, owner, version: record.version(), kind: ExchangeKind::Read { turn } };
+        let state = Attempt {
+            parts,
+            held: None,
+            token: read,
+            owner,
+            version: record.version(),
+            kind: ExchangeKind::Read { turn },
+        };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured read envelope");
@@ -335,7 +347,7 @@ impl Link {
                 })),
             };
         }
-        if record.owner() == &w::Owner::Jig && record.version() == wire::VERSION && attempt.owner != w::Owner::Jig {
+        if record.owner() == &w::Owner::Jig && record.version() == w::VERSION && attempt.owner != w::Owner::Jig {
             let answer = translate::answers::answer(w::KeyedAnswer::FinalAnswer(record), &self.limits)?;
             return match answer {
                 answer @ jig_client_domain::contract::Answer::Refused { .. } => Ok(Answered::Jig(answer)),
@@ -409,6 +421,15 @@ fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Re
     match record.owner() {
         w::Owner::Jig => {
             let value = translate::reads::value(record.record(), limits)?;
+            if let jig_client_domain::contract::ReadValue::Tasks(page) = &value {
+                translate::queries::check_rows(&page.live, &attempt.parts)?;
+                match &page.ended {
+                    jig_client_domain::contract::EndedGroup::Rows { rows, .. } => {
+                        translate::queries::check_rows(rows, &attempt.parts)?;
+                    }
+                    jig_client_domain::contract::EndedGroup::None => (),
+                }
+            }
             Ok(Readout::Jig(jig_client_domain::contract::ReadResult::Value(value)))
         }
         w::Owner::Family(owner) => {
@@ -452,7 +473,7 @@ fn keyed(key: RequestKey, ask: Ask, value: Option<Secret>, limits: &w::Limits) -
             let record = translate::asks::ask(&ask, limits)?;
             let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
-            (w::Owner::Jig, wire::VERSION, writer.finish())
+            (w::Owner::Jig, w::VERSION, writer.finish())
         }
         Ask::Family { scope, record } => {
             let owner = w::Family::new(limits, w::FamilyParts { number: record.family })?;
@@ -477,6 +498,10 @@ impl Link {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Busy });
             return;
         }
+        let parts = match &subject {
+            Watchable::Jig(jig_client_domain::contract::Subject::Tasks { query, .. }) => query.parts.clone(),
+            Watchable::Jig(_) | Watchable::Family { .. } => skein_lib::List::with_capacity(0),
+        };
         let Ok(subject) = translate::watches::owned(subject, self.limits.wire()) else {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Dropped });
             return;
@@ -486,6 +511,7 @@ impl Link {
             return;
         };
         let opening = crate::watches::Opening {
+            parts,
             name: name.raw(),
             owner: subject.owner().clone(),
             version: subject.version(),
@@ -531,6 +557,7 @@ impl Link {
         let record = w::Open::new(self.limits.wire(), w::OpenParts { stream, watch: opening.name, subject })
             .expect("checked owned subject");
         let attempt = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: watch,
             owner: opening.owner.clone(),
@@ -564,6 +591,7 @@ impl Link {
         let name = opening.name;
         opening.held = None;
         let attempt = Attempt {
+            parts: skein_lib::List::with_capacity(0),
             held: None,
             token: watch,
             owner: opening.owner.clone(),
@@ -822,7 +850,7 @@ impl Link {
                 if let Some(watch) = self.watches.named(value.watch()) {
                     let opening = self.watches.0.get(&watch).expect("named run watch");
                     if !opening.closing {
-                        if opening.owner != w::Owner::Jig || opening.version != wire::VERSION {
+                        if opening.owner != w::Owner::Jig || opening.version != w::VERSION {
                             return Err(StreamRefusal::Record(crate::Undecodable::Version));
                         }
                         let value = match translate::live::run_text(value.into_parts().value, &self.limits) {

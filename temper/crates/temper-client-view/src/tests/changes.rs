@@ -31,6 +31,9 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
                 w::ChangesQueued::new(
                     &w::CEILINGS,
                     w::ChangesQueuedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: FIRST + u64::from(index),
                         title: if index == 0 {
                             b"Store: policy record".as_slice().into()
@@ -71,6 +74,9 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
@@ -282,39 +288,42 @@ fn rows_link_to_tasks_show_arriving_origins_and_put_more_last_without_a_link() {
     let out = show(&mut root, watch, &panel(&[queue(b"owner/repo", b"main", 3, false)], 5, true, b"main"));
     let first = view(&root, true);
     assert!(!has_style(first.tree(), look::CHANGES_MONO));
-    let mut read = None;
     for request in &out {
         if let Request::Unlinked {
             request:
-                jig_client::UnlinkedRequest::Down {
-                    down: Down::Read { read: token, what: Readable::Jig(c::Read::Task { task: FIRST }) },
-                },
+                jig_client::UnlinkedRequest::Down { down: Down::Read { what: Readable::Jig(c::Read::Task { .. }), .. } },
         } = request
         {
-            read = Some(*token);
+            panic!("changes need no task reads");
         }
     }
-    let mut task = f::task::document();
-    task.chip.task = FIRST;
-    task.goal = Some(7);
-    let mut chip = task.chip.clone();
-    chip.task = 7;
-    chip.title = f::task::document_words(b"first-run-projects");
-    task.lineage_chips = List::with_capacity(1);
-    task.lineage_chips.push(chip).unwrap();
-    up(
-        &mut root,
-        Up::ReadDone {
-            read: read.unwrap(),
-            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task)))),
-        },
-    );
+    let mut queue_parts = queue(b"owner/repo", b"main", 3, false).into_parts();
+    let mut changes = List::with_capacity(3);
+    for row in queue_parts.changes.into_boxed() {
+        let mut row = row.into_parts();
+        row.chat = Some(
+            w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task: 6, title: b"chat".as_slice().into() }).unwrap(),
+        );
+        if row.task == FIRST {
+            row.goal = Some(
+                w::ChangeFrom::new(
+                    &w::CEILINGS,
+                    w::ChangeFromParts { task: 7, title: b"first-run-projects".as_slice().into() },
+                )
+                .unwrap(),
+            );
+        }
+        changes.push(w::ChangesQueued::new(&w::CEILINGS, row).unwrap()).unwrap();
+    }
+    queue_parts.changes = changes;
+    show(&mut root, watch, &panel(&[w::ChangesQueue::new(&w::CEILINGS, queue_parts).unwrap()], 5, true, b"main"));
     let mut view = view(&root, true);
     assert_eq!(skein_ui::outline::check(view.tree()), None);
     let text = f::main_text(view.tree());
     for words in [
         "Store: policy record",
         "first-run-projects",
+        "chat T6",
         "checking · checks started 6 min ago",
         "queued 2nd",
         "queued 3rd",
@@ -444,6 +453,9 @@ fn a_searching_train_shows_probing_at_its_prefix() {
             w::TrainLanding::new(
                 &w::CEILINGS,
                 w::TrainLandingParts {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 61,
                     member: 51,
                     round: 2,
@@ -472,6 +484,9 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         w::TrainLanding::new(
             &w::CEILINGS,
             w::TrainLandingParts {
+                goal: None,
+                chat: None,
+                milestone: None,
                 probe: None,
                 task: 61,
                 member: 51,

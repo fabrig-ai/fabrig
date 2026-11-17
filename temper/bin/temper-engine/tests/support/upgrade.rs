@@ -1,5 +1,4 @@
 //! The same empty-deployment boundary for the two upgrade binaries.
-use std::os::unix::fs::PermissionsExt;
 pub fn empty_directory(binary: &str) {
     let scratch = skein_scratch::Scratch::new("upgrade-empty");
     let config = scratch.path().join("config");
@@ -17,11 +16,6 @@ pub fn empty_directory(binary: &str) {
     document["engine"]["llm"]["providers"][0]["signed_in_plan"] = false.into();
     document["workers"] = serde_json::json!([]);
 
-    std::fs::create_dir(config.join("secrets")).expect("fixture secrets directory");
-    let digest = config.join("secrets/worker.digest");
-    document["engine"]["hosts"]["workers"][0]["digest"] = digest.to_str().expect("fixture path").into();
-    std::fs::write(&digest, "0".repeat(64)).expect("fixture digest");
-    std::fs::set_permissions(&digest, std::fs::Permissions::from_mode(0o600)).expect("private digest");
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7102"}]);
     std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("document bytes"))
         .expect("configuration");

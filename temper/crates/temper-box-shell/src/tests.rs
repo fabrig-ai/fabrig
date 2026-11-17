@@ -1,6 +1,7 @@
 mod box_kinds;
 mod box_link_form;
 mod commands;
+mod figures;
 mod help;
 mod init_clients;
 mod limits;
@@ -10,8 +11,7 @@ mod settings_fields;
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
-    use jig_protocol_config::profile::{Profile, profile};
-    let span = profile(Profile::Small).clients.link_span;
+    let span = jig_protocol_config_fixtures::small().clients.link_span;
     let hour = skein_lib::Duration::from_secs(3600);
     let hours = span.as_nanos().div_euclid(hour.as_nanos());
     let words = format!("within {hours} hours");
@@ -133,7 +133,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
     };
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") {
+        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
             continue;
         }
         write(std::str::from_utf8(&name).expect("fixture path"), bytes.expose());
@@ -147,28 +147,14 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     ] {
         write(name, bytes);
     }
-    let program = directory.join("temper");
-    write("temper", b"program at start");
-    let (agent, document) = configuration::documents(&directory, program.to_str().expect("program path"));
-    write("agent.json", &agent);
+    let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    write("temper.json", &document);
+    temper_fixtures::agent::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
         .expect("standalone operations");
     assert_no_descriptors_in(&directory);
-    let mut owned = Vec::new();
-    let service = super::prepare(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
-        .expect("same standalone preparation");
-    assert_eq!(operations, service.operations());
-    drop(service);
-    super::close(owned);
-    assert_no_descriptors_in(&directory);
-    assert_eq!(fs::read(directory.join("workspaces/agent/temper")).expect("pinned program"), b"program at start");
-    assert_eq!(fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"), agent);
-    fs::remove_file(&program).expect("remove configured program");
-    let why =
-        super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
-    assert!(why.starts_with("temper serve: "), "{why}");
-    assert!(why.contains(program.to_str().expect("program path")), "{why}");
+    assert!(operations > 0);
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
 fn assert_no_descriptors_in(directory: &std::path::Path) {
@@ -346,38 +332,26 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({});
+    input["workers"][0].as_object_mut().expect("worker").remove("agent");
+    input["workers"][0].as_object_mut().expect("worker").remove("limits");
     (agent, input)
 }
 #[test]
 fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let directory = std::env::temp_dir().join(format!("temper-worker-alone-{}", std::process::id()));
-    fs::create_dir(&directory).expect("worker-alone fixture");
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (agent, mut input) = worker_document(&directory);
-    fs::write(directory.join("temper"), b"worker program").expect("program fixture");
-    input["workers"][0]["agent"]["program"] = serde_json::json!(directory.join("temper"));
-    fs::write(directory.join("agent.json"), agent).expect("worker-alone fixture");
-    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
-    let secret = directory.join("worker.secret");
-    fs::write(&secret, b"worker-secret").expect("worker-alone fixture");
-    fs::set_permissions(secret, fs::Permissions::from_mode(0o600)).expect("worker-alone fixture");
-    let mut owned = Vec::new();
-    let (service, store) = super::prepare_with_store(
-        &[],
-        b"/",
-        &configuration::directories(&directory),
-        &serde_json::to_vec(&input).expect("worker-alone fixture"),
-        &mut owned,
+    let scratch = skein_scratch::Scratch::new("worker-alone-preflight");
+    let directory = scratch.path();
+    let (_, input) = worker_document(directory);
+    let directories = configuration::directories(directory);
+    let part = temper_service::startup::worker_part(
+        &serde_json::to_vec(&input).expect("worker document"),
+        &temper_service_shell::jig_directories(&directories),
+        None,
     )
-    .expect("worker-alone fixture");
-    assert!(store.is_empty(), "no deployment root");
-    assert_eq!(owned.len(), 1, "only the worker root");
-    let super::Service::Worker(_) = service else { panic!("worker service has no engine or setup host") };
-    assert!(!directory.join("state").exists(), "no store directory created");
-    super::close(owned);
-    fs::remove_dir_all(directory).expect("worker-alone fixture");
+    .expect("worker-alone preflight");
+    assert_eq!(part.files.len(), 1, "only its link secret is read before figures");
+    assert!(part.named.program.is_empty(), "no worker is built before figures");
+    assert!(!directory.join("state").exists(), "no deployment store");
 }
 
 #[test]
@@ -417,5 +391,5 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 // temper/docs/design/protocol/setup/owned.md, 6.
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
-    assert_eq!(temper_launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);
+    assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
 }

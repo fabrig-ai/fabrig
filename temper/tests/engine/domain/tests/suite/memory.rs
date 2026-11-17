@@ -383,6 +383,7 @@ fn watch_room_query(label: u32) -> jig_domain_core::documents::Watched {
     use jig_domain_core::documents::{QueryOrder, TaskQuery, Watched};
     Watched::Query {
         query: TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(WATCH_ROOM_PROJECT),
             requester: None,
             root: None,

@@ -189,6 +189,7 @@ pub fn gates(count: u32) -> List<v1::Gate> {
 pub fn panel_parts() -> v1::ChangePanelParts {
     let limits = limits();
     v1::ChangePanelParts {
+        wait: None,
         source: None,
         way: v1::Way::Queue,
         in_landing: None,

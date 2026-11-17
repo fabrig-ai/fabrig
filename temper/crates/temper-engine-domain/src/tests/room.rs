@@ -17,6 +17,7 @@ const TABLE: HostPart = HostPart {
     modify: 20,
     shell: 30,
     agents: 40,
+    floor: ZERO,
 };
 
 #[test]
@@ -117,16 +118,22 @@ fn fixed_parts_select_each_wake_and_refuse_the_largest_first_tie() {
     assert_eq!(host.on_wake(&charter, Reasons::TIMER).owned, 20);
     assert_eq!(
         host.check_fixed(&charter),
-        Err(Unfit { charter: 5, wake: Reasons::NEWS, measure: Measure::Owned, bytes: 20, allowance: 19 })
+        Err(Unfit { charter: 5, wake: Reasons::NEWS, measure: Measure::Owned, bytes: 20, allowance: 19, floor: 0 })
     );
     assert_eq!(HostPart { allowance: 20, ..host }.check_fixed(&charter), Ok(()));
+    let floor = HostPart { allowance: 21, floor: Cost { owned: 2, encoded: 2, ..ZERO }, ..host };
+    assert_eq!(
+        floor.check_fixed(&charter),
+        Err(Unfit { charter: 5, wake: Reasons::NEWS, measure: Measure::Owned, bytes: 20, allowance: 21, floor: 2 })
+    );
+    assert_eq!(HostPart { allowance: 22, ..floor }.check_fixed(&charter), Ok(()));
 }
 
 #[test]
 fn fixed_ownership_precedes_encoding_and_fixed_precedes_rendered() {
     let charter = fixed_charter();
     let host = HostPart { allowance: 13, bound: Some(0), fixed: Cost { owned: 2, encoded: 50, ..ZERO }, ..TABLE };
-    let owned = Unfit { charter: 5, wake: Reasons::FIRST, measure: Measure::Owned, bytes: 14, allowance: 13 };
+    let owned = Unfit { charter: 5, wake: Reasons::FIRST, measure: Measure::Owned, bytes: 14, allowance: 13, floor: 0 };
     assert_eq!(host.check(&charter), Err(crate::room::Refusal::Fixed(owned)));
     let encoded = HostPart { allowance: 14, ..host }.check_fixed(&charter).unwrap_err();
     assert_eq!(encoded, Unfit { bytes: 62, allowance: 14, measure: Measure::Encoded, ..owned });
@@ -171,7 +178,46 @@ fn fixed_models_pay_names_efforts_and_each_alternatives_frame() {
 
 #[test]
 fn unfit_words_name_the_wake_measure_and_allowance() {
-    let unfit = Unfit { charter: 5, wake: Reasons::FIRST, measure: Measure::Owned, bytes: 66_012, allowance: 65_536 };
+    let unfit =
+        Unfit { charter: 5, wake: Reasons::FIRST, measure: Measure::Owned, bytes: 66_012, allowance: 65_536, floor: 0 };
     assert_eq!(unfit.words().as_ref(), b"charter 5 on a first wake is 66,012 bytes owned before its brief, past its allowance of 65,536; trim its text, parts or tool families");
     assert_eq!(Unfit { wake: Reasons::QUESTION_ANSWERED, measure: Measure::Encoded, ..unfit }.words().as_ref(), b"charter 5 on a question_answered wake is 66,012 bytes encoded before its brief, past its allowance of 65,536; trim its text, parts or tool families");
+}
+
+#[test]
+fn fixed_parts_reserve_the_floor_after_both_allowance_checks() {
+    let charter = fixed_charter();
+    let host = HostPart {
+        bound: None,
+        allowance: 65_536,
+        fixed: Cost { owned: 54_308, encoded: 54_308, ..ZERO },
+        floor: Cost { owned: 13_880, encoded: 13_500, ..ZERO },
+        ..TABLE
+    };
+    let unfit = Unfit {
+        charter: 5,
+        wake: Reasons::FIRST,
+        measure: Measure::Owned,
+        bytes: 54_320,
+        allowance: 65_536,
+        floor: 13_880,
+    };
+    assert_eq!(host.check_fixed(&charter), Err(unfit));
+    assert_eq!(unfit.words().as_ref(), b"charter 5 on a first wake is 54,320 bytes owned before its brief, leaving its brief 11,216 of the 13,880 its floor needs; trim its text, parts or tool families");
+    let fits = HostPart { fixed: Cost { owned: 51_644, encoded: 52_024, ..ZERO }, ..host };
+    assert_eq!(fits.check_fixed(&charter), Ok(()));
+    assert_eq!(
+        HostPart { fixed: Cost { owned: 51_645, ..fits.fixed }, ..fits }.check_fixed(&charter),
+        Err(Unfit { bytes: 51_657, ..unfit })
+    );
+    let encoded = HostPart { fixed: Cost { encoded: 52_025, ..fits.fixed }, ..fits }.check_fixed(&charter).unwrap_err();
+    assert_eq!(encoded, Unfit { measure: Measure::Encoded, bytes: 52_037, floor: 13_500, ..unfit });
+    assert_eq!(encoded.words().as_ref(), b"charter 5 on a first wake is 52,037 bytes encoded before its brief, leaving its brief 13,499 of the 13,500 its floor needs; trim its text, parts or tool families");
+    // An encoded allowance failure precedes even an ownership floor failure.
+    let over = HostPart { fixed: Cost { encoded: 66_000, ..host.fixed }, ..host };
+    let past = over.check_fixed(&charter).unwrap_err();
+    assert_eq!(past, Unfit { measure: Measure::Encoded, bytes: 66_012, floor: 0, ..unfit });
+    assert_eq!(past.words().as_ref(), b"charter 5 on a first wake is 66,012 bytes encoded before its brief, past its allowance of 65,536; trim its text, parts or tool families");
+    let over = HostPart { fixed: Cost { owned: 66_000, ..over.fixed }, ..over };
+    assert_eq!(over.check_fixed(&charter), Err(Unfit { measure: Measure::Owned, ..past }));
 }

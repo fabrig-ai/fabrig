@@ -76,7 +76,7 @@ pub fn authority() -> authority::Authority {
     }
 }
 pub fn env() -> Env<Limits> {
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let journal = JournalSizes {
         commits: 2,
         writes: profile.journal.writes,
@@ -116,9 +116,10 @@ pub fn domain() -> Domain {
             first: jig_test_connector_kit::config(1),
             second: jig_test_connector_kit::config(2),
             core: core::Config {
+                parts: Box::new([]),
                 jobs: Box::new([]),
                 kept_starts: Box::new([]),
-                worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+
                 deployment: [1; 16],
                 seed: 1,
                 workers_in_process: false,
@@ -156,6 +157,22 @@ pub fn domain() -> Domain {
                 },
                 kinds: Box::default(),
                 defaults: core::settings::Defaults {
+                    workers: Box::new([
+                        jig_domain_core::settings::WorkerSetting {
+                            number: 1,
+                            name: b"alpha".as_slice().into(),
+                            places: 1,
+                            digest: Some([7; 32]),
+                            withdrawn: false,
+                        },
+                        jig_domain_core::settings::WorkerSetting {
+                            number: 2,
+                            name: b"beta".as_slice().into(),
+                            places: 1,
+                            digest: Some([7; 32]),
+                            withdrawn: false,
+                        },
+                    ]),
                     models: Box::default(),
                     charters: Box::new([core::Charter {
                         parts: Box::new([]),

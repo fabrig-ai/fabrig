@@ -4,13 +4,14 @@ use skein_forge::api::{Answer, Check, Ci, CommitMessage, JobAttempt, Op, Read, S
 use temper_engine_domain_forge_change as change;
 
 fn checked(kind: Kind, late: bool, no_change: bool) -> (Domain, change::Decision, u32) {
-    checked_repair(kind, late, no_change, change::Repair::Ci, None)
+    checked_repair(kind, late, no_change, false, change::Repair::Ci, None)
 }
 
 fn checked_repair(
     kind: Kind,
     late: bool,
     no_change: bool,
+    flake: bool,
     why: change::Repair,
     advanced: Option<[u8; 32]>,
 ) -> (Domain, change::Decision, u32) {
@@ -30,10 +31,15 @@ fn checked_repair(
     row.change.last_head = Some(fixtures::HEAD);
     row.change.repairs = 1;
     row.delegate = Some((52, change::Delegate::Repair(why)));
+    row.delegate_head = row.change.last_head;
     row.delegate_status = change::Status::Pending;
     outputs(&mut d, Event::Change { row });
     if !late {
-        producer_terminal(&mut d, no_change);
+        if flake {
+            verdict_terminal(&mut d, 52, b"test a::t x passed again");
+        } else {
+            producer_terminal(&mut d, no_change);
+        }
     }
     let attempt = JobAttempt { head: fixtures::HEAD, run: 7, job: 41, attempt: 1 };
     fixtures::step_change(&mut d);
@@ -81,7 +87,11 @@ fn checked_repair(
             other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected {other:?}"),
         };
         if terminal {
-            producer_terminal(&mut d, no_change);
+            if flake {
+                verdict_terminal(&mut d, 52, b"test a::t x passed again");
+            } else {
+                producer_terminal(&mut d, no_change);
+            }
         }
         let answered = fixtures::answer(&mut d, call, Ok(answer));
         for request in answered {
@@ -169,10 +179,20 @@ fn a_repair_terminal_during_ci_gathering_reads_its_branch_after_the_end() {
 }
 
 #[test]
+fn a_flake_terminal_during_gathering_uses_the_post_terminal_branch() {
+    let advanced = [9; 32];
+    let why = change::Repair::LandingAt { gate: 0, candidate: fixtures::HEAD, below: None };
+    let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, true, why, Some(advanced));
+    assert_eq!(branches, 2, "flake verdicts require a branch read sent after the end");
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.last_head, Some(advanced));
+    assert_ne!(decision, change::Decision::Hold(change::Hold::Flake));
+}
+
+#[test]
 fn a_review_repair_delivery_during_gathering_reads_its_branch_after_the_end() {
     for why in [change::Repair::Gate(1), change::Repair::Review { head: fixtures::HEAD }] {
         let advanced = [9; 32];
-        let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, why, Some(advanced));
+        let (d, decision, branches) = checked_repair(Kind::Forgejo, true, false, false, why, Some(advanced));
         assert_eq!(branches, 2, "{why:?}: a delivery needs a branch read after its terminal");
         assert_eq!(d.change(fixtures::CHANGE).expect("delivered change").change.last_head, Some(advanced));
         assert_ne!(decision, change::Decision::Hold(change::Hold::Failed));

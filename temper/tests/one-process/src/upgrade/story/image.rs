@@ -139,7 +139,7 @@ pub(super) fn load(directory: &Path) -> World {
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     World {
         disk,
-        configuration: std::fs::read(directory.join("configuration.json")).expect("settled configuration"),
+        configuration: golden::read_configuration(directory),
         transport: start.fakes.forge,
         store: Rc::new(RefCell::new(store)),
         ledger: Rc::new(RefCell::new(ledger)),
@@ -167,8 +167,8 @@ fn read_prefix(directory: &Path, active: u64, store: &mut referee::Store) {
         events.push(if name == "snapshot" { Observed::Snapshot(path) } else { Observed::Recovered(path) });
     }
     let bounds = temper_protocol_store::bounds(
-        &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-        jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+        &temper_limits_fixtures::small().forge,
+        jig_protocol_config_fixtures::small().core.tasks.spec_bytes,
     )
     .expect("application codec bounds");
     store

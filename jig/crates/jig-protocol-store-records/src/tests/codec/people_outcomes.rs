@@ -229,10 +229,15 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
     ] {
         people_round_trip(values::answered(domain::Outcome::Refused(why)));
     }
-    for setting in
-        [domain::Setting::Charter(1), domain::Setting::Template(2), domain::Setting::Policy(3), domain::Setting::Rules]
-    {
+    for setting in [
+        domain::Setting::Charter(1),
+        domain::Setting::Template(2),
+        domain::Setting::Policy(3),
+        domain::Setting::Rules,
+        domain::Setting::Worker(4),
+    ] {
         for fault in [
+            domain::SettingFault::Linked,
             domain::SettingFault::Shape,
             domain::SettingFault::Count,
             domain::SettingFault::Reference,

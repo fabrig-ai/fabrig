@@ -33,6 +33,7 @@ pub(super) fn preparation_detail(
         | Done::Rejected
         | Done::Results { .. }
         | Done::Paths { .. }
+        | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }

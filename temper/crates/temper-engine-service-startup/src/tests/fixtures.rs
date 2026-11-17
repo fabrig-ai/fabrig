@@ -2,7 +2,7 @@ use crate::{limits, settings};
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"fleet.slots":4,"authority.requirements":3,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -18,10 +18,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
@@ -87,7 +83,7 @@ pub fn engine() -> settings::Engine {
 }
 
 fn small_limits() -> limits::Limits {
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
     own
 }
@@ -128,12 +124,13 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::engine(
+    let mut jig = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+        &jig_protocol_config_fixtures::small(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -211,7 +208,8 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
     reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
         .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")

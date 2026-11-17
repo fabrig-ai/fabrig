@@ -525,7 +525,9 @@ fn host_agent<R: Referee<Proc>>(
     agent: agent::Factory,
 ) {
     use std::os::unix::ffi::OsStrExt;
-    let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
+    let agent_path =
+        if path.join("agent.json").exists() { path.join("agent.json") } else { path.join("world-agent.json") };
+    let configuration = smith_agent_shell::config::read(&agent_path).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
         world.host_startup(
             crate::claude::program(program.path.as_os_str().as_bytes()),
@@ -842,11 +844,18 @@ impl Judge {
             return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
+        // Open initial links in the fixture's order, independently of fetch timing.
+        let mut preceding_linked = true;
         for proc in workers.iter_mut() {
             let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
             worker.address = peer.address();
-            if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
-                *engine = service.workers_address;
+            let opened = worker.started_at().is_some();
+            let linked = worker.linked() > 0;
+            if let Some(crate::cluster::Shape::Worker { engine, started, .. }) = &mut worker.cluster {
+                if opened || preceding_linked {
+                    *engine = service.workers_address;
+                }
+                preceding_linked &= !*started || linked;
             }
         }
         if caller.stopping_engine() {
@@ -919,7 +928,11 @@ impl Judge {
             github_cues(state, peer, service, caller, children)?;
         }
         service.address = peer.address();
-        Lifecycle::release(caller, service.links(), story_ready(service, workers));
+        Lifecycle::release(
+            caller,
+            service.links(),
+            service.fixture_ready() && (caller.setup() || story_ready(service, workers)),
+        );
         if !caller.released && service.is_empty() {
             self.fail_startup(service.early_exit(engine_index)?, caller, workers, caller_end);
             self.finish_peers(peer, children);
@@ -1078,7 +1091,7 @@ impl Referee<Proc> for Judge {
             || (peer.address().is_some() && service.address.is_none())
             || (service.links() != 0
                 && !caller.released
-                && story_ready(service, workers))
+                && service.fixture_ready() && (caller.setup() || story_ready(service, workers)))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
             || (caller.is_empty() && self.children.settled(children)? && !self.lifecycle.stopping)
             || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))

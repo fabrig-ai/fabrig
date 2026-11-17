@@ -558,6 +558,7 @@ pub(in crate::codec) fn wire_tasks(value: &c::Tasks, limits: &w::Limits) -> Resu
     w::Tasks::new(
         limits,
         w::TasksParts {
+            ended_mark: 0,
             rows: pieces(
                 value.rows.iter().map(|item| wire_task_line(item, limits)),
                 w::TaskLine::measure,

@@ -478,16 +478,18 @@ fn an_answered_busy_is_an_invalid_read_answer() {
 }
 
 #[test]
-fn an_answered_busy_makes_a_write_uncertain() {
-    let mut h = super::fixtures::outbox::Harness::new();
-    h.make(1, super::fixtures::outbox::comment(), Condition::None);
-    h.clock();
-    let write = h.one();
-    h.answer(write, Err(Error::Busy));
-    assert_eq!(h.store.get(&1).expect("progress saved").failures, 1);
-    assert_eq!(h.outcomes.as_slice(), &[(1, crate::Outcome::Uncertain)]);
-    assert_eq!(h.one().op, api::Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
-    assert_eq!(h.writes, 1);
+fn an_answered_client_only_error_makes_a_write_uncertain() {
+    for error in [Error::Busy, Error::BaseMoved { base: Some([4; 32]) }, Error::BaseMoved { base: None }] {
+        let mut h = super::fixtures::outbox::Harness::new();
+        h.make(1, super::fixtures::outbox::comment(), Condition::None);
+        h.clock();
+        let write = h.one();
+        h.answer(write, Err(error));
+        assert_eq!(h.store.get(&1).expect("progress saved").failures, 1);
+        assert_eq!(h.outcomes.as_slice(), &[(1, crate::Outcome::Uncertain)]);
+        assert_eq!(h.one().op, api::Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
+        assert_eq!(h.writes, 1);
+    }
 }
 
 #[test]

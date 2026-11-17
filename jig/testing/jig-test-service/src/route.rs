@@ -7,6 +7,15 @@ use jig_test_domain as root;
 
 pub(super) fn request(engine: &mut Engine, request: root::Request) {
     match request {
+        root::Request::Workers(workers) => {
+            if let Some(component) = &mut engine.workers {
+                component.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::Workers(workers),
+                    &mut engine.events,
+                );
+            }
+        }
         root::Request::StoreCatalogue { names } => engine.store.catalogue(names),
         root::Request::ClientsCatalogue { models } => {
             if let Some(clients) = &mut engine.clients {

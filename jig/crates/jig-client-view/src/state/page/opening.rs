@@ -89,7 +89,7 @@ fn project_section(
         }
         ProjectSection::Tasks => {
             let subject = Subject::Tasks {
-                query: contract::TaskQuery { project: Some(project), ..domain.project_page.task_filter },
+                query: contract::TaskQuery { project: Some(project), ..domain.project_page.task_filter.clone() },
                 window: lent.domain_limits().rows,
             };
             open_once(domain, subject, owner, out);

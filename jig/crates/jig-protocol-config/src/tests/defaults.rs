@@ -220,13 +220,8 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     charter.policy.model = models[0].clone();
     charter.policy.alternatives = models[1..].into();
     let bytes = jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy).unwrap();
-    let standard = crate::profile(crate::Profile::Standard);
+    let standard = crate::stock();
     assert_eq!(standard.core.settings.alternatives, 63);
-    assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v27::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
-    assert!(
-        bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),
-        "small leaves models out when its byte bound is reached"
-    );
 }

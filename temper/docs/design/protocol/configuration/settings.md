@@ -76,6 +76,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
+| 21, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../../client/pages/settings.md`, 2):
@@ -483,6 +484,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   settings live in the store; read them with `temper ctl settings show`".
   `engine.md`'s `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 5's second step.
+- **The workers are settings too** (jig's `domain/engine/workers.md`;
+  `../../draft/config.md`, 6.7): `engine.hosts.workers` is refused by
+  name, "workers are settings in the store", and no digest file is
+  read. An engine alone's owner adds each worker with `temper ctl worker
+  add` (`../../client/ctl/workers.md`); the box passes its own, `local`
+  (`../cluster.md`, 1).
 - **A seeded project names its policy by number.** jig's
   `engine.projects` stays, but temper refuses a project whose policy is
   inline, naming its path: "`engine.projects[0].policy`: name a policy,
@@ -595,7 +602,7 @@ next run.
   section of its own (`../../domain/root.md`, 6.2): the file at the
   branch's head as the forge resolves it when it gathers the section,
   one commit named in the section and kept for its whole life, read as
-  `read_file` reads one (`../../domain/forge/README.md`, section 2). With a
+  `read_forge what=file` reads one (`../../domain/forge/README.md`, section 2). With a
   heading, the part from the first Markdown heading line whose text,
   after its `#`s and one space, equals the heading byte for byte, to
   the line before the next heading of its level or above. Cut to the

@@ -200,6 +200,7 @@ fn a_start_conflict_is_kept_only_for_the_live_producing_delegate() {
             child: CHILD,
             status: change::Status::Failed,
             no_change: false,
+            flake: false,
             failed: false,
             cancelled: true,
             words: Box::new([]),

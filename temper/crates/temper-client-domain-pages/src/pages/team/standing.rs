@@ -119,6 +119,7 @@ impl Standing {
             let handle = new_handle(next);
             self.watch = Some(handle);
             let query = c::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(project),
                 label: Some(3),
                 order: c::QueryOrder::Number,
@@ -284,7 +285,7 @@ impl Standing {
                 if let Some(tasks) = tasks {
                     self.update(tasks, out);
                 } else {
-                    self.update(&c::Tasks { rows: List::with_capacity(0), more: false }, out);
+                    self.update(&c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false }, out);
                 }
                 true
             }

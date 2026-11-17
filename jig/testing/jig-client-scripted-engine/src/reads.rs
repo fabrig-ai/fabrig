@@ -95,6 +95,7 @@ impl Rows {
     fn page(&self, start: usize, end: usize, before: Option<Cursor>, after: Option<Cursor>) -> ReadValue {
         match self {
             Self::Tasks(rows) => ReadValue::Tasks(Box::new(jig_client_domain::contract::TaskPage {
+                ended_mark: 0,
                 live: list(&rows[start..end]),
                 live_after: after,
                 ended: jig_client_domain::contract::EndedGroup::None,
@@ -300,6 +301,7 @@ impl<A: crate::Application> Engine<A> {
                 && query.phase == Some(jig_client_domain::contract::PhaseClass::Ended)
             {
                 ReadValue::Tasks(Box::new(jig_client_domain::contract::TaskPage {
+                    ended_mark: 0,
                     live: list(&[]),
                     live_after: None,
                     ended: jig_client_domain::contract::EndedGroup::Rows {

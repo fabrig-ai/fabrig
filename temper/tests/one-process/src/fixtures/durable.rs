@@ -29,8 +29,8 @@ pub(crate) fn row() -> temper_engine_domain::Record {
 }
 pub(crate) fn bounds() -> temper_protocol_store::Bounds {
     temper_protocol_store::bounds(
-        &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-        jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+        &temper_limits_fixtures::small().forge,
+        jig_protocol_config_fixtures::small().core.tasks.spec_bytes,
     )
     .expect("small forge bounds")
 }
@@ -39,14 +39,14 @@ pub(crate) struct Bytes {
     pub(crate) snapshot: Vec<u8>,
 }
 pub(crate) fn bytes(snapshot: bool) -> Bytes {
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.store;
+    let limits = jig_protocol_config_fixtures::small().store.store;
     let temper_engine_domain::Record::Core(row) = row() else { unreachable!() };
     let key = keys::encode(&row.key(), limits.key).expect("fixture key");
     let value = codec::encode(&row, &super::codec(), super::store_names()).expect("fixture row");
     bytes_with_ops(snapshot, Box::new([skein_kv::Op::Put { key, value }]))
 }
 pub(crate) fn bytes_with_ops(snapshot: bool, ops: Box<[skein_kv::Op]>) -> Bytes {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store.store;
+    let mut limits = jig_protocol_config_fixtures::small().store.store;
     limits.snapshot_after = if snapshot { 1 } else { u64::MAX };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut files = jig_test_store_files::Files::new();

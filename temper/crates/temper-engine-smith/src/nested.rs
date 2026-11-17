@@ -193,6 +193,7 @@ fn contract(value: &Value) -> Result<tasks::Contract, Problem> {
             connector: value.required(b"connector")?.narrow(b"connector")?,
             kind: value.required(b"change_kind")?.narrow(b"change_kind")?,
             words: value.required(b"words")?.small(b"words")?,
+            choices: Box::new([]),
         }),
         b"verdict" => {
             let choices = value.required(b"choices")?.array(b"choices")?;

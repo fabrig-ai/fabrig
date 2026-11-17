@@ -11,7 +11,7 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}}
+"demo":null,"sign_in":null,"limits":{"profile":"standard","overrides":{}}
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -37,18 +37,17 @@ pub fn document() -> Box<[u8]> {
         .unwrap()
         .replace(",\n{\"name\": \"worker-b\", \"digest\": \"secrets/worker-b.digest\"}", "");
     document.extend_from_slice(engine.as_bytes());
-    document.extend_from_slice(br#", "workers":[{
-"engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
-"agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":"#);
-    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
+    document.extend_from_slice(
+        br#", "workers":[{
+"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
+"memory_bytes":1152921504606846976}],"application":"#,
+    );
+    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.landing_members\":2,\"forge.resources_per_task\":4}").as_bytes());
     document.extend_from_slice(b"}");
     let document = document.into_boxed_slice();
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
-    let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
+    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.landing_members":2,"forge.resources_per_task":4}"#)
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(
@@ -59,14 +58,9 @@ pub fn parsed() -> skein_json::Document {
 }
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
-    for (path, value) in [
-        (b"worker-secret".as_slice(), super::worker::WORKER_SECRET),
-        (
-            b"secrets/worker-a.digest".as_slice(),
-            b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice(),
-        ),
-        (super::AGENT_JSON, b"{}".as_slice()),
-    ] {
+    for (path, value) in
+        [(b"worker-secret".as_slice(), super::worker::WORKER_SECRET), (super::AGENT_JSON, b"{}".as_slice())]
+    {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
     }
     settings::Files { entries }
@@ -85,12 +79,18 @@ pub fn worker_runtime() -> crate::WorkerRuntime {
         wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
-        agent: super::pinned_agent(&super::worker_settings().jig.agent),
+        agent: super::pinned_agent(super::worker_settings().jig.agent.as_ref().expect("checked worker agent")),
     }
 }
 pub fn startup_agent() -> settings::Agent {
+    // Match init's maximum run spend, including Fable's cache-write reserve.
+    let init = super::super::stock::engine(&super::super::stock::generated());
+    startup_agent_with_spend(init.rules.maximum_run_spend)
+}
+
+pub fn startup_agent_with_spend(spend: u64) -> settings::Agent {
     let mut agent = super::agent();
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config_fixtures::small().hub;
     agent.host_limits.directories = 4;
     agent.host_limits.conflicts = 1024;
     agent.host_limits.name_bytes = 600;
@@ -99,9 +99,7 @@ pub fn startup_agent() -> settings::Agent {
     agent.host_limits.call_bytes = 256;
     agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
     agent.bounds.message_bytes = 512;
-    // Match init's maximum run spend, including Fable's cache-write reserve.
-    let init = super::super::stock::engine(&super::super::stock::generated());
-    agent.bounds.spend = init.rules.maximum_run_spend;
+    agent.bounds.spend = spend;
     agent.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]);
     agent
 }
@@ -115,21 +113,34 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
         &[
+            ("hub.accounts", 8),
+            ("hub.inbox", 8),
+            ("hub.held", 8),
+            ("hub.event_bytes", 512),
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
             ("core.resume_bytes", u64::from(resume)),
+            ("tasks.inbox_bytes", 4096),
+            ("tasks.run_inbox", 8),
             ("authority.grants", 16),
             ("notes.scopes", 32),
         ]
     } else if path == b"workers[0].limits.overrides" {
         &[
+            ("hub.accounts", 8),
+            ("hub.inbox", 8),
+            ("hub.held", 8),
+            ("tasks.result_bytes", 512),
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
         ]
     } else if path == b"application.limits.overrides" {
         &[
+            ("forge.client.answer_bytes", 65536),
+            ("forge.client.op_bytes", 512),
+            ("forge_component.body_bytes", 16384),
             ("root.journal.transcript_bytes", u64::from(resume)),
             ("root.loads.transcript_bytes", u64::from(turn)),
             ("root.loads.bytes", u64::from(loaded)),
@@ -162,9 +173,6 @@ fn engine_turn_limits() -> String {
     let mut result = overrides.split_once('}').unwrap().0.to_string();
     result.push('}');
     result
-}
-fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
@@ -292,11 +300,13 @@ pub fn engine_alone_document() -> Box<[u8]> {
 
 /// A worker's document has no engine or engine application members.
 pub fn worker_alone_document() -> Box<[u8]> {
-    let input = with(&document(), b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
-    let input = with(&input, b"application", br#"{"limits":{"profile":"small","overrides":{}}}"#);
-    let text = core::str::from_utf8(&input).unwrap();
-    let (_, workers) = text.split_once(", \"workers\":").unwrap();
-    [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()
+    let mut input: serde_json::Value = serde_json::from_slice(&document()).unwrap();
+    input.as_object_mut().unwrap().remove("engine");
+    input["workers"][0]["engine"] = serde_json::from_str(r#"{"socket":"127.0.0.1:7100"}"#).unwrap();
+    input["workers"][0].as_object_mut().unwrap().remove("agent");
+    input["workers"][0].as_object_mut().unwrap().remove("limits");
+    input["application"] = serde_json::json!({});
+    serde_json::to_vec(&input).unwrap().into_boxed_slice()
 }
 
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]

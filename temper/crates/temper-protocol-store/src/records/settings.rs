@@ -221,6 +221,13 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::AgentFigures(value) => {
+                    let mut writer = Writer::new(usize::try_from(value.measure()).expect("record size fits"));
+                    value.encode(&mut writer).expect(FITS);
+                    w::SettingValue::Agents(
+                        w::AgentFigures::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect(FITS),
+                    )
+                }
                 d::Value::Welcome(value) => w::SettingValue::Welcome(
                     w::Welcome::new(&w::CEILINGS, w::WelcomeParts { shown: value.shown }).expect("fixed welcome field"),
                 ),
@@ -328,6 +335,15 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                         return Err(Undecodable::Malformed);
                     }
                     d::Value::ProjectWords(d::ProjectWords { headline, lede })
+                }
+                w::SettingValue::Agents(value) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(value.measure()).or(Err(Undecodable::Malformed))?);
+                    value.encode(&mut writer).or(Err(Undecodable::Malformed))?;
+                    d::Value::AgentFigures(
+                        v1::AgentFigures::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .or(Err(Undecodable::Malformed))?,
+                    )
                 }
                 w::SettingValue::Welcome(value) => d::Value::Welcome(d::Welcome { shown: value.shown() }),
                 w::SettingValue::Areas(value) => d::Value::ProjectAreas(areas_from(value)),

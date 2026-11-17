@@ -342,13 +342,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
             workflow_dispatch: true,
             // A seeded source stream and its ports retain more than the basic fake's 16 commits.
             forge_commits: cued.then_some(256),
-            brief: cued.then(|| {
-                temper_engine_service_vocabulary::limits::profile(
-                    temper_engine_service_vocabulary::limits::Profile::Small,
-                )
-                .root
-                .brief
-            }),
+            brief: cued.then(|| temper_limits_fixtures::small().root.brief),
             person_executor: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier::default()),
             spec_bytes: Some(2048),

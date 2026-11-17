@@ -486,6 +486,9 @@ pub enum Error {
     Closed,
     /// The required head changed.
     Stale,
+    /// An update's pull request is at the head it required, on another base commit
+    /// than the one it was decided on; `base` is the one the forge reported.
+    BaseMoved { base: Option<Commit> },
     /// The change conflicts with its base.
     Conflict,
     /// Protection refused the write.

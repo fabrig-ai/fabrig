@@ -9,7 +9,7 @@ use temper_client_tools::{jig::call::Parsed, root};
 /// Keep the baseline's projection at 128 bytes without changing other tier stories.
 #[must_use]
 pub fn world() -> World {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.text_bytes = 128;
     let options = StoryLimits {
         tier: Some(crate::tier_runs::Tier::default()),

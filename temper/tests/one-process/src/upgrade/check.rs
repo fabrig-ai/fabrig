@@ -242,8 +242,8 @@ pub fn opened_worker_rehearsal() {
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
-    // fixtures::document names worker-a; the world starts at 2026-01-01 UTC.
-    assert!(report.contains("temper-box upgrade: worker worker-a may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
+    // fixtures::document names local; the world starts at 2026-01-01 UTC.
+    assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
 }
@@ -293,6 +293,11 @@ pub fn golden(directory: &Path) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
             .expect("golden JSON");
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
+    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
+    document["workers"][0]["name"] = "local".into();
+    document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    crate::golden::bridge_kept_profiles(&mut document);
     let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
     *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
     let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {

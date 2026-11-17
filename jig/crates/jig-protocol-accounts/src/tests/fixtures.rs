@@ -8,7 +8,7 @@ pub const NOW: Time = Time::from_nanos(5);
 pub fn sign_in_engine() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let input = br#"{
-        "limits":{"profile":"small"}, "llm":{"endpoints":[{
+        "limits":{"profile":"standard"}, "llm":{"endpoints":[{
             "name":"test","number":1,"dialect":3,"provider":"test","address":{"socket":"127.0.0.1:9"},
             "transport":"plaintext","headers":[],"connect_ms":1000,"handshake_ms":1000}],"providers":[{
             "name":"test","number":1,"endpoint":"test","signed_in_plan":false,"sources":{"sign_in":{
@@ -16,13 +16,20 @@ pub fn sign_in_engine() -> jig_protocol_config::Engine {
                 "authorization":"https://issuer.test/authorize","token":"https://issuer.test/token",
                 "keys":"https://issuer.test/keys","transport":"tls","server_name":"issuer.test",
                 "must_grant":["openid"],"redirect_path":"callback"
-            }}}]}, "hosts":{"workers":[],"listener":[]}, "clients":{"heartbeat_ms":1000,"link":false},
+            }}}]}, "hosts":{"listener":[]}, "clients":{"heartbeat_ms":1000,"link":false},
         "deployment":{"directory":"state"}, "owners":[], "providers":[{"number":1,"kind":"deployment"}],
         "projects":[], "connectors":[], "memory_bytes":1152921504606846976
     }"#;
     let document = config::document(input, &config::DocumentLimits { bytes: 2048, tokens: 256, depth: 8 }).unwrap();
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
-        .unwrap()
+    config::engine_over(
+        &document,
+        0,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .unwrap()
 }
 pub fn granted(account: u32, token: &[u8], generation: u64, valid: Duration) -> driver::Event {
     driver::Event::Granted { account, token: Secret::new(bytes::copy_of(token)), generation, valid }

@@ -15,6 +15,7 @@ fn summary(requester: tasks::Party) -> tasks::TaskSummary {
 
 fn query() -> documents::TaskQuery {
     documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(PROJECT),
         requester: None,
         parent: None,

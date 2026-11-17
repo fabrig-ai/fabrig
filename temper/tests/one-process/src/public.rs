@@ -70,15 +70,13 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     value["application"]["limits"]["overrides"]["forge.client.rate"] = 1000.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
     value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
-    for worker in value["workers"].as_array_mut().expect("workers") {
-        worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
-        worker["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
-        worker["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
-        worker["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
-        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
-    }
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
+    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["world_settings"]["settings"] =
         serde_json::json!({"items":[{"setting":{"kind":"project-landing","project":1},"set":{"by":"turn"}}]});

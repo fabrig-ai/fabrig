@@ -11,6 +11,9 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Map, Wall};
 
 pub(crate) fn admission(core: &Core, party: u64, query: &TaskQuery) -> Result<(), Missing> {
+    if query.parts.len() > 4 {
+        return Err(Missing::TooLarge);
+    }
     if let Some(tasks::Party::Deployment { .. }) = query.requester {
         return Err(Missing::Unknown);
     }
@@ -138,5 +141,5 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
     if !taking {
         return Err(Missing::Unknown);
     }
-    Ok(Lines { query: *query, lines, next })
+    Ok(Lines { ended_mark: core.ended_groups.query(query), query: query.clone(), lines, next })
 }

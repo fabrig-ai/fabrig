@@ -701,7 +701,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
                         ]),
                         inputs: Box::new([]),
                     },
-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 },
+                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32, choices: Box::new([]) },
                     authority,
                     symbolic_grants: Box::new([tasks::Grant {
                         connector: 0,

@@ -29,7 +29,7 @@ fn the_public_key_lookup_waits_for_the_stores_durable_startup_mark() {
     let mut service = f::started(&f::engine_document());
     let engine = f::engine(&mut service);
     let (config, _) = crate::startup::fixture_connectors(&f::engine_document());
-    let limits = crate::limits::profile_limits(config::Profile::Small);
+    let limits = crate::limits::small(&jig_protocol_config_fixtures::small());
     let mut clients = Clients::new(
         &config,
         io::Addr::Ip((::core::net::Ipv4Addr::LOCALHOST, 7100).into()),

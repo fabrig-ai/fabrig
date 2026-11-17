@@ -42,7 +42,7 @@ const RUN: Row = Row {
     line: "Run one agent for a worker's run, on smith's agent configuration.",
     arguments: &[Argument {
         shown: "AGENT.json",
-        line: "The agent's configuration, as the worker's agent.configuration names it.",
+        line: "The agent's configuration, written and pinned under the worker's root.",
     }],
     ..INTERNAL
 };

@@ -3,6 +3,7 @@
 2026-11-15. Remaining gaps between temper's code and [README.md](README.md).
 
 
+
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
 `ui-reaches`: `temper ctl settings show project-classes` and a settings
 file's `project-classes`, `decide`, `ask` and `ask-away`, refused as

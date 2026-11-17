@@ -65,7 +65,7 @@ impl Harness for Incident {
         ] {
             value["engine"]["limits"]["overrides"][name] = count.into();
         }
-        value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
+        value["engine"]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
         value["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 45_000.into();
         value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
@@ -111,11 +111,9 @@ impl Inputs {
         let given = Incident::given(&document);
         let parsed = temper_playground::documents::settings::configuration(&document);
         let codec = jig_protocol_store::codec::limits(&parsed.limits.core).expect("incident record bounds");
-        let families = temper_protocol_store::bounds(
-            &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-            parsed.limits.core.tasks.spec_bytes,
-        )
-        .expect("incident forge bounds");
+        let families =
+            temper_protocol_store::bounds(&temper_limits_fixtures::small().forge, parsed.limits.core.tasks.spec_bytes)
+                .expect("incident forge bounds");
         temper_playground::documents::settings::strip_models(&mut document);
         document.as_object_mut().expect("deployment object").remove("world_settings");
         let mut agent = temper_playground::documents::agent();

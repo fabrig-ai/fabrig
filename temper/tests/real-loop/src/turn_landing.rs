@@ -84,6 +84,8 @@ fn fixture() -> forge::Fixture {
             }
             limits["forge.landing_members"] = 2.into();
             limits["forge.resources_per_task"] = 3.into();
+            // Sixteen holds cover eight two-member batches.
+            limits["forge.landings"] = 8.into();
             limits["forge.holds"] = 16.into();
 
             limits["root.loads.loads"] = 3.into();
@@ -103,7 +105,7 @@ fn fixture() -> forge::Fixture {
                 ("documents.chips", 32),
                 ("authority.executors", 22),
                 ("tasks.executor_kinds", 22),
-                ("fleet.slots", 2),
+                ("fleet.slots", 4),
                 ("fleet.attempts", 2),
                 ("core.load_bytes", 131_072),
                 ("people.inbox_tasks", 48),
@@ -111,11 +113,8 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             value["workers"][0]["slots"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.slots"] = 2.into();
-            for limits in ["engine", "workers"] {
-                let target = if limits == "engine" { &mut value["engine"] } else { &mut value["workers"][0] };
-                target["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
-            }
+            value["engine"]["limits"]["overrides"]["hub.slots"] = 2.into();
+            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
             // The shared prepare carriers, rather than the small chat profile.
             let prepare = temper_service::limits::prepare_bound();
             for (name, bytes) in [
@@ -126,9 +125,7 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = bytes.into();
             }
             value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-            value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+            value["engine"]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
             value["application"]["limits"]["overrides"]["checkout.message_bytes"] = (prepare.result + 2).into();
             value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
             agent["profile"]["declared"]["tool_payload"] = (prepare.result + 2).into();

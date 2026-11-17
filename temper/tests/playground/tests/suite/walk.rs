@@ -46,14 +46,13 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
     }
     for worker in document["workers"].as_array_mut().expect("deployment workers") {
         let overrides = worker.pointer_mut("/limits/overrides").expect("worker limit overrides");
-        let output = overrides["io.output"]
-            .as_u64()
-            .unwrap_or(u64::from(jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.output));
+        let output =
+            overrides["io.output"].as_u64().unwrap_or(u64::from(jig_protocol_config_fixtures::small().io.output));
         overrides["io.output"] = output.checked_mul(2).expect("doubled output fits").into();
         double(overrides);
     }
     document["engine"]["limits"]["overrides"]["io.output"] =
-        document["workers"][0]["limits"]["overrides"]["io.output"].clone();
+        document["engine"]["limits"]["overrides"]["io.output"].clone();
     serde_json::to_vec(&document).expect("doubled deployment document").into_boxed_slice()
 }
 

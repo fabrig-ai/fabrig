@@ -18,6 +18,8 @@ pub const DOCUMENT: u64 = 1_048_576;
 /// object's digest, continuation and result framing, beyond the document.
 pub const RESULT_BYTES: u64 = DOCUMENT * 6 + 1024;
 pub const DEADLINE: Duration = Duration::from_secs(30);
+/// The checkpoint act replaces the ordinary deadline (protocol/checkpoints.md, 3).
+pub const CHECKPOINT_WAIT: Duration = Duration::from_secs(600);
 pub const LOCK: Duration = Duration::from_secs(60);
 pub const LOCK_TRY: Duration = Duration::from_millis(100);
 pub const WAIT: Duration = Duration::from_secs(300);
@@ -102,4 +104,10 @@ pub fn tools() -> crate::jig::Limits {
 #[must_use]
 pub fn form() -> settings_form::Limits {
     crate::jig::form_limits(&tools())
+}
+
+/// This act's wait replaces an ordinary call deadline (protocol/checkpoints.md, 3).
+#[must_use]
+pub fn call_deadline(call: &crate::jig::call::Call) -> Duration {
+    if crate::checkpoint::owns(call) { crate::checkpoint::wait(call) } else { DEADLINE }
 }

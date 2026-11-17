@@ -107,6 +107,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 Op::Brings { .. } => Done::Brings { brings: false },
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Reds { .. }
+                | Op::Reset { .. }
                 | Op::Point { .. }
                 | Op::Store { .. }
                 | Op::Make { .. }

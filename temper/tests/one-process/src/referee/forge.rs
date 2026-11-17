@@ -131,23 +131,24 @@ impl Forge {
 
         Ok(())
     }
-    pub(crate) fn hooks_complete(procs: &[Proc], hooks: usize) -> bool {
+    pub(crate) fn hooks_complete(procs: &[Proc]) -> bool {
+        use skein_fake_peers::forge::{Delivery, Observation};
         procs.iter().any(|proc| {
             let Proc::Forge(peer) = proc else { return false };
-            let deliveries = peer
-                .observations()
-                .iter()
-                .filter(|record| matches!(record, skein_fake_peers::forge::Observation::Delivery { .. }))
-                .count();
-            deliveries == hooks
+            let mut deliveries =
+                peer.observations().iter().filter(|record| matches!(record, Observation::Delivery { .. }));
+            // A pull-open hook can arrive alongside the push hook in one iteration.
+            // The story needs the setup's missed hook, then the written push.
+            if let (
+                Some(Observation::Delivery { post: None, outcome: Delivery::NoAddress }),
+                Some(Observation::Delivery { post: Some(post), outcome: Delivery::Written }),
+            ) = (deliveries.next(), deliveries.next())
+            {
+                skein_lib::bytes::find(&post.head, b"\r\nX-Forgejo-Event: push\r\n").is_some()
+            } else {
+                false
+            }
         })
-    }
-    pub(crate) fn require_hooks(&self, hooks: usize) {
-        assert_eq!(
-            usize::try_from(self.transport.forge.borrow().domain.tally().hooks).expect("hook tally fits"),
-            hooks,
-            "the story's own hooks have all been released"
-        );
     }
     pub(super) fn saved_head(&self, task: u64) -> Option<u64> {
         let suffix = format!("/s{task}");

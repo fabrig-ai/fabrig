@@ -1026,3 +1026,20 @@ pub fn encode_catalogue(value: &c::CatalogueEntry, out: &mut Encoder) {
     out.boolean(value.estimated);
     out.object_end();
 }
+
+pub fn encode_worker(value: &c::WorkerSetting, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"number");
+    out.unsigned(u64::from(value.number));
+    out.key(b"name");
+    out.string(&value.name);
+    out.key(b"places");
+    out.unsigned(u64::from(value.places));
+    if let Some(digest) = &value.digest {
+        out.key(b"digest");
+        crate::hex(digest, out);
+    }
+    out.key(b"withdrawn");
+    out.boolean(value.withdrawn);
+    out.object_end();
+}

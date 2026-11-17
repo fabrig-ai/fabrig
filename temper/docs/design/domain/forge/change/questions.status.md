@@ -1,6 +1,6 @@
 # questions: status
 
-2026-11-15. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-17. Where the tree's code lags or departs from [questions.md](questions.md).
 
 
 - **Not yet:** 1, *Its requester's words and amendments*: a change

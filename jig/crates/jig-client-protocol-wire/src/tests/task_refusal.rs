@@ -1,5 +1,5 @@
 //! Refusals travel inside whole task documents; wrappers add no framing.
-use crate::v27 as w;
+use crate as w;
 use skein_lib::{Reader, Writer};
 
 #[test]

@@ -16,20 +16,20 @@ impl VersionRange {
 }
 
 /// The owner of versioned records (client/domain/contract/README.md, 6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Owner {
     Jig,
     Family(u16),
 }
 /// One inclusive range of an owner's versions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Served {
     pub owner: Owner,
     pub first: u32,
     pub last: u32,
 }
 /// Nothing was read, made or kept in this owner's version.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NotServed {
     pub owner: Owner,
     pub served: skein_lib::List<Served>,

@@ -417,6 +417,7 @@ impl World {
     fn git(&mut self, op: Op) -> Done {
         match op {
             Op::Reds { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }

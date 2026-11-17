@@ -33,3 +33,19 @@ fn reds_answers_validate_heads_and_consume_the_whole_payload() {
         }
     }
 }
+
+#[test]
+fn landed_asks_and_answers_keep_their_wire_forms() {
+    let head = [37; 32];
+    let bytes = translate::ask(wire::Ask::Landed { head });
+    let expected = v1::Ask::Landed(v1::Head::new(&v1::CEILINGS, v1::HeadParts { head }).unwrap());
+    assert_eq!(v1::Ask::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)), Ok(expected));
+    for (encoded, typed) in [(v1::Answer::Landed, wire::Answer::Landed), (v1::Answer::Unlanded, wire::Answer::Unlanded)]
+    {
+        let bytes = temper_protocol_worker_wire::answer(&encoded);
+        assert_eq!(translate::answer(&bytes, &v1::CEILINGS), Some(typed));
+        let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+        assert_eq!(translate::answer(&trailing, &v1::CEILINGS), None);
+        assert_eq!(translate::answer(&[], &v1::CEILINGS), None);
+    }
+}

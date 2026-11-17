@@ -65,6 +65,7 @@ pub fn line() -> TaskLine {
         observation: None,
     };
     TaskLine {
+        parts: List::with_capacity(0),
         chip: Chip {
             task: TASK,
             title: DocumentText::complete(Text::new(Box::from(*b"Hello"), TEXT).expect("title")),
@@ -218,7 +219,7 @@ pub fn deliver_live(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows, more: false }))),
                 },
             },
         },
@@ -289,6 +290,7 @@ pub fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
                 up: jig_client::Up::ReadDone {
                     read,
                     result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows {

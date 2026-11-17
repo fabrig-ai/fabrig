@@ -1,5 +1,5 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
@@ -445,6 +445,9 @@ fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w
         p::Setting::Model(number) => {
             w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
+        p::Setting::Worker(number) => {
+            w::Setting::Worker(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
+        }
         p::Setting::Rules => w::Setting::Rules,
         p::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,
@@ -462,6 +465,7 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Grace => w::SettingFault::Grace,
         p::SettingFault::Owner => w::SettingFault::Owner,
         p::SettingFault::Judged => w::SettingFault::Judged,
+        p::SettingFault::Linked => w::SettingFault::Linked,
     }
 }
 

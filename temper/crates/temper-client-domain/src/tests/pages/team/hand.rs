@@ -66,7 +66,7 @@ fn fixture(owner: bool, rows: &[(&[u8], w::AreaOwner)]) -> Reads {
         &mut f,
         handle,
         watch,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
     );
     let (_, handle, watch) = f.card.unwrap();
     let mut document = fixtures::chat::task();

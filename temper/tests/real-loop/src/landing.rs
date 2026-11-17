@@ -131,15 +131,13 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         limits.insert(name.into(), size.into());
     }
     value["workers"][0]["slots"] = 1.into();
-    let limits = &mut value["workers"][0]["limits"]["overrides"];
+    let limits = &mut value["engine"]["limits"]["overrides"];
     limits["hub.slots"] = 1.into();
     limits["hub.inbox"] = agent["profile"]["policy"]["inbox"].clone();
     limits["tasks.run_inbox"] = agent["profile"]["policy"]["inbox"].clone();
     limits["core.call_answer_bytes"] = 4096.into();
     limits["hub.event_bytes"] = 4094.into();
-    limits["tasks.message_bytes"] = 4096.into();
     // The worker validates core message bounds even when its profile is standard.
-    limits["people.words"] = 2048.into();
     limits["tasks.result_bytes"] = 512.into();
     agent["profile"]["declared"]["tool_payload"] = 4096.into();
     agent["profile"]["policy"]["max_turns"] = 800.into();
@@ -152,7 +150,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
 
 fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
     let jig = crate::settings::configuration(value);
-    let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let mut own = temper_service::limits::stock();
     for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
         temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))
             .expect("application override");

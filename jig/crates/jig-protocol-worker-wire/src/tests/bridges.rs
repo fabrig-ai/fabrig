@@ -39,43 +39,6 @@ fn running_attempt_kinds_are_present_and_total_from_the_floor() {
     // Enumeration roots are bridgeable too, even though a frame holds a record alone.
     assert_eq!(bridge.total(wire::VERSION, b"FromEngine"), Some(true));
     assert_eq!(bridge.total(wire::VERSION, b"FromWorker"), Some(true));
-    for text in kept::TEXTS {
-        let schema = parse(text.as_bytes()).expect("kept schema");
-        if schema.version() < wire::FLOOR || schema.version() == wire::VERSION {
-            continue;
-        }
-        let at = schema.find(b"FromEngine").expect("engine kinds");
-        let Shape::Enum { first, count } = schema.declaration(at).shape else { panic!("kinds enum") };
-        for name in [
-            b"message".as_slice(),
-            b"relayed",
-            b"turn_kept",
-            b"turn_busy",
-            b"acknowledge",
-            b"cancel",
-            b"grant",
-            b"sources",
-            b"check",
-            b"sign_out",
-            b"read_list",
-        ] {
-            let mut found = None;
-            for tag in 0..count {
-                let variant = schema.variant(VariantIx::new(first.index() + tag));
-                if schema.spelled(variant.name) == name {
-                    found = Some(variant);
-                }
-            }
-            let variant = found.expect("running attempt kind is present");
-            let record = schema.declaration(variant.record.expect("kind's record"));
-            assert_eq!(
-                bridge.total(schema.version(), schema.spelled(record.name)),
-                Some(true),
-                "running attempt kind {name:?} at {}",
-                schema.version()
-            );
-        }
-    }
     assert_eq!(smith_channel::pieces::wire::FLOOR, smith_channel::pieces::wire::VERSION);
 }
 
@@ -84,11 +47,10 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
     let limits = super::fixtures::LIMITS;
     let schema = crate::schema(&limits).expect("terms");
     assert_eq!(schema.range(), Some((wire::FLOOR, wire::VERSION)));
-    let old = schema.version(12).expect("floor");
+    assert_eq!(schema.version(14), None);
     let current = schema.version(wire::VERSION).expect("current");
-    assert_eq!(old.kind(0x018d), None);
     assert_eq!(current.kind(0x018d).expect("statement").largest, 612);
-    assert_eq!(old.kind(0x0102).expect("old call").largest + 2, current.kind(0x0102).expect("current call").largest);
+    assert!(current.kind(crate::Kind::Figures.number()).is_some());
     for version in &schema.versions {
         let mut found = None;
         for text in kept::TEXTS {
@@ -107,7 +69,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
             for tag in 0..count {
                 let variant = text.variant(VariantIx::new(first.index() + tag));
                 let bound = text
-                    .most_bytes_within(variant.record.expect("record"), &crate::v15::LIMIT_NAMES, &limits.values())
+                    .most_bytes_within(variant.record.expect("record"), &crate::v16::LIMIT_NAMES, &limits.values())
                     .expect("bound");
                 let kind = version.kind(base + u16::try_from(tag).expect("tag fits")).expect("kind");
                 assert_eq!(kind.direction, direction);

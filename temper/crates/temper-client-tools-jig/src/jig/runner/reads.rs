@@ -191,6 +191,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 return;
             };
             let query = c::TaskQuery {
+                parts: skein_lib::List::with_capacity(0),
                 project: Some(project),
                 requester: None,
                 root: None,
@@ -214,7 +215,8 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             read(runner, &mut reading, 1, what, out);
         }
         rows::MILESTONE_SHOW_AT | rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
-        rows::DEPLOYMENT_CENSUS_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
+        rows::DEPLOYMENT_CENSUS_AT | rows::WORKER_LIST_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
+        rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT => read(runner, &mut reading, 2, c::Read::Settings, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
@@ -585,6 +587,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if super::worker::needs_deployment(&reading) {
+        read(runner, &mut reading, 1, c::Read::Deployment, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if let Some((local, what)) = reading.parts.extra_read(&reading) {
         reading.pending |= 1u8.checked_shl(local).expect("host read slot");
         out.push(Out::Client {
@@ -620,6 +627,10 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     {
         super::application::read(runner, &mut reading, query, out);
         runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if (rows::WORKER_ADD_AT..=rows::WORKER_REMOVE_AT).contains(&reading.called.call.tool) {
+        super::worker::resolved(runner, client, env, reading, out);
         return;
     }
     join_thread(&mut reading);
@@ -702,6 +713,7 @@ pub fn task_query(call: &Call, me: &c::Me) -> Option<c::TaskQuery> {
     let project = project(call, me)?;
     let ended = value(call, 4).is_some();
     Some(c::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(project),
         requester: if value(call, 3).is_some() { Some(c::Requester::Person(me.party.number)) } else { None },
         root: None,
@@ -763,7 +775,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
         None => super::super::settings_file::selector(call),
     };
     if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }) {
+        if let Some(revision) = crate::jig::settings_file::revision(call) {
             super::application::historical(
                 runner,
                 reading,

@@ -87,6 +87,7 @@ mod delegates;
 
 #[path = "forge_routes/change_tool.rs"]
 mod change_tool;
+mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
@@ -491,11 +492,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 
 #[test]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
-    let stall =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .forge
-            .change_policy
-            .stall;
+    let stall = temper_limits_fixtures::small().forge.change_policy.stall;
     let world = World::configured_limits(
         true,
         true,
@@ -1130,10 +1127,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1254,10 +1248,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1468,7 +1459,7 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
             if source.as_ref() == branch.as_ref() && expected == translate::commit(base)));
     let limit = world.env.limits.forge.client.answer_bytes;
     let omitted = format!(
-        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]",
+        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]",
         u64::from(limit) + 1
     );
     let pull = resolver
@@ -2167,8 +2158,7 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 
 #[test]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world =
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);

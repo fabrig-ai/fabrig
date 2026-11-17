@@ -755,7 +755,7 @@ fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
                         ]),
                         inputs: Box::new([]),
                     },
-                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 32 },
+                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 32, choices: Box::new([]) },
                     authority,
                     ..temper_engine_domain_world::fixtures::report_delegate(b"change", Box::new([]))
                 }]),

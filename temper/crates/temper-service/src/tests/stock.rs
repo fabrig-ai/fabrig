@@ -71,7 +71,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_596, Setting::Charter(5)));
+    assert_eq!(run, (27_607, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -106,7 +106,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         Ok(())
     );
     for &(name, needed, setting, words) in rows {
-        let mut at = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+        let mut at = engine.clone();
         config::overrides::apply(&mut at.limits, name, needed).unwrap();
         let mut problems = crate::startup::Problems::empty();
         crate::startup::checks::stock(&at, &mut problems);
@@ -393,7 +393,9 @@ pub(super) fn generated() -> Box<[u8]> {
 }
 
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let parsed =
+        config::document(document, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    crate::startup::engine(&parsed, parsed.member(0, b"engine").unwrap(), &config::Directories::working()).unwrap()
 }
 
 fn single_model() -> Box<[u8]> {
@@ -421,12 +423,12 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     let document = generated();
     crate::named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
     let engine = engine(&document);
-    let own = crate::limits::profile(crate::limits::Profile::Standard);
+    let own = crate::limits::stock();
     assert_eq!(own.root.journal.run_bytes, 65_536);
-    assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
+    assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_596), (5, 27_596)] {
+    for (number, expected) in [(2, 12_596), (5, 27_607)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -475,4 +477,15 @@ fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
         jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
         Ok(())
     );
+}
+
+/// Files named by the generated init document, with fixture digest and secret bytes.
+/// Complete-start checks consume these directly rather than parsing a second time
+/// just to discover the fixture's paths.
+pub(super) fn files() -> crate::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(3);
+    for path in [b"worker.digest".as_slice(), b"worker.secret", b"/config/agent.json"] {
+        entries.push((path.into(), skein_lib::Secret::new(Box::new([b'0'; 64])))).unwrap();
+    }
+    crate::settings::Files { entries }
 }

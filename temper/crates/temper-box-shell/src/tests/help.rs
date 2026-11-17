@@ -38,7 +38,7 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "preserve the rest of the document",
         "exactly the configured environment",
         "deployment-specific absolute paths",
@@ -71,7 +71,7 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in ["`agent.json`'s `environment` is a list, not a map", "temper help box"] {
+    for required in ["Entry `environment`: optional list, not a map; unique names:", "temper help box"] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
     let (_, recipe) = step.split_once("`environment`").expect("agent environment");
@@ -100,11 +100,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let init: serde_json::Value = serde_json::from_slice(&super::configuration::init_document()).expect("init JSON");
-    let profile = jig_protocol_config::profile(match init["engine"]["limits"]["profile"].as_str().unwrap() {
-        "small" => jig_protocol_config::Profile::Small,
-        "standard" => jig_protocol_config::Profile::Standard,
-        other => panic!("unknown profile {other}"),
-    });
+    let profile = jig_protocol_config::stock();
     let timeout = profile.core.fleet.grace;
     for worker in init["workers"].as_array().expect("init workers") {
         let bytes = serde_json::to_vec(worker).expect("worker JSON");
@@ -120,9 +116,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             &temper_service::startup::fixed_worker(),
         )
         .expect("init worker");
-        let bound =
-            jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
-                .expect("stop bound");
+        let bound = worker.stop_bound;
         assert!(bound < timeout, "the unit must outlast the worker's stop bound");
         let seconds = |duration: skein_lib::Duration| {
             assert_eq!(duration.as_millis() % 1_000, 0, "whole seconds in the unit's explanation");
@@ -169,20 +163,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
-    let facts = temper_init::Facts {
-        sign_in: false,
-        binary: b"/opt/temper/bin/temper-box",
-        git: Some(b"/usr/bin/git"),
-        claude: Some(b"/opt/temper/bin/claude"),
-        ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
-        login: Some(b"coder"),
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init files");
-    let file = answer.files.iter().find(|file| file.name == b"agent.json").expect("init agent document");
-    let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("agent document bytes") };
-    let mut document: serde_json::Value = serde_json::from_slice(bytes).expect("init agent JSON");
+    let mut document = temper_fixtures::agent::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();
@@ -258,8 +239,8 @@ fn configure_example_preserves_stock_landing_gate() {
         &temper_engine_smith::kinds::Bounds { segments: 9, segment_bytes: 4096, gates: 64, approvals: 64 },
     )
     .expect("documented landing rule");
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let temper = temper_limits_fixtures::small();
     let limits = temper_service::limits::engine(&jig, &temper).expect("stock limits");
     let stock = temper_service::stock::forge(&limits);
     let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (2, 0, 1)).expect("stock rule");
@@ -338,11 +319,8 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
     // charter calls tools_for; the report/workspace gate is already pinned by
     // temper-engine-smith's a_report_run_cannot_modify_without_delivery.
     let charter = temper_engine_smith::charter(&assignment);
-    for name in [b"change".as_slice(), b"goal", b"delegate"] {
+    for name in [b"change".as_slice(), b"goal", b"delegate", b"effect_forge", b"propose"] {
         assert!(!charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "not declared: {name:?}");
-    }
-    for name in [b"effect_forge".as_slice(), b"propose"] {
-        assert!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "still declared: {name:?}");
     }
 }
 
@@ -519,7 +497,11 @@ fn substitute_placeholders(word: &str) -> String {
             && run.as_bytes()[0].is_ascii_uppercase()
             && run.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
         {
-            result.push_str(if run == "PROPOSAL" { "t1/1" } else { "1" });
+            result.push_str(match run {
+                "PROPOSAL" => "t1/1",
+                "HEX" => "0000000000000000000000000000000000000000000000000000000000000000",
+                _ => "1",
+            });
         } else {
             result.push_str(run);
         }
@@ -833,12 +815,12 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "local model",
         "`endpoint` in `engine.llm.providers`",
         "`CONFIG/temper.json`",
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
-        "`head`",
-        "`idle`",
+        "`head_ms`",
+        "`idle_ms`",
         "Preserve",
         "stop",
         "restart, then change the model",
@@ -854,7 +836,10 @@ fn account_and_deployment_help_explain_offering_another_model() {
 
 #[test]
 fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
-    for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
+    for (page, heading, shell) in [
+        ("box", "Before you start", "shell's PATH alone is insufficient"),
+        ("tier", "Acting on it", "interactive shell is insufficient"),
+    ] {
         let text = help::answer(&configured(&["help", page])).expect("help page");
         let section = text
             .split(&format!("## {heading}\n"))
@@ -877,7 +862,7 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
             "`application.machine.owned.runner.path`",
             "`/usr/local/bin:/usr/bin:/bin`",
             "restart",
-            "interactive shell is insufficient",
+            shell,
         ] {
             assert!(section.contains(prerequisite), "{page}: missing {prerequisite}: {section}");
         }
@@ -905,8 +890,8 @@ fn box_help_names_delivery_checks_path_and_tools() {
         .join(" ");
     for required in [
         "`.temper/pre-pr`",
-        "inherit the box process's `PATH` captured at startup",
-        "box unit's `PATH`",
+        "inherit the box's startup `PATH`",
+        "unit's `PATH` in a service",
         "before step 2",
         "fabrig",
         "`cargo`",
@@ -925,19 +910,21 @@ fn box_help_names_delivery_checks_path_and_tools() {
 
 #[test]
 fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
-    for page in ["box", "tier"] {
+    for (page, default, wait) in
+        [("box", "default and minimum 1", "Wait for exit"), ("tier", "defaults to 1", "wait for it to exit")]
+    {
         let text = help::answer(&configured(&["help", page])).expect("help page");
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for required in [
             "CI and tiers",
             "`temper-host`",
             "`application.machine.owned.runner.capacity`",
-            "defaults to 1",
+            default,
             "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
             "multi-job workflows",
             "other repositories",
             "Ctrl-C or SIGTERM",
-            "wait for it to exit",
+            wait,
             "`CONFIG/temper.json`",
             "same",
             "registration and secrets",

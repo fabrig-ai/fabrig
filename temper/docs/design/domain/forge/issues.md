@@ -57,7 +57,10 @@ history they keep if temper is unplugged. Issues are projections (jig's
   Nothing asks for it sooner: once a step has met the full outbox, a
   projection due at once in that step, by a write's outcome, a release
   or its timer, waits the interval too while the outbox stays full, so
-  the step ends.
+  the step ends. Room here is the outbox's free room (`room.md`, 2): a
+  projection is behind every write waiting in the outbox's line, and the
+  room its step finds is reserved for its write until its entry is kept
+  or its effect ends without one.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 

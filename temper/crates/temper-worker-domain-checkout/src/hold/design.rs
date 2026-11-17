@@ -4,8 +4,7 @@ use super::{Asked, Hold, Holding, Push, PushStep, State, Tips, To};
 use crate::boundary::{Landing, Repository, Request};
 use crate::git::{Commit, Done, Into, Op, Want};
 use crate::limits::Limits;
-use alloc::boxed::Box;
-use skein_lib::{Env, Id, Queue, Writer};
+use skein_lib::{Env, Id, Queue};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Delivery {
@@ -36,7 +35,7 @@ pub(super) fn checked(spec: &Repository, to: &To) -> bool {
     }
 }
 
-pub(super) fn landed(tips: Tips, to: &To) -> Landing {
+pub(super) fn landed(tips: &Tips, to: &To) -> Landing {
     match to {
         To::Branches => match tips.design_merged {
             Some(tip) => Landing::DesignMerged { commit: tips.head, tip },
@@ -91,6 +90,7 @@ pub(super) fn pushed(
             }
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -121,6 +121,7 @@ pub(super) fn pushed(
         }
         other @ (Done::Results { .. }
         | Done::Paths { .. }
+        | Done::ParentUnreachable { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
@@ -143,6 +144,7 @@ pub(super) fn pushed(
             }
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -169,6 +171,7 @@ pub(super) fn pushed(
             }
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -192,6 +195,7 @@ pub(super) fn pushed(
             }
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -209,6 +213,7 @@ pub(super) fn pushed(
             Done::Merged => Step::Commit,
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -227,6 +232,7 @@ pub(super) fn pushed(
             Done::Succeeded => Step::Paths,
             Done::Results { .. }
             | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -241,6 +247,7 @@ pub(super) fn pushed(
             | Done::FailedWithOutput { .. } => unreachable!("a checkout has its own terminals"),
         },
         Step::Paths => match done {
+            Done::ParentUnreachable { .. } => unreachable!("a path query has no snapshot"),
             Done::Results { .. } => unreachable!("results terminal for a path query"),
             Done::Paths { files } => {
                 for path in files {
@@ -312,19 +319,13 @@ fn run(
         }
         Step::Commit => {
             let branch = spec.push.as_deref().expect("a design repository is writable");
-            let mut title = Writer::new(b"Merge ".len().checked_add(branch.len()).expect("bounded branch"));
-            title.put(b"Merge ").expect("measured prefix");
-            title.put(branch).expect("measured branch");
-            Op::Commit {
-                at,
-                parent: head,
-                merging: delivery.tip,
-                always: false,
-                snapshot: None,
-                title: title.finish(),
-                body: Box::new([]),
-                identity: spec.identity,
-            }
+            super::commit_merge(
+                holding,
+                holding.workspace.token(),
+                delivery.repository,
+                delivery.tip.expect("fetched tip"),
+                super::branch_merge_title(branch),
+            )
         }
         Step::CheckOut => {
             Op::CheckOut { at, commit: head, clean: true, identity: spec.identity, account: spec.account }

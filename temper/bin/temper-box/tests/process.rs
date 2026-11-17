@@ -729,6 +729,8 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
 
 // protocol/cluster.md, 6: the description's first process stories.
 struct ClusterJudge {
+    seeded: bool,
+    client: std::path::PathBuf,
     finding: Option<String>,
     members: support::cluster::Members,
     deadline: skein_lib::Time,
@@ -736,7 +738,11 @@ struct ClusterJudge {
 }
 impl ClusterJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
-        if self.members.is_up() {
+        if self.workers && !self.seeded && self.members.capture("engine", "link").is_some() {
+            support::cluster::admit_workers(&self.members, hosts.last_mut().ok_or("client root")?, &self.client)?;
+            self.seeded = true;
+        }
+        if self.members.is_up() && hosts.last().is_some_and(skein_shell::Host::is_empty) {
             if self.workers {
                 for worker in ["w1", "w2"] {
                     if self.members.capture(worker, "engine") != self.members.capture("engine", "workers") {
@@ -825,6 +831,8 @@ fn cluster_story(scratch: &std::path::Path, workers: bool) {
     members.up(if workers { &["w1", "w2"] } else { &["engine"] });
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(ClusterJudge {
+        seeded: false,
+        client: scratch.join("client"),
         finding: None,
         members,
         deadline: clock.now().now.saturating_add(support::WITHIN),
@@ -833,6 +841,7 @@ fn cluster_story(scratch: &std::path::Path, workers: bool) {
     for host in hosts {
         world.spawn(|| host);
     }
+    world.spawn(support::cluster::Root::client);
     let outcome = world.run(&clock, support::WITHIN);
     assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "every cluster root settled");
 }
@@ -998,25 +1007,16 @@ fn the_cluster_stops_in_reverse_each_exiting_0() {
 fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), String> {
     let directory = members.prepare("w1");
     let configuration = directory.join("config");
-    let agent_path = configuration.join("agent.json");
-    let mut agent: serde_json::Value = serde_json::from_str(include_str!("../../../docs/examples/owned/agent.json"))
-        .map_err(|why| format!("owned agent: {why:?}"))?;
-    agent["programs"]["claude_code"]["directory"] = directory.join("programs").to_str().ok_or("programs")?.into();
-    support::write_private(&agent_path, &serde_json::to_vec(&agent).map_err(|why| format!("agent JSON: {why:?}"))?);
     let example: serde_json::Value = serde_json::from_str(include_str!("../../../docs/examples/owned.json"))
         .map_err(|why| format!("owned example: {why:?}"))?;
     let mut document = serde_json::json!({
         "workers": example["workers"],
-        "application": {"limits": example["application"]["limits"]}
+        "application": {"workers": example["application"]["workers"]}
     });
     let worker = &mut document["workers"][0];
     worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});
     worker["name"] = "w1".into();
     worker["secret"] = "secrets/w1.secret".into();
-    worker["agent"] = serde_json::json!({
-        "program": skein_scratch::paths::binary("temper-box"), "configuration": agent_path,
-        "arguments": ["internal", "agent", agent_path]
-    });
     let arguments = [
         "--config".to_owned(),
         configuration.to_str().ok_or("config path")?.to_owned(),
@@ -1052,6 +1052,7 @@ enum OwnedWorkerPhase {
     Stopping,
 }
 struct OwnedWorkerJudge {
+    client: std::path::PathBuf,
     finding: Option<String>,
     members: support::cluster::Members,
     deadline: skein_lib::Time,
@@ -1059,7 +1060,10 @@ struct OwnedWorkerJudge {
 }
 impl OwnedWorkerJudge {
     fn advance_world(&mut self, now: skein_lib::Time, hosts: &mut [support::cluster::Root]) -> Result<(), String> {
-        if self.members.is_up() {
+        if self.members.is_up()
+            && (!matches!(self.phase, OwnedWorkerPhase::Linked)
+                || hosts.last().is_some_and(skein_shell::Host::is_empty))
+        {
             match self.phase {
                 OwnedWorkerPhase::Engine => {
                     let directory = self.members.prepare("engine");
@@ -1085,6 +1089,11 @@ impl OwnedWorkerJudge {
                 }
                 OwnedWorkerPhase::Worker => {
                     prepare_owned_worker(&mut self.members)?;
+                    support::cluster::admit_workers(
+                        &self.members,
+                        hosts.last_mut().ok_or("client root")?,
+                        &self.client,
+                    )?;
                     self.members.up(&["w1"]);
                     self.phase = OwnedWorkerPhase::Linked;
                 }
@@ -1161,6 +1170,7 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
     members.up(&["llm"]);
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(OwnedWorkerJudge {
+        client: scratch.path().join("client"),
         finding: None,
         members,
         deadline: clock.now().now.saturating_add(support::WITHIN),
@@ -1169,6 +1179,7 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
     for host in hosts {
         world.spawn(|| host);
     }
+    world.spawn(support::cluster::Root::client);
     let outcome = world.run(&clock, support::WITHIN);
     assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "every cluster root settled");
     scratch.remove();
@@ -2077,7 +2088,10 @@ impl ClusterChatJudge {
             self.stage = ClusterChatStage::Relinking;
             self.poll(client)?;
         }
-        if self.members.is_up() || self.members.ended("w1") {
+        if self.members.is_up()
+            || self.members.ended("w1")
+            || (matches!(self.stage, ClusterChatStage::Start) && self.members.capture("engine", "link").is_some())
+        {
             if matches!(self.stage, ClusterChatStage::Start) {
                 self.begin(client)?;
             } else if client.is_empty() && !matches!(self.stage, ClusterChatStage::Start | ClusterChatStage::Stopping) {
@@ -2323,15 +2337,13 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     support::own_listener_files(&paths[0]);
     // Smith also resolves the agent's endpoints at preflight. Supply local endpoint
     // facts there so this regression reaches accounts_runtime; forge defaults stay intact.
-    let agent_path = paths[0].join("agent.json");
-    let mut agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(&agent_path).expect("agent fixture")).expect("agent JSON");
+    let mut agent = temper_fixtures::agent::read(&paths[0]);
     for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
         if endpoint["address"].as_str().expect("endpoint address").parse::<std::net::SocketAddr>().is_err() {
             endpoint["address"] = "127.0.0.1:9".into();
         }
     }
-    fs::write(agent_path, serde_json::to_vec(&agent).expect("local agent fixture")).expect("local preflight endpoints");
+    temper_fixtures::agent::install(&paths[0], &agent);
     // The default registration reaches the sign-in startup resolver.
     let document_path = paths[0].join("temper.json");
     let mut document: serde_json::Value =

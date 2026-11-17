@@ -182,7 +182,7 @@ pub fn tasks_record() -> w::Tasks {
     jig_client_test_records::tasks_record()
 }
 pub fn tasks() -> c::Tasks {
-    c::Tasks { rows: List::with_capacity(0), more: false }
+    c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false }
 }
 pub fn task_with_lineage(count: u32) -> w::Task {
     let lim = *limits().wire();

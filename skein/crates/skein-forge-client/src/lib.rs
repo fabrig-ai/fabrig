@@ -31,3 +31,5 @@ pub use domain::{Domain, fire, resume, step, writer};
 pub use facts::{Fact, Priority};
 pub use identity::{Config, Writer, effect_key};
 pub use limits::{Limits, valid};
+
+pub use outbox::valid_entry;

@@ -15,7 +15,7 @@ pub const LATCH_ENDED: usize = 11;
 
 fn configure(value: &mut Value, agent: &mut Value) {
     agent["profile"]["declared"]["calls_per_response"] = 2.into();
-    value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
     fixtures::own_policy(value);
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         let policy = &mut project["policy"];

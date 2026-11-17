@@ -480,12 +480,29 @@ fn saved_contract(value: &jig_domain_tasks::Contract) -> Result<jig_domain_tasks
     let value = saved_wire(value, Contract::measure, Contract::encode, Contract::decode);
     translate::read_contract(value, &tasks_limits())
 }
+#[test]
+fn a_change_contract_retains_its_verdict_choice() {
+    use jig_domain_tasks::{Contract, FieldRule, Verdict};
+    let value = Contract::Change {
+        connector: 1,
+        kind: 2,
+        words: 32,
+        choices: Box::new([Verdict {
+            code: 1,
+            words: 5,
+            followups: 0,
+            fields: Box::new([FieldRule { name: b"reason".as_slice().into(), max: 2 }]),
+        }]),
+    };
+    assert_eq!(saved_contract(&value), Ok(value));
+}
+
 fn each_result_contract_kind_reads_back() {
     use jig_domain_tasks::{Contract, Part, PartKey, PartKind};
     for value in [
         fixtures::task_contract(),
         Contract::Report { words: 13 },
-        Contract::Change { connector: 2, kind: 3, words: 17 },
+        Contract::Change { connector: 2, kind: 3, words: 17, choices: Box::new([]) },
         Contract::Approval {
             state: Box::from(b"approval".as_slice()),
             part: Part { connector: 7, kind: PartKind::Effect, key: PartKey::Number(u64::MAX) },

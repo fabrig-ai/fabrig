@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Duration, List, Reader, Writer};
@@ -23,7 +23,7 @@ fn a_late_delivery_after_stream_loss_settles_the_core() {
 }
 #[test]
 fn a_wait_and_three_reads_keep_independent_streams_with_four_exchanges_free() {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     for (name, value) in [
         (b"clients.streams".as_slice(), 8),
         (b"clients.exchanges", 12),
@@ -72,7 +72,7 @@ fn a_third_stream_on_the_small_profile_is_refused_full() {
     let third = peer.request_stream();
     let (status, body) = peer.response(third);
     assert_eq!(status, Some(409));
-    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let small = jig_protocol_config_fixtures::small();
     let full = w::StreamsFull::decode(&w::CEILINGS, &mut Reader::new(body)).expect("full record");
     assert_eq!(full.bound(), &w::StreamBound::Transport);
     assert_eq!(full.size(), small.clients_http.streams);
@@ -228,7 +228,15 @@ fn hello(stream: [u8; 16]) -> w::StreamEvent {
     let mut served = List::with_capacity(1);
     served
         .push(
-            w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 27, last: 27 }).expect("literal range"),
+            w::Served::new(
+                &lim,
+                w::ServedParts {
+                    owner: w::Owner::Jig,
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
+            )
+            .expect("literal range"),
         )
         .expect("one range");
     w::StreamEvent::Hello(
@@ -243,8 +251,11 @@ fn frame(watch: u64, needs: u32) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(w::Me::new(&lim, frame).expect("literal frame"));
     let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("literal frame bytes");
-    let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 27, record: record.finish() })
-        .expect("literal owner");
+    let document = w::Owned::new(
+        &lim,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .expect("literal owner");
     w::StreamEvent::Delivery(w::Delivery::new(&lim, w::DeliveryParts { watch, document }).expect("literal delivery"))
 }
 fn text(watch: u64) -> w::StreamEvent {

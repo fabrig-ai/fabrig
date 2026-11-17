@@ -51,6 +51,7 @@ pub(super) fn proposed_amendment(bounded: bool, changed: bool) -> (Script, Ask, 
 
 pub(super) fn query(project: u32) -> TaskQuery {
     TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,

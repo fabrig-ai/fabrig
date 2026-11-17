@@ -311,6 +311,7 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
         assert_eq!(frame.projects.len(), 1);
     }
     let query = TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(1),
         requester: None,
         root: None,
@@ -354,6 +355,7 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
             assert!(accounts.accounts.get(0).unwrap().uses.as_ref().unwrap().is_empty());
         }
         let query = TaskQuery {
+            parts: List::with_capacity(0),
             project: None,
             requester: None,
             root: None,

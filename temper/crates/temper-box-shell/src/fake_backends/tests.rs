@@ -99,7 +99,7 @@ fn stock_box_source(scratch: &Scratch, sign_in: bool) -> Directories {
     )
     .expect("stock box files");
     for file in answer.files {
-        if file.name == b"temper.json" || file.name == b"agent.json" {
+        if file.name == b"temper.json" {
             let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("public document") };
             write(&crate::path(&source.config).join(crate::path(file.name)), &bytes, false)
                 .expect("unchanged public init document");
@@ -116,40 +116,28 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
         let original = fs::read(source.document()).expect("source public bytes");
         let imported = Source::read(&source, &[]).expect("untouched box init imports");
         let (_, effective) = directories(&source).expect("sandbox directories");
-        let (temper, agent) = imported.rebase(&effective).expect("rebase public paths").expect("source documents");
+        let temper = imported.rebase(&effective).expect("rebase public paths").expect("source documents");
         let rebased: serde_json::Value = serde_json::from_slice(&temper).expect("rebased document");
         let original_tree: serde_json::Value = serde_json::from_slice(&original).expect("source document");
         assert_eq!(rebased["engine"]["clients"]["provider"], original_tree["engine"]["clients"]["provider"]);
         assert!(rebased["application"].get("machine").is_none());
         let checked = crate::setup::check(&temper, &jig_directories(&effective)).expect("ordinary effective admission");
         assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("state")));
-        assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &agent, &effective, sign_in);
+        assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &effective, sign_in);
         assert_eq!(fs::read(source.document()).expect("source unchanged"), original);
         assert!(!crate::path(&source.data).exists(), "source resources and key are never needed");
         assert!(!crate::path(&effective.data).exists(), "import and rebase only inspect public documents");
     }
 }
 
-fn assert_rebased_box_paths(temper: &Json, agent: &[u8], effective: &Directories, sign_in: bool) {
-    for (pointer, name) in [
-        ("engine/hosts/workers/0/digest", "worker.digest"),
-        ("workers/0/secret", "worker.secret"),
-        ("application/demo/llm/key", "demo/llm.key"),
-    ] {
+fn assert_rebased_box_paths(temper: &Json, effective: &Directories, sign_in: bool) {
+    for (pointer, name) in [("workers/0/secret", "worker.secret"), ("application/demo/llm/key", "demo/llm.key")] {
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
             crate::path(&effective.data).join(name),
             "{pointer}"
         );
     }
-    let agent_path = bytes(&crate::path(&effective.config).join("agent.json"));
-    assert_eq!(temper.string("workers/0/agent/configuration").expect("agent config"), agent_path.as_ref());
-    assert_eq!(temper.string("workers/0/agent/arguments/2").expect("agent argument"), agent_path.as_ref());
-    let agent = Json::decode(agent).expect("rebased agent");
-    assert_eq!(
-        agent.string("programs/claude_code/directory").expect("program directory"),
-        bytes(&crate::path(&effective.data).join("programs")).as_ref()
-    );
     if sign_in {
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string("engine/clients/provider/key").expect("key path"))
@@ -655,10 +643,7 @@ fn fresh_preparation_is_private_and_isolates_imported_resources() {
     assert_eq!(prepared.directories.cache, source.cache);
     assert_eq!(prepared.directories.config, bytes(&scratch.0.join("source-data/box/fake-backends/config")));
     let tree = read_json(&prepared.directories.document());
-    assert_eq!(
-        tree["workers"][0]["agent"]["configuration"],
-        crate::path(&prepared.directories.config).join("agent.json").to_str().expect("path")
-    );
+    assert!(tree["workers"][0].get("agent").is_none());
     assert_eq!(
         tree["application"]["clients"]["bundle"],
         scratch.0.join("bundle-loopback").to_str().expect("provisioned bundle path")
@@ -673,12 +658,10 @@ fn fresh_preparation_is_private_and_isolates_imported_resources() {
         "prepared",
         "lock",
         "config/temper.json",
-        "config/agent.json",
         "config/github.json",
         "config/oauth.json",
         "config/llm.json",
         "data/worker.secret",
-        "data/worker.digest",
     ] {
         assert_eq!(fs::symlink_metadata(root.join(name)).expect("private file").mode() & 0o777, 0o600, "{name}");
     }
@@ -797,15 +780,8 @@ fn reuse_atomically_replaces_bundle_and_preserves_every_other_edit() {
     let old_inode = fs::metadata(&document).expect("retained inode").ino();
     let mut old_file = fs::File::open(&document).expect("hold old retained document open");
     let root = crate::path(&source.data).join("box/fake-backends");
-    let resources = [
-        "prepared",
-        "config/agent.json",
-        "config/github.json",
-        "config/oauth.json",
-        "config/llm.json",
-        "data/worker.secret",
-    ]
-    .map(|name| (name, fs::read(root.join(name)).expect("retained fixture resource")));
+    let resources = ["prepared", "config/github.json", "config/oauth.json", "config/llm.json", "data/worker.secret"]
+        .map(|name| (name, fs::read(root.join(name)).expect("retained fixture resource")));
     let data = root.join("data/retained-fixture");
     write(&data, b"keep this data", false).expect("retained data");
     drop(first);
@@ -872,11 +848,11 @@ fn invalid_retained_configuration_refuses_a_valid_replacement_without_mutation()
     let (source, first) = prepared_source(&scratch);
     let document = first.directories.document();
     let mut edited = read_json(&document);
-    edited["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", "/outside/agent.json"]);
+    edited["application"]["workers"] = serde_json::json!([{"claude":"/outside/claude"}]);
     store_json(&document, &edited);
     drop(first);
     let replacement = provision_bundle(&scratch.0.join("valid-replacement"));
-    refused_replacement_preserves_document(&source, &document, &replacement, "workers/0/agent/arguments");
+    refused_replacement_preserves_document(&source, &document, &replacement, "application.workers");
 }
 
 #[test]
@@ -928,7 +904,7 @@ fn current_init_import_ignores_charter_files_and_rebases_paths() {
     fs::create_dir_all(crate::path(&source.config).join("charters")).expect("stray public directory");
     write(&crate::path(&source.config).join("charters/chat.txt"), b"A custom public charter.\n", false)
         .expect("public charter");
-    let before = ["temper.json", "agent.json", "charters/chat.txt"].map(|name| {
+    let before = ["temper.json", "charters/chat.txt"].map(|name| {
         let path = crate::path(&source.config).join(name);
         (name, fs::read(&path).expect("source public fixture"), fs::metadata(path).expect("mode").mode())
     });
@@ -965,11 +941,10 @@ fn unsupported_imports_refuse_with_the_public_member_named() {
     let scratch = Scratch::new("unsupported");
     let source = provisioned_source(&scratch);
     let mut temper = read_json(&source.document());
-    temper["workers"][0]["agent"]["arguments"] =
-        serde_json::json!(["internal", "agent", "/elsewhere/agent.json", "extra"]);
+    temper["application"]["workers"] = serde_json::json!([{"environment":[{"name":"CUSTOM","value":"extra"}]}]);
     store_json(&source.document(), &temper);
     let error = start(&source, None).err().expect("custom argv refused");
-    assert!(error.contains("workers/0/agent/arguments"), "{error}");
+    assert!(error.contains("application/workers"), "{error}");
     assert!(!crate::path(&source.data).join("box/fake-backends").exists());
 }
 
@@ -1022,7 +997,7 @@ fn oversized_explicit_bundle_refuses_before_creating_data_or_cache() {
     let scratch = Scratch::new("explicit-bundle-bytes");
     let source = scratch.dirs();
     let supplied = provision_bundle(&scratch.0.join("supplied"));
-    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let page = OpenOptions::new().write(true).open(supplied.join("index.html")).expect("fixture page");
     page.set_len(u64::from(limits.bundle_bytes) + 1).expect("one byte past the profile's bundle bound");
     let error = start(&source, Some(&supplied)).err().expect("oversized explicit bundle refused");
@@ -1037,7 +1012,7 @@ fn oversized_source_bundle_refuses_before_sandbox_creation() {
     let scratch = Scratch::new("source-bundle-bytes");
     let source = provisioned_source(&scratch);
     let original = fs::read(source.document()).expect("source public bytes");
-    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let page = OpenOptions::new().write(true).open(scratch.0.join("bundle-loopback/index.html")).expect("fixture page");
     page.set_len(u64::from(limits.bundle_bytes) + 1).expect("one byte past the admitted source bundle bound");
     let error = start(&source, None).err().expect("oversized source bundle refused");
@@ -1073,7 +1048,7 @@ fn linked_provisioned_page_refuses_before_reading_its_target() {
 fn source_public_asset_links_are_refused_before_reading_them() {
     let scratch = Scratch::new("source-links");
     let source = provisioned_source(&scratch);
-    let document = crate::path(&source.config).join("agent.json");
+    let document = crate::path(&source.config).join("temper.json");
     fs::remove_file(&document).expect("remove public fixture");
     // The target is absent, so a refusal about links proves it was never opened or copied.
     std::os::unix::fs::symlink(scratch.0.join("unread-target"), &document).expect("linked public fixture");
@@ -1088,9 +1063,11 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
     let source = provisioned_source(&scratch);
     let prepared = start(&source, None).expect("import optional choices independently of today's PATH");
     let temper = read_json(&prepared.directories.document());
-    let agent = read_json(&crate::path(&prepared.directories.config).join("agent.json"));
     assert!(temper["application"].get("workers").is_none());
-    assert_eq!(agent["programs"]["claude_code"]["path"], scratch.0.join("fake-claude").to_str().expect("path"));
+    assert_eq!(
+        fs::read(crate::path(&prepared.directories.config).join(ADAPTER)).expect("pinned adapter"),
+        scratch.0.join("fake-claude").as_os_str().as_bytes()
+    );
 }
 
 #[test]
@@ -1105,6 +1082,16 @@ fn fake_github_test_passes_ordinary_admission_without_document_forges() {
         first.peers.github
     );
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
+    // Ordinary startup checks the adapter against this executable's sibling.
+    // Provision the sibling as a build fixture, as the shipped binaries are provisioned.
+    let sibling = std::env::current_exe().expect("test binary").with_file_name("fake-claude");
+    match OpenOptions::new().write(true).create_new(true).mode(0o700).open(&sibling) {
+        Ok(mut file) => file.write_all(b"#!/bin/sh\nexit 1\n").expect("fixture adapter"),
+        Err(why) if why.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(why) => panic!("fixture adapter: {why}"),
+    }
+    fs::write(crate::path(&first.directories.config).join(ADAPTER), sibling.as_os_str().as_bytes())
+        .expect("pin the ordinary startup adapter");
     let operations =
         crate::operations_in(&[], b"/", &first.directories, &first.bytes).expect("ordinary computed startup sizing");
     assert!(operations > 0);
@@ -1135,18 +1122,12 @@ fn missing_required_retained_documents_refuse_without_writes() {
 fn foreign_retained_adapter_refuses_without_resetting_or_rewriting_it() {
     let scratch = Scratch::new("foreign-adapter");
     let (source, first) = prepared_source(&scratch);
-    let path = crate::path(&first.directories.config).join("agent.json");
-    let mut agent = read_json(&path);
-    agent["programs"]["claude_code"]["path"] = "/foreign/claude".into();
-    store_json(&path, &agent);
-    // Moving temper makes both retained executable paths foreign; the adapter reset must win.
-    let mut deployment = read_json(&first.directories.document());
-    deployment["workers"][0]["agent"]["program"] = "/foreign/temper".into();
-    store_json(&first.directories.document(), &deployment);
+    let path = crate::path(&first.directories.config).join(ADAPTER);
+    write(&path, b"/foreign/claude", true).expect("replace retained adapter");
     let before = fs::read(&path).expect("fixture bytes");
     drop(first);
     let error = start(&source, None).err().expect("foreign adapter refused");
-    assert!(error.contains("agent.json/programs/claude_code/path") && error.contains("reset"), "{error}");
+    assert!(error.contains(ADAPTER) && error.contains("reset"), "{error}");
     assert!(fs::read(path).expect("unchanged") == before);
 }
 
@@ -1173,16 +1154,17 @@ fn exact_sibling_and_provisioning_refusals_use_explicit_paths() {
 }
 
 #[test]
-fn source_adapter_is_a_bounded_fact_without_path_discovery() {
+fn fake_adapter_is_retained_outside_fixed_worker_configuration() {
     let scratch = Scratch::new("source-program-fact");
     let source = provisioned_source(&scratch);
-    let path = crate::path(&source.config).join("agent.json");
-    let mut agent = read_json(&path);
-    agent["programs"] = serde_json::json!({"claude_code":{"path":"/absent/source/claude","directory":crate::path(&source.data).join("programs")}});
-    store_json(&path, &agent);
-    let first = start(&source, None).expect("source adapter does not need to exist or match PATH");
-    let effective = read_json(&crate::path(&first.directories.config).join("agent.json"));
-    assert_ne!(effective["programs"]["claude_code"]["path"], agent["programs"]["claude_code"]["path"]);
+    let first = start(&source, None).expect("prepare fake box");
+    let effective = read_json(&first.directories.document());
+    assert!(effective["application"].get("workers").is_none());
+    let record = crate::path(&first.directories.config).join(ADAPTER);
+    assert_eq!(fs::read(&record).expect("pinned adapter"), bytes(&scratch.0.join("fake-claude")).as_ref());
+    assert_eq!(fs::metadata(&record).expect("adapter record").mode() & 0o777, 0o600);
+    fs::remove_file(&record).expect("remove pinned adapter");
+    assert!(configured_claude(&first.directories).expect_err("never fall back to PATH").contains(ADAPTER));
 }
 
 #[test]
@@ -1237,7 +1219,8 @@ fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
     let retained = prepared.directories.document();
     let before = fs::read(&retained).expect("effective public document");
     drop(prepared);
-    for name in ["temper.json", "agent.json"] {
+    {
+        let name = "temper.json";
         let path = crate::path(&source.config).join(name);
         let original = fs::read(&path).expect("source public document");
         let changed = [original.as_slice(), b"\n"].concat();
@@ -1249,7 +1232,8 @@ fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
     }
     let relocated = scratch.0.join("other-source");
     make_private(&relocated, skein_shell::effective_user()).expect("second public source");
-    for name in ["temper.json", "agent.json"] {
+    {
+        let name = "temper.json";
         let content = fs::read(crate::path(&source.config).join(name)).expect("source public document");
         write(&relocated.join(name), &content, false).expect("same public bytes");
     }

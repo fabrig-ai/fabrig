@@ -21,6 +21,7 @@ temper-protocol-reaches = { path = "../temper-protocol-reaches" }
 skein-ui-text.workspace = true
 temper-client-view-kit.workspace = true
 temper-test-env.workspace = true
+temper-fixtures.workspace = true
 
 [lints]
 workspace = true

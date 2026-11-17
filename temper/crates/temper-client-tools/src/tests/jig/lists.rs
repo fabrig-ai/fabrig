@@ -14,6 +14,7 @@ fn ended_tasks_use_only_the_ended_group() {
         root.reads.get(&call).expect("task query").1,
         c::Read::Tasks {
             query: c::TaskQuery {
+                parts: skein_lib::List::with_capacity(0),
                 project: Some(fixtures::PROJECT),
                 requester: None,
                 root: None,
@@ -195,6 +196,7 @@ fn parent_tasks_keep_the_other_query_keys_and_continuation() {
     assert_eq!(
         query,
         &c::TaskQuery {
+            parts: skein_lib::List::with_capacity(0),
             project: Some(3),
             requester: Some(c::Requester::Person(fixtures::PARTY)),
             root: None,

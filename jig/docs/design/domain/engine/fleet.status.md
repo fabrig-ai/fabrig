@@ -4,6 +4,7 @@
 
 
 
+
 - **Not yet:** the whole document: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the point-load fences remain `README.status.md`, 4.2 and 5.3.

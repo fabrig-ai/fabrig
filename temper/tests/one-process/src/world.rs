@@ -298,8 +298,8 @@ impl Observe for ServiceObserver {
                 fixtures::codec()
             },
             families: temper_protocol_store::bounds(
-                &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+                &temper_limits_fixtures::small().forge,
+                jig_protocol_config_fixtures::small().core.tasks.spec_bytes,
             )
             .expect("application codec bounds"),
         }
@@ -1285,7 +1285,7 @@ pub(crate) fn run_phase(
         world.run()
     });
     if matches!(scenario, Story::Adopt) {
-        observed_forge.borrow().require_hooks(stories::ADOPT_HOOKS);
+        assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
         .procs

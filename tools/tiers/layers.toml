@@ -87,6 +87,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "smith::live_configuration" = "end-to-end" # step + end-to-end: offline controls and the shipped smith check.
 
 [jig]
+"jig-protocol-config-fixtures::overrides" = "step" # Named limits round trips through the fixture consumer.
 "jig-accounts-world::suite" = "domain" # step + domain: direct memory fixtures and account stories.
 "jig-brief-world::suite" = "domain" # step + domain: budget-referee controls and brief stories.
 "jig-channel-world::suite" = "simulated" # step + simulated: referee controls; documented protocol world runs whole services on simulated io.
@@ -114,11 +115,13 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-ops-world::suite" = "protocol" # domain + protocol: connector worlds and joint clients/engine through real HTTP machines.
 "jig-people-world::suite" = "domain" # step + domain: referee controls and people stories.
 "jig-protocol-accounts-world::suite" = "simulated" # step + simulated: codec drift and account driver/store against a fake issuer over simulated io.
+"jig-protocol-config::base" = "step" # Engine and worker document readers over an application's base.
 "jig-store-codecs-world::drift" = "step" # Schema, generated codecs, goldens and layout fingerprints.
 "jig-store-codecs-world::suite" = "step" # Codec bounds, round trips and fuzzy decodes.
 "jig-store-world::frame_limits" = "step" # Profile-derived read-room arithmetic, no store world.
 "jig-store-world::suite" = "simulated" # step + simulated: serving-machine controls and store/file drivers on a crashing disk.
 "jig-tasks-world::suite" = "domain" # step + domain: referee controls and task stories.
+"jig-test-service::stock_cap" = "step" # Stock worker-channel capacity arithmetic.
 "jig-test-connector-world::suite" = "domain"
 "jig-test::live" = "end-to-end" # step + end-to-end: offline startup checks and real-account service processes.
 "jig-test::process" = "end-to-end" # Shipped service and agent on real processes and durable files.
@@ -126,6 +129,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-worker-wire-world::suite" = "step" # Schema drift and bounded record decoders.
 
 [temper]
+"temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
 "temper-box-kit::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.

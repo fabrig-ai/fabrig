@@ -150,13 +150,12 @@ effective limits must still fit its codecs.
 webhooks, one worker and two LLM providers, with no
 LLM account: a person adds one from the client once the deployment has
 started (../credentials.md, section 3). Beside it are the files it names
-that hold no secret: the agent's configuration, `agent.json`, and the
-charters, `charters/`, short texts a person edits. The files that hold
-a secret, the worker's secret and its digest, are data paths and never
-shipped: the walk `box` (`temper help box`) says how each is made in the data
-directory. A person, a test or QA's host starts from a copy, edits the
-agent's absolute paths to the copy's, and `temper box --config COPY`
-runs it (`box.md`).
+that hold no secret: the charters, `charters/`, short texts a person
+edits. The worker's secret is a data path and never shipped: the walk
+`box` (`temper help box`) says how it is made in the data directory. A person, a test or
+QA's host starts from a copy and `temper box --config COPY` runs it
+(`box.md`). The agent's configuration is temper's to write
+(`../configuration/figures.md`, section 6).
 
 - **Its owned Forgejo,** the machine's `owned` (above), with a runner
   whose label is `temper-host:host`, at `127.0.0.1:3000`, and the person
@@ -201,10 +200,11 @@ runs it (`box.md`).
   allow the provider's models in order, the default the first whose LLM
   provider has a usable account (../llm.md, section 5; jig's
   `domain/tasks/README.md`, section 3).
-- **Its agent's configuration** (../configuration/README.md, section 4),
-  `owned/agent.json`, declares OpenAI's endpoint and model, and
-  Claude Code's program, its path and its programs directory, a
-  directory the person names; and takes `temper-box init`'s figures, sized
+- **Its agents' figures** are the `agents` setting's default
+  (`../configuration/figures.md`, section 5), and temper writes the
+  agent's configuration from them, OpenAI's endpoint among its
+  endpoints, and Claude Code's program as the worker finds it
+  (`../configuration/figures.md`, section 6). They're `temper-box init`'s figures, sized
   for a project of fabrig's scale (../configuration/stock.md): smith's
   `standard`, with `declared` `memory` 2,147,483,648, `tool_payload`
   the largest smith admits at its model's output of 8,192 tokens (about
@@ -359,7 +359,7 @@ playground and no Forgejo on this machine.
   flag later changes no format (`README.md`, section 9).
 - **Refused,** exit 1, before it writes anything, naming the file: when
   the configuration directory holds `temper.json`, or the data
-  directory holds `worker.secret`, `worker.digest` or, with `--box`,
+  directory holds `worker.secret` or, with `--box`,
   `demo/llm.key` or `demo/bin/git`. It never replaces a file; a person
   who starts again removes them.
 - **Its directories:** the data and cache directories made and checked
@@ -375,19 +375,20 @@ playground and no Forgejo on this machine.
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (../configuration/README.md, section 4): the owned example's endpoints with their limits and its profile (1), and, with `--box`, the scripted provider's endpoint and limits (3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (`owned.md`, 6), and its programs directory, `programs` in the data directory; and Anthropic's two endpoints and their limits, `anthropic` naming the program and `anthropic-api` naming none (3), whether or not `claude` is on `PATH` |
   | `temper.json` | configuration | 0o644 | the default document (3) |
 
+  It writes no `agent.json`, and no worker part's `limits` or `agent`:
+  temper writes the agent's configuration at each start, from the
+  engine's figures (`../configuration/figures.md`, sections 6 and 7).
+  The profile and endpoints' limits it wrote are the `agents` setting's
+  default (`../configuration/figures.md`, section 5).
+
 - **What it finds,** each written absolute:
-  - *the binary,* the running `temper-box`'s own path: the worker's agent's
-    `program`, with `arguments` `["internal", "agent",
-    <configuration>/agent.json]` and `configuration` that same path
-    (../configuration/README.md, section 4), and, with `--box`, the playground's
-    git link's target;
+  - *the binary,* the running `temper-box`'s own path: with `--box`, the
+    playground's git link's target;
   - *git,* the `git` found on `PATH`: the worker's `git`; with none,
     `null`, written without refusing, and init says so (../git.md, section
     3). With `--box`, the playground's link, `<data>/demo/bin/git`, is
@@ -468,12 +469,12 @@ playground and no Forgejo on this machine.
   the facts, checks the refusals and writes the files, on skein-io.
 - **Checked:** temper-init's step tests check that the box's `engine.llm` is the
   owned example's with the scripted provider (3), that the bare
-  document is the box's less its parts, that the digest is
-  the secret's, the files' names, directories and order, and the
+  document is the box's less its parts, that its worker is named
+  `local` and its document names no `engine.hosts.workers` (`../cluster.md`, 1), the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
   passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
-  the agent's configuration it writes, at the fixed ports and at kernel's
+  the agent's configuration generated at start, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
   Anthropic provider, its sources, its program, both its endpoints and
   its model in both documents either way, the program's `path` the

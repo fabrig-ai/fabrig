@@ -53,6 +53,7 @@ fn fill(root: &mut Domain, reader: u64, out: &mut Queue<temper_client_domain::Re
                     root,
                     watch,
                     c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(Box::new([task_line(super::team::prover(reader))])),
                         more: false,
                     })),

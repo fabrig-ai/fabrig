@@ -10,6 +10,18 @@
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
 [[gate.default.reasons]]
+binary = "temper-engine-domain-world::suite"
+test = "forge_routes::early_start::a_running_early_producer_asks_then_catches_up_with_a_squashed_dependency"
+cpu_s = 0.25
+why = "The running producer crosses two squashed landings, a fenced attempt's end and resume, and the world's public-document crash/restart oracle; landing run 1382 measured 0.206 CPU s alone."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::reds::an_admitted_landed_ask_answers_from_the_domain_without_a_commit"
+cpu_s = 0.06
+why = "The admitted wire ask needs a real completed deployment, credential restore, claimed worker run and routed host answer; landing run 1382 measured 0.047 CPU s alone. State-only cases use the domain's step fixture instead."
+
+[[gate.default.reasons]]
 binary = "temper-box-shell"
 test = "fake_backends::tests::fake_github_test_passes_ordinary_admission_without_document_forges"
 cpu_s = 0.55

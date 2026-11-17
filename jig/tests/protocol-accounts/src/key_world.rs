@@ -70,10 +70,16 @@ impl World {
                 store: Queue::uncapped(),
                 secrets: Queue::uncapped(),
                 transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
             },
         };
         let root = store::Root { token: Token::new(1), fd: skein_io::kernel::Fd::new(3) };
-        world.down(store::Request::Open { owner: Token::new(1), root, installation: [5; 16] });
+        world.down(store::Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: Token::new(1),
+            root,
+            installation: [5; 16],
+        });
         let Some(store::Event::Opened { pending, owner, .. }) = world.above.pop() else { panic!("store opens") };
         // This accounts fixture does not consume the map census (protocol/store/README.md, 6.3).
         let Some(store::Event::Census { .. }) = world.above.pop() else { panic!("opened census") };

@@ -26,9 +26,20 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
     if let Some(programs) = programs {
         agent["programs"] = serde_json::json!({"claude_code":{"path":executable,"directory":programs}});
     }
-    fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
+    if programs.is_some() && executable != Path::new("fetched") {
+        let bin = directory.join("program-bin");
+        fs::create_dir_all(&bin).expect("fixture program directory");
+        std::os::unix::fs::symlink(executable, bin.join("claude")).expect("program lookup");
+    }
     fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
+    temper_fixtures::agent::install(directory, &agent);
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
+}
+
+/// The machine finds this fixture's Claude program through PATH, not the document.
+#[must_use]
+pub fn environment(directory: &Path) -> Vec<temper_box_shell::directories::EnvironmentEntry> {
+    vec![(Box::from(b"PATH".as_slice()), directory.join("program-bin").as_os_str().as_encoded_bytes().into())]
 }
 
 #[must_use]
@@ -38,7 +49,7 @@ pub fn refused(directory: &Path, name: &std::ffi::OsStr) -> String {
             directories: super::configuration::directories(directory),
             name: name.into(),
         },
-        &[],
+        &environment(directory),
         b"/",
         b"temper-box",
         "0.0.0",
@@ -80,7 +91,7 @@ pub fn run(directory: &Path) -> super::Ended {
             directory: directory.into(),
             environment: vec![
                 ("HOME".into(), directory.into()),
-                ("PATH".into(), "/bin".into()),
+                ("PATH".into(), format!("{}:/bin", directory.join("program-bin").display()).into()),
                 ("BENIGN_SETTING".into(), "kept".into()),
                 ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
                 ("ANTHROPIC_API_KEY".into(), "removed".into()),

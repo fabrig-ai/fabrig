@@ -39,6 +39,10 @@
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
+- **`Checkpoint`,** with no field: a deployment owner's checkpoint of
+  the serving deployment, answered `Checkpointed` with its name and
+  figures or `CheckpointRefused` with why
+  (`../../protocol/checkpoints.md`, 3).
 - **`Adopt`:** the project (u32); the forge's number
   (u16); the owner, the name, the prefix and the landing branch (byte
   strings); the role (owned, fork or context); home and ci (booleans);
@@ -452,6 +456,8 @@
     request closed; its pull request retargeted; a delegate or effect
     failed; a person rejected a gate. A held change's step is the one it
     was held at;
+  - its wait: none, or why it waits, `ChangeWait`: for room in the
+    forge's outbox, `outbox_room` (`../../domain/forge/room.md`, 7);
   - the task its step runs: none, or its number (u64);
   - CI at its head: unknown, pending, passed or failed;
   - its gates, at most 64, each with its number (u64), its kind (review,
@@ -677,6 +683,27 @@
     into goal branches never push them out (`../pages/work.md`, 1, *Work*);
     a landing with no change, a push from outside temper, gives no row;
   - `landed_default_more`, what `landed_default` cut.
+
+  *Where each row came from* (`../../draft/page-round-trips.md`, section
+  4), from version 29: `ChangesQueued`, the in-flight `TrainLanding` (of
+  its `member`) and `ChangesLanded` each end with `goal`, `chat` and
+  `milestone`, each an option of `ChangeFrom { task: u64, title: bytes
+  256 }`, the task's number and its chip's title: its goal, the change
+  task's nearest tracked ancestor, as its task document's `goal` names it;
+  the chat it came from, the root of its lineage where that root is on the
+  charter of the project's chat template (`pages.md`, *Changes*); and its
+  milestone, its goal's requester where that is a milestone
+  (`../../domain/milestones.md`, section 7). The engine's root knows them
+  from the change's task: from the core's live tasks, held memory-only by
+  change task, at most 4,096, the least recently used dropped first; for
+  a change whose task or an ancestor has ended and isn't held, it loads
+  their ended rows, as an ended task read loads, and marks the subject
+  when they arrive. Until then, and where a load fails, the row names
+  none. `ChangesSigned` ends with `name`, an option of at most 256 bytes:
+  the party as the project's people name it, its member's name or, where
+  that is empty, its login (`../pages/team.md`, 1); none where the
+  project's document doesn't list the party. Names are made with the
+  document, so a member renamed shows at the subject's next mark.
 
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each

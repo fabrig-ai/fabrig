@@ -9,7 +9,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"fleet.slots":4,"hub.accounts":8,"hub.inbox":8,"hub.held":8,"hub.event_bytes":512,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -25,10 +25,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
@@ -107,7 +103,7 @@ pub fn engine() -> settings::Engine {
 
 // The small worlds admit the stock's larger goal charter while keeping Small's store page.
 fn small_limits() -> limits::Limits {
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
     own
 }
@@ -149,12 +145,13 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::engine(
+    let mut jig = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+        &jig_protocol_config_fixtures::small(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -351,13 +348,10 @@ pub fn seeds() -> settings::Seeds {
 
 pub fn fill_files(settings: &mut settings::Engine) {
     settings.files.entries = skein_lib::List::with_capacity(2);
-    for worker in &settings.jig.hosts.workers {
-        settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
 }
 
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
-    crate::translate::limits(&limits::profile(limits::Profile::Small)).unwrap()
+    crate::translate::limits(&temper_limits_fixtures::small()).unwrap()
 }
 
 pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {
@@ -515,13 +509,21 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     }
 }
 
+pub fn stock_document() -> Box<[u8]> {
+    super::stock::generated()
+}
+pub fn stock_files() -> settings::Files {
+    super::stock::files()
+}
+
 #[expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,
     reason = "ordinary fixture code renders the shipped agent profile"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
         .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
@@ -610,15 +612,10 @@ pub fn owned_setup(forge: u16) -> settings::Setup {
     }
 }
 
-pub fn worker_digests(settings: &settings::Engine) -> settings::Files {
-    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.hosts.workers.len()).unwrap());
-    for worker in &settings.jig.hosts.workers {
-        entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
-    settings::Files { entries }
+pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
+    settings::Files { entries: skein_lib::List::with_capacity(0) }
 }
 
-pub const WORKER_DIGEST: &[u8] = b"0000000000000000000000000000000000000000000000000000000000000000";
 mod worker;
 mod worker_git;
 pub mod worker_peers;
@@ -719,6 +716,7 @@ pub fn mark_store(store: &mut crate::store::Store) {
 
 fn open_seeded(store: &mut crate::store::Store) {
     store.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -809,7 +807,7 @@ fn start_configured_worker(
     settings.jig.limits.core.fleet.workers = 2;
     settings.jig.limits.core.fleet.attempts = 2;
     settings.jig.limits.core.fleet.calls = 2;
-    settings.jig.limits.core.fleet.slots = 1;
+    settings.jig.limits.core.fleet.slots = 4;
     settings.limits.root.journal.deliveries = 128;
     settings.limits.root.journal.held = 384;
     settings.limits.root.journal.writes = 8192;
@@ -836,10 +834,8 @@ fn start_configured_worker(
     settings.jig.projects = configured.into_boxed();
     fill_files(&mut settings);
     if worker.is_some() {
-        settings.jig.limits.hub = worker_settings().jig.limits.hub;
+        settings.jig.limits.hub = worker_settings().jig.limits.expect("checked worker limits").hub;
         settings.limits.checkout = worker_limits().checkout;
-        settings.files.entries.get_mut(0).unwrap().1 =
-            Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
     }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let seed = ForgeSeed::new(&root, &settings.jig);
@@ -847,7 +843,8 @@ fn start_configured_worker(
         Some(store) => store,
         None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
     };
-    let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
+    let worker_io =
+        if worker.is_some() { Some(worker_settings().jig.limits.expect("checked worker limits").io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
     let endpoints = crate::forge::settings(
         &sources,
@@ -1017,6 +1014,7 @@ pub fn memory_store_for(
     );
     assert!(host.component.wires(&crate::store::WIRES));
     host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1026,11 +1024,7 @@ pub fn memory_store_for(
     };
     // This fixture handoff does not consume the census (jig protocol/store/README.md, 6.3).
     let Some(jig_protocol_store::Event::Census { .. }) = host.above.pop() else { panic!("opened census") };
-    crate::store::Store::new(root, &limits, models, seeds().installation).on_opened(
-        host.component,
-        installation,
-        pending,
-    )
+    crate::store::Store::new(root, &limits, models, &seeds()).on_opened(host.component, installation, pending)
 }
 pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
     service.engine_component().restore_forge(record);
@@ -1061,7 +1055,7 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
     ] {
         let number = records::number(forge, item);
         let value = Secret::new(records::encode(item, bytes).unwrap().into_boxed_slice());
-        engine.remember_record(number, value.clone(), limits::profile(limits::Profile::Small).records.value_bytes);
+        engine.remember_record(number, value.clone(), temper_limits_fixtures::small().records.value_bytes);
         assert!(engine.store().secrets(Token::new(999), application_request(number, value)).is_none());
         assert!(engine.store().events().pop().is_some());
     }
@@ -1089,7 +1083,7 @@ pub fn unopened_store() -> crate::store::Store {
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let profile = crate::store::limits(&root, &root.forge, &settings.jig.limits.store).unwrap();
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
-    crate::store::Store::new(&root, &profile, &models, seeds().installation)
+    crate::store::Store::new(&root, &profile, &models, &seeds())
 }
 
 /// The prepare job's declared request and result must fit a turn fixture.
@@ -1104,7 +1098,11 @@ pub fn turn_document() -> Box<[u8]> {
     let mut overrides: serde_json::Value =
         serde_json::from_slice(&value(&document, b"application.limits.overrides")).unwrap();
     overrides["forge.client.op_bytes"] = 4_096_u32.into();
-    with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+    let document = with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap());
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
+    overrides["hub.event_bytes"] = 4_096_u32.into();
+    with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
 }
 
 pub fn turn_jig() -> jig_protocol_config::Engine {

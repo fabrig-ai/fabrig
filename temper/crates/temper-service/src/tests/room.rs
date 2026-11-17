@@ -9,9 +9,9 @@ const CHARTER: u32 = 11;
 const SHORT: u64 = 2_047;
 const ENOUGH: u64 = 2_048;
 
-#[expect(clippy::disallowed_macros, reason = "the test reads the embedded stock agent configuration")]
 fn agent() -> crate::settings::Agent {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")
@@ -28,7 +28,9 @@ fn agent() -> crate::settings::Agent {
 fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Problems> {
     let mut agent = agent();
     // This fixture host bound leaves the other stock charters at least 2,048 bytes.
-    agent.run_limits.host_part = 65_748;
+    agent.run_limits.host_part = 64_000;
+    // Rendered framing reaches its boundary while the fixed owned and encoded parts still leave the brief's floor.
+    agent.run_limits.schema_costs.finish = agent.run_limits.schema_costs.finish.checked_add(13_560).unwrap();
     // The long instructions need the charter carriers, independently of the host-part bound.
     let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
     let mut document: serde_json::Value = serde_json::from_slice(&document).expect("room fixture");
@@ -39,6 +41,7 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
         Some(&agent.run_limits),
         65_536,
         &crate::settings::charter_endpoints(&engine),
+        &engine.limits.core.brief_core_budgets,
     );
     let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &mut defaults.charters {
@@ -89,7 +92,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT, None) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,748; it needs at least 2,048\n",
+        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 64,000; it needs at least 2,048\n",
     );
 }
 
@@ -103,7 +106,7 @@ fn default_parts_are_counted_before_start() {
     let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,748; it needs at least 2,048\n"
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 64,000; it needs at least 2,048\n"
     );
     start(4_000, None).expect("without the part the default fits");
 }
@@ -116,13 +119,14 @@ fn default_parts_are_counted_before_start() {
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
     let generated = super::stock::generated();
-    for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
-        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
+    {
+        let document = generated;
         let engine = super::stock::engine(&document);
         let host = temper_engine_smith::room::host_part(
             Some(&agent().run_limits),
             65_536,
             &crate::settings::charter_endpoints(&engine),
+            &engine.limits.core.brief_core_budgets,
         );
         let mut problems = startup::Problems::empty();
         startup::checks::room(&engine, host, &mut problems);
@@ -132,11 +136,7 @@ fn stock_charters_leave_at_least_2048_bytes() {
                 jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
                     .unwrap();
             let room = host.room(&resolved);
-            std::eprintln!(
-                "stock charter {}: profile {name}, room {room}, bound {}",
-                charter.number,
-                host.bound.unwrap()
-            );
+            std::eprintln!("stock charter {}: stock, room {room}, bound {}", charter.number, host.bound.unwrap());
             assert!(room >= ENOUGH);
             if charter.number == 5 {
                 let mut without = resolved.clone();
@@ -157,70 +157,56 @@ fn stock_charters_leave_at_least_2048_bytes() {
 )]
 fn stock_charters_pass_the_fixed_check_on_every_wake() {
     use jig_domain_tasks::{REASON_NAMES, Reasons};
-    let engine = super::stock::engine(&super::stock::generated());
-    let host = temper_engine_smith::room::host_part(
-        Some(&agent().run_limits),
-        65_536,
-        &crate::settings::charter_endpoints(&engine),
-    );
-    for (name, cost) in [
-        ("fixed", host.fixed),
-        ("model", host.model),
-        ("always", host.always),
-        ("asking", host.asking),
-        ("asking_settings", host.asking_settings),
-    ] {
-        std::eprintln!("stock slot {name}: rendered {}, owned {}, encoded {}", cost.rendered, cost.owned, cost.encoded);
-    }
-    for (index, cost) in host.families.iter().enumerate() {
+    let generated = super::stock::generated();
+    let agent = agent();
+    {
+        let document = generated;
+        let engine = super::stock::engine(&document);
+        let host = temper_engine_smith::room::host_part(
+            Some(&agent.run_limits),
+            65_536,
+            &crate::settings::charter_endpoints(&engine),
+            &engine.limits.core.brief_core_budgets,
+        );
         std::eprintln!(
-            "stock family {index}: rendered {}, owned {}, encoded {}",
-            cost.rendered,
-            cost.owned,
-            cost.encoded
+            "stock: floor owned {}, encoded {}",
+            host.floor.owned,
+            host.floor.encoded
         );
-    }
-    for charter in &engine.charters {
-        let mut owned = (REASON_NAMES[0], 0);
-        let mut encoded = owned;
-        for name in REASON_NAMES {
-            let cost = host.on_wake(charter, Reasons::named(name).unwrap());
-            if cost.owned > owned.1 {
-                owned = (name, cost.owned);
+        assert!(host.floor.owned > 13_312);
+        assert!(host.floor.encoded > 13_312);
+        for charter in &engine.charters {
+            let mut owned = (REASON_NAMES[0], 0);
+            let mut encoded = owned;
+            for name in REASON_NAMES {
+                let cost = host.on_wake(charter, Reasons::named(name).unwrap());
+                if cost.owned > owned.1 {
+                    owned = (name, cost.owned);
+                }
+                if cost.encoded > encoded.1 {
+                    encoded = (name, cost.encoded);
+                }
             }
-            if cost.encoded > encoded.1 {
-                encoded = (name, cost.encoded);
-            }
+            std::eprintln!(
+                "stock charter {}: largest owned {}={} margin {}; encoded {}={} margin {}",
+                charter.number,
+                core::str::from_utf8(owned.0).unwrap(),
+                owned.1,
+                host.allowance.saturating_sub(host.floor.owned).saturating_sub(owned.1),
+                core::str::from_utf8(encoded.0).unwrap(),
+                encoded.1,
+                host.allowance.saturating_sub(host.floor.encoded).saturating_sub(encoded.1),
+            );
+            assert_eq!(
+                host.check_fixed(charter),
+                Ok(()),
+                "charter {} largest owned {owned:?}, encoded {encoded:?}",
+                charter.number
+            );
+            let first = host.on_wake(charter, Reasons::FIRST);
+            assert!(first.owned <= host.allowance - host.floor.owned);
+            assert!(first.encoded <= host.allowance - host.floor.encoded);
         }
-        let mut optional = 0_u64;
-        let mut models = 0_u64;
-        for model in core::iter::once(&charter.policy.model).chain(&charter.policy.alternatives) {
-            models += 1;
-            if model.cache_write_price.is_none() {
-                optional += 8;
-            }
-            if model.effort.is_none() {
-                optional += 4;
-            }
-        }
-        std::eprintln!(
-            "stock charter {}: largest owned {}={} margin {}; encoded {}={} margin {}; optional overstatement {} with accounts, {} without accounts",
-            charter.number,
-            core::str::from_utf8(owned.0).unwrap(),
-            owned.1,
-            host.allowance.saturating_sub(owned.1),
-            core::str::from_utf8(encoded.0).unwrap(),
-            encoded.1,
-            host.allowance.saturating_sub(encoded.1),
-            optional,
-            optional + models * 4
-        );
-        assert_eq!(
-            host.check_fixed(charter),
-            Ok(()),
-            "charter {} largest owned {owned:?}, encoded {encoded:?}",
-            charter.number
-        );
     }
 }
 
@@ -260,7 +246,7 @@ fn a_start_without_an_agent_measures_and_refuses_an_unfit_default() {
     let mut expected = None;
     for charter in &mut defaults.charters {
         if charter.number == 4 {
-            let mut instructions = skein_lib::bytes::zeroed(40_000);
+            let mut instructions = skein_lib::bytes::zeroed(usize::try_from(measured.allowance).unwrap());
             instructions.fill(b'x');
             charter.policy.instructions = instructions;
             expected = Some(measured.check_fixed(charter).unwrap_err().words());
@@ -280,7 +266,12 @@ fn a_configured_hub_allowance_below_a_default_stops_startup() {
     let document = fixtures::engine_alone_document();
     let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
     let defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let host = temper_engine_smith::room::host_part(None, 65_536, &crate::settings::charter_endpoints(&engine));
+    let host = temper_engine_smith::room::host_part(
+        None,
+        65_536,
+        &crate::settings::charter_endpoints(&engine),
+        &engine.limits.core.brief_core_budgets,
+    );
     let charter = defaults.charters.first().unwrap();
     let cost = host.on_wake(charter, jig_domain_tasks::Reasons::FIRST).owned;
     let document = super::stock::limited(&document, b"hub.charter_bytes", cost - 1);
@@ -292,4 +283,33 @@ fn a_configured_hub_allowance_below_a_default_stops_startup() {
         names_allowance |= part == b"past its allowance";
     }
     assert!(names_allowance);
+}
+
+#[test]
+fn a_default_must_leave_its_measured_brief_floor_at_startup() {
+    let document = fixtures::engine_alone_document();
+    let document = super::stock::limited(&document, b"core.run_bytes", 65_536);
+    let document = fixtures::with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":65536}"#);
+    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let host = crate::settings::host_part(&engine, None);
+    for extra in [0, 1] {
+        let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        for charter in &mut defaults.charters {
+            if charter.number == 4 {
+                charter.policy.instructions = Box::new([]);
+                let fixed = host.on_wake(charter, jig_domain_tasks::Reasons::FIRST).owned;
+                let size = host.allowance - 13_560 - fixed + extra;
+                let mut text = skein_lib::bytes::zeroed(usize::try_from(size).unwrap());
+                text.fill(b'x');
+                charter.policy.instructions = text;
+            }
+        }
+        let start = alone_start(&document, defaults);
+        if extra == 0 {
+            assert!(start.is_ok(), "the brief floor fits exactly");
+        } else {
+            let Err(problems) = start else { panic!("a default short of its floor must stop startup") };
+            assert_eq!(startup::lines(&problems).as_ref(), b"charter 4: charter 4 on a first wake is 51,977 bytes owned before its brief, leaving its brief 13,559 of the 13,560 its floor needs; trim its text, parts or tool families\n");
+        }
+    }
 }

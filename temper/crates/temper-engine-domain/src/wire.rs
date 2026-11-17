@@ -1,4 +1,6 @@
-//! The application's typed asks and answers (temper/docs/design/domain/forge/reds.md, 5.4 and 5.6).
+//! The application's typed asks and answers (temper/docs/design/domain/forge/reds.md, 5.4 and 5.6;
+//! temper/docs/design/domain/worker/checkouts.md, A landed dependency's catch-up).
+use crate::route::forge_route::landed_for_run;
 use crate::{Domain, RunRed, reds_for_run};
 use alloc::boxed::Box;
 use skein_lib::Token;
@@ -32,11 +34,14 @@ pub enum Verdict {
 pub enum Ask {
     Reds,
     Results(CheckResults),
+    Landed { head: [u8; 32] },
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Answer {
     Kept,
+    Landed,
+    Unlanded,
     Reds { reds: Box<[RunRed]> },
 }
 
@@ -59,5 +64,12 @@ pub fn answer(domain: &Domain, task: u64, attempt: u64, ask: Ask) -> Answer {
     match ask {
         Ask::Reds => Answer::Reds { reds: reds_for_run(domain, task, attempt) },
         Ask::Results(_) => Answer::Kept,
+        Ask::Landed { head } => {
+            if landed_for_run(domain, task, attempt, &head) {
+                Answer::Landed
+            } else {
+                Answer::Unlanded
+            }
+        }
     }
 }
