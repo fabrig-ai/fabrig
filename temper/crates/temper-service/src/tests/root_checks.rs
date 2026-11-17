@@ -327,12 +327,6 @@ fn checked_profile_with_files(
 }
 
 /// Merge every shipped overlay member as protocol/configuration/reference.md requires.
-fn merge_profile(base: &[u8], overlay: &[u8]) -> Box<[u8]> {
-    let mut base = serde_json::from_slice(base).unwrap();
-    merge_profile_members(&mut base, serde_json::from_slice(overlay).unwrap());
-    serde_json::to_vec(&base).unwrap().into_boxed_slice()
-}
-
 fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
     if let (Some(base), Some(overlay)) = (base.as_object_mut(), overlay.as_object()) {
         for (name, value) in overlay {
@@ -433,18 +427,16 @@ fn reference_agent() -> crate::settings::Agent {
 }
 
 fn reference_document(generated: &[u8]) -> Box<[u8]> {
-    let merged = merge_profile(generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
-    let mut document: serde_json::Value = serde_json::from_slice(&merged).unwrap();
+    let mut document: serde_json::Value = serde_json::from_slice(generated).unwrap();
+    merge_profile_members(
+        &mut document,
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json")).unwrap(),
+    );
     let room = reference_room();
-    let overlay = serde_json::to_vec(&room["worker"]).unwrap();
     for worker in document["workers"].as_array_mut().unwrap() {
-        *worker = serde_json::from_slice(&merge_profile(&serde_json::to_vec(worker).unwrap(), &overlay)).unwrap();
+        merge_profile_members(worker, room["worker"].clone());
     }
-    document["application"] = serde_json::from_slice(&merge_profile(
-        &serde_json::to_vec(&document["application"]).unwrap(),
-        &serde_json::to_vec(&room["application"]).unwrap(),
-    ))
-    .unwrap();
+    merge_profile_members(&mut document["application"], room["application"].clone());
     serde_json::to_vec(&document).unwrap().into_boxed_slice()
 }
 
