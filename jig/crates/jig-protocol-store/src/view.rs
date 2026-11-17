@@ -208,6 +208,13 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
 }
 
 pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    if store.view.active.is_none()
+        && store.view.gets.is_empty()
+        && store.view.queue.is_empty()
+        && store.transcripts.reads.is_empty()
+    {
+        return;
+    }
     // Each fetch advances a frame, each rerun adds interval coverage. Extent
     // rows bound the tasks and joins/tree rows bound discovered intervals.
     // Memory logs finish here; file logs yield on their first pending page.

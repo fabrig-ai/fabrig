@@ -454,10 +454,15 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     let mut events = Queue::uncapped();
     down_inner(store, env, request, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
-    checkpoints::taking::fire(store, env, above, below);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
+}
+fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    view::fire(store, env, above, below);
+    if checkpoints::taking::busy(store) {
+        checkpoints::taking::fire(store, env, above, below);
+        view::fire(store, env, above, below);
+    }
 }
 fn accounted(store: &mut Store, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::issued(store, below, lengths);
@@ -535,9 +540,7 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     let mut events = Queue::uncapped();
     up_routed(store, env, io, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
-    checkpoints::taking::fire(store, env, above, below);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
@@ -584,9 +587,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, belo
     let mut events = Queue::uncapped();
     fire_inner(store, env, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
-    checkpoints::taking::fire(store, env, above, below);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {

@@ -348,6 +348,9 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
         cancel(store, pending, above);
         return;
     }
+    if !ready(store) {
+        return;
+    }
     let state = core::mem::replace(store.checkpoint.as_mut(), Taking::Idle);
     *store.checkpoint = match state {
         Taking::Selecting { session, began, made, store: last, secrets, mut selection } => {
