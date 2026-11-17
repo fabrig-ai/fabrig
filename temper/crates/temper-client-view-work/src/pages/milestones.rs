@@ -40,10 +40,10 @@ pub(crate) fn row(
     let state = milestones::state(line, lines, totals, goals.needs_person(line.chip.task));
     let count_value = milestones::count(lines, totals);
     let (status, token) = state_word(words, state);
+    let title = crate::common::chat::row_title(line.chip.title.bytes());
     let separator = words.say(Word::ToolSeparator, &[]);
     let progress = bytes::concat(&[&count(words, count_value), &separator]);
-    let name =
-        bytes::concat(&[&words.say(Word::MsTagTerminal, &[]), line.chip.title.bytes(), &separator, &progress, &status]);
+    let name = bytes::concat(&[&words.say(Word::MsTagTerminal, &[]), &title, &separator, &progress, &status]);
     if words.shell == Shell::Terminal {
         b.open(Role::Slot);
     }
@@ -59,7 +59,7 @@ pub(crate) fn row(
             b.style(look::GOALS_TOP);
             b.open(Role::Text);
             tag(b, words);
-            b.text(Run::Plain, line.chip.title.bytes());
+            b.text(Run::Plain, &title);
             b.close();
             b.open(Role::Text);
             b.style(look::GOALS_PROGRESS);

@@ -62,8 +62,6 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: 
             place::{File, Place},
         };
         let directories = jig_protocol_config::Directories::working();
-        let named = temper_service::startup::named_with(deployment, &directories, &documents::given(&document))
-            .expect("deployment's machine");
         let last = document["setup"]
             .as_array()
             .into_iter()
@@ -72,8 +70,10 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: 
             .max()
             .unwrap_or(0);
         let number = u16::try_from(last + 1).expect("playground forge number");
-        let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
-            .expect("playground's fake machine");
+        let setup =
+            temper_forge_setup::setup_file::chosen(BoxKind::Fake, documents::FORGE.port(), b"ada", false, &directories)
+                .expect("world fake setup");
+        let entry = setup.entry(number, &directories).expect("fake setup entry");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
         machine::lay_handover(disk, &path, &crate::stories::admin_token(seed));
     }

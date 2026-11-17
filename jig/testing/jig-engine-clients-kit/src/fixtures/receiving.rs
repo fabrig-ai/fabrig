@@ -147,11 +147,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
 
 #[must_use]
 pub fn signed_small_core() -> (core::Core, Env<core::Limits>, u64) {
-    let env = Env {
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        limits: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core,
-    };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: jig_protocol_config_fixtures::small().core };
     let mut core = core::Core::new(configuration(&env.limits), &env.limits).expect("fixture core configuration");
     let mut action = core.start_begin(false, env.wall);
     let mut start_out = Queue::uncapped();

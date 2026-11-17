@@ -21,6 +21,36 @@ test = "tests::reds::an_admitted_landed_ask_answers_from_the_domain_without_a_co
 cpu_s = 0.06
 why = "The admitted wire ask needs a real completed deployment, credential restore, claimed worker run and routed host answer; landing run 1382 measured 0.047 CPU s alone. State-only cases use the domain's step fixture instead."
 
+[[gate.default.reasons]]
+binary = "temper-box-shell"
+test = "fake_backends::tests::fake_github_test_passes_ordinary_admission_without_document_forges"
+cpu_s = 0.55
+why = "The shell checks a provisioned sandbox and computes the joined start's operation count; that existing path constructs the service, and there is no narrower checked sizing constructor. Admission is parsed once for both assertions."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "setup::tests::create_tests::places_tests::owned_setup_chooses_then_keeps_one_place_and_registers_its_public_client"
+cpu_s = 0.08
+why = "The routing test keeps a chosen place, registers its public client, forgets it, and restores it in a second service. Its settle loop stops when its queues, domain backlog and commits drain."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::approval::an_ask_is_answered_as_the_typed_configuration_enables_the_approval"
+cpu_s = 0.07
+why = "Default, explicitly enabled and disabled approval each pass their typed startup setting through a service and an encoded HTTP ask; all three outcomes and their decoded fields are checked."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-component"
+test = "tests::family::deployment_reads_follow_the_box_default_and_committed_welcome_changes"
+cpu_s = 0.075
+why = "Box and deployment each start a service and read the welcome before and after committed set and reset decisions; both defaults and all six reads are part of the routing rule."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::welcome_policy::the_template_machine_gives_the_domain_its_places"
+cpu_s = 0.2
+why = "Real init documents supply the stock and test machine places, which a domain Connect must keep in its forge record. Absent and null share one stock world; the overridden machine needs a second world."
+
 [gate.default.skein]
 ideal_s = 40
 

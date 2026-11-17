@@ -187,7 +187,6 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     // The first repository and both outside adoptions are retained across restart.
     value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
     value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
-    value["engine"]["deployment"]["directory"] = json!(root.join("data"));
     let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
     write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
     value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
@@ -200,7 +199,7 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     record.mode = temper_engine_domain_forge::Mode::Managed;
     record.bot.login = b"elsewhere-bot".as_slice().into();
     record.bot.email = b"elsewhere-bot@example.invalid".as_slice().into();
-    temper_real_loop_world::fixtures::seed_record(&root.join("data"), record, &[]);
+    temper_real_loop_world::fixtures::seed_record(&root.join("data/state"), record, &[]);
 }
 
 fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {

@@ -37,7 +37,7 @@ pub fn provider_issuer(
         return Err(Problem { path: path.clone(), what: reason(error) });
     }
     let mut clients = List::with_capacity(bounds.clients);
-    if provider.clients.is_empty() || provider.clients.len() > skein_lib::length::usize_of(bounds.clients) {
+    if provider.clients.len() > skein_lib::length::usize_of(bounds.clients) {
         return Err(Problem { path: path.member(b"clients"), what: What::Bound });
     }
     for (index, configured) in provider.clients.iter().enumerate() {

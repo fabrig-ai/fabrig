@@ -24,6 +24,7 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
         }
         None => {}
     }
+    crate::places::forget(engine, forge);
     engine.forge.down(skein_forge_connection::Request::Remove { forge });
     crate::setup::forget(engine, forge);
     if let Some(forge) = engine.workers.forges.remove(forge) {

@@ -9,7 +9,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -32,18 +32,12 @@ pub const ENGINE: &[u8] = br#"{
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
-"heartbeat_ms": 10000,
-"link": true
 },
-"deployment": {"directory": "state", "seed": 7},
 "owners": [{"provider": 1, "subject": "owner-a"}],
-"providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
-"connectors": [1],
-"memory_bytes": 1152921504606846976,
-"projects": [{"number": 1, "policy": 1}]
+"memory_bytes": 1152921504606846976
 }"#;
 
-// Jig's inline input is retained only to exercise policy decoding and typed guards.
+// An inline project policy is refused with its enclosing moved member.
 pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
 "policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
 "ceiling": {"tools": 1, "grants": [],
@@ -57,7 +51,24 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
+    let jig = ENGINE_SETTINGS
+        .get_or_init(|| {
+            let mut jig = parse_engine(ENGINE);
+            let policy = jig.policies.first().unwrap();
+            assert_eq!(policy.number, 1);
+            jig.projects = Box::new([jig_protocol_config::Project {
+                number: 1,
+                name: "Project 1".into(),
+                policy: policy.policy.clone(),
+                roles: policy.roles.clone(),
+                templates: policy.templates.clone(),
+            }]);
+            for owner in &mut jig.owners {
+                owner.project = 1;
+            }
+            jig
+        })
+        .clone();
     // This typed fixture reaches the core's start; policy 1 includes the train’s merge grants with the standing charter executors.
 
     let own = small_limits();
@@ -68,7 +79,8 @@ pub fn engine() -> settings::Engine {
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
+        test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
         webhooks: None,
@@ -81,7 +93,6 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        welcome: false,
         program_environment: Box::new([]),
         host_part: temper_engine_domain::room::HostPart {
             allowance: u64::MAX,
@@ -89,14 +100,14 @@ pub fn engine() -> settings::Engine {
         },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landings: skein_lib::Map::with_capacity(0),
+        landing_held: false,
         limits: own,
     }
 }
 
 // The small worlds admit the stock's larger goal charter while keeping Small's store page.
 fn small_limits() -> limits::Limits {
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
     own
 }
@@ -138,11 +149,13 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::engine(
+    let mut jig = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+        &jig_protocol_config_fixtures::small(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -345,7 +358,7 @@ pub fn fill_files(settings: &mut settings::Engine) {
 }
 
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
-    crate::translate::limits(&limits::profile(limits::Profile::Small)).unwrap()
+    crate::translate::limits(&temper_limits_fixtures::small()).unwrap()
 }
 
 pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {
@@ -455,10 +468,6 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
         })
         .unwrap();
     runtime
-}
-
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None, github: None }
 }
 
 #[expect(clippy::disallowed_macros, reason = "the fixture renders its project name")]
@@ -771,16 +780,19 @@ fn start_configured_worker(
         runtime.push(second).unwrap();
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
-        settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
+        settings.setups = Box::new([(
+            1,
+            temper_forge_setup::setup_file::SetupFile::Owned(temper_forge_setup::machine::OwnedMachine {
+                sign_in: None,
+                listen: owned.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                person: owned.person,
+                public: owned.public,
+                fetch: owned.fetch,
+                forgejo: owned.forgejo,
+                runner: owned.runner,
+            }),
+        )]);
     }
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
@@ -1050,7 +1062,7 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
     ] {
         let number = records::number(forge, item);
         let value = Secret::new(records::encode(item, bytes).unwrap().into_boxed_slice());
-        engine.remember_record(number, value.clone(), limits::profile(limits::Profile::Small).records.value_bytes);
+        engine.remember_record(number, value.clone(), temper_limits_fixtures::small().records.value_bytes);
         assert!(engine.store().secrets(Token::new(999), application_request(number, value)).is_none());
         assert!(engine.store().events().pop().is_some());
     }
@@ -1093,7 +1105,11 @@ pub fn turn_document() -> Box<[u8]> {
     let mut overrides: serde_json::Value =
         serde_json::from_slice(&value(&document, b"application.limits.overrides")).unwrap();
     overrides["forge.client.op_bytes"] = 4_096_u32.into();
-    with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+    let document = with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap());
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"workers[0].limits.overrides")).unwrap();
+    overrides["hub.event_bytes"] = 4_096_u32.into();
+    with(&document, b"workers[0].limits.overrides", &serde_json::to_vec(&overrides).unwrap())
 }
 
 pub fn turn_jig() -> jig_protocol_config::Engine {
@@ -1102,11 +1118,4 @@ pub fn turn_jig() -> jig_protocol_config::Engine {
     jig.limits.core.tasks.result_bytes = 4_096;
     jig.limits.core.tasks.message_bytes = 4_096;
     jig
-}
-
-/// A turn fixture receives the prepare job's result as a task message.
-pub fn turn_agent() -> settings::Agent {
-    let mut agent = startup_agent();
-    agent.bounds.message_bytes = 4_096;
-    agent
 }

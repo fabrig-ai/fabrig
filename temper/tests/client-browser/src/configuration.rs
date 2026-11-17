@@ -19,7 +19,7 @@ const RELATIVE: &[&str] = &[
     "secrets/forge-1.api-token",
     "secrets/forge-1.git-token",
     "state",
-    "worker-root",
+    "workspaces",
 ];
 
 pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
@@ -40,10 +40,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     }
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
-    }
-    for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        project["policy"] = 1.into();
-        project.as_object_mut().expect("seed").remove("roles");
     }
     temper_playground::documents::settings::strip_models(&mut value);
     // Admit stock policy 1's fourteen grants and fifteen executor kinds.
@@ -70,6 +66,23 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
+    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
+    value["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .entry("tasks.result_bytes")
+        .or_insert(512.into());
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        let worker = worker.as_object_mut().expect("worker");
+        worker.remove("graces");
+        worker.remove("programs");
+    }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
@@ -77,7 +90,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
@@ -87,13 +99,11 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["application"] = serde_json::json!({
-        "welcome":true,
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "machine":{"github":null},"demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
-        "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
+        "demo":null,"sign_in":null,
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     absolute_paths(&mut value, directory);
     (
@@ -177,19 +187,17 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     private(&agent_path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
 }
 
-/// Reserve all five init listeners and move their references in both documents together.
+/// Reserve every init listener and move its references in both documents together.
 fn own_demo_listeners(value: &mut serde_json::Value, agent: &mut serde_json::Value) {
     let sockets = [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {
         value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let addresses = temper_fixtures::ports::addresses::<5>(&sockets);
+    let addresses = temper_fixtures::ports::addresses::<3>(&sockets);
     let replacements: Vec<_> =
         sockets.into_iter().zip(addresses).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace_sockets(value, &replacements);
@@ -301,7 +309,7 @@ mod tests {
     use super::stock_engine;
 
     #[test]
-    fn demo_reserves_every_init_listener_and_moves_the_sign_in_origin() {
+    fn demo_reserves_every_init_listener_and_moves_its_references() {
         use std::num::NonZeroU16;
         let facts = temper_init::Facts {
             binary: b"/test/temper",
@@ -311,8 +319,6 @@ mod tests {
             sign_in: true,
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).expect("clients port"),
-                owned: NonZeroU16::new(8368).expect("owned port"),
-                forge: NonZeroU16::new(8369).expect("forge port"),
                 llm: NonZeroU16::new(8370).expect("LLM port"),
                 webhooks: NonZeroU16::new(8371).expect("webhooks port"),
             },
@@ -335,8 +341,6 @@ mod tests {
         let mut seen = std::collections::BTreeSet::new();
         for pointer in [
             "/application/clients/listener/socket",
-            "/application/machine/owned/listen/socket",
-            "/application/machine/fake/listen/socket",
             "/application/demo/llm/listen/socket",
             "/application/webhooks/listener/socket",
         ] {
@@ -346,13 +350,8 @@ mod tests {
             assert!((10_000..temper_fixtures::ports::ephemeral_first()).contains(&address.port()));
             assert!(seen.insert(address), "listeners must be distinct: {address}");
         }
-        let owned = &value["application"]["machine"]["owned"];
-        let socket = owned["listen"]["socket"].as_str().expect("owned socket");
-        assert_eq!(owned["remote"], format!("http://{socket}"));
-        assert_eq!(
-            value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"],
-            format!("http://{socket}/user/oauth2/temper/callback")
-        );
+        assert!(value["application"].get("machine").is_none());
+        assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
     }
 
     #[test]

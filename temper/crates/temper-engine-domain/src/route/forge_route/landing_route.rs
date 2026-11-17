@@ -105,21 +105,17 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
     let row = domain.forge.change(task)?;
     let project = domain.forge.repository(row.repository)?.project;
     let mut gates = List::with_capacity(env.limits.forge.gates);
-    if let Some(config) = domain.config.landings.get(&project) {
-        for repository in &config.repositories {
-            if repository.repository == row.repository
-                && domain.forge.repository(row.repository)?.settings.default_branch == row.base
-            {
-                for _ in &repository.gates {
-                    gates
-                        .push(landing::GateProof {
-                            proof: landing::Proof::Unkeyed,
-                            posted: landing::Posted::Nothing,
-                            faults: 0,
-                        })
-                        .expect("configured gates");
-                }
-            }
+    if let Some(repository) = domain.forge.repository_gates(project, row.repository)
+        && domain.forge.repository(row.repository)?.settings.default_branch == row.base
+    {
+        for _ in &repository.gates {
+            gates
+                .push(landing::GateProof {
+                    proof: landing::Proof::Unkeyed,
+                    posted: landing::Posted::Nothing,
+                    faults: 0,
+                })
+                .expect("configured gates");
         }
     }
     Some(landing::Member {
@@ -149,6 +145,9 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
 /// restart work has settled. One queued decision is committed before judging again
 /// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
 pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
+    if domain.forge.landing_held() {
+        return false;
+    }
     for (repository, branch) in domain.forge.waiting_trains() {
         if form_train(domain, env, repository, &branch) {
             return true;
@@ -340,6 +339,18 @@ fn create_landing(
 
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
 pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
+    if domain.forge.landing_held() {
+        if let Some((connector, code, step)) = domain.core.tasks.procedure_due(context.task) {
+            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                task: context.task,
+                connector,
+                code,
+                step,
+                decision: ProcedureStep::new(StepEnd::Wait),
+            }));
+        }
+        return;
+    }
     let task = context.task;
     let Some(row) = domain.forge.landing(task) else { return };
     let released = if let landing::Phase::Held { .. } = row.landing.phase { true } else { false };
@@ -363,7 +374,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
             dependencies: graph,
             held: held.into_boxed(),
             failure: prepare_failure(context),
-            preparation: preparation(domain, context),
+            preparation: Some(preparation(domain, context)),
             released,
             cancelled: false,
             kept: Box::new([]),
@@ -543,6 +554,8 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
     words.into_boxed()
 }
 
+// Read the inbox, live children, and the round's kept answer, in that order;
+// otherwise the prepare is absent (temper/docs/design/domain/landing-preparing.md, 2).
 pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
     let members = match domain.forge.landing(context.task) {
         Some(row) => u32::try_from(row.landing.members.len()).expect("bounded members"),
@@ -565,6 +578,9 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
             {
                 return landing::Preparation::Conflict;
             }
+            if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
+                return landing::Preparation::Idle;
+            }
         }
     }
     if let Some(task) = domain.core.tasks.task(context.task) {
@@ -582,16 +598,33 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
             }
         }
     }
-    if admitted_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
+    if kept_prepare(domain, context.task) { landing::Preparation::Idle } else { landing::Preparation::Absent }
 }
 
-// A policy intent precedes jig's admission; the durable job record names the admitted suffix
-// (temper/docs/design/domain/landing.md, 5.2; temper/docs/design/domain/landing-history.md, 3.3).
-fn admitted_prepare(domain: &Domain, task: u64) -> bool {
+// An ended child's record counts only with an answer the current round keeps for its suffix
+// (temper/docs/design/domain/landing-preparing.md, 2).
+fn kept_prepare(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.landing(task) else { return false };
     let Some(job) = &row.job else { return false };
     if job.round != row.landing.preparation || job.step.job != forge::history::Job::Prepare {
         return false;
+    }
+    if let Some(child) = domain.core.tasks.task(job.step.task) {
+        match child.phase {
+            tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+                return false;
+            }
+            tasks::Phase::Ended(_) => {}
+        }
+    }
+    match job.step.outcome {
+        Some(
+            forge::history::JobOutcome::Lost
+            | forge::history::JobOutcome::Cancelled
+            | forge::history::JobOutcome::Timeout
+            | forge::history::JobOutcome::Failed { .. },
+        ) => return false,
+        Some(forge::history::JobOutcome::Done | forge::history::JobOutcome::Conflict) | None => {}
     }
     let mut admitted = job.members.iter();
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -603,7 +636,17 @@ fn admitted_prepare(domain: &Domain, task: u64) -> bool {
             return false;
         }
     }
-    admitted.next().is_none()
+    if admitted.next().is_some() {
+        return false;
+    }
+    let members = u32::try_from(row.landing.members.len()).expect("bounded members");
+    let Some(outcomes) = forge::preparation::outcomes(&row.landing.round.failure, members) else { return false };
+    for outcome in &outcomes {
+        if job.members.contains(&outcome.member) {
+            return true;
+        }
+    }
+    false
 }
 fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
     let row = domain.forge.landing(task)?;
@@ -656,7 +699,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
     if members.is_empty() {
         return None;
     }
-    let combine = match domain.config.landings.get(&row.landing.project) {
+    let combine = match domain.forge.landing_settings(row.landing.project) {
         Some(config) => {
             if main {
                 config.combine_main

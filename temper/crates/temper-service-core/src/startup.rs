@@ -33,6 +33,22 @@ pub fn nearest(input: &[u8]) -> Option<Shape> {
     Some(nearest_document(&document))
 }
 
+/// temper's worker constants (protocol/configuration/moved.md, 2).
+#[must_use]
+pub fn fixed_worker() -> config::FixedWorker {
+    use skein_lib::Duration;
+    config::FixedWorker {
+        graces: Some(config::Graces {
+            grace: Duration::from_millis(300_000),
+            drain: Duration::from_millis(180_000),
+            agent_stop: Duration::from_millis(5_000),
+            delivery: Duration::from_millis(1_000),
+            save: Duration::from_millis(1_000),
+        }),
+        check_interval: Some(Duration::from_millis(60_000)),
+    }
+}
+pub mod moved;
 pub mod problems;
 /// Paths shared by the halves' starts (protocol/services.md, 3).
 #[must_use]
@@ -125,7 +141,17 @@ pub fn configured_limits<E>(
     path: &config::Path,
     problems: &mut problems::Problems<problems::What<E>>,
 ) -> Option<crate::limits::Shared> {
-    use crate::limits::{self, Profile, Refused};
+    configured_limits_over(document, at, path, crate::derived::STOCK, problems)
+}
+
+pub fn configured_limits_over<E>(
+    document: &skein_json::Document,
+    at: u32,
+    path: &config::Path,
+    sources: crate::derived::Sources,
+    problems: &mut problems::Problems<problems::What<E>>,
+) -> Option<crate::limits::Shared> {
+    use crate::limits::{self, Refused};
     use problems::What;
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
@@ -142,10 +168,7 @@ pub fn configured_limits<E>(
                 None
             }
         },
-        None => {
-            problems.push(path.member(b"profile"), What::Jig(config::What::Missing));
-            None
-        }
+        None => None,
     };
     let overrides = object.member(document, b"overrides");
     if overrides.is_none() {
@@ -154,15 +177,13 @@ pub fn configured_limits<E>(
     let mut found = config::Problems::empty();
     object.finish(document, path, &mut found);
     problems.append(found, &config::Path::root());
-    let profile = match profile.as_deref() {
-        Some(b"standard") => Profile::Standard,
-        Some(b"small") | None => Profile::Small,
-        Some(_) => {
-            problems.push(path.member(b"profile"), What::Profile);
-            Profile::Small
-        }
-    };
-    let mut limits = limits::profile(profile);
+    if let Some(name) = profile.as_deref()
+        && name != b"standard"
+    {
+        problems.push(path.member(b"profile"), What::Profile);
+    }
+    let mut limits = limits::stock();
+    limits.checkout.message_bytes = sources.payload;
     let path = path.member(b"overrides");
     if let Some(at) = overrides {
         let mut object = match read::Object::new(document, at) {
@@ -198,4 +219,48 @@ pub fn configured_limits<E>(
         problems.append(found, &config::Path::root());
     }
     Some(limits)
+}
+
+#[cfg(test)]
+mod stock_tests {
+    use super::*;
+    use problems::What;
+
+    fn parsed(input: &[u8]) -> (crate::limits::Shared, problems::SharedProblems) {
+        let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
+        let mut problems = problems::SharedProblems::empty();
+        let path = config::Path::root().member(b"application").member(b"limits");
+        let limits = configured_limits(&document, 0, &path, &mut problems).unwrap();
+        (limits, problems)
+    }
+    fn stock_is_read(input: &[u8]) {
+        let (limits, problems) = parsed(input);
+        assert!(problems.is_empty(), "{problems:?}");
+        let mut expected = crate::limits::stock();
+        expected.checkout.message_bytes = crate::derived::STOCK.payload;
+        assert_eq!(limits, expected);
+    }
+    #[test]
+    fn an_absent_application_profile_reads_the_stock() {
+        stock_is_read(br#"{"overrides":{}}"#);
+    }
+    #[test]
+    fn the_standard_application_profile_reads_the_stock() {
+        stock_is_read(br#"{"profile":"standard","overrides":{}}"#);
+    }
+    fn refused(input: &[u8]) {
+        let (_, problems) = parsed(input);
+        assert_eq!(problems.problems.len(), 1);
+        let problem = problems.problems.get(0).unwrap();
+        assert_eq!(problem.path, config::Path::root().member(b"application").member(b"limits").member(b"profile"));
+        assert_eq!(problem.what, What::Profile);
+    }
+    #[test]
+    fn the_small_application_profile_is_refused_at_its_member() {
+        refused(br#"{"profile":"small","overrides":{}}"#);
+    }
+    #[test]
+    fn an_unknown_application_profile_is_refused_at_its_member() {
+        refused(br#"{"profile":"unknown","overrides":{}}"#);
+    }
 }

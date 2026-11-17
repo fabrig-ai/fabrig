@@ -16,7 +16,7 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         items,
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -43,7 +43,7 @@ fn front_harness_buffer(steps: &[Step], parent: Option<u32>, buffer: u32) -> Har
         &[],
         true,
         buffer,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent,
@@ -65,7 +65,7 @@ fn group_front_harness(steps: temper_forge_setup::Steps, items: &[skein_fake_mac
         items,
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -111,10 +111,7 @@ fn a_restored_owned_groups_front_waits_for_its_readiness_answer() {
         let mut steps = grouped_steps();
         let group = steps.asked.get_mut(0).unwrap();
         group.kind = Some(BoxKind::Owned);
-        group.steps = Box::new([(
-            Stage::Run,
-            long(b"forgejo 3", &[b"never"]).with_ready(address).listening(Box::new([address])),
-        )]);
+        group.steps = Box::new([(Stage::Run, long(b"forgejo 3", &[b"never"]).with_ready(address).listening_group())]);
         let items = [
             Item::directory(b"box"),
             Item::directory(b"box/groups"),
@@ -122,6 +119,7 @@ fn a_restored_owned_groups_front_waits_for_its_readiness_answer() {
             Item::directory(b"box/started"),
             Item::file(b"box/started/3", b""),
         ];
+        let items = super::fixtures::with_setup(&items, BoxKind::Owned, 3, 8200);
         let mut h = group_front_harness(steps, &items, front);
         assert_group_front(&mut h, front, b"starting Forgejo\n");
         assert!(h.log().ends_with(b"00:00:00Z Forge 3 (Forgejo): starting\n"));
@@ -156,7 +154,8 @@ fn asked_groups_tell_the_front_start_and_closed_stop_or_removal() {
                 let group = steps.asked.get_mut(0).unwrap();
                 group.kind = Some(kind);
                 group.label = bytes::copy_of(label);
-                let mut h = group_front_harness(steps, &[], front);
+                let items = super::fixtures::with_setup(&[], kind, 17, 3000);
+                let mut h = group_front_harness(steps, &items, front);
                 assert_group_front(&mut h, front, b"");
                 let before = h.log().len();
                 h.hold_spawn = Some(bytes::copy_of(b"fake-forge"));
@@ -207,7 +206,8 @@ fn a_failed_start_tells_the_front_the_group_is_dormant_not_started() {
         let group = steps.asked.get_mut(0).unwrap();
         group.kind = Some(BoxKind::Owned);
         group.steps = Box::new([(Stage::Prepare, once(b"prepare", &[b"exit", b"7"]))]);
-        let mut h = group_front_harness(steps, &[], front);
+        let items = super::fixtures::with_setup(&[], BoxKind::Owned, 3, 3000);
+        let mut h = group_front_harness(steps, &items, front);
         assert_group_front(&mut h, front, b"");
         h.ask(b"start 3 owned\n");
         assert_group_front(&mut h, front, b"starting Forgejo\ndormant Forgejo\n");
@@ -779,7 +779,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
         &[Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/3", b"").mode(0)],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -816,7 +816,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
         &[],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -852,7 +852,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
 #[test]
 fn the_terminal_keeps_errors_alone_and_box_log_the_rest() {
     for echo in [crate::host::Echo::None, crate::host::Echo::Steps] {
-        let mut h = Harness::configured_echo(grouped_steps(), &[], true, 16_384, &crate::limits::small(), echo);
+        let mut h = Harness::configured_echo(grouped_steps(), &[], true, 16_384, &crate::limits::stock(), echo);
         h.wall = skein_lib::Wall::from_nanos(3_723_000_000_000);
         h.run_until_idle();
         h.ask(b"start 3\n");
@@ -1040,7 +1040,7 @@ fn parent_harness(parent: Option<u32>) -> Harness {
         &[],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent,
@@ -1567,7 +1567,7 @@ fn a_link_receives_only_the_first_line_and_its_end() {
             always: Box::new([long(b"serve", &[b"never"]), link(b"seed", seed_args)]),
             asked: Box::new([]),
         };
-        let limits = crate::limits::Limits { backoff, ..crate::limits::small() };
+        let limits = crate::limits::Limits { backoff, ..crate::limits::stock() };
         let mut harness = Harness::configured(steps, &[], true, skein_sim::Config::calm().buffer, &limits);
         harness.run_until_idle();
         for action in actions {
@@ -2081,7 +2081,7 @@ fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
 fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
     use skein_lib::Wall;
     use skein_shell::Host;
-    let mut limits = crate::limits::small();
+    let mut limits = crate::limits::stock();
     limits.restarts = 1;
     let mut harness = Harness::configured(
         temper_forge_setup::Steps {
@@ -2157,7 +2157,7 @@ fn long_labels_pass_actual_output_admission_with_tiny_control_and_write_caps() {
         let mut steps = grouped_steps();
         steps.asked[0].label = label.clone();
         steps.asked[0].steps[0].1 = once(&name, &[b"exit", b"255"]);
-        let limits = crate::limits::Limits { line_bytes: 64, ..crate::limits::small() };
+        let limits = crate::limits::Limits { line_bytes: 64, ..crate::limits::stock() };
         let mut harness = Harness::configured(steps, &[], true, buffer, &limits);
         harness.run_until_idle();
         harness.write_child(harness.serve_index(), 1, b"link\n");
@@ -2445,7 +2445,13 @@ fn a_ready_probe_deadline_waits_for_request_credit() {
 #[test]
 fn a_kind_start_writes_then_runs_and_removal_unlinks_both_records() {
     use skein_fake_machine::{How, Refusal};
-    let mut h = Harness::grouped(super::fixtures::kind_steps(), &[], true);
+    let items = super::fixtures::with_setup(
+        &super::fixtures::with_setup(&[], temper_forge_setup::machine::BoxKind::Fake, 17, 3000),
+        temper_forge_setup::machine::BoxKind::Fake,
+        18,
+        3001,
+    );
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
     h.run_until_idle();
@@ -2488,7 +2494,13 @@ fn a_failed_remover_reports_its_exit_and_preserves_both_records_for_retry() {
     use temper_forge_setup::FORGE_ARGUMENT;
     let mut steps = super::fixtures::kind_steps();
     steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
-    let mut h = Harness::grouped(steps, &[], true);
+    let items = super::fixtures::with_setup(
+        &super::fixtures::with_setup(&[], temper_forge_setup::machine::BoxKind::Fake, 17, 3000),
+        temper_forge_setup::machine::BoxKind::Fake,
+        18,
+        3001,
+    );
+    let mut h = Harness::grouped(steps, &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
     h.run_until_idle();
@@ -2540,6 +2552,7 @@ fn an_unknown_remove_unlinks_an_orphan_started_record() {
 fn a_failed_group_file_write_starts_no_group_step() {
     use skein_fake_machine::Item;
     let items = [Item::directory(b"box"), Item::directory(b"box/groups").mode(0o500)];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
@@ -2563,6 +2576,7 @@ fn an_unlink_failure_reports_failure_and_keeps_the_started_record() {
         Item::file(b"box/groups/17", b"fake\n"),
         Item::file(b"box/started/17", b""),
     ];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"remove 17\n");
@@ -2587,6 +2601,7 @@ fn an_unlink_failure_reports_failure_and_keeps_the_started_record() {
 fn a_kind_can_run_when_its_log_directory_is_unavailable() {
     use skein_fake_machine::Item;
     let items = [Item::directory(b"box"), Item::file(b"box/logs", b"kept")];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
@@ -2683,7 +2698,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         ));
         let settings_debug = alloc::fmt::format(format_args!("{settings:?}"));
         let service = Service::new(
-            &crate::limits::small(),
+            &crate::limits::stock(),
             temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
             settings,
         )
@@ -2710,7 +2725,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
 const FETCH_LINE: &[u8] = b"fetched forgejo 1 of 2 bytes\n";
 const FETCH_STDERR: &[u8] = b"download refused\n";
 fn fetch_harness(echo: crate::host::Echo, buffer: u32, items: &[skein_fake_machine::Item]) -> Harness {
-    Harness::configured_echo(super::fixtures::fetching_steps(), items, true, buffer, &crate::limits::small(), echo)
+    Harness::configured_echo(super::fixtures::fetching_steps(), items, true, buffer, &crate::limits::stock(), echo)
 }
 fn asked_fetch() -> Harness {
     let mut h = fetch_harness(crate::host::Echo::None, skein_sim::Config::calm().buffer, &[]);
@@ -2830,7 +2845,7 @@ fn a_started_group_s_fetch_line_is_named_and_dropped() {
     let mut h = asked_fetch();
     finish_child(&mut h, b"fetch 3", 0);
     finish_child(&mut h, b"forgejo 3", 1);
-    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff));
     h.run_until_idle();
     let child = h.child_index(b"fetch 3");
     h.write_stdout(child, FETCH_LINE);
@@ -2881,7 +2896,7 @@ fn owned_hands_wait_for_the_log_slot_keep_their_time_and_never_echo() {
         steps.asked[0].steps[0]
             .1
             .set_started_notice(b"Forgejo: api http://127.0.0.1:3000/api/v1\nForgejo: person ada\n".as_slice().into());
-        let mut h = Harness::configured_echo(steps, &[], true, 16, &crate::limits::small(), echo);
+        let mut h = Harness::configured_echo(steps, &[], true, 16, &crate::limits::stock(), echo);
         h.run_until_idle();
         h.write_child(h.serve_index(), 1, b"http://first\n");
         h.run_until_idle();
@@ -2934,7 +2949,8 @@ fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
         for forge in [17, u16::MAX] {
             let mut steps = super::fixtures::kind_steps();
             steps.asked[0].label = label.into();
-            let mut h = Harness::grouped(steps, &[], true);
+            let items = super::fixtures::setup_items(forge, 3000);
+            let mut h = Harness::grouped(steps, &items, true);
             h.run_until_idle();
             h.write_child(h.serve_index(), 1, b"http://first\n");
             h.run_until_idle();
@@ -2983,7 +2999,7 @@ fn each_link_reads_on_stdout_as_its_form_has_it() {
             &[],
             true,
             16_384,
-            &crate::limits::small(),
+            &crate::limits::stock(),
             crate::host::Echo::None,
             super::fixtures::Opening {
                 parent: None,
@@ -3022,7 +3038,7 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
             &[],
             true,
             16_384,
-            &crate::limits::small(),
+            &crate::limits::stock(),
             crate::host::Echo::None,
             super::fixtures::Opening {
                 parent: None,
@@ -3097,7 +3113,7 @@ fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
         assert_eq!(count, u32::from(line.starts_with(b"source failed")));
         assert_eq!(h.spawn_times(b"source 3").len(), 1, "another start does not bypass the retry wait");
         if line.starts_with(b"source failed") {
-            h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+            h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff));
             h.run_until_idle();
             let child = h.child_index(b"source 3");
             h.write_stdout(child, b"source added\n");
@@ -3125,7 +3141,7 @@ fn a_failed_source_retries_with_doubling_waits_and_says_only_changed_endings() {
         }
         if attempt < 2 {
             let before = h.sim.now();
-            let delay = crate::limits::small().backoff.saturating_mul(if attempt == 0 { 1 } else { 2 });
+            let delay = crate::limits::stock().backoff.saturating_mul(if attempt == 0 { 1 } else { 2 });
             assert_eq!(h.service.next_policy_deadline(), Some(before.saturating_add(delay)));
             h.sim.advance_to(skein_lib::Time::from_nanos(
                 before.saturating_add(delay).as_nanos().checked_sub(1).unwrap(),
@@ -3143,7 +3159,7 @@ fn a_failed_source_retries_with_doubling_waits_and_says_only_changed_endings() {
     assert_eq!(bytes::count(&replies, b"started 3\n", u32::MAX), 1, "only first ending completes start");
     assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
     assert!(h.service.next_policy_deadline().is_none(), "added disarms retries");
-    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff_max));
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff_max));
     h.ask(b"start 3\n");
     h.run_until_idle();
     assert!(h.reply_bytes().ends_with(b"source 3 added\nstarted 3\n"));
@@ -3204,4 +3220,140 @@ fn a_source_that_never_started_has_a_logged_outcome_and_never_fails_the_group() 
     assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
     assert_eq!(h.spawn_times(b"source 3").len(), 1);
     stop_fetch_box(&mut h);
+}
+
+#[test]
+fn group_listeners_are_released_only_after_successful_removal() {
+    use super::fixtures::{kind_steps, setup_items};
+    use temper_forge_setup::FORGE_ARGUMENT;
+    for succeeds in [true, false] {
+        let mut steps = kind_steps();
+        if !succeeds {
+            steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
+        }
+        let mut items = List::with_capacity(4);
+        for forge in [17, 18] {
+            for item in setup_items(forge, 3000) {
+                items.push(item).unwrap();
+            }
+        }
+        let mut h = Harness::grouped(steps, items.as_slice(), true);
+        h.run_until_idle();
+        h.ask(b"start 17\n");
+        h.run_until_idle();
+        assert_eq!(h.reply_bytes().as_ref(), b"step 17 run\nstarted 17\n");
+        let child = h.hosted.get(h.child_index(b"fake-forge")).unwrap();
+        assert_eq!(child.listeners.len(), 1, "the listener reaches the step");
+        let pid = child.pid;
+        h.replies.clear();
+        h.ask(b"remove 17\n");
+        h.run_until_idle();
+        h.sim.finish_service(pid, Exit::Code(0));
+        h.run_until_idle();
+        assert_eq!(
+            h.reply_bytes().as_ref(),
+            if succeeds { b"removed 17\n".as_slice() } else { b"failed 17 remove: exited 7\n" }
+        );
+        h.replies.clear();
+        h.ask(b"start 18\n");
+        h.run_until_idle();
+        if succeeds {
+            assert_eq!(h.reply_bytes().as_ref(), b"step 18 run\nstarted 18\n", "new group opens released port");
+        } else {
+            assert_eq!(h.reply_bytes().as_ref(), b"failed 18 listener 3000 taken\n", "failed removal keeps port");
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}
+#[test]
+fn a_removal_retry_skips_the_remover_when_its_directory_is_already_gone() {
+    use super::fixtures::{kind_steps, setup_items};
+    use skein_fake_machine::How;
+    let mut items = List::with_capacity(4);
+    for forge in [17, 18] {
+        for item in setup_items(forge, 3000) {
+            items.push(item).unwrap();
+        }
+    }
+    let mut h = Harness::grouped(kind_steps(), items.as_slice(), true);
+    h.run_until_idle();
+    h.ask(b"start 17\n");
+    h.run_until_idle();
+    let pid = h.hosted.get(h.child_index(b"fake-forge")).unwrap().pid;
+    h.replies.clear();
+    h.hold_spawn = Some(bytes::copy_of(b"remove"));
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    h.sim.finish_service(pid, Exit::Code(0));
+    h.run_until_idle();
+    assert!(h.held_spawn.is_some());
+    // The fake remover deletes its directory, then succeeds; the box's unlink alone fails.
+    let root = h.machine.reopen_root(0);
+    let dir = h.machine.open(root, b"playground-17", How::DirectoryNoFollow).unwrap();
+    h.machine.remove(dir, b"setup", false).unwrap();
+    h.machine.close(dir);
+    h.machine.remove(root, b"playground-17", true).unwrap();
+    h.machine.close(root);
+    h.refuse_remove = Some(bytes::copy_of(b"17"));
+    h.release_spawn();
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"failed 17 remove: files not removed\n");
+    assert_eq!(h.spawn_times(b"remove").len(), 1);
+    h.replies.clear();
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 17\n");
+    assert_eq!(h.spawn_times(b"remove").len(), 1, "retry runs no remover");
+    h.replies.clear();
+    h.ask(b"start 18\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"step 18 run\nstarted 18\n", "completed unlink frees the port");
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn restored_groups_open_their_setup_listener_before_steps_and_missing_files_stay_dormant() {
+    use super::fixtures::{kind_steps, setup_items};
+    use skein_fake_machine::Item;
+    for present in [false, true] {
+        let mut items = List::with_capacity(7);
+        for item in [
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/groups/17", b"fake\n"),
+            Item::file(b"box/started/17", b""),
+        ] {
+            items.push(item).unwrap();
+        }
+        if present {
+            for item in setup_items(17, 3456) {
+                items.push(item).unwrap();
+            }
+        }
+        let mut h = Harness::grouped(kind_steps(), items.as_slice(), true);
+        h.run_until_idle();
+        assert_eq!(h.spawn_times(b"serve").len(), 1);
+        if present {
+            assert_eq!(h.group_opens.as_slice(), &[(17, ([127, 0, 0, 1], 3456).into(), 0)]);
+            assert_eq!(h.spawn_times(b"fake-forge").len(), 1);
+        } else {
+            assert!(h.group_opens.is_empty());
+            assert_eq!(h.spawn_times(b"fake-forge").len(), 0);
+            assert!(Harness::contains(&h.stderr(), b"playground-17/setup"));
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
 }

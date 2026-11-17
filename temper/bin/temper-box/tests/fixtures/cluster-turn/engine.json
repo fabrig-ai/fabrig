@@ -1,7 +1,6 @@
 {{
   "engine": {{
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "authority.executors": 22,
         "authority.grants": 15,
@@ -24,7 +23,7 @@
         "fleet.attempts": 4,
         "fleet.calls": 1,
         "fleet.engine_slots": 0,
-        "fleet.grace_ms": 10000,
+        "fleet.grace_ms": 360000,
         "fleet.turns": 8,
         "hub.transcript_bytes": 16777216,
         "hub.turn_bytes": 1327470,
@@ -67,6 +66,9 @@
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
+        "tasks.inbox_bytes": 4096,
+        "tasks.run_inbox": 8,
+        "tasks.exemptions": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 2,
         "views.text_bytes": 1024
@@ -115,12 +117,6 @@
       ]
     }},
     "clients": {{
-      "heartbeat_ms": 10000,
-      "link": true
-    }},
-    "deployment": {{
-      "directory": "state",
-      "seed": 7
     }},
     "owners": [
       {{
@@ -128,26 +124,7 @@
         "subject": "owner-a"
       }}
     ],
-    "providers": [
-      {{
-        "number": 1,
-        "kind": "link"
-      }},
-      {{
-        "number": 2,
-        "kind": "deployment"
-      }}
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": [
-      {{
-        "number": 1,
-        "policy": 1
-      }}
-    ]
+    "memory_bytes": 4503599627370496
   }},
   "workers": [],
   "application": {{
@@ -163,11 +140,9 @@
       "bundle": null,
       "public": null
     }},
-    "machine": {{}},
     "demo": null,
     "sign_in": null,
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,
@@ -176,6 +151,7 @@
         "forge.client.pending": 8,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
+        "forge.landing_members": 1,
         "forge_component.connections": 4,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 4194304,
@@ -186,31 +162,6 @@
         "forge.client.poll_ms": 50,
         "forge.landing_members": 1
       }}
-    }},
-    "workers": [],
-    "landing": {{
-      "projects": [
-        {{
-          "project": 1,
-          "by": "turn",
-          "batch": 1,
-          "gates": [
-            {{
-              "forge": 1,
-              "repository": 1,
-              "gates": [
-                {{
-                  "name": "gate",
-                  "workflow": "gate.yml",
-                  "ignored": [],
-                  "blocking": true,
-                  "base": true
-                }}
-              ]
-            }}
-          ]
-        }}
-      ]
     }}
   }}
 }}

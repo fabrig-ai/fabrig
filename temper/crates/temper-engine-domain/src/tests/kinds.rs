@@ -1752,3 +1752,89 @@ fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
         crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
     }
 }
+
+fn judge_landing_value(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    kind: u32,
+    scope: u32,
+    value: settings::Value,
+) -> connector::Judged {
+    let size = if let settings::Value::Landing(v) = &value {
+        settings::landing_record(v).measure()
+    } else {
+        let settings::Value::Gates(v) = &value else { panic!("landing setting fixture") };
+        settings::gates_record(v).measure()
+    };
+    domain.kinds = Box::new([KindValue { kind, scope, number: 1, value: settings::SizedValue { value, size } }]);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    judge(
+        domain,
+        env,
+        &mut decision,
+        None,
+        Box::new([application::Item { kind, scope, number: 1, edit: application::Edit::Set(Box::new([])) }]),
+    );
+    let answer = answer(domain)[0].clone();
+    crate::domain::close(domain, env, decision, &mut Queue::uncapped());
+    answer
+}
+#[test]
+fn turn_settings_need_the_prepare_jobs_configured_capacity() {
+    for (spec, result, field) in [
+        (16_383, 4_096, Some(b"tasks.spec_bytes".as_slice())),
+        (16_384, 4_095, Some(b"tasks.result_bytes".as_slice())),
+        (16_384, 4_096, None),
+    ] {
+        let (mut domain, env) = root();
+        domain.config.prepare_capacity = (spec, result);
+        domain.config.turn_capacity = None; // This focused case admits the other turn resources.
+        domain.config.prepare_kind = Some(jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(1),
+            spec: 16_384,
+            result: 4_096,
+            deadline: skein_lib::Duration::from_secs(60),
+        });
+        let value = settings::Value::Landing(settings::ProjectLanding {
+            by: temper_engine_domain_forge_change::Way::Turn,
+            ..settings::ProjectLanding::default()
+        });
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, value);
+        if let Some(field) = field {
+            let connector::Judged::Refuse { why } = judged else { panic!("short prepare capacity must refuse") };
+            assert!(skein_lib::bytes::find(&why, field).is_some());
+            assert!(skein_lib::bytes::find(&why, b"prepare job kind 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
+        let connector::Judged::Accept { .. } = judge_landing_value(
+            &mut domain,
+            &env,
+            4,
+            PROJECT,
+            settings::Value::Landing(settings::ProjectLanding::default()),
+        ) else {
+            panic!("queue needs no prepare")
+        };
+    }
+}
+#[test]
+fn gates_settings_name_a_repository_of_another_project() {
+    for project in [1, 2] {
+        let (mut domain, env) = follow_root();
+        let value = settings::Value::Gates(settings::ProjectGates {
+            repositories: Box::new([forge::RepositoryGates {
+                repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+                gates: Box::new([]),
+                tiers: Box::new([]),
+            }]),
+        });
+        let judged = judge_landing_value(&mut domain, &env, 5, project, value);
+        if project == 1 {
+            let connector::Judged::Refuse { why } = judged else { panic!("repository belongs to project 2") };
+            assert!(skein_lib::bytes::find(&why, b"repository 1/12 is not of project 1").is_some());
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("valid landing setting accepted") };
+        }
+    }
+}

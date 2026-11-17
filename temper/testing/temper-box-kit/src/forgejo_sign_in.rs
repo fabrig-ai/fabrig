@@ -243,7 +243,8 @@ fn client_configuration(
 fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: std::net::SocketAddr) {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    let email = value["application"]["machine"]["owned"]["person"]["email"].clone();
+    let mut setup = super::owned::setup_value(directory, 1, "owned");
+    let email = setup["person"]["email"].clone();
     value["engine"]["owners"] = json!([{"provider":1,"subject":email}]);
     value["engine"]["clients"]["provider"] = json!({
         "key":"provider.key", "addresses":[1],
@@ -252,7 +253,8 @@ fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: s
     });
     value["application"]["clients"]["listener"] = json!({"socket":temper});
     value["application"]["sign_in"] = Value::Null;
-    value["application"]["machine"]["owned"]["sign_in"] = json!("forgejo");
+    setup["sign_in"] = json!("forgejo");
+    super::configuration::setup(directory, 1, setup);
     super::write_private(&path, &serde_json::to_vec(&value).expect("public configuration"));
     super::write_private(&directory.join("provider.key"), b"");
     let key = Command::new("openssl")
@@ -334,9 +336,8 @@ fn public_source(directory: &Path) {
 }
 
 fn owner_named(directory: &Path, instance: &skein_throwaway_forgejo::Instance) {
-    let document: Value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration")).expect("JSON");
-    let person = &document["application"]["machine"]["owned"]["person"];
+    let setup = super::owned::setup_value(directory, 1, "owned");
+    let person = &setup["person"];
     let login = person["login"].as_str().expect("owner login");
     let email = person["email"].as_str().expect("owner email");
     let response = instance
@@ -367,7 +368,7 @@ fn sign_in(
     forge: std::net::SocketAddr,
     link: &str,
 ) -> io::Result<()> {
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
@@ -399,7 +400,7 @@ fn through_temper(
     temper: std::net::SocketAddr,
     forge: std::net::SocketAddr,
 ) -> io::Result<Landed> {
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let opened = browser.call(&format!("http://{forge}/user/oauth2/temper"), None)?;
     assert_eq!(opened.status, 307);
     let authorization = opened.location.expect("provider authorization redirect");

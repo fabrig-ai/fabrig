@@ -175,7 +175,7 @@ pub fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, c
             (title, asked.short, kind)
         }
         needs::Need::Approval(row) => {
-            (row.title.clone(), super::approval::question(row, w), crate::shared::NeedKind::Other)
+            (super::chat::row_title(&row.title), super::approval::question(row, w), crate::shared::NeedKind::Other)
         }
     }
 }

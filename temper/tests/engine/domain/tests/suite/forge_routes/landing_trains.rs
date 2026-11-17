@@ -349,8 +349,9 @@ fn drill_15_an_owner_widens_its_own_project_roles_for_template_four_goal_trains(
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
     let mut world = World::configured_stock_turn(&defaults, &stock::box_model(), &limits)
-        .with_project_policy(initial)
-        .with_settings_owner(&forge_top::user_key(1, 7));
+        .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
+            config.core.seed_projects[0].policy = initial;
+        });
     world.adopt();
     let mut hello = hello_prepare(3);
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =

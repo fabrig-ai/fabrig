@@ -15,16 +15,9 @@ use jig_protocol_config::{self as config, Path, read};
 
 const LIMITS: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
 const APPLICATION: &[u8] = br#"{
-"machine":{
- "owned":{"sign_in":null,"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","forgejo":"fetched",
- "runner":{"binary":"fetched","labels":["temper-host:host"],"capacity":1,"path":"/usr/bin:/bin"},
- "person":{"login":"person","email":"person@localhost"},"public":"https://forge.example.test",
- "mirror":{"forgejo":"https://downloads.example.test","runner":"https://runner.example.test"}},
- "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"},
- "github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
+ "test":{"github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
  "remote":"https://git.example.test","web":"https://web.example.test","git":"demo/bin/github-git"}},
 "clients":{"listener":{"socket":"127.0.0.1:8367"},"bundle":"/bundle","public":"https://temper.example.test"},
-"welcome":true,
 "push":{"key":"push.key","subject":"mailto:operator@example.test","services":null},
 "webhooks":{"listener":{"socket":"127.0.0.1:8371"}},
 "sign_in":{"google":{"provider":3,"client":"client-a","secret":"sign-in.secret",
@@ -36,25 +29,17 @@ const APPLICATION: &[u8] = br#"{
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
-"limits":{"profile":"small","overrides":{}},"workers":[{"root":"workspaces","git":"/usr/bin/git"}],
-"landing":{"projects":[{"project":1,"by":"turn","batch":1,"combine":{"main":"merge","other":"squash"},"check_timeout_ms":900000,"landing_attempts":1,"merge_job":".temper/merge","close_job":".temper/close","gate_retries":2,"gate_timeout_ms":3600000,"tier_retries":2,"verification_bound_ms":7200000,
- "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true,"report":{"artifact":"results","format":"junit","fuzzy":"fuzzy::"}}],
- "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000,"description":"the slow suites"}]}]}]}
+"limits":{"profile":"standard","overrides":{}}
 }"#;
 
 fn expanded() -> Box<[u8]> {
     let input = fixtures::with(&fixtures::turn_document(), b"application", APPLICATION);
     let input = fixtures::with(
         &input,
-        b"engine.providers",
-        br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#,
-    );
-    let input = fixtures::with(
-        &input,
         b"engine.owners",
         br#"[{"provider":1,"subject":"owner-a"},{"provider":3,"subject":"person@example.test"}]"#,
     );
-    fixtures::with(&input, b"engine.clients", br#"{"heartbeat_ms":10000,"link":true,"provider":{"key":"provider.pem","clients":[{"id":"forge-client","secret":"forge.secret","redirect_uri":"https://forge.example.test/user/oauth2/temper/callback"}],"addresses":[]}}"#)
+    fixtures::with(&input, b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"forge-client","secret":"forge.secret","redirect_uri":"https://forge.example.test/user/oauth2/temper/callback"}],"addresses":[]}}"#)
 }
 
 fn objects(document: &skein_json::Document, path: &str) -> Vec<(u32, Path)> {
@@ -121,13 +106,6 @@ fn gone(document: &skein_json::Document, parent: &str, name: &str) -> skein_json
 fn every_row_is_a_member_its_decoder_takes() {
     let input = expanded();
     startup::load(&input, &config::Directories::working(), false).expect("expanded decoder example");
-    let signing_in = fixtures::with(&input, b"application.machine.owned.sign_in", br#""forge-client""#);
-    let signing_in = fixtures::with(&signing_in, b"application.sign_in", b"null");
-    let mut signing_in: serde_json::Value = serde_json::from_slice(&signing_in).unwrap();
-    let owned = signing_in.pointer_mut("/application/machine/owned").unwrap().as_object_mut().unwrap();
-    assert!(owned.remove("public").is_some());
-    let signing_in = serde_json::to_vec(&signing_in).unwrap();
-    startup::load(&signing_in, &config::Directories::working(), false).expect("box sign-in decoder example");
     let document = config::document(&input, &LIMITS).unwrap();
     let mut seen = BTreeSet::new();
     for shape in &SHAPES {
@@ -147,13 +125,10 @@ fn every_row_is_a_member_its_decoder_takes() {
     // Gone members are consumed and refused by their owning decoder, with the table's remedy.
     for (parent, what, shape, name) in [
         ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
-        ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
-        (
-            "application.landing.projects[]",
-            What::Half(startup::EngineWhat::ProjectLandingStored),
-            "landing-project",
-            "rules",
-        ),
+        ("application", What::Jig(config::What::Fixed), "application", "landing"),
+        ("application", What::Jig(config::What::Fixed), "application", "workers"),
+        ("application", What::Jig(config::What::Fixed), "application", "machine"),
+        ("application", What::Jig(config::What::Fixed), "application", "welcome"),
     ] {
         let changed = gone(&document, parent, name);
         let problems =
@@ -163,7 +138,8 @@ fn every_row_is_a_member_its_decoder_takes() {
         assert_eq!(problems.problems.get(0).unwrap().what, what);
         let row = MEMBERS.iter().find(|row| row.shape == shape && row.name == name).unwrap();
         let lines = String::from_utf8(startup::lines(&problems).into_vec()).unwrap();
-        assert!(lines.contains(row.gone.unwrap()), "{lines}");
+        let words = row.gone.unwrap_or_else(|| temper_service_core::startup::moved::child(parent, name).unwrap().words);
+        assert!(lines.contains(words), "{lines}");
         seen.insert((shape, name));
     }
     for row in &MEMBERS {
@@ -182,7 +158,7 @@ fn the_rows_have_unique_names_and_bounded_lines() {
         assert_ne!(names.len(), 0);
         assert_eq!(names.len(), names.iter().collect::<BTreeSet<_>>().len());
     }
-    for row in &temper_forge_setup::machine::MEMBERS {
+    for row in temper_forge_setup::machine::MEMBERS.iter().filter(|row| row.shape.starts_with("test")) {
         assert!(
             MEMBERS.iter().any(|member| member.shape == row.shape && member.name == row.name),
             "missing machine row: {row:?}"
@@ -195,4 +171,51 @@ fn the_rows_have_unique_names_and_bounded_lines() {
             assert!(!row.line.is_empty() && row.line.len() <= 160 && row.line.ends_with('.'), "{row:?}");
         }
     }
+}
+
+#[test]
+fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
+    let input =
+        serde_json::json!({"application": serde_json::from_slice::<serde_json::Value>(fixtures::APPLICATION).unwrap()});
+    let engine = fixtures::engine().jig;
+    let parse = |input: &[u8]| {
+        let document = config::document(input, &LIMITS).unwrap();
+        let mut problems = startup::Problems::empty();
+        let application = startup::application::parse(
+            &document,
+            document.member(0, b"application").unwrap(),
+            &engine,
+            &config::Directories::working(),
+            &mut problems,
+        );
+        if problems.is_empty() { Ok(application.expect("parsed application")) } else { Err(problems) }
+    };
+    for test in [None, Some(serde_json::json!({})), Some(serde_json::json!({"github":null}))] {
+        let mut input = input.clone();
+        input["application"].as_object_mut().unwrap().remove("test");
+        if let Some(test) = test {
+            input["application"]["test"] = test;
+        }
+        let input = serde_json::to_vec(&input).unwrap();
+        let parsed = parse(&input).expect("optional test");
+        assert!(parsed.test_github.is_none());
+    }
+    for (test, expected) in [
+        (serde_json::json!({"other":null}), "application.test.other: unknown member\n"),
+        (serde_json::json!(null), "application.test: wrong value kind\n"),
+        (serde_json::json!({"github":false}), "application.test.github: wrong value kind\n"),
+    ] {
+        let mut input = input.clone();
+        input["application"]["test"] = test;
+        let input = serde_json::to_vec(&input).unwrap();
+        let problems = parse(&input).expect_err("invalid test");
+        assert_eq!(startup::lines(&problems).as_ref(), expected.as_bytes());
+    }
+    let mut input = input;
+    input["application"]["machine"]["github"] = serde_json::Value::Null;
+    let problems = parse(&serde_json::to_vec(&input).unwrap()).expect_err("machine.github is unknown");
+    assert_eq!(
+        startup::lines(&problems).as_ref(),
+        b"application.machine: moved: a forge's place is chosen when it's set up, and kept with the forge\n"
+    );
 }

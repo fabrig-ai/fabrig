@@ -45,7 +45,7 @@ fn used(link: &[u8]) -> std::io::Result<bool> {
     let text = std::str::from_utf8(link).expect("fixture URL");
     let secret = base64::decode(Alphabet::Url, text.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("fixture encoding");
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
         .expect("link record");
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record length"));
@@ -72,7 +72,6 @@ fn a_fresh_box_holds_serves_clients_port() {
     let mut child = command(&root, "").stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("box");
     let document = root.join("config/temper.json");
     let mut address = None;
-    let mut owned = None;
     let mut deadline = Deadline::arm("the box's listener document", skein_lib::Duration::from_secs(3));
     deadline.watch_process(child.id());
     loop {
@@ -80,13 +79,7 @@ fn a_fresh_box_holds_serves_clients_port() {
             && let Ok(document) = serde_json::from_slice(&bytes)
         {
             address = Some(clients(&document));
-            owned = Some(
-                document["application"]["machine"]["owned"]["listen"]["socket"]
-                    .as_str()
-                    .expect("owned listener")
-                    .parse::<SocketAddr>()
-                    .expect("socket"),
-            );
+            assert!(document["application"].get("machine").is_none());
             break;
         }
         if child.try_wait().expect("status").is_some() {
@@ -103,18 +96,16 @@ fn a_fresh_box_holds_serves_clients_port() {
         }
         std::thread::sleep(Duration::from_millis(5));
     }
-    // Init is over and the host retains the reservation even while the group stays dormant.
+    // Init is over and the host retains its deployment listeners.
     std::thread::sleep(Duration::from_millis(100));
     let running = child.try_wait().expect("box status").is_none();
     let held = address.map(|address| TcpListener::bind(address).is_err());
-    let owned_held = owned.map(|address| TcpListener::bind(address).is_err());
     let dormant = !root.join("data/forge-3").exists();
     stop(&mut child);
     fs::remove_dir_all(&root).expect("cleanup");
     assert!(running, "box stays up");
     assert_eq!(held, Some(true), "the configured clients port stays reserved");
     assert!(dormant, "the owned forge has not been prepared");
-    assert_eq!(owned_held, Some(cfg!(target_os = "linux")), "Linux holds the dormant owned forge's port");
 }
 
 #[test]

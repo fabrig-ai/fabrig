@@ -25,11 +25,11 @@ fn document(engine: Option<u32>, worker: Option<u32>) -> Box<[u8]> {
 fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
     let directories = config::Directories::working();
     for (engine, worker, payload, expected_engine, expected_worker) in [
-        (None, None, 4096, 69_632, 69_632),
-        (None, None, 32_768, 69_632, 69_632),
-        (None, None, 40_960, 69_632, 69_632),
-        (Some(4096), None, 4096, 4096, 69_632),
-        (None, Some(4096), 4096, 69_632, 4096),
+        (None, None, 4096, 135_168, 135_168),
+        (None, None, 32_768, 135_168, 135_168),
+        (None, None, 40_960, 135_168, 135_168),
+        (Some(4096), None, 4096, 4096, 135_168),
+        (None, Some(4096), 4096, 135_168, 4096),
         (Some(32_768), Some(32_768), 32_768, 32_768, 32_768),
         (Some(40_960), Some(40_960), 4096, 40_960, 40_960),
     ] {
@@ -98,7 +98,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     for metadata in [None, Some(&declaration)] {
         assert_eq!(
             store_limits(input.as_bytes(), &directories, metadata).unwrap().store.core.call_answer_bytes,
-            69_632
+            135_168
         );
     }
 }
@@ -260,7 +260,7 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
     let input = fixtures::engine_alone_document();
     let directories = config::Directories::working();
     let mut agent = fixtures::startup_agent();
-    for payload in [1, 2047, 2048, 4096, u32::MAX] {
+    for payload in [1, u32::MAX] {
         agent.tool_payload = payload;
         let checked = checked_start(
             &input,
@@ -273,6 +273,11 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
         )
         .unwrap();
         assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
+        assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 512);
+        assert_eq!(
+            store_limits(&input, &directories, Some(&agent.declaration())).unwrap().store.core.tasks.message_bytes,
+            512
+        );
         assert_eq!(
             store_limits(&input, &directories, Some(&agent.declaration())).unwrap().store.core.call_answer_bytes,
             2048
@@ -305,4 +310,45 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
         fixtures::forge_runtime(),
     )
     .unwrap();
+}
+
+#[test]
+fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
+    let mut input: serde_json::Value = serde_json::from_slice(&document(None, None)).unwrap();
+    for limits in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
+        let overrides = input.pointer_mut(limits).unwrap().as_object_mut().unwrap();
+        for name in ["tasks.message_bytes", "tasks.result_bytes", "tasks.inbox_bytes", "hub.event_bytes"] {
+            overrides.remove(name);
+        }
+    }
+    let overrides = input["application"]["limits"]["overrides"].as_object_mut().unwrap();
+    for name in ["forge.client.op_bytes", "forge_component.body_bytes", "checkout.message_bytes"] {
+        overrides.remove(name);
+    }
+    // This story varies payload carriers, not the agent's spend admission.
+    let mut agent = fixtures::startup_agent_with_spend(u64::MAX);
+    agent.tool_payload = 4096;
+    agent.bounds.message_bytes = 4094;
+    let input = serde_json::to_vec(&input).unwrap();
+    let checked = checked_start(
+        &input,
+        &config::Directories::working(),
+        &fixtures::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        fixtures::forge_runtime(),
+        None,
+    )
+    .unwrap();
+    assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 4094);
+    assert_eq!(checked.engine.limits.checkout.message_bytes, 4096);
+    assert_eq!(
+        store_limits(&input, &config::Directories::working(), Some(&agent.declaration()))
+            .unwrap()
+            .store
+            .core
+            .tasks
+            .message_bytes,
+        4094
+    );
 }

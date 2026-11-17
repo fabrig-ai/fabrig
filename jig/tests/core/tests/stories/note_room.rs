@@ -10,7 +10,7 @@ fn a_documents_whole_body_reads_back() {
     const BODY_BYTES: usize = 65_536;
     // A box's generic document text can be smaller than a note body.
     const BOX_TEXT_BYTES: u32 = 128;
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+    let standard = jig_protocol_config::stock().core;
     let body = vec![b'x'; BODY_BYTES];
     let description = vec![b't'; standard.notes.description_bytes.try_into().expect("description size")];
     // Standard and a box's smaller generic text bound both carry the note whole.
@@ -70,7 +70,7 @@ fn a_documents_whole_body_reads_back() {
 #[test]
 fn a_note_built_in_parts_is_recalled_and_read_whole() {
     const PART_BYTES: usize = 8192;
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core;
+    let standard = jig_protocol_config::stock().core;
     let mut setup = note_setup(130);
     setup.limits.core.call_records = 4;
     setup.limits.core.notes.body_bytes = standard.notes.body_bytes;
