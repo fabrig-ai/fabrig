@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_http::server as http;
 use skein_lib::{Env, List, Map, Queue, Secret, Time, Token};
+mod batch;
 pub mod bundle;
 mod call;
 mod credential;
@@ -135,6 +136,10 @@ impl Mount {
                     return;
                 }
                 value.route = dispatch::route(&self.settings.prefix, &head);
+                if value.route == dispatch::Route::Stream {
+                    let path = head.target.strip_prefix(self.settings.prefix.as_ref()).expect("routed prefix");
+                    value.replaces = dispatch::stream_replaces(path).expect("routed stream");
+                }
                 if value.public {
                     let body = match head.body {
                         http::Body::None => false,
@@ -230,7 +235,10 @@ impl Mount {
     }
     fn component(&mut self, env: &Env<Limits>, message: kit::ToTransport) {
         let name = match &message {
-            kit::ToTransport::Reply { exchange, .. } | kit::ToTransport::Public { exchange, .. } => *exchange,
+            kit::ToTransport::Reply { exchange, .. }
+            | kit::ToTransport::Public { exchange, .. }
+            | kit::ToTransport::Part { exchange, .. }
+            | kit::ToTransport::Done { exchange } => *exchange,
             kit::ToTransport::Streamed { stream, .. } | kit::ToTransport::StreamEnded { stream, .. } => *stream,
         };
         let Some(call) = self.calls.get_mut(&name) else {
@@ -250,6 +258,11 @@ impl Mount {
                 let (body, cookie) =
                     if status == 200 { dispatch::reply(&self.settings, call, env.wall, body) } else { (body, None) };
                 call.respond_with_cookie(status, body, cookie, &env.limits);
+            }
+            kit::ToTransport::Part { message, .. } => call.part(env, message),
+            kit::ToTransport::Done { .. } => {
+                call.reply_owed = false;
+                call.batch_done(env);
             }
             kit::ToTransport::Streamed { message, .. } => call.stream(env, message),
             kit::ToTransport::StreamEnded { why, .. } => call.end(env, why),

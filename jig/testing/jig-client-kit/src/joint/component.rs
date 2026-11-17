@@ -62,6 +62,8 @@ impl Composition {
                 provider_tokens: 64,
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
+                reads_per_client: 32,
+                openings_per_client: 31,
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
                 wire: jig_client_protocol_wire::v28::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
@@ -455,6 +457,9 @@ impl Composition {
             Request::Transport(message) => match message {
                 clients::ToTransport::Public { .. } => unreachable!("signed-in client sends no public reads"),
                 clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
+                clients::ToTransport::Part { .. } | clients::ToTransport::Done { .. } => {
+                    unreachable!("this in-process link does not send batches")
+                }
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self
                         .streams
@@ -573,7 +578,7 @@ impl Composition {
             link::Request::OpenStream { credential, replaces: _ } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
+                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential, replaces: None }));
                 return;
             }
             link::Request::CloseStream => {

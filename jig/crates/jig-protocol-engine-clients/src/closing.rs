@@ -120,6 +120,8 @@ impl Component {
             return;
         }
         self.phase = Phase::Aborting;
+        self.batches = Map::with_capacity(self.batches.capacity());
+        self.members = Map::with_capacity(self.members.capacity());
         self.end_streams(None);
         self.printed = super::Slot::new();
         self.local = super::Slot::new();

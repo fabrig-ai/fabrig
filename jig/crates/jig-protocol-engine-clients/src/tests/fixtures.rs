@@ -117,6 +117,8 @@ pub fn env() -> Env<Limits> {
             provider_tokens: 64,
             exchanges: 4,
             exchanges_per_client: 2,
+            reads_per_client: 32,
+            openings_per_client: 31,
             message_bytes: MESSAGE_BYTES,
             wire: wire(),
             link_span: Duration::from_secs(300),
@@ -214,6 +216,7 @@ impl Exchange {
             &self.env,
             Event::Transport(crate::FromTransport::StreamOpen {
                 stream: owner,
+                replaces: None,
                 credential: Some(Secret::new(self.token.clone())),
             }),
             &mut self.out,

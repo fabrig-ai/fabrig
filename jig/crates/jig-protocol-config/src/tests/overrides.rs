@@ -810,3 +810,29 @@ fn client_queue_and_sign_in_exchange_overrides_are_checked() {
     assert_eq!(limits.clients.queued_bytes, 128);
     assert_eq!(limits.clients.exchanges_per_client, 1);
 }
+
+#[test]
+fn client_read_and_opening_pressure_defaults_and_overrides_are_checked() {
+    for json in [br#"{"profile":"small"}"#.as_slice(), br#"{"profile":"standard"}"#] {
+        let limits = parse(json).expect("stock profile");
+        assert_eq!(limits.clients.reads_per_client, 32);
+        assert_eq!(limits.clients.openings_per_client, 31);
+    }
+    let limits = parse(br#"{"profile":"standard","overrides":{"clients.reads_per_client":1,"clients.openings_per_client":4294967295}}"#).expect("positive u32 pressure overrides");
+    assert_eq!(limits.clients.reads_per_client, 1);
+    assert_eq!(limits.clients.openings_per_client, u32::MAX);
+    for (json, name) in [
+        (
+            br#"{"profile":"small","overrides":{"clients.reads_per_client":0}}"#.as_slice(),
+            b"clients.reads_per_client".as_slice(),
+        ),
+        (br#"{"profile":"small","overrides":{"clients.reads_per_client":4294967296}}"#, b"clients.reads_per_client"),
+        (br#"{"profile":"small","overrides":{"clients.openings_per_client":0}}"#, b"clients.openings_per_client"),
+        (
+            br#"{"profile":"small","overrides":{"clients.openings_per_client":4294967296}}"#,
+            b"clients.openings_per_client",
+        ),
+    ] {
+        problem(json, &[b"limits", b"overrides", name], What::Override);
+    }
+}

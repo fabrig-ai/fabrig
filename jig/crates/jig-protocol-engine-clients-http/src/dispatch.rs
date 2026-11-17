@@ -15,6 +15,7 @@ pub(crate) enum Route {
     Authorize,
     Request,
     Read,
+    Batch,
     Watch,
     Unwatch,
     Gone,
@@ -31,7 +32,7 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
             _ => Route::Missing,
         };
     }
-    if call.method == skein_http::Method::Get && path == b"/v1/stream" {
+    if call.method == skein_http::Method::Get && stream_replaces(path).is_ok() {
         return Route::Stream;
     }
     if call.method != skein_http::Method::Post {
@@ -48,11 +49,36 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
         b"/v1/sign-out" => Route::SignOut,
         b"/v1/authorize" => Route::Authorize,
         b"/v1/read" => Route::Read,
+        b"/v1/batch" => Route::Batch,
         b"/v1/watch" => Route::Watch,
         b"/v1/unwatch" => Route::Unwatch,
         b"/v1/stream-gone" => Route::Gone,
         _ => Route::Missing,
     }
+}
+/// The stream's sole query (protocol/client/default-http.md, 2).
+pub(crate) fn stream_replaces(path: &[u8]) -> Result<Option<[u8; 16]>, ()> {
+    if path == b"/v1/stream" {
+        return Ok(None);
+    }
+    let digits = path.strip_prefix(b"/v1/stream?replaces=").ok_or(())?;
+    if digits.len() != 32 {
+        return Err(());
+    }
+    let mut name = [0; 16];
+    for (byte, pair) in name.iter_mut().zip(digits.as_chunks::<2>().0) {
+        let mut value = 0_u8;
+        for digit in pair {
+            let nibble = match digit {
+                b'0'..=b'9' => digit.checked_sub(b'0').ok_or(())?,
+                b'a'..=b'f' => digit.checked_sub(b'a').ok_or(())?.checked_add(10).ok_or(())?,
+                _ => return Err(()),
+            };
+            value = value.checked_mul(16).ok_or(())?.checked_add(nibble).ok_or(())?;
+        }
+        *byte = value;
+    }
+    Ok(Some(name))
 }
 pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
     match route {
@@ -68,6 +94,7 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
         | Route::ApprovalDecide
         | Route::SignOut
         | Route::Request
+        | Route::Batch
         | Route::Read
         | Route::Watch
         | Route::Unwatch
@@ -88,6 +115,7 @@ pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
         Route::Authorize => Message::Authorize(body),
         Route::Request => Message::Request(body),
         Route::Read => Message::Read(body),
+        Route::Batch => Message::Batch(body),
         Route::Watch => Message::Watch(body),
         Route::Unwatch => Message::Unwatch(body),
         Route::Gone => Message::Gone(body),

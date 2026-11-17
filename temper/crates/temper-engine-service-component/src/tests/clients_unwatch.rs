@@ -100,6 +100,7 @@ impl Stand {
     fn stream(&mut self) -> [u8; 16] {
         self.down(kit::Event::Transport(kit::FromTransport::StreamOpen {
             stream: STREAM,
+            replaces: None,
             credential: Some(self.credential.clone()),
         }));
         self.authenticate();

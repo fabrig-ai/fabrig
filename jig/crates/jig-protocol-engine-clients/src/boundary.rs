@@ -301,6 +301,7 @@ pub enum FromTransport {
     StreamOpen {
         stream: Token,
         credential: Option<Secret>,
+        replaces: Option<[u8; 16]>,
     },
     StreamTaken {
         stream: Token,
@@ -326,6 +327,7 @@ pub enum Message {
     Authorize(Box<[u8]>),
     Request(Box<[u8]>),
     Read(Box<[u8]>),
+    Batch(Box<[u8]>),
     Watch(Box<[u8]>),
     Unwatch(Box<[u8]>),
     Gone(Box<[u8]>),
@@ -336,6 +338,8 @@ pub enum Message {
 #[derive(Debug)]
 pub enum ToTransport {
     Reply { exchange: Token, reply: Reply },
+    Part { exchange: Token, message: Box<[u8]> },
+    Done { exchange: Token },
     Streamed { stream: Token, message: Streamed },
     StreamEnded { stream: Token, why: Ended },
     Public { exchange: Token, reply: PublicReply },

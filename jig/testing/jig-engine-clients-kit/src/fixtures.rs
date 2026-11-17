@@ -69,6 +69,8 @@ pub fn limits() -> Limits {
         provider_tokens: 64,
         exchanges: 4,
         exchanges_per_client: 2,
+        reads_per_client: 32,
+        openings_per_client: 31,
         message_bytes: MESSAGE_BYTES,
         wire: jig_client_protocol_wire::v28::CEILINGS,
         link_span: Duration::from_secs(300),

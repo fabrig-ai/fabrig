@@ -2,6 +2,7 @@ use super::*;
 use jig_client_protocol_wire::v28 as w;
 use skein_http::Method;
 use skein_lib::stream::{Down, Up};
+mod batch;
 mod fixtures;
 #[test]
 fn a_read_post_becomes_the_component_s_read_exchange() {
@@ -200,7 +201,11 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
         let mut out = Queue::with_capacity(16);
         fixtures::call(&mut mount, &mut out, method, path, &fixtures::browser(), b"");
         let expected = if stream {
-            kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: Some(fixtures::credential()) }
+            kit::FromTransport::StreamOpen {
+                stream: fixtures::EXCHANGE,
+                credential: Some(fixtures::credential()),
+                replaces: None,
+            }
         } else {
             kit::FromTransport::Exchange {
                 browser: true,
@@ -975,7 +980,10 @@ fn a_call_ended_before_its_reply_says_its_exchange_gone_once() {
                     mount.down(&fixtures::env(), Event::Component(reply));
                     fixtures::pump(&mut mount, &mut out);
                 }
-                kit::ToTransport::Streamed { .. } | kit::ToTransport::StreamEnded { .. } => unreachable!("reply row"),
+                kit::ToTransport::Part { .. }
+                | kit::ToTransport::Done { .. }
+                | kit::ToTransport::Streamed { .. }
+                | kit::ToTransport::StreamEnded { .. } => unreachable!("reply row"),
             }
         }
         fixtures::event(&mut mount, &mut out, exchange, http::Event::Closed);
