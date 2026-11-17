@@ -7,16 +7,6 @@
       "name": "w2",
       "secret": "secrets/w2.secret",
       "slots": 1,
-      "programs": {{
-        "check_interval_ms": 60000
-      }},
-      "graces": {{
-        "grace_ms": 1000,
-        "drain_ms": 1000,
-        "agent_stop_ms": 100,
-        "delivery_ms": 100,
-        "save_ms": 100
-      }},
       "agent": {{
         "program": "{artifact.temper}",
         "configuration": "{proc.w2.dir}/config/agent.json",
@@ -51,12 +41,6 @@
     }}
   ],
   "application": {{
-    "workers": [
-      {{
-        "root": "workspaces",
-        "git": "{artifact.git}"
-      }}
-    ],
     "limits": {{
       "profile": "small",
       "overrides": {{

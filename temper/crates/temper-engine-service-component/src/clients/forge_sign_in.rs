@@ -80,6 +80,14 @@ impl Entries {
             waiting: false,
         }
     }
+    pub(crate) fn owned(&mut self, forge: u16, owned: &temper_forge_setup::machine::OwnedMachine, redirect: &[u8]) {
+        self.owned = match &owned.sign_in {
+            Some(id) => Some(Entry { forge, client: id.clone(), redirect_uri: Box::from(redirect) }),
+            None => None,
+        };
+        self.public.clone_from(&owned.public);
+        self.box_owned = true;
+    }
     pub(crate) fn source(&mut self, forge: u16, added: bool) {
         if added {
             self.source = Some(forge);
@@ -128,15 +136,8 @@ impl super::Clients {
             Some(provider) => provider.clients.as_ref(),
             None => &[],
         };
-        let public = match &settings.machine.owned {
-            Some(owned) => owned.public.as_ref(),
-            None => None,
-        };
-        let owned = match &settings.machine.owned {
-            Some(owned) if self.deployment.owned || owned.sign_in.is_some() => Some(owned),
-            Some(_) | None => None,
-        };
-        self.forge_sign_in = Entries::new(rows, clients, public, owned, settings.limits.clients.bundle_bytes);
+        self.forge_sign_in = Entries::new(rows, clients, None, None, settings.limits.clients.bundle_bytes);
+        self.forge_sign_in.box_owned = self.deployment.owned;
     }
 }
 

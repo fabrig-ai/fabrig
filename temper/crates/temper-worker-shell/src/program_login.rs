@@ -46,8 +46,8 @@ pub fn command(
     let bytes = directories.read()?;
     let worker = match temper_service_core::startup::nearest(&bytes) {
         Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
-            let part =
-                temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories)).map_err(|why| {
+            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories), None)
+                .map_err(|why| {
                     String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
                 })?;
             part.named

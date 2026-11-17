@@ -669,6 +669,7 @@ fn jig_test_domain_family(request: clients::ToApplication, limits: &root::Limits
     use jig_client_test_protocol_wire::codec::{self, Undecodable};
     use jig_protocol_engine_clients::{FromApplication, ToApplication};
     match request {
+        ToApplication::ProviderClientChanged { .. } => panic!("joint application requests no provider changes"),
         ToApplication::Request { reply_to, sign_in, key, family, version, scope, record, digest, carried } => {
             let decoded = if family == 1 && version == jig_client_test_protocol_wire::VERSION {
                 codec::request(&record, &limits.connector)

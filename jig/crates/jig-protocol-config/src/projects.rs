@@ -36,7 +36,8 @@ pub(crate) fn configured_policies(
     policies(document, at, &Path::root().member(b"policies"), limits, configured, problems)
 }
 
-fn policies(
+/// Read numbered policy settings before they are checked against the engine defaults.
+pub fn policies(
     document: &Document,
     at: u32,
     path: &Path,
