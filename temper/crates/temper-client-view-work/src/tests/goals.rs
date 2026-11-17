@@ -449,6 +449,7 @@ struct Page {
     root: temper_client_domain::Domain,
     out: Queue<temper_client_domain::Request>,
     watch: skein_lib::Token,
+    ended_mark: u64,
     me: skein_lib::Token,
     limits: temper_client_domain::Limits,
 }
@@ -474,7 +475,7 @@ impl Page {
         frame.projects.get_mut(EMPTY).unwrap().templates =
             List::from_boxed(Box::new([template(jig_client::shapes::GOAL, b"goal", true)]));
         fixtures::deliver_me(&mut root, me, frame);
-        let mut page = Self { root, out: Queue::uncapped(), watch: me, me, limits };
+        let mut page = Self { root, out: Queue::uncapped(), watch: me, ended_mark: 0, me, limits };
         page.event(temper_client_domain::Event::Went {
             place: temper_client_domain::Place::Address(Address::Goals {
                 project: fixtures::PROJECT,
@@ -537,10 +538,14 @@ impl Page {
         self.up(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(value)) });
     }
     fn live(&mut self, lines: &[c::TaskLine], more: bool) {
+        self.live_at(lines, more, self.ended_mark);
+    }
+    fn live_at(&mut self, lines: &[c::TaskLine], more: bool, ended_mark: u64) {
+        self.ended_mark = ended_mark;
         self.up(jig_client::Up::Watched {
             watch: self.watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                ended_mark: 0,
+                ended_mark: self.ended_mark,
                 rows: List::from_boxed(lines.into()),
                 more,
             }))),
@@ -551,7 +556,7 @@ impl Page {
         self.answer(
             read,
             c::ReadValue::Tasks(Box::new(c::TaskPage {
-                ended_mark: 0,
+                ended_mark: self.ended_mark,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows {
@@ -790,7 +795,7 @@ fn waiting_rows_are_under_way_and_only_an_own_need_says_you() {
         holds: false,
     };
     let room = page_line(201, State::WaitsForRoom);
-    page.live(&[waiting.clone(), room.clone()], false);
+    page.live_at(&[waiting.clone(), room.clone()], false, 1);
     page.ended(&[], false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         page.filter(GoalsFilter::Live);
@@ -930,7 +935,7 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     landed.requester = c::Requester::Task(m);
     let mut unknown = page_line(PAUSED_TASK, State::Paused);
     unknown.requester = c::Requester::Task(9999);
-    page.live(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false);
+    page.live_at(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false, 1);
     page.ended(&[landed.clone(), page_line(FAILED_TASK, State::Failed)], false);
     let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
     let listed = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);

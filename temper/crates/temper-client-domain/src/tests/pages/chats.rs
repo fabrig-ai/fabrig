@@ -418,6 +418,7 @@ fn closed_chats_are_read_a_page_at_a_time() {
                 ended: EndedGroup::Rows { rows: List::with_capacity(0), after: Some(cursor.clone()), cut: false },
             })))),
         },
+        crate::unlinked(&limits, fixtures::SEED).client(),
         &crate::Address::Chats { filter: ChatsFilter::All },
         &mut out,
     );
@@ -644,7 +645,12 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     });
     chats.older(&mut out);
     out.pop();
-    chats.told(Told::Changed { handle: chats.live }, &crate::Address::Chats { filter: ChatsFilter::All }, &mut out);
+    chats.told(
+        Told::Changed { handle: chats.live },
+        crate::unlinked(&limits, fixtures::SEED).client(),
+        &crate::Address::Chats { filter: ChatsFilter::All },
+        &mut out,
+    );
     assert!(out.is_empty(), "an older page stays put");
 }
 
@@ -742,6 +748,131 @@ fn open_chat_rows(
     (root, watch.expect("live watch"), read.expect("first closed page"), facts)
 }
 
+struct ClosedReads {
+    root: crate::Domain,
+    watch: skein_lib::Token,
+    out: Queue<crate::Request>,
+}
+impl ClosedReads {
+    fn new() -> (Self, skein_lib::Token) {
+        let (root, watch, read) = opened_chats();
+        (Self { root, watch, out: Queue::uncapped() }, read)
+    }
+    fn up(&mut self, up: jig_client::Up) {
+        crate::step(
+            &mut self.root,
+            &fixtures::env(&fixtures::limits()),
+            crate::Event::Client { event: Event::Up { up } },
+            &mut self.out,
+        );
+    }
+    fn live(&mut self, rows: &[TaskLine], ended_mark: u64) {
+        self.up(jig_client::Up::Watched {
+            watch: self.watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                ended_mark,
+                rows: List::from_boxed(rows.into()),
+                more: false,
+            }))),
+        });
+    }
+    fn answer(&mut self, read: skein_lib::Token, ended_mark: u64, more: bool) {
+        self.up(jig_client::Up::ReadDone {
+            read,
+            result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark,
+                live: List::with_capacity(0),
+                live_after: None,
+                ended: EndedGroup::Rows {
+                    rows: List::with_capacity(0),
+                    after: if more {
+                        Some(Cursor::new(b"next".as_slice().into(), CURSOR_BYTES).unwrap())
+                    } else {
+                        None
+                    },
+                    cut: false,
+                },
+            })))),
+        });
+    }
+    fn reads(&mut self) -> Box<[(skein_lib::Token, Option<Cursor>)]> {
+        let mut reads = List::uncapped();
+        while let Some(request) = self.out.pop() {
+            if let crate::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: Readable::Jig(Read::Tasks { query, live, ended }) },
+                    },
+            } = request
+            {
+                assert_eq!((query.phase, query.order, live), (Some(PhaseClass::Ended), QueryOrder::Ended, None));
+                reads.push((read, ended)).expect("scripted closed reads fit");
+            }
+        }
+        assert!(reads.len() <= 1, "one closed read at a time");
+        reads.into_boxed()
+    }
+}
+fn first_closed(reads: &[(skein_lib::Token, Option<Cursor>)]) -> skein_lib::Token {
+    assert_eq!(reads.len(), 1, "one first closed page");
+    assert_eq!(reads[0].1, None);
+    reads[0].0
+}
+
+#[test]
+fn closed_chats_read_again_only_when_the_mark_grows() {
+    let (mut h, first) = ClosedReads::new();
+    h.answer(first, 5, false);
+    assert!(h.reads().is_empty(), "the opening answer needs no follow-up");
+    h.live(&[chat_line()], 5);
+    assert!(h.reads().is_empty(), "the first delivery keeps the opening answer");
+    let mut changed = chat_line();
+    changed.last_activity = skein_lib::Wall::from_nanos(1);
+    h.live(core::slice::from_ref(&changed), 5);
+    assert!(h.reads().is_empty(), "changed live rows do not refresh closed chats");
+    h.live(core::slice::from_ref(&changed), 6);
+    let refresh = first_closed(&h.reads());
+    h.answer(refresh, 6, true);
+    assert!(h.reads().is_empty(), "equal live rows with a grown mark needed just one read");
+    crate::step(
+        &mut h.root,
+        &fixtures::env(&fixtures::limits()),
+        crate::Event::Act { action: crate::Action::Pages(crate::pages::Act::ClosedChats) },
+        &mut h.out,
+    );
+    let older = h.reads();
+    assert_eq!(older.len(), 1);
+    assert!(older[0].1.is_some(), "More closed chats keeps its cursor");
+    h.answer(older[0].0, 6, false);
+    h.live(&[changed], 7);
+    assert!(h.reads().is_empty(), "a grown mark does not replace an older page");
+}
+
+#[test]
+fn closed_chats_coalesce_marks_while_the_read_is_under_way() {
+    for answered_mark in [5, 6, 7] {
+        let (mut h, first) = ClosedReads::new();
+        h.live(&[], 6);
+        assert!(h.reads().is_empty(), "the opening read is in flight");
+        h.live(&[], 5);
+        assert!(h.reads().is_empty(), "keep the greatest delivery mark");
+        h.answer(first, answered_mark, false);
+        let reads = h.reads();
+        if answered_mark < 6 {
+            let refresh = first_closed(&reads);
+            h.live(&[], 7);
+            h.live(&[], 6);
+            assert!(h.reads().is_empty(), "the follow-up is in flight");
+            h.answer(refresh, 6, false);
+            let next = first_closed(&h.reads());
+            h.answer(next, 7, false);
+            assert!(h.reads().is_empty(), "one follow-up per uncovered mark suffices");
+        } else {
+            assert!(reads.is_empty(), "the answer covers the delivery");
+        }
+    }
+}
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "one ending refreshes the live group and the independent closed page")]
 fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
@@ -758,7 +889,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: first_read,
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
-                        ended_mark: 0,
+                        ended_mark: 5,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -770,7 +901,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     );
     let mut rows = List::with_capacity(1);
     rows.push(chat_line()).expect("one live chat");
-    for rows in [rows, List::with_capacity(0)] {
+    for (rows, ended_mark) in [(rows, 5), (List::with_capacity(0), 6)] {
         crate::step(
             &mut root,
             &env,
@@ -779,7 +910,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                     up: jig_client::Up::Watched {
                         watch,
                         event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
-                            ended_mark: 0,
+                            ended_mark,
                             rows,
                             more: false,
                         }))),
@@ -821,7 +952,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: refreshed.expect("ending re-reads first page"),
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
-                        ended_mark: 0,
+                        ended_mark: 6,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows, after: None, cut: false },
@@ -1414,6 +1545,7 @@ fn a_kilobyte_pasted_is_sent_whole() {
                 what: Made::Tasks { tasks },
             }))),
         },
+        crate::unlinked(&limits, fixtures::SEED).client(),
         &crate::Address::NewChat { draft: false },
         &mut out,
     );

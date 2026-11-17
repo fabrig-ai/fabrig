@@ -318,6 +318,7 @@ pub struct Milestones {
     query: Option<c::TaskQuery>,
     answered: bool,
     ended_rows: List<c::TaskLine>,
+    ended_read: super::ended::EndedRead,
     lines: List<c::TaskLine>,
     drawn: List<Milestone>,
     requesters: List<Requester>,
@@ -332,6 +333,7 @@ impl Milestones {
             query: None,
             answered: false,
             ended_rows: List::uncapped(),
+            ended_read: super::ended::EndedRead::new(),
             lines: List::uncapped(),
             drawn: List::with_capacity(DRAWN),
             requesters: List::with_capacity(HELD),
@@ -362,6 +364,7 @@ impl Milestones {
             self.answered = false;
             self.lines.clear();
             self.ended_rows.clear();
+            self.ended_read = super::ended::EndedRead::new();
             self.drawn.clear();
             self.requesters.clear();
             self.sources = Map::uncapped();
@@ -430,8 +433,9 @@ impl Milestones {
         }
         self.drawn = drawn;
     }
-    fn read_ended(&self, out: &mut Queue<Request>) {
+    fn read_ended(&mut self, out: &mut Queue<Request>) {
         if let Some(query) = &self.query {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
@@ -506,19 +510,26 @@ impl Milestones {
         }
         self.sources = sources;
     }
-    pub fn told(&mut self, told: &Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, told: &Told, client: &Client, limits: &Limits, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if *handle == self.live => {
-                self.read_ended(out);
+                if self.ended_read.changed(client, self.live) {
+                    self.read_ended(out);
+                }
                 return true;
             }
             Told::Page { handle, page } if *handle == self.ended => {
                 self.answered = true;
+                let mut mark = None;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    mark = Some(page.ended_mark);
                     self.ended_rows = match &page.ended {
                         c::EndedGroup::Rows { rows, .. } => rows.clone(),
                         c::EndedGroup::None => List::uncapped(),
                     };
+                }
+                if self.ended_read.answered(mark) {
+                    self.read_ended(out);
                 }
                 return true;
             }

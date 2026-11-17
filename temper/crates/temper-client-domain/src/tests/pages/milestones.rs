@@ -88,8 +88,11 @@ fn total_answer(totals: w::MilestoneTotals) -> Readout {
     Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 fn page(rows: &[c::TaskLine], more: bool) -> Readout {
+    page_at(rows, more, 0)
+}
+fn page_at(rows: &[c::TaskLine], more: bool, ended_mark: u64) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
-        ended_mark: 0,
+        ended_mark,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -135,12 +138,15 @@ impl Harness {
         down
     }
     fn live(&mut self, watch: Token, rows: &[c::TaskLine]) {
+        self.live_at(watch, rows, 0);
+    }
+    fn live_at(&mut self, watch: Token, rows: &[c::TaskLine], ended_mark: u64) {
         self.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                        ended_mark: 0,
+                        ended_mark,
                         rows: List::from_boxed(rows.into()),
                         more: false,
                     }))),
@@ -350,8 +356,12 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
     h.down();
     let opened = h.open();
     let live = watch(&opened, Some(LABEL), None, WINDOW);
-    h.live(live, &[line(M, WALL)]);
-    let drawn_watch = watch(&h.down(), None, Some(M), WINDOW);
+    h.answer(ended_read(&opened, Some(LABEL), None), page_at(&[], false, 5));
+    h.down();
+    h.live_at(live, &[line(M, WALL)], 5);
+    let delivered = h.down();
+    assert!(marked_ended_reads(&delivered).is_empty(), "the first live delivery does not reread ended milestones");
+    let drawn_watch = watch(&delivered, None, Some(M), WINDOW);
     h.live(drawn_watch, &[]);
     h.down();
     let handles = (h.reads().live, h.reads().ended);
@@ -552,6 +562,96 @@ fn requesters_are_read_once_and_the_oldest_of_sixteen_is_dropped() {
     assert!(task_reads(&h.down()).is_empty(), "a held chat is not read again");
 }
 
+fn marked_milestones(fact: bool) -> (Harness, Token, Token) {
+    let mut identity = me();
+    if fact {
+        let templates = &mut identity.projects.get_mut(0).unwrap().templates;
+        *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
+    }
+    let mut h = Harness::new(identity);
+    let down = if fact {
+        h.down()
+    } else {
+        h.down();
+        h.open()
+    };
+    let live = watch(&down, Some(LABEL), None, if fact { 1 } else { WINDOW });
+    let reads = marked_ended_reads(&down);
+    assert_eq!(reads.len(), 1, "one opening ended page");
+    (h, live, reads[0])
+}
+fn marked_ended_reads(down: &[Down]) -> Vec<Token> {
+    let mut reads = Vec::new();
+    for request in down {
+        if let Down::Read { read, what: Readable::Jig(c::Read::Tasks { query, live, ended }) } = request
+            && query.label == Some(LABEL)
+            && query.parent.is_none()
+        {
+            assert_eq!(
+                (query.phase, query.order, live, ended),
+                (Some(c::PhaseClass::Ended), c::QueryOrder::Ended, &None, &None)
+            );
+            reads.push(*read);
+        }
+    }
+    assert!(reads.len() <= 1, "one milestone ended read at a time");
+    reads
+}
+
+#[test]
+fn ended_milestones_and_their_fact_read_again_only_when_the_mark_grows() {
+    for fact in [false, true] {
+        let (mut h, live, first) = marked_milestones(fact);
+        h.answer(first, page_at(&[], false, 5));
+        assert!(marked_ended_reads(&h.down()).is_empty(), "the opening answer needs no follow-up");
+        h.live_at(live, &[line(M, WALL)], 5);
+        assert!(marked_ended_reads(&h.down()).is_empty(), "first delivery keeps the opening answer");
+        let changed = line(M, Wall::from_nanos(WALL.as_nanos() + 1));
+        h.live_at(live, core::slice::from_ref(&changed), 5);
+        assert!(marked_ended_reads(&h.down()).is_empty(), "a live row change is not an ended change");
+        h.live_at(live, &[changed], 6);
+        let reads = marked_ended_reads(&h.down());
+        assert_eq!(reads.len(), 1, "equal live rows can hide a task that started and ended");
+        h.answer(reads[0], page_at(&[done(M + 1)], false, 6));
+        assert!(marked_ended_reads(&h.down()).is_empty(), "one refresh suffices");
+        if fact {
+            h.live_at(live, &[], 6);
+            assert!(h.root.has_goals(PROJECT), "the ended milestone fact is held");
+        } else {
+            assert!(h.reads().lines().iter().any(|line| line.chip.task == M + 1), "the ended row is held");
+        }
+        assert!(marked_ended_reads(&h.down()).is_empty(), "the held ended row keeps its mark");
+    }
+}
+
+#[test]
+fn ended_milestones_and_their_fact_coalesce_marks_while_reading() {
+    for fact in [false, true] {
+        for answered_mark in [5, 6, 7] {
+            let (mut h, live, first) = marked_milestones(fact);
+            h.live_at(live, &[], 6);
+            assert!(marked_ended_reads(&h.down()).is_empty(), "the opening read is in flight");
+            h.live_at(live, &[], 5);
+            assert!(marked_ended_reads(&h.down()).is_empty(), "keep the greatest delivery mark");
+            h.answer(first, page_at(&[], false, answered_mark));
+            let reads = marked_ended_reads(&h.down());
+            if answered_mark < 6 {
+                assert_eq!(reads.len(), 1, "an older answer needs one follow-up");
+                h.live_at(live, &[], 7);
+                h.live_at(live, &[], 6);
+                assert!(marked_ended_reads(&h.down()).is_empty(), "the follow-up stays in flight");
+                h.answer(reads[0], page_at(&[], false, 6));
+                let next = marked_ended_reads(&h.down());
+                assert_eq!(next.len(), 1, "one follow-up for a mark grown during a refresh");
+                h.answer(next[0], page_at(&[], false, 7));
+                assert!(marked_ended_reads(&h.down()).is_empty(), "one follow-up per uncovered mark suffices");
+            } else {
+                assert!(reads.is_empty(), "the answer covers the greatest delivery mark");
+            }
+        }
+    }
+}
+
 #[test]
 fn a_project_with_only_a_milestone_has_goals() {
     let mut me = me();
@@ -559,14 +659,18 @@ fn a_project_with_only_a_milestone_has_goals() {
     *templates = List::from_boxed(Box::new([templates.get(1).unwrap().clone()]));
     let mut h = Harness::new(me);
     assert!(!h.root.has_goals(PROJECT));
-    let fact = watch(&h.down(), Some(LABEL), None, 1);
-    h.live(fact, &[line(M, WALL)]);
-    assert!(h.root.has_goals(PROJECT));
+    let opened = h.down();
+    let fact = watch(&opened, Some(LABEL), None, 1);
+    let first = ended_read(&opened, Some(LABEL), None);
+    h.answer(first, page_at(&[], false, 5));
     h.down();
-    h.live(fact, &[]);
+    h.live_at(fact, &[line(M, WALL)], 5);
+    assert!(h.root.has_goals(PROJECT));
+    assert!(h.down().is_empty(), "the first delivery keeps the ended answer");
+    h.live_at(fact, &[], 6);
     assert!(!h.root.has_goals(PROJECT));
     let read = ended_read(&h.down(), Some(LABEL), None);
-    h.answer(read, page(&[done(M)], false));
+    h.answer(read, page_at(&[done(M)], false, 6));
     assert!(h.root.has_goals(PROJECT), "an ended milestone keeps the project fact");
 }
 

@@ -3,6 +3,7 @@
 use super::{
     Request,
     chat::document::{Mode, WRITE_THIS_UP},
+    ended::EndedRead,
 };
 use crate::address::ChatsFilter;
 use crate::pages::Routing;
@@ -49,6 +50,7 @@ pub struct Chats {
     keep_words: bool,
     query: Option<TaskQuery>,
     first: bool,
+    ended_read: EndedRead,
     page_delivered: bool,
     page_answered: bool,
     documents_known: bool,
@@ -79,6 +81,7 @@ impl Chats {
             keep_words: false,
             query: None,
             first: true,
+            ended_read: EndedRead::new(),
             page_delivered: false,
             page_answered: false,
             documents_known: false,
@@ -126,6 +129,7 @@ impl Chats {
         self.page_answered = false;
         self.documents_known = false;
         self.first = true;
+        self.ended_read = EndedRead::new();
         self.query = Some(query.clone());
         out.push(Request::Client(jig_client::Event::Watch {
             handle: self.live,
@@ -311,8 +315,9 @@ impl Chats {
         }
         None
     }
-    fn read(&self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
+    fn read(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
         if let Some(query) = &self.query {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.closed,
                 read: Readable::Jig(Read::Tasks {
@@ -486,12 +491,10 @@ impl Chats {
             Err(why) => self.refusal = Some(why),
         }
     }
-    pub fn told(&mut self, told: Told, address: &Address, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, told: Told, client: &Client, address: &Address, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.live => {
-                // Live deliveries omit ended tasks. Refresh the first ended page
-                // alongside them, including when its previous read is in flight.
-                if self.first {
+                if self.first && self.ended_read.changed(client, self.live) {
                     self.read(None, out);
                 }
                 true
@@ -501,10 +504,15 @@ impl Chats {
             {
                 self.page_delivered = true;
                 self.page_answered = true;
+                let again = self.ended_read.answered(if self.first { Some(page.ended_mark) } else { None });
                 self.page = Some(*page);
+                if again {
+                    self.read(None, out);
+                }
                 true
             }
             Told::Page { handle, .. } if handle == self.closed => {
+                self.ended_read.answered(None);
                 self.page_delivered = true;
                 true
             }

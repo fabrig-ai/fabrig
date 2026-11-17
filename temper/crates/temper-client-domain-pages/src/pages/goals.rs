@@ -2,7 +2,7 @@
 mod rows;
 pub use rows::{GroupRow, goal, groups, home_rows};
 
-use super::{Request, report};
+use super::{Request, ended::EndedRead, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
@@ -34,18 +34,19 @@ impl HasGoals {
             *next = next.checked_add(1).expect("page handles fit");
             let read = handle(*next);
             *next = next.checked_add(1).expect("page handles fit");
-            self.milestones = Some(Fact { live, read, milestone: true, query: None, ended: false });
+            self.milestones =
+                Some(Fact { live, read, milestone: true, query: None, ended: false, ended_read: EndedRead::new() });
         }
         if let Some(fact) = &mut self.milestones {
             fact.configure(me, project, out);
         }
     }
-    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
-        if self.goals.told(told, out) {
+    pub(super) fn told(&mut self, told: &Told, client: &Client, out: &mut Queue<Request>) -> bool {
+        if self.goals.told(told, client, out) {
             return true;
         }
         match &mut self.milestones {
-            Some(fact) => fact.told(told, out),
+            Some(fact) => fact.told(told, client, out),
             None => false,
         }
     }
@@ -70,6 +71,7 @@ struct Fact {
     live: Handle,
     read: Handle,
     milestone: bool,
+    ended_read: EndedRead,
 }
 
 impl Fact {
@@ -78,6 +80,7 @@ impl Fact {
             query: None,
             ended: false,
             milestone: false,
+            ended_read: EndedRead::new(),
             live: handle(u64::MAX.checked_sub(1).expect("reserved goal watch handle")),
             read: handle(u64::MAX.checked_sub(2).expect("reserved goal read handle")),
         }
@@ -89,6 +92,7 @@ impl Fact {
             }
         }
         self.ended = false;
+        self.ended_read = EndedRead::new();
     }
     pub(super) fn configure(&mut self, me: Option<&c::Me>, project: Option<u32>, out: &mut Queue<Request>) {
         let next = if let (Some(me), Some(project)) = (me, project) {
@@ -109,8 +113,9 @@ impl Fact {
             self.read_ended(out);
         }
     }
-    fn read_ended(&self, out: &mut Queue<Request>) {
+    fn read_ended(&mut self, out: &mut Queue<Request>) {
         if let Some(query) = &self.query {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.read,
                 read: Readable::Jig(c::Read::Tasks {
@@ -125,25 +130,26 @@ impl Fact {
             }));
         }
     }
-    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(&mut self, told: &Told, client: &Client, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Page { handle, page } if *handle == self.read => {
                 if self.query.is_some() {
-                    self.ended = match page {
-                        Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => match &page.ended {
+                    let mut mark = None;
+                    if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                        mark = Some(page.ended_mark);
+                        self.ended = match &page.ended {
                             c::EndedGroup::Rows { rows, .. } => !rows.is_empty(),
                             c::EndedGroup::None => false,
-                        },
-                        Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                        | Readout::Family { .. }
-                        | Readout::NotServed { .. }
-                        | Readout::Limit => self.ended,
-                    };
+                        };
+                    }
+                    if self.ended_read.answered(mark) && self.milestone {
+                        self.read_ended(out);
+                    }
                 }
                 true
             }
             Told::Changed { handle } if *handle == self.live => {
-                if self.milestone {
+                if self.milestone && self.ended_read.changed(client, self.live) {
                     self.read_ended(out);
                 }
                 true
@@ -196,7 +202,7 @@ pub struct Goals {
     query: Option<c::TaskQuery>,
     page: Option<c::TaskPage>,
     first: bool,
-    reading_page: bool,
+    ended_read: EndedRead,
     page_answered: bool,
     count: u32,
     needs_total: Option<u32>,
@@ -217,7 +223,7 @@ impl Goals {
             query: None,
             page: None,
             first: true,
-            reading_page: false,
+            ended_read: EndedRead::new(),
             page_answered: false,
             count: 0,
             needs_total: None,
@@ -251,7 +257,7 @@ impl Goals {
             self.query.clone_from(&next);
             self.page = None;
             self.page_answered = false;
-            self.reading_page = false;
+            self.ended_read = EndedRead::new();
             self.first = true;
             self.count = 0;
             self.needs_total = None;
@@ -279,7 +285,7 @@ impl Goals {
     }
     fn read(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
         if let Some(query) = &self.query {
-            self.reading_page = true;
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
@@ -309,7 +315,7 @@ impl Goals {
         }
     }
     pub(crate) fn older(&mut self, out: &mut Queue<Request>) {
-        if !self.reading_page
+        if !self.ended_read.reading()
             && let Some(page) = &self.page
             && let c::EndedGroup::Rows { after: Some(after), .. } = &page.ended
         {
@@ -318,23 +324,29 @@ impl Goals {
             self.read(Some(after), out);
         }
     }
-    pub(crate) fn told(&mut self, told: Told, out: &mut Queue<Request>) -> bool {
+    pub(crate) fn told(&mut self, told: Told, client: &Client, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.live => {
-                if self.first {
+                if self.first && self.ended_read.changed(client, self.live) {
                     self.read(None, out);
                 }
                 self.read_needs(out);
                 true
             }
             Told::Page { handle, page } if handle == self.ended => {
-                self.reading_page = false;
+                let mut mark = None;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    if self.first {
+                        mark = Some(page.ended_mark);
+                    }
                     self.page = Some(*page);
                     self.page_answered = true;
                     let read = u32::try_from(self.ended().len()).expect("goal page fits");
                     self.count =
                         if self.first { read } else { self.count.checked_add(read).expect("goals count fits") };
+                }
+                if self.ended_read.answered(mark) {
+                    self.read(None, out);
                 }
                 true
             }

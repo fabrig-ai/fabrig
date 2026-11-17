@@ -1,11 +1,11 @@
 
-  ▄█▀▀   temper 0.0.0 (7ad80ed1bdf2-dirty)
- ▄█▄█▄█  127.0.0.1:38679
+  ▄█▀▀   temper 0.0.0 (498f4ebf985b-dirty)
+ ▄█▄█▄█  127.0.0.1:33133
 
- 0+ things need you.
+ Nothing needs you.
 
  Where you left off
-   Hello   Add a CSV export to the report, a chat · today 08:24 ·…     /chats 1
+   Hello   Add a CSV export to the report, a chat · today 10:12 ·…     /chats 1
 
  Start
    /draft    a design session that ends in a draft and a goal

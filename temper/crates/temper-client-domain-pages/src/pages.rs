@@ -18,6 +18,7 @@ pub mod calls;
 pub mod changes;
 pub mod chat;
 pub mod drafts;
+mod ended;
 pub mod members;
 pub mod remembered;
 pub mod roles;
@@ -1559,11 +1560,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if let Some(reads) = &mut pages.milestones
-        && reads.told(&told, &env.limits, out)
+        && reads.told(&told, client, &env.limits, out)
     {
         return true;
     }
-    if pages.has_goals.told(&told, out) {
+    if pages.has_goals.told(&told, client, out) {
         return true;
     }
     if let Some(page) = &pages.how
@@ -2329,7 +2330,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     }
     if pages.chat.is_some()
         && let Some(chats) = &mut pages.chats
-        && chats.told(told.clone(), &pages.address, out)
+        && chats.told(told.clone(), client, &pages.address, out)
     {
         return true;
     }
@@ -2377,12 +2378,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(goals) = &mut pages.goals
-        && goals.told(told.clone(), out)
+        && goals.told(told.clone(), client, out)
     {
         return true;
     }
     if let Some(chats) = &mut pages.chats {
-        if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), &pages.address, out) {
+        if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), client, &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, &env.limits, out),
                 None => false,

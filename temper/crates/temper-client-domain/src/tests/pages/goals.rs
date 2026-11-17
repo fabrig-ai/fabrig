@@ -41,8 +41,11 @@ fn rows(lines: &[c::TaskLine]) -> List<c::TaskLine> {
     List::from_boxed(lines.into())
 }
 fn page(lines: &[c::TaskLine], more: bool) -> c::ReadValue {
+    page_at(lines, more, 0)
+}
+fn page_at(lines: &[c::TaskLine], more: bool, ended_mark: u64) -> c::ReadValue {
     c::ReadValue::Tasks(Box::new(c::TaskPage {
-        ended_mark: 0,
+        ended_mark,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -146,6 +149,9 @@ impl Harness {
         reads.into_boxed()
     }
     fn live(&mut self, lines: &[c::TaskLine], more: bool) {
+        self.live_at(lines, more, 0);
+    }
+    fn live_at(&mut self, lines: &[c::TaskLine], more: bool, ended_mark: u64) {
         self.event(crate::Event::Client {
             event: jig_client::Event::Up {
                 up: Up::Watched {
@@ -153,7 +159,7 @@ impl Harness {
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
                         rows: rows(lines),
                         more,
-                        ended_mark: 0,
+                        ended_mark,
                     }))),
                 },
             },
@@ -170,12 +176,13 @@ impl Harness {
     }
 }
 fn maybe_ended_read(reads: &[(Token, c::Read)]) -> Option<Token> {
+    let mut ended = None;
     for (token, read) in reads {
         if let c::Read::Tasks { .. } = read {
-            return Some(*token);
+            assert!(ended.replace(*token).is_none(), "one ended read at a time");
         }
     }
-    None
+    ended
 }
 fn ended_read(reads: &[(Token, c::Read)]) -> Token {
     maybe_ended_read(reads).expect("ended read")
@@ -537,6 +544,52 @@ fn needs_come_from_the_selection_and_read_again_as_needs_total_moves() {
 }
 
 #[test]
+fn ended_goals_read_again_only_when_the_mark_grows() {
+    let mut h = Harness::new();
+    let first = ended_read(&h.reads());
+    h.answer(first, page_at(&[], false, 5));
+    h.reads();
+    h.live_at(&[line(GOAL, Wall::EPOCH)], false, 5);
+    assert_eq!(maybe_ended_read(&h.reads()), None, "the first delivery keeps the opening read");
+    h.live_at(&[line(GOAL, LATER)], false, 5);
+    assert_eq!(maybe_ended_read(&h.reads()), None, "a changed live row is no ended change");
+    h.live_at(&[line(GOAL, LATER)], false, 6);
+    let reads = h.reads();
+    let refresh = ended_read(&reads);
+    let c::Read::Tasks { ended, .. } = &reads[0].1 else { panic!("ended read") };
+    assert_eq!(*ended, None, "even equal live rows can hide a task that started and ended");
+    h.answer(refresh, page_at(&[line(OTHER, LATER)], false, 6));
+    assert_eq!(maybe_ended_read(&h.reads()), None);
+    assert_eq!(h.goals().ended()[0].chip.task, OTHER);
+}
+
+#[test]
+fn ended_goals_coalesce_marks_while_the_read_is_under_way() {
+    for answered_mark in [5, 6, 7] {
+        let mut h = Harness::new();
+        let first = ended_read(&h.reads());
+        h.live_at(&[], false, 6);
+        assert_eq!(maybe_ended_read(&h.reads()), None, "opening read stays in flight");
+        h.live_at(&[], false, 5);
+        assert_eq!(maybe_ended_read(&h.reads()), None, "keep the greatest delivery mark");
+        h.answer(first, page_at(&[], false, answered_mark));
+        let reads = h.reads();
+        if answered_mark < 6 {
+            let refresh = ended_read(&reads);
+            h.live_at(&[], false, 7);
+            h.live_at(&[], false, 6);
+            assert_eq!(maybe_ended_read(&h.reads()), None, "one follow-up stays in flight");
+            h.answer(refresh, page_at(&[], false, 6));
+            let next = ended_read(&h.reads());
+            h.answer(next, page_at(&[], false, 7));
+            assert_eq!(maybe_ended_read(&h.reads()), None, "one follow-up per uncovered mark suffices");
+        } else {
+            assert_eq!(maybe_ended_read(&reads), None, "the answer already covers the delivery");
+        }
+    }
+}
+
+#[test]
 fn more_goals_reads_the_next_page_and_keeps_the_count() {
     let mut h = Harness::new();
     let first = ended_read(&h.reads());
@@ -545,26 +598,26 @@ fn more_goals_reads_the_next_page_and_keeps_the_count() {
     assert_eq!(h.goals().count(h.root.client()), WINDOW);
     assert!(h.goals().more());
     assert!(h.goals().unread(h.root.client()));
-    h.live(&[], false);
+    h.live_at(&[], false, 1);
     let refresh = h.reads();
     let c::Read::Tasks { ended, .. } = &refresh[0].1 else { panic!("first page refresh") };
-    assert_eq!(*ended, None, "live changes refresh the first page");
-    h.answer(ended_read(&refresh), page(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], true));
+    assert_eq!(*ended, None, "a grown mark refreshes the first page");
+    h.answer(ended_read(&refresh), page_at(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], true, 1));
     h.reads();
     assert_eq!(h.goals().count(h.root.client()), WINDOW, "refreshing the first page counts its rows once");
     h.act(Act::MoreGoals);
     let reads = h.reads();
     let c::Read::Tasks { ended, .. } = &reads[0].1 else { panic!("older page") };
     assert!(ended.is_some());
-    h.answer(ended_read(&reads), page(&[line(OTHER, LATER)], false));
+    h.answer(ended_read(&reads), page_at(&[line(OTHER, LATER)], false, 1));
     h.reads();
     assert_eq!(h.goals().ended().len(), CURRENT_ENDED);
     assert_eq!(h.goals().count(h.root.client()), ENDED_READ, "two first rows and one next row");
     assert!(!h.goals().more());
-    h.live(&[], false);
+    h.live_at(&[], false, 2);
     let reads = h.reads();
-    assert_eq!(maybe_ended_read(&reads), None, "older page stays put");
-    h.live(&[line(GOAL, LATER)], true);
+    assert_eq!(maybe_ended_read(&reads), None, "older page stays put even as the mark grows");
+    h.live_at(&[line(GOAL, LATER)], true, 2);
     h.reads();
     assert_eq!(h.goals().count(h.root.client()), ALL_READ, "one live and three ended read");
     assert!(h.goals().unread(h.root.client()), "live more is reachable");
@@ -1006,7 +1059,7 @@ fn a_lost_read_keeps_the_page_and_the_count() {
     assert_eq!(h.goals().ended(), before.as_slice());
     assert_eq!(h.goals().count(h.root.client()), count, "lost second page counts no retained row twice");
     h.act(Act::MoreGoals);
-    assert!(!h.reads().is_empty(), "lost read clears reading_page");
+    assert!(!h.reads().is_empty(), "lost read releases the page read");
 }
 #[test]
 fn a_lost_read_keeps_has_goals() {
