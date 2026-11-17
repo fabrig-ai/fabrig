@@ -804,6 +804,8 @@ impl Component {
             store::Event::Census { .. }
             | store::Event::Checkpointed { .. }
             | store::Event::CheckpointRefused { .. }
+            | store::Event::Restored { .. }
+            | store::Event::RestoreRefused { .. }
             | store::Event::CheckpointHeld { .. }
             | store::Event::CheckpointRemoved { .. }
             | store::Event::Switched { .. }
@@ -1077,6 +1079,8 @@ impl Component {
                 store::Event::Census { .. }
                 | store::Event::Checkpointed { .. }
                 | store::Event::CheckpointRefused { .. }
+                | store::Event::Restored { .. }
+                | store::Event::RestoreRefused { .. }
                 | store::Event::CheckpointHeld { .. }
                 | store::Event::CheckpointRemoved { .. }
                 | store::Event::Switched { .. }

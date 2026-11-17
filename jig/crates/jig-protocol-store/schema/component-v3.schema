@@ -46,6 +46,13 @@ versioned record Checkpoint {
     levels: Levels
     files: list 65536 CheckpointFile
 }
+versioned record RestoreIntent {
+    generation: u64
+    active: fixed 32
+    source: text 37
+    safety: text 37
+    made: u64
+}
 versioned record Transcript { length: u64 window: u64 }
 versioned record Attempt { first: u64 }
 versioned record HistoryLog { record: option u64 }

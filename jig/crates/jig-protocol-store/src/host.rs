@@ -50,6 +50,7 @@ pub enum Adoption {
     Open,
     Rehearse { scratch: Fd },
     Back,
+    Restore { name: crate::CheckpointName, draw: [u8; 16] },
     Checkpoint { draw: [u8; 16] },
     HoldCheckpoint { name: crate::CheckpointName },
     RemoveCheckpoint { name: crate::CheckpointName },
@@ -475,6 +476,7 @@ impl Drivers {
         match self.adoption {
             Adoption::Open
             | Adoption::Back
+            | Adoption::Restore { .. }
             | Adoption::Checkpoint { .. }
             | Adoption::HoldCheckpoint { .. }
             | Adoption::RemoveCheckpoint { .. } => 1,
@@ -575,6 +577,7 @@ impl Drivers {
                 Adoption::Open
                 | Adoption::Rehearse { .. }
                 | Adoption::Back
+                | Adoption::Restore { .. }
                 | Adoption::HoldCheckpoint { .. }
                 | Adoption::RemoveCheckpoint { .. } => {
                     above.push(event);
@@ -620,7 +623,9 @@ impl Drivers {
             crate::Event::Closed { .. } => {
                 above.push(self.checkpoint_terminal.take().expect("checkpoint terminal retained through close"));
             }
-            event @ (crate::Event::CheckpointHeld { .. }
+            event @ (crate::Event::Restored { .. }
+            | crate::Event::RestoreRefused { .. }
+            | crate::Event::CheckpointHeld { .. }
             | crate::Event::CheckpointRemoved { .. }
             | crate::Event::Rehearsing { .. }
             | crate::Event::Decoded { .. }
@@ -674,6 +679,7 @@ impl Drivers {
                 scratch: self.scratch.expect("adopted scratch"),
                 installation: self.installation,
             },
+            Adoption::Restore { .. } => unreachable!("restore adoption begins its component operation directly"),
             Adoption::Back => crate::Request::Back { owner: self.owner, root },
             Adoption::HoldCheckpoint { name } => crate::Request::HoldCheckpoint { owner: self.owner, root, name },
             Adoption::RemoveCheckpoint { name } => crate::Request::RemoveCheckpoint { owner: self.owner, root, name },
@@ -711,6 +717,10 @@ impl Drivers {
                                         why: crate::checkpoints::files::failure(b"checkpoints", &event),
                                     }
                                 }
+                                Adoption::Restore { .. } => crate::Event::RestoreRefused {
+                                    owner: self.owner,
+                                    why: crate::RestoreRefusal::Open { why: crate::OpenRefusal::Failed },
+                                },
                                 Adoption::Back => {
                                     crate::Event::BackRefused { owner: self.owner, why: crate::BackRefusal::Unreadable }
                                 }
@@ -721,7 +731,26 @@ impl Drivers {
                         && let Some(fd) = self.root.take()
                     {
                         self.started = true;
-                        crate::down(component, env, self.adoption_request(fd), above, &mut self.below);
+                        match self.adoption {
+                            Adoption::Restore { name, draw } => crate::restoring::begin(
+                                component,
+                                env,
+                                self.owner,
+                                crate::Root { token: Token::new(1), fd },
+                                name,
+                                draw,
+                                above,
+                                &mut self.below,
+                            ),
+                            Adoption::Open
+                            | Adoption::Back
+                            | Adoption::Checkpoint { .. }
+                            | Adoption::HoldCheckpoint { .. }
+                            | Adoption::RemoveCheckpoint { .. }
+                            | Adoption::Rehearse { .. } => {
+                                crate::down(component, env, self.adoption_request(fd), above, &mut self.below);
+                            }
+                        }
                     }
                     continue;
                 }

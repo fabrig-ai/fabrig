@@ -651,6 +651,8 @@ impl Store {
             | Event::SecretsNotReady { .. } => self.failed = true,
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Page { .. }
@@ -667,6 +669,8 @@ impl Store {
             }
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Page { .. }

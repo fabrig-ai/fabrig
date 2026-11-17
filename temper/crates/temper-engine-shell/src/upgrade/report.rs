@@ -89,6 +89,8 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
             // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
             Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Census { .. }

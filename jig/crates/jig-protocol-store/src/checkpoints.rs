@@ -5,6 +5,7 @@ pub(crate) mod retention;
 pub(crate) mod selection;
 pub(crate) mod sweep;
 pub(crate) mod taking;
+pub(crate) mod transfer;
 use skein_lib::{Decimal, bytes};
 
 /// The checkpoint copy chunk bound (protocol/store/checkpoints.md, 4.5).

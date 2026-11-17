@@ -179,3 +179,9 @@ fn behind_and_unregistered_refusals_name_the_bridge_build() {
         says(OpenRefusal::OlderBuild { why }, start, "\"");
     }
 }
+
+#[test]
+fn an_unfinished_restore_says_how_to_finish_or_replace_it() {
+    says(OpenRefusal::Generations { why: Generations::Unmatched }, "- `Unmatched`: \"", "\"");
+    says(OpenRefusal::Generations { why: Generations::Unfinished }, "- `Unfinished`: \"", "\"");
+}

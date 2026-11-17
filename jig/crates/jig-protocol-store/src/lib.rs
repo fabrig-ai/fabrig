@@ -46,6 +46,7 @@ pub use upgrade::sets::{Frames, JIG, KeptFamily, KeptMap, Keys, Owner, OwnerSet,
 mod reads;
 mod registry;
 pub mod restore;
+mod restoring;
 pub mod retained;
 mod rows;
 mod secrets;
@@ -134,6 +135,7 @@ pub struct Store {
     start_open_failure: Option<Box<restore::OpenFailure>>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
+    restoring: Option<Box<restoring::State>>,
     checkpoint_open: Option<checkpoint_open::State>,
     named_checkpoints: Box<checkpoints::named::Named>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
@@ -268,6 +270,7 @@ impl Store {
             start_open_failure: None,
             rehearsal: None,
             back: None,
+            restoring: None,
             checkpoint_open: None,
             named_checkpoints: Box::new(checkpoints::named::Named::new()),
         }
@@ -453,9 +456,11 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     down_inner(store, env, request, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     view::fire(store, env, above, below);
@@ -464,12 +469,14 @@ fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, be
         view::fire(store, env, above, below);
     }
 }
-fn accounted(store: &mut Store, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
+fn accounted(store: &mut Store, env: &Env<Limits>, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::issued(store, below, lengths);
     checkpoint_open::issued(store, below, lengths);
     let lengths = rehearsal::lengths(below);
     rehearsal::advance_close(store, above, below);
-    checkpoint_open::advance(store, above, below);
+    let mut events = Queue::uncapped();
+    checkpoint_open::advance(store, &mut events, below);
+    restoring::events(store, env, &mut events, above, below);
     rehearsal::issued(store, below, lengths);
     checkpoint_open::issued(store, below, lengths);
 }
@@ -539,11 +546,20 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     up_routed(store, env, io, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    if restoring::owns(&io) {
+        let arrived = match io {
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
+        };
+        restoring::up(store, env, arrived, above, below);
+        return;
+    }
     rehearsal::arriving(store, &io);
     checkpoint_open::arriving(store, &io);
     if checkpoint_open::closing(store) {
@@ -586,9 +602,11 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, belo
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();
     fire_inner(store, env, &mut events, below);
-    view::events(store, &mut events, above);
+    let mut terminals = Queue::uncapped();
+    restoring::events(store, env, &mut events, &mut terminals, below);
+    view::events(store, &mut terminals, above);
     fire_views(store, env, above, below);
-    accounted(store, lengths, above, below);
+    accounted(store, env, lengths, above, below);
 }
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
@@ -619,8 +637,8 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Purpose, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead,
-    Undecoded, Unplanned, Unready, WorkerOpening, Write,
+    OpenedWire, Purpose, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow, SecretValue,
+    Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]

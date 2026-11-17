@@ -209,6 +209,8 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             }
             other @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Switched { .. }

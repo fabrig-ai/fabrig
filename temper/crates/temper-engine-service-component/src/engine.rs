@@ -867,6 +867,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             }
             event @ (jig_protocol_store::Event::Checkpointed { .. }
             | jig_protocol_store::Event::CheckpointRefused { .. }
+            | jig_protocol_store::Event::Restored { .. }
+            | jig_protocol_store::Event::RestoreRefused { .. }
             | jig_protocol_store::Event::CheckpointHeld { .. }
             | jig_protocol_store::Event::CheckpointRemoved { .. }
             | jig_protocol_store::Event::Census { .. }
