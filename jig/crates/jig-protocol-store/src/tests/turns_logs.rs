@@ -93,6 +93,7 @@ fn new_turns_append_bodies_and_keep_window_and_first_attempt_places() {
             at: 0,
             direction: skein_kv::Direction::Forward,
             max: 4096,
+            rows: u32::MAX,
         },
         &mut above,
         &mut below,
@@ -368,6 +369,94 @@ fn a_record_skein_cannot_read_is_an_unread_frame() {
     ] {
         let events = disk.request(&mut store, transcript(read, 2, 4096));
         let [Event::Unread { owner: OWNER }] = events.as_ref() else { panic!("unread log frame: {events:?}") };
+    }
+}
+
+fn many_turns_decoded_once(mut read: TranscriptRead, rows: u32) {
+    use super::fixtures::disk::{Disk, Seen};
+    const TURNS: u32 = 32;
+    let mut disk = Disk::new(&[]);
+    let mut limits = fixtures::store_limits();
+    limits.store.page.rows = TURNS;
+    let mut store = disk.store_with_limits(&limits);
+    disk.open(&mut store);
+    let mut expected = List::with_capacity(TURNS);
+    for number in 1..=TURNS {
+        let turn = if number == 1 {
+            fixtures::window_turn(LIVE, 1, number, &[b'x'; 1024])
+        } else {
+            fixtures::turn(LIVE, 1, number, &[b'x'; 1024])
+        };
+        let events = disk.request(
+            &mut store,
+            fixtures::commit(
+                u64::from(number),
+                Box::new([
+                    fixtures::header(u64::from(number)),
+                    fixtures::save(Record::Core(CoreRecord::Turn(turn.clone()))),
+                ]),
+            ),
+        );
+        let [Event::Committed { .. }] = events.as_ref() else { panic!("durable turn: {events:?}") };
+        expected.push(turn).unwrap();
+    }
+    let before = disk.requests().len();
+    let expected = expected.into_boxed();
+    let mut kept = 0;
+    for _ in 0..TURNS {
+        let (got, next, cut) =
+            page(disk.request(&mut store, transcript(read, rows, u64::from(limits.store.page.bytes))));
+        assert_eq!(cut, None);
+        assert!(!got.is_empty());
+        let start = if let TranscriptRead::Page { backwards: true, .. } = read {
+            expected.len().checked_sub(kept).unwrap().checked_sub(got.len()).unwrap()
+        } else {
+            kept
+        };
+        assert_eq!(got.as_ref(), expected.get(start..start.checked_add(got.len()).unwrap()).unwrap());
+        kept = kept.checked_add(got.len()).unwrap();
+        if next.is_none() {
+            break;
+        }
+        match &mut read {
+            TranscriptRead::Page { after, .. } | TranscriptRead::Window { after, .. } => *after = next,
+            TranscriptRead::Turn { .. } => unreachable!("page or window"),
+        }
+    }
+    assert_eq!(kept, usize::try_from(TURNS).unwrap());
+    // Calm payload I/O reads a four-byte length, then one whole frame for
+    // each call to skein-kv's Read::accept (and its CRC/inflate decode).
+    let mut decoded = 0_usize;
+    for (driver, seen) in disk.requests().get(before..).unwrap() {
+        if *driver == 0
+            && let Seen::Read { max } = seen
+            && *max > 4
+        {
+            decoded = decoded.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(decoded, usize::try_from(TURNS).unwrap(), "whole frames decoded by skein-kv");
+}
+
+#[test]
+fn forward_turns_log_decodes_each_record_once() {
+    many_turns_decoded_once(TranscriptRead::Page { task: LIVE, backwards: false, after: None }, 32);
+}
+
+#[test]
+fn backward_turns_log_decodes_each_record_once() {
+    many_turns_decoded_once(TranscriptRead::Page { task: LIVE, backwards: true, after: None }, 32);
+}
+
+#[test]
+fn resume_window_decodes_each_record_once() {
+    many_turns_decoded_once(TranscriptRead::Window { task: LIVE, attempt: 1, turn: 1, after: None }, 32);
+}
+
+#[test]
+fn two_row_turns_pages_decode_each_record_once_in_both_directions() {
+    for backwards in [false, true] {
+        many_turns_decoded_once(TranscriptRead::Page { task: LIVE, backwards, after: None }, 2);
     }
 }
 

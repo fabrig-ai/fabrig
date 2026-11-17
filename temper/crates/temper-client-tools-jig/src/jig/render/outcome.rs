@@ -183,6 +183,7 @@ impl Operation {
                         c::AccountChange::MoveIn { .. } => b"import",
                         c::AccountChange::DeclareProgram { .. } => b"declare".as_slice(),
                         c::AccountChange::CheckProgram { .. } => b"verify",
+                        c::AccountChange::SetUses { .. } => b"uses",
                         c::AccountChange::AddKey { .. } => b"add-key".as_slice(),
                         c::AccountChange::ReplaceKey { .. } => b"replace-key",
                         c::AccountChange::Resume { .. } => b"retry",
@@ -191,7 +192,6 @@ impl Operation {
                         c::AccountChange::LoginProgram { .. }
                         | c::AccountChange::CancelLogin { .. }
                         | c::AccountChange::LoginEnded { .. }
-                        | c::AccountChange::SetUses { .. }
                         | c::AccountChange::FinishSignIn { .. } => b"account-change",
                     },
                     None,
@@ -866,9 +866,12 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::LIFT_AT => &rows::LIFT,
         rows::STOP_AT => &rows::STOP,
         rows::CANCEL_AT => &rows::CANCEL,
-        rows::CONNECT_AT..=rows::RETRY_AT | rows::DECLARE_AT | rows::VERIFY_AT | rows::EXPORT_AT | rows::IMPORT_AT => {
-            account_tool(tool)
-        }
+        rows::CONNECT_AT..=rows::RETRY_AT
+        | rows::DECLARE_AT
+        | rows::VERIFY_AT
+        | rows::EXPORT_AT
+        | rows::IMPORT_AT
+        | rows::USES_AT => account_tool(tool),
         rows::AMEND_AT => &rows::AMEND,
         rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
         rows::WORKER_ADD_AT => &rows::WORKER_ADD,
@@ -907,6 +910,7 @@ pub(crate) fn account_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::REPLACE_KEY_AT => &rows::REPLACE_KEY,
         rows::FORGET_AT => &rows::FORGET,
         rows::RANK_AT => &rows::RANK,
+        rows::USES_AT => &rows::USES,
         rows::RETRY_AT => &rows::RETRY,
         rows::DECLARE_AT => &rows::DECLARE,
         rows::VERIFY_AT => &rows::VERIFY,
@@ -1224,6 +1228,12 @@ fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) 
         } else {
             return false;
         }
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Provider {
+        out.put(b"account uses: a plan account cannot pay for another person or a project with another person");
+        return true;
+    } else if operation.word == b"uses" && *refusal == c::Refusal::Unknown {
+        out.put(b"account uses: unknown account, party or project");
+        return true;
     } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
         out.put(b"account retry: the source is not limited, so there is nothing to resume");
     } else {
