@@ -3997,12 +3997,16 @@ pub enum Path {
     HistoryDepartedTail,
     /// The `style` field of `HistoryUpdate`.
     HistoryUpdateStyle,
+    /// The `forge_base` field of `HistoryUpdate`.
+    HistoryUpdateForgeBase,
     /// Bytes after `HistoryUpdate`.
     HistoryUpdateTail,
     /// The tag of `HistoryUpdateOutcome`.
     HistoryUpdateOutcomeTag,
     /// The `outcome` field of `HistoryUpdated`.
     HistoryUpdatedOutcome,
+    /// The `forge_base` field of `HistoryUpdated`.
+    HistoryUpdatedForgeBase,
     /// Bytes after `HistoryUpdated`.
     HistoryUpdatedTail,
     /// The `job` field of `HistoryJobStarted`.
@@ -6097,9 +6101,11 @@ impl Path {
             Self::HistoryDepartedCause => "HistoryDeparted.cause",
             Self::HistoryDepartedTail => "HistoryDeparted (tail)",
             Self::HistoryUpdateStyle => "HistoryUpdate.style",
+            Self::HistoryUpdateForgeBase => "HistoryUpdate.forge_base",
             Self::HistoryUpdateTail => "HistoryUpdate (tail)",
             Self::HistoryUpdateOutcomeTag => "HistoryUpdateOutcome (tag)",
             Self::HistoryUpdatedOutcome => "HistoryUpdated.outcome",
+            Self::HistoryUpdatedForgeBase => "HistoryUpdated.forge_base",
             Self::HistoryUpdatedTail => "HistoryUpdated (tail)",
             Self::HistoryJobStartedJob => "HistoryJobStarted.job",
             Self::HistoryJobStartedTask => "HistoryJobStarted.task",
@@ -25994,19 +26000,22 @@ impl HistoryDeparted {
 pub struct HistoryUpdateParts {
     /// The `style` field.
     pub style: UpdateStyle,
+    /// The `forge_base` field.
+    pub forge_base: Option<[u8; 32]>,
 }
 
 /// `HistoryUpdate` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HistoryUpdate {
     style: UpdateStyle,
+    forge_base: Option<[u8; 32]>,
 }
 
 impl HistoryUpdate {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: HistoryUpdateParts) -> Result<Self, Problem> {
-        let HistoryUpdateParts { style } = parts;
-        let value = Self { style };
+        let HistoryUpdateParts { style, forge_base } = parts;
+        let value = Self { style, forge_base };
         Ok(value)
     }
 
@@ -26014,9 +26023,13 @@ impl HistoryUpdate {
     #[must_use]
     pub fn style(&self) -> &UpdateStyle { &self.style }
 
+    /// Reads the `forge_base` field.
+    #[must_use]
+    pub fn forge_base(&self) -> &Option<[u8; 32]> { &self.forge_base }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> HistoryUpdateParts { HistoryUpdateParts { style: self.style } }
+    pub fn into_parts(self) -> HistoryUpdateParts { HistoryUpdateParts { style: self.style, forge_base: self.forge_base } }
 
 }
 
@@ -26044,19 +26057,22 @@ impl HistoryUpdateOutcome {
 pub struct HistoryUpdatedParts {
     /// The `outcome` field.
     pub outcome: HistoryUpdateOutcome,
+    /// The `forge_base` field.
+    pub forge_base: Option<[u8; 32]>,
 }
 
 /// `HistoryUpdated` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HistoryUpdated {
     outcome: HistoryUpdateOutcome,
+    forge_base: Option<[u8; 32]>,
 }
 
 impl HistoryUpdated {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: HistoryUpdatedParts) -> Result<Self, Problem> {
-        let HistoryUpdatedParts { outcome } = parts;
-        let value = Self { outcome };
+        let HistoryUpdatedParts { outcome, forge_base } = parts;
+        let value = Self { outcome, forge_base };
         Ok(value)
     }
 
@@ -26064,9 +26080,13 @@ impl HistoryUpdated {
     #[must_use]
     pub fn outcome(&self) -> &HistoryUpdateOutcome { &self.outcome }
 
+    /// Reads the `forge_base` field.
+    #[must_use]
+    pub fn forge_base(&self) -> &Option<[u8; 32]> { &self.forge_base }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> HistoryUpdatedParts { HistoryUpdatedParts { outcome: self.outcome } }
+    pub fn into_parts(self) -> HistoryUpdatedParts { HistoryUpdatedParts { outcome: self.outcome, forge_base: self.forge_base } }
 
 }
 
@@ -49706,6 +49726,11 @@ impl HistoryUpdate {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_forge_base = &self.forge_base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_forge_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -49713,6 +49738,14 @@ impl HistoryUpdate {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_style = &self.style;
         field_style.encode(writer)?;
+        let field_forge_base = &self.forge_base;
+        match field_forge_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -49725,7 +49758,8 @@ impl HistoryUpdate {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_style = UpdateStyle::decode_from(limits, reader)?;
-        Ok(Self { style: decoded_style })
+        let decoded_forge_base = match reader.u8().ok_or(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { style: decoded_style, forge_base: decoded_forge_base })
     }
 }
 
@@ -49773,6 +49807,11 @@ impl HistoryUpdated {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_forge_base = &self.forge_base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_forge_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -49780,6 +49819,14 @@ impl HistoryUpdated {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_outcome = &self.outcome;
         field_outcome.encode(writer)?;
+        let field_forge_base = &self.forge_base;
+        match field_forge_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -49792,7 +49839,8 @@ impl HistoryUpdated {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_outcome = HistoryUpdateOutcome::decode_from(limits, reader)?;
-        Ok(Self { outcome: decoded_outcome })
+        let decoded_forge_base = match reader.u8().ok_or(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { outcome: decoded_outcome, forge_base: decoded_forge_base })
     }
 }
 
@@ -66849,7 +66897,7 @@ impl HistoryUpdate {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(UpdateStyle::encoded_bound_within(limits)?)?;
+        size = size.checked_add(UpdateStyle::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -66862,7 +66910,7 @@ impl HistoryUpdate {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(UpdateStyle::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(UpdateStyle::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -66903,7 +66951,7 @@ impl HistoryUpdated {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(HistoryUpdateOutcome::encoded_bound_within(limits)?)?;
+        size = size.checked_add(HistoryUpdateOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -66916,7 +66964,7 @@ impl HistoryUpdated {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(HistoryUpdateOutcome::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(HistoryUpdateOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

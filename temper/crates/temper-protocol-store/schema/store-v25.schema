@@ -480,9 +480,9 @@ record HistoryJoined { line: HistoryLine place: option u32 priority: option u32 
 record HistoryLandingDeparture { cause: LandingLeave }
 enum HistoryDeparture { landing: HistoryLandingDeparture, unready, conflict, repair, ejected }
 record HistoryDeparted { line: HistoryLine cause: HistoryDeparture }
-record HistoryUpdate { style: UpdateStyle }
+record HistoryUpdate { style: UpdateStyle forge_base: option fixed 32 = none }
 enum HistoryUpdateOutcome { updated, conflict, failed }
-record HistoryUpdated { outcome: HistoryUpdateOutcome }
+record HistoryUpdated { outcome: HistoryUpdateOutcome forge_base: option fixed 32 = none }
 record HistoryJobStarted { job: HistoryJob task: u64 }
 record HistoryJobEnded { job: HistoryJob outcome: HistoryJobOutcome }
 enum HistoryWith { branch, earlier }

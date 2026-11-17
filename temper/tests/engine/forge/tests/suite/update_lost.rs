@@ -3,7 +3,7 @@
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge::{self as top, history as h};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
@@ -419,6 +419,7 @@ fn single_prepare_world(conflict: bool) -> World {
 #[test]
 fn an_update_refused_before_sending_replans_and_lands_with_one_send() {
     let mut world = queued();
+    let old = translate::commit(world.branch(b"main"));
     let decision = decide_before_check(&mut world, 1);
     assert!(matches!(decision, change::Decision::Effect(change::Effect::Update { .. })));
     world.push_file(b"main", b"next", b"base moved before check");
@@ -434,6 +435,37 @@ fn an_update_refused_before_sending_replans_and_lands_with_one_send() {
     finish(&mut world, 3);
     assert_eq!(world.change(CHANGE).change.updates, 1);
     assert_eq!(updates(&mut world, api::UpdateStyle::Merge), 1);
+    let events: Vec<_> = world
+        .history(CHANGE)
+        .into_iter()
+        .filter(|event| matches!(event.what, h::What::Update { .. } | h::What::Updated { .. }))
+        .collect();
+    assert_eq!(
+        events.iter().map(|event| (event.base, event.what.clone())).collect::<Vec<_>>(),
+        [
+            (Some(old), h::What::Update { style: api::UpdateStyle::Merge, forge_base: Some(old) }),
+            (Some(old), h::What::Updated { outcome: h::UpdateOutcome::Failed, forge_base: Some(tip) }),
+            (Some(tip), h::What::Update { style: api::UpdateStyle::Merge, forge_base: Some(tip) }),
+            (Some(tip), h::What::Updated { outcome: h::UpdateOutcome::Updated, forge_base: Some(tip) }),
+        ]
+    );
+    assert_eq!(events.iter().map(|event| event.operation).collect::<Vec<_>>(), [1, 1, 2, 2]);
+}
+
+#[test]
+fn a_preparations_history_names_its_asked_pin_not_the_steps_tip() {
+    let mut world = single_prepare_world(false);
+    let pin = translate::commit(world.branch(b"main"));
+    world.push_file(b"main", b"next", b"tip moved after landing asked");
+    let tip = translate::commit(world.branch(b"main"));
+    assert_ne!(pin, tip);
+    assert!(matches!(decide_before_check(&mut world, 1),
+        change::Decision::Effect(change::Effect::Prepare { main, .. }) if main == pin));
+    let events: Vec<_> =
+        world.history(CHANGE).into_iter().filter(|event| matches!(event.what, h::What::Update { .. })).collect();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].base, Some(pin));
+    assert_eq!(events[0].what, h::What::Update { style: api::UpdateStyle::Rebase, forge_base: Some(tip) });
 }
 
 #[test]
