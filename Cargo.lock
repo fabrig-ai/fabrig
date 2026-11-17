@@ -2284,11 +2284,13 @@ dependencies = [
  "jig-test-profile",
  "skein-codec",
  "skein-fake-machine",
+ "skein-fork",
  "skein-heap",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "tempfile",
 ]
 
 [[package]]

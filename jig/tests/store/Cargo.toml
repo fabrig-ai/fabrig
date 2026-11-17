@@ -38,6 +38,8 @@ jig-test-profile.workspace = true
 jig-protocol-config.workspace = true
 jig-core-kit.workspace = true
 skein-heap.workspace = true
+skein-fork.workspace = true
+tempfile.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
