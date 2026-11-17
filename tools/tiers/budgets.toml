@@ -9,6 +9,12 @@
 [gate.default]
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 1.5
+why = "The checkout world's fake-disk delivery, merge, reuse, store and simulation stories run below the real loop in their own binary."
+
 [gate.default.skein]
 ideal_s = 40
 
@@ -154,6 +160,12 @@ cpu_s = 72
 
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 2.8
+why = "The checkout world's seeded fake-disk merge and simulation stories run below the real loop in their own binary."
 
 [gate.fuzzy.skein]
 ideal_s = 120

@@ -45,7 +45,7 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   the next landing plan on a real deployment, which no record shows either.
 - **Not yet:** *A merge in progress*: a producer's start that finds its base contained stands
   on `temper-fake-git` alone (`a_resumed_producer_holding_the_tip_pushes_no_merge`,
-  `temper/tests/worker/checkout/tests/suite/merges.rs`), with that same proof.
+  `temper/tests/worker/checkout/tests/fakes/merges.rs`), with that same proof.
 - **Not yet:** the whole document and `README.md`, 9: a parked producer's delivered and saved edits survive a moved landing
   tip, repeated questions and a save refused for markers in the composed system
   world's two `parked` stories. Those use fake git and a fake disk, and their
@@ -79,7 +79,7 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
     `README.md`, section 8 has what a worker left behind fail no prepare, a look cannot tell
     a damaged clone from a whole one. The operation that breaks on it fails that
     prepare as transient and spoils it, and the next prepare makes it again, as
-    `temper/tests/worker/checkout/tests/suite/reuse.rs` shows with a stale
+    `temper/tests/worker/checkout/tests/fakes/reuse.rs` shows with a stale
     `index.lock`. Damage no operation breaks on stays in use;
   - a kept repository's alternates name the store it was cloned with, by
     token, which is its remote's (`checkouts.md`), so after a restart they
