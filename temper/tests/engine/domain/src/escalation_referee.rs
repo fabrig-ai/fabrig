@@ -801,41 +801,79 @@ fn undated(outcome: people::Outcome) -> people::Outcome {
 /// # Errors
 /// Returns the violated policy, held-entry or actor high-water obligation.
 pub fn store_rules(rows: &BTreeMap<Key, Record>) -> Result<(), &'static str> {
+    let header = store_header(rows)?;
+    for row in rows.values() {
+        row_store_rules(rows, header, row)?;
+    }
+    Ok(())
+}
+
+/// Check one commit after a store that already passed `store_rules`.
+/// Unchanged tasks retain their proof unless a policy changes or a high-water
+/// bound falls; those commits require the complete cross-record check.
+///
+/// # Errors
+/// Returns the same violated obligation as the complete store check.
+pub fn store_rules_changed(
+    rows: &BTreeMap<Key, Record>,
+    previous: temper_engine_domain::Deployment,
+    keys: &BTreeSet<Key>,
+) -> Result<(), &'static str> {
+    let header = store_header(rows)?;
+    if header.messages < previous.messages
+        || header.people.max(header.tasks) < previous.people.max(previous.tasks)
+        || keys.iter().any(|key| matches!(key, Key::Core(jig_domain_core::Key::People(people::Key::Policy(_)))))
+    {
+        return store_rules(rows);
+    }
+    for key in keys {
+        if let Some(row) = rows.get(key) {
+            row_store_rules(rows, header, row)?;
+        }
+    }
+    Ok(())
+}
+
+fn store_header(rows: &BTreeMap<Key, Record>) -> Result<&temper_engine_domain::Deployment, &'static str> {
     let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
         rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)))
     else {
         return Err("escalation store has no deployment high-water marks");
     };
-    for row in rows.values() {
-        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) =
-            row
-        {
-            let Some(Record::Core(jig_domain_core::Record::People(people::Stored::Policy { value, .. }))) =
-                rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(task.project))))
-            else {
-                return Err("task has no project fallback policy");
-            };
-            if value.escalation_role.is_none() {
-                return Err("task policy has no fallback role");
-            }
-            match task.escalation {
-                tasks::Escalation::Waiting { entry, holder, .. } => {
-                    if entry > header.messages {
-                        return Err("held entry exceeds durable message high-water mark");
-                    }
-                    if let tasks::EscalationHolder::Role { project, .. } = holder
-                        && project != task.project
-                    {
-                        return Err("held fallback belongs to another project");
-                    }
+    Ok(header)
+}
+
+fn row_store_rules(
+    rows: &BTreeMap<Key, Record>,
+    header: &temper_engine_domain::Deployment,
+    row: &Record,
+) -> Result<(), &'static str> {
+    if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row {
+        let Some(Record::Core(jig_domain_core::Record::People(people::Stored::Policy { value, .. }))) =
+            rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(task.project))))
+        else {
+            return Err("task has no project fallback policy");
+        };
+        if value.escalation_role.is_none() {
+            return Err("task policy has no fallback role");
+        }
+        match task.escalation {
+            tasks::Escalation::Waiting { entry, holder, .. } => {
+                if entry > header.messages {
+                    return Err("held entry exceeds durable message high-water mark");
                 }
-                tasks::Escalation::Rejected { by, .. } if by > header.people.max(header.tasks) => {
-                    return Err("rejection actor exceeds durable actor high-water mark");
+                if let tasks::EscalationHolder::Role { project, .. } = holder
+                    && project != task.project
+                {
+                    return Err("held fallback belongs to another project");
                 }
-                tasks::Escalation::Unheld { .. }
-                | tasks::Escalation::Routing { .. }
-                | tasks::Escalation::Rejected { .. } => {}
             }
+            tasks::Escalation::Rejected { by, .. } if by > header.people.max(header.tasks) => {
+                return Err("rejection actor exceeds durable actor high-water mark");
+            }
+            tasks::Escalation::Unheld { .. }
+            | tasks::Escalation::Routing { .. }
+            | tasks::Escalation::Rejected { .. } => {}
         }
     }
     Ok(())

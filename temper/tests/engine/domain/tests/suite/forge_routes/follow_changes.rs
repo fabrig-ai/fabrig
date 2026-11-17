@@ -231,9 +231,6 @@ fn follow_acts_refuse_unknown_skipped_nonconsecutive_and_over_bound_entries() {
     world.close();
 }
 fn settle(world: &mut World) {
-    for _ in 0..20 {
-        world.tick();
-    }
     world.until(Until::Ready);
 }
 fn row(world: &World) -> &FollowRow {
@@ -470,6 +467,17 @@ fn cancel(world: &mut World, task: u64, key: u8) {
     }));
     settle(world);
 }
+/// A follow's next procedure turn can be timer-driven even at a quiescent boundary.
+fn advance_follow_timer(world: &mut World) {
+    if world.root.quiescent()
+        && world.events.is_empty()
+        && world.pending.is_empty()
+        && world.store.pending.is_empty()
+        && let Some(due) = world.root.next_deadline(&world.env)
+    {
+        world.env.now = world.env.now.max(due);
+    }
+}
 fn hint_target(world: &mut World) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
@@ -478,7 +486,23 @@ fn hint_target(world: &mut World) {
             key: None,
         },
     })));
-    settle(world);
+    let head = translate::commit(world.fake.branch(b"org/vsr-rs", b"main").expect("target head"));
+    let name = forge_top::Name {
+        forge: TARGET.forge,
+        repository: TARGET.repository,
+        what: forge_top::What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    let key = Key::Forge(forge_top::Key::BranchHead(name));
+    for _ in 0..TICKS {
+        settle(world);
+        if matches!(world.store.rows.get(&key), Some(Record::Forge { row })
+            if matches!(row.as_ref(), forge_top::Stored::BranchHead(row) if row.commit == head))
+        {
+            return;
+        }
+        advance_follow_timer(world);
+    }
+    panic!("target hint did not settle");
 }
 fn push_target(world: &mut World, change: u64) {
     let row = questions::row(world, change);
@@ -592,9 +616,10 @@ fn accepted_follow_makes_owner_waiting_changes_with_code_words_and_chain() {
     produce(&mut world, a, &producer);
     for _ in 0..temper_engine_domain_world::tier_runs::RUN_TICKS {
         world.tick();
-        if row(&world).queue.len() == 1 {
+        if row(&world).queue.len() == 1 && row(&world).queue[0].state == FollowState::WaitsWord {
             break;
         }
+        advance_follow_timer(&mut world);
     }
     settle(&mut world);
     assert_eq!(

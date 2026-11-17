@@ -130,10 +130,8 @@ impl Referee {
                 "queued entry belongs to exactly one live change"
             );
         }
-        proof::session(world);
-        let document = world
-            .oracle_document(world.signed_in.expect("owner session"), 2, forge::follows_subject(2))
-            .expect("public lag read");
+        let session = proof::owner_session(world);
+        let document = world.oracle_document(session, 2, forge::follows_subject(2)).expect("public lag read");
         let forge::Document::Follows(view) = document else {
             panic!("follows document");
         };
