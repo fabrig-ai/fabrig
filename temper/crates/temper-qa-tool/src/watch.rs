@@ -1,6 +1,6 @@
 //! Read a move through every parent, then attribute builds (qa/landings.md, 2–5).
 use crate::{
-    Git, Ledger, Refusal,
+    Git, Landing, Ledger, Refusal,
     faces::{GitFace, trailers},
 };
 
@@ -39,6 +39,20 @@ pub fn parse_landing(message: &str, branch: &str) -> Option<GoalLanding> {
 }
 fn decimal(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// The first parent holding the preceding ledger landing (qa/landings.md, 4).
+pub(crate) fn landing_base(git: &mut impl GitFace, ledger: &Ledger, landing: &Landing) -> Result<String, Refusal> {
+    let parents = git.parents(&landing.commit)?;
+    let first = parents.first().ok_or_else(|| crate::refused("landing has no parent"))?;
+    if let Some(previous) = ledger.landings.iter().take_while(|record| record.number != landing.number).last() {
+        for parent in &parents {
+            if parent == &previous.commit || git.contains(&previous.commit, parent)? {
+                return Ok(parent.clone());
+            }
+        }
+    }
+    Ok(first.clone())
 }
 
 pub fn watch(git: &mut impl GitFace, config: &Git, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
@@ -106,7 +120,9 @@ pub(crate) fn close_gaps(git: &mut impl GitFace, ledger: &mut Ledger, now: u64) 
             .map(|landing| (landing.number, landing.commit.clone()))
             .collect();
         for (landing, commit) in landings {
-            for value in git.gap_trailers(&format!("{commit}^1"), &commit)? {
+            let record = ledger.landings.iter().find(|record| record.number == landing).expect("recorded landing");
+            let base = landing_base(git, ledger, record)?;
+            for value in git.gap_trailers(&base, &commit)? {
                 if decimal(&value)
                     && let Ok(number) = value.parse()
                 {

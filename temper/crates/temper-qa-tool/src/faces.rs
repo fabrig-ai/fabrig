@@ -66,6 +66,7 @@ pub trait GitFace {
     fn fetch(&mut self, remote: &str, branch: &str) -> Result<(), Refusal>;
     fn head(&mut self, reference: &str) -> Result<String, Refusal>;
     fn commits(&mut self, old: &str, new: &str) -> Result<Vec<Commit>, Refusal>;
+    fn parents(&mut self, commit: &str) -> Result<Vec<String>, Refusal>;
     fn message(&mut self, commit: &str) -> Result<String, Refusal>;
     fn contains(&mut self, ancestor: &str, descendant: &str) -> Result<bool, Refusal>;
     fn count(&mut self, commit: &str) -> Result<u64, Refusal>;
@@ -158,6 +159,13 @@ impl GitFace for RealGit {
     }
     fn commits(&mut self, old: &str, new: &str) -> Result<Vec<Commit>, Refusal> {
         parse_commits(&self.text(&["rev-list", "--topo-order", "--reverse", "--parents", new, &format!("^{old}")])?)
+    }
+    fn parents(&mut self, commit: &str) -> Result<Vec<String>, Refusal> {
+        parse_commits(&self.text(&["rev-list", "--parents", "-n", "1", commit])?)?
+            .into_iter()
+            .next()
+            .map(|commit| commit.parents)
+            .ok_or_else(|| refused("git rev-list: no commit"))
     }
     fn message(&mut self, commit: &str) -> Result<String, Refusal> {
         self.text(&["show", "-s", "--format=%B", commit])

@@ -1,6 +1,6 @@
 # Triage
 
-Provisional, 2026-11-12, revised 2026-11-16, from
+Provisional, 2026-11-12, revised 2026-11-17, from
 `../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
 `../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
@@ -30,13 +30,13 @@ The loop's second step (`README.md`, 4), when no triage session runs and
 there is a next landing:
 
 1. **Its inputs read from git** at the landing's merge, MERGE, and its
-   first parent, MERGE^1 (section 3), through the git face
+   base, BASE (`landings.md`, 4; section 3), through the git face
    (`landings.md`, 6).
 2. **Recorded:** a session in the ledger, `triage`, its landing, its
    effort (`agent.triage`), its start, and the pages and setups its
    commands check against (`ledger.md`, 2.5).
 3. **Its directory,** `sessions/N/` in the home: `brief` (section 3)
-   and `diff.patch`, `git diff MERGE^1 MERGE`. Its tree is the kept
+   and `diff.patch`, `git diff BASE MERGE`. Its tree is the kept
    `trees/triage`, under the home's private `trees/` directory, for the
    agent to read the whole tree at the merge. If absent, made with
    `git worktree add --detach trees/triage MERGE`; if present, moved
@@ -86,7 +86,8 @@ this order:
 - **Its diff:** its stat in the brief (below), and the whole diff's
   path, `sessions/N/diff.patch`.
 - **Its stat,** written by the tool from the paths `git diff --numstat
-  MERGE^1 MERGE` gives with their added and deleted lines, so that a
+  BASE MERGE` gives with their added and deleted lines, BASE the landing's
+  base (`landings.md`, 4), so that a
   landing of goldens stays cheap to read (`../../draft/landed-qa.md`, 4):
   - **a generated directory** is a path's leading part up to and
     including its first segment named `generated` or `golden`
@@ -104,7 +105,7 @@ this order:
   So a landing that rewrites a thousand goldens takes a line for their
   directory, never a thousand.
 - **Its commits' `QA:` trailers:** each value of a `QA:` trailer among
-  `git log MERGE^1..MERGE`, each once, in order; none, said.
+  `git log BASE..MERGE`, each once, in order; none, said.
 - **The configured surfaces alone,** ctl's first, with each configured
   surface's entries and design below; an absent surface has neither:
   - `ctl`: each group of ctl's tools, from the pages of
