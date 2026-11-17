@@ -2,7 +2,7 @@
   "workers": [
     {{
       "engine": {{
-        "socket": "{{story.workers}}"
+        "socket": "{story.workers}"
       }},
       "name": "w1",
       "secret": "secrets/w1.secret",

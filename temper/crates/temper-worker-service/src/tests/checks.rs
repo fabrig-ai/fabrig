@@ -22,7 +22,7 @@ fn worker_checkout_capacity_names_stdout_and_its_room_without_an_engine() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\n"
     );
 }
 
@@ -46,11 +46,7 @@ fn a_worker_alone_names_each_shape_departure() {
             br#"{"socket":"127.0.0.1:7000","transport":"tls"}"#,
             vec![(engine.member(b"transport"), What::Jig(config::What::Unknown))],
         ),
-        (
-            b"application",
-            br#"{"workers":[{"root":"worker","git":null}],"forges":[]}"#,
-            vec![(root.member(b"application").member(b"forges"), What::WorkerAlone)],
-        ),
+        (b"application", br#"{"forges":[]}"#, vec![(root.member(b"application").member(b"forges"), What::WorkerAlone)]),
     ];
     for (member, value, expected) in rows {
         let input = fixtures::with(&base, member, value);

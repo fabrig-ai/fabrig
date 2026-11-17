@@ -203,7 +203,11 @@ impl Shape {
                 worker.as_object_mut().expect("worker").remove("graces");
                 worker.as_object_mut().expect("worker").remove("programs");
                 document = json!({"workers":document["workers"],"application":{}});
-
+                fixtures::private(
+                    &data.join(format!("secrets/{name}.secret")),
+                    format!("{name}-fixture-secret").as_bytes(),
+                )
+                .expect("fixture secret");
             }
         }
         fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))

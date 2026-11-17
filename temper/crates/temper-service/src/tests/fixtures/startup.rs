@@ -113,6 +113,10 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
         &[
+            ("hub.accounts", 8),
+            ("hub.inbox", 8),
+            ("hub.held", 8),
+            ("hub.event_bytes", 512),
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),

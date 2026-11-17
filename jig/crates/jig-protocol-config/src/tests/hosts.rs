@@ -21,14 +21,14 @@ fn workers_in_the_document_are_refused_as_settings() {
 }
 fn link_limits_hold_every_worker_setting() {
     fixtures::refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.names": 7}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.names": 7}"#,
         fixtures::path(&[b"limits", b"overrides", b"link.names"]),
-        What::Capacity { member: b"fleet.configured_workers", configured: 8, requires: b"link.names", required: 8 },
+        What::Capacity { member: b"fleet.configured_workers", configured: 64, requires: b"link.names", required: 64 },
     );
     fixtures::refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.name": 31}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.name": 31}"#,
         fixtures::path(&[b"limits", b"overrides", b"link.name"]),
         What::Capacity { member: b"fleet.worker_name_bytes", configured: 32, requires: b"link.name", required: 32 },
     );

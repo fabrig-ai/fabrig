@@ -33,7 +33,7 @@ fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
         w::KeyedParts {
             key: [5; 16],
             owner: w::Owner::Jig,
-            version: 28,
+            version: jig_client_protocol_wire::VERSION,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(bytes))),
         },

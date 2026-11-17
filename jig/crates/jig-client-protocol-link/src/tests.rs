@@ -18,7 +18,10 @@ mod stream;
 
 #[test]
 fn the_link_serves_the_wire_s_version_alone() {
-    assert!(serves(c::VersionRange { first: 28, last: 28 }));
+    assert!(serves(c::VersionRange {
+        first: jig_client_protocol_wire::VERSION,
+        last: jig_client_protocol_wire::VERSION
+    }));
     assert!(!serves(c::VersionRange { first: 22, last: 22 }));
 }
 

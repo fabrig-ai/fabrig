@@ -202,6 +202,12 @@ This project's areas, or that it has none.
 
 Next: settings · revisions · help settings-fields
 
+## settings agents
+
+The agents' figures; stock where none is stored, marked so.
+
+Next: settings · revisions · help settings-fields
+
 ## settings welcome
 
 The deployment's welcome, shown by default under the box and not shown otherwise.

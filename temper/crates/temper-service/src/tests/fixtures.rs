@@ -9,7 +9,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"fleet.slots":4,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"fleet.slots":4,"hub.accounts":8,"hub.inbox":8,"hub.held":8,"hub.event_bytes":512,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -507,6 +507,13 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
             value: jig_protocol_store::SecretValue::Application(value),
         }
     }
+}
+
+pub fn stock_document() -> Box<[u8]> {
+    super::stock::generated()
+}
+pub fn stock_files() -> settings::Files {
+    super::stock::files()
 }
 
 #[expect(
@@ -1093,9 +1100,9 @@ pub fn turn_document() -> Box<[u8]> {
     overrides["forge.client.op_bytes"] = 4_096_u32.into();
     let document = with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap());
     let mut overrides: serde_json::Value =
-        serde_json::from_slice(&value(&document, b"workers[0].limits.overrides")).unwrap();
+        serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
     overrides["hub.event_bytes"] = 4_096_u32.into();
-    with(&document, b"workers[0].limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+    with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
 }
 
 pub fn turn_jig() -> jig_protocol_config::Engine {

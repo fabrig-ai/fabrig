@@ -62,6 +62,8 @@ pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    value["engine"]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();
     value["workers"][0]["name"] = "local".into();
     value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);

@@ -3,9 +3,6 @@
     "limits": {
       "profile": "standard",
       "overrides": {
-        "hub.accounts": 4,
-        "hub.event_bytes": 10660,
-        "hub.run_calls": 48,
         "authority.executors": 22,
         "clients.exchanges": 12,
         "clients.streams": 8,
@@ -16,6 +13,9 @@
         "documents.text_bytes": 512,
         "fleet.configured_workers": 8,
         "fleet.workers": 2,
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48,
         "hub.transcript_bytes": 67215250,
         "hub.turn_bytes": 16803810,
         "hub.turn_queue_bytes": 134430480,

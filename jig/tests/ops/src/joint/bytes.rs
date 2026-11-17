@@ -161,7 +161,11 @@ impl Bytes {
             name: Box::new([]),
         });
         settings.served = jig_client_kit::test::list([
-            clients::Served { family: None, first: 28, last: 28 },
+            clients::Served {
+                family: None,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            },
             clients::Served { family: Some(1), first: 1, last: 1 },
             clients::Served { family: Some(2), first: 1, last: 1 },
         ]);

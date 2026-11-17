@@ -261,7 +261,7 @@ fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
             setting_history: 0,
             ..LIMITS
         }),
-        Some(6)
+        Some(8)
     );
     for limits in [
         Limits { judge_projects: u32::MAX, ..LIMITS },

@@ -41,7 +41,13 @@ fn mismatched_row_parts_drop_deliveries_as_malformed_records() {
 #[test]
 fn the_hello_s_jig_range_reaches_the_domain() {
     let harness = fixtures::Harness::streaming(fixtures::frame_subject());
-    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 28, last: 28 }) }));
+    assert!(harness.has(&Request::Hello {
+        family: None,
+        versions: Some(c::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION
+        })
+    }));
 }
 #[test]
 fn the_hello_s_family_range_reaches_its_owner() {
@@ -62,7 +68,17 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
     hello.served.clear();
     hello
         .served
-        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 28, last: 28 }).unwrap())
+        .push(
+            w::Served::new(
+                &w::CEILINGS,
+                w::ServedParts {
+                    owner: w::Owner::Jig,
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
+            )
+            .unwrap(),
+        )
         .unwrap();
     harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(w::Hello::new(&w::CEILINGS, hello).unwrap())));
     assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));

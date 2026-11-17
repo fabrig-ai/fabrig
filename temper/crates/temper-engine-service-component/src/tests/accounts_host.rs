@@ -927,7 +927,13 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     ask.encode(&mut bytes).unwrap();
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [attempt; 16], owner: w::Owner::Jig, version: 28, request: bytes.finish(), value: None },
+        w::KeyedParts {
+            key: [attempt; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: None,
+        },
     )
     .unwrap();
     let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());

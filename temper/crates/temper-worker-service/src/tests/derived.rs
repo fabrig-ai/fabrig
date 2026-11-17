@@ -31,17 +31,12 @@ fn checked(root: &temper_worker_domain::Limits) -> Box<[u8]> {
     worker::worker(root, &mut problems);
     lines(&problems)
 }
-#[expect(
-    clippy::disallowed_macros,
-    reason = "the test writes the one explicit hub carrier owned by jig's sibling change"
-)]
 fn slots_input(slots: u32) -> Box<[u8]> {
-    let input = fixtures::with(
+    fixtures::with(
         &fixtures::worker_alone_document(),
         b"workers[0].slots",
         skein_lib::Decimal::of(u64::from(slots)).as_bytes(),
-    );
-    fixtures::with(&input, b"workers[0].limits.overrides", format!("{{\"hub.slots\":{slots}}}").as_bytes())
+    )
 }
 fn names(found: &[u8], figure: &[u8], source: &[u8]) {
     for text in [figure, source] {
@@ -100,35 +95,32 @@ fn checkout_message_carrier() {
     }
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test writes an explicit below-source override")]
 fn workspaces_follow_slots() {
     let stock = config::stock().hub.slots;
     for slots in [stock, stock * 2, 12, 24] {
         let input = slots_input(slots);
         let part = crate::startup::worker_part(&input, &config::Directories::working(), None).unwrap();
         assert_eq!(part.limits.checkout.workspaces, slots);
+        assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, slots);
         let mut root = root(STOCK.payload, STOCK.turn);
         root.host.slots = slots;
         root.checkout.workspaces = part.limits.checkout.workspaces;
         assert!(checked(&root).is_empty(), "{:?}", checked(&root));
-        let overridden = fixtures::with(
-            &input,
-            b"application.limits.overrides",
-            format!("{{\"checkout.workspaces\":{}}}", slots - 1).as_bytes(),
+        let mut overridden: serde_json::Value = serde_json::from_slice(&input).unwrap();
+        overridden["application"]["limits"] = serde_json::json!({"overrides":{"checkout.workspaces":slots-1}});
+        let found = crate::startup::worker_part(
+            &serde_json::to_vec(&overridden).unwrap(),
+            &config::Directories::working(),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(
+            found.problems.get(0).unwrap().what,
+            crate::startup::What::Jig(config::What::Because(worker::MOVED_LIMITS))
         );
-        let short = crate::startup::worker_part(&overridden, &config::Directories::working(), None).unwrap();
-        root.checkout.workspaces = short.limits.checkout.workspaces;
-        assert_eq!(root.checkout.workspaces, slots - 1);
-        let mut refused = false;
-        for why in &temper_worker_domain::unfit(&root) {
-            refused |= *why == temper_worker_domain::Unfit::Workspaces;
-        }
-        assert!(refused);
-        names(&checked(&root), b"workers[0].slots", b"checkout.workspaces");
     }
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test writes an explicit below-source override")]
 fn git_operations_follow_workspaces() {
     let stock = config::stock().hub.slots;
     for slots in [stock, stock * 2, 12, 24] {
@@ -138,13 +130,15 @@ fn git_operations_follow_workspaces() {
         let mut problems = Problems::empty();
         worker::git_limits(&part.limits, &part.limits.git_component, &mut problems);
         assert!(problems.is_empty());
-        let overridden = fixtures::with(
-            &input,
-            b"application.limits.overrides",
-            format!("{{\"git_component.operations\":{}}}", slots - 1).as_bytes(),
-        );
-        let problems = crate::startup::worker_part(&overridden, &config::Directories::working(), None).unwrap_err();
-        names(&lines(&problems), b"git_component.operations", b"checkout.workspaces");
+        let mut overridden: serde_json::Value = serde_json::from_slice(&input).unwrap();
+        overridden["application"]["limits"] = serde_json::json!({"overrides":{"git_component.operations":slots-1}});
+        let problems = crate::startup::worker_part(
+            &serde_json::to_vec(&overridden).unwrap(),
+            &config::Directories::working(),
+            None,
+        )
+        .unwrap_err();
+        names(&lines(&problems), b"application.limits", worker::MOVED_LIMITS);
     }
 }
 #[test]
@@ -163,7 +157,10 @@ fn output_carrier() {
     for turn in [STOCK.turn, wire::CEILINGS.assignment_transcript / 4 - 4] {
         sources.turn = turn;
         derived::worker(worker.jig.limits.as_mut().expect("worker limits"), sources).unwrap();
-        assert_eq!(worker.jig.limits.as_ref().expect("worker limits").io.output, (overhead + turn).max(derived::OUTPUT_FLOOR));
+        assert_eq!(
+            worker.jig.limits.as_ref().expect("worker limits").io.output,
+            (overhead + turn).max(derived::OUTPUT_FLOOR)
+        );
         let own = fixtures::worker_limits();
         let payload = worker_settings::payload_limits(&own).unwrap();
         let mut link = worker_settings::link_limits(&worker.jig, &payload, own.peer.forges).unwrap();
@@ -197,6 +194,7 @@ fn output_carrier() {
             if rule.direction == skein_channel::Direction::FromResponder
                 && rule.body != wire::Kind::Assignment
                 && rule.body != wire::Kind::Job
+                && rule.body != wire::Kind::Figures
             {
                 least = least.max(wire::sizes::largest_body(&engine.sizes, rule.body).unwrap() + 8);
             }
@@ -222,11 +220,7 @@ fn output_carrier() {
 }
 #[test]
 fn worker_start_refuses_a_turn_past_the_wire_ceiling() {
-    let input = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"workers[0].limits",
-        br#"{"profile":"standard","overrides":{}}"#,
-    );
+    let input = fixtures::worker_alone_document();
     let mut part = crate::startup::worker_part(&input, &config::Directories::working(), None).unwrap();
     let mut agent: settings::Agent = fixtures::startup_agent();
     agent.limits.bodies.turn_body = STOCK.turn * 2;

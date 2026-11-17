@@ -16,7 +16,19 @@ pub fn family_subject() -> Watchable {
 pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
     let lim = *limits().wire();
     let mut served = List::with_capacity(2);
-    served.push(w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 28, last: 28 }).unwrap()).unwrap();
+    served
+        .push(
+            w::Served::new(
+                &lim,
+                w::ServedParts {
+                    owner: w::Owner::Jig,
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
     served
         .push(
             w::Served::new(

@@ -13,13 +13,17 @@ use core::num::NonZeroU16;
 use serde_json::{Value, json};
 
 fn fixture() -> (Value, Paths, Peers) {
+    fixture_claude(None)
+}
+
+fn fixture_claude(claude: Option<&[u8]>) -> (Value, Paths, Peers) {
     let port = NonZeroU16::new;
     let answer = temper_init::files(
         &temper_init::Facts {
             sign_in: false,
             binary: b"/fixture/temper",
             git: Some(b"/usr/bin/git"),
-            claude: None,
+            claude,
             login: Some(b"person"),
             ports: temper_init::Ports {
                 clients: port(8367).expect("port"),
@@ -461,10 +465,7 @@ fn peer_and_effective_path_bounds_refuse_before_rewriting() {
 #[test]
 fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
     for present in [false, true] {
-        let (mut temper, paths, peers) = fixture();
-        if present {
-            temper["application"]["workers"][0]["claude"] = "/source/claude".into();
-        }
+        let (temper, paths, peers) = fixture_claude(present.then_some(b"/source/claude".as_slice()));
         let docs = write(&temper, &paths, &peers).expect("ordinary rewrite");
         let effective = json(&docs.temper);
         assert!(effective["application"].get("forges").is_none());
@@ -472,7 +473,10 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
         for kind in ["owned", "fake"] {
             assert_eq!(effective["application"]["machine"][kind], temper["application"]["machine"][kind]);
         }
-        assert_eq!(effective["application"]["workers"][0]["claude"], json!("/fixture/fake-claude"));
+        assert!(
+            effective["workers"][0].get("claude").is_none(),
+            "the shell pins the fake adapter outside the document"
+        );
         assert!(effective["engine"]["llm"]["providers"][0]["sources"].get("programs").is_none());
         let document = crate::forge::Document::decode(&docs.forgejo).expect("existing Forgejo schema");
         assert_eq!(document.listen(), peers.forgejo);

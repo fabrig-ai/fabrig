@@ -16,7 +16,11 @@ fn outgoing(exchange: &mut Exchange) -> (Token, ReplyTo) {
     let ask = change(w::AccountChange::MoveOut(
         w::AccountChangeMoveOut::new(&f::wire(), w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
     ));
-    let owner = exchange.send(Message::Request(f::keyed(w::Owner::Jig, 28, f::encode_ask(&ask))));
+    let owner = exchange.send(Message::Request(f::keyed(
+        w::Owner::Jig,
+        jig_client_protocol_wire::VERSION,
+        f::encode_ask(&ask),
+    )));
     exchange.authenticate();
     let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core ask") };
     let core::Event::People(p::Event::Ask { reply_to, ask, .. }) = *event else { panic!("people ask") };
@@ -106,7 +110,7 @@ fn carried(exchange: &mut Exchange, kind: u8, value: &[u8], digest: [u8; 32]) ->
         w::KeyedParts {
             key: [5; 16],
             owner: w::Owner::Jig,
-            version: 28,
+            version: jig_client_protocol_wire::VERSION,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(value))),
         },

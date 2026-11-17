@@ -37,6 +37,21 @@ fn standalone_shape_is_required_of_jigs_parts() {
         assert_eq!(found.problems.get(0).unwrap().what, what, "row {path:?}");
         assert_eq!(found.problems.get(0).unwrap().path, path, "row {change:?}");
     }
+    for member in ["program", "configuration"] {
+        let mut input: serde_json::Value = serde_json::from_slice(&fixtures::document()).unwrap();
+        input["workers"][0]["agent"] = serde_json::json!({(member):"relative"});
+        let found =
+            crate::startup::shape(&serde_json::to_vec(&input).unwrap(), &config::Directories::working()).unwrap_err();
+        assert_eq!(found.problems.len(), 1);
+        assert_eq!(
+            found.problems.get(0).unwrap().path,
+            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent")
+        );
+        assert_eq!(
+            found.problems.get(0).unwrap().what,
+            What::Jig(config::What::Because(temper_worker_service::startup::worker::MOVED_AGENT))
+        );
+    }
 }
 #[test]
 fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
@@ -276,8 +291,6 @@ enum Shape {
     ClientProcess,
     ClientRemote,
     ClientRemoteApproval,
-    Program,
-    Configuration,
 }
 fn apply_shape(
     shape: Shape,
@@ -314,13 +327,11 @@ fn apply_shape(
             engine.clients.approval = true;
             engine.clients.link = false;
         }
-        Shape::Program => workers[0].agent.as_mut().unwrap().program = b"temper".as_slice().into(),
-        Shape::Configuration => workers[0].agent.as_mut().unwrap().configuration = b"agent.json".as_slice().into(),
     }
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 7] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
         (
@@ -348,16 +359,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Half(crate::startup::EngineWhat::Loopback),
-        ),
-        (
-            Shape::Program,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
-            What::Absolute,
-        ),
-        (
-            Shape::Configuration,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"configuration"),
-            What::Absolute,
         ),
     ]
 }

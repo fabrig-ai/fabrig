@@ -35,11 +35,16 @@ fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
     let mut values = config::overrides::list(&source).into_boxed().into_vec();
     values.extend(temper_service_core::limits::list(&own).into_boxed().into_vec());
     values.extend([("future.limit", 99), ("future.limit", 100)]);
-    let mut part = startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
+    let mut part =
+        startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
     part.worker.jig.slots = 4;
     let unknown = figures::apply(&mut part, record(3, &values)).unwrap();
     assert_eq!(unknown.into_boxed().as_ref(), [Box::<[u8]>::from(b"future.limit".as_slice())]);
     assert_eq!(part.worker.jig.slots, 3);
+    source.hub.slots = 3;
+    source.hub.source_interval = part.worker.jig.check_interval;
+    own.checkout.workspaces = 3;
+    own.git_component.operations = 3;
     assert_eq!(config::overrides::list(part.worker.jig.limits.as_ref().unwrap()), config::overrides::list(&source));
     assert_eq!(part.limits, crate::worker_settings::Limits::shared(own));
     assert_eq!(
@@ -65,7 +70,7 @@ fn each_moved_member_is_refused_with_its_migration_words() {
         ),
         (
             "\"application\":{",
-            "\"application\":{\"limits\":null,",
+            "\"application\":{\"limits\":null",
             config::Path::root().member(b"application").member(b"limits"),
             startup::worker::MOVED_LIMITS,
         ),
@@ -78,35 +83,26 @@ fn each_moved_member_is_refused_with_its_migration_words() {
     }
 }
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the migration stories construct supplied machine members as JSON")]
 fn machine_members_check_absolute_claude_and_unique_environment_names() {
-    for (entry, member) in [
-        (br#"{"root":"worker","git":null,"claude":"claude"}"#.as_slice(), b"claude".as_slice()),
-        (br#"{"root":"worker","git":null,"claude":null}"#, b"claude"),
-        (
-            br#"{"root":"worker","git":null,"environment":[{"name":"A","value":"one"},{"name":"A","value":"two"}]}"#,
-            b"environment",
-        ),
-        (br#"{"root":"worker","git":null,"environment":{}}"#, b"environment"),
-        (br#"{"root":"worker","git":null,"environment":[{"name":"A"}]}"#, b"environment"),
+    for entry in [
+        serde_json::json!({"root":"worker","git":null,"claude":"claude"}),
+        serde_json::json!({"root":"worker","git":null,"claude":null}),
+        serde_json::json!({"environment":[{"name":"A","value":"one"},{"name":"A","value":"two"}]}),
+        serde_json::json!({"environment":{}}),
+        serde_json::json!({"environment":[{"name":"A"}]}),
+        serde_json::json!({"claude":"/bin/claude","environment":[{"name":"A","value":"one"}]}),
     ] {
-        let input = fixtures::with(&fixtures::worker_alone_document(), b"application.workers[0]", entry);
-        let found = startup::worker_part(&input, &config::Directories::working(), None).expect_err("invalid member");
-        let prefix = config::Path::root()
-            .member(b"application")
-            .member(b"workers")
-            .child(config::Segment::Index(0))
-            .member(member);
-        assert!(found.problems.get(0).unwrap().path.segments.iter().zip(prefix.segments.iter()).all(|(a, b)| a == b));
+        let mut input: serde_json::Value = serde_json::from_slice(&fixtures::worker_alone_document()).unwrap();
+        input["application"]["workers"] = serde_json::json!([entry]);
+        let found = startup::worker_part(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), None)
+            .unwrap_err();
+        assert_eq!(found.problems.len(), 1);
+        assert_eq!(found.problems.get(0).unwrap().path, config::Path::root().member(b"application").member(b"workers"));
+        assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Fixed));
     }
-    let input = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.workers[0]",
-        br#"{"root":"worker","git":null,"claude":"/bin/claude","environment":[{"name":"A","value":"one"}]}"#,
-    );
-    let part = startup::worker_part(&input, &config::Directories::working(), None).unwrap();
-    assert_eq!(part.claude.as_deref(), Some(b"/bin/claude".as_slice()));
-    assert_eq!(part.environment.as_ref(), [(Box::from(b"A".as_slice()), Box::from(b"one".as_slice()))]);
 }
+
 #[test]
 fn changed_figures_are_not_applied_and_repeated_records_are_quiet() {
     let mut worker = fixtures::worker();

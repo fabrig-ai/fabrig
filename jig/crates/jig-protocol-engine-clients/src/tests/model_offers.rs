@@ -167,7 +167,13 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
         let keyed = w::Keyed::new(
             limits.wire(),
-            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 28, request: encoded.clone(), value: None },
+            w::KeyedParts {
+                key: [5; 16],
+                owner: w::Owner::Jig,
+                version: jig_client_protocol_wire::VERSION,
+                request: encoded.clone(),
+                value: None,
+            },
         )
         .unwrap();
         let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());

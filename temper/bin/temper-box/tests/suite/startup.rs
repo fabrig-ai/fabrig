@@ -723,20 +723,17 @@ fn serve_names_what_to_raise_for_eight_slots() {
         let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         let mut worker = document["workers"][0].clone();
         worker["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-        let worker_document =
-            serde_json::json!({"workers":[worker],"application":{"limits":document["application"]["limits"]}});
+        let worker_document = serde_json::json!({"workers":[worker],"application":{}});
         let part = temper_service::startup::worker_part(
             &serde_json::to_vec(&worker_document).unwrap(),
             &jig_protocol_config::Directories::working(),
             None,
         )
         .expect("resolved worker places");
-        assert!(part.worker.jig.limits.expect("explicit worker limits").hub.slots >= 8);
+        assert!(part.worker.jig.limits.expect("derived worker limits").hub.slots >= 8);
         assert!(part.limits.checkout.workspaces >= 8);
         assert!(part.limits.git_component.operations >= part.limits.checkout.workspaces);
-        let owner = if name == "hub.slots" {
-            &mut document["workers"][0]
-        } else if name == "fleet.slots" {
+        let owner = if name == "hub.slots" || name == "fleet.slots" {
             &mut document["engine"]
         } else {
             &mut document["application"]
@@ -744,7 +741,21 @@ fn serve_names_what_to_raise_for_eight_slots() {
         owner["limits"]["overrides"][name] = 7.into();
         fs::write(path, serde_json::to_vec(&document).unwrap()).unwrap();
         let prepared = temper_box_shell::prepare_in(&[], b"/", &directories);
-        assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+        if name == "hub.slots" {
+            // The worker hub's places follow its admitted slots (configuration/figures.md, 3).
+            assert!(prepared.is_ok(), "hub slots come from worker slots");
+            let part = temper_service::startup::box_worker(
+                &serde_json::to_vec(&document).expect("deployment JSON"),
+                &jig_protocol_config::Directories::working(),
+                &temper_service::stock::Given::Stock,
+                &temper_service::stock::agents(),
+            )
+            .expect("engine figures")
+            .expect("worker");
+            assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 8);
+        } else {
+            assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+        }
         scratch.remove();
     }
 }
@@ -936,8 +947,13 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
         .expect("rendered message");
     assert!(agent.host_limits.message_bytes >= payload);
     let named = service::named(&bounded.document, &config::Directories::working()).expect("owned configuration");
-    let mut jig = config::worker(&configuration_document(&value["workers"][0]), 0, &config::Directories::working(), &temper_service::startup::fixed_worker())
-        .expect("worker configuration");
+    let mut jig = config::worker(
+        &configuration_document(&value["workers"][0]),
+        0,
+        &config::Directories::working(),
+        &temper_service::startup::fixed_worker(),
+    )
+    .expect("worker configuration");
     jig.limits = Some(engine.limits);
     jig.agent = Some(temper_playground::documents::pinned_agent());
     let worker = &service::settings::Worker {
@@ -2022,6 +2038,31 @@ fn turn_bounds() {
     let turn = temper_playground::documents::agent().limits.bodies.turn_body;
     turn_bound_document(&root.join("crates/temper-playground/stories/a/deployment.json"), turn, false);
     eprintln!("story A: T={turn}");
+    for (relative, escaped) in [
+        ("bin/temper-box/tests/fixtures/cluster-turn/engine.json", true),
+        ("docs/development/qa/setups/turn-landing/config/engine.json", false),
+    ] {
+        let path = root.join(relative);
+        let text = fs::read_to_string(&path).expect("engine-figures fixture");
+        let text = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+        let mut text = text;
+        for name in [
+            "story.workers",
+            "story.clients",
+            "story.webhooks",
+            "proc.llm.ready.address",
+            "place.model",
+            "place.workers",
+        ] {
+            text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
+        }
+        let mut engine: serde_json::Value = serde_json::from_str(&text).expect("engine fixture JSON");
+        // The turn needs only the LLM profile, so the unrendered worker address is inert.
+        engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:9"}]);
+        let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
+        let turn = support::configuration::turn_bounds::turn_body(&agent);
+        turn_bound_document(&path, turn, escaped);
+    }
     let github = root.join("bin/temper-box/tests/fixtures/github");
     let source = fs::read_to_string(github.join("engine.json")).expect("GitHub engine");
     let mut source = source.replace("{{", "{").replace("}}", "}");
@@ -2421,6 +2462,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s %s' \"$DISABLE_AUTOUPDATER\" \"$DISABLE_UPDATES\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf '%s' \"$ANTHROPIC_CONFIG_DIR\" > '{}/anthropic-source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display(), directory.display())).unwrap();
     fs::OpenOptions::new().write(true).open(&file).unwrap().set_len(build.bytes).unwrap();
     fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::set_permissions(directory.join("claude-code"), fs::Permissions::from_mode(0o700)).unwrap();
     let login = std::process::Command::new(&temper)
         .arg("program-login")
         .args(support::configuration::flags(directory))
@@ -2478,14 +2520,20 @@ fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
         support::program_login::configuration(
             directory,
             Some(&programs),
-            if fetched { Path::new("fetched") } else { Path::new("/missing/claude") },
+            if fetched { Path::new("fetched") } else { Path::new("/usr/bin/false") },
         );
         let mut command = std::process::Command::new(skein_scratch::paths::binary("temper-box"));
-        command.arg("program-login").args(support::configuration::flags(directory)).arg("source").env_clear();
+        command
+            .arg("program-login")
+            .args(support::configuration::flags(directory))
+            .arg("source")
+            .env_clear()
+            .env("PATH", directory.join("program-bin"));
         // A wrong-sized cached build refuses before any network request.
         let build = directory.join("claude-code/2.1.311/claude");
         fs::create_dir_all(build.parent().unwrap()).unwrap();
         fs::write(&build, b"wrong size").unwrap();
+        fs::set_permissions(directory.join("claude-code"), fs::Permissions::from_mode(0o700)).unwrap();
         let launcher = directory.join("claude-code/claude");
         let cache = directory.join("claude-code/cache");
         if fetched {
@@ -2534,7 +2582,11 @@ fn serve_places_links_only_for_a_fetched_program() {
             }
         }
         support::write_private(&directory.join("worker.secret"), b"worker-secret");
-        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
+        let prepared = temper_box_shell::prepare_in(
+            &support::program_login::environment(directory),
+            b"/",
+            &support::configuration::directories(directory),
+        );
         assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
         let launcher = directory.join("claude-code/claude");
         let cache = directory.join("claude-code/cache");

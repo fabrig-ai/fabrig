@@ -131,7 +131,7 @@ fn figures_take_no_place_and_replace_no_live_link() {
         let connection = world.connect(peer(name, secret, schema()));
         world.run();
         let got = heard(&world, connection);
-        assert_eq!(got.places(), 3);
+        assert_eq!(got.places(), 4);
         assert_eq!(got.limits(), owner.limits());
         assert_eq!(got.agents(), owner.agents());
         assert!(world.gone(connection), "finished after figures drain");
@@ -154,7 +154,7 @@ fn figures_with_unequal_output_room_are_answered_and_closed() {
     let connection = world.connect(stating(f::WORKER_A, f::SECRET_A, schema(), f::APPLICATION_VERSION, WORKER_ROOM));
     world.run();
     let got = heard(&world, connection);
-    assert_eq!(got.places(), 3);
+    assert_eq!(got.places(), 4);
     assert_eq!(got.limits(), owner.limits());
     assert_eq!(got.agents(), owner.agents());
     assert!(world.gone(connection), "finished after figures drain");
@@ -170,7 +170,7 @@ fn figures_with_unequal_output_room_are_answered_and_closed() {
 fn figures_refusals_check_authentication_and_wires_before_starting() {
     let mut world = world_with_room(ENGINE_ROOM);
     for (secret, version, expected) in [
-        (b"wrong".as_slice(), f::OTHER_VERSION, 256),
+        (b"wrong".as_slice(), f::OTHER_VERSION, 260),
         (f::SECRET_A, f::OTHER_VERSION, 257),
         (f::SECRET_A, f::APPLICATION_VERSION, 262),
     ] {
@@ -182,7 +182,7 @@ fn figures_refusals_check_authentication_and_wires_before_starting() {
     world.down(Event::Figures { figures: figures() });
     let connection = world.connect(peer(f::WORKER_A, f::SECRET_A, schema()));
     world.run();
-    assert_eq!(heard(&world, connection).places(), 3);
+    assert_eq!(heard(&world, connection).places(), 4);
 }
 #[test]
 fn figures_terms_require_only_wires_and_figures() {
@@ -205,7 +205,7 @@ fn figures_terms_require_only_wires_and_figures() {
     }
     let connection = world.connect(peer(f::WORKER_A, f::SECRET_A, schema));
     world.run();
-    assert_eq!(heard(&world, connection).places(), 3);
+    assert_eq!(heard(&world, connection).places(), 4);
     assert!(world.root().is_empty());
 }
 #[test]
@@ -233,6 +233,6 @@ fn link_openings_and_new_figures_keep_the_hello_unchanged() {
         assert_eq!(records.len(), 3);
         let got = w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[2].body)).expect("updated figures");
         assert_eq!(got.agents(), owner.agents());
-        assert_eq!(got.places(), 3);
+        assert_eq!(got.places(), 4);
     }
 }

@@ -6,6 +6,7 @@ use std::{
 };
 use temper_client_protocol_wire::v1 as w;
 fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
     let files = temper_init::bare(
         &temper_init::Bare {
@@ -66,12 +67,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
     for case in ["absent", "file", "corrupt"] {
         let scratch = skein_scratch::Scratch::new(case);
         let root = scratch.path();
-        let (dirs, mut document) = document(root);
-        if case == "file" {
-            document["application"]["workers"][0]["claude"] = serde_json::json!(std::env::current_exe().expect("exe"));
-            document["application"]["workers"][0]["environment"] =
-                serde_json::json!([{"name":"BOX_ENV","value":"copied"}]);
-        }
+        let (dirs, document) = document(root);
         let mut part = temper_service::startup::box_worker(
             &serde_json::to_vec(&document).expect("JSON"),
             &temper_service_shell::jig_directories(&dirs),

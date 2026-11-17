@@ -146,7 +146,8 @@ fn reference_workers_still_require_agent_and_limits_by_name() {
         ),
         (
             b"limits".as_slice(),
-            br#""limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},"#.as_slice(),
+            br#""limits":{"profile":"standard","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},"#
+                .as_slice(),
         ),
     ] {
         let input = fixtures::with(fixtures::WORKER_DOCUMENT, member, b"");

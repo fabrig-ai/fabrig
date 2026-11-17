@@ -12,6 +12,7 @@ temper-worker-shell.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-engine-service-vocabulary.workspace = true
 temper-engine-service-stock.workspace = true
+temper-engine-service-startup.workspace = true
 jig-protocol-config.workspace = true
 serde_json.workspace = true
 temper-engine-domain-forge-vocabulary.workspace = true

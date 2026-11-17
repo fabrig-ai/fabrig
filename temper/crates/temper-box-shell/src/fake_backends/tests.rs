@@ -122,7 +122,7 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
         assert_eq!(rebased["engine"]["clients"]["provider"], original_tree["engine"]["clients"]["provider"]);
         assert!(rebased["application"].get("machine").is_none());
         let checked = crate::setup::check(&temper, &jig_directories(&effective)).expect("ordinary effective admission");
-        assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("deployment")));
+        assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("state")));
         assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &effective, sign_in);
         assert_eq!(fs::read(source.document()).expect("source unchanged"), original);
         assert!(!crate::path(&source.data).exists(), "source resources and key are never needed");
@@ -131,10 +131,7 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
 }
 
 fn assert_rebased_box_paths(temper: &Json, effective: &Directories, sign_in: bool) {
-    for (pointer, name) in [
-        ("workers/0/secret", "worker.secret"),
-        ("application/demo/llm/key", "demo/llm.key"),
-    ] {
+    for (pointer, name) in [("workers/0/secret", "worker.secret"), ("application/demo/llm/key", "demo/llm.key")] {
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
             crate::path(&effective.data).join(name),
@@ -851,11 +848,11 @@ fn invalid_retained_configuration_refuses_a_valid_replacement_without_mutation()
     let (source, first) = prepared_source(&scratch);
     let document = first.directories.document();
     let mut edited = read_json(&document);
-    edited["application"]["workers"][0]["claude"] = "/outside/claude".into();
+    edited["application"]["workers"] = serde_json::json!([{"claude":"/outside/claude"}]);
     store_json(&document, &edited);
     drop(first);
     let replacement = provision_bundle(&scratch.0.join("valid-replacement"));
-    refused_replacement_preserves_document(&source, &document, &replacement, "application/workers/0/claude");
+    refused_replacement_preserves_document(&source, &document, &replacement, "application.workers");
 }
 
 #[test]
@@ -944,10 +941,10 @@ fn unsupported_imports_refuse_with_the_public_member_named() {
     let scratch = Scratch::new("unsupported");
     let source = provisioned_source(&scratch);
     let mut temper = read_json(&source.document());
-    temper["application"]["workers"][0]["environment"] = serde_json::json!([{"name":"CUSTOM","value":"extra"}]);
+    temper["application"]["workers"] = serde_json::json!([{"environment":[{"name":"CUSTOM","value":"extra"}]}]);
     store_json(&source.document(), &temper);
     let error = start(&source, None).err().expect("custom argv refused");
-    assert!(error.contains("environment"), "{error}");
+    assert!(error.contains("application/workers"), "{error}");
     assert!(!crate::path(&source.data).join("box/fake-backends").exists());
 }
 
@@ -1066,8 +1063,11 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
     let source = provisioned_source(&scratch);
     let prepared = start(&source, None).expect("import optional choices independently of today's PATH");
     let temper = read_json(&prepared.directories.document());
-    assert!(temper["application"]["workers"][0]["git"].is_null());
-    assert_eq!(temper["application"]["workers"][0]["claude"], scratch.0.join("fake-claude").to_str().expect("path"));
+    assert!(temper["application"].get("workers").is_none());
+    assert_eq!(
+        fs::read(crate::path(&prepared.directories.config).join(ADAPTER)).expect("pinned adapter"),
+        scratch.0.join("fake-claude").as_os_str().as_bytes()
+    );
 }
 
 #[test]
@@ -1082,6 +1082,16 @@ fn fake_github_test_passes_ordinary_admission_without_document_forges() {
         first.peers.github
     );
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
+    // Ordinary startup checks the adapter against this executable's sibling.
+    // Provision the sibling as a build fixture, as the shipped binaries are provisioned.
+    let sibling = std::env::current_exe().expect("test binary").with_file_name("fake-claude");
+    match OpenOptions::new().write(true).create_new(true).mode(0o700).open(&sibling) {
+        Ok(mut file) => file.write_all(b"#!/bin/sh\nexit 1\n").expect("fixture adapter"),
+        Err(why) if why.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(why) => panic!("fixture adapter: {why}"),
+    }
+    fs::write(crate::path(&first.directories.config).join(ADAPTER), sibling.as_os_str().as_bytes())
+        .expect("pin the ordinary startup adapter");
     let operations =
         crate::operations_in(&[], b"/", &first.directories, &first.bytes).expect("ordinary computed startup sizing");
     assert!(operations > 0);

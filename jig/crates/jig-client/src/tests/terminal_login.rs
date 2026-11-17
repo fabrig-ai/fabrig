@@ -47,9 +47,11 @@ fn a_terminal_watch_opens_delivers_and_closes() {
         );
         let mut out = Writer::new(skein_lib::length::usize_of(wire.measure()));
         wire.encode(&mut out).unwrap();
-        let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: out.finish() })
-                .unwrap();
+        let document = w::Owned::new(
+            &w::CEILINGS,
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
+        )
+        .unwrap();
         client.stream(fixtures::event(&w::StreamEvent::Delivery(
             w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: opening.watch(), document }).unwrap(),
         )));

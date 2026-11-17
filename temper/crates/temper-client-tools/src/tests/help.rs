@@ -294,7 +294,7 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 }
 #[test]
 fn each_derivation_names_every_tool() {
-    let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
+    let mut forms = List::with_capacity(fixtures::tool_forms());
     let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
     for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
@@ -314,7 +314,7 @@ fn each_derivation_names_every_tool() {
         let json = jig::json::write_call(table::TOOLS, &call).expect("call JSON");
         assert_eq!(fixtures::from_json(&json), call, "{words:?}");
     }
-    assert_eq!(forms.len(), fixtures::TOOL_FORMS);
+    assert_eq!(forms.len(), fixtures::tool_forms());
     let help = fixtures::help(None);
     let list = help
         .strip_prefix(temper_docs::find(b"ctl").expect("ctl page").text.as_bytes())

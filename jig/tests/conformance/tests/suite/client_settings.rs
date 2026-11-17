@@ -16,8 +16,11 @@ macro_rules! encoded {
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record })
-        .expect("owned answer");
+    let owned = w::Owned::new(
+        limits.wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record },
+    )
+    .expect("owned answer");
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
 fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {

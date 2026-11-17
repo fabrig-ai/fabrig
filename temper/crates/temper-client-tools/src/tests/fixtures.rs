@@ -942,7 +942,13 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 132;
+pub(super) fn tool_forms() -> u32 {
+    let mut forms = 0_u32;
+    for tool in crate::table::TOOLS {
+        forms = forms.checked_add(u32::try_from(tool.forms.len()).expect("form count")).expect("table forms fit");
+    }
+    forms
+}
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

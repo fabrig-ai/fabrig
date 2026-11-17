@@ -755,7 +755,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
             w::KeyedParts {
                 key: [extra; 16],
                 owner: w::Owner::Jig,
-                version: 28,
+                version: jig_client_protocol_wire::VERSION,
                 request: bytes.finish(),
                 value: Some(value),
             },

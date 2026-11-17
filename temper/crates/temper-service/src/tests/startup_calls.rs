@@ -21,7 +21,7 @@ fn document(engine: Option<u32>) -> Box<[u8]> {
 fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
     let directories = config::Directories::working();
     for (engine, payload, expected_engine) in
-        [(None, 4096, 69_632), (Some(4096), 4096, 4096), (Some(32_768), 32_768, 32_768)]
+        [(None, 4096, 135_168), (Some(4096), 4096, 4096), (Some(32_768), 32_768, 32_768)]
     {
         let expected_worker = expected_engine;
         let input = document(engine);
@@ -278,7 +278,7 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
 #[test]
 fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     let mut input: serde_json::Value = serde_json::from_slice(&document(None)).unwrap();
-    for limits in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
+    for limits in ["/engine/limits/overrides"] {
         let overrides = input.pointer_mut(limits).unwrap().as_object_mut().unwrap();
         for name in ["tasks.message_bytes", "tasks.result_bytes", "tasks.inbox_bytes", "hub.event_bytes"] {
             overrides.remove(name);
@@ -304,6 +304,9 @@ fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     )
     .unwrap();
     assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 4094);
+    assert_eq!(checked.engine.jig.limits.hub.event_bytes, 4094);
+    let (worker, _) = checked.worker.as_ref().unwrap();
+    assert_eq!(worker.jig.limits.as_ref().unwrap().hub.event_bytes, 4094);
     assert_eq!(checked.engine.limits.checkout.message_bytes, 4096);
     assert_eq!(
         store_limits(&input, &config::Directories::working(), Some(&agent.declaration()))

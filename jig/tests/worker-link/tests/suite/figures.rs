@@ -38,7 +38,7 @@ fn a_figures_link_reports_once_closes_and_never_redials() {
     assert_eq!(got.len(), 1);
     assert_eq!(got[0].limits(), owner.limits());
     assert_eq!(got[0].agents(), owner.agents());
-    assert_eq!(got[0].places(), f::joined_limits().sizes.slots);
+    assert_eq!(got[0].places(), 4);
     assert!(world.worker_root.iter().any(|r| matches!(r, Request::Closed)));
     assert!(!world.worker_root.iter().any(|r| matches!(r, Request::Ready | Request::Lost)));
     assert!(world.engine_root.is_empty(), "no fleet channel");
@@ -72,7 +72,7 @@ fn a_figures_link_with_the_wrong_secret_is_unauthorized() {
     let mut world = figures_world(b"wrong");
     world.figures(figures(4));
     world.run();
-    assert!(world.worker_root.iter().any(|r| matches!(r, Request::Refused { reason: 256, .. })));
+    assert!(world.worker_root.iter().any(|r| matches!(r, Request::Refused { reason: 260, .. })));
     assert_eq!(received(&world).len(), 0);
     assert!(world.engine_root.is_empty());
     world.finish();

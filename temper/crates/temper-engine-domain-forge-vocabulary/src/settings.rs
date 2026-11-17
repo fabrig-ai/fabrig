@@ -519,7 +519,11 @@ impl Refusal {
             Self::FollowFixed => b"its source and target are fixed; remove it and add another",
             Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
-            Self::Landing { .. } | Self::LandingCarrier | Self::Agent { .. } | Self::Area { .. } | Self::Owner { .. } => {
+            Self::Landing { .. }
+            | Self::LandingCarrier
+            | Self::Agent { .. }
+            | Self::Area { .. }
+            | Self::Owner { .. } => {
                 unreachable!("area refusal rendered above")
             }
             Self::Classes(refusal) => match refusal {
@@ -553,7 +557,12 @@ fn within(len: usize, bound: u32) -> bool {
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal | Kind::Agents | Kind::Welcome
+        Kind::DeploymentRules
+        | Kind::Charters
+        | Kind::CharterWords
+        | Kind::TemplateGoal
+        | Kind::Agents
+        | Kind::Welcome
             if item.scope != 0 =>
         {
             return Err(Refusal::Scope);
@@ -588,7 +597,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectTriager
         | Kind::Dependency
         | Kind::Follow
-        | Kind::Agents | Kind::Welcome => {}
+        | Kind::Agents
+        | Kind::Welcome => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
@@ -602,7 +612,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectAreas
         | Kind::ProjectTriager
         | Kind::ProjectWords
-        | Kind::Agents | Kind::Welcome => 1,
+        | Kind::Agents
+        | Kind::Welcome => 1,
         Kind::TemplateGoal => bounds.templates,
         Kind::Follow => bounds.follows,
         Kind::Dependency => bounds.dependencies,
@@ -617,7 +628,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 None => Ok(()),
                 Some(
                     Value::AgentFigures(_)
-                    |                     Value::Gates(_)
+                    | Value::Gates(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -640,7 +651,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 None => Ok(()),
                 Some(
                     Value::AgentFigures(_)
-                    |                     Value::Landing(_)
+                    | Value::Landing(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -858,9 +869,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 None => Ok(()),
                 Some(
                     Value::Landing(_)
-                    |                     Value::Gates(_)
-                    |                     Value::Welcome(_)
-                    |                     Value::Rule(_)
+                    | Value::Gates(_)
+                    | Value::Welcome(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -949,7 +960,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(Value::Welcome(_)) | None => Ok(()),
                 Some(
                     Value::AgentFigures(_)
-                    |                     Value::Rule(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
@@ -1085,7 +1096,8 @@ pub fn requires(held: &[Held], repository: &Repository, branch: &[u8], touched: 
 pub fn rows(l: &Limits) -> Option<u32> {
     let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
     let values = rules
-        .checked_add(3)?
+        // Two forge charters, welcome, and agent figures.
+        .checked_add(4)?
         .checked_add(l.judge_projects.checked_mul(2)?)?
         // Project landing and project gates, kinds 4 and 5.
         .checked_add(l.judge_projects.checked_mul(2)?)?

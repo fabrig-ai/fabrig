@@ -725,6 +725,7 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
 fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    bridge_kept_profiles(&mut document);
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
     let mut inherited = Vec::new();
     for worker in document["workers"].as_array_mut().expect("kept workers") {
@@ -741,7 +742,6 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     for (name, value) in inherited {
         document["engine"]["limits"]["overrides"][name] = value;
     }
-    bridge_kept_profiles(&mut document);
     temper_playground::documents::settings::strip_fixed(&mut document);
     // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
@@ -817,7 +817,10 @@ fn restart_history(store: &Store) -> Result<(), String> {
 pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
     let jig = jig_protocol_config_fixtures::small();
     for path in ["/engine/limits", "/workers/0/limits"] {
-        let limits = document.pointer_mut(path).expect("kept limits");
+        let Some(limits) = document.pointer_mut(path) else { continue };
+        if limits.get("profile").is_none() {
+            continue;
+        }
         assert_eq!(limits["profile"], "small");
         limits.as_object_mut().expect("kept object").remove("profile");
         let overrides = limits["overrides"].as_object_mut().expect("kept object");
@@ -829,6 +832,9 @@ pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
     }
     let own = temper_limits_fixtures::small();
     let limits = document.pointer_mut("/application/limits").expect("kept application limits");
+    if limits.get("profile").is_none() {
+        return;
+    }
     assert_eq!(limits["profile"], "small");
     limits.as_object_mut().expect("kept object").remove("profile");
     let overrides = limits["overrides"].as_object_mut().expect("kept object");

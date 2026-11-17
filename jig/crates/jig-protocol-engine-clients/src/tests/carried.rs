@@ -12,7 +12,7 @@ const FIRST: u64 = 1 << 63;
 
 fn carrying(owner: w::Owner, value: &[u8]) -> Box<[u8]> {
     let (request, version) = match owner {
-        w::Owner::Jig => (f::encode_ask(&f::start(&f::wire())), 28),
+        w::Owner::Jig => (f::encode_ask(&f::start(&f::wire())), jig_client_protocol_wire::VERSION),
         w::Owner::Family(_) => (f::family_request(Box::from(b"abc".as_slice())), 2),
     };
     keyed_value(owner, version, request, value)
@@ -188,7 +188,8 @@ fn every_carrying_request_names_its_values_kind() {
             w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
                 .expect("account change"),
         );
-        rows.push((keyed_value(w::Owner::Jig, 28, f::encode_ask(&ask), value), kind)).expect("account row");
+        rows.push((keyed_value(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&ask), value), kind))
+            .expect("account row");
     }
     for (request, expected) in rows.into_boxed() {
         let mut exchange = Exchange::new();

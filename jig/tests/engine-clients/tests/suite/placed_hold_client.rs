@@ -82,7 +82,11 @@ impl Party {
                 stream: [7; 16],
                 served: jig_client_kit::test::list([w::Served::new(
                     &w::CEILINGS,
-                    w::ServedParts { owner: w::Owner::Jig, first: 28, last: 28 },
+                    w::ServedParts {
+                        owner: w::Owner::Jig,
+                        first: jig_client_protocol_wire::VERSION,
+                        last: jig_client_protocol_wire::VERSION,
+                    },
                 )
                 .expect("served")]),
                 heartbeat: skein_lib::Duration::from_secs(5),
@@ -111,9 +115,11 @@ impl Party {
         let value = w::DeliveryValue::Me(me);
         let mut bytes = Writer::new(value.measure() as usize);
         value.encode(&mut bytes).expect("Me delivery");
-        let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-                .expect("owned");
+        let document = w::Owned::new(
+            &w::CEILINGS,
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+        )
+        .expect("owned");
         let delivery = w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery");
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Delivery(delivery))),

@@ -597,8 +597,11 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
     let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("measured answer");
     let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-            .expect("answer"),
+        w::Owned::new(
+            limits.wire(),
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+        )
+        .expect("answer"),
     );
     assert_eq!(
         translate::answers::answer(answer, &limits),

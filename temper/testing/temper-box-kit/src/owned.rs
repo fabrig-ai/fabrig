@@ -561,12 +561,8 @@ impl Owned {
 }
 /// Each value the example names and the test's own in its place; the runner's path goes before Forgejo's,
 /// which prefixes it.
-fn stand_ins(owned: &Owned) -> [(&'static str, String); 3] {
-    [
-        ("127.0.0.1:7100", owned.clients.to_string()),
-        ("127.0.0.1:7101", owned.webhooks.to_string()),
-        ("api.openai.com:443", owned.llm.to_string()),
-    ]
+fn stand_ins(owned: &Owned) -> [(&'static str, String); 2] {
+    [("127.0.0.1:7100", owned.clients.to_string()), ("127.0.0.1:7101", owned.webhooks.to_string())]
 }
 /// One shipped file with the test's values; a value the example no longer names is refused rather than kept.
 fn edited(bytes: &[u8], owned: &Owned) -> String {

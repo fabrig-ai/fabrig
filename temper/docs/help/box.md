@@ -315,7 +315,7 @@ If not: `account export: not signed in` (exit 2): add a key.
 `temper ctl: the engine holds its N answers of the last day; room again
 at TIME` (exit 2): no room for move's answers; nothing moved. Keep running;
 export after TIME. `temper ctl: unsent` (exit 1): engine busy, nothing moved;
-export later. Other failures: keep running; account stays; export after its deadline.
+export later. Other failures: keep running; export later.
 
 ## Clean up
 

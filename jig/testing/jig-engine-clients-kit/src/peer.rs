@@ -624,7 +624,7 @@ impl Peer {
         subject.encode(&mut record).expect("subject");
         let subject = w::Owned::new(
             &self.env.limits.wire,
-            w::OwnedParts { owner: w::Owner::Jig, version: 28, record: record.finish() },
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
         )
         .expect("subject owner");
         let open = w::Open::new(&self.env.limits.wire, w::OpenParts { stream, watch: self.next_watch, subject })

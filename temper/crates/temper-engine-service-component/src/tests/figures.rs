@@ -82,6 +82,9 @@ impl Peer {
             },
             &mut engine.events,
         );
+        let mut workers = fixtures::opening_workers();
+        workers[0].digest = Some(skein_lib::sha256::digest(b"worker-secret"));
+        engine.workers.down(NOW, jig_protocol_engine_workers::Event::Workers(workers), &mut engine.events);
         peer.worker.fire(NOW, &mut peer.out);
         peer.settle(engine);
         peer
@@ -333,15 +336,6 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
     let mut settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
     let root = crate::limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     settings.kinds_stock = crate::stock::forge(&root);
-    let digest = skein_lib::sha256::digest(b"worker-secret");
-    let mut text = List::with_capacity(64);
-    for byte in digest {
-        text.push(skein_lib::bytes::hex_digit(byte >> 4)).unwrap();
-        text.push(skein_lib::bytes::hex_digit(byte & 15)).unwrap();
-    }
-    for (_, entry) in settings.files.entries.iter_mut() {
-        *entry = Secret::new(text.as_slice().into());
-    }
     let store = match stored {
         Some(store) => store,
         None => fixtures::memory_store_for(&root, &settings.jig.limits.store, &settings.jig.llm.models()),

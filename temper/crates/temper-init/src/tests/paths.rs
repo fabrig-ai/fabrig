@@ -116,13 +116,10 @@ fn paths_join_once_and_accept_the_bound() {
     let directories = Directories { config: &config, data: &data };
     let answered =
         files(&facts, &directories, &[0; 32], &[0xab; 32]).expect("bounded text can use JSON escapes throughout");
-    assert_eq!(
-        parse(content(&answered, b"temper.json"))
-            .pointer("/application/workers/0/claude")
-            .expect("the worker has claude")
-            .as_str()
-            .expect("a JSON path is text")
-            .as_bytes(),
-        controls.as_ref()
-    );
+    let document = parse(content(&answered, b"temper.json"));
+    assert!(document["application"].get("workers").is_none());
+    let crate::Content::Link { target } = &fixtures::file(&answered.files, b"demo/bin/git").content else {
+        panic!("fake git launcher")
+    };
+    assert_eq!(target.as_ref(), controls.as_ref());
 }

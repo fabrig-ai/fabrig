@@ -5,7 +5,7 @@ pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
 use std::{
     io::Write,
     net::SocketAddr,
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
 pub use temper_playground::documents::turn_bounds;
@@ -46,8 +46,8 @@ pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serd
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
-    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.held"] = 8.into();
     value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
     value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
     value["workers"][0]["limits"]["overrides"]
@@ -119,16 +119,31 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
     private(&directory.join("second.key"), SECOND_KEY)?;
     let (mut agent, mut config) = documents(directory, llm, forge);
     if crate::claude::configured(directory) {
+        std::fs::DirBuilder::new().mode(0o700).recursive(true).create(directory.join("bin"))?;
+        std::os::unix::fs::symlink(
+            std::ffi::OsStr::new(std::str::from_utf8(crate::claude::PROGRAM).expect("fake program path")),
+            directory.join("bin/claude"),
+        )?;
         program_documents(directory, &mut agent, &mut config);
     }
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
     temper_fixtures::agent::apply(&mut config, directory, &agent);
     private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)
 }
+pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
+/// Machine programs are found through PATH, as in the shipped worker.
+pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
+    let path = if crate::claude::configured(directory) {
+        format!("{}:/usr/bin:/bin", directory.join("bin").display())
+    } else {
+        "/usr/bin:/bin".into()
+    };
+    vec![(b"PATH".as_slice().into(), path.into_bytes().into())]
+}
 /// Program stories retain the direct provider and add Claude Code on its own source.
 fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &mut serde_json::Value) {
     agent["programs"] = serde_json::json!({"claude_code": {
-        "path": std::str::from_utf8(crate::claude::PROGRAM).expect("fake program path"),
+        "path": directory.join("bin/claude"),
         "directory": directory.join("programs")
     }});
     let mut endpoint = agent["endpoints"][0].clone();

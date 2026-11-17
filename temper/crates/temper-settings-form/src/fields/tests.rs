@@ -692,21 +692,21 @@ fn the_page_writes_each_type_as_the_table_says() {
     let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard());
     for expected in [
         b"# Settings fields\n\nKind: reference".as_slice(),
-        b"- `number`: u8.",
-        b"- `connector`: u16.",
-        b"- `turns`: u32.",
-        b"- `spend`: u64. LINE",
-        b"- `waiting`: nanoseconds.",
-        b"- `deadline`: nanoseconds since 1970 UTC, or null.",
-        b"- `cut`: bool.",
-        b"- `instructions`: text[32,768].",
-        b"- `state`: hex[1,000,000].",
-        br#"- `kind`: `"a"`, `"b"` or `"c"`. LINE `"a"`: LINE `"c"`: LINE"#,
-        br#"- `edit`: `"removed"` or `"reset"`."#,
-        br#"- `hosts`: `"workers"`."#,
-        b"- `alternatives`: list[32] `model`.",
-        br#"- `"chosen"`: LINE"#,
-        b"- `set`: list[32] the value for `setting.kind`, or null.",
+        b"- number: u8.",
+        b"- connector: u16.",
+        b"- turns: u32.",
+        b"- spend: u64. LINE",
+        b"- waiting: nanoseconds.",
+        b"- deadline: nanoseconds since 1970 UTC|null.",
+        b"- cut: bool.",
+        b"- instructions: text[32768].",
+        b"- state: hex[1000000].",
+        b"- kind: `a`, `b` or `c`. LINE `a`: LINE `c`: LINE",
+        b"- edit: `removed` or `reset`.",
+        b"- hosts: `workers`.",
+        b"- alternatives: [32] model.",
+        b"- `chosen`: LINE",
+        b"- set: [32] the value for `setting.kind`|null.",
     ] {
         assert!(skein_lib::bytes::find(&page, expected).is_some(), "missing {expected:?}");
     }
@@ -817,7 +817,7 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
     let page = super::page(&limits);
     for needle in [
-        b"`resources`: list[2] `symbol`".as_slice(),
+        b"resources: [2] symbol".as_slice(),
         b"Optional, default []",
         b"Forge connector 1, symbol 1: its own goal branch",
     ] {

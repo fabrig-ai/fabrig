@@ -127,7 +127,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             format!("`TimeoutStopSec={}s`", seconds(timeout)),
             format!("{}-second stop bound", seconds(bound)),
             format!("stop bound plus {} seconds", seconds(timeout) - seconds(bound)),
-            "Raise this timeout with the bound".to_owned(),
+            "Raise this timeout with the worker's bound".to_owned(),
         ] {
             assert!(text.contains(&required), "step 5 must explain {required}");
         }

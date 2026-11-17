@@ -375,15 +375,16 @@ fn a_figures_opening_takes_the_reference_engines_named_limits_without_admission(
     let document =
         jig_protocol_config::document(&input, &jig_protocol_config::DocumentLimits { bytes, tokens: bytes, depth: 32 })
             .expect("figures fixture");
-    let engine = jig_protocol_config::engine(
+    let engine = jig_protocol_config::engine_over(
         &document,
         document.member(0, b"engine").expect("figures fixture"),
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
         &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("figures fixture");
-    assert_eq!(figures.places(), engine.limits.core.fleet.slots);
+    assert_eq!(figures.places(), fixtures::workers()[0].places);
     assert!(figures.agents().profile().is_empty());
     assert!(figures.agents().endpoints().is_empty());
     assert_eq!(

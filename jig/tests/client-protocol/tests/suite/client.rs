@@ -314,7 +314,11 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, PROOF_WAIT));
     assert_eq!(story.answered(FAMILY_REQUEST), vec![]);
     story.restart_serving(jig_client_kit::test::list([
-        jig_protocol_engine_clients::Served { family: None, first: 28, last: 28 },
+        jig_protocol_engine_clients::Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        },
         jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
@@ -670,9 +674,9 @@ fn assert_unserved_parts(rows: &skein_lib::List<contract::TaskLine>, count: u32)
             panic!("one not-served part: {:?}", row.parts)
         };
         assert_eq!(why.owner, contract::Owner::Family(65500));
-        assert!(
-            why.served.iter().any(|range| range.owner == contract::Owner::Jig && range.first == 28 && range.last == 28)
-        );
+        assert!(why.served.iter().any(|range| range.owner == contract::Owner::Jig
+            && range.first == jig_client_protocol_wire::VERSION
+            && range.last == jig_client_protocol_wire::VERSION));
     }
 }
 

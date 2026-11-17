@@ -150,9 +150,12 @@ impl ServiceHost {
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
         let operations = if matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) {
-            let part =
-                temper_worker_service::startup::worker_part(&config, &temper_service_shell::jig_directories(&roots), Some(b"/usr/bin/git"))
-                    .expect("worker part");
+            let part = temper_worker_service::startup::worker_part(
+                &config,
+                &temper_service_shell::jig_directories(&roots),
+                Some(b"/usr/bin/git"),
+            )
+            .expect("worker part");
             temper_service_core::process::Process::operations_for(
                 &part.worker.jig.limits.as_ref().expect("stock limits").io,
                 temper_worker_service::worker_settings::configured_operations(&part.limits.git_component)
@@ -160,8 +163,14 @@ impl ServiceHost {
             )
             .expect("worker reservation")
         } else {
-            temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
-                .expect("standalone operation count")
+            temper_box_shell::operations_in_with(
+                &fixtures::environment(&path),
+                b"/",
+                &roots,
+                &config,
+                &fixtures::given(&path),
+            )
+            .expect("standalone operation count")
         };
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
@@ -450,9 +459,9 @@ impl ServiceHost {
             )
             .expect("worker part");
             if let Some(shape) = &self.cluster {
-                let agent: serde_json::Value = serde_json::from_slice(
-                    &std::fs::read(self.path.join("world-agent.json")).expect("world agent")
-                ).expect("world agent JSON");
+                let agent: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(self.path.join("world-agent.json")).expect("world agent"))
+                        .expect("world agent JSON");
                 part.worker.jig.graces = shape.graces(&agent);
             }
             part.named.program = self.path.join("temper-agent").as_os_str().as_bytes().into();
@@ -467,16 +476,19 @@ impl ServiceHost {
                     &files,
                     &directories,
                     &mut Vec::new(),
-                    &[],
+                    &fixtures::environment(&self.path),
                 )
                 .expect("worker built from figures"),
             )
         } else {
             let (given, projects) = fixtures::given_and_projects(&self.path);
             temper_box_shell::prepare_in_with_program_and_projects(
-                &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
-                b"/", &Self::directories(&self.path, self.cluster.is_some()),
-                &given, Some(&self.path.join("temper-agent")), &projects,
+                &fixtures::environment(&self.path),
+                b"/",
+                &Self::directories(&self.path, self.cluster.is_some()),
+                &given,
+                Some(&self.path.join("temper-agent")),
+                &projects,
             )
             .expect("standalone preparation")
         };

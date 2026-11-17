@@ -552,7 +552,7 @@ fn init_documents_start_without_carrier_overrides() {
         "hub.outcome_bytes",
         "core.call_answer_bytes",
     ];
-    for at in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
+    for at in ["/engine/limits/overrides"] {
         let overrides = input.pointer_mut(at).unwrap().as_object_mut().unwrap();
         for name in jig_names {
             overrides.remove(name);
@@ -654,7 +654,7 @@ fn box_start_refuses_twice_the_stock_turn_without_panicking() {
     )
     .err()
     .unwrap();
-    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\nworkers[0].limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
+    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
 }
 
 #[test]

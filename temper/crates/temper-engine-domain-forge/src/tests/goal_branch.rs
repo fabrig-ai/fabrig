@@ -475,7 +475,7 @@ fn assert_room_ask(requests: &[Request], expected: u64) {
     reason = "one table checks FIFO re-waits and inverted fresh-tip answers through handoff"
 )]
 fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
-    for (case, entries) in [("full again", 1), ("inverted tip answers", 2)] {
+    for (case, entries) in [("reserved while rereading", 1), ("inverted tip answers", 2)] {
         let mut environment = env();
         environment.limits.entries = entries;
         let mut d = domain_with_limits(&environment.limits);
@@ -605,9 +605,15 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
             }
             continue;
         }
-        // Another effect wins the room while the oldest making reads its fresh tip.
-        at_step(&mut d, &environment, Event::Enqueue { entry: status(31, 9) });
-        assert_no_making(&at_step(
+        // An asked making owns its room while it reads its fresh tip (forge/room.md, 2).
+        let refused = at_step(&mut d, &environment, Event::Enqueue { entry: status(31, 9) });
+        assert!(refused.contains(&Request::Outcome {
+            entry: 31,
+            task: 9,
+            account: None,
+            outcome: skein_forge_client::Outcome::Failed(Error::Busy),
+        }));
+        let kept = at_step(
             &mut d,
             &environment,
             Event::Client(skein_forge_client::Event::Answered {
@@ -617,12 +623,15 @@ fn goal_branch_room_waiters_ask_in_wait_order_and_keep_their_place() {
                 rate: None,
                 result: Ok(Answer::Commit(TIP)),
             }),
-        ));
-        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 31 });
-        assert_room_ask(&asked, GOAL);
-        at_step(&mut d, &environment, Event::ContinueGoalBranch { task: GOAL, entry: 32 });
-        at_answer(&mut d, &environment, Ok(Answer::Commit(TIP)));
-        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 32 });
+        );
+        let mut expected = entry();
+        expected.number = 30;
+        assert!(kept.contains(&Request::Save {
+            record: Stored::Entry { entry: expected, held: false },
+            release: Some(30),
+            read_afresh: None,
+        }));
+        let asked = at_step(&mut d, &environment, Event::Withdraw { entry: 30 });
         assert_room_ask(&asked, OTHER);
     }
 }

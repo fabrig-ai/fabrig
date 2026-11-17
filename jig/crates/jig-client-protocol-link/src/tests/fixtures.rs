@@ -58,9 +58,11 @@ pub fn encoded_answer(value: &w::KeyedAnswer) -> Box<[u8]> {
 pub fn final_answer(value: w::Final) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut bytes).unwrap();
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub fn answer_done_chat(task: u64) -> Box<[u8]> {
@@ -99,9 +101,11 @@ pub fn answer_signed_out() -> Box<[u8]> {
     encoded_answer(&w::KeyedAnswer::SignedOut)
 }
 pub fn malformed_final() -> Box<[u8]> {
-    let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: Box::from([255]) })
-            .unwrap();
+    let owned = w::Owned::new(
+        limits().wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::from([255]) },
+    )
+    .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub struct Harness {

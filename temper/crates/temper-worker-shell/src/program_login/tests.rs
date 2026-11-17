@@ -48,13 +48,16 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
     let directory = std::env::temp_dir().join(format!("temper-worker-login-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("worker-alone fixture");
     std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (_, mut input) = crate::tests::worker_document(&directory);
-    input["application"]["workers"][0]["claude"] = "/bin/sh".into();
+    let (_, input) = crate::tests::worker_document(&directory);
+    let program = directory.join("claude");
+    std::fs::copy("/bin/sh", &program).expect("worker-alone program");
+    let environment = [(OsString::from("PATH"), directory.as_os_str().to_owned())];
     std::fs::write(directory.join("temper.json"), serde_json::to_vec(&input).expect("worker-alone fixture"))
         .expect("worker-alone fixture");
-    let command = command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), [], None)
-        .expect("worker-alone fixture");
-    assert_eq!(command.get_program(), OsStr::new("/bin/sh"));
+    let command =
+        command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), environment, None)
+            .expect("worker-alone fixture");
+    assert_eq!(command.get_program(), program.as_os_str());
     assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
     assert!(!directory.join("state").exists());
     assert!(!directory.join("worker.secret").exists(), "no link secret needed for program login");

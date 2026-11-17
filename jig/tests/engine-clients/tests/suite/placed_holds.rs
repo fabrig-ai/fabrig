@@ -14,7 +14,13 @@ fn request() -> Box<[u8]> {
     ask.encode(&mut bytes).expect("ask");
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 28, request: bytes.finish(), value: None },
+        w::KeyedParts {
+            key: [9; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: None,
+        },
     )
     .expect("keyed");
     let mut bytes = Writer::new(keyed.measure() as usize);

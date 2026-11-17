@@ -10,10 +10,11 @@
         "authority.segments": 8,
         "brief.briefs": 2,
         "brief.sections": 10,
+        "core.call_answer_bytes": 10662,
         "core.load_bytes": 8192,
         "core.load_slots": 8,
         "core.policy_bytes": 8192,
-        "core.resume_bytes": 4194304,
+        "core.resume_bytes": 16803814,
         "core.run_bytes": 32768,
         "core.templates": 7,
         "documents.chips": 2,
@@ -25,11 +26,14 @@
         "fleet.engine_slots": 0,
         "fleet.grace_ms": 360000,
         "fleet.turns": 8,
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.inbox": 82,
+        "hub.run_calls": 48,
         "hub.transcript_bytes": 67215250,
         "hub.turn_bytes": 16803810,
         "hub.turn_queue_bytes": 134430480,
         "hub.turns": 8,
-        "hub.inbox": 82,
         "io.output": 16804602,
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
@@ -56,27 +60,23 @@
         "tasks.delegates": 4,
         "tasks.dependencies": 1,
         "tasks.executor_kinds": 22,
+        "tasks.exemptions": 8,
         "tasks.funders": 4,
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,
-        "tasks.message_bytes": 4094,
         "tasks.inbox_bytes": 4096,
+        "tasks.message_bytes": 4094,
         "tasks.parameters": 5,
         "tasks.project_goals": 1,
         "tasks.project_tasks": 8,
         "tasks.result_bytes": 128,
+        "tasks.run_inbox": 8,
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
-        "tasks.run_inbox": 8,
-        "tasks.exemptions": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 2,
-        "views.text_bytes": 1024,
-        "hub.accounts": 4,
-        "hub.event_bytes": 10660,
-        "hub.run_calls": 48,
-        "core.call_answer_bytes": 10662
+        "views.text_bytes": 1024
       }}
     }},
     "llm": {{
@@ -111,7 +111,7 @@
     "hosts": {{
       "listener": [
         {{
-          "socket": "{{story.workers}}"
+          "socket": "{story.workers}"
         }}
       ]
     }},
@@ -128,12 +128,12 @@
   "application": {{
     "webhooks": {{
       "listener": {{
-        "socket": "{{story.webhooks}}"
+        "socket": "{story.webhooks}"
       }}
     }},
     "clients": {{
       "listener": {{
-        "socket": "{{story.clients}}"
+        "socket": "{story.clients}"
       }},
       "bundle": null,
       "public": null
@@ -143,25 +143,25 @@
     "limits": {{
       "overrides": {{
         "checkout.message_bytes": 10662,
-        "forge.client.op_bytes": 10660,
-        "forge_component.body_bytes": 21341,
         "checkout.name_bytes": 256,
         "checkout.repositories": 2,
+        "checkout.workspaces": 4,
         "forge.client.calls": 4,
+        "forge.client.op_bytes": 10660,
         "forge.client.pending": 8,
+        "forge.client.poll_ms": 50,
+        "forge.landing_members": 1,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
-        "forge.landing_members": 1,
+        "forge_component.body_bytes": 21341,
         "forge_component.connections": 4,
+        "git_component.operations": 4,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 16803814,
         "root.loads.bytes": 16804058,
         "root.loads.read_bytes": 33607620,
         "root.loads.reply_bytes": 16804058,
-        "root.loads.transcript_bytes": 16803810,
-        "forge.client.poll_ms": 50,
-        "checkout.workspaces": 4,
-        "git_component.operations": 4
+        "root.loads.transcript_bytes": 16803810
       }}
     }}
   }}

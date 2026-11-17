@@ -380,10 +380,7 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         assert!(!path(&dirs.data).join("demo").exists());
         assert_eq!(written.person, temper_init::Person::Found);
         assert!(written.login.is_none());
-        assert_eq!(
-            written.paths,
-            [path(&dirs.data).join("worker.secret"), path(&dirs.data).join("worker.digest"), dirs.document()]
-        );
+        assert_eq!(written.paths, [path(&dirs.data).join("worker.secret"), dirs.document()]);
         let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
         assert!(document["application"].get("welcome").is_none());
         let ports = ["clients", "webhooks"].map(|name| {
@@ -400,10 +397,7 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
             assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "bare listener held");
         }
         let agent = temper_fixtures::agent::configuration(&document);
-        assert_eq!(
-            agent["programs"]["claude_code"]["path"],
-            if claude { serde_json::json!(root.join("bin/claude")) } else { serde_json::json!("fetched") }
-        );
+        assert_eq!(agent["programs"]["claude_code"]["path"], serde_json::json!("fetched"));
         check_agent(&dirs, agent);
         crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
         fs::remove_dir_all(root).expect("cleanup");

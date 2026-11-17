@@ -302,5 +302,19 @@ pub fn part(input: &[u8]) -> crate::startup::WorkerPart {
     }
     part.worker.jig.limits = Some(limits);
     part.limits = crate::worker_settings::Limits::shared(temper_limits_fixtures::shared());
+    let files = part.files;
+    let mut part = crate::startup::WorkerPart::in_process(
+        part.worker.jig,
+        crate::startup::worker::application::Worker {
+            root: part.worker.root,
+            git: Some(b"/usr/bin/git".as_slice().into()),
+            claude: part.claude,
+            environment: part.environment,
+        },
+        &jig_protocol_config::Directories::working(),
+        part.limits,
+    );
+    part.call_answer = temper_service_core::startup::CallAnswer::Profile;
+    part.files = files;
     part
 }

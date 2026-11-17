@@ -258,8 +258,7 @@ Other refusals: temper help forgejo, step 2.
 ## 7. Redeploy from main
 
 Redeploy resets the store, keeping Forgejo, secrets and members.
-Before stopping, export every `sign_in` or `granted` account to a file
-retained across reset:
+Before stopping, export each `sign_in` or `granted` account:
 
 ```
 temper ctl DIR account list
@@ -267,7 +266,7 @@ temper ctl DIR account export ACCOUNT FILE
 ```
 
 Stop units; fetch, check, install and unpack the new commit on both hosts
-as in Before you start; edit documents as above; remove
+as above; edit documents; remove
 `DATA` but `DATA/secrets/` and `DATA/forge-1/` and, with Forgejo's sign-in
 through temper, the provider's key and the client's secret, and on
 `worker` its data but `secrets/`; start Forgejo, the engine, the worker
@@ -282,10 +281,8 @@ Expect: `moved out: account ACCOUNT to FILE`; after start,
 
 If not: `the engine holds its N answers of the last day; room again at
 TIME` (exit 2) or `unsent` (exit 1) moved nothing: keep `DATA`, export
-after TIME or later, then remove `DATA`. A refused or lost export keeps
-the account in the engine; resetting loses it, requiring owner sign-in.
-A refused import keeps `FILE`: leave it. A key's account does not cross:
-add its key again.
+later, then remove `DATA`. A refused or lost export keeps the account; resetting loses it.
+A refused import keeps `FILE`. Add keys again after reset.
 
 ## Clean up
 
@@ -294,5 +291,5 @@ add its key again.
 
 ## Next
 
-- temper help ctl: the loop, keys and exit statuses for every call.
+- temper help ctl: calls and exit statuses.
 - temper help forgejo: a Forgejo temper does not run.

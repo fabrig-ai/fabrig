@@ -76,8 +76,11 @@ pub fn output(limits: &Limits) -> Option<u32> {
     let bodies = sizes::limits(&sizes)?;
     let mut room = u32::try_from(v16::Credential::encoded_bound(&bodies)?).ok()?.checked_add(22)?.max(270);
     for rule in jig_protocol_worker_wire::KINDS {
-        // Assignments and job specs are fitted to the peer's room by the engine.
-        if rule.body != jig_protocol_worker_wire::Kind::Assignment && rule.body != jig_protocol_worker_wire::Kind::Job {
+        // Assignments, job specs and opening figures are checked against room when sent.
+        if rule.body != jig_protocol_worker_wire::Kind::Assignment
+            && rule.body != jig_protocol_worker_wire::Kind::Job
+            && rule.body != jig_protocol_worker_wire::Kind::Figures
+        {
             room = room.max(sizes::largest_body(&sizes, rule.body)?.checked_add(8)?);
         }
     }
@@ -97,6 +100,11 @@ fn failure(figure: &[u8], source: &'static [u8]) -> jig_protocol_config::Problem
     }
 }
 fn both(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_config::Problem> {
+    limits.hub.event_bytes = u64::from(
+        message(sources.payload)
+            .ok_or(failure(b"hub.event_bytes", b"cannot derive from the agent's tool payload (P)"))?,
+    );
+
     limits.hub.turn_bytes = u64::from(sources.turn);
     limits.hub.transcript_bytes = transcript(
         resume(sources.turn)
@@ -131,10 +139,6 @@ pub fn engine(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_
 }
 /// Apply a worker's carriers to its base, before jig reads the overrides.
 pub fn worker(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_config::Problem> {
-    limits.hub.event_bytes = u64::from(
-        message(sources.payload)
-            .ok_or(failure(b"hub.event_bytes", b"cannot derive from the agent's tool payload (P)"))?,
-    );
     both(limits, sources)
 }
 
@@ -176,8 +180,13 @@ pub fn worker_document(
         problems.push(found.path, found.what);
         return Err(problems);
     }
-    let mut worker = jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)?;
-    if worker.limits.is_none() { worker.limits = Some(base); }
+    let mut worker =
+        jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)?;
+    if worker.limits.is_none() {
+        base.hub.slots = worker.slots;
+        base.hub.source_interval = worker.check_interval;
+        worker.limits = Some(base);
+    }
     Ok(worker)
 }
 

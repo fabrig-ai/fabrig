@@ -7,7 +7,7 @@ use skein_lib::List;
 fn a_checked_worker_alone_has_its_shape_and_refuses_engine_application_members() {
     let input = fixtures::worker_alone_document();
     assert_eq!(crate::startup::shape(&input, &config::Directories::working()), Ok(crate::startup::Shape::WorkerAlone));
-    let text = core::str::from_utf8(&input).unwrap().replace("\"application\":{", "\"application\":{\"forges\":[],");
+    let text = core::str::from_utf8(&input).unwrap().replace("\"application\":{", "\"application\":{\"forges\":[]");
     let found = crate::startup::shape(text.as_bytes(), &config::Directories::working()).unwrap_err();
     assert_eq!(found.problems.len(), 1);
     assert_eq!(found.problems.get(0).unwrap().path, Path::root().member(b"application").member(b"forges"));
@@ -57,6 +57,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         &temper_engine_service_startup::startup::fixed(&directories).unwrap(),
     )
     .unwrap();
+    agent.host_limits.accounts = engine.limits.hub.accounts;
     part.worker.jig.limits = Some(engine.limits);
     part.worker.jig.slots = worker.slots;
     let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
@@ -88,7 +89,19 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
             .push((file.path.clone(), skein_lib::Secret::new(b"fixture-worker-secret".as_slice().into())))
             .unwrap();
     }
-    let service = crate::startup::worker_alone(part, &files, &agent, fixtures::worker_runtime(), 7).unwrap();
+    let mut supplied = crate::startup::WorkerPart::in_process(
+        part.worker.jig,
+        crate::startup::worker::application::Worker {
+            root: part.worker.root,
+            git: part.worker.git,
+            claude: part.claude,
+            environment: part.environment,
+        },
+        &directories,
+        part.limits,
+    );
+    supplied.files = part.files;
+    let service = crate::startup::worker_alone(supplied, &files, &agent, fixtures::worker_runtime(), 7).unwrap();
     assert!(service.operations() <= IORING_MAX_ENTRIES);
     assert_eq!(service.operations(), operations, "the start's check and the ring agree");
 }

@@ -23,7 +23,6 @@ pub fn configuration(document: &Value) -> Value {
     given(document, &temper_engine_service_stock::stock::agents(), std::path::Path::new("/fixture/data"))
 }
 fn given(document: &Value, agents: &temper_client_protocol_wire::v1::AgentFigures, data: &std::path::Path) -> Value {
-    let input = document;
     let bytes = serde_json::to_vec(&document["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
@@ -35,27 +34,13 @@ fn given(document: &Value, agents: &temper_client_protocol_wire::v1::AgentFigure
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
-        &jig_protocol_config::Fixed::NONE,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working())
+            .expect("fixture constants"),
     )
     .expect("engine configuration");
-    let own =
-        temper_engine_service_vocabulary::limits::stock();
+    let own = temper_engine_service_vocabulary::limits::stock();
     let figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(agents);
-    let own = &input["application"]["workers"][0];
-    let claude = own.get("claude").and_then(Value::as_str).map(std::path::Path::new);
-    let environment: Vec<_> = own.get("environment").and_then(Value::as_array).map_or_else(Vec::new, |entries| {
-        entries
-            .iter()
-            .map(|entry| {
-                (
-                    Box::from(entry["name"].as_str().expect("environment name").as_bytes()),
-                    Box::from(entry["value"].as_str().expect("environment value").as_bytes()),
-                )
-            })
-            .collect()
-    });
-    let bytes =
-        temper_worker_shell::agent::figures::configuration(&figures, claude, data, &environment).expect("agent writer");
+    let bytes = temper_worker_shell::agent::figures::configuration(&figures, None, data, &[]).expect("agent writer");
     serde_json::from_slice(&bytes).expect("written agent JSON")
 }
 
@@ -107,6 +92,13 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
             }
         }
         let address = endpoint["address"].as_str().expect("agent address");
+        // Smith names its protocol provider; the engine retains the logical provider's name.
+        if let Some(previous) = document["engine"]["llm"]["endpoints"]
+            .as_array()
+            .and_then(|entries| entries.iter().find(|entry| entry["name"] == endpoint["name"]))
+        {
+            engine["provider"] = previous["provider"].clone();
+        }
         engine["address"] = if address.parse::<std::net::SocketAddr>().is_ok() {
             serde_json::json!({"socket":address})
         } else {
@@ -172,16 +164,6 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
     value.encode(&mut bytes).expect("setting bytes");
     std::fs::write(directory.join("agents.setting"), bytes.finish()).expect("fixture setting copy");
     document["engine"]["llm"]["endpoints"] = endpoints.into();
-    if let Some(claude) = agent["programs"]["claude_code"]["path"].as_str() {
-        if claude == "fetched" {
-            document["application"]["workers"][0].as_object_mut().expect("worker").remove("claude");
-        } else {
-            document["application"]["workers"][0]["claude"] = claude.into();
-        }
-    }
-    if let Some(environment) = agent.get("environment") {
-        document["application"]["workers"][0]["environment"] = environment.clone();
-    }
 }
 
 /// The same decoder and launcher substitution the product uses for prospective configuration.

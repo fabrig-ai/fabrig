@@ -53,11 +53,6 @@ pub fn parse(bytes: &[u8]) -> Value {
     serde_json::from_slice(bytes).expect("a whole JSON document")
 }
 
-#[expect(clippy::disallowed_methods, reason = "tests inspect the JSON text at the protocol boundary")]
-pub fn text(bytes: &[u8]) -> &str {
-    core::str::from_utf8(bytes).expect("the test's paths are UTF-8")
-}
-
 pub fn content<'a>(answer: &'a crate::Answer, name: &[u8]) -> &'a [u8] {
     match &file(&answer.files, name).content {
         Content::Bytes { bytes, .. } => bytes,

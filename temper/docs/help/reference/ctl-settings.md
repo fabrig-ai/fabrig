@@ -54,6 +54,7 @@ settings show dependency NUMBER --project PROJECT [--revision REVISION]
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show agents [--revision REVISION]
   agents (kind): one of agents; required. The agents' figures
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show welcome [--revision REVISION]
   welcome (kind): one of welcome; required. The deployment's welcome
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent

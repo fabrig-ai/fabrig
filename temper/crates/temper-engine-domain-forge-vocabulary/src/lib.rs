@@ -16,6 +16,7 @@ pub mod away;
 pub mod boundary;
 pub mod brief;
 pub mod brief_words;
+pub mod change_words;
 pub mod closer;
 pub mod commit;
 pub mod devices;

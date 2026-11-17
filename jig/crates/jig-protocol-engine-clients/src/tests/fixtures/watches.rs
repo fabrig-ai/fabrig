@@ -41,8 +41,11 @@ impl Exchange {
 pub fn owned_subject(value: &w::Subject) -> w::Owned {
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("subject");
-    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
-        .expect("subject owner")
+    w::Owned::new(
+        &wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .expect("subject owner")
 }
 pub fn family_subject() -> w::Owned {
     let family = w::Family::new(&wire(), w::FamilyParts { number: 9 }).expect("family");

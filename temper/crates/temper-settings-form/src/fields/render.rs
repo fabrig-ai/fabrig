@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"JSON shapes; bullets give fields, types, bounds and effects. The settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse with a fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner` or `linked`. Spend uses deployment model-price units. Hex is lowercase hexadecimal bytes: `666f726765` is `forge`. Unsigned integers u8/u16/u32/u64 range from 0 through 255/65,535/4,294,967,295/18,446,744,073,709,551,615. bool is true or false; text[N] and hex[N] hold at most N bytes; list[N] holds at most N entries. ? means optional; ! means required. A value follows its setting.kind's named shape; project-policy uses policy.";
+pub const INTRO: &[u8] = b"JSON fields, types, bounds and effects. The settings file is file. Read settings show KIND N, edit and set it whole. The deployment may refuse: shape, count, reference, rules, budget, grace, owner or linked. Spend uses deployment model-price units. Hex is lowercase hexadecimal. u8/u16/u32/u64 range from 0 through 255/65535/4294967295/18446744073709551615. bool is true or false. text[N]/hex[N]: at most N bytes; [N] T: list of at most N entries of T. ? optional; ! required; |null admits null. Code choices are JSON strings. Values follow setting.kind; project-policy uses policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -68,17 +68,17 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             if field.shape != form.shape {
                 continue;
             }
-            out.put(b"- `");
+            out.put(b"- ");
             out.put(field.name);
-            out.put(b"`: ");
+            out.put(b": ");
             if let Some(bound) = field.list {
-                out.put(b"list[");
+                out.put(b"[");
                 number(most(bound, limits), out);
                 out.put(b"] ");
             }
             value(&field.value, forms, limits, out);
             if field.null {
-                out.put(b", or null");
+                out.put(b"|null");
             }
             out.put(b".");
             line(field.line, out);
@@ -118,9 +118,13 @@ fn line(bytes: &[u8], out: &mut Text) {
     }
 }
 fn quoted(word: &[u8], out: &mut Text) {
-    out.put(b"`\"");
-    out.put(word);
-    out.put(b"\"`");
+    out.put(b"`");
+    if word.is_empty() {
+        out.put(b"\"\"");
+    } else {
+        out.put(word);
+    }
+    out.put(b"`");
 }
 fn words(values: &[Word], out: &mut Text) {
     for (index, word) in values.iter().enumerate() {
@@ -155,9 +159,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
         Value::Shape(shape) => {
             for form in forms {
                 if form.shape == *shape {
-                    out.put(b"`");
                     out.put(form.name);
-                    out.put(b"`");
                     return;
                 }
             }
@@ -168,11 +170,5 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
 }
 fn number(value: u64, out: &mut Text) {
     let decimal = Decimal::of(value);
-    let digits = decimal.as_bytes();
-    for (index, digit) in digits.iter().enumerate() {
-        if index > 0 && digits.len().checked_sub(index).expect("digit offset") % 3 == 0 {
-            out.put(b",");
-        }
-        out.put(&[*digit]);
-    }
+    out.put(decimal.as_bytes());
 }

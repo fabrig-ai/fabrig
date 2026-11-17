@@ -1,4 +1,4 @@
-use super::fixtures::{self, DIRECTORIES, cases, content, parse, text};
+use super::fixtures::{self, DIRECTORIES, cases, content, parse};
 use crate::{files, template};
 use serde_json::{Value, json};
 use skein_lib::bytes;
@@ -15,9 +15,9 @@ fn engine_figures_keep_the_hub_capacity_required_by_the_stock_agent() {
     for files in [boxed.files.as_ref(), bare.as_ref()] {
         let document = parse(file_bytes(files, b"temper.json"));
         let overrides = &document["engine"]["limits"]["overrides"];
-        assert_eq!(overrides["hub.accounts"], 4);
-        assert_eq!(overrides["hub.event_bytes"], 10660);
-        assert_eq!(overrides["hub.run_calls"], 48);
+        assert_eq!(overrides["hub.accounts"], 4_u32);
+        assert_eq!(overrides["hub.event_bytes"], 10660_u32);
+        assert_eq!(overrides["hub.run_calls"], 48_u32);
         for worker in document["workers"].as_array().unwrap() {
             assert!(worker.get("limits").is_none());
         }
@@ -59,10 +59,9 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 &temper_service_core::startup::fixed_worker(),
             )
             .unwrap();
-            let stop =
-                jig_protocol_config::stop_bound(&worker.graces, profile.link.ping, profile.link.silence)
-                    .unwrap()
-                    .as_millis();
+            let stop = jig_protocol_config::stop_bound(&worker.graces, profile.link.ping, profile.link.silence)
+                .unwrap()
+                .as_millis();
             assert_eq!(stop, 326_000);
             assert!(stop < grace);
         }
@@ -240,7 +239,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     owned["engine"]["llm"]["endpoints"][0],
                     anthropic("endpoints"),
                     anthropic("direct"),
-                    {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
+                    {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "demo",
                      "address": {"socket": format!("127.0.0.1:{}", facts.ports.llm)},
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
@@ -259,9 +258,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
-        if let Some(claude) = facts.claude {
-            expected["application"]["workers"][0]["claude"] = json!(text(claude));
-        }
+        assert!(actual["application"].get("workers").is_none(), "{row}: programs are machine facts");
         assert_eq!(actual["workers"][0]["name"], "local", "{row}");
         assert!(actual["engine"]["hosts"].get("workers").is_none(), "{row}");
         assert_eq!(actual, expected, "{row}");
@@ -448,34 +445,20 @@ fn demo_turn(text: &str) -> Value {
 
 #[test]
 fn facts_are_written_as_json_text() {
-    for (row, binary, escaped) in [
-        (
-            "quote and backslash",
-            b"/opt/tem\"per\\bin/temper".as_slice(),
-            b"\"/opt/tem\\\"per\\\\bin/temper\"".as_slice(),
-        ),
-        (
-            "control bytes and UTF-8",
-            b"/opt/\n\t\x01/\xc3\xa9/temper".as_slice(),
-            b"\"/opt/\\n\\t\\u0001/\xc3\xa9/temper\"".as_slice(),
-        ),
+    // configuration/moved.md, 2: machine paths stay out of the deployment document.
+    for (row, binary) in [
+        ("quote and backslash", b"/opt/tem\"per\\bin/temper".as_slice()),
+        ("control bytes and UTF-8", b"/opt/\n\t\x01/\xc3\xa9/temper".as_slice()),
     ] {
-        let facts = crate::Facts { git: Some(binary), ..fixtures::facts() };
+        let facts = crate::Facts { binary, git: Some(binary), claude: Some(binary), ..fixtures::facts() };
         let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid text paths");
-        let document = content(&answered, b"temper.json");
-        assert!(bytes::find(document, escaped).is_some(), "{row}: JSON escaped the path");
-        let parsed = parse(document);
+        let parsed = parse(content(&answered, b"temper.json"));
+        assert!(parsed["application"].get("workers").is_none(), "{row}");
         assert_eq!(parsed["engine"]["llm"]["endpoints"][3]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
-        assert_eq!(
-            parsed
-                .pointer("/application/workers/0/git")
-                .expect("the worker has git")
-                .as_str()
-                .expect("a JSON path is text")
-                .as_bytes(),
-            binary,
-            "{row}"
-        );
+        let crate::Content::Link { target } = &fixtures::file(&answered.files, b"demo/bin/git").content else {
+            panic!("the fake git is a launcher link")
+        };
+        assert_eq!(target.as_ref(), binary, "{row}: the launcher preserves the machine path");
     }
 }
 
@@ -609,10 +592,7 @@ fn every_deployment_offers_claude_found_or_fetched() {
             }
             assert!(document["engine"]["llm"].get("models").is_none());
             assert_eq!(document["engine"]["llm"]["endpoints"][2], anthropic("direct"), "{row}: direct");
-            match facts.claude {
-                Some(claude) => assert_eq!(document["application"]["workers"][0]["claude"], text(claude), "{row}"),
-                None => assert!(document["application"]["workers"][0].get("claude").is_none(), "{row}"),
-            }
+            assert!(document["application"].get("workers").is_none(), "{row}: programs are found at start");
             for file in files {
                 assert_ne!(file.name, b"agent.json");
             }

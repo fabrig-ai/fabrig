@@ -402,7 +402,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     assert_eq!(
         agent["programs"],
         json!({"claude_code":{
-            "path":"/usr/bin/true", "directory":paths[1].join("programs")
+            "path":"fetched", "directory":paths[1].join("programs")
         }})
     );
     assert_eq!(
@@ -429,13 +429,14 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
         })
     );
-    let mut application = before["application"].clone();
-    application["workers"][0]["claude"] = "/usr/bin/true".into();
-    application["workers"][0]["environment"] = json!([]);
+    let application = before["application"].clone();
     assert_eq!(value["application"], application, "including init’s demo");
     assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
     assert_eq!(value["workers"], before["workers"]);
-    let parsed = smith_agent_shell::config::from_value(agent.clone()).expect("ordinary agent schema");
+    let parsed = temper_worker_shell::agent::decoded_bytes(&serde_json::to_vec(&agent).expect("agent JSON"))
+        .expect("ordinary agent schema")
+        .resolve(&mut Vec::new())
+        .expect("resolved agent");
     assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
     eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
     scratch.remove();
