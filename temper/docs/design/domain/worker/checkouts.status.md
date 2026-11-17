@@ -31,6 +31,14 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
 - **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in
   flight: change 6018].
+- **Not yet:** *A task's own delivery outlives its hold*: a new hold
+  starts with nothing of its own pushed, so a `deliver` or a change
+  `finish` with nothing new on the head the task delivered is unchanged,
+  and smith refuses it as nothing (`temper-worker-domain-checkout/src/hold.rs`,
+  `pushed`) [in flight: change 7042].
+- **Not yet:** *A task's own delivery outlives its hold*: no assignment
+  names the task's own delivery to the checkout; the worker's
+  translation leaves it none [in flight: change 7050].
 - **Not yet:** the whole document: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written
