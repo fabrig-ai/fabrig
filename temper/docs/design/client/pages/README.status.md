@@ -15,7 +15,7 @@
 - **Not yet:** 2, *A task's title on a line* and *A task's words after its
   title*: a goal's and a task's rows and the lineage bar draw titles
   whole, and an agent's task's brief repeats one-line words [in flight:
-  change 6221].
+  change 6356].
 - **Not yet:** 2, *A task's title on a line*: Work's other rows, the
   chats' rows and switcher, a chat's goal bar, delegation cards, Changes,
   a close's rows, a result's card, How it runs, Tell, the public rows and
