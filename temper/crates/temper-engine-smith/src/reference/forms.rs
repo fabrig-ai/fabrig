@@ -131,8 +131,7 @@ fn same_shape(left: &Value, right: &Value) -> bool {
         (Some(left), Some(right)) => same_set(left, right),
         (Some(_), None) | (None, Some(_)) => false,
         (None, None) => {
-            let (Some(left_members), Some(right_members)) =
-                (field(left, b"properties"), field(right, b"properties"))
+            let (Some(left_members), Some(right_members)) = (field(left, b"properties"), field(right, b"properties"))
             else {
                 return false;
             };

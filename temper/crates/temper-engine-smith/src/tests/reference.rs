@@ -295,16 +295,42 @@ fn page_for(specs: &[Spec]) -> Box<[u8]> {
 fn every_whole_form_fact_is_on_the_page() {
     let page = page_for(&SPECS);
     let text = core::str::from_utf8(&page).unwrap();
+    let (members, values) = page_facts(text);
     for spec in &SPECS {
-        whole_form_facts(&json::parse(spec.whole()).unwrap(), text);
+        whole_form_facts(&json::parse(spec.whole()).unwrap(), text, &members, &values);
     }
 }
 
-fn whole_form_facts(schema: &Value, page: &str) {
+type Members<'a> = alloc::collections::BTreeMap<&'a str, skein_lib::List<&'a str>>;
+type Values<'a> = alloc::collections::BTreeSet<&'a str>;
+
+fn page_facts(page: &str) -> (Members<'_>, Values<'_>) {
+    let mut members = Members::new();
+    let capacity = u32::try_from(page.lines().count()).unwrap();
+    for line in page.lines() {
+        if let Some(line) = line.trim_start().strip_prefix("- `")
+            && let Some((name, rest)) = line.split_once("`: ")
+        {
+            members
+                .entry(name)
+                .or_insert_with(|| skein_lib::List::with_capacity(capacity))
+                .push(rest)
+                .expect("at most one member per page line");
+        }
+    }
+    let mut values = Values::new();
+    for span in page.split('`').skip(1).step_by(2) {
+        for item in span.split('|') {
+            values.insert(item);
+        }
+    }
+    (members, values)
+}
+
+fn whole_form_facts(schema: &Value, page: &str, members: &Members<'_>, values: &Values<'_>) {
     if let Some(Value::Object(properties)) = schema.field(b"properties").unwrap() {
         for (name, member) in properties {
             let name = core::str::from_utf8(name).unwrap();
-            let prefix = format!("- `{name}`: ");
             let required = match schema.field(b"required").unwrap() {
                 Some(Value::Array(names)) => names.contains(&Value::String(name.as_bytes().into())),
                 _ => false,
@@ -319,8 +345,7 @@ fn whole_form_facts(schema: &Value, page: &str) {
                 _ => "",
             };
             assert!(
-                page.lines().any(|line| {
-                    let Some(line) = line.trim_start().strip_prefix(&prefix) else { return false };
+                members.get(name).is_some_and(|lines| lines.iter().any(|line| {
                     let kind_present = if member.field(b"enum").unwrap().is_some() {
                         line.starts_with("one of `") || line.starts_with("text")
                     } else if member.field(b"oneOf").unwrap().is_some() {
@@ -334,32 +359,29 @@ fn whole_form_facts(schema: &Value, page: &str) {
                         line.starts_with(kind)
                     };
                     kind_present && line.contains("; required.") == required && line.contains(description)
-                }),
+                })),
                 "{name}: type {kind}, required {required}, description {description}"
             );
-            whole_form_facts(member, page);
+            whole_form_facts(member, page, members, values);
         }
     }
-    if let Some(Value::Array(values)) = schema.field(b"enum").unwrap() {
-        for value in values {
+    if let Some(Value::Array(variants)) = schema.field(b"enum").unwrap() {
+        for value in variants {
             let Value::String(value) = value else { panic!("enum strings") };
             let value = core::str::from_utf8(value).unwrap();
-            assert!(
-                page.split('`').skip(1).step_by(2).any(|span| span.split('|').any(|item| item == value)),
-                "enum value {value}"
-            );
+            assert!(values.contains(value), "enum value {value}");
         }
     }
     if let Some(items) = schema.field(b"items").unwrap() {
         if let Some(Value::String(description)) = items.field(b"description").unwrap() {
             assert!(page.contains(core::str::from_utf8(description).unwrap()));
         }
-        whole_form_facts(items, page);
+        whole_form_facts(items, page, members, values);
     }
     for alternative in [b"oneOf".as_slice(), b"anyOf", b"allOf"] {
         if let Some(Value::Array(variants)) = schema.field(alternative).unwrap() {
             for variant in variants {
-                whole_form_facts(variant, page);
+                whole_form_facts(variant, page, members, values);
             }
         }
     }
@@ -415,7 +437,8 @@ fn repeated_shapes_are_shared_by_value_with_distinct_names() {
     assert!(!text.contains("\n### words\n"), "a subtree carried only by the shared wake isn't repeated");
     assert_eq!(text.matches("the `kind` form, under Shared forms.").count(), 2);
     assert_eq!(text.matches("the `kind-2` form, under Shared forms.").count(), 2);
+    let (members, values) = page_facts(text);
     for spec in &specs {
-        whole_form_facts(&json::parse(spec.whole()).unwrap(), text);
+        whole_form_facts(&json::parse(spec.whole()).unwrap(), text, &members, &values);
     }
 }
