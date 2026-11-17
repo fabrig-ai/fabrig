@@ -25,11 +25,6 @@ Later pages remain section 6's deferred work.
   manual stories run by the owner, how is for later (section 6).
   `openai_unauthorized` stays in the automatic suite, and the daily live run
   runs it too: it sends the lent credential replaced by an invalid one.
-- **Not yet:** 5: the live suite's public-route credential and login file: a
-  lent login's `OPENAI_API_KEY`, where it is a string, sent as the bearer; a
-  login file refused unless it is a regular file of mode 0600, and read once
-  within the login's bound. The suite reads only `.tokens.access_token`, from
-  a login file of any mode, read whole [in flight: change 5994].
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
   explicit state enum per lifecycle, each state holding exactly its
   data, no lifecycle in flags or `Option`s beside it, exhaustive matches
