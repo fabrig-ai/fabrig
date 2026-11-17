@@ -598,6 +598,20 @@ for the close; a change held for that refusal before ends at its next
 release. Its ending stays its own: a merge temper did not record is
 not its landing.
 
+**One temper saw closed takes no close** (2026-11-17). The release
+reads temper's own record of the pull request, the state its last poll
+kept, and reads nothing afresh: where that record shows it closed,
+merged or not, the release sends neither its comment nor its close and
+counts the close as made, as a removed forge does (`../adoption.md`, 1).
+A pull request last seen open, or never seen, is closed as above, and a
+close the forge refuses while temper's record has meanwhile come to show
+it closed counts as made too; a refused close of one still seen open
+holds, as any failed effect. The rest of its release is any ended
+change's, and nothing the merge leaves holds it: the head branch of a
+merged pull request is the forge's to keep or delete, so a branch the
+forge no longer has counts as deleted, and the release deletes or
+rewrites nothing else to end.
+
 **Ended, it is frozen** (2026-11-15). Its closed pull request stays its
 own: a change made after it on the same branch, at the same head or
 not, opens its own (2, step 2), and never takes it. From its end, its
