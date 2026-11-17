@@ -161,11 +161,13 @@ fn stock_charters_leave_at_least_2048_bytes() {
 )]
 fn stock_charters_pass_the_fixed_check_on_every_wake() {
     use jig_domain_tasks::{REASON_NAMES, Reasons};
+    let generated = super::stock::generated();
+    let agent = agent();
     for profile in [b"\"small\"".as_slice(), b"\"standard\""] {
-        let document = fixtures::with(&super::stock::generated(), b"engine.limits.profile", profile);
+        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
         let engine = super::stock::engine(&document);
         let host = temper_engine_smith::room::host_part(
-            Some(&agent().run_limits),
+            Some(&agent.run_limits),
             65_536,
             &crate::settings::charter_endpoints(&engine),
             &engine.limits.core.brief_core_budgets,
