@@ -57,8 +57,12 @@ fn harness(delivers: bool) -> Harness {
 fn assignment(decoded: bool, writable: bool) -> Event {
     let mut items = fixtures::items(&[b"home", b"work"]);
     if writable {
-        items.repositories[1].access =
-            wire::Access::Writable { push: Box::from(b"topic".as_slice()), landing: None, expected: None };
+        items.repositories[1].access = wire::Access::Writable {
+            push: Box::from(b"topic".as_slice()),
+            landing: None,
+            expected: None,
+            delivered: None,
+        };
     }
     let job = host::JobAssignment {
         run: fixtures::RUN,
@@ -382,7 +386,7 @@ fn a_delivering_job_with_several_writable_repositories_pushes_nothing() {
     let mut event = assignment(true, true);
     let Event::AssignJob { items: Ok(items), .. } = &mut event else { panic!("decoded items") };
     items.repositories[0].access =
-        wire::Access::Writable { push: Box::from(b"topic".as_slice()), landing: None, expected: None };
+        wire::Access::Writable { push: Box::from(b"topic".as_slice()), landing: None, expected: None, delivered: None };
     let owner = running_assignment(&mut h, event);
     assert!(result(&mut h, owner).is_empty(), "no commit or push");
     let rows = job(&mut h, owner, tooling::Event::Gone { owner });

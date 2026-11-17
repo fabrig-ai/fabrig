@@ -702,6 +702,7 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
             push: Box::from(&b"topic"[..]),
             expected: Some(translate::commit(first).raw()),
             landing: None,
+            delivered: None,
         },
     };
     let assignment = host::Assignment {

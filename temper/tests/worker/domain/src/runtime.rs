@@ -518,7 +518,12 @@ impl World {
             } else {
                 wire::Start::Base { branch: Box::from(&b"main"[..]) }
             },
-            access: wire::Access::Writable { push: Box::from(&b"topic"[..]), expected: Some(HEAD), landing: None },
+            access: wire::Access::Writable {
+                push: Box::from(&b"topic"[..]),
+                expected: Some(HEAD),
+                landing: None,
+                delivered: None,
+            },
         };
         let assignment = host::Assignment {
             messages: Box::new([]),
