@@ -2,7 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 1: *A person's report has a floor*: `delegate`'s `contract` description says nothing of a person's floor, and a contract refusal reads `result contract` alone [in flight: change 6009].
 
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
 
