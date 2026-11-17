@@ -296,7 +296,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),

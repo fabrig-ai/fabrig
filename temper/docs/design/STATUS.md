@@ -225,6 +225,16 @@ number it stored, never a closed one found by its branches
 branch and history are frozen (`domain/forge/keeping-up.md`, 3); and a
 job's attempt names why it ended (`domain/landing-history.md`, 2.2).
 
+A landing's prepare survives a restart
+(`draft/prepare-restart.status.md`): a round at preparing reads at each
+step whether its prepare lives, has answered or is absent, from jig's
+context and its job record, never from its own marks; the forge's start
+reads and wakes each landing, deciding nothing; a lost attempt is
+retried in the same child once its writer slots settle; proven absence
+asks once again, fenced by jig's step, keeping the prefixes recovered;
+and a release at preparing reconciles the same way
+(`domain/landing-preparing.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -524,6 +534,7 @@ Design documents:
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
+- [`domain/landing-preparing.md`](domain/landing-preparing.status.md)
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
@@ -654,6 +665,7 @@ Drafts:
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
+- [`draft/prepare-restart.md`](draft/prepare-restart.status.md)
 - [`draft/probes-by-test.md`](draft/probes-by-test.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
