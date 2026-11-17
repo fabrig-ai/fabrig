@@ -2,7 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [work.md](work.md).
 
-- **Not yet:** 1, Goals' *What it reads*: the rail's facts open window-1 twins of the goals' and milestones' lists beside them, and the needs are read again on every delivery of the goals' watch, with no mark of the inbox [in flight: change 6335].
 
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].

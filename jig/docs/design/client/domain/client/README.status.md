@@ -2,7 +2,6 @@
 
 2026-11-17. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 9 and 11: signed in, the client opens its stream naming no version and opens a watch of `me` on it, which holds one of the engine's watches only while it is held [in flight: change 6332].
 
 Unlisted sections have no known gap, including `watches.md`, 2's `watches_full`
 fact for application watches through retries and recovery.

@@ -3,7 +3,6 @@
 2026-11-17. Where the tree's code lags or departs from [settings.md](settings.md).
 
 
-- **Not yet:** 2, *Read from the forge*: `SettingAnswer` carries the value alone, with no revision [in flight: change 6341].
 - **Not yet:** 8: the forge's `ways` read gives no rules by path [in
   flight: change 872].
 

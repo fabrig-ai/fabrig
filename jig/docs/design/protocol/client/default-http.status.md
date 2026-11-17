@@ -2,7 +2,6 @@
 
 2026-11-17. Where the tree's code lags or departs from [default-http.md](default-http.md).
 
-- **Not yet:** 1 and 2, the stream's `version`: the route matches `/v1/stream` alone, so a query misses it, and the engine opens no stream naming a version [in flight: change 6330]; the client's call names none [in flight: change 6332].
 
 - **Departs:**  the tree-cursor refusal remains `README.status.md`, 4. 4: the reference server, by its `PeerEnd::Call` (`jig/testing/jig-test-service/src/limits.rs`), leaves a peer's end during a mounted call to skein's server and does not end the connection itself (`jig/crates/jig-protocol-engine-clients-http/src/server.rs`): a request all read goes on to its response, the engine end hears nothing of that end, a stream's end is seen at a failed write or the stall, and an exchange left unanswered says `ExchangeGone` (`wire.md`, 2.2) only at the stall. The engine-clients world plays the section's end in `jig/tests/engine-clients/tests/suite/gone.rs` alone, whose server it builds with `PeerEnd::Connection`, as temper's (`temper/crates/temper-service/src/limits.rs`).
 

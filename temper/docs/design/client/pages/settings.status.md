@@ -3,7 +3,6 @@
 2026-11-17. Where the tree's code lags or departs from [settings.md](settings.md).
 
 
-- **Not yet:** 1, *What the client holds*: a setting's read answers no revision, and the client reads a setting again whenever its line in the `settings` document changes, `follows` included [in flight: change 6341].
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
 
 
