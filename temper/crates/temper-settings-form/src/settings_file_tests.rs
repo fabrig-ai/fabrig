@@ -1048,7 +1048,7 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
     assert!(
         core::str::from_utf8(&page)
             .unwrap()
-            .contains("The agents' profile figures and each endpoint's limits, taken at each worker's next start.")
+            .contains("Agent profile and endpoint limits, taken at each worker's next start.")
     );
 }
 
