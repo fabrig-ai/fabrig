@@ -10,6 +10,9 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 
 - **Not yet:** 8: the turn's merge of a member reads no comparison of
   main's tip and its candidate, so a rule by path covers every member.
+- **Not yet:** 16: the domain's story of two goals' changes released
+  together by a person's answer and landed in one green turn of two.
+  [in flight: change 6853]
 - **Not yet:** 4.2 (*Drained*): a landing in a draining hold’s scope
   going on through the turn once proving, idle and held while preparing.
   It waits on jig’s drain and project-scoped placed holds

@@ -1,6 +1,6 @@
 # real-loop: status
 
-2026-11-16. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
+2026-11-17. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
 
 
 - **Not yet:** the whole document: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
@@ -26,6 +26,9 @@
   pages not yet in the joint world. [in flight: change 4726]
   the whole document: `suite::lifecycle`'s held program turn still runs
   here, not yet in the one-process world. [in flight: change 4727]
+- **Not yet:** the whole document: `suite::turn_landing`'s green story
+  still lands two goals' changes here; the ctl-released batch is not yet
+  a story of its own within the 2 s guide. [in flight: change 6855]
 - **Departs:** "A story ends what it starts": `suite::model_check`'s
   trimmed-to-Ready story joins its trial task by a story-local harness
   step reading the engine's state, not `task show TASK --until ended`,
