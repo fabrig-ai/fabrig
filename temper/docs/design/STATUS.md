@@ -43,6 +43,13 @@ reference case's three-worker story adds s1 once the director holds ws,
 rather than assuming which of two started workers the fleet picks first
 (`draft/real-loop-cancel-kills.status.md`; `testing/real-loop.md`;
 `testing/reference-case.md`).
+By goal 6833 the real loop's turn-landing story keeps only the
+ctl-released batch reaching the engine, within its 2 s guide: a person's
+latch answered once through ctl releasing together the two tasks that
+wait on it. Two goals' changes forming one landing by `turn` and landing
+on one green gate are the engine's domain world's
+(`draft/turn-landing-placement.status.md`; `testing/real-loop.md`;
+`domain/landing.md`, 16).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -155,7 +162,9 @@ the fake Forgejo and the fake model, saved and restored with a newer
 build of each; a `deployment patch` line gives a project's landing to
 what a recipe made; the fake Forgejo dispatches a gate a setup declares,
 decided by content; and the first deployment setup lands by `turn` at a
-`batch` of two, its scripts proven on the real loop. Its passes, and
+`batch` of two, its scripts carrying two goals' changes to ready
+together and a red top on the real loop, their landing of two on one
+green gate the engine's domain world's. Its passes, and
 the process tier's story of a deployment at its place, follow landing; QA gaps are filed for people
 with no goal, then reopened for judgement by a closing landing. By goal
 5214 a box's setup of ctl lines alone, `ctl-hello`, connects the fake
@@ -699,6 +708,7 @@ Drafts:
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: the room named and held: an assignment that can't encode refused naming its field and figures, in the engine's log and the held task's reason, skein's generated paths naming themselves; a charter whose fixed part passes the allowance on a wake refused at apply and over the defaults at start, with or without a local agent, from the declarations' costs by family that the service gives the domain.
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)
+- [`draft/turn-landing-placement.md`](draft/turn-landing-placement.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
 - [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
