@@ -4,6 +4,13 @@
 
 - **Not yet:** 1: a follow's check, dispatched by its change with the
   followed source commit [in flight: change 111].
+- **Not yet:** 1, *Valid at a spec revision*: a review's verdict counts
+  at its head whatever the change's spec revision [in flight: change
+  6066].
+- **Not yet:** 1, a review's words: `Change: ` before the title, not
+  labelled supporting evidence, and the review charter's second
+  sentence names the request as revised and the answers [in flight:
+  change 6059].
 
 
 - **Not yet:**

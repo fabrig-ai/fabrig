@@ -10,6 +10,16 @@
 - **Not yet:** 1, *Passed up*: a requester's run that reads the change's
   question and ends without answering leaves later runs no sight of it,
   and the requester idle with it [in flight: change 838].
+- **Not yet:** 1, *Its answers, kept for later work*, *Its amendments,
+  kept for later work* and *What every delegate is told*: answers keep
+  no spec revision and no amendment's reason is kept; a review, repair
+  or resolution ends with `What this change is asked now`, naming no
+  change, amendment or marker and dropped whole where its fixed lines
+  don't fit; a producer's words carry none of it [in flight: change
+  6059].
+- **Not yet:** 1, *Its requester's words and amendments*: an amendment
+  reaches a live producer alone, never a live repair or resolution [in
+  flight: change 6068].
 - **Not yet:** 1, *Passed up*: the question's label names no answer form
   [in flight: change 839].
 
