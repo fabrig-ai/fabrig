@@ -8,7 +8,6 @@
 
 
 - **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
-- **Not yet:** 3.7: the editor has no `address` edit and no `amend::address` [in flight: change 7144].
 
 - **Departs:** 2, *The crate graph*: `temper-client-domain-forge` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a
