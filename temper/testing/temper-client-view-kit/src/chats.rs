@@ -324,30 +324,23 @@ pub fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     ] {
         temper_client_domain::step(&mut root, &env, event, &mut out);
     }
+    if let Some(me) = &me {
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: skein_lib::Token::new(0),
+                        event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
+                    },
+                },
+            },
+            &mut out,
+        );
+    }
     while let Some(request) = out.pop() {
         match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-                    },
-            } => {
-                if let Some(me) = &me {
-                    temper_client_domain::step(
-                        &mut root,
-                        &env,
-                        Event::Client {
-                            event: jig_client::Event::Up {
-                                up: jig_client::Up::Watched {
-                                    watch,
-                                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
-                                },
-                            },
-                        },
-                        &mut out,
-                    );
-                }
-            }
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

@@ -207,20 +207,8 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         deliver(&mut root, watch, &[row(CHANGE, f::PROJECT, None)], 0);
         assert_eq!((root.forge().approvals().rows()).len(), 0);
         up(&mut root, Up::SignedOut);
-        let signed_in = up(&mut root, Up::SignedIn);
-        let mut me = None;
-        for request in &signed_in {
-            if let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) },
-                    },
-            } = request
-            {
-                me = Some(*watch);
-            }
-        }
-        let me = me.expect("next sign-in opens me");
+        up(&mut root, Up::SignedIn);
+        let me = Token::new(0);
         let mut out = Queue::uncapped();
         f::confirm(&mut root, me, f::PARTY, &mut out);
         let watch = opening(&out).expect("next sign-in opens approvals");

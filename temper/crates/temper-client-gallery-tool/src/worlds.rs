@@ -721,6 +721,45 @@ fn world_in_layout(
     let mut settings_watch = None;
     let settings_chat = settings.filter(|name| name.starts_with("ask-chat-"));
     let mut playground_read = false;
+    let hello_me = {
+        let mut me = frame(w, connecting, asking);
+        if role_talk {
+            me.party.number = 3;
+        }
+        if let Some(name) = settings.filter(|name| ways::is_how(name)) {
+            ways::frame(&mut me, name);
+        }
+        if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
+            me.projects.get_mut(0).expect("project").templates.get_mut(0).expect("chat template").grace =
+                Some(Duration::from_secs(5));
+        }
+        if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
+            let templates = me.projects.get(0).expect("draft project").templates.clone();
+            ask_frame(&mut me);
+            me.projects.get_mut(0).expect("draft project").templates = templates;
+        }
+        if settings_chat.is_some() {
+            settings_chat_frame(&mut me);
+        }
+        if settings == Some("ask-ways-member") {
+            me.projects.get_mut(0).expect("ways project").role = c::HeldRole::Member;
+            me.deployment_role = None;
+        }
+        if let Then::Hosts { role: false, .. } = then {
+            me.deployment_role = None;
+        }
+        if let Then::Models { one_account, state } = then {
+            models_frame(&mut me, one_account, state);
+        }
+        if let Some(name) = picker {
+            picker::frame(&mut me, name);
+        }
+        if goals == Some("no-project") {
+            me.projects.clear();
+        }
+        c::Delivery::Me(Box::new(me))
+    };
+    deliver(&mut root, Token::new(0), hello_me, &mut out);
     // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
         let Some(request) = out.pop() else { break };
@@ -728,49 +767,6 @@ fn world_in_layout(
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => {
-                            let mut me = frame(w, connecting, asking);
-                            if role_talk {
-                                me.party.number = 3;
-                            }
-                            if let Some(name) = settings.filter(|name| ways::is_how(name)) {
-                                ways::frame(&mut me, name);
-                            }
-                            if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
-                                me.projects
-                                    .get_mut(0)
-                                    .expect("project")
-                                    .templates
-                                    .get_mut(0)
-                                    .expect("chat template")
-                                    .grace = Some(Duration::from_secs(5));
-                            }
-                            if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
-                                let templates = me.projects.get(0).expect("draft project").templates.clone();
-                                ask_frame(&mut me);
-                                me.projects.get_mut(0).expect("draft project").templates = templates;
-                            }
-                            if settings_chat.is_some() {
-                                settings_chat_frame(&mut me);
-                            }
-                            if settings == Some("ask-ways-member") {
-                                me.projects.get_mut(0).expect("ways project").role = c::HeldRole::Member;
-                                me.deployment_role = None;
-                            }
-                            if let Then::Hosts { role: false, .. } = then {
-                                me.deployment_role = None;
-                            }
-                            if let Then::Models { one_account, state } = then {
-                                models_frame(&mut me, one_account, state);
-                            }
-                            if let Some(name) = picker {
-                                picker::frame(&mut me, name);
-                            }
-                            if goals == Some("no-project") {
-                                me.projects.clear();
-                            }
-                            Some(c::Delivery::Me(Box::new(me)))
-                        }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             let mut doc = accounts(w, then);
@@ -931,7 +927,7 @@ fn world_in_layout(
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
                         }
-                        c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
+                        c::Subject::Me | c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -4989,17 +4985,17 @@ pub(super) fn changes_world(name: &str) -> Domain {
     let limits = limits();
     let (mut root, mut out) = started(Address::Changes { project: PROJECT });
     let panel = changes_panel(name);
+
+    let project = if name == "changes-landed-only" { "hello" } else { "fabrig" };
+    let mut me = base_frame("Owner", project);
+    me.needs_total = if name == "changes-landed-only" { 1 } else { 3 };
+    me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
+    deliver(&mut root, skein_lib::Token::new(0), c::Delivery::Me(Box::new(me)), &mut out);
+
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(down) = crate::driver::down(request) else { continue };
         match down {
-            Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                let project = if name == "changes-landed-only" { "hello" } else { "fabrig" };
-                let mut me = base_frame("Owner", project);
-                me.needs_total = if name == "changes-landed-only" { 1 } else { 3 };
-                me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
-                deliver(&mut root, watch, c::Delivery::Me(Box::new(me)), &mut out);
-            }
             Down::Open { watch, subject: Watchable::Jig(c::Subject::Accounts) } => {
                 deliver(&mut root, watch, c::Delivery::Accounts(Box::new(accounts(Reference, Then::Shown))), &mut out);
             }

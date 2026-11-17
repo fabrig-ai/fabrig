@@ -59,13 +59,7 @@ fn ready() -> Domain {
             kept: List::with_capacity(0),
         },
     ));
-    let watch = rows
-        .iter()
-        .find_map(|r| match r {
-            Request::Jig(JigOut::Open { watch, subject: Subject::Me }) => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
+    let watch = skein_lib::Token::new(0);
     drive(
         &mut root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },

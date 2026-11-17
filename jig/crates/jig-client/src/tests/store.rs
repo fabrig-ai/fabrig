@@ -77,8 +77,6 @@ fn a_parked_request_whose_record_is_not_stored_is_answered_not_kept() {
     c.step(Event::Stored);
     c.fire(Time::from_nanos(100_000_000));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     assert_eq!(c.machine.link().state, Link::Live);
     assert_eq!(fixtures::keyed_count(c.requests()), 0);
     assert_eq!(fixtures::answers(c.requests()).as_slice(), &[]);
@@ -119,9 +117,7 @@ fn a_record_carried_again_is_decided_by_its_later_write() {
     assert_eq!(fixtures::saved(c.requests()).len(), 1);
     c.fire(Time::from_nanos(100_000_000));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
-    assert_eq!(fixtures::saved(c.requests()).len(), 1);
+    assert_eq!(fixtures::saved(c.requests()).len(), 2);
     c.step(Event::NotStored);
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Lost });
     assert_eq!(fixtures::answers(c.requests()).as_slice(), &[]);
@@ -147,12 +143,10 @@ fn a_step_s_records_leave_in_one_save() {
     let mut c = Client::with_kept(kept);
     c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     let mut saves = 0_u32;
     for request in c.requests() {
         if let Request::Save { records } = request {
-            assert_eq!(records.len(), 2);
+            assert_eq!(records.len(), 3);
             saves += 1;
         }
     }
@@ -345,9 +339,7 @@ fn a_kept_seen_record_decodes_is_dropped_and_erased_at_start() {
         assert_eq!((c.requests()).len(), 0);
         c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
         c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-        let watch = c.opened_watch();
         c.step(Event::Stored); // Only the stream-name write.
-        c.stream(fixtures::frame(watch));
         assert!(fixtures::saved(c.requests()).is_empty());
         assert!(keyed_keys(c.requests()).is_empty());
         assert_eq!(c.machine.pending(SECOND), None);

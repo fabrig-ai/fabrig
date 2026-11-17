@@ -31,6 +31,7 @@ pub(super) fn world(name: &str, address: Address) -> Domain {
     // Deployment and the across-project page retain the project opened before them.
     let start = Address::Work { project: 1, filter: WorkFilter::All };
     let (mut root, mut out) = super::started(start.clone());
+    deliver(&mut root, Token::new(0), c::Delivery::Me(Box::new(frame(work, name))), &mut out);
     settle(&mut root, &mut out, work, name);
     if address != start {
         step(&mut root, Event::Went { place: Place::Address(address) }, &mut out);
@@ -45,7 +46,6 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
         match down {
             Down::Open { watch, subject: Watchable::Jig(subject) } => {
                 let value = match subject {
-                    c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(work, name)))),
                     c::Subject::Tasks { query, window } => {
                         let mut rows = rows(work, &query, false);
                         while rows.len() > window {

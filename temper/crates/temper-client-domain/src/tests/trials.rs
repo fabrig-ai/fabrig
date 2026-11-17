@@ -294,7 +294,7 @@ fn the_rows_arrive_for_the_session() {
     up(&mut root, Up::SignedOut);
     assert_eq!((root.forge().trials()).len(), 0);
     let mut out = up(&mut root, Up::SignedIn);
-    let frame = opening(&out, Watchable::Jig(c::Subject::Me)).unwrap();
+    let frame = Token::new(0);
     f::confirm(&mut root, frame, f::PARTY, &mut out);
     assert!(opening(&out, trials::watch(&f::limits().forge).unwrap()).is_some());
 }

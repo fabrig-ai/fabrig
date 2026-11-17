@@ -199,18 +199,22 @@ fn home_team(
         Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
     );
     append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
+    let me_opened = {
+        let mut me = me();
+        if across {
+            me.projects.get_mut(1).unwrap().name = c::DocumentText::complete(
+                c::Text::new(b"shop".as_slice().into(), f::limits().client.domain.text).unwrap(),
+            );
+        }
+        Up::Watched { watch: skein_lib::Token::new(0), event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+    };
+    let mut me_output = f::client(&mut root, jig_client::Event::Up { up: me_opened });
+    while let Some(request) = me_output.pop() {
+        out.push(request);
+    }
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let up = match down {
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-                let mut me = me();
-                if across {
-                    me.projects.get_mut(1).unwrap().name = c::DocumentText::complete(
-                        c::Text::new(b"shop".as_slice().into(), f::limits().client.domain.text).unwrap(),
-                    );
-                }
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
-            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
                 if query.label == Some(3) =>
             {

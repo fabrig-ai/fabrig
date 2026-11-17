@@ -1072,13 +1072,8 @@ fn a_sign_in_asks_the_read_again() {
         }
         h.event(crate::Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Transport } });
         assert!(!h.root.has_goals(fixtures::PROJECT), "sign-in releases the old fact");
-        let mut own = None;
-        for request in h.take() {
-            if let Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } = request {
-                own = Some(watch);
-            }
-        }
-        h.me = own.expect("sign-in reopens me");
+        h.take();
+        h.me = Token::new(0);
         h.deliver_me(me());
         let (_, next_read) = fact_requests(&h.take(), fixtures::PROJECT);
         assert_ne!(read, next_read, "reads are asked again, never replayed");

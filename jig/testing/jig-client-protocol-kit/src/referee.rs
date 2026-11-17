@@ -77,6 +77,7 @@ impl Rules {
         match (path, response) {
             (b"/jig/v1/stream-gone", false) => same!(Gone, encoded, crossed),
             (b"/jig/v1/stream", true) => same!(StreamEvent, encoded, crossed),
+            (path, true) if path.starts_with(b"/jig/v1/stream?version=") => same!(StreamEvent, encoded, crossed),
             (b"/jig/v1/sign-out", false) | (b"/jig/v1/stream-gone", true)
                 if encoded.is_empty() && crossed.is_empty() => {}
             _ => Self::auth_record(path, response, encoded, crossed)?,

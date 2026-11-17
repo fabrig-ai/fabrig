@@ -192,22 +192,17 @@ fn a_refused_watch_stays_refused() {
         up(&mut root, Up::SignedOut);
         assert_eq!(root.forge().away(WHAT.project), None);
         let mut signed_in = up(&mut root, Up::SignedIn);
-        let mut frame = None;
+        let frame = Token::new(0);
         let mut next = None;
         while let Some(request) = signed_in.pop() {
             if let Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
             } = request
+                && subject == away::watch(&f::limits().forge).unwrap()
             {
-                if subject == Watchable::Jig(c::Subject::Me) {
-                    frame = Some(watch);
-                }
-                if subject == away::watch(&f::limits().forge).unwrap() {
-                    next = Some(watch);
-                }
+                next = Some(watch);
             }
         }
-        let frame = frame.expect("next sign-in opens me");
         f::confirm(&mut root, frame, f::PARTY, &mut out);
         let next = opening(&mut out).or(next).expect("next sign-in opens Away");
         assert_ne!(next, watch);

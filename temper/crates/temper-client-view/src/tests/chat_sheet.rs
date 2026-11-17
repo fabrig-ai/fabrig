@@ -76,13 +76,22 @@ impl Case {
         ] {
             temper_client_domain::step(&mut root, &env, event, &mut out);
         }
+        let me_opened = {
+            Up::Watched {
+                watch: skein_lib::Token::new(0),
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))),
+            }
+        };
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client { event: jig_client::Event::Up { up: me_opened } },
+            &mut out,
+        );
         for _ in 0_u32..128 {
             let Some(request) = out.pop() else { break };
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
             let up = match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                    Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me.clone()))) }
-                }
                 Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) } => Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {

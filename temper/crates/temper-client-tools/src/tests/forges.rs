@@ -226,7 +226,7 @@ fn the_read_closes_after_its_first_document_and_refuses_invalid_bytes() {
         deliver(&mut root, bytes);
         assert_eq!(root.answer(call).unwrap().status, status);
         assert_eq!(root.closed.len(), 1);
-        assert_eq!(root.watches.len(), 1, "only the runner's me remains");
+        assert_eq!(root.watches.len(), 0, "no application watch remains");
         assert!(crate::root::next_deadline(&root.root).is_none());
     }
 }

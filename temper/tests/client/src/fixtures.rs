@@ -101,7 +101,7 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Delegates fill one stream's room beside the two pages' fifteen other watches, including findings.
+/// A delegated batch leaves room for each page's session watches.
 pub(crate) const WATCH_ROOM_DELEGATES: u32 = temper_engine_domain::WATCHES_PER_STREAM - 15;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
@@ -226,7 +226,8 @@ pub fn domain_limits() -> Limits {
                 // The linked world sends whole starters and cues, as both shipped shells do.
                 text: temper_client_protocol_wire::CUE_BYTES,
                 turn_text: temper_client_protocol_wire::CUE_BYTES,
-                long_text: temper_client_protocol_wire::CUE_BYTES,
+                // The asking charter carries the tool reference in its task document.
+                long_text: 8192,
                 rows: 4,
                 fields: 4,
                 segments: 9,

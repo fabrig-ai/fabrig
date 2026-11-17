@@ -400,6 +400,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             | link::Request::FamilyDelivery { .. }
             | link::Request::Ended { .. }
             | link::Request::Hello { family: None, .. }
+            | link::Request::ReadAgain { .. }
             | link::Request::Read { .. }
             | link::Request::Fact { .. } => panic!("version refusal's typed answer: {request:?}"),
         };

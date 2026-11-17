@@ -186,18 +186,22 @@ fn a_read_signed_out_is_answered_signed_out() {
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_lost_read_stays_unreachable() {
+fn a_read_lost_twice_stays_unreachable() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    let retry = h.retry_lost_read();
+    h.link.step(Time::ZERO, Event::Lost { exchange: retry }, &mut h.out);
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Unknown));
     assert_eq!(h.read_terminals(), 1);
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_lost_read_is_answered_once() {
+fn a_read_lost_twice_is_answered_once() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    let retry = h.retry_lost_read();
+    h.link.step(Time::ZERO, Event::Lost { exchange: retry }, &mut h.out);
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Busy));
     assert_eq!(h.read_terminals(), 1);

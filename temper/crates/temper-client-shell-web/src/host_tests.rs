@@ -23,31 +23,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.client(jig_client::Event::SignIn { with: jig_client::With::Transport });
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
-    let me = host
-        .out
-        .iter()
-        .find_map(|request| match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
-                    },
-            } => Some(*watch),
-            Request::Client { .. }
-            | Request::Unlinked { .. }
-            | Request::Show { .. }
-            | Request::Leave { .. }
-            | Request::SignOut
-            | Request::Dropped { .. }
-            | Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::KeepSignIn { .. }
-            | Request::Tab { .. }
-            | Request::Copy { .. }
-            | Request::Push(_)
-            | Request::Fact { .. } => None,
-        })
-        .expect("me watch");
+    let me = Token::new(0);
     let link =
         jig_client_protocol_link::Limits::new(host.env.limits.client.domain, limits::EXCHANGES).expect("link bounds");
     let mut frame =
@@ -400,25 +376,40 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("one served family");
     streamed(
         &mut host,
-        &w::StreamEvent::Hello(
+        &jig_client_test_records::opened(
             w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
                 .expect("hello"),
+            jig_client_test_records::frame_record(),
         ),
     );
     let mut watch = None;
-    let mut me = None;
-    for request in host.requests() {
-        let Asked::Exchange { call, .. } = request else { continue };
-        if call.path.as_ref() != b"/jig/v1/watch" {
-            continue;
+    let me = 0;
+    for _ in 0..host.env.limits.client.domain.watches {
+        let mut admitted = false;
+        for request in host.requests() {
+            let Asked::Exchange { id, call, .. } = request else { continue };
+            if call.path.as_ref() != b"/jig/v1/watch" {
+                continue;
+            }
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
+            if open.subject().owner() == &w::Owner::Jig {
+                let subject =
+                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+                if matches!(subject, w::Subject::Task(_)) {
+                    watch = Some(open.watch());
+                }
+            }
+            let answer = w::OpenAnswer::Admitted;
+            host.heard(Heard::Answered {
+                exchange: id,
+                status: 200,
+                body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                headers: Vec::new(),
+            });
+            admitted = true;
         }
-        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-        if matches!(subject, w::Subject::Task(_)) {
-            watch = Some(open.watch());
-        }
-        if subject == w::Subject::Me {
-            me = Some(open.watch());
+        if !admitted {
+            break;
         }
     }
     let watch = watch.expect("task watch");
@@ -465,7 +456,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             w::Delivery::new(
                 &w::CEILINGS,
                 w::DeliveryParts {
-                    watch: me.expect("me watch"),
+                    watch: me,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
             )

@@ -168,13 +168,13 @@ impl Host {
                         keep: &[],
                     });
                 }
-                Request::Client { request: jig_client::Request::OpenStream { credential } } => {
+                Request::Client { request: jig_client::Request::OpenStream { credential, version } } => {
                     self.stream = jig_client_protocol_http::Stream::new(&jig_client_protocol_http::Limits {
                         record: 65536,
                         chunk: 4096,
                     });
                     asked.push(Asked::OpenStream {
-                        call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref()),
+                        call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), version),
                         piece: 4096,
                     });
                 }

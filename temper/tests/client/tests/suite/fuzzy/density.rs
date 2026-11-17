@@ -126,6 +126,9 @@ impl World {
     }
 
     fn watch(&self, subject: &Watchable) -> Option<Token> {
+        if *subject == Watchable::Jig(c::Subject::Me) {
+            return Some(Token::new(0));
+        }
         self.watches.iter().rev().find_map(|(watch, held)| (held == subject).then_some(*watch))
     }
 

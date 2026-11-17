@@ -204,11 +204,11 @@ fn a_read_waits_for_me() {
     assert!(f.stdout().starts_with(b"{\""));
 }
 #[test]
-fn an_unheard_read_exits_1_at_the_link_deadline() {
+fn an_unheard_hello_exits_1_at_the_link_deadline() {
     let mut f = fixtures::Engine::read(&["me"]);
     f.drain();
     f.advance_past(limits::DEADLINE);
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer a read within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 took the connection but its stream did not answer within 30 s\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]

@@ -10,7 +10,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_engine_clients_world::fixtures::{self as wire, Peer};
 use jig_test_domain as root;
-use skein_lib::{List, Queue, Reader, Secret, Time, Wall, Writer};
+use skein_lib::{List, Queue, Secret, Time, Wall, Writer};
 
 fn encoded(value: &w::StreamEvent) -> Box<[u8]> {
     let mut out = Writer::new(value.measure() as usize);
@@ -89,19 +89,6 @@ impl Party {
             },
         )
         .expect("hello");
-        let requests = party.step(client::Event::Streamed {
-            message: client::Streamed::Record(encoded(&w::StreamEvent::Hello(hello))),
-        });
-        let watch = requests
-            .iter()
-            .find_map(|request| {
-                if let client::Request::Exchange { message: client::Message::Watch(bytes), .. } = request {
-                    Some(w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("Me watch").watch())
-                } else {
-                    None
-                }
-            })
-            .expect("client opens Me");
         world.sign_in = Some(sign_in);
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
@@ -114,9 +101,9 @@ impl Party {
         let document =
             w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
                 .expect("owned");
-        let delivery = w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery");
+        let opened = w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: document }).expect("opened");
         party.step(client::Event::Streamed {
-            message: client::Streamed::Record(encoded(&w::StreamEvent::Delivery(delivery))),
+            message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
         });
         assert_eq!(party.machine.link().party, Some(person));
         party

@@ -141,6 +141,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     story.event(client::Event::Up {
         up: client::Up::Served { served: true, versions: Some(c::VersionRange { first: 28, last: 28 }) },
     });
+    story.engine.open(Time::ZERO, SIGN_IN, skein_lib::Token::new(0), c::Subject::Me).expect("stream me");
     story.event(client::Event::SignIn { with: client::With::Transport });
     let watch = client::Handle { asker: client::Asker::JIG, number: 8 };
     story.event(client::Event::Watch { handle: watch, subject: client::Watchable::Jig(c::Subject::Settings) });

@@ -268,18 +268,7 @@ fn the_watch_is_held_for_the_session_and_home_reads_it() {
         up(&mut f.root, Up::SignedOut);
         let out = up(&mut f.root, Up::SignedIn);
         let mut next = opening(&out);
-        let mut me_watch = f.me;
-        for request in &out {
-            if let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) },
-                    },
-            } = request
-            {
-                me_watch = *watch;
-            }
-        }
+        let me_watch = f.me;
         let out = up(
             &mut f.root,
             Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me()))) },

@@ -261,9 +261,7 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
         now,
         wall,
     );
-    session.poll(now, wall).expect("signed-in owner");
     move_exchange(&mut session, &mut client, now, wall, Event::StartUnlinked { kept: List::with_capacity(0) });
-    move_exchange(&mut session, &mut client, now, wall, Event::Up { up: jig_client::Up::SignedIn });
     let key = Key { asker: Asker::JIG, number: 1 };
     let newest = session.driver.world.domain.settings().newest();
     let told = move_exchange(

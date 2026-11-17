@@ -21,7 +21,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v28 as w;
+use jig_client_protocol_wire as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -195,7 +195,7 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
         assert!(duties.keep.is_none());
         if held {
             assert!(duties.asked.iter().any(|request| matches!(request,
-                Request::OpenStream { credential: offered } if offered == &credential
+                Request::OpenStream { credential: offered, .. } if offered == &credential
             )));
         } else {
             ask(&duties);
@@ -290,7 +290,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -384,7 +384,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -456,7 +456,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v28 as w;
+    use jig_client_protocol_wire as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -1061,30 +1061,16 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
             .expect("Jig version"),
         )
         .expect("one owner");
-    let hello = w::StreamEvent::Hello(
+    let hello = jig_client_test_records::opened(
         w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        jig_client_test_records::frame_record(),
     );
     stream_bytes(&hello)
 }
-pub(crate) fn me_bytes(duties: &Duties) -> Box<[u8]> {
+pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
-    let watch = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(limits, &mut Reader::new(bytes)).expect("watch request");
-                if open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(limits, &mut Reader::new(open.subject().record())).expect("Jig subject")
-                        == w::Subject::Me
-                {
-                    return Some(open.watch());
-                }
-            }
-            None
-        })
-        .expect("Me watch");
+    let watch = 0;
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
     };
@@ -1129,9 +1115,7 @@ fn connect(host: &mut Host) -> Duties {
     if host.root.client().link().credential.is_none() {
         return host.report(Report::Due);
     }
-    let duties = host
-        .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello_bytes()) }));
-    host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(me_bytes(&duties)) }))
+    host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello_bytes()) }))
 }
 
 fn pieces(items: &[Box<[u8]>]) -> Box<[u8]> {
@@ -1254,6 +1238,9 @@ pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
     maybe_watch(duties, subject).unwrap_or_else(|| panic!("requested watch {subject:?}: {:?}", duties.asked))
 }
 fn maybe_watch(duties: &Duties, subject: &w::Subject) -> Option<u64> {
+    if *subject == w::Subject::Me {
+        return Some(0);
+    }
     duties.asked.iter().rev().find_map(|request| {
         if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
             let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
@@ -1293,13 +1280,11 @@ fn signed_host(projects: bool) -> (Host, u64, Duties) {
 fn signed_host_look(projects: bool, background: Option<Rgb>, boxed: bool) -> (Host, u64, Duties) {
     let mut host = host();
     start_look(&mut host, Some(Secret::new(Box::new([7; 40]))), background, boxed);
-    let hello = hello_for(&host);
+    let hello = hello_for_me(&host, launchpad_me(projects));
     let duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
     let duties = admit(&mut host, duties);
     let me = watch(&duties, &w::Subject::Me);
-    let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
-    let duties = admit(&mut host, duties);
     (host, me, duties)
 }
 
@@ -2037,16 +2022,14 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
         let duties = reply(&mut host, exchange, sign_in_bytes(&signed_in_answer()));
         admit(&mut host, duties);
         assert_eq!(host.words(), b"a", "the sign-in's link change keeps words");
-        let hello = hello_for(&host);
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a", "Enter before the hello keeps words");
+        assert!(text(&mut host).contains("Still signing in"));
+        let hello = hello_for_me(&host, launchpad_me(false));
         let duties =
             host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
         let duties = admit(&mut host, duties);
         let me = watch(&duties, &w::Subject::Me);
-        empty(&host.report(Report::Key(Key::Enter)));
-        assert_eq!(host.words(), b"a", "Enter before me keeps words");
-        assert!(text(&mut host).contains("Still signing in"));
-        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
-        admit(&mut host, duties);
         assert_eq!(host.words(), b"a", "no project keeps words");
         assert!(text(&mut host).contains("❯ a"));
         let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
@@ -2104,14 +2087,12 @@ fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
         admit(&mut host, duties);
         assert!(text(&mut host).contains("✓ temper started"));
         assert!(text(&mut host).contains("▸ Signing in…"));
-        let hello = hello_for(&host);
+        let hello = hello_for_me(&host, launchpad_me(projects));
         let duties =
             host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
         let duties = admit(&mut host, duties);
-        let me = watch(&duties, &w::Subject::Me);
-        assert!(text(&mut host).contains("Starting temper"));
-        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
-        admit(&mut host, duties);
+        let _ = duties;
+        assert!(!text(&mut host).contains("Starting temper"));
         let drawn = text(&mut host);
         assert!(!drawn.contains("Starting temper"), "{drawn}");
         assert_eq!(host.words(), b"a");
@@ -3379,7 +3360,7 @@ fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
     writer.finish()
 }
 
-fn hello_for(host: &Host) -> Box<[u8]> {
+fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
     let owners = host.env.limits.client.domain.owners;
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
@@ -3407,9 +3388,10 @@ fn hello_for(host: &Host) -> Box<[u8]> {
             )
             .expect("family owner");
     }
-    stream_bytes(&w::StreamEvent::Hello(
+    stream_bytes(&jig_client_test_records::opened(
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
+        me,
     ))
 }
 

@@ -410,10 +410,10 @@ impl Host {
                     keep: &[],
                 });
             }
-            jig_client::Request::OpenStream { credential } => {
+            jig_client::Request::OpenStream { credential, version } => {
                 self.stream = jig_client_protocol_http::Stream::new(&limits::stream().expect("stream bounds"));
                 asked.push(Asked::OpenStream {
-                    call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref()),
+                    call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), version),
                     piece: limits::PIECE,
                 });
             }

@@ -6,7 +6,6 @@ use jig_client_protocol_wire::v28 as w;
 use skein_lib::{Duration, Time};
 const FIRST_BACKOFF: Duration = Duration::from_millis(10);
 const LEAST_BACKOFF: Duration = Duration::from_millis(5);
-const HELD_WATCHES: u32 = 2;
 
 #[test]
 fn a_watch_asked_before_signing_in_opens_once_signed_in() {
@@ -16,26 +15,30 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     c.step(Event::Watch { handle: TASK, subject: task() });
     assert_eq!((c.requests()).len(), 0);
     c.step(Event::SignIn { with: With::Held(fixtures::credential(&CREDENTIAL)) });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, version: jig_client_protocol_wire::VERSION }] =
+        c.requests()
+    else {
         panic!("starting with held credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    assert_eq!(c.requests.len(), 3);
     let Request::Save { records } = c.requests.last().expect("hello saves its stream") else {
         panic!("hello saves its stream");
     };
     assert_eq!(records.len(), 1);
     assert_eq!(records.as_slice().first().unwrap().key.as_ref(), STREAM_KEY);
-    c.requests.truncate(HELD_WATCHES);
-    assert_eq!(c.requests().len(), 2);
+    let mut openings = 0_u32;
     for request in c.requests() {
-        let Request::Exchange { credential, message: Message::Watch(_), .. } = request else {
-            panic!("one exchange for each held watch: {request:?}");
-        };
-        assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
+        if let Request::Exchange { credential, message: Message::Watch(bytes), .. } = request {
+            let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+            assert_ne!(open.watch(), 0);
+            assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
+            openings += 1;
+        }
     }
+    assert_eq!(openings, 1);
+    assert_eq!(c.machine.link().state, Link::Live);
 }
 
 #[test]
@@ -83,8 +86,6 @@ fn an_earlier_sign_in_s_sign_out_answer_is_dropped() {
     let exchange = c.exchange();
     c.step(Event::SignIn { with: With::Held(fixtures::credential(&NEW_CREDENTIAL)) });
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     c.step(Event::Reply { exchange, message: fixtures::sign_out_answer(&w::SignOutAnswer::SignedOut) });
     assert_eq!(c.machine.link().state, Link::Live);
     assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
@@ -101,7 +102,9 @@ fn a_service_signs_in_with_its_credential_as_the_message_s() {
     assert_eq!(credential, &Some(fixtures::credential(&SERVICE_CREDENTIAL)));
     let exchange = *exchange;
     c.step(Event::Reply { exchange, message: fixtures::signed_in(&NEW_CREDENTIAL) });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, version: jig_client_protocol_wire::VERSION }] =
+        c.requests()
+    else {
         panic!("starting with new credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
@@ -111,14 +114,14 @@ fn a_service_signs_in_with_its_credential_as_the_message_s() {
 fn under_transport_exchanges_carry_no_credential() {
     let mut c = Client::new();
     c.step(Event::SignIn { with: With::Transport });
-    let [Request::Told { told }, Request::OpenStream { credential }] = c.requests() else {
+    let [Request::Told { told }, Request::OpenStream { credential, version: jig_client_protocol_wire::VERSION }] =
+        c.requests()
+    else {
         panic!("starting with transport credential: {:?}", c.requests());
     };
     assert_eq!(*told, Told::Link { link: Link::Starting });
     assert_eq!(credential, &None);
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
-    c.stream(fixtures::frame(watch));
     c.step(Event::Watch { handle: TASK, subject: task() });
     let [Request::Exchange { credential, .. }] = c.requests() else {
         panic!("one watch exchange: {:?}", c.requests());
@@ -236,7 +239,7 @@ fn a_link_sign_in_answered_not_ready_retries_until_signed_in() {
         assert_eq!(c.machine.link().credential, Some(&fixtures::credential(&NEW_CREDENTIAL)));
         let mut opened = false;
         for request in c.requests() {
-            if let Request::OpenStream { credential } = request {
+            if let Request::OpenStream { credential, version: jig_client_protocol_wire::VERSION } = request {
                 assert_eq!(credential, &Some(fixtures::credential(&NEW_CREDENTIAL)));
                 opened = true;
             }
@@ -434,11 +437,9 @@ fn assert_read_credential(c: &Client, expected: Option<&skein_lib::Secret>) {
 fn replacement_survives_old_terminals(c: &mut Client, old: &[skein_lib::Token]) {
     assert_no_read_exchange(c);
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
-    let watch = c.opened_watch();
     assert_no_read_exchange(c);
     assert!(fixtures::pages(c.requests()).is_empty());
-    c.stream(fixtures::frame(watch));
-    assert_no_read_exchange(c);
+
     c.step(Event::Stored);
     assert_no_read_exchange(c);
     let replacement = c.read(TASK);

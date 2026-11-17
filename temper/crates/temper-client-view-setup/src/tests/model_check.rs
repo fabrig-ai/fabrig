@@ -257,6 +257,9 @@ fn up(root: &mut d::Domain, up: jig_client::Up) -> Queue<d::Request> {
     event(root, d::Event::Client { event: jig_client::Event::Up { up } })
 }
 fn opening(out: &Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    if subject == jig_client::Watchable::Jig(c::Subject::Me) {
+        return Token::new(0);
+    }
     out.iter()
         .find_map(|r| {
             if let d::Request::Unlinked {

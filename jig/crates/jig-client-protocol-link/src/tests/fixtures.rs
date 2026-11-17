@@ -122,6 +122,7 @@ impl Harness {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
             | Request::NotKept { .. }
+            | Request::ReadAgain { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
             | Request::CloseStream
@@ -160,6 +161,7 @@ impl Harness {
                 Request::Exchange { .. }
                 | Request::Answer { .. }
                 | Request::NotKept { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
@@ -195,6 +197,7 @@ impl Harness {
             match value {
                 Request::Answer { .. } | Request::NotKept { .. } => count = count.saturating_add(1),
                 Request::Exchange { .. }
+                | Request::ReadAgain { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream

@@ -134,9 +134,9 @@ fn a_full_table_and_the_stream_s_name_start() {
         let Request::Kept { .. } = request else { panic!("restored table entry: {request:?}") };
     }
     h.clear();
-    h.open(fixtures::WATCH, fixtures::frame_subject());
+    h.open(fixtures::WATCH, fixtures::application_subject());
     assert_eq!(h.gone_name(), fixtures::STREAM);
-    assert!(!h.has(&Request::OpenStream { credential: None }));
+    assert!(!h.has(&Request::OpenStream { credential: None, version: jig_client_protocol_wire::VERSION }));
 }
 
 #[test]

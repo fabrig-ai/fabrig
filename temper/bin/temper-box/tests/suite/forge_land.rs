@@ -1737,6 +1737,16 @@ fn referee_json(argv: &[&str], page: &jig_client::contract::ActivityPage) -> Val
         root::Event::Client { event: Event::StartUnlinked { kept: List::with_capacity(0) } },
         root::Event::Client { event: Event::SignIn { with: jig_client::With::Transport } },
         root::Event::Client { event: Event::Up { up: Up::Served { served: true, versions: None } } },
+        root::Event::Client {
+            event: Event::Up {
+                up: Up::Watched {
+                    watch: skein_lib::Token::new(0),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        referee_me(),
+                    ))),
+                },
+            },
+        },
         root::Event::Call { number: 1, call, json: true, value: None },
     ]);
     for _ in 0..32 {
@@ -1764,9 +1774,6 @@ fn referee_response(
         return None;
     };
     Some(match down {
-        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
-            Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(referee_me()))) }
-        }
         Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
         Down::Read { read, .. } => Up::ReadDone {
             read,

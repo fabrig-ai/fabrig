@@ -203,20 +203,19 @@ fn a_refused_forges_watch_is_kept_until_the_next_sign_in() {
     while let Some(request) = served.pop() {
         out.push(request);
     }
-    let mut me = None;
+    let me = Token::new(0);
     let mut reopened = None;
     while let Some(request) = out.pop() {
         if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
             request
         {
             match subject {
-                client::Watchable::Jig(c::Subject::Me) => me = Some(watch),
                 client::Watchable::Family { .. } => reopened = Some(watch),
                 client::Watchable::Jig(_) => {}
             }
         }
     }
-    let delivered = watch(up(&mut root, Up::Watched { watch: me.unwrap(), event: f::frame(f::PARTY) }));
+    let delivered = watch(up(&mut root, Up::Watched { watch: me, event: f::frame(f::PARTY) }));
     assert!(reopened.or(delivered).is_some());
 }
 #[test]

@@ -2942,13 +2942,13 @@ fn home_domain(name: &str) -> Domain {
                 | "home-skip-refused"
                 | "home-begin-with-needs"
         );
+    deliver(&mut root, Token::new(0), c::Delivery::Me(Box::new(me.clone())), &mut out);
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
         match request {
             Down::Open { watch, subject: Watchable::Jig(subject) } => {
                 let value = match subject {
-                    c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
                     c::Subject::Accounts => c::Delivery::Accounts(Box::new(accounts.clone())),
                     c::Subject::Settings => {
                         let mut lines = List::with_capacity(1);

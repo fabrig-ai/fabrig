@@ -36,15 +36,15 @@ pub(super) fn world(name: &str) -> Domain {
     }
     let reader = me.party.number;
     let (mut root, mut out) = started(Address::Team { project: PROJECT, role: if role { Some(52) } else { None } });
+
+    let mut me = me.clone();
+    me.needs_total = if alone { 0 } else { QUESTIONS };
+    me.needs.questions = me.needs_total;
+    deliver(&mut root, skein_lib::Token::new(0), c::Delivery::Me(Box::new(me)), &mut out);
+
     while let Some(request) = out.pop() {
         let Some(request) = down(request) else { continue };
         match request {
-            Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
-                let mut me = me.clone();
-                me.needs_total = if alone { 0 } else { QUESTIONS };
-                me.needs.questions = me.needs_total;
-                deliver(&mut root, watch, c::Delivery::Me(Box::new(me)), &mut out);
-            }
             Down::Read { read, what: Readable::Jig(c::Read::Project { project: PROJECT }) } => {
                 answer(&mut root, read, c::ReadValue::Project(Box::new(project(reader, alone))), &mut out);
             }

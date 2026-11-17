@@ -255,6 +255,22 @@ fn populate_page(
 ) {
     use contract::{Delivery, ReadResult, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
+    client::step(
+        root,
+        env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: Token::new(0),
+                    event: WatchEvent::Delivered(Delivery::Me(Box::new(super::render::models_frame(
+                        address,
+                        jig_client_kit::stories::frame(1),
+                    )))),
+                },
+            },
+        },
+        out,
+    );
     for _ in 0..128 {
         let Some(request) = out.pop() else {
             break;
@@ -426,13 +442,10 @@ fn populate_page(
                         held: skein_lib::List::with_capacity(0),
                         pending: skein_lib::List::with_capacity(0),
                     }))),
-                    Subject::Me => Some(Delivery::Me(Box::new(super::render::models_frame(
-                        address,
-                        jig_client_kit::stories::frame(1),
-                    )))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
                     Subject::Deployment => Some(Delivery::Deployment(Box::new(jig_client_kit::stories::deployment()))),
-                    Subject::Terminal { .. }
+                    Subject::Me
+                    | Subject::Terminal { .. }
                     | Subject::Tree { .. }
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }

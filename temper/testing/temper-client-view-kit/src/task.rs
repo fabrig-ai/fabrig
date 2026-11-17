@@ -273,6 +273,12 @@ pub fn agent_root_for(
         E::StartUnlinked { kept: List::with_capacity(0) },
         E::SignIn { with: jig_client::With::Transport },
         E::Up { up: Up::Served { served: true, versions: None } },
+        E::Up {
+            up: Up::Watched {
+                watch: skein_lib::Token::new(0),
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(reader))),
+            },
+        },
     ] {
         temper_client_domain::step(&mut root, &env, Event::Client { event }, &mut out);
     }
@@ -285,10 +291,10 @@ pub fn agent_root_for(
                     },
             } => {
                 let value = match subject {
-                    c::Subject::Me => Some(c::Delivery::Me(Box::new(reader.clone()))),
                     c::Subject::Task { task } if task == number => Some(c::Delivery::Task(Box::new(document.clone()))),
                     c::Subject::Tree { .. } => tree.clone(),
                     c::Subject::Task { .. }
+                    | c::Subject::Me
                     | c::Subject::Chips { .. }
                     | c::Subject::Inbox { .. }
                     | c::Subject::Tasks { .. }

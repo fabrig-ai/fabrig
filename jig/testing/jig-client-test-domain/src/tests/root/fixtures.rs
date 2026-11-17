@@ -146,12 +146,7 @@ pub(super) fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Toke
             offset: Offset { minutes: 0 },
         },
     ));
-    rows.iter()
-        .find_map(|row| match row {
-            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) } } } => Some(*watch),
-            _ => None,
-        })
-        .unwrap()
+    Token::new(0)
 }
 pub(super) fn confirm(root: &mut Domain, watch: Token, party: u64) -> Vec<Request> {
     drive(

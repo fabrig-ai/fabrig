@@ -301,10 +301,14 @@ impl Machine {
             "/jig/v1/read" => Message::Read(body),
             "/jig/v1/unwatch" => Message::Unwatch(body),
             "/jig/v1/stream-gone" => Message::StreamGone(body),
-            "/jig/v1/stream" => {
+            "/jig/v1/stream?version=28" => {
                 self.stream = Some(fd);
                 socket.reply.extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n");
-                self.front.carry(who, self.now, Request::OpenStream { credential });
+                self.front.carry(
+                    who,
+                    self.now,
+                    Request::OpenStream { credential, version: jig_client_protocol_wire::VERSION },
+                );
                 self.hear(who);
                 return;
             }
