@@ -709,16 +709,11 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_missing_setup_or_demo_is_refused_naming_its_path() {
-    for (member, expected) in [
-        ("\"machine\":{},", b"application.machine: missing\n".as_slice()),
-        ("\"demo\":null,", b"application.demo: missing\n".as_slice()),
-    ] {
-        let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(member, "");
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert!(members.is_none());
-        assert_eq!(&*lines(&problems), expected);
-    }
+fn a_missing_demo_is_refused_naming_its_path() {
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert!(members.is_none());
+    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
 }
 
 #[test]

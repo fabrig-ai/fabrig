@@ -196,7 +196,7 @@ fn ctl_is_configured() {
 }
 
 #[test]
-fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
+fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     // Resolve the fixture's data paths as a deployment does.
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
@@ -213,10 +213,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
-    let mut fake = value.clone();
-    fake["application"]["machine"].as_object_mut().expect("machine").remove("owned");
-    configuration::fake_entry(&mut fake["application"]["machine"]["fake"], "127.0.0.1:3000");
-    let mut demo = fake.clone();
+    let mut demo = value.clone();
     demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
     let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
     for field in ["providers", "endpoints"] {
@@ -232,14 +229,6 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
             &demo,
             "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
         ),
-        (
-            &value,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.owned.listen\n",
-        ),
-        (
-            &fake,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.machine.fake.listen\n",
-        ),
     ] {
         assert_eq!(
             super::setup::check(
@@ -251,7 +240,6 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
         );
     }
     // The same API on a connected forge belongs to the remote peer, not this process.
-    value["application"]["machine"].as_object_mut().expect("machine").remove("owned");
     let deployment = super::setup::check(
         &serde_json::to_vec(&value).expect("connected JSON"),
         &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
@@ -337,6 +325,11 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
     std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
+    configuration::setup(
+        scratch.path(),
+        1,
+        serde_json::json!({"kind":"fake","listen":{"socket":"127.0.0.1:3000"},"remote":"http://127.0.0.1:3000","git":"demo/bin/git"}),
+    );
     let refused = super::forge::start(
         &configuration::directories(scratch.path()),
         &["run".into(), "1".into(), "forgejo".into()],

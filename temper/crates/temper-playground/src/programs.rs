@@ -291,6 +291,8 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     H::configure_engine(&mut checked.engine_mut().jig, &typed_document);
+    checked.engine_mut().directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
     let mut service = temper_service::startup::from_checked(
         checked,
         &files,
@@ -436,6 +438,15 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
                 operations: (documents::agent_limits().routes + 3).max(smith_agent_shell::list::operations()),
             },
             agent_roots::<H>,
+        ),
+        (
+            HostedProgram {
+                program: b"/setup/demo/bin/git".as_slice().into(),
+                make: git::<H>,
+                instances: 1,
+                operations: 1,
+            },
+            worker_root,
         ),
         (
             HostedProgram { program: b"/usr/bin/git".as_slice().into(), make: git::<H>, instances: 1, operations: 1 },

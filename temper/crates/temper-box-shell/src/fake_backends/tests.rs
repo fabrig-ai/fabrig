@@ -35,7 +35,7 @@ fn initialized_source(scratch: &Scratch) -> Directories {
     let source = scratch.dirs();
     let binary = std::env::current_exe().expect("fixture binary");
     // Optional executables are explicitly absent, independent of the test runner's PATH.
-    let initialized = crate::init::write(&source, &[], &binary, [0; 5]).expect("source init without PATH");
+    let initialized = crate::init::write(&source, &[], &binary, [0; 3]).expect("source init without PATH");
     crate::close(initialized.listeners.into_iter().map(|(fd, _)| fd).collect());
     for path in initialized.paths {
         if fs::symlink_metadata(&path).expect("fixture metadata").is_file() {
@@ -87,8 +87,6 @@ fn stock_box_source(scratch: &Scratch, sign_in: bool) -> Directories {
             claude: None,
             ports: temper_init::Ports {
                 clients: port,
-                owned: NonZeroU16::new(8370).expect("owned port"),
-                forge: NonZeroU16::new(8371).expect("forge port"),
                 llm: NonZeroU16::new(8372).expect("model port"),
                 webhooks: NonZeroU16::new(8373).expect("webhooks port"),
             },
@@ -121,9 +119,8 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
         let (temper, agent) = imported.rebase(&effective).expect("rebase public paths").expect("source documents");
         let rebased: serde_json::Value = serde_json::from_slice(&temper).expect("rebased document");
         let original_tree: serde_json::Value = serde_json::from_slice(&original).expect("source document");
-        for pointer in ["/engine/clients/provider", "/application/machine/owned/sign_in"] {
-            assert_eq!(rebased.pointer(pointer), original_tree.pointer(pointer), "{pointer}");
-        }
+        assert_eq!(rebased["engine"]["clients"]["provider"], original_tree["engine"]["clients"]["provider"]);
+        assert!(rebased["application"].get("machine").is_none());
         let checked = crate::setup::check(&temper, &jig_directories(&effective)).expect("ordinary effective admission");
         assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("state")));
         assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &agent, &effective, sign_in);
@@ -137,7 +134,6 @@ fn assert_rebased_box_paths(temper: &Json, agent: &[u8], effective: &Directories
     for (pointer, name) in [
         ("engine/hosts/workers/0/digest", "worker.digest"),
         ("workers/0/secret", "worker.secret"),
-        ("application/machine/fake/git", "demo/bin/git"),
         ("application/demo/llm/key", "demo/llm.key"),
     ] {
         assert_eq!(
@@ -169,26 +165,18 @@ fn modified_box_sign_in_is_refused() {
     let source = stock_box_source(&scratch, true);
     let stock = read_json(&source.document());
     for (pointer, value) in [
-        ("/engine/clients/provider", serde_json::Value::Null),
-        ("/application/machine/owned/sign_in", serde_json::Value::Null),
-        ("/application/machine/owned/sign_in", serde_json::json!("other")),
-        ("/engine/clients/provider/key", serde_json::json!("/source/provider.key")),
         ("/engine/clients/provider/key", serde_json::json!("other.key")),
-        ("/engine/clients/provider/clients/0/id", serde_json::json!("other")),
-        ("/engine/clients/provider/clients/0/secret", serde_json::json!("custom")),
-        ("/engine/clients/provider/clients/0/redirect_uri", serde_json::json!("http://127.0.0.1:9999/callback")),
+        (
+            "/engine/clients/provider/clients",
+            serde_json::json!([{"id":"other","secret":null,"redirect_uri":"http://127.0.0.1:9999/callback"}]),
+        ),
         ("/engine/clients/provider/addresses", serde_json::json!([])),
     ] {
         let mut changed = stock.clone();
         *changed.pointer_mut(pointer).expect("stock member") = value;
         store_json(&source.document(), &changed);
         let error = Source::read(&source, &[]).err().unwrap_or_else(|| panic!("{pointer}: modified sign-in accepted"));
-        let refused = if pointer == "/engine/clients/provider" {
-            "application/machine/owned/sign_in"
-        } else {
-            pointer.trim_start_matches('/')
-        };
-        assert!(error.contains(refused), "{pointer}: {error}");
+        assert!(error.contains(pointer.trim_start_matches('/')), "{pointer}: {error}");
     }
     assert!(!crate::path(&source.data).exists(), "refusal inspects no source resource");
 }
@@ -444,8 +432,8 @@ fn bundle_paths_check_both_sides_of_the_absolute_bound() {
 }
 
 fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
-    // Init holds five ordinary listeners; the four welcome peers each add one.
-    const INIT_LISTENERS: usize = 9;
+    // Init holds three ordinary listeners; the four welcome peers each add one.
+    const INIT_LISTENERS: usize = 7;
     let supplied = provision_bundle(&scratch.0.join("explicit-bundle"));
     let prepared = start(source, Some(&supplied)).expect("init directly into effective directories");
     let tree = read_json(&prepared.directories.document());
@@ -653,7 +641,7 @@ fn preparation_does_not_discover_optional_programs_outside_its_environment() {
     let document = read_json(&prepared.directories.document());
     assert!(document["application"].get("workers").is_none());
     assert!(document["engine"]["clients"]["provider"].is_null());
-    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert!(document["application"].get("machine").is_none());
     assert!(!crate::path(&prepared.directories.data).join("provider.key").exists());
 }
 
@@ -786,10 +774,13 @@ fn reservations_avoid_every_port_the_peer_check_refuses() {
     let scratch = Scratch::new("ordinary-ports");
     let (_source, first) = prepared_source(&scratch);
     let document = read_json(&first.directories.document());
-    let machine = &document["application"]["machine"];
     let ports = ordinary_ports(&first.directories, &first.bytes).expect("ports");
-    for listen in [&machine["owned"]["listen"], &machine["fake"]["listen"]] {
-        let socket = listen["socket"].as_str().expect("socket");
+    for pointer in [
+        "/application/clients/listener/socket",
+        "/application/webhooks/listener/socket",
+        "/application/demo/llm/listen/socket",
+    ] {
+        let socket = document.pointer(pointer).unwrap().as_str().expect("socket");
         let port = socket.parse::<SocketAddr>().expect("address").port();
         assert!(ports.contains(&port), "{socket}");
     }
@@ -1278,12 +1269,10 @@ fn named_ports() -> ([SocketAddr; 9], Chosen) {
     (addresses, chosen_ports(OsStr::new(&value)).expect("nine chosen ports"))
 }
 
-fn prepared_ports(prepared: &Prepared) -> [u16; 9] {
+fn prepared_ports(prepared: &Prepared) -> [u16; 7] {
     let document = read_json(&prepared.directories.document());
     let listeners = [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]
@@ -1298,17 +1287,7 @@ fn prepared_ports(prepared: &Prepared) -> [u16; 9] {
             .port()
     });
     let Peers { github, oauth, llm, forgejo } = prepared.peers;
-    [
-        listeners[0],
-        listeners[1],
-        listeners[2],
-        listeners[3],
-        listeners[4],
-        github.port(),
-        oauth.port(),
-        llm.port(),
-        forgejo.port(),
-    ]
+    [listeners[0], listeners[1], listeners[2], github.port(), oauth.port(), llm.port(), forgejo.port()]
 }
 
 #[test]
@@ -1318,14 +1297,14 @@ fn a_new_sandbox_takes_the_nine_ports_its_test_named_and_a_restart_keeps_them() 
     let bundle = provision_bundle(&scratch.0.join("bundle"));
     let (addresses, chosen) = named_ports();
     let prepared = start_chosen(&source, Some(&bundle), Some(&chosen)).expect("chosen fresh sandbox");
-    assert_eq!(prepared_ports(&prepared), addresses.map(|address| address.port()));
-    for address in addresses {
+    assert_eq!(prepared_ports(&prepared), [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
+    for address in [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at]) {
         assert!(TcpListener::bind(address).is_err(), "new sandbox holds {address}");
     }
     drop(prepared);
     let (_, others) = named_ports();
     let retained = start_chosen(&source, Some(&bundle), Some(&others)).expect("retained sandbox ignores new choices");
-    assert_eq!(prepared_ports(&retained), addresses.map(|address| address.port()));
+    assert_eq!(prepared_ports(&retained), [0, 3, 4, 5, 6, 7, 8].map(|at| addresses[at].port()));
     drop(retained);
     let _again = addresses.map(|address| TcpListener::bind(address).expect("all nine listen again"));
 }

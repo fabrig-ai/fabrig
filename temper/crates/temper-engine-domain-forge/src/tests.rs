@@ -603,6 +603,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -704,6 +705,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -798,6 +800,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }

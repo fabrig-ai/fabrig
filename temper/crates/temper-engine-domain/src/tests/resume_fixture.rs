@@ -826,6 +826,7 @@ impl StartStore {
                     request @ (engine::Request::Unsettled(_)
                     | engine::Request::Bound { .. }
                     | engine::Request::BoxRemove { .. }
+                    | engine::Request::ChoosePlace { .. }
                     | engine::Request::BoxGroup { .. }
                     | engine::Request::ForgeGone { .. }
                     | engine::Request::PlaygroundActs { .. }

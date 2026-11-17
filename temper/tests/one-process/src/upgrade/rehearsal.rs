@@ -202,11 +202,6 @@ fn deployment_document(directory: &Path) -> serde_json::Value {
         {"name":"worker-b", "digest":"secrets/worker-b.digest"},
         {"name":"worker-c", "digest":"secrets/worker-c.digest"}
     ]);
-    document["application"]["machine"] = serde_json::json!({"owned": {
-        "listen":{"socket":"127.0.0.1:3000"}, "remote":"http://127.0.0.1:3000",
-        "forgejo":"/opt/forgejo/forgejo", "runner":null,
-        "person":{"login":"person", "email":"person@example.invalid"}, "sign_in":null
-    }});
     document
 }
 

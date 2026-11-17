@@ -47,15 +47,6 @@
       },
       "profile": "small"
     },
-    "machine": {
-      "fake": {
-        "git": "/usr/bin/git",
-        "listen": {
-          "socket": "127.0.0.1:3000"
-        },
-        "remote": "http://127.0.0.1:3000"
-      }
-    },
     "sign_in": null,
     "webhooks": {
       "listener": {
@@ -64,8 +55,7 @@
     }
   },
   "engine": {
-    "clients": {
-    },
+    "clients": {},
     "hosts": {
       "listener": [
         {

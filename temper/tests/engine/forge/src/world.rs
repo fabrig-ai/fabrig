@@ -1634,6 +1634,23 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::ChoosePlace { request, kind, .. } => {
+                    let port = match kind {
+                        top::BoxKind::Owned => 8372,
+                        top::BoxKind::Fake => 8369,
+                    };
+                    let place = top::Place {
+                        api: top::Address { host: b"127.0.0.1".as_slice().into(), port, tls: None },
+                        git: format!("http://127.0.0.1:{port}").into_bytes().into_boxed_slice(),
+                        web: None,
+                    };
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::PlaceChosen { request, place: Some(place), git_program: None },
+                        &mut self.top_out,
+                    );
+                }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {
                     self.seen.push(page).expect("world output room");

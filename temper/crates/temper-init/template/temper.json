@@ -196,35 +196,6 @@
     }
   ],
   "application": {
-    "machine": {
-      "owned": {
-        "forgejo": "fetched",
-        "runner": {
-          "binary": "fetched",
-          "labels": [
-            "temper-host:host"
-          ],
-          "capacity": 1,
-          "path": "/usr/local/bin:/usr/bin:/bin"
-        },
-        "listen": {
-          "socket": "$owned"
-        },
-        "sign_in": "$owned_sign_in",
-        "person": {
-          "login": "$login",
-          "email": "$email"
-        },
-        "remote": "$owned_git"
-      },
-      "fake": {
-        "listen": {
-          "socket": "$forge"
-        },
-        "remote": "$forge_git",
-        "git": "demo/bin/git"
-      }
-    },
     "clients": {
       "listener": {
         "socket": "$listener"

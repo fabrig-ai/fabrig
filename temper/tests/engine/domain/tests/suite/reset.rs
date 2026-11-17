@@ -19,13 +19,7 @@ fn config(granted: bool) -> engine::Config {
     config.under_box = true;
     config.kinds_stock = temper_engine_service_stock::stock::with_welcome(config.kinds_stock, true);
     config.forges = Box::new([]);
-    config.machine = Some(forge::Machine {
-        owned_person: Box::new([]),
-        owned: None,
-        fake: Some(place()),
-        github: place(),
-        github_git_program: None,
-    });
+    config.machine = Some(forge::Machine { github: place(), github_git_program: None });
     config.playground = Some(forge::PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) });
     config.core.seed_projects[0].policy.permissions = Box::new([]);
     let seed = &config.core.seed_projects[0].policy;

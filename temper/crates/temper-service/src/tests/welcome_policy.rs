@@ -24,13 +24,7 @@ fn generated_files() -> temper_init::Answer {
             git: Some(b"/bin/git"),
             claude: None,
             login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: port(8367),
-                owned: port(8368),
-                forge: port(8369),
-                llm: port(8370),
-                webhooks: port(8371),
-            },
+            ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
@@ -71,7 +65,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
     let mut settings = settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: parsed.application.machine,
+        setups: Box::new([]),
         test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,
@@ -102,7 +96,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
             host_part: None,
             kinds_stock: crate::stock::forge(&limits),
             ways_stock: Box::default(),
-            machine: Some(crate::system::machine_config(&settings.machine, settings.test_github.as_ref())),
+            machine: Some(crate::system::machine_config(settings.test_github.as_ref())),
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
@@ -457,11 +451,6 @@ fn the_template_machine_gives_the_domain_its_places() {
         assert!(config.forges.is_empty());
         assert!(config.identities.is_empty());
         let machine = config.machine.as_ref().expect("machine is passed to the domain");
-        let owned = machine.owned.as_ref().unwrap();
-        assert_eq!(owned.api.host.as_ref(), b"127.0.0.1");
-        assert_eq!(owned.api.port, 8368);
-        assert!(owned.api.tls.is_none());
-        assert_eq!(machine.fake.as_ref().unwrap().api.port, 8369);
         let fake = test.is_some_and(|test| test != br#"{"github":null}"#);
         if fake {
             assert_eq!(machine.github.api.host.as_ref(), b"127.0.0.1");

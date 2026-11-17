@@ -201,15 +201,6 @@ fn deployment_reads_follow_the_box_default_and_committed_welcome_changes() {
 }
 
 #[test]
-fn deployment_owned_needs_the_document_and_the_box() {
-    for (document_owned, under_box, expected) in
-        [(false, false, false), (false, true, false), (true, false, false), (true, true, true)]
-    {
-        assert_eq!(crate::system::deployment_owned(document_owned, under_box), expected);
-    }
-}
-
-#[test]
 fn playground_config_is_ready_whenever_demo_is_configured() {
     let service = fixtures::demo_service();
     let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();

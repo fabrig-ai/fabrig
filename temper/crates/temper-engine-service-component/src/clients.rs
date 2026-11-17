@@ -56,6 +56,7 @@ pub struct Clients {
     provider_documents: Option<provider::Documents>,
     provider_replies: Map<Token, provider::Reply>,
     next_provider: u64,
+    provider_changes: Queue<(skein_lib::ReplyTo, kit::ProviderClientChange)>,
     server: crate::server::Server,
     mount: http::Mount,
     mount_env: Env<http::Limits>,
@@ -175,7 +176,7 @@ impl Clients {
         seeds: &Seeds,
         journal: &root::JournalLimits,
         sign_in: Option<&crate::settings::SignIn>,
-        machine: Option<&temper_forge_setup::machine::OwnedMachine>,
+        _machine: Option<&temper_forge_setup::machine::OwnedMachine>,
         files: &[(Box<[u8]>, skein_lib::Secret)],
     ) -> Result<Self, Problems> {
         if !crate::server::valid(&crate::limits::server(&config.limits)) {
@@ -196,8 +197,10 @@ impl Clients {
                 login: match sign_in {
                     Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
                         .ok_or(config::clients::invalid(What::Refers))?,
-                    None => match machine {
-                        Some(machine) if machine.sign_in.is_some() => machine.person.login.clone(),
+                    None => match owner.identity.subject.strip_suffix(b"@localhost") {
+                        Some(login) if config.clients.provider.is_some() && skein_forge_setup::given::login(login) => {
+                            Box::from(login)
+                        }
                         Some(_) | None => Box::from(b"owner".as_slice()),
                     },
                 },
@@ -273,6 +276,7 @@ impl Clients {
             provider_documents,
             provider_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             next_provider: 1,
+            provider_changes: Queue::uncapped(),
             server: crate::server::Server::new(*listener, &crate::limits::server(&config.limits)),
             mount: http::Mount::new(
                 http::Settings {
@@ -385,12 +389,16 @@ impl Clients {
                 || self.endings.ready()
                 || secrets_ready && !self.playground_carries.is_empty()
                 || !self.playground_ready.is_empty()
+                || !self.provider_changes.is_empty()
                 || !self.out.is_empty()
                 || !self.io.is_empty()
                 || match self.next_deadline() {
                     Some(at) => at <= now,
                     None => false,
                 })
+    }
+    pub(crate) fn provider_client(&mut self, reply: skein_lib::ReplyTo, change: kit::ProviderClientChange) {
+        self.provider_changes.push((reply, change));
     }
     pub fn down(&mut self, event: kit::Event) {
         if let kit::Event::Stop | kit::Event::Close | kit::Event::Abort = &event {
@@ -624,6 +632,14 @@ impl Clients {
                     Err(value) => self.down(*value),
                 },
                 kit::Request::Application(value) => {
+                    if let kit::ToApplication::ProviderClientChanged { result, .. } = value {
+                        if result.is_err() {
+                            self.notes.push(crate::Note::StartupWarning {
+                                line: Box::from(b"forge provider client change refused".as_slice()),
+                            });
+                        }
+                        continue;
+                    }
                     let carried = match &value {
                         kit::ToApplication::Request { carried, .. } => *carried,
                         kit::ToApplication::Read { .. }
@@ -714,6 +730,9 @@ impl Clients {
         }
         if self.closed {
             return;
+        }
+        while let Some((reply, change)) = self.provider_changes.pop() {
+            self.down(kit::Event::ProviderClient { reply, change });
         }
         self.server_queued = false;
         self.pushes.advance(now, wall, self.stopping.is_some(), events, &mut self.io);

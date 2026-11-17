@@ -68,7 +68,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "machine":{},"demo":null,"sign_in":null,
+        "demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     value["world_settings"]["forge"] = forge.to_string().into();

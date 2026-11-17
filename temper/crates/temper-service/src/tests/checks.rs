@@ -72,8 +72,7 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
 }
 #[test]
 fn the_longest_remote_of_an_empty_machine_measures_github_com() {
-    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None };
-    assert_eq!(checks::machine_remote(&machine, None, 10), Some(44));
+    assert_eq!(checks::machine_remote(None, 10), Some(48));
 }
 #[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
@@ -271,7 +270,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
     };
     let mut found = Problems::empty();
     let too_many = payload::Bounds { repositories: u32::MAX, ..normal };
-    checks::channel(Some(&too_many), Some(&normal), None, None, &own, &mut found);
+    checks::channel(Some(&too_many), Some(&normal), None, &own, &mut found);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         found.problems.get(0).unwrap().path,
@@ -454,9 +453,7 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
     for (port, listener, expected) in [
         (7100, Listener::Clients, "redirect_port: fixed port conflicts with application.clients.listener\n"),
         (7101, Listener::Webhooks, "redirect_port: fixed port conflicts with application.webhooks.listener\n"),
-        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.machine.owned.listen\n"),
         (7100, Listener::Demo, "redirect_port: fixed port conflicts with application.demo.llm.listen\n"),
-        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.machine.fake.listen\n"),
     ] {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);

@@ -9,6 +9,10 @@ pub struct Member {
 }
 pub const MEMBERS: &[Member] = &[
     Member {
+        path: "application.machine",
+        words: "moved: a forge's place is chosen when it's set up, and kept with the forge",
+    },
+    Member {
         path: "application.welcome",
         words: "moved: the welcome is a setting; change it with temper ctl settings",
     },

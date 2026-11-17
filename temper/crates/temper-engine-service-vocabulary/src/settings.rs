@@ -106,7 +106,8 @@ pub struct Engine {
     pub agent_charter_bytes: Option<u64>,
     /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent/tools.md).
     pub host_part: Option<temper_engine_domain::room::HostPart>,
-    pub machine: temper_forge_setup::machine::Machine,
+    /// Kept setup files supplied by a world; a shell reads them through `PlaceIo`.
+    pub setups: Box<[(u16, temper_forge_setup::setup_file::SetupFile)]>,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,

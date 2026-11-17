@@ -68,9 +68,9 @@ Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its tra
 
 ## engine.llm.endpoints[].address
 
-Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.machine.owned.listen` `application.machine.fake.listen` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
+Shape: `address`. Paths: `engine.llm.endpoints[].address` `engine.hosts.listener[]` `workers[].engine` `application.clients.listener` `application.webhooks.listener` `application.demo.llm.listen`. One socket address, host and port, or in-process name.
 
-- `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371" | "127.0.0.1:8368" | "127.0.0.1:8369". Gives an IPv4 or IPv6 socket address.
+- `socket`: text, 128 bytes; exclusive with host and in_process; optional; init writes "127.0.0.1:8370" | "127.0.0.1:8367" | "127.0.0.1:8371". Gives an IPv4 or IPv6 socket address.
 - `host`: text, 253 bytes; exclusive with socket and in_process; optional; init writes "api.openai.com" | "api.anthropic.com". Names a host the shell resolves at startup.
 - `port`: integer, 0 to 65535; required with host; optional; init writes 443. Gives the named host's port.
 - `in_process`: text, 32 bytes; exclusive with socket and host; optional; init writes "workers". Names an in-process endpoint within the process.
@@ -153,16 +153,16 @@ Shape: `clients`. Paths: `engine.clients`. The clients' OpenID provider and fixe
 Shape: `client-provider`. Paths: `engine.clients.provider`. The deployment's OpenID provider.
 
 - `key`: text, 4096 bytes; data path; required; init writes "provider.key". Names the private PKCS#8 PEM file holding the provider's 3072-bit RSA signing key.
-- `clients`: list of provider-client, at least one; required; init writes list (1 entry). Lists clients allowed to use the provider, with unique identifiers.
+- `clients`: list of provider-client, at least one; required; init writes []. Lists clients allowed to use the provider, with unique identifiers.
 - `addresses`: list of integer, 0 to 65535; application or link providers; required; init writes [1]. Names identity providers whose subjects are verified addresses.
 
 ## engine.clients.provider.clients[]
 
 Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client allowed to use the deployment provider.
 
-- `id`: text, 1 to 255 visible ASCII bytes; required; init writes "forgejo". Gives the client's unique identifier.
-- `secret`: text or null, 4096 bytes; data path; required; init writes null. Names the client's secret file, or null for a public client.
-- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init writes "http://127.0.0.1:8368/user/oauth2/temper/callback". Gives the client's one redirect URI.
+- `id`: text, 1 to 255 visible ASCII bytes; required; init leaves it out. Gives the client's unique identifier.
+- `secret`: text or null, 4096 bytes; data path; required; init leaves it out. Names the client's secret file, or null for a public client.
+- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init leaves it out. Gives the client's one redirect URI.
 
 ## workers[]
 

@@ -157,7 +157,7 @@ pub(crate) fn write(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 5],
+    preferred: [u16; 3],
 ) -> Result<Written, String> {
     write_with_program(directories, environment, binary, preferred, None)
 }
@@ -165,7 +165,7 @@ pub(crate) fn write_with_program(
     directories: &Directories,
     environment: &[EnvironmentEntry],
     binary: &Path,
-    preferred: [u16; 5],
+    preferred: [u16; 3],
     program: Option<&Path>,
 ) -> Result<Written, String> {
     write_deployment(directories, environment, binary, &preferred, program, true)
@@ -243,10 +243,8 @@ fn write_deployment(
                     sign_in: no_sign_in.is_none(),
                     ports: temper_init::Ports {
                         clients: listeners[0].1,
-                        owned: listeners[1].1,
-                        forge: listeners[2].1,
-                        llm: listeners[3].1,
-                        webhooks: listeners[4].1,
+                        llm: listeners[1].1,
+                        webhooks: listeners[2].1,
                     },
                 },
                 &directories_facts,
@@ -310,7 +308,7 @@ fn write_deployment(
 }
 pub(crate) fn core(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write(directories, environment, &binary, [8367, 8368, 8369, 8370, 8371])
+    write(directories, environment, &binary, [8367, 8370, 8371])
 }
 pub(crate) fn bare(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;

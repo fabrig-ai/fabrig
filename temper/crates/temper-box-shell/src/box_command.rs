@@ -1,5 +1,7 @@
 //! The box's steps and kind slots (temper/docs/design/protocol/setup/box.md, 1).
+mod group_host;
 use crate::directories::jig_directories;
+use group_host::GroupHost;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::{fmt::Write, os::unix::ffi::OsStrExt};
@@ -135,14 +137,14 @@ pub(crate) fn run_configuration(
         let kernel = Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string())?;
         Ok((service, kernel))
     })();
-    let (mut service, mut kernel) = match opened {
+    let (service, mut kernel) = match opened {
         Ok(opened) => opened,
         Err(why) => {
             super::close(owned);
             return Err(why);
         }
     };
-    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
+    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut GroupHost(service)))
 }
 
 /// Only the explicit internal switch enables the parent's pipes; no terminal is opened.
@@ -266,21 +268,6 @@ fn open_listeners(
     Ok(listeners)
 }
 
-/// The checked setup supplies the identity and paths; the box keeps only opaque
-/// public lines on the Forgejo step, never credentials or setup configuration.
-fn owned_notices(steps: &mut temper_forge_setup::Steps, owned: &temper_forge_setup::setup::Owned) {
-    let notice = format!(
-        "Forgejo: api http://{}/api/v1\nForgejo: person {}\n",
-        owned.listen,
-        String::from_utf8_lossy(&owned.person.login),
-    );
-    for step in steps.asked.iter_mut().flat_map(|group| group.steps.iter_mut().map(|(_, step)| step)) {
-        if step.ready() == Some(owned.listen) {
-            step.set_started_notice(notice.as_bytes().into());
-        }
-    }
-}
-
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
 /// Prepare a first configuration, keeping init's listeners, or read the existing one.
 pub fn configuration(
@@ -317,44 +304,6 @@ pub fn configuration(
     }
 }
 
-/// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration/engine.md).
-#[cfg(test)]
-pub(crate) fn machine(
-    bytes: &[u8],
-    directories: &super::Directories,
-) -> Result<temper_forge_setup::machine::Machine, String> {
-    use jig_protocol_config as config;
-    use temper_forge_setup::{machine, problem};
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .map_err(|why| format!("{why:?}"))?;
-    let Some(application) =
-        config::read::Object::new(&document, 0).map_err(|why| format!("{why:?}"))?.member(&document, b"application")
-    else {
-        return Err("application.machine: missing member".into());
-    };
-    let Some(at) = config::read::Object::new(&document, application)
-        .map_err(|why| format!("{why:?}"))?
-        .member(&document, b"machine")
-    else {
-        return Err("application.machine: missing member".into());
-    };
-    let mut problems = problem::Problems::empty();
-    let machine = machine::read(
-        &document,
-        at,
-        &temper_forge_setup::limits::small(),
-        &jig_directories(directories),
-        &mut problems,
-    );
-    if !problems.is_empty() {
-        return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
-    }
-    machine.ok_or("application.machine: invalid form".into())
-}
-
 /// Builds the box's always steps and kind slots from its checked document (7.1).
 pub fn configuration_steps(
     directories: &super::Directories,
@@ -375,20 +324,28 @@ pub(crate) fn configuration_steps_recording(
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);
     }
-    let machine = named.machine;
+    let dirs = jig_directories(directories);
+    let temper_forge_setup::setup_file::SetupFile::Owned(owned) = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Owned,
+        0,
+        b"person",
+        named.provider,
+        &dirs,
+    )
+    .expect("stock setup slot") else {
+        unreachable!("owned slot")
+    };
     let steps = {
-        let machine = &machine;
         let mut steps = temper_forge_setup::step::kinds(
-            machine,
+            Some(&owned),
             &directories.flags(),
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
             record,
         );
-        if let Some(fake) = &machine.fake {
-            let demo = demo.as_ref().ok_or("application.machine.fake requires application.demo.llm")?;
+        if let Some(demo) = &demo {
             let mut asked = steps.asked.into_vec();
-            asked.push(temper_fake::steps::fake_slot(fake, demo.llm().listen(), &directories.flags()));
+            asked.push(temper_fake::steps::fake_slot(demo.llm().listen(), &directories.flags()));
             steps.asked = asked.into_boxed_slice();
         }
         let mut always = first.into_vec();
@@ -400,17 +357,6 @@ pub(crate) fn configuration_steps_recording(
                 .expect("bounded insertion");
         }
         steps.always = always.into_boxed_slice();
-        if machine.owned.is_some() {
-            let entry = temper_forge_setup::machine::entry(
-                machine,
-                0,
-                temper_forge_setup::machine::BoxKind::Owned,
-                &jig_directories(directories),
-            )
-            .expect("owned machine");
-            let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { unreachable!("owned kind") };
-            owned_notices(&mut steps, owned);
-        }
         steps
     };
     Ok((steps, limits))

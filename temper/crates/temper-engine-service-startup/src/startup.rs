@@ -76,8 +76,6 @@ pub struct RedirectPort {
 pub enum Listener {
     Clients,
     Webhooks,
-    Owned(u32),
-    Fake(u32),
     Demo,
 }
 fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
@@ -117,7 +115,7 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 /// The files and directories the binary reads and opens before startup.
 #[derive(Debug)]
 pub struct Named {
-    pub machine: temper_forge_setup::machine::Machine,
+    pub provider: bool,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub files: Box<[config::File]>,
     pub asked_files: Box<[config::File]>,
@@ -533,11 +531,7 @@ fn load_document(
     checks::records(engine.as_ref().expect("required engine checked"), &application.limits, &mut problems);
     checks::limits(&application.limits, &application.limits.git_component, &mut problems);
     checks::names(
-        checks::machine_remote(
-            &application.machine,
-            application.test_github.as_ref(),
-            application.limits.forge.name_bytes,
-        ),
+        checks::machine_remote(application.test_github.as_ref(), application.limits.forge.name_bytes),
         &application.limits,
         &mut problems,
     );
@@ -600,7 +594,7 @@ pub fn named_with(
     check_memory_bytes(parsed.engine.memory)?;
     let files = all_files(&parsed);
     Ok(Named {
-        machine: parsed.application.machine,
+        provider: parsed.engine.clients.provider.is_some(),
         test_github: parsed.application.test_github,
         files,
         asked_files: Box::new([]),
@@ -700,12 +694,7 @@ pub fn checked_start_with(
     checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
     let remote = u32::try_from(
-        checks::longest_remote(
-            &parsed.application.machine,
-            parsed.application.test_github.as_ref(),
-            own.forge.name_bytes,
-        )
-        .unwrap_or(u64::MAX),
+        checks::longest_remote(parsed.application.test_github.as_ref(), own.forge.name_bytes).unwrap_or(u64::MAX),
     )
     .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
@@ -732,7 +721,6 @@ pub fn checked_start_with(
     checks::channel(
         Some(&engine_bounds),
         if agent.is_some() { Some(&worker_bounds) } else { None },
-        Some(&parsed.application.machine),
         parsed.application.test_github.as_ref(),
         own,
         &mut problems,
@@ -760,6 +748,7 @@ pub fn checked_start_with(
     let not_set_up = List::with_capacity(0);
 
     let mut engine = settings::Engine {
+        setups: Box::new([]),
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
             None => None,
@@ -769,7 +758,6 @@ pub fn checked_start_with(
             None => None,
         },
         host_part,
-        machine: parsed.application.machine,
         test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,

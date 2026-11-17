@@ -1014,6 +1014,11 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    ChoosePlace {
+        request: Token,
+        kind: forge::BoxKind,
+        login: Box<[u8]>,
+    },
     /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 5).
     MakingCopied {
         key: forge::MakingKey,

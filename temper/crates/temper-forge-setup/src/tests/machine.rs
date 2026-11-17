@@ -1,12 +1,13 @@
 use super::fixtures;
+use crate::tests::machine_config as machine;
 use crate::{
     FORGE_ARGUMENT, Kind, Stage, kinds, limits,
-    machine::{self, BoxKind, Machine},
     problem::{self, Problems},
     setup::Mode,
 };
 use alloc::boxed::Box;
 use jig_protocol_config::Directories;
+use machine::{BoxKind, Machine};
 use skein_lib::{Writer, bytes};
 
 const TEMPLATE_MACHINE: &[u8] = br#"{
@@ -159,7 +160,7 @@ fn the_owned_slot_names_its_forge_by_the_argument() {
     let flags = Box::new([Box::from(b"--data".as_slice()), Box::from(b"/data".as_slice())]);
     let listener = ([127, 0, 0, 1], 8367).into();
     for listens in [false, true] {
-        let steps = kinds(&machine, flags.as_ref(), Box::new([listener]), listens, false);
+        let steps = kinds(machine.owned.as_ref(), flags.as_ref(), Box::new([listener]), listens, false);
         assert_eq!(steps.always.len(), 1);
         assert_eq!(steps.always[0].name(), b"serve");
         assert_eq!(steps.always[0].listeners(), &[listener]);
@@ -191,8 +192,11 @@ fn the_owned_slot_names_its_forge_by_the_argument() {
         let forgejo = &group.steps[2].1;
         let owned_listener = machine.owned.as_ref().unwrap().listen;
         assert_eq!(forgejo.ready(), Some(owned_listener));
+        assert_eq!(forgejo.listeners(), []);
+        let mut bound = forgejo.clone();
+        bound.bind_group_listener(owned_listener);
         let held = [owned_listener];
-        assert_eq!(forgejo.listeners(), if listens { &held[..] } else { &[] });
+        assert_eq!(bound.listeners(), if listens { &held[..] } else { &[] });
         let remover = group.remover.as_ref().unwrap();
         assert_eq!(remover.name(), b"remove");
         assert_eq!(remover.kind(), Kind::Once);
@@ -210,7 +214,7 @@ fn absent_kinds_have_no_entry_or_slot_and_optional_processes_are_omitted() {
     for kind in [BoxKind::Owned, BoxKind::Fake] {
         assert!(machine::entry(&empty, 5, kind, &directories()).is_none());
     }
-    let steps = kinds(&empty, &[], Box::new([]), false, false);
+    let steps = kinds(empty.owned.as_ref(), &[], Box::new([]), false, false);
     assert_eq!(steps.always.len(), 1);
     assert!(steps.asked.is_empty());
     let mut machine = read(TEMPLATE_MACHINE, &directories());
@@ -219,7 +223,7 @@ fn absent_kinds_have_no_entry_or_slot_and_optional_processes_are_omitted() {
     owned.fetch.forgejo = false;
     owned.fetch.runner = false;
     owned.listen = ([127, 0, 0, 1], 0).into();
-    let steps = kinds(&machine, &[], Box::new([]), true, false);
+    let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), true, false);
     assert_eq!(steps.asked[0].steps.len(), 2);
     assert_eq!(steps.asked[0].steps[0].1.name(), b"prepare");
     assert_eq!(steps.asked[0].steps[1].1.name(), b"forgejo");
@@ -346,7 +350,7 @@ fn kind_slots_fetch_before_preparation_only_when_a_binary_is_fetched() {
         let owned = machine.owned.as_mut().unwrap();
         owned.fetch.forgejo = forgejo;
         owned.fetch.runner = runner;
-        let steps = kinds(&machine, &[], Box::new([]), false, false);
+        let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), false, false);
         let expected: &[Stage] = if forgejo || runner {
             &[Stage::Fetch, Stage::Prepare, Stage::Run, Stage::Run]
         } else {
@@ -415,7 +419,7 @@ fn sign_in_refuses_machine_owned_person_email_at_its_path() {
 fn only_a_box_signing_in_retries_source_last_and_ignores_its_ending() {
     let mut machine = read(TEMPLATE_MACHINE, &directories());
     machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
-    let steps = kinds(&machine, &[], Box::new([]), true, false);
+    let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), true, false);
     assert_eq!(steps.asked[0].before, 1, "the issuer starts before a restored source fetches discovery");
     let (stage, source) = steps.asked[0].steps.last().unwrap();
     assert_eq!(*stage, Stage::Source);
@@ -428,7 +432,7 @@ fn only_a_box_signing_in_retries_source_last_and_ignores_its_ending() {
         assert_eq!(argument.as_ref(), expected);
     }
     machine.owned.as_mut().unwrap().sign_in = None;
-    for (_, step) in &kinds(&machine, &[], Box::new([]), true, false).asked[0].steps {
+    for (_, step) in &kinds(machine.owned.as_ref(), &[], Box::new([]), true, false).asked[0].steps {
         assert_ne!(step.name(), b"source");
     }
 }
@@ -442,7 +446,7 @@ fn sign_in_refuses_machine_owned_public_at_its_path() {
     );
     let mut problems = Problems::empty();
     assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
-    assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy\n");
+    assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with public; a box's sign-in through temper is not proved behind a proxy\n");
     let mut typed = jig_protocol_config::Problems::empty();
     assert!(machine::read_config(&fixtures::document(&input), 0, &directories(), &mut typed).is_none());
     assert_eq!(typed.problems.len(), 1);

@@ -21,7 +21,7 @@ Shape: `document`. Paths: `document`. The top-level members of the configuration
 
 Shape: `application`. Paths: `application`. The application’s machine parts, read before startup.
 
-- `machine`: machine, engine shapes only; required; init writes object. The machine places offered when a forge is made.
+- `machine`: refused: moved: a forge's place is chosen when it's set up, and kept with the forge
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
 - `welcome`: refused: moved: the welcome is a setting; change it with temper ctl settings
 - `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
@@ -229,57 +229,6 @@ Shape: `demo-line`. Paths: `application.demo.llm.asked[].turns[].lines[]` `appli
 - `text`: text, text alone, or call with arguments; optional; init writes "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge." | "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change." | "I would give widget a dark theme that follows the system's preference, with its colours as variables in one place so both themes stay in step. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I would have widget say when a search finds nothing, name the words searched for and offer to clear them, in place of an empty table that looks broken. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done." | "I wrote an Away mode draft with its purpose, return flow and open questions." | "I added how a running goal continues and waits for your decisions." | "I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key.". The text returned by a plain answer.
 - `call`: text, at most 64 bytes; call with arguments; optional; init writes "delegate" | "wait" | "read" | "edit" | "finish" | "note". The tool called by this scripted answer.
 - `arguments`: JSON value, tool input schema; optional; init writes object. The tool call’s input, interpreted by the named tool.
-
-## application.machine
-
-Shape: `machine`. Paths: `application.machine`. The machine places offered when a forge is made.
-
-- `owned`: machine-owned; optional; init writes object. The box’s owned Forgejo place, absent when none is offered.
-- `fake`: machine-fake; optional; init writes object. The playground’s fake forge place, absent when none is offered.
-
-## application.machine.owned
-
-Shape: `machine-owned`. Paths: `application.machine.owned`. The owned Forgejo and its runner on this machine.
-
-- `sign_in`: text or null, a client of engine.clients.provider; at most 256 bytes; not with public; optional; init writes "forgejo". The client the box’s owned Forgejo signs its person in through, null for none.
-- `remote`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init writes "http://127.0.0.1:8368". The base of the owned forge’s repository remotes.
-- `forgejo`: text, cache path or fetched; at most 4,096 bytes; required; init writes "fetched". The Forgejo binary, fetched at the pinned version when requested.
-- `runner`: machine-runner or null; required; init writes object. The runner to prepare, or null for none.
-- `listen`: address, loopback socket, unique among listeners; required; init writes {"socket":"127.0.0.1:8368"}. The owned Forgejo listener.
-- `person`: machine-account; required; init writes object. The person account made at setup.
-- `mirror`: machine-mirror; optional; init leaves it out. Alternate HTTPS origins for fetching the pinned binaries.
-- `public`: text, HTTPS origin; at most 4,096 bytes; optional; init leaves it out. The browser origin of the owned forge behind its proxy.
-
-## application.machine.fake
-
-Shape: `machine-fake`. Paths: `application.machine.fake`. The playground’s fake forge on this machine.
-
-- `listen`: address, loopback socket, unique among listeners; required; init writes {"socket":"127.0.0.1:8369"}. The fake forge listener.
-- `remote`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init writes "http://127.0.0.1:8369". The base of the fake forge’s repository remotes.
-- `git`: text, data path; at most 4,096 bytes; required; init writes "demo/bin/git". The fake git program for the playground’s repositories.
-
-## application.machine.owned.runner
-
-Shape: `machine-runner`. Paths: `application.machine.owned.runner`. The owned Forgejo’s runner program and capacity.
-
-- `binary`: text, cache path or fetched; at most 4,096 bytes; required; init writes "fetched". The runner binary, fetched at the pinned version when requested.
-- `labels`: list of text, 1 to 8 labels, each at most 128 bytes; required; init writes ["temper-host:host"]. The labels offered to the forge’s jobs.
-- `capacity`: integer, 1 to 64; required; init writes 1. The number of jobs the runner may execute at once.
-- `path`: text, at most 4,096 bytes; nonempty without NUL; required; init writes "/usr/local/bin:/usr/bin:/bin". The PATH the runner gives its jobs.
-
-## application.machine.owned.person
-
-Shape: `machine-account`. Paths: `application.machine.owned.person`. The person account made on the owned forge.
-
-- `login`: text, valid forge login; at most 4,096 bytes; required; init writes "person". The person’s forge login.
-- `email`: text, valid forge email; at most 4,096 bytes; required; init writes "person@localhost". The person’s forge email address.
-
-## application.machine.owned.mirror
-
-Shape: `machine-mirror`. Paths: `application.machine.owned.mirror`. HTTPS origins used to fetch pinned binaries.
-
-- `forgejo`: text, HTTPS origin; at most 4,096 bytes; required; init leaves it out. The origin serving the pinned Forgejo binary.
-- `runner`: text, HTTPS origin; at most 4,096 bytes; required; init leaves it out. The origin serving the pinned runner binary.
 
 ## The merge command
 

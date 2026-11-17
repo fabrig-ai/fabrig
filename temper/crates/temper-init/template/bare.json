@@ -184,7 +184,6 @@
     }
   ],
   "application": {
-    "machine": {},
     "clients": {
       "listener": {
         "socket": "$listener"

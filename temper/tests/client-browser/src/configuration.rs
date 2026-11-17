@@ -88,7 +88,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "machine":{},"demo":null,"sign_in":null,
+        "demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
@@ -168,12 +168,11 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
     let sockets = [
         &value["application"]["clients"]["listener"]["socket"],
-        &value["application"]["machine"]["fake"]["listen"]["socket"],
         &value["application"]["demo"]["llm"]["listen"]["socket"],
         &value["application"]["webhooks"]["listener"]["socket"],
     ];
-    let addresses = temper_fixtures::ports::addresses::<4>(&[]);
-    let replacements = std::array::from_fn::<_, 4, _>(|index| {
+    let addresses = temper_fixtures::ports::addresses::<3>(&[]);
+    let replacements = std::array::from_fn::<_, 3, _>(|index| {
         (sockets[index].as_str().expect("demo socket").to_owned(), addresses[index].to_string())
     });
     replace_sockets(&mut value, &replacements);

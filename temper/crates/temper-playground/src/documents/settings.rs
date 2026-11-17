@@ -286,6 +286,7 @@ pub fn strip_fixed(deployment: &mut Value) {
     }
     if let Some(application) = deployment.get_mut("application").and_then(Value::as_object_mut) {
         application.remove("workers");
+        application.remove("machine");
         application.remove("welcome");
     }
     let engine = deployment["engine"].as_object_mut().expect("engine");

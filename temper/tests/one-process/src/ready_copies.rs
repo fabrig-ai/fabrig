@@ -48,12 +48,6 @@ impl Harness for ReadyWorld {
         document["application"]["welcome"] = true.into();
         document["world_settings"]["empty_projects"] = true.into();
         document["world_settings"]["adopt_only"] = true.into();
-        document["application"]["machine"]["owned"] = serde_json::json!({
-            "listen": {"socket": "127.0.0.1:3000"},
-            "remote": "http://127.0.0.1:3000",
-            "forgejo": "/world/forgejo", "runner": null,
-            "person": {"login": "owner", "email": "owner@example.invalid"}
-        });
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
@@ -185,7 +179,7 @@ impl Host for BoxPeer {
                     } else {
                         self.input.extend_from_slice(&buf[..usize::try_from(count).expect("read size")]);
                         if self.input.ends_with(b"\n") {
-                            assert_eq!(self.input, b"start 1 owned\n", "only the owned forge's start is asked");
+                            assert_eq!(self.input, b"start 1\n", "only the owned forge's start is asked");
                             assert!(!self.started, "one forge start");
                             self.started = true;
                             self.input.clear();

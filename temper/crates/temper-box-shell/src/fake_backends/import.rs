@@ -20,7 +20,6 @@ const RESOURCES: &[(&str, bool, &str)] = &[
     ("workers/0/secret", false, "worker.secret"),
     ("workers/0/agent/configuration", true, "agent.json"),
     ("workers/0/agent/arguments/2", true, "agent.json"),
-    ("application/machine/fake/git", false, "demo/bin/git"),
     ("application/demo/llm/key", false, "demo/llm.key"),
 ];
 impl Source {
@@ -105,7 +104,10 @@ fn expected_documents(
         None
     };
     let ports = ports(temper)?;
-    let login = temper.string("application/machine/owned/person/login")?;
+    let login = temper
+        .string("engine/owners/0/subject")?
+        .strip_suffix(b"@localhost")
+        .ok_or("engine/owners/0/subject: expected init's LOGIN@localhost")?;
     let generated = temper_init::files(
         &temper_init::Facts {
             sign_in: temper.at("engine/clients/provider")? != &Json::Null,
@@ -161,8 +163,6 @@ fn port(value: &Json, pointer: &str) -> Result<NonZeroU16, String> {
 fn ports(value: &Json) -> Result<temper_init::Ports, String> {
     Ok(temper_init::Ports {
         clients: port(value, "application/clients/listener/socket")?,
-        owned: port(value, "application/machine/owned/listen/socket")?,
-        forge: port(value, "application/machine/fake/listen/socket")?,
         llm: port(value, "application/demo/llm/listen/socket")?,
         webhooks: port(value, "application/webhooks/listener/socket")?,
     })

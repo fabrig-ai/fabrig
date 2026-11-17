@@ -8,8 +8,8 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 #[path = "../tests/members.rs"]
 mod tests;
 
-/// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 35] = [
+/// Every application shape, including the test peer decoder’s rows.
+pub static SHAPES: [Shape; 29] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -111,20 +111,14 @@ pub static SHAPES: [Shape; 35] = [
         ],
         line: "One text answer or tool call.",
     },
-    machine::SHAPES[0],
-    machine::SHAPES[1],
-    machine::SHAPES[2],
     machine::SHAPES[3],
-    machine::SHAPES[4],
-    machine::SHAPES[5],
-    machine::SHAPES[6],
     machine::SHAPES[7],
     machine::SHAPES[8],
     machine::SHAPES[9],
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 127] = [
+pub static MEMBERS: [Member; 106] = [
     Member {
         shape: "document",
         name: "engine",
@@ -164,9 +158,9 @@ pub static MEMBERS: [Member; 127] = [
     Member {
         shape: "application",
         name: "machine",
-        kind: "machine",
-        bound: "engine shapes only",
-        required: true,
+        kind: "refused",
+        bound: "",
+        required: false,
         line: "The machine places offered when a forge is made.",
         gone: None,
     },
@@ -998,33 +992,12 @@ pub static MEMBERS: [Member; 127] = [
         line: "The tool call’s input, interpreted by the named tool.",
         gone: None,
     },
-    machine::MEMBERS[0],
-    machine::MEMBERS[1],
-    machine::MEMBERS[2],
     machine::MEMBERS[3],
-    machine::MEMBERS[4],
-    machine::MEMBERS[5],
-    machine::MEMBERS[6],
-    machine::MEMBERS[7],
-    machine::MEMBERS[8],
-    machine::MEMBERS[9],
-    machine::MEMBERS[10],
-    machine::MEMBERS[11],
-    machine::MEMBERS[12],
-    machine::MEMBERS[13],
     machine::MEMBERS[14],
     machine::MEMBERS[15],
     machine::MEMBERS[16],
     machine::MEMBERS[17],
     machine::MEMBERS[18],
-    machine::MEMBERS[19],
-    machine::MEMBERS[20],
-    machine::MEMBERS[21],
-    machine::MEMBERS[22],
-    machine::MEMBERS[23],
-    machine::MEMBERS[24],
-    machine::MEMBERS[25],
-    machine::MEMBERS[26],
     machine::MEMBERS[27],
     machine::MEMBERS[28],
     machine::MEMBERS[29],
@@ -1053,8 +1026,6 @@ pub(crate) fn object(
 pub const ADDRESS_PATHS: &[&str] = &[
     "application.clients.listener",
     "application.webhooks.listener",
-    "application.machine.owned.listen",
-    "application.machine.fake.listen",
     "application.test.github.api",
     "application.demo.llm.listen",
 ];

@@ -184,6 +184,7 @@ pub(super) fn box_approval_fixture(second_owner: bool) -> World {
         request,
         answer: forge::SetUpAnswer::SettingUp,
     })));
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.send(Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
@@ -223,6 +224,8 @@ pub(super) fn restart_box_with_second_owner(world: &mut World) {
         .seed(Box::new([engine::Record::Forge { row: Box::new(forge::Stored::Forge(record)) }]), Box::new([]));
     let (config, _) = box_approval_setup(true);
     world.driver.reopen(config);
+    world.driver.settle();
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetupPerson { forge: 1, login: b"ada".as_slice().into() })));
     world.driver.settle();
     world.driver.send(Event::Party(PartyInput::SignedIn {
         held: None,

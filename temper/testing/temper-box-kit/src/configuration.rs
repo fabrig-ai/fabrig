@@ -84,7 +84,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "machine":{},"demo":null,"sign_in":null,
+        "demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
@@ -130,26 +130,30 @@ pub fn flags(directory: &Path) -> Vec<std::ffi::OsString> {
     directories(directory).flags().into_vec().into_iter().map(|v| std::ffi::OsString::from_vec(v.into_vec())).collect()
 }
 
-/// Set the machine's fake listener and remote together.
-pub fn fake_entry(entry: &mut serde_json::Value, listen: &str) {
-    *entry = serde_json::json!({"listen":{"socket":listen}, "remote":format!("http://{listen}"), "git":"demo/bin/git"});
+/// Write a test's immutable setup before any forge command reads it.
+pub fn setup(directory: &Path, forge: u16, mut value: serde_json::Value) {
+    use std::os::unix::fs::PermissionsExt;
+    let kind = value["kind"].as_str().expect("setup kind");
+    let prefix = if kind == "fake" {
+        "playground"
+    } else {
+        assert_eq!(kind, "owned");
+        "forge"
+    };
+    let directory = directory.join(format!("{prefix}-{forge}"));
+    temper_shell::directories::make_private(&directory, skein_shell::effective_user())
+        .expect("private setup directory");
+    value["version"] = 1.into();
+    let path = directory.join("setup");
+    std::fs::write(&path, serde_json::to_vec(&value).expect("setup JSON")).expect("setup file");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private setup file");
 }
 
-/// The explicit old-form fake and managed command fixtures, without creating files.
-#[must_use]
-pub fn old_form_check_document(directory: &Path) -> serde_json::Value {
-    check_document(directory)
-}
-
-/// The fake starts from records; its identity joins the forge explicitly.
+/// A deployment without a forge; setup files belong to the test that starts one.
 #[must_use]
 pub fn check_document(directory: &Path) -> serde_json::Value {
     let (_, bytes) = documents(directory, "/fixture/temper");
-    let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
-    value["application"]["machine"]["fake"] = serde_json::json!({
-        "listen":{"socket":"127.0.0.1:9"}, "remote":"http://127.0.0.1:9", "git":"demo/bin/git"
-    });
-    value
+    serde_json::from_slice(&bytes).expect("fixture JSON")
 }
 
 /// A demo model whose one plaintext endpoint listens at the supplied address.

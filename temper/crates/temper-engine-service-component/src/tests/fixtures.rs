@@ -70,7 +70,7 @@ pub fn engine() -> settings::Engine {
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -360,7 +360,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
         ways_stock: settings.ways_stock,
         forge,
         identities,
-        machine: Some(crate::system::machine_config(&settings.machine, settings.test_github.as_ref())),
+        machine: Some(crate::system::machine_config(settings.test_github.as_ref())),
         forges: Box::new([]),
         under_box: false,
         playground: None,
@@ -409,6 +409,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::PlaygroundActs { .. }
                 | root::Request::ResetAct { .. }
                 | root::Request::ForgeGone { .. }
+                | root::Request::ChoosePlace { .. }
                 | root::Request::BoxGroup { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Unsettled(_)
@@ -760,16 +761,19 @@ pub fn start_configured(
         runtime.push(second).unwrap();
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
-        settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
+        settings.setups = Box::new([(
+            1,
+            temper_forge_setup::setup_file::SetupFile::Owned(temper_forge_setup::machine::OwnedMachine {
+                sign_in: None,
+                listen: owned.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                person: owned.person,
+                public: owned.public,
+                fetch: owned.fetch,
+                forgejo: owned.forgejo,
+                runner: owned.runner,
+            }),
+        )]);
     }
     settings = start_settings(settings, projects);
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
@@ -1047,6 +1051,7 @@ pub fn settle_root(
                 root::Request::Setup { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
+                | root::Request::ChoosePlace { .. }
                 | root::Request::BoxGroup { .. }
                 | root::Request::PlaygroundActs { .. }
                 | root::Request::ResetAct { .. }
@@ -1395,10 +1400,6 @@ pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
     start_with_store(&[(1, 100)], Some(reopened))
 }
 
-/// The deployment's machine parts; forge records are kept separately.
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None }
-}
 /// Admit a runtime forge through the root's kept-record request.
 pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
     let engine = service.engine.as_mut().expect("engine");
@@ -1527,30 +1528,43 @@ pub fn configured_prepared(
     configured_prepared_with_store(config, seeds, accounts, endpoints, box_bytes, None)
 }
 pub(crate) fn setup_machine(engine: &mut settings::Engine, entries: &[settings::Setup]) {
-    for setup in entries {
-        match &setup.entry.mode {
-            temper_forge_setup::setup::Mode::Owned(owned) => {
-                engine.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-                    sign_in: None,
-                    listen: owned.listen,
-                    remote: b"http://127.0.0.1:9".as_slice().into(),
-                    person: owned.person.clone(),
-                    public: owned.public.clone(),
-                    fetch: owned.fetch.clone(),
-                    forgejo: owned.forgejo.clone(),
-                    runner: owned.runner.clone(),
-                });
-            }
-            temper_forge_setup::setup::Mode::Fake(fake) => {
-                engine.machine.fake = Some(temper_forge_setup::machine::FakeMachine {
-                    listen: fake.listen,
-                    remote: b"http://127.0.0.1:9".as_slice().into(),
-                    git: fake.git.clone(),
-                });
-            }
-            temper_forge_setup::setup::Mode::Managed { .. } => {}
-        }
+    use temper_forge_setup::{
+        machine::{FakeMachine, OwnedMachine},
+        setup_file::SetupFile,
+    };
+    let mut files = skein_lib::List::uncapped();
+    for (forge, file) in &engine.setups {
+        files.push((*forge, file.clone())).unwrap();
     }
+    for setup in entries {
+        let mut present = false;
+        for (forge, _) in &engine.setups {
+            present |= *forge == setup.entry.forge;
+        }
+        if present {
+            continue;
+        }
+        let file = match &setup.entry.mode {
+            temper_forge_setup::setup::Mode::Owned(owned) => SetupFile::Owned(OwnedMachine {
+                sign_in: None,
+                listen: owned.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                person: owned.person.clone(),
+                public: owned.public.clone(),
+                fetch: owned.fetch.clone(),
+                forgejo: owned.forgejo.clone(),
+                runner: owned.runner.clone(),
+            }),
+            temper_forge_setup::setup::Mode::Fake(fake) => SetupFile::Fake(FakeMachine {
+                listen: fake.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                git: fake.git.clone(),
+            }),
+            temper_forge_setup::setup::Mode::Managed { .. } => continue,
+        };
+        files.push((setup.entry.forge, file)).unwrap();
+    }
+    engine.setups = files.into_boxed();
 }
 pub(crate) fn configured_prepared_with_store(
     mut config: ConfiguredEngine,

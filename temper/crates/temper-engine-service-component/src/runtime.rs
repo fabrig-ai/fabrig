@@ -1,5 +1,5 @@
 //! The engine component seam (temper/docs/design/protocol/services.md, 4).
-use crate::system::{accounts_driver, core_config, deployment_owned, machine_config, playground_config, start_problem};
+use crate::system::{accounts_driver, core_config, machine_config, playground_config, start_problem};
 use crate::{AccountsRuntime, accounts, clients, engine, limits, settings, store, values, workers};
 use crate::{End, ForgeRuntime, Stop, forge, forges, route::box_link};
 use alloc::boxed::Box;
@@ -46,14 +46,14 @@ impl engine::Engine {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
-            settings.machine.owned.as_ref(),
+            None,
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,
             welcome: false,
-            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            owned: box_line_bytes.is_some(),
             push: match &settings.push {
                 Some(push) => Some(*push.key.public()),
                 None => None,
@@ -73,6 +73,7 @@ impl engine::Engine {
         let mut core = core_config(&settings.jig, seeds);
         core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
+        let places = crate::places::Places::new(&settings);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
             kinds_stock: temper_engine_service_stock::stock::with_welcome(
@@ -85,7 +86,7 @@ impl engine::Engine {
             landings: settings.landings,
             forge: forge_config,
             identities,
-            machine: Some(machine_config(&settings.machine, settings.test_github.as_ref())),
+            machine: Some(machine_config(settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
@@ -101,6 +102,7 @@ impl engine::Engine {
             values,
             first_periods,
         )?;
+        engine.places = Some(places);
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
@@ -367,6 +369,9 @@ impl engine::Engine {
             (crate::Listening::Workers, engine.workers.host.listening.take()),
         ] {
             if let Some(addr) = addr {
+                if let Some(places) = &mut engine.places {
+                    places.listening(addr);
+                }
                 engine
                     .listening
                     .try_push(crate::Note::Listening { listener, addr })

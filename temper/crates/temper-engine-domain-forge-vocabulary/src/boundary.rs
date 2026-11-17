@@ -456,10 +456,6 @@ pub struct Place {
 /// The machine's places (temper/docs/design/protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Machine {
-    /// `application.machine.owned.person`'s login; empty with no owned machine.
-    pub owned_person: Box<[u8]>,
-    pub owned: Option<Place>,
-    pub fake: Option<Place>,
     pub github: Place,
     pub github_git_program: Option<Box<[u8]>>,
 }
@@ -1883,6 +1879,16 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
+    SetupPerson {
+        forge: u16,
+        login: Box<[u8]>,
+    },
+    PlaceChosen {
+        request: Token,
+        place: Option<Place>,
+        git_program: Option<Box<[u8]>>,
+    },
     HistoryLoaded {
         load: u64,
         rows: Box<[Stored]>,
@@ -2591,6 +2597,12 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Choose a loopback port before making the record (protocol/setup/place.md, 2).
+    ChoosePlace {
+        request: Token,
+        kind: BoxKind,
+        login: Box<[u8]>,
+    },
     LoadHistory {
         load: u64,
         range: crate::history::HistoryRange,

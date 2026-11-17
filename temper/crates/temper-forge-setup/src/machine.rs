@@ -1,18 +1,14 @@
 //! The document's machine parts, test peer and box kinds (temper/docs/design/protocol/configuration/engine.md; temper/docs/design/protocol/setup/place.md, 7; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     check::joined,
-    problem::Problems,
-    setup::{Account, Entry, Fake, Fetch, Mirror, Mode, Origin, Owned, Repository, Runner},
+    setup::{Account, Fetch, Mirror, Origin, Runner},
 };
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Path, read};
-use skein_forge_setup::{
-    given::{email, login},
-    limits::Limits,
-};
+use skein_forge_setup::given::{email, login};
 use skein_json::{Document, document::Kind};
-use skein_lib::{Decimal, List, bytes};
+use skein_lib::{Decimal, List};
 
 /// The configuration table's shapes and rows (temper/docs/design/protocol/documentation.md, 8).
 pub use config::members::{Member, Shape};
@@ -104,112 +100,6 @@ pub struct GitHubMachine {
     pub remote: Box<[u8]>,
     pub web: Box<[u8]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Machine {
-    pub owned: Option<OwnedMachine>,
-    pub fake: Option<FakeMachine>,
-}
-
-/// Reads `application.machine`, recording paths and resolving data and cache paths as setup does.
-pub fn read(
-    d: &Document,
-    at: u32,
-    _limits: &Limits,
-    directories: &config::Directories,
-    problems: &mut Problems,
-) -> Option<Machine> {
-    let mut ps = config::Problems::empty();
-    let result = read_config(d, at, directories, &mut ps);
-    problems.append(ps);
-    result
-}
-/// The application retains each typed problem's full member path.
-pub fn read_config(
-    d: &Document,
-    at: u32,
-    directories: &config::Directories,
-    ps: &mut config::Problems,
-) -> Option<Machine> {
-    let p = Path::root().member(b"application").member(b"machine");
-    let mut result = machine(d, at, &p, ps);
-    if ps.is_empty()
-        && let Some(machine) = &mut result
-    {
-        if let Some(owned) = &mut machine.owned {
-            resolve_path(
-                directories,
-                config::Directory::Cache,
-                &mut owned.forgejo,
-                p.member(b"owned").member(b"forgejo"),
-                ps,
-            );
-            if let Some(runner) = &mut owned.runner {
-                resolve_path(
-                    directories,
-                    config::Directory::Cache,
-                    &mut runner.binary,
-                    p.member(b"owned").member(b"runner").member(b"binary"),
-                    ps,
-                );
-            }
-        }
-        if let Some(fake) = &mut machine.fake {
-            resolve_path(directories, config::Directory::Data, &mut fake.git, p.member(b"fake").member(b"git"), ps);
-        }
-    }
-    if ps.is_empty() { result } else { None }
-}
-fn machine(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Machine> {
-    let mut o = object(d, at, "machine", p, ps)?;
-    let owned_at = o.member(d, b"owned");
-    let fake_at = o.member(d, b"fake");
-    o.finish(d, p, ps);
-    let owned = match owned_at {
-        Some(at) => Some(owned(d, at, &p.member(b"owned"), ps)?),
-        None => None,
-    };
-    let fake = match fake_at {
-        Some(at) => Some(fake(d, at, &p.member(b"fake"), ps)?),
-        None => None,
-    };
-    Some(Machine { owned, fake })
-}
-/// The entry a kind's forge runs with (protocol/setup/init.md), if its machine part exists.
-#[must_use]
-pub fn entry(machine: &Machine, forge: u16, kind: BoxKind, directories: &config::Directories) -> Option<Entry> {
-    let mode = match kind {
-        BoxKind::Owned => {
-            let o = machine.owned.as_ref()?;
-            Mode::Owned(Owned {
-                public: o.public.clone(),
-                fetch: o.fetch.clone(),
-                forgejo: o.forgejo.clone(),
-                runner: o.runner.clone(),
-                listen: o.listen,
-                person: o.person.clone(),
-            })
-        }
-        BoxKind::Fake => {
-            let f = machine.fake.as_ref()?;
-            Mode::Fake(Fake {
-                listen: f.listen,
-                git: f.git.clone(),
-                owner: bytes::copy_of(b"playground"),
-                repositories: Box::new([Repository {
-                    name: bytes::copy_of(b"widget"),
-                    landing: bytes::copy_of(b"main"),
-                }]),
-            })
-        }
-    };
-    Some(Entry {
-        forge,
-        directory: directories.join(config::Directory::Data, &directory(forge, kind)).ok()?,
-        bot: Account { login: bytes::copy_of(b"temper"), email: bytes::copy_of(b"temper@localhost") },
-        mode,
-        asked: kind == BoxKind::Owned,
-    })
-}
 /// The forge's directory beneath the data directory.
 #[must_use]
 pub fn directory(forge: u16, kind: BoxKind) -> Box<[u8]> {
@@ -234,8 +124,10 @@ pub fn group_path(forge: u16) -> Box<[u8]> {
     joined(&[b"box/groups/", Decimal::of(u64::from(forge)).as_bytes()])
 }
 
-fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<FakeMachine> {
+pub(crate) fn fake(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<FakeMachine> {
     let mut o = object(d, at, "machine-fake", p, ps)?;
+    o.object.member(d, b"version");
+    o.object.member(d, b"kind");
     let listen_at = o.required(d, b"listen", p, ps);
     let remote = text(d, &mut o, b"remote", p, ps);
     let git = text(d, &mut o, b"git", p, ps);
@@ -454,8 +346,10 @@ fn runner(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
         path: path_value,
     })
 }
-fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<OwnedMachine> {
+pub(crate) fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<OwnedMachine> {
     let mut o = object(d, at, "machine-owned", p, ps)?;
+    o.object.member(d, b"version");
+    o.object.member(d, b"kind");
     let remote = text(d, &mut o, b"remote", p, ps);
     let forgejo = text(d, &mut o, b"forgejo", p, ps);
     let runner_at = o.required(d, b"runner", p, ps);
@@ -513,9 +407,19 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
         },
         Some(_) | None => None,
     };
-    if sign_in.is_some() {
+    if let Some(client) = &sign_in {
+        let mut visible = !client.is_empty();
+        for byte in client {
+            visible &= (0x21..=0x7e).contains(byte);
+        }
+        valid(visible, p.member(b"sign_in"), ps);
         if public.is_some() {
-            ps.push(p.member(b"sign_in"), config::What::Because(b"cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy"));
+            ps.push(
+                p.member(b"sign_in"),
+                config::What::Because(
+                    b"cannot be set with public; a box's sign-in through temper is not proved behind a proxy",
+                ),
+            );
         }
         valid(!crate::sign_in::refused_person(&person.login, b""), p.member(b"person").member(b"login"), ps);
         valid(!crate::sign_in::refused_person(b"", &person.email), p.member(b"person").member(b"email"), ps);
@@ -628,7 +532,7 @@ fn git_base(input: &[u8]) -> bool {
         }
     }
 }
-fn resolve_path(
+pub(crate) fn resolve_path(
     directories: &config::Directories,
     kind: config::Directory,
     value: &mut Box<[u8]>,

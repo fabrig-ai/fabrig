@@ -32,13 +32,7 @@ fn configured(granted: bool, under_box: bool) -> engine::Config {
     owner.project = people::DEPLOYMENT;
     config.core.owners = config.core.owners.into_vec().into_iter().chain([owner]).collect();
     config.forges = Box::new([]);
-    config.machine = Some(forge::Machine {
-        owned_person: Box::new([]),
-        owned: None,
-        fake: Some(place()),
-        github: place(),
-        github_git_program: None,
-    });
+    config.machine = Some(forge::Machine { github: place(), github_git_program: None });
     config.playground = Some(forge::PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) });
     config.core.seed_projects[0].policy.permissions = Box::new([]);
     let seed = &config.core.seed_projects[0].policy;

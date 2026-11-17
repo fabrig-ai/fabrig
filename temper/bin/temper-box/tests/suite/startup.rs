@@ -963,6 +963,16 @@ fn the_owned_example_is_named_without_a_problem() {
 #[test]
 fn every_command_checks_setup_before_reading_files() {
     let scratch = owned_example("every-command-setup");
+    support::owned::setup(
+        scratch.path(),
+        &support::owned::Names {
+            forgejo: Path::new("/opt/forgejo"),
+            runner: None,
+            port: 3000,
+            bot: "temper",
+            person: "ada",
+        },
+    );
     let path = scratch.path().join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["application"]["limits"]["overrides"]["setup.backoff_ms"] = 6000.into();
@@ -1636,7 +1646,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 5, "init retains its five listeners");
+            assert_eq!(held.len(), 3, "init retains its three deployment listeners");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");

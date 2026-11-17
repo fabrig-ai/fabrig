@@ -368,7 +368,6 @@ fn remove_direct_endpoint(d: &Document, endpoints: u32, edits: &mut Edits, p: &P
 }
 
 /// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
-#[expect(clippy::too_many_lines, reason = "the bounded rewrite writes its six coordinated documents together")]
 pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents, Refusal> {
     for (name, bytes) in [(b"temper".as_slice(), temper), (b"agent", agent)] {
         if bytes.len() > usize::try_from(crate::DOCUMENT_BYTES).expect("document bound fits") {
@@ -395,19 +394,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let mut edits = Edits::new();
     let application = member(&d, 0, b"application", &root)?;
     let ap = root.member(b"application");
-    let machine_at = member(&d, application, b"machine", &ap)?;
-    let mut problems = temper_forge_setup::problem::Problems::empty();
-    let directories = jig_protocol_config::Directories::given(&paths.config, &paths.data, &paths.cache)
-        .expect("checked effective directories");
-    let machine = temper_forge_setup::machine::read(
-        &d,
-        machine_at,
-        &temper_forge_setup::limits::small(),
-        &directories,
-        &mut problems,
-    )
-    .ok_or(read::why(&ap.member(b"machine"), b"invalid machine"))?;
-    let git = machine.fake.ok_or(read::why(&ap.member(b"machine"), b"fake machine required"))?.git;
+    let git = path(&paths.data, b"demo/bin/git");
     forge(&d, application, &github, &git, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
     let ep = root.member(b"engine").member(b"llm");

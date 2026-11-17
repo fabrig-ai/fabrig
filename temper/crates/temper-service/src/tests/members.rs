@@ -15,12 +15,6 @@ use jig_protocol_config::{self as config, Path, read};
 
 const LIMITS: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
 const APPLICATION: &[u8] = br#"{
-"machine":{
- "owned":{"sign_in":null,"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","forgejo":"fetched",
- "runner":{"binary":"fetched","labels":["temper-host:host"],"capacity":1,"path":"/usr/bin:/bin"},
- "person":{"login":"person","email":"person@localhost"},"public":"https://forge.example.test",
- "mirror":{"forgejo":"https://downloads.example.test","runner":"https://runner.example.test"}},
- "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}},
  "test":{"github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
  "remote":"https://git.example.test","web":"https://web.example.test","git":"demo/bin/github-git"}},
 "clients":{"listener":{"socket":"127.0.0.1:8367"},"bundle":"/bundle","public":"https://temper.example.test"},
@@ -115,13 +109,6 @@ fn gone(document: &skein_json::Document, parent: &str, name: &str) -> skein_json
 fn every_row_is_a_member_its_decoder_takes() {
     let input = expanded();
     startup::load(&input, &config::Directories::working(), false).expect("expanded decoder example");
-    let signing_in = fixtures::with(&input, b"application.machine.owned.sign_in", br#""forge-client""#);
-    let signing_in = fixtures::with(&signing_in, b"application.sign_in", b"null");
-    let mut signing_in: serde_json::Value = serde_json::from_slice(&signing_in).unwrap();
-    let owned = signing_in.pointer_mut("/application/machine/owned").unwrap().as_object_mut().unwrap();
-    assert!(owned.remove("public").is_some());
-    let signing_in = serde_json::to_vec(&signing_in).unwrap();
-    startup::load(&signing_in, &config::Directories::working(), false).expect("box sign-in decoder example");
     let document = config::document(&input, &LIMITS).unwrap();
     let mut seen = BTreeSet::new();
     for shape in &SHAPES {
@@ -142,6 +129,7 @@ fn every_row_is_a_member_its_decoder_takes() {
     for (parent, what, shape, name) in [
         ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
         ("application", What::Jig(config::What::Fixed), "application", "workers"),
+        ("application", What::Jig(config::What::Fixed), "application", "machine"),
         ("application", What::Jig(config::What::Fixed), "application", "welcome"),
         ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
         (
@@ -179,7 +167,7 @@ fn the_rows_have_unique_names_and_bounded_lines() {
         assert_ne!(names.len(), 0);
         assert_eq!(names.len(), names.iter().collect::<BTreeSet<_>>().len());
     }
-    for row in &temper_forge_setup::machine::MEMBERS {
+    for row in temper_forge_setup::machine::MEMBERS.iter().filter(|row| row.shape.starts_with("test")) {
         assert!(
             MEMBERS.iter().any(|member| member.shape == row.shape && member.name == row.name),
             "missing machine row: {row:?}"
@@ -222,5 +210,8 @@ fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
     input["application"]["machine"]["github"] = serde_json::Value::Null;
     let problems = startup::load(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), false)
         .expect_err("machine.github is unknown");
-    assert_eq!(startup::lines(&problems).as_ref(), b"application.machine.github: unknown member\n");
+    assert_eq!(
+        startup::lines(&problems).as_ref(),
+        b"application.machine: moved: a forge's place is chosen when it's set up, and kept with the forge\n"
+    );
 }

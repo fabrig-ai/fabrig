@@ -54,18 +54,18 @@ fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
     }
 }
 #[test]
-fn taken_default_owned_and_webhooks_ports_get_distinct_kernel_ports() {
-    for at in [1, 4] {
+fn taken_demo_and_webhooks_ports_get_distinct_kernel_ports() {
+    for at in [1, 2] {
         let holder = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("hold preferred port");
         let preferred_port = holder.local_addr().expect("held address").port();
         let mut io = Io::open().expect("startup io");
-        let mut preferred = [0; 5];
+        let mut preferred = [0; 3];
         preferred[at] = preferred_port;
         let held = io.ports(&preferred).expect("reserved ports");
         let chosen = held.iter().map(|(_, port)| *port).collect::<Vec<_>>();
         assert_ne!(chosen[at].get(), preferred_port);
         for (index, port) in chosen.iter().enumerate() {
-            assert!(!chosen[..index].contains(port), "five distinct ports");
+            assert!(!chosen[..index].contains(port), "three distinct ports");
         }
         for (fd, _) in held {
             io.close(fd);
@@ -132,13 +132,13 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         let (preferred, holder) = preferred_ports(held, same);
         let first = write(&dirs, &env, &binary, preferred).expect("first init");
         let ports = check_deployment(&dirs, &binary, &first, &row, claude, git);
-        for (at, available) in [!held, !held && !same, !held && !same, !held, !held && !same].into_iter().enumerate() {
+        for (at, available) in [!held, !held && !same, !held && !same].into_iter().enumerate() {
             assert_eq!(ports[at] == preferred[at], available, "{row}: preferred port {at}");
         }
         let second_root = root.join("second");
         fs::create_dir(&second_root).expect("second deployment");
         let second_dirs = directories(&second_root);
-        // The first deployment holds all five preferred ports while the second initializes.
+        // The first deployment holds all three preferred ports while the second initializes.
         let second = write(&second_dirs, &env, &binary, ports).expect("second init beside the first");
         let second_ports = check_deployment(&second_dirs, &binary, &second, &row, claude, git);
         for port in second_ports {
@@ -152,11 +152,11 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
     }
 }
 
-fn preferred_ports(held: bool, same: bool) -> ([u16; 5], Option<[TcpListener; 5]>) {
-    let listeners = [0; 5].map(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred listener"));
+fn preferred_ports(held: bool, same: bool) -> ([u16; 3], Option<[TcpListener; 3]>) {
+    let listeners = [0; 3].map(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred listener"));
     let mut preferred = listeners.each_ref().map(|listener| listener.local_addr().expect("port").port());
     if same {
-        preferred = [preferred[0], preferred[0], preferred[0], preferred[3], preferred[0]];
+        preferred = [preferred[0]; 3];
     }
     let holder = if held {
         Some(listeners)
@@ -174,7 +174,7 @@ fn check_deployment(
     row: &str,
     claude: bool,
     git: bool,
-) -> [u16; 5] {
+) -> [u16; 3] {
     check_files(dirs, binary, written, row);
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
@@ -194,12 +194,10 @@ fn check_deployment(
     ports
 }
 
-fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, written: &Written, row: &str) -> [u16; 5] {
+fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, written: &Written, row: &str) -> [u16; 3] {
     let application = &document["application"];
     let addresses = [
         &application["clients"]["listener"]["socket"],
-        &application["machine"]["owned"]["listen"]["socket"],
-        &application["machine"]["fake"]["listen"]["socket"],
         &agent["endpoints"][3]["address"],
         &application["webhooks"]["listener"]["socket"],
     ]
@@ -207,17 +205,14 @@ fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, writ
     let ports = addresses.map(|address| address.port());
     for (index, address) in addresses.iter().enumerate() {
         assert_eq!(address.ip(), std::net::Ipv4Addr::LOCALHOST, "{row}: loopback listener");
-        assert!(!ports[..index].contains(&address.port()), "{row}: five distinct reservations");
+        assert!(!ports[..index].contains(&address.port()), "{row}: three distinct reservations");
         assert!(TcpListener::bind(address).is_err(), "{row}: reservation held");
     }
-    for (name, address) in [("owned", addresses[1]), ("fake", addresses[2])] {
-        assert_eq!(application["machine"][name]["remote"], format!("http://{address}"), "{row}");
-        assert_eq!(application["machine"][name]["listen"], serde_json::json!({"socket": address.to_string()}), "{row}");
-    }
-    let llm = serde_json::json!({"socket": addresses[3].to_string()});
+    assert!(application.get("machine").is_none());
+    let llm = serde_json::json!({"socket": addresses[1].to_string()});
     assert_eq!(application["demo"]["llm"]["listen"], llm, "{row}");
     assert_eq!(document["engine"]["llm"]["endpoints"][3]["address"], llm, "{row}");
-    assert_eq!(written.listeners.len(), ports.len(), "{row}: five held descriptors");
+    assert_eq!(written.listeners.len(), ports.len(), "{row}: three held descriptors");
     for (fd, port) in &written.listeners {
         let address = skein_shell::listener_at(*fd).expect("held descriptor is listening");
         assert_eq!(address.port(), port.get(), "{row}: descriptor matches written port");
@@ -308,7 +303,7 @@ fn init_refusals_leave_every_file_and_directory_untouched() {
             assert_eq!(why, format!("{}: already exists", destination.display()));
             assert_eq!(snapshot(&root), before, "{row}: bare refusal changes nothing");
         }
-        let why = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect_err("refused");
+        let why = write(&dirs, &env, &root.join("bin/temper"), [0; 3]).expect_err("refused");
         assert_eq!(why, format!("{}: already exists", destination.display()));
         assert_eq!(snapshot(&root), before, "{row}: every file and directory untouched");
         fs::remove_dir_all(root).expect("cleanup");
@@ -339,13 +334,12 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let root = scratch("acceptance");
     let dirs = directories(&root);
     let env = environment(&root, true);
-    let written = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect("init");
+    let written = write(&dirs, &env, &root.join("bin/temper"), [0; 3]).expect("init");
     let bytes = fs::read(dirs.document()).expect("document");
     let deployment =
         crate::setup::check(&bytes, &jig_directories(&dirs)).expect("init document passes setup and named");
-    let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
-    assert!(machine.owned.is_some());
-    assert!(machine.fake.is_some());
+    let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(document["application"].get("machine").is_none());
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
@@ -375,7 +369,7 @@ fn explicit_program_fact_precedes_path_discovery() {
     let env = environment(&root, true);
     let binary = root.join("temper");
     let adapter = root.join("fake-claude");
-    let written = write_with_program(&dirs, &env, &binary, [0; 5], Some(&adapter)).expect("injected init fact");
+    let written = write_with_program(&dirs, &env, &binary, [0; 3], Some(&adapter)).expect("injected init fact");
     let agent: serde_json::Value =
         serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
     assert_eq!(agent["programs"]["claude_code"]["path"], adapter.to_str().expect("path"));
@@ -393,9 +387,8 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         let bytes = fs::read(dirs.document()).expect("document");
         let deployment =
             crate::setup::check(&bytes, &jig_directories(&dirs)).expect("bare document passes setup and named");
-        let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
-        assert!(machine.owned.is_none());
-        assert!(machine.fake.is_none());
+        let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(document["application"].get("machine").is_none());
         assert!(deployment.demo.is_none());
         assert!(!path(&dirs.data).join("demo").exists());
         assert_eq!(written.person, temper_init::Person::Found);
@@ -441,11 +434,11 @@ fn a_path_without_openssl_writes_a_box_without_sign_in_and_keeps_running() {
     let root = scratch("no-openssl");
     let dirs = directories(&root);
     let env = environment(&root, false);
-    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).expect("init succeeds without openssl");
+    let written = write(&dirs, &env, &root.join("temper"), [0; 3]).expect("init succeeds without openssl");
     assert_eq!(written.no_sign_in.as_deref(), Some("openssl is not on PATH"));
     let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
     assert!(value["engine"]["clients"]["provider"].is_null());
-    assert!(value["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert!(value["application"].get("machine").is_none());
     assert!(!path(&dirs.data).join("provider.key").exists());
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).unwrap();
@@ -461,14 +454,14 @@ fn init_keeps_an_existing_provider_key_even_without_openssl() {
     fs::set_permissions(&key, fs::Permissions::from_mode(0o600)).unwrap();
     let before = fs::metadata(&key).unwrap();
     let env = environment(&root, false);
-    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).unwrap();
+    let written = write(&dirs, &env, &root.join("temper"), [0; 3]).unwrap();
     let after = fs::metadata(&key).unwrap();
     assert_eq!(before.ino(), after.ino());
     assert_eq!(before.len(), after.len());
     assert!(written.no_sign_in.is_none());
     let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
     assert_eq!(value["engine"]["clients"]["provider"]["key"], "provider.key");
-    assert_eq!(value["application"]["machine"]["owned"]["sign_in"], "forgejo");
+    assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).unwrap();
 }
@@ -483,7 +476,7 @@ fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
     let Done::Usage(before) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).unwrap();
+    let written = write(&dirs, &env, &root.join("temper"), [0; 3]).unwrap();
     let elapsed = clock.now().now.saturating_since(started);
     let Done::Usage(after) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
     eprintln!(

@@ -5353,6 +5353,9 @@ pub(crate) fn outputs(
             forge::Request::ForgeGone { forge } => {
                 assert!(super::now(domain, Request::ForgeGone { forge }), "forge removal door");
             }
+            forge::Request::ChoosePlace { request, kind, login } => {
+                assert!(super::now(domain, Request::ChoosePlace { request, kind, login }), "place choice door");
+            }
             forge::Request::BoxGroup { forge, kind, request } => {
                 assert!(super::now(domain, Request::BoxGroup { forge, kind, request }), "box group door");
             }

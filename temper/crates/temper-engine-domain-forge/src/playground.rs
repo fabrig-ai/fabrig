@@ -90,26 +90,39 @@ pub(crate) fn start(d: &mut Domain, now: Time, request: Token, token: Token, out
     };
     d.playground_due = Some(now.saturating_add(config.deadline));
     if d.playground.is_none() {
-        let place = match &d.machine {
-            Some(machine) => machine.fake.clone(),
-            None => None,
-        };
-        let Some(place) = place else {
-            answer_starts(d, StartAnswer::NotOffered, out);
+        if !d.choosing.is_empty() || !crate::forges::room(d) {
+            busy(d, out);
             return;
-        };
-        let bot = Bot {
-            login: Box::from(b"temper".as_slice()),
-            name: Box::from(b"temper".as_slice()),
-            email: Box::from(b"temper@localhost".as_slice()),
-        };
-        let Some(forge) = crate::forges::make(d, Kind::Forgejo, Mode::Fake, place, None, false, bot, false, None, out)
-        else {
-            answer_starts(d, StartAnswer::Failed(StartFailure::NotConnected), out);
-            return;
-        };
-        save(d, Playground { state: PlaygroundState::Starting, forge, project: None, account: None }, out);
+        }
+        crate::domain::make::choose(d, request, BoxKind::Fake, crate::domain::make::Choosing::Fake, out);
+        return;
     }
+    start_effects(d, request, out);
+}
+
+pub(crate) fn chosen(
+    d: &mut Domain,
+    request: Token,
+    place: Option<crate::Place>,
+    git_program: Option<Box<[u8]>>,
+    out: &mut Queue<Request>,
+) {
+    let Some(place) = place else {
+        busy(d, out);
+        return;
+    };
+    let bot = Bot {
+        login: Box::from(b"temper".as_slice()),
+        name: Box::from(b"temper".as_slice()),
+        email: Box::from(b"temper@localhost".as_slice()),
+    };
+    let Some(forge) =
+        crate::forges::make(d, Kind::Forgejo, Mode::Fake, place, git_program, false, bot, false, None, out)
+    else {
+        answer_starts(d, StartAnswer::Failed(StartFailure::NotConnected), out);
+        return;
+    };
+    save(d, Playground { state: PlaygroundState::Starting, forge, project: None, account: None }, out);
     start_effects(d, request, out);
 }
 
@@ -317,5 +330,14 @@ pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
             reset(d, out);
         }
         PlaygroundState::Resetting(_) => reset(d, out),
+    }
+}
+
+fn busy(d: &mut Domain, out: &mut Queue<Request>) {
+    d.playground_due = None;
+    for _ in 0..d.playground_pending.len() {
+        let request = *d.playground_pending.first().expect("pending start").0;
+        d.playground_pending.remove(&request);
+        out.push(Request::ApplicationAgain { request, why: jig_domain_people::Again::Busy });
     }
 }

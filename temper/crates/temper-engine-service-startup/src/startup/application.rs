@@ -19,7 +19,6 @@ pub struct Members {
     pub sign_in: Option<sign_in::SignIn>,
     pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
-    pub machine: temper_forge_setup::machine::Machine,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub demo: Option<settings::Demo>,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
@@ -230,7 +229,9 @@ pub fn parse(
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, "application", &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
-    let machine_at = read::required(&mut object, document, b"machine", &path, problems);
+    if object.member(document, b"machine").is_some() {
+        problems.push(path.member(b"machine"), What::Jig(config::What::Fixed));
+    }
     let test_at = object.member(document, b"test");
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
@@ -261,42 +262,9 @@ pub fn parse(
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
-    let machine = match machine_at {
-        Some(at) => {
-            let mut found = config::Problems::empty();
-            let machine = temper_forge_setup::machine::read_config(document, at, directories, &mut found);
-            problems.append(found, &Path::root());
-            machine
-        }
-        None => None,
-    };
     let mut found = config::Problems::empty();
     let test_github = temper_forge_setup::machine::read_test(document, test_at, directories, &mut found);
     problems.append(found, &Path::root());
-    if let Some(machine) = &machine
-        && let Some(owned) = &machine.owned
-        && let Some(client) = &owned.sign_in
-    {
-        let mut found = false;
-        if let Some(provider) = &jig.clients.provider {
-            for configured in &provider.clients {
-                if configured.id == *client {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        read::form(sign_in::visible(client), path.member(b"machine").member(b"owned").member(b"sign_in"), problems);
-        if !found {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
-        }
-        if sign_in.is_some() {
-            problems.push(
-                path.member(b"machine").member(b"owned").member(b"sign_in"),
-                What::Half(crate::startup::EngineWhat::BoxSignIn),
-            );
-        }
-    }
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
@@ -315,7 +283,6 @@ pub fn parse(
         sign_in,
         push,
         webhooks,
-        machine: machine?,
         test_github,
         demo,
         workers: workers.into_boxed(),

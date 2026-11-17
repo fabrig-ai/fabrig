@@ -175,13 +175,7 @@ fn coding_run_agent_document() -> serde_json::Value {
         binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/opt/temper/bin/claude"),
-        ports: temper_init::Ports {
-            clients: port(8367),
-            owned: port(8368),
-            forge: port(8369),
-            llm: port(8370),
-            webhooks: port(8371),
-        },
+        ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
         login: Some(b"coder"),
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };

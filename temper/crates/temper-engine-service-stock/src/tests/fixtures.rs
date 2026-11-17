@@ -60,7 +60,7 @@ pub fn engine() -> settings::Engine {
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -144,10 +144,6 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     };
     jig_protocol_config::pass(&mut jig, defaults).unwrap();
     jig
-}
-
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None }
 }
 
 mod http;

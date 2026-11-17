@@ -554,13 +554,7 @@ fn fixture_root(
             git: b"https://forge.test".as_slice().into(),
             web: None,
         };
-        config.machine = Some(temper_engine_domain_forge::Machine {
-            owned_person: Box::new([]),
-            github_git_program: None,
-            owned: Some(place.clone()),
-            fake: Some(place.clone()),
-            github: place,
-        });
+        config.machine = Some(temper_engine_domain_forge::Machine { github_git_program: None, github: place });
         config.core.connectors = Box::new([fixtures::FORGE]);
         for permission in &mut config.core.seed_projects[0].policy.permissions {
             permission.connector = fixtures::FORGE;

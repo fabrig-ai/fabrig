@@ -2573,7 +2573,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
         scratch.path(),
         steps,
         BOX_DEADLINE,
-        |_| first_repository::playground_read_evidence(&paths[0], scratch.path()),
+        |_| first_repository::playground_read_evidence(&paths[1], scratch.path()),
         llm,
     );
     let stderr = String::from_utf8_lossy(&ended.stderr);

@@ -37,6 +37,6 @@ pub(crate) mod sign_in;
 
 mod sign_in_configuration;
 
-mod provider;
+pub(crate) mod provider;
 
 mod stock;

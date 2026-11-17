@@ -7,7 +7,7 @@
 pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
-"machine":{},
+
 "landing":{"projects":[{"project":1}]},
 "demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}}
 }"#;

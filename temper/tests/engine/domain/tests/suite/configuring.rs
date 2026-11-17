@@ -35,7 +35,7 @@ fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
     world.driver.settle();
 }
 
-fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (engine::Config, engine::Limits) {
+fn project_people_setup(mode: temper_engine_domain_forge::Mode, _login: &[u8]) -> (engine::Config, engine::Limits) {
     use temper_engine_domain_forge as forge;
     let mut config = member_config();
     let other = core::SeedProject {
@@ -53,13 +53,7 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
         git: b"http://forge.example:3847".as_slice().into(),
         web: None,
     };
-    config.machine = Some(forge::Machine {
-        owned_person: login.into(),
-        owned: Some(place.clone()),
-        fake: None,
-        github: place,
-        github_git_program: None,
-    });
+    config.machine = Some(forge::Machine { github: place, github_git_program: None });
     let mut bounds = limits();
     bounds.people.people = 6; // Five people and the deployment service.
     bounds.people.sign_ins = 4; // Owner, member, writer and other project's owner.
@@ -74,6 +68,10 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
 fn project_people_world(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (World, u64) {
     let (config, bounds) = project_people_setup(mode, login);
     let mut world = World::with_limits(config, &bounds);
+    world
+        .driver
+        .send(Event::Forge(Box::new(temper_engine_domain_forge::Event::SetupPerson { forge: 1, login: login.into() })));
+    world.driver.settle();
     let member = world.member();
     sign_in_person(&mut world, 1, b"temper-writer", 13);
     sign_in_person(&mut world, 9, b"elsewhere", 14);

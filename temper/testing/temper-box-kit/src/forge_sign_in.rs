@@ -25,6 +25,19 @@ pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
         "members":[{"address":"sam@example.com","login":"sam"}],
         "forges":[{"forge":1,"client":"forgejo"}]
     });
+    if !directory.join("forge-1/setup").exists() {
+        let address: std::net::SocketAddr = forge.parse().expect("fixture forge socket");
+        super::owned::setup(
+            directory,
+            &super::owned::Names {
+                forgejo: Path::new("/opt/forgejo"),
+                runner: None,
+                port: address.port(),
+                bot: "temper",
+                person: "sam",
+            },
+        );
+    }
     write_private(&directory.join("google.secret"), b"throwaway-google-secret");
     write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
 }

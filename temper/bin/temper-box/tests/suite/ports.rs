@@ -18,8 +18,6 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
             .expect("deployment JSON");
     for pointer in [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ] {

@@ -866,6 +866,7 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }

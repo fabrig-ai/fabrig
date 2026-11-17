@@ -1017,6 +1017,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Setup { .. }
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
+            | Request::ChoosePlace { .. }
             | Request::BoxGroup { .. }
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }

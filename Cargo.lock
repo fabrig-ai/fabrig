@@ -5508,6 +5508,7 @@ name = "temper-box-machine"
 version = "0.0.0"
 dependencies = [
  "jig-boundary",
+ "jig-protocol-config",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
@@ -6545,6 +6546,7 @@ dependencies = [
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
+ "skein-oauth-issuer",
  "skein-push",
  "skein-scratch",
  "skein-shell",
@@ -6955,6 +6957,7 @@ dependencies = [
  "skein-world",
  "temper-fetch-shell",
  "temper-forge-setup",
+ "temper-shell",
 ]
 
 [[package]]

@@ -23,8 +23,6 @@ fn fixture() -> (Value, Value, Paths, Peers) {
             login: Some(b"person"),
             ports: temper_init::Ports {
                 clients: port(8367).expect("port"),
-                owned: port(8368).expect("port"),
-                forge: port(8369).expect("port"),
                 llm: port(8370).expect("port"),
                 webhooks: port(8371).expect("port"),
             },
@@ -135,7 +133,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     assert_eq!(forge["transport"], "plaintext");
     let document = crate::read::document(&docs.temper).expect("effective document");
     let app = super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
-    assert!(effective["application"]["machine"].get("github").is_none());
+    assert!(effective["application"].get("machine").is_none());
     let at = super::member(&document, app, b"test", &jig_protocol_config::Path::root()).expect("test");
     let mut problems = jig_protocol_config::Problems::empty();
     let github = temper_forge_setup::machine::read_test(
@@ -498,9 +496,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
         let effective_agent = json(&docs.agent);
         assert!(effective["application"].get("forges").is_none());
         assert!(effective["application"].get("setup").is_none());
-        for kind in ["owned", "fake"] {
-            assert_eq!(effective["application"]["machine"][kind], temper["application"]["machine"][kind]);
-        }
+        assert!(effective["application"].get("machine").is_none());
         assert_eq!(
             effective_agent["programs"]["claude_code"],
             json!({"path":"/fixture/fake-claude","directory":"/effective/data/programs"})

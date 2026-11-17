@@ -79,7 +79,7 @@ pub fn engine() -> settings::Engine {
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: machine(),
+        setups: Box::new([]),
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -466,10 +466,6 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     runtime
 }
 
-pub fn machine() -> temper_forge_setup::machine::Machine {
-    temper_forge_setup::machine::Machine { owned: None, fake: None }
-}
-
 #[expect(clippy::disallowed_macros, reason = "the fixture renders its project name")]
 fn project_name(number: u32) -> Box<str> {
     alloc::format!("Project {number}").into_boxed_str()
@@ -779,16 +775,19 @@ fn start_configured_worker(
         runtime.push(second).unwrap();
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
-        settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
+        settings.setups = Box::new([(
+            1,
+            temper_forge_setup::setup_file::SetupFile::Owned(temper_forge_setup::machine::OwnedMachine {
+                sign_in: None,
+                listen: owned.listen,
+                remote: b"http://127.0.0.1:9".as_slice().into(),
+                person: owned.person,
+                public: owned.public,
+                fetch: owned.fetch,
+                forgejo: owned.forgejo,
+                runner: owned.runner,
+            }),
+        )]);
     }
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
