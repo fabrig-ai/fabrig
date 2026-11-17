@@ -68,7 +68,7 @@ pub enum Directory {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct File {
     pub directory: Directory,
-    /// Relative to its directory: `worker.secret`, `agent.json`.
+    /// Relative to its directory: `worker.secret`, `temper.json`.
     pub name: &'static [u8],
     pub content: Content,
 }
@@ -120,14 +120,14 @@ pub enum Reason {
     Relative,
     /// It is not UTF-8, which JSON's text cannot hold.
     Text,
-    /// It, or a path joined from it (`<config>/agent.json`,
-    /// `<data>/programs`), passes 4096 bytes.
+    /// It, or a path joined from it (`<config>/temper.json`,
+    /// `<data>/worker.digest`), passes 4096 bytes.
     Bound,
 }
 
 /// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
 /// `worker.digest`, `demo/llm.key` (data, private), `demo/bin/git`
-/// (data, a link), `agent.json`, `temper.json` (config), the
+/// (data, a link), `temper.json` (config), the
 /// document last.
 pub fn files(
     facts: &Facts<'_>,
@@ -140,7 +140,7 @@ pub fn files(
     let digits = hex::digits(secret);
     let digest = hex::digits(&sha256::digest(&digits));
     let (login, person) = person::login(facts.login);
-    let (document, agent) = template::documents(facts, directories, login);
+    let document = template::documents(facts, directories, login);
     Ok(Answer {
         person,
         files: Box::new([
@@ -166,11 +166,6 @@ pub fn files(
             },
             File {
                 directory: Directory::Config,
-                name: b"agent.json",
-                content: Content::Bytes { bytes: agent, private: false },
-            },
-            File {
-                directory: Directory::Config,
                 name: b"temper.json",
                 content: Content::Bytes { bytes: document, private: false },
             },
@@ -178,12 +173,12 @@ pub fn files(
     })
 }
 
-/// `worker.secret`, `worker.digest`, `agent.json`, `temper.json`, in that order.
+/// `worker.secret`, `worker.digest`, `temper.json`, in that order.
 pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
     let digits = hex::digits(secret);
     let digest = hex::digits(&sha256::digest(&digits));
-    let (document, agent) = template::bare_documents(facts, directories);
+    let document = template::bare_documents(facts, directories);
     Ok(Box::new([
         File {
             directory: Directory::Data,
@@ -194,11 +189,6 @@ pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) 
             directory: Directory::Data,
             name: b"worker.digest",
             content: Content::Bytes { bytes: line(&digest), private: true },
-        },
-        File {
-            directory: Directory::Config,
-            name: b"agent.json",
-            content: Content::Bytes { bytes: agent, private: false },
         },
         File {
             directory: Directory::Config,
@@ -221,8 +211,8 @@ fn check(
     if let Some(claude) = claude {
         path::check(Fact::Claude, claude, b"")?;
     }
-    path::check(Fact::Config, directories.config, b"agent.json")?;
-    path::check(Fact::Data, directories.data, b"programs")?;
+    path::check(Fact::Config, directories.config, b"temper.json")?;
+    path::check(Fact::Data, directories.data, b"worker.digest")?;
 
     Ok(())
 }

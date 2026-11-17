@@ -51,18 +51,10 @@ pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) ->
     (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
 }
 
-fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 5] {
-    let agent = path::join(directories.config, b"agent.json");
-    let programs = path::join(directories.data, b"programs");
+fn common_values(facts: &Bare<'_>, _directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 2] {
     let clients = listener(facts.clients);
     let webhooks = listener(facts.webhooks);
-    [
-        (b"binary", json(Value::Text(Some(facts.binary)))),
-        (b"agent", json(Value::Text(Some(&agent)))),
-        (b"listener", json(Value::Text(Some(&clients)))),
-        (b"webhooks", json(Value::Text(Some(&webhooks)))),
-        (b"programs", json(Value::Programs { claude: facts.claude, directory: &programs })),
-    ]
+    [(b"listener", json(Value::Text(Some(&clients)))), (b"webhooks", json(Value::Text(Some(&webhooks))))]
 }
 
 fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
@@ -77,7 +69,6 @@ fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
 enum Value<'a> {
     Text(Option<&'a [u8]>),
     Provider,
-    Programs { claude: Option<&'a [u8]>, directory: &'a [u8] },
 }
 
 fn encode(json: &mut Encoder, value: Value<'_>) {
@@ -97,17 +88,7 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
             json.array_end();
             json.object_end();
         }
-        Value::Programs { claude, directory } => {
-            json.object_start();
-            json.key(b"claude_code");
-            json.object_start();
-            json.key(b"path");
-            json.string(claude.unwrap_or(crate::FETCHED));
-            json.key(b"directory");
-            json.string(directory);
-            json.object_end();
-            json.object_end();
-        }
+
     }
 }
 

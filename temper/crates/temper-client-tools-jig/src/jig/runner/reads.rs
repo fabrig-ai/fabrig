@@ -763,7 +763,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
         None => super::super::settings_file::selector(call),
     };
     if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }) {
+        if let Some(revision) = crate::jig::settings_file::revision(call) {
             super::application::historical(
                 runner,
                 reading,

@@ -34,6 +34,11 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let asked = typed_items(domain, proposal, &items);
             let holders = super::findings::settings_holders(domain, &asked);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            for item in &asked {
+                if item.kind == 21 {
+                    worker_figures(domain, env, decision, u32::try_from(revision).expect("settings revision is u32"));
+                }
+            }
             super::findings::settings_saved(domain, env, decision, holders.as_slice());
             for item in &asked {
                 if item.kind == 14 || item.kind == 15 {
@@ -67,6 +72,29 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     if !out.is_empty() {
         domain.work.push(Work::ForgeSettings(out));
     }
+}
+
+/// Give the current setting whole, with its durable revision.
+pub(super) fn worker_figures(domain: &Domain, env: &Env<Limits>, decision: &mut Decision, revision: u32) {
+    if domain.forge.setting(21, 0, 1).is_some() {
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::WorkerFigures { agents: Box::new(domain.forge.agent_figures().clone()), revision },
+        );
+    }
+}
+
+pub(super) fn restored_figures(domain: &Domain, env: &Env<Limits>, decision: &mut Decision) {
+    let setting = jig_domain_core::settings::Setting::Application { kind: 21, scope: 0, number: 1 };
+    let revision = match domain.core.current.applications.get(&setting) {
+        Some(state) => match state.follows {
+            application::Follows::Default => 1,
+            application::Follows::Changed { revision } | application::Follows::Removed { revision } => revision,
+        },
+        None => 1,
+    };
+    worker_figures(domain, env, decision, revision);
 }
 
 fn restore(
@@ -158,6 +186,7 @@ fn judge(
             why: match item.kind {
                 14 => b"areas: value does not decode".as_slice().into(),
                 15 => b"triager: value does not decode".as_slice().into(),
+                21 => b"agents: value does not decode".as_slice().into(),
                 _ => settings::Refusal::Value.words(),
             },
         };
@@ -203,6 +232,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
         | settings::Value::Landing(_)
         | settings::Value::Gates(_)
         | settings::Value::Welcome(_)
@@ -267,6 +297,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::AgentFigures(_)
         | settings::Value::Landing(_)
         | settings::Value::Gates(_)
         | settings::Value::Welcome(_)
@@ -735,8 +766,9 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Dependency(_)
-        | settings::Value::Welcome(_)
-        | settings::Value::Follow(_) => None,
+        | settings::Value::Follow(_)
+        | settings::Value::AgentFigures(_)
+        | settings::Value::Welcome(_) => None,
     }
 }
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {

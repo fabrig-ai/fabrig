@@ -855,3 +855,22 @@ fn client_queue_and_sign_in_exchange_overrides_are_checked() {
     assert_eq!(limits.clients.queued_bytes, 128);
     assert_eq!(limits.clients.exchanges_per_client, 1);
 }
+
+#[test]
+fn named_limits_round_trip_between_both_profiles() {
+    for (from, to) in [(jig_protocol_config_fixtures::small(), crate::stock()), (crate::stock(), jig_protocol_config_fixtures::small())] {
+        let wanted = from;
+        let mut got = to;
+        let values = overrides::list(&wanted);
+        assert_eq!(values.len(), u32::try_from(crate::names::NAMES.len()).unwrap());
+        for (index, (name, value)) in values.iter().enumerate() {
+            for (prior, _) in values.iter().take(index) {
+                assert_ne!(prior, name, "once: {name}");
+            }
+            overrides::apply(&mut got, name.as_bytes(), *value).unwrap();
+        }
+        for name in &crate::names::NAMES {
+            assert_eq!((name.value)(&got), (name.value)(&wanted), "{}", name.name);
+        }
+    }
+}

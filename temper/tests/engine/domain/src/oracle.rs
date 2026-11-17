@@ -302,6 +302,7 @@ impl Driver {
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
+            | Delivery::WorkerFigures { .. }
             | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }

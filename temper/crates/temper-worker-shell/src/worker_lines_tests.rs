@@ -145,6 +145,10 @@ fn worker_aborted_words_and_exit_keep_their_behavior() {
 #[test]
 fn worker_link_notes_print_each_address_and_refusal_exactly() {
     use temper_worker_service::{Refusal, worker_alone::Note};
+    assert_eq!(
+        worker_note_words("temper-worker", Note::FiguresChanged),
+        "the engine's figures changed; they apply at this worker's next start\n"
+    );
     for (address, printed) in
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {

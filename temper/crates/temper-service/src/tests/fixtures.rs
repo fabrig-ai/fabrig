@@ -522,7 +522,8 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     reason = "ordinary fixture code renders the shipped agent profile"
 )]
 pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
         .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
@@ -837,7 +838,7 @@ fn start_configured_worker(
     settings.jig.projects = configured.into_boxed();
     fill_files(&mut settings);
     if worker.is_some() {
-        settings.jig.limits.hub = worker_settings().jig.limits.hub;
+        settings.jig.limits.hub = worker_settings().jig.limits.expect("checked worker limits").hub;
         settings.limits.checkout = worker_limits().checkout;
         settings.files.entries.get_mut(0).unwrap().1 =
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
@@ -848,7 +849,8 @@ fn start_configured_worker(
         Some(store) => store,
         None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
     };
-    let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
+    let worker_io =
+        if worker.is_some() { Some(worker_settings().jig.limits.expect("checked worker limits").io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
     let endpoints = crate::forge::settings(
         &sources,

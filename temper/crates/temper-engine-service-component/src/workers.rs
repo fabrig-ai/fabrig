@@ -29,8 +29,18 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
+    figures: temper_engine_service_vocabulary::figures::Composer,
     worker_names: List<Box<[u8]>>,
+    copy: Option<AgentsCopy>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
+}
+/// The box's shell keeps this copy after restore and each committed change.
+#[derive(Debug)]
+struct AgentsCopy {
+    path: Box<[u8]>,
+    initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
+    restored: bool,
+    writes: Queue<Box<[u8]>>,
 }
 impl Workers {
     pub fn new(
@@ -38,7 +48,7 @@ impl Workers {
         files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
-        forge_limit: u32,
+        own: &crate::limits::Limits,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
@@ -47,7 +57,7 @@ impl Workers {
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
         let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
-        let mut table = crate::forges::Forges::with_capacity(forge_limit);
+        let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
@@ -58,14 +68,53 @@ impl Workers {
         let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
         Ok(Self {
             host,
+            figures: temper_engine_service_vocabulary::figures::Composer::new(config, own),
             encoding,
             forges: table,
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
             worker_names,
+            copy: None,
             opening_ends: Map::with_capacity(opening_names),
         })
+    }
+    pub(crate) fn keep_agents(
+        &mut self,
+        path: Box<[u8]>,
+        initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
+    ) {
+        self.copy = Some(AgentsCopy { path, initial, restored: false, writes: Queue::uncapped() });
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub(crate) fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        let copy = self.copy.as_mut()?;
+        Some((copy.path.clone(), copy.writes.pop()?))
+    }
+    /// Give restored or changed agents figures to every worker (protocol/configuration/figures.md, 2).
+    pub(crate) fn figures(
+        &mut self,
+        now: Time,
+        agents: &temper_client_protocol_wire::v1::AgentFigures,
+        revision: u32,
+        events: &mut Queue<root::Event>,
+    ) {
+        if let Some(copy) = &mut self.copy {
+            if copy.restored || copy.initial.as_ref() != Some(agents) {
+                let mut writer = skein_lib::Writer::new(skein_lib::usize_of(agents.measure()));
+                agents.encode(&mut writer).expect("measured agents value");
+                copy.writes.push(writer.finish());
+            }
+            copy.initial = None;
+            copy.restored = true;
+        }
+        let figures = self.figures.compose(agents);
+        self.notes.push(crate::Note::WorkerFigures {
+            limits: figures.limits().len(),
+            endpoints: figures.agents().endpoints().len(),
+            revision,
+        });
+        self.down(now, kit::Event::Figures { figures }, events);
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
         self.host.down(now, event);
@@ -176,6 +225,9 @@ impl Workers {
                     statement: statement_to_root(statement),
                 }));
             }
+            kit::host::Output::FiguresTaken { worker } => {
+                self.notes.push(crate::Note::WorkerFiguresTaken { worker });
+            }
             kit::host::Output::Refused { worker, reason, text } => {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }
@@ -221,6 +273,7 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Figures
                         | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
@@ -501,7 +554,7 @@ impl Workers {
                 ),
             },
             Box::new([]),
-            settings.limits.forge.forges,
+            &settings.limits,
             &worker_limits,
         )?;
         Ok(workers)

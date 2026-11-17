@@ -17,7 +17,7 @@ pub mod turn_bounds {
 // Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client/default-http.md, 5).
 const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]
-pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
+pub fn documents(directory: &Path, _program: &str) -> (Vec<u8>, Vec<u8>) {
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -57,13 +57,14 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = program.into();
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    value["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();

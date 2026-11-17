@@ -154,9 +154,11 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     for (name, count) in [
         ("core.load_slots", 8),
@@ -388,7 +390,7 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 /// Apply the repository composition's policies and worker settings.
 pub fn configure(value: &mut serde_json::Value) {
     value["workers"][0]["slots"] = AGENTS.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
+    value["engine"]["limits"]["overrides"]["hub.slots"] = AGENTS.into();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
         .map(|kind| {

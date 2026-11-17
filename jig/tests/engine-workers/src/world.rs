@@ -75,7 +75,9 @@ impl World {
     fn route(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
-                Request::Opened { .. } | Request::Refused { .. } => self.openings.push(request),
+                Request::FiguresTaken { .. } | Request::Opened { .. } | Request::Refused { .. } => {
+                    self.openings.push(request);
+                }
                 Request::Ended { .. } => self.ended.push(request),
                 Request::Take { connection } => self.net(connection).taken = true,
                 Request::TurnAway { connection } => self.net(connection).gone = true,

@@ -112,11 +112,8 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             value["workers"][0]["slots"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.slots"] = 2.into();
-            for limits in ["engine", "workers"] {
-                let target = if limits == "engine" { &mut value["engine"] } else { &mut value["workers"][0] };
-                target["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
-            }
+            value["engine"]["limits"]["overrides"]["hub.slots"] = 2.into();
+            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
             // The shared prepare carriers, rather than the small chat profile.
             let prepare = temper_service::limits::prepare_bound();
             for (name, bytes) in [
@@ -127,9 +124,7 @@ fn fixture() -> forge::Fixture {
                 value["engine"]["limits"]["overrides"][name] = bytes.into();
             }
             value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-            value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = (prepare.result + 2).into();
-            value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+            value["engine"]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
             value["application"]["limits"]["overrides"]["checkout.message_bytes"] = (prepare.result + 2).into();
             value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
             agent["profile"]["declared"]["tool_payload"] = (prepare.result + 2).into();

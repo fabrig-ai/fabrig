@@ -89,13 +89,12 @@ pub(super) fn model(config: &Path, scripts: Box<[Script]>) -> CtlLlm {
         on_link: Box::new(move || {
             // The box starts on empty directories. Only its generated agent's
             // endpoint moves, before any run: the template and demo stay shipped.
-            let path = config.join("agent.json");
-            let mut agent: Value = serde_json::from_slice(&fs::read(&path).expect("initialized agent")).expect("JSON");
+            let mut agent = temper_fixtures::agent::read(&config);
             agent["endpoints"][0]["address"] = address.to_string().into();
             agent["endpoints"][0]["server_name"] = "skein.test".into();
             agent["endpoints"][0]["trust_der"] = json!(config.join("root.der"));
             write_private(&config.join("root.der"), skein_tls_kit::pki::ROOT);
-            write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
+            temper_fixtures::agent::install(&config, &agent);
         }),
     }
 }

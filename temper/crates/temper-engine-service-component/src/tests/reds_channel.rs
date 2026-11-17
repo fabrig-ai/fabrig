@@ -68,6 +68,7 @@ impl Channel {
             &worker_limits,
             jig_protocol_worker_wire::spoken(),
             worker::Credential {
+                opening: jig_protocol_worker_wire::Opening::Link,
                 name: b"reader".as_slice().into(),
                 secret: Secret::new(secret.into()),
                 application: payload::application(&v1::CEILINGS).unwrap(),
@@ -138,6 +139,7 @@ impl Channel {
                     | engine::Request::Abort { .. }
                     | engine::Request::Lost { .. }
                     | engine::Request::Ended { .. }
+                    | engine::Request::FiguresTaken { .. }
                     | engine::Request::Told { .. }
                     | engine::Request::Closed) => panic!("engine channel: {other:?}"),
                 }
@@ -186,6 +188,7 @@ impl Channel {
                     | worker::Request::Value { .. }
                     | worker::Request::Close { .. }
                     | worker::Request::Abort { .. }
+                    | worker::Request::Figures { .. }
                     | worker::Request::Fact { .. }) => panic!("worker channel: {other:?}"),
                 }
             }

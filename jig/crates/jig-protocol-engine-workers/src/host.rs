@@ -26,14 +26,48 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    Told { worker: Box<[u8]>, version: u16, wait: Option<Duration> },
-    Opened { worker: Box<[u8]>, wires: List<Agreed>, statement: crate::Statement },
-    Refused { worker: Option<Box<[u8]>>, reason: u16, text: Box<[u8]> },
-    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
-    Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
-    Lost { channel: Token },
-    Unsent { worker: Box<[u8]>, channel: Token, unsent: crate::Unsent },
-    Ended { worker: Option<Box<[u8]>>, channel: Option<Token>, why: Loss },
+    Told {
+        worker: Box<[u8]>,
+        version: u16,
+        wait: Option<Duration>,
+    },
+    /// The engine logs `worker NAME took its figures` (protocol/channel/figures.md, 3).
+    FiguresTaken {
+        worker: Box<[u8]>,
+    },
+    Opened {
+        worker: Box<[u8]>,
+        wires: List<Agreed>,
+        statement: crate::Statement,
+    },
+    Refused {
+        worker: Option<Box<[u8]>>,
+        reason: u16,
+        text: Box<[u8]>,
+    },
+    Hello {
+        channel: Token,
+        worker: u32,
+        hello: jig_domain_link::Hello,
+    },
+    Up {
+        channel: Token,
+        up: hub::LinkUp,
+        parts: Box<[Part]>,
+    },
+    Lost {
+        channel: Token,
+    },
+    Unsent {
+        worker: Box<[u8]>,
+        channel: Token,
+        unsent: crate::Unsent,
+    },
+    Ended {
+        worker: Option<Box<[u8]>>,
+        channel: Option<Token>,
+        why: Loss,
+    },
 }
 
 /// What became of an event `up` was given.
@@ -279,6 +313,11 @@ impl Workers {
                     None => None,
                 };
                 return Some(Output::Refused { worker, reason, text });
+            }
+            Request::FiguresTaken { worker } => {
+                let worker =
+                    self.component.workers.get(skein_lib::usize_of(worker)).expect("configured worker").name.clone();
+                return Some(Output::FiguresTaken { worker });
             }
             Request::Hello { channel, worker, hello } => return Some(Output::Hello { channel, worker, hello }),
             Request::Up { channel, up, parts } => return Some(Output::Up { channel, up, parts }),

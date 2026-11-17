@@ -3304,7 +3304,7 @@ fn successful_compare_over_host_bound_keeps_measured_feedback() {
         "read_forge what=file",
         "max_bytes",
         "core.call_answer_bytes",
-        "agent.json",
+        "agents setting",
     ] {
         assert!(skein_lib::bytes::find(rendered.text(), phrase.as_bytes()).is_some(), "missing {phrase}");
     }

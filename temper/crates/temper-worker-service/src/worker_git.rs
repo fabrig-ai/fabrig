@@ -35,8 +35,8 @@ impl Git {
                 root,
                 prefix: crate::tokens::git(0).ok_or(problem(b"git", What::Bound))?,
                 serial: seed,
-                largest_read: worker.jig.limits.io.intake,
-                largest_room: worker.jig.limits.io.output,
+                largest_read: worker.jig.limits.as_ref().expect("checked worker limits").io.intake,
+                largest_room: worker.jig.limits.as_ref().expect("checked worker limits").io.output,
             },
         ) {
             Ok(component) => component,

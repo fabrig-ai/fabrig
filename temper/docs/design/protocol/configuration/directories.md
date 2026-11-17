@@ -6,7 +6,7 @@ variable, else its default.
 
 | Directory | Flag, variable | Default | Holds | Kept |
 |---|---|---|---|---|
-| configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`; smith's agent configuration, `agent.json`; the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
+| configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`, with no `agent.json` beside it, which a start refuses (`figures.md`, section 7); the charters' instructions, until `settings.md` moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
 | data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (../setup/README.md, section 3); the scripted model's key and the fake git's link, in `demo/` (../setup/playground.md); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (../setup/box.md, 1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (../setup/box.md, 2); the programs directory | the deployment: backed up whole |
 | cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper-box forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (../setup/owned.md, 6) | never backed up |
 
@@ -202,7 +202,7 @@ is absent, it retains the named profile's capacity, raised to at least 3,
 alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
-Reuse requires agent.json/programs/claude_code/path to equal that sibling.
+Reuse requires application.workers[0].claude to equal that sibling.
 A different retained path refuses with that member named and explicit reset
 instructions; no credential or login state is imported. A correct path with
 a missing or nonexecutable sidecar instead refuses with the executable path
@@ -211,7 +211,7 @@ asking for a reset. Startup builds or fetches nothing. A walk that needs a
 fake program story provisions it outside startup, then uses ordinary
 program-login; the product links no fake-adapter story machinery.
 
-The required retained documents are temper.json, agent.json, github.json,
+The required retained documents are temper.json, github.json,
 oauth.json, llm.json and forgejo.json. One validation path checks every
 required file before any child starts. A missing required file refuses by
 name with reset instructions, without generating a replacement on reuse.

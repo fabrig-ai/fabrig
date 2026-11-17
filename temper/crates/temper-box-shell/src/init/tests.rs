@@ -178,14 +178,13 @@ fn check_deployment(
     check_files(dirs, binary, written, row);
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
+    let agent = temper_fixtures::agent::configuration(&document);
     assert!(document["application"]["clients"]["bundle"].is_null());
     assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
     assert!(document["application"]["clients"]["public"].is_null());
     assert_eq!(
         agent["programs"]["claude_code"]["path"],
-        if claude { serde_json::json!(binary.parent().unwrap().join("claude")) } else { serde_json::json!("fetched") }
+        serde_json::json!("fetched")
     );
     assert_eq!(written.missing_git, !git);
     assert!(document["application"].get("workers").is_none());
@@ -194,11 +193,11 @@ fn check_deployment(
     ports
 }
 
-fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, written: &Written, row: &str) -> [u16; 3] {
+fn check_listeners(document: &serde_json::Value, _agent: &serde_json::Value, written: &Written, row: &str) -> [u16; 3] {
     let application = &document["application"];
     let addresses = [
         &application["clients"]["listener"]["socket"],
-        &agent["endpoints"][3]["address"],
+        &document["engine"]["llm"]["endpoints"][3]["address"]["socket"],
         &application["webhooks"]["listener"]["socket"],
     ]
     .map(|value| value.as_str().expect("address").parse::<std::net::SocketAddr>().expect("socket"));
@@ -247,7 +246,6 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
         ("worker.digest", true, Some(0o600)),
         ("demo/llm.key", true, Some(0o600)),
         ("demo/bin/git", true, None),
-        ("agent.json", false, Some(0o644)),
         ("temper.json", false, Some(0o644)),
     ];
     let expected: Vec<_> =
@@ -370,9 +368,10 @@ fn explicit_program_fact_precedes_path_discovery() {
     let binary = root.join("temper");
     let adapter = root.join("fake-claude");
     let written = write_with_program(&dirs, &env, &binary, [0; 3], Some(&adapter)).expect("injected init fact");
-    let agent: serde_json::Value =
-        serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
-    assert_eq!(agent["programs"]["claude_code"]["path"], adapter.to_str().expect("path"));
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
+    assert!(!document["application"].as_object().unwrap().contains_key("workers"));
+    assert!(!path(&dirs.config).join("agent.json").exists());
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("fixture cleanup");
 }
@@ -395,12 +394,7 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         assert!(written.login.is_none());
         assert_eq!(
             written.paths,
-            [
-                path(&dirs.data).join("worker.secret"),
-                path(&dirs.data).join("worker.digest"),
-                path(&dirs.config).join("agent.json"),
-                dirs.document()
-            ]
+            [path(&dirs.data).join("worker.secret"), path(&dirs.data).join("worker.digest"), dirs.document()]
         );
         let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
         assert!(document["application"].get("welcome").is_none());
@@ -417,8 +411,7 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         for (_, port) in &written.listeners {
             assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "bare listener held");
         }
-        let agent: serde_json::Value =
-            serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
+        let agent = temper_fixtures::agent::configuration(&document);
         assert_eq!(
             agent["programs"]["claude_code"]["path"],
             if claude { serde_json::json!(root.join("bin/claude")) } else { serde_json::json!("fetched") }

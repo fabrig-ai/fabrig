@@ -90,7 +90,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         {
             return Err(Problem::Range(b"project"));
         }
-        if kind.as_ref() == b"rules" || kind.as_ref() == b"welcome" || by_project.is_some() {
+        if kind.as_ref() == b"rules" || kind.as_ref() == b"welcome" || kind.as_ref() == b"agents" || by_project.is_some() {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }

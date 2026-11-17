@@ -512,7 +512,9 @@ fn host_agent<R: Referee<Proc>>(
     agent: agent::Factory,
 ) {
     use std::os::unix::ffi::OsStrExt;
-    let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
+    let agent_path =
+        if path.join("agent.json").exists() { path.join("agent.json") } else { path.join("world-agent.json") };
+    let configuration = smith_agent_shell::config::read(&agent_path).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
         world.host_startup(
             crate::claude::program(program.path.as_os_str().as_bytes()),
@@ -829,11 +831,18 @@ impl Judge {
             return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
+        // Open initial links in the fixture's order, independently of fetch timing.
+        let mut preceding_linked = true;
         for proc in workers.iter_mut() {
             let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
             worker.address = peer.address();
-            if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
-                *engine = service.workers_address;
+            let opened = worker.started_at().is_some();
+            let linked = worker.linked() > 0;
+            if let Some(crate::cluster::Shape::Worker { engine, started, .. }) = &mut worker.cluster {
+                if opened || preceding_linked {
+                    *engine = service.workers_address;
+                }
+                preceding_linked &= !*started || linked;
             }
         }
         if caller.stopping_engine() {

@@ -1,4 +1,4 @@
-//! Ordered authentication, wires and capacity checks (protocol/channel/wires.md, 3).
+//! Ordered authentication, wires and link-only room and capacity checks (protocol/channel/README.md, 4.1).
 use crate::{Component, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Agreed, Credential, Reason};
@@ -31,15 +31,22 @@ impl Component {
             Ok(wires) => wires,
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },
         };
+        if *credential.opening() == jig_protocol_worker_wire::Opening::Figures {
+            return if self.figures.is_some() {
+                Verdict::Accept { worker, wires, statement }
+            } else {
+                Verdict::Refuse { worker: Some(worker), reason: Reason::Starting, text: Box::new([]) }
+            };
+        }
         if let Err(text) = crate::statement::output(self.limits.room, statement.output) {
             return Verdict::OutputRoom { worker, output: statement.output, text };
         }
         let mut open = 0_u32;
         for (token, connection) in &self.connections {
-            if connection.worker == Some(worker) {
+            if connection.worker == Some(worker) && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 return Verdict::Replace { worker, older: *token, wires, statement };
             }
-            if connection.worker.is_some() {
+            if connection.worker.is_some() && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 open = open.saturating_add(1);
             }
         }

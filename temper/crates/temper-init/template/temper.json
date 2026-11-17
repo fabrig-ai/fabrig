@@ -30,8 +30,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -46,8 +56,17 @@
               "keys": "https://auth.openai.com/.well-known/jwks.json",
               "transport": "tls",
               "server_name": "auth.openai.com",
-              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-              "must_grant": ["chatgpt.tokens.use.direct"],
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
               "resource": "https://api.openai.com/v1",
               "redirect_path": "auth/callback",
               "redirect_port": 1455
@@ -59,8 +78,12 @@
           "number": 2,
           "endpoint": "anthropic",
           "direct": "anthropic-api",
-          "keep": ["claude-*"],
-          "drop": ["*-20??????"],
+          "keep": [
+            "claude-*"
+          ],
+          "drop": [
+            "*-20??????"
+          ],
           "signed_in_plan": false,
           "manage_usage": "https://claude.ai/settings/usage",
           "sources": {
@@ -75,7 +98,9 @@
           "number": 3,
           "endpoint": "demo",
           "signed_in_plan": false,
-          "sources": {"keys": true}
+          "sources": {
+            "keys": true
+          }
         }
       ],
       "endpoints": [
@@ -171,28 +196,7 @@
       },
       "name": "worker",
       "secret": "worker.secret",
-      "slots": 4,
-      "agent": {
-        "program": "$binary",
-        "configuration": "$agent",
-        "arguments": [
-          "internal",
-          "agent",
-          "$agent"
-        ]
-      },
-      "limits": {
-        "profile": "standard",
-        "overrides": {
-          "hub.accounts": 4,
-          "hub.event_bytes": 10660,
-          "hub.run_calls": 48,
-          "hub.transcript_bytes": 67215250,
-          "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480,
-          "io.output": 16804602
-        }
-      }
+      "slots": 4
     }
   ],
   "application": {
@@ -223,7 +227,7 @@
               {
                 "lines": [
                   {
-                    "text": "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."
+                    "text": "I\u2019ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."
                   },
                   {
                     "call": "delegate",
@@ -355,7 +359,7 @@
               {
                 "lines": [
                   {
-                    "text": "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change."
+                    "text": "CSV export is available from widget\u2019s table. The change landed on Playground forge. This was a scripted change."
                   },
                   {
                     "call": "wait",
@@ -453,7 +457,16 @@
             "turns": [
               {
                 "lines": [
-                  {"call": "finish", "arguments": {"form": "verdict", "label": "1", "text": "Checked widget CSV export.", "fields": {}, "items": []}}
+                  {
+                    "call": "finish",
+                    "arguments": {
+                      "form": "verdict",
+                      "label": "1",
+                      "text": "Checked widget CSV export.",
+                      "fields": {},
+                      "items": []
+                    }
+                  }
                 ],
                 "finish": "tool_calls",
                 "tokens": 24
@@ -531,7 +544,7 @@
           {
             "lines": [
               {
-                "text": "I am the scripted model, the playground’s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key."
+                "text": "I am the scripted model, the playground\u2019s: I answer only the suggested requests, from a script. To ask for other work, connect a model from Accounts: a ChatGPT plan, a Claude subscription or an API key."
               }
             ],
             "finish": "stop",

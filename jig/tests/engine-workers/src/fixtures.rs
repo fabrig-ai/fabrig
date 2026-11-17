@@ -131,6 +131,7 @@ fn credential_with_output(name: &[u8], secret: &[u8], version: u32, output: u32)
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
         jig_protocol_worker_wire::CredentialParts {
+            opening: jig_protocol_worker_wire::Opening::Link,
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
             wires: statement(version),
@@ -404,7 +405,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     .expect("account refused")
 }
 
-fn codec() -> jig_protocol_worker_wire::v15::Limits {
+fn codec() -> jig_protocol_worker_wire::v16::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

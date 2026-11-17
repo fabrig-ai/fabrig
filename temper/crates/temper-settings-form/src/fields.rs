@@ -93,6 +93,10 @@ pub enum Shape {
     Welcome,
     Area,
     AreaOwner,
+    Agents,
+    AgentProfile,
+    AgentEndpoints,
+    AgentLimits,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -335,6 +339,7 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"tier-check" => Some(Shape::TierCheckSettings),
         b"project-areas" => Some(Shape::ProjectAreas),
         b"project-triager" => Some(Shape::ProjectTriager),
+        b"agents" => Some(Shape::Agents),
         b"welcome" => Some(Shape::Welcome),
         b"template-goal" => Some(Shape::TemplateGoal),
         b"follow" => Some(Shape::Follow),

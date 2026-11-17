@@ -39,8 +39,9 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v15::Limits,
+    pub(crate) codec: wire::v16::Limits,
     pub(crate) connections: Map<Token, Connection>,
+    pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
     full_schema: skein_channel::Schema,
     next_channel: u64,
@@ -104,6 +105,7 @@ impl Component {
         Ok(Self {
             limits: *limits,
             workers,
+            figures: None,
             wires,
             codec,
             connections,
@@ -125,6 +127,7 @@ impl Component {
 
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
+            Event::Figures { figures } => self.give_figures(now, figures, out),
             Event::Accepted { connection } => self.accepted(now, connection, out),
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
@@ -402,6 +405,59 @@ impl Component {
         }
         self.keep(connection, state);
     }
+    /// Whole owner input and each post-Agreed channel (protocol/channel/figures.md, 3).
+    fn give_figures(&mut self, now: Time, figures: wire::Figures, out: &mut Queue<Request>) {
+        self.figures = Some(figures);
+        let mut channels = List::uncapped();
+        for (token, state) in &self.connections {
+            if state.phase == Phase::Hello || state.phase == Phase::Open {
+                channels.push(*token).expect("uncapped channels");
+            }
+        }
+        for connection in &channels {
+            let mut state = self.connections.remove(connection).expect("post-Agreed channel");
+            self.send_figures(now, *connection, &mut state, out);
+            self.progress(now, *connection, &mut state, out);
+            self.keep(*connection, state);
+        }
+    }
+    fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
+        let Some(figures) = &self.figures else { return true };
+        let mut parts = figures.clone().into_parts();
+        parts.places = self.limits.sizes.slots;
+        let figures = wire::Figures::new(&wire::CEILINGS, parts).expect("only places changed");
+        let mut body = skein_lib::Writer::new(skein_lib::usize_of(figures.measure()));
+        figures.encode(&mut body).expect("measured figures");
+        let mut frame =
+            skein_channel::frame_writer(wire::Kind::Figures.number(), figures.measure()).expect("bounded figures");
+        frame.put(&body.finish()).expect("measured figures");
+        let frame = frame.finish().expect("measured figures");
+        if frame.wire_len() > self.limits.room {
+            let sending = Sending { kind: wire::Kind::Figures, bytes: frame.wire_len(), reply: Reply::Drop };
+            self.unsent(now, state, sending, Bound::Room(self.limits.room), out);
+            self.loss(now, connection, state, Loss::Full, out);
+            return false;
+        }
+        self.send_opening(now, connection, state, wire::Kind::Figures, frame, out);
+        state.phase != Phase::Closing
+    }
+    fn send_opening(
+        &mut self,
+        now: Time,
+        connection: Token,
+        state: &mut Connection,
+        kind: wire::Kind,
+        frame: skein_channel::Frame,
+        out: &mut Queue<Request>,
+    ) {
+        self.sending = Some(Sending { kind, bytes: frame.wire_len(), reply: Reply::Drop });
+        state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+        for _ in 0..skein_channel::MAX_UP {
+            let Some(event) = state.above.pop() else { break };
+            self.heard(now, connection, state, event, out);
+        }
+        assert!(self.sending.is_none(), "send answered within its entrance");
+    }
     fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
         if self.life == Life::Closed
             || self.connections.len() == self.connections.capacity()
@@ -521,7 +577,9 @@ impl Component {
                     }
                 };
                 if let Ok(credential) = wire::Credential::decode(&self.codec, &mut Reader::new(&credential)) {
-                    state.stated = credential.into_parts().wires;
+                    let credential = credential.into_parts();
+                    state.opening = credential.opening;
+                    state.stated = credential.wires;
                 }
                 state.worker = Some(worker);
                 state.channel = Token::new(self.next_channel);
@@ -533,7 +591,12 @@ impl Component {
             }
             ChannelEvent::Ready { version, terms } => {
                 state.version = version;
-                if let Err(text) = crate::statement::terms(&self.schema, version, &terms) {
+                let checked = if state.opening == wire::Opening::Figures {
+                    figures_terms(&self.schema, version, &terms)
+                } else {
+                    crate::statement::terms(&self.schema, version, &terms)
+                };
+                if let Err(text) = checked {
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
                     if self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some()
@@ -550,7 +613,7 @@ impl Component {
                             .expect("agreed wire fits credential limits");
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v15::Agreed::new(&self.codec, wire::v15::AgreedParts { wires })
+                        let record = wire::v16::Agreed::new(&self.codec, wire::v16::AgreedParts { wires })
                             .expect("agreed wires fit credential limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
                         record.encode(&mut body).expect("measured statement");
@@ -561,9 +624,18 @@ impl Component {
                         let frame =
                             crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec)
                                 .expect("a statement is sent only where its kind is held");
-                        self.sending =
-                            Some(Sending { kind: wire::Kind::Wires, bytes: frame.wire_len(), reply: Reply::Drop });
-                        state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+                        self.send_opening(now, connection, state, wire::Kind::Wires, frame, out);
+                    }
+                    if !self.send_figures(now, connection, state, out) {
+                        return;
+                    }
+                    if state.opening == wire::Opening::Figures {
+                        out.push(Request::FiguresTaken { worker: state.worker.expect("authenticated worker") });
+                        state.phase = Phase::Closing;
+                        state.ending = Ending::Graceful;
+                        state.deadline = Some(now.saturating_add(self.limits.stall));
+                        state.down(ChannelRequest::Finish, connection, out);
+                        return;
                     }
                     let mut statement = state.statement.take().expect("authenticated statement");
                     statement.terms = terms;
@@ -764,6 +836,25 @@ impl Component {
     pub fn dropped_down(&self) -> u64 {
         self.dropped_down
     }
+}
+
+fn figures_terms(
+    schema: &skein_channel::Schema,
+    version: u16,
+    terms: &List<skein_channel::Term>,
+) -> Result<(), Box<[u8]>> {
+    let table = schema.version(version).expect("agreed version");
+    for kind in [wire::Kind::Wires, wire::Kind::Figures] {
+        let rule = table.kind(kind.number()).expect("figures opening kinds");
+        let mut takes = false;
+        for term in terms {
+            takes |= term.kind == rule.kind && term.largest >= rule.largest;
+        }
+        if !takes {
+            return Err(bytes::copy_of(Decimal::of(u64::from(rule.kind)).as_bytes()));
+        }
+    }
+    Ok(())
 }
 
 fn closed(

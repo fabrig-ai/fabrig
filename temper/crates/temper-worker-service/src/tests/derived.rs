@@ -153,13 +153,13 @@ fn output_carrier() {
     let mut worker = fixtures::worker_settings();
     worker.jig.limits = config::stock();
     let mut sources = STOCK;
-    let zero = v15::Limits { turn_body: 0, turn_refused: worker.jig.limits.core.tasks.run_inbox, ..wire::CEILINGS };
+    let zero = v15::Limits { turn_body: 0, turn_refused: worker.jig.limits.as_ref().expect("worker limits").core.tasks.run_inbox, ..wire::CEILINGS };
     let overhead = u32::try_from(v15::Turn::encoded_bound(&zero).unwrap()).unwrap() + 8;
     assert_eq!(overhead + 2 * STOCK.turn, 36_864_476);
     for turn in [STOCK.turn, wire::CEILINGS.assignment_transcript / 4 - 4] {
         sources.turn = turn;
         derived::worker(&mut worker.jig.limits, sources).unwrap();
-        assert_eq!(worker.jig.limits.io.output, (overhead + turn).max(derived::OUTPUT_FLOOR));
+        assert_eq!(worker.jig.limits.as_ref().expect("worker limits").io.output, (overhead + turn).max(derived::OUTPUT_FLOOR));
         let own = fixtures::worker_limits();
         let payload = worker_settings::payload_limits(&own).unwrap();
         let mut link = worker_settings::link_limits(&worker.jig, &payload, own.peer.forges).unwrap();
@@ -167,7 +167,7 @@ fn output_carrier() {
         assert!(jig_protocol_worker_link::valid_with_schema(&link, &schema));
         let mut engine = jig_protocol_engine_workers::Limits {
             sizes: link.sizes,
-            names: worker.jig.limits.link.names,
+            names: worker.jig.limits.as_ref().expect("worker limits").link.names,
             workers: 1,
             opening: 1,
             chunk: link.chunk,

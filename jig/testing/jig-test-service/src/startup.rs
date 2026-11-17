@@ -598,6 +598,15 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
                 return Err(problems);
             }
         };
+        if worker.agent.is_none() {
+            problems.push(here.member(b"agent"), What::Missing);
+        }
+        if worker.limits.is_none() {
+            problems.push(here.member(b"limits"), What::Missing);
+        }
+        if !problems.is_empty() {
+            return Err(problems);
+        }
         if let config::Address::Addr(skein_io::Addr::InProcess(_)) = &worker.engine
             && !listeners.contains(&worker.engine)
         {
@@ -626,7 +635,7 @@ pub fn named(document: &[u8]) -> Result<List<Box<[u8]>>, Problems> {
         files.push(name).expect("named files");
     }
     for spec in specs.into_boxed() {
-        for name in [spec.config.secret, spec.config.agent.configuration] {
+        for name in [spec.config.secret, spec.config.agent.expect("checked worker agent").configuration] {
             if !files.as_slice().contains(&name) {
                 files.push(name).expect("named files");
             }
@@ -656,7 +665,7 @@ pub fn startup(
     let mut io = match &engine {
         Some((_, io)) => *io,
         None => {
-            let mut io = specs.get(0).expect("engine or worker").config.limits.io;
+            let mut io = specs.get(0).expect("engine or worker").config.limits.expect("checked worker limits").io;
             io.sockets = 0;
             io.names = 0;
             io
@@ -678,7 +687,7 @@ pub fn startup(
             Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent"),
             What::Refers,
         ))?;
-        if files.contents(&spec.config.agent.configuration).is_none() {
+        if files.contents(&spec.config.agent.as_ref().expect("checked worker agent").configuration).is_none() {
             return Err(problem(
                 Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent").member(b"configuration"),
                 What::Unreadable,
@@ -687,12 +696,18 @@ pub fn startup(
         if !valid_program_endpoints(&agent.bounds.program_endpoints) {
             return Err(problem(path.clone(), What::Bound));
         }
-        io.sockets = io.sockets.checked_add(spec.config.limits.io.sockets).ok_or(problem(path.clone(), What::Bound))?;
-        io.names = io.names.checked_add(spec.config.limits.io.names).ok_or(problem(path.clone(), What::Bound))?;
-        io.intake = io.intake.max(spec.config.limits.io.intake);
-        io.receive = io.receive.max(spec.config.limits.io.receive);
-        io.output = io.output.max(spec.config.limits.io.output);
-        io.sends = io.sends.max(spec.config.limits.io.sends);
+        io.sockets = io
+            .sockets
+            .checked_add(spec.config.limits.expect("checked worker limits").io.sockets)
+            .ok_or(problem(path.clone(), What::Bound))?;
+        io.names = io
+            .names
+            .checked_add(spec.config.limits.expect("checked worker limits").io.names)
+            .ok_or(problem(path.clone(), What::Bound))?;
+        io.intake = io.intake.max(spec.config.limits.expect("checked worker limits").io.intake);
+        io.receive = io.receive.max(spec.config.limits.expect("checked worker limits").io.receive);
+        io.output = io.output.max(spec.config.limits.expect("checked worker limits").io.output);
+        io.sends = io.sends.max(spec.config.limits.expect("checked worker limits").io.sends);
         let worker = crate::Worker::new(spec.config, agent, files, directory, index, seeds.seed)?;
         queue = queue.max(crate::Worker::queue_room());
         workers.push(worker).expect("worker count");

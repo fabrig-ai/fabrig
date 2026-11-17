@@ -29,6 +29,7 @@ skein-lib.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+temper-fixtures.workspace = true
 skein-io.workspace = true
 skein-sim.workspace = true
 jig-domain-core.workspace = true

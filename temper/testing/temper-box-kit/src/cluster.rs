@@ -30,8 +30,38 @@ pub struct Cluster {
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
-    agent_program: Option<String>,
 }
+/// Compose the engine fixture as the running engine does, without opening it.
+#[must_use]
+pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
+    let bytes = serde_json::to_vec(&document["engine"]).expect("engine JSON");
+    let parsed = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
+    )
+    .expect("engine document");
+    let engine = temper_service::startup::engine(&parsed, 0, &jig_protocol_config::Directories::working())
+        .expect("fixture engine");
+    let application = &document["application"]["limits"];
+    let mut own = temper_limits_fixtures::small();
+    for (name, value) in application["overrides"].as_object().expect("limits overrides") {
+        temper_engine_service_vocabulary::limits::apply(&mut own, name.as_bytes(), value.as_u64().expect("scalar"))
+            .expect("fixture limit");
+    }
+    let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
+        .compose(&temper_service::stock::agents())
+        .into_parts();
+    figures.places = engine.limits.core.fleet.slots;
+    jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, figures).expect("composed figures")
+}
+/// Agent metadata for fixture checks; no worker configuration file is supplied.
+#[must_use]
+pub fn agent_configuration(engine: &Value, data: &Path) -> Value {
+    let bytes = temper_worker_shell::agent::figures::configuration(&figures(engine), None, data, &[])
+        .expect("written fixture agent");
+    serde_json::from_slice(&bytes).expect("agent JSON")
+}
+
 /// The first start records revision 1; apply the fixture's whole values before its first chat.
 #[must_use]
 pub fn settings_change(file: &Path) -> super::ctl::Call {
@@ -125,7 +155,7 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new(), agent_program: None };
+        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new() };
         for index in 0..cluster.specs.len() {
             if list(&cluster.specs[index]["ready"])
                 .iter()
@@ -146,7 +176,6 @@ impl Cluster {
             assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");
             self.bind(&format!("artifact.{name}"), binary.to_str().expect("deployment binary path"));
         }
-        self.agent_program = Some(self.bindings["artifact.temper-agent"].clone());
         for spec in &mut self.specs {
             if spec["name"] == "engine" {
                 spec["argv"][0] = "{artifact.temper-engine}".into();
@@ -294,19 +323,6 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
-            if file["path"] == "config/temper.json"
-                && let Some(program) = &self.agent_program
-            {
-                let mut value: Value = serde_json::from_str(&bytes).expect("rendered cluster document JSON");
-                if let Some(agent) = value.pointer_mut("/workers/0/agent").filter(|agent| !agent.is_null()) {
-                    agent["program"] = program.clone().into();
-                    agent["arguments"] = vec![agent["configuration"].clone()].into();
-                    value.sort_all_objects();
-                    let mut bytes = serde_json::to_vec(&value).expect("canonical cluster document JSON");
-                    bytes.push(b'\n');
-                    super::write_private(&target, &bytes);
-                }
-            }
         }
         let settings = self.experiment.join("settings.json");
         if process == "engine" && settings.exists() {
@@ -1065,7 +1081,6 @@ pub mod verdict_tests {
             specs: Vec::new(),
             bindings: BTreeMap::new(),
             prepared: BTreeSet::new(),
-            agent_program: None,
         };
         let (mut members, _) = cluster.members();
         members.failure = Some("worker ended unexpectedly".to_owned());

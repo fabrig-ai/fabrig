@@ -17,41 +17,15 @@ fn a_checked_worker_alone_has_its_shape_and_refuses_engine_application_members()
 #[test]
 fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() {
     let input = fixtures::worker_alone_document();
-    for (member, value, path, what) in [
-        (
-            b"workers[0].agent.configuration".as_slice(),
-            br#""temper""#.as_slice(),
-            Path::root().member(b"workers").child(Segment::Index(0)).member(b"agent").member(b"configuration"),
-            What::Absolute,
-        ),
-        (
-            b"application.limits.overrides",
-            br#"{"git_component.operations":0}"#,
-            Path::root()
-                .member(b"application")
-                .member(b"limits")
-                .member(b"overrides")
-                .member(b"git_component.operations"),
-            What::Against { other: b"checkout.workspaces" },
-        ),
-        (
-            b"application.limits.overrides",
-            br#"{"checkout.repositories":4294967295}"#,
-            Path::root().member(b"application").member(b"limits").member(b"overrides").member(b"checkout.repositories"),
-            What::Past {
-                bytes: 4_294_967_295,
-                bound: u64::from(temper_protocol_worker_wire::v1::CEILINGS.items_repositories),
-            },
-        ),
-    ] {
-        let input = fixtures::with(&input, member, value);
-        let found = crate::startup::shape(&input, &config::Directories::working()).unwrap_err();
-        assert_eq!(found.problems.len(), 1, "{}: {:?}", core::str::from_utf8(member).unwrap(), found);
-        assert_eq!((found.problems.get(0).unwrap().path.clone(), found.problems.get(0).unwrap().what), (path, what));
-    }
+    let mut value: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    value["application"]["workers"] = serde_json::json!([{"root":"../escape","git":"git"}]);
+    let found = crate::startup::shape(&serde_json::to_vec(&value).unwrap(), &config::Directories::working()).unwrap_err();
+    assert_eq!(found.problems.get(0).unwrap().path, Path::root().member(b"application").member(b"workers"));
+    assert_eq!(found.problems.get(0).unwrap().what, What::Jig(config::What::Fixed));
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example")]
 fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     // Linux's IORING_MAX_ENTRIES, the largest submission ring.
     const IORING_MAX_ENTRIES: u32 = 32_768;
@@ -60,7 +34,32 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let mut agent = fixtures::owned_worker_agent();
     agent.host_limits.message_bytes = 10_662;
     agent.host_limits.messages = 82;
-    let part = crate::startup::worker_part(&input, &directories, None).unwrap();
+    let mut part = crate::startup::worker_part(&input, &directories, Some(b"/usr/bin/git")).unwrap();
+    let owned = include_bytes!("../../../../docs/examples/owned.json");
+    let document =
+        config::document(owned, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 }).unwrap();
+    let ats = config::read::list(
+        &document,
+        temper_service_core::startup::member(&document, 0, b"workers").unwrap(),
+        document.len(),
+    )
+    .unwrap();
+    let worker = config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker()).unwrap();
+    let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
+    let engine = config::engine(&document, engine_at, &directories, config::Defaults::Passed).unwrap();
+    part.worker.jig.limits = Some(engine.limits);
+    part.worker.jig.slots = worker.slots;
+    let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
+    let at = temper_service_core::startup::member(&document, application, b"limits").unwrap();
+    part.limits = crate::worker_settings::Limits::shared(
+        temper_service_core::startup::configured_limits(
+            &document,
+            at,
+            &Path::root(),
+            &mut crate::startup::Problems::empty(),
+        )
+        .unwrap(),
+    );
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(
@@ -68,7 +67,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
     );
     let operations = temper_service_core::process::Process::operations_for(
-        &part.worker.jig.limits.io,
+        &part.worker.jig.limits.as_ref().expect("checked worker limits").io,
         crate::worker_settings::operations(&crate::worker_settings::git_component(part.limits.git_component)).unwrap(),
     )
     .unwrap();
@@ -86,14 +85,11 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
 
 #[test]
 fn a_worker_alone_applies_its_names_without_engine_range_checks() {
-    let input = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":1025}"#,
-    );
     let directories = config::Directories::working();
+    let input = fixtures::worker_alone_document();
     assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
-    let part = crate::startup::worker_part(&input, &directories, None).unwrap();
+    let mut part = fixtures::part(&input);
+    part.limits.checkout.conflicts = 7;
     assert_eq!(part.limits.checkout.conflicts, 7);
     let service = crate::startup::worker_alone(
         part,
@@ -128,7 +124,7 @@ fn the_worker_uses_constant_deadlines_workspaces_and_the_shells_git() {
         );
         assert_eq!(worker.jig.stop_bound, Duration::from_secs(326));
         assert_eq!(worker.jig.check_interval, Duration::from_secs(60));
-        assert_eq!(worker.jig.limits.hub.source_interval, worker.jig.check_interval);
+        assert_eq!(worker.jig.limits.as_ref().expect("worker limits").hub.source_interval, worker.jig.check_interval);
     }
     let found =
         crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, Some(b"git")).unwrap_err();

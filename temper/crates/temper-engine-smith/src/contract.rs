@@ -17,6 +17,7 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v6.txt"),
 ];
 const ADAPTERS: &[Adapter] = &[
+<<<<<<< HEAD
     Adapter { version: 1, tool: b"finding", map: identity },
     Adapter { version: 1, tool: b"follow", map: identity },
     Adapter { version: 1, tool: b"goal", map: identity },
@@ -204,6 +205,23 @@ const ADAPTERS: &[Adapter] = &[
     Adapter { version: 5, tool: b"subscribe_forge", map: identity },
     Adapter { version: 5, tool: b"unsubscribe", map: identity },
     Adapter { version: 5, tool: b"withdraw", map: identity },
+=======
+    Adapter { version: 5, tool: b"settings", map: settings },
+    Adapter { version: 5, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 1, tool: b"decided", map: decided },
+    Adapter { version: 2, tool: b"decided", map: decided },
+    Adapter { version: 1, tool: b"settings", map: settings },
+    Adapter { version: 2, tool: b"settings", map: settings },
+    Adapter { version: 3, tool: b"settings", map: settings },
+    Adapter { version: 4, tool: b"settings", map: settings },
+    Adapter { version: 1, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 2, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 3, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 4, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 1, tool: b"delegate", map: delegate },
+    Adapter { version: 2, tool: b"delegate", map: delegate },
+    Adapter { version: 3, tool: b"delegate", map: delegate },
+>>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
 ];
 const CONTRACT: Contract =
     Contract { floor: crate::wire::FLOOR, current: crate::wire::VERSION, kept: KEPT, adapters: ADAPTERS };
@@ -241,8 +259,38 @@ struct Mapped {
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+<<<<<<< HEAD
 fn identity(tool: &[u8], input: &run::HostInput) -> Result<Mapped, Problem> {
     Ok(Mapped { tool: tool.into(), input: input.clone() })
+=======
+fn decided(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"decided".as_slice().into(), input: input.clone() })
+}
+
+// The agents kind extends the accepted names; every older settings input keeps
+// its meaning (temper/docs/design/protocol/wires.md, 7).
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"settings".as_slice().into(), input: input.clone() })
+}
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn propose_settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"propose_settings".as_slice().into(), input: input.clone() })
+}
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn delegate(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"delegate".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"settings".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn propose_settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"propose_settings".as_slice().into(), input: input.clone() })
+>>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
 }
 
 impl Contract {

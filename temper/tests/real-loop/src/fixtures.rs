@@ -19,8 +19,7 @@ pub fn pinned_agent_program(directory: &Path) -> std::path::PathBuf {
     directory.join("workspaces/agent/temper-agent")
 }
 #[must_use]
-pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
-    let program = directory.join("temper-agent");
+pub fn documents(_directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -62,11 +61,11 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = serde_json::json!(program);
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
@@ -108,7 +107,7 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
         std::fs::set_permissions(directory.join(name), std::fs::Permissions::from_mode(0o700))?;
     }
     for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if !name.starts_with(b"charters/") {
+        if !name.starts_with(b"charters/") && name.as_ref() != b"agent.json" {
             private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose())?;
         }
     }
@@ -120,7 +119,8 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
     if crate::claude::configured(directory) {
         program_documents(directory, &mut agent, &mut config);
     }
-    private(&directory.join("agent.json"), &serde_json::to_vec(&agent)?)?;
+    private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
+    temper_fixtures::agent::apply(&mut config, directory, &agent);
     private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)
 }
 /// Program stories retain the direct provider and add Claude Code on its own source.
@@ -157,11 +157,13 @@ fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &m
 }
 /// Keep the configured documents and their derived bounds; only assigned endpoints change.
 pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::Result<()> {
-    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("agent.json"))?)?;
+    let agent_path = directory.join("world-agent.json");
+    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(&agent_path)?)?;
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("temper.json"))?)?;
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, &mut config, llm, forge);
-    private(&directory.join("agent.json"), &serde_json::to_vec(&agent)?)?;
+    private(&agent_path, &serde_json::to_vec(&agent)?)?;
+    temper_fixtures::agent::apply(&mut config, directory, &agent);
     finish_configuration(directory, &mut config)
 }
 
@@ -315,7 +317,7 @@ pub fn lost_chat() -> Vec<crate::calls::Step> {
 
 /// The key smoke uses the standard `OpenAI` route rather than the Codex account route.
 pub(crate) fn key_documents(directory: &Path) -> std::io::Result<()> {
-    let path = directory.join("agent.json");
+    let path = directory.join("world-agent.json");
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
     agent["endpoints"][0]["provider"] = "openai".into();
     agent["endpoints"][0]["dialect"] = 3.into();
@@ -481,6 +483,22 @@ pub fn given_and_projects(directory: &Path) -> (temper_service::stock::Given, Bo
     values["world_settings"] = flags;
     let engine = crate::settings::configuration(&values);
     let mut given = defaults_for(&values, &engine);
+    if let Ok(bytes) = std::fs::read(directory.join("agents.setting")) {
+        use temper_client_protocol_wire::v1 as w;
+        use temper_engine_domain_forge::settings::{SizedValue, Stock, Value};
+        let agents =
+            w::AgentFigures::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture agents copy");
+        let temper_service::stock::Given::Own { forge, .. } = &mut given else { panic!("world defaults") };
+        let mut values = std::mem::take(forge).into_vec();
+        values.retain(|value| value.kind != 21);
+        values.push(Stock {
+            kind: 21,
+            scope: 0,
+            number: 1,
+            value: SizedValue { size: agents.measure(), value: Value::AgentFigures(agents) },
+        });
+        *forge = values.into_boxed_slice();
+    }
     if crate::claude::configured(directory) {
         let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
             panic!("the real loop supplies its own defaults")

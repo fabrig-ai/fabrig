@@ -27,13 +27,39 @@ pub enum Scheme {
 }
 /// `TurnBusy` is the fleet's busy answer, handled below the hub (protocol/channel/records.md, 2; domain/hosts/hub.md, 1).
 pub enum Event {
-    Accepted { connection: Token },
-    Lower { connection: Token, event: LowerEvent },
-    Gone { connection: Token },
-    Down { channel: Token, down: host::LinkDown, parts: Box<[Part]>, values: Box<[Option<GrantValue>]> },
-    TurnBusy { channel: Token, run: Token, attempt: Token, turn: u32 },
-    NotAdmitted { channel: Token, text: Box<[u8]> },
-    Restarting { wait: Duration },
+    /// The owner gives whole figures; places are set from the fleet's per-worker slots.
+    Figures {
+        figures: jig_protocol_worker_wire::Figures,
+    },
+    Accepted {
+        connection: Token,
+    },
+    Lower {
+        connection: Token,
+        event: LowerEvent,
+    },
+    Gone {
+        connection: Token,
+    },
+    Down {
+        channel: Token,
+        down: host::LinkDown,
+        parts: Box<[Part]>,
+        values: Box<[Option<GrantValue>]>,
+    },
+    TurnBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        turn: u32,
+    },
+    NotAdmitted {
+        channel: Token,
+        text: Box<[u8]>,
+    },
+    Restarting {
+        wait: Duration,
+    },
     Stop,
     Close,
     Abort,
@@ -84,6 +110,9 @@ pub enum Bound {
     Channel(skein_channel::Unsent),
 }
 pub enum Request {
+    FiguresTaken {
+        worker: u32,
+    },
     Told {
         worker: Box<[u8]>,
         version: u16,
@@ -149,6 +178,7 @@ pub enum Request {
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::Figures { .. } => f.write_str("Figures"),
             Self::Accepted { connection } => f.debug_tuple("Accepted").field(connection).finish(),
             Self::Gone { connection } => f.debug_tuple("Gone").field(connection).finish(),
             Self::Lower { connection, event } => match event {
@@ -171,6 +201,7 @@ impl core::fmt::Debug for Event {
 impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::FiguresTaken { worker } => f.debug_tuple("FiguresTaken").field(worker).finish(),
             Self::Told { worker, version, wait } => {
                 f.debug_tuple("Told").field(worker).field(version).field(wait).finish()
             }

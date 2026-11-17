@@ -24,7 +24,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 |---|---|---|---|
 | standalone | jig's engine part; `hosts.listener` `[{"in_process": "workers"}]` | one, whose `engine` is `{"in_process": "workers"}` | every member; `workers`, one entry |
 | engine alone | jig's engine part; `hosts.listener` one socket address on loopback, in plaintext, its port 0 or fixed; `hosts.workers` the cluster's workers, each with its digest | `[]` | every member; `workers` `[]` |
-| worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext | `workers`, one entry, and `limits`, alone |
+| worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext, with no `limits` and no `agent` | `workers`, one entry, alone |
 
 - **Never mixed.** A document of none of these shapes is refused, naming
   the path that departs from the nearest: an engine with both a worker
@@ -39,9 +39,10 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 - **Each shape's checks** (configuration/README.md, section 2): standalone's,
   as configuration/README.md, section 2 gives them; an engine alone's the same, but for its
   listener and its workers, by the table's rule, and the root's for
-  every shape with an engine; a worker alone's, its worker part's, its
-  entry of `application.workers` (configuration/README.md, section 3) and the
-  limits' checks its side holds (configuration/limits.md).
+  every shape with an engine; a worker alone's, its worker part's and its
+  entry of `application.workers` (configuration/README.md, section 3), then,
+  once its engine has sent its figures, the limits' checks its side
+  holds over them (configuration/figures.md, section 3; configuration/limits.md).
 - **The service** has an optional engine and an optional worker:
   standalone both, an engine alone no worker, and a worker alone no
   engine, whose loop, ending and exit are its worker's alone, with no

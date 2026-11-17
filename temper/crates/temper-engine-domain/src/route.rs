@@ -558,6 +558,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
                     return;
                 }
+                kinds::restored_figures(domain, env, decision);
                 let party = domain.core.people.sole_owner();
                 forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(

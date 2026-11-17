@@ -176,7 +176,9 @@ pub fn worker_document(
         problems.push(found.path, found.what);
         return Err(problems);
     }
-    jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)
+    let mut worker = jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)?;
+    if worker.limits.is_none() { worker.limits = Some(base); }
+    Ok(worker)
 }
 
 /// Whether a dotted limit was explicitly supplied, independent of its value.

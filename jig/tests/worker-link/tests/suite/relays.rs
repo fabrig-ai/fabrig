@@ -51,6 +51,7 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
+            | Request::Figures { .. }
             | Request::RelayCancelled { .. } => None,
         })
         .collect()
@@ -96,6 +97,7 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
             | Request::Refused { .. }
             | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
+            | Request::Figures { .. }
             | Request::Fact { .. } => None,
         })
         .collect();

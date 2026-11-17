@@ -725,6 +725,22 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
 fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    // Kept deployment inputs use the current box shape; the stored generation stays untouched.
+    let mut inherited = Vec::new();
+    for worker in document["workers"].as_array_mut().expect("kept workers") {
+        let worker = worker.as_object_mut().expect("kept worker");
+        worker.remove("agent");
+        if let Some(limits) = worker.remove("limits") {
+            for (name, value) in limits["overrides"].as_object().expect("kept overrides") {
+                if name.starts_with("hub.") || name == "io.output" {
+                    inherited.push((name.clone(), value.clone()));
+                }
+            }
+        }
+    }
+    for (name, value) in inherited {
+        document["engine"]["limits"]["overrides"][name] = value;
+    }
     bridge_kept_profiles(&mut document);
     temper_playground::documents::settings::strip_fixed(&mut document);
     let sections =

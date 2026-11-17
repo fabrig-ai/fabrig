@@ -107,7 +107,7 @@ fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &
         }
     }
 }
-/// Standalone's requirements on jig's parts, including absolute agent paths.
+/// Standalone's requirements on jig's parts, on jig's parts.
 pub fn standalone(
     engine: &config::Engine,
     clients: &super::application::Clients,
@@ -419,7 +419,7 @@ pub fn turns(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
@@ -457,14 +457,14 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.outcome_bytes"),
-                worker.limits.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
                 problems,
                 path.member(b"hub.turn_bytes"),
-                worker.limits.hub.turn_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes,
                 b"the agent's largest turn",
                 Some(turn),
             );
@@ -484,7 +484,7 @@ pub fn turns(
             short(
                 problems,
                 path.member(b"hub.transcript_bytes"),
-                worker.limits.hub.transcript_bytes,
+                worker.limits.as_ref().expect("checked worker limits").hub.transcript_bytes,
                 b"the engine's resume window",
                 window,
             );
@@ -619,20 +619,19 @@ pub fn root(
         problems.push(path, what);
     }
 }
-/// Endpoint names, and every charter model, agree with the agent.
-pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
-    for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
-        let mut agrees = false;
-        for name in &agent.endpoints {
-            agrees |= name.as_ref() == endpoint.name.as_ref();
-        }
-        if !agrees {
-            problems.push(
-                at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")),
-                What::Half(crate::startup::EngineWhat::Agent),
-            );
-        }
+/// Workers' figures carry at most 64 endpoints (protocol/configuration/figures.md, 2).
+pub fn figures(engine: &config::Engine, problems: &mut Problems) {
+    let count = u32::try_from(engine.llm.endpoints.len()).expect("document bounds endpoints");
+    if count > temper_engine_service_vocabulary::figures::ENDPOINTS {
+        problems.push(
+            Path::root().member(b"engine").member(b"llm"),
+            What::Half(crate::startup::EngineWhat::FigureEndpoints { count }),
+        );
     }
+}
+
+/// Each configured program adapter is offered by the agent.
+pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
     for (index, provider) in engine.llm.providers.iter().enumerate() {
         for (offered, name) in provider.programs.iter().enumerate() {
             let mut declared = false;

@@ -126,7 +126,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =
-        overridden(&fixtures::document(), b"workers[0].limits.overrides", WORKER_OVERRIDES, r#""hub.accounts":4096"#);
+        overridden(&fixtures::document(), b"engine.limits.overrides", ENGINE_OVERRIDES, r#""hub.accounts":4096"#);
     assert_eq!(
         &*started(&document),
         b"workers[0].limits.overrides.hub.accounts: must agree with the agent's accounts\n"
@@ -136,11 +136,7 @@ fn the_hubs_accounts_past_the_agents_name_both_limits() {
 #[test]
 fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
     assert_eq!(
-        &*started(&fixtures::with(
-            &engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#),
-            b"workers[0].limits.overrides",
-            format!("{{{WORKER_OVERRIDES},\"hub.transcript_bytes\":262161}}").as_bytes(),
-        )),
+        &*started(&engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#)),
         b"application.limits.overrides.root.journal.transcript_bytes: 65540 bytes, short of core.resume_bytes, 65541 bytes\n"
     );
 }
@@ -449,10 +445,16 @@ fn reference_document(generated: &[u8]) -> Box<[u8]> {
         serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json")).unwrap(),
     );
     let room = reference_room();
-    for worker in document["workers"].as_array_mut().unwrap() {
-        merge_profile_members(worker, room["worker"].clone());
-    }
-    merge_profile_members(&mut document["application"], room["application"].clone());
+    document["engine"]["limits"] = serde_json::from_slice(&merge_profile(
+        &serde_json::to_vec(&document["engine"]["limits"]).unwrap(),
+        &serde_json::to_vec(&room["worker"]["limits"]).unwrap(),
+    ))
+    .unwrap();
+    document["application"] = serde_json::from_slice(&merge_profile(
+        &serde_json::to_vec(&document["application"]).unwrap(),
+        &serde_json::to_vec(&room["application"]).unwrap(),
+    ))
+    .unwrap();
     serde_json::to_vec(&document).unwrap().into_boxed_slice()
 }
 
@@ -485,15 +487,9 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
     }
+    assert_eq!(engine["hub.event_bytes"].as_u64(), Some(payload - 2));
     for worker in document["workers"].as_array().unwrap() {
-        for (name, value) in [
-            ("hub.event_bytes", payload - 2),
-            ("hub.transcript_bytes", transcript),
-            ("hub.turn_bytes", turn),
-            ("hub.turn_queue_bytes", 8 * turn),
-        ] {
-            assert_eq!(worker["limits"]["overrides"][name].as_u64(), Some(value), "worker {name}");
-        }
+        assert!(worker.get("limits").is_none());
     }
     for (name, value) in [
         ("checkout.message_bytes", payload),

@@ -307,14 +307,20 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
             &jig_protocol_config_fixtures::small(),
         )
         .map_err(|why| format!("worker: {why:?}"))?;
+        if worker.agent.is_none() || worker.limits.is_none() {
+            return Err("worker lacks agent or limits".into());
+        }
         bounds.extend(config::worker_files(&worker).into_vec());
         specs.push(worker);
     }
-    let agent = specs.first().map(|worker| agent(path(&worker.agent.configuration))).transpose()?;
-    if specs
-        .iter()
-        .any(|worker| worker.agent.configuration != specs.first().expect("nonempty workers").agent.configuration)
-    {
+    let agent = specs
+        .first()
+        .map(|worker| agent(path(&worker.agent.as_ref().expect("checked worker agent").configuration)))
+        .transpose()?;
+    if specs.iter().any(|worker| {
+        worker.agent.as_ref().expect("checked worker agent").configuration
+            != specs.first().expect("nonempty workers").agent.as_ref().expect("checked worker agent").configuration
+    }) {
         return Err("one-process workers must share their agent configuration".into());
     }
     Ok(Configured { document, engine, workers: workers.len(), bounds, agent })

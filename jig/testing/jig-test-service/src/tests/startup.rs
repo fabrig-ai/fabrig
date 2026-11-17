@@ -136,3 +136,24 @@ fn the_test_service_refuses_clients_provider_because_it_serves_no_provider_route
         }]
     );
 }
+
+#[test]
+fn reference_workers_still_require_agent_and_limits_by_name() {
+    for (name, member) in [
+        (
+            b"agent".as_slice(),
+            br#""agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},"#.as_slice(),
+        ),
+        (
+            b"limits".as_slice(),
+            br#""limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},"#.as_slice(),
+        ),
+    ] {
+        let input = fixtures::with(fixtures::WORKER_DOCUMENT, member, b"");
+        let found = crate::named(&input).expect_err("member required by reference worker");
+        assert_eq!(found.problems.len(), 1);
+        let got = found.problems.get(0).expect("missing member");
+        assert_eq!(got.path, Path::root().member(b"workers").child(Segment::Index(0)).member(name));
+        assert_eq!(got.what, What::Missing);
+    }
+}

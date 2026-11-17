@@ -1,12 +1,45 @@
 //! The box's deployment reader and printed program-login command (protocol/binaries.md, 5).
-pub(crate) fn deployment(
-    bytes: &[u8],
-    directories: &jig_protocol_config::Directories,
-) -> Result<temper_service::startup::NamedWorker, String> {
-    let super::setup::Deployment { named, .. } = super::setup::check(bytes, directories)?;
-    named.worker.ok_or_else(|| "workers: standalone takes one worker".into())
+/// The box checks its document but needs no running engine for a program sign-in.
+pub(crate) fn command(
+    directories: &super::Directories,
+    name: &std::ffi::OsStr,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<std::process::Command, String> {
+    let bytes = directories.read()?;
+    let part = temper_service::startup::box_worker(
+        &bytes,
+        &temper_service_shell::jig_directories(directories),
+        &temper_service::stock::Given::Stock,
+        &temper_service::stock::agents(),
+    )
+    .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
+    .ok_or("workers: standalone takes one worker")?;
+    let executable = std::env::current_exe().map_err(|why| why.to_string())?;
+    temper_worker_shell::program_login::from_machine(
+        &part,
+        directories,
+        name.to_str().ok_or("source name must be ASCII")?,
+        environment.into_iter().collect(),
+        &executable,
+    )
 }
-
+pub(crate) fn run(
+    directories: &super::Directories,
+    name: &std::ffi::OsStr,
+    environment: &[super::EnvironmentEntry],
+) -> Result<u8, String> {
+    use std::os::unix::ffi::OsStrExt;
+    if temper_service::startup::shape(&directories.read()?, &temper_service_shell::jig_directories(directories))
+        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
+        == temper_service::startup::Shape::WorkerAlone
+    {
+        return temper_worker_shell::program_login::run(directories, name, environment, None);
+    }
+    let environment = environment.iter().map(|(name, value)| {
+        (std::ffi::OsStr::from_bytes(name).to_os_string(), std::ffi::OsStr::from_bytes(value).to_os_string())
+    });
+    temper_worker_shell::program_login::run_command(command(directories, name, environment)?)
+}
 /// The box's POSIX command, without NAME (client/forge/records.md, *The printed command*).
 pub(crate) fn line(directories: &super::Directories, binary: &[u8], home: Option<&[u8]>) -> Option<String> {
     use std::fmt::Write;

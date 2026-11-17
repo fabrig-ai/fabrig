@@ -21,7 +21,11 @@ pub fn reference(out: &mut Writer) -> Result<(), Overflow> {
 
 /// The page over any declarations, for the step tests' fixtures.
 pub(crate) fn render(specs: &[Spec], out: &mut Writer) -> Result<(), Overflow> {
+<<<<<<< HEAD
     let mut schemas = List::with_capacity(u32::try_from(specs.len()).expect("static tool list"));
+=======
+    out.put(b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nA run calls only the tools in its own list: a tool here that your list lacks is not yours.\n\nFile, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agents setting declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.\n")?;
+>>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
     for spec in specs {
         let schema = json::parse(spec.whole()).expect("whole tool schema");
         schemas.push(schema).expect("static tool count");

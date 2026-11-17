@@ -1,7 +1,6 @@
 use super::fixtures::{self, DIRECTORIES, content, parse};
 use crate::{Directories, Fact, Facts, Reason, Refusal, files};
 use alloc::boxed::Box;
-use serde_json::json;
 use skein_lib::bytes;
 
 fn absolute(length: usize) -> Box<[u8]> {
@@ -51,11 +50,11 @@ fn a_fact_is_refused_naming_it() {
             );
         }
     }
-    let config = absolute(4086);
-    let data = absolute(4088);
+    let config = absolute(4085);
+    let data = absolute(4083);
     for (row, fact, path) in [
-        ("agent joined past bound", Fact::Config, config.as_ref()),
-        ("programs joined past bound even without claude", Fact::Data, data.as_ref()),
+        ("document joined past bound", Fact::Config, config.as_ref()),
+        ("digest joined past bound", Fact::Data, data.as_ref()),
     ] {
         let mut facts = fixtures::facts();
         let mut directories = DIRECTORIES;
@@ -88,43 +87,6 @@ fn a_fact_is_refused_naming_it() {
 
 #[test]
 fn paths_join_once_and_accept_the_bound() {
-    for (row, config, data, agent, programs) in [
-        (
-            "no trailing slash",
-            b"/c/temper".as_slice(),
-            b"/d/temper".as_slice(),
-            "/c/temper/agent.json",
-            "/d/temper/programs",
-        ),
-        (
-            "trailing slash",
-            b"/c/temper/".as_slice(),
-            b"/d/temper/".as_slice(),
-            "/c/temper/agent.json",
-            "/d/temper/programs",
-        ),
-        ("root", b"/".as_slice(), b"/".as_slice(), "/agent.json", "/programs"),
-    ] {
-        let facts = Facts { claude: Some(b"/opt/claude/bin/claude"), ..fixtures::facts() };
-        let answered = files(&facts, &Directories { config, data }, &[0; 32], &[0xab; 32]).expect("valid directories");
-        let document = parse(content(&answered, b"temper.json"));
-        assert_eq!(
-            *document.pointer("/workers/0/agent/configuration").expect("the worker has an agent configuration"),
-            json!(agent),
-            "{row}"
-        );
-        assert_eq!(
-            *document.pointer("/workers/0/agent/arguments/2").expect("the agent has its configuration argument"),
-            json!(agent),
-            "{row}"
-        );
-        let document = parse(content(&answered, b"agent.json"));
-        assert_eq!(
-            *document.pointer("/programs/claude_code/directory").expect("Claude has a programs directory"),
-            json!(programs),
-            "{row}"
-        );
-    }
     let long = absolute(4096);
     for fact in [Fact::Binary, Fact::Git, Fact::Claude] {
         let mut facts = fixtures::facts();
@@ -133,7 +95,7 @@ fn paths_join_once_and_accept_the_bound() {
         files(&facts, &directories, &[0; 32], &[0xab; 32]).expect("4096 bytes is within the bound");
     }
     for (row, config_length, data_length, slash) in
-        [("joined bound", 4085, 4087, false), ("joined bound, trailing slash", 4086, 4088, true)]
+        [("joined bound", 4084, 4082, false), ("joined bound, trailing slash", 4085, 4083, true)]
     {
         let mut config = absolute(config_length);
         let mut data = absolute(data_length);
@@ -147,17 +109,17 @@ fn paths_join_once_and_accept_the_bound() {
     let mut controls = long;
     controls.get_mut(1..).expect("the path has 4096 bytes").fill(1);
     let facts = Facts { binary: &controls, git: Some(&controls), claude: Some(&controls), ..fixtures::facts() };
-    let mut config = absolute(4085);
+    let mut config = absolute(4084);
     config.get_mut(1..).expect("the configuration directory has 4085 bytes").fill(1);
-    let mut data = absolute(4087);
-    data.get_mut(1..).expect("the data directory has 4087 bytes").fill(1);
+    let mut data = absolute(4082);
+    data.get_mut(1..).expect("the data directory has 4081 bytes").fill(1);
     let directories = Directories { config: &config, data: &data };
     let answered =
         files(&facts, &directories, &[0; 32], &[0xab; 32]).expect("bounded text can use JSON escapes throughout");
     assert_eq!(
         parse(content(&answered, b"temper.json"))
-            .pointer("/workers/0/agent/program")
-            .expect("the worker has an agent program")
+            .pointer("/application/workers/0/claude")
+            .expect("the worker has claude")
             .as_str()
             .expect("a JSON path is text")
             .as_bytes(),

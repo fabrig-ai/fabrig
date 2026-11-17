@@ -9,9 +9,9 @@ const CHARTER: u32 = 11;
 const SHORT: u64 = 2_047;
 const ENOUGH: u64 = 2_048;
 
-#[expect(clippy::disallowed_macros, reason = "the test reads the embedded stock agent configuration")]
 fn agent() -> crate::settings::Agent {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
+    let bytes = serde_json::to_string_pretty(&temper_fixtures::agent::stock(true))
+        .expect("stock agent JSON")
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
         .replace("api.anthropic.com:443", "127.0.0.1:8373")

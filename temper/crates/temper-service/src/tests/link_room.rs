@@ -64,7 +64,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
         let settings = settings(profile);
         let engine = crate::workers::limits(&settings).expect("stock engine link limits");
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges)
             .expect("stock worker link limits");
@@ -74,7 +74,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
         assert!(jig_protocol_worker_link::valid(&worker), "{profile:?}");
         for rule in wire::KINDS {
             let start = match rule.body {
-                Kind::Assignment | Kind::Job => true,
+                Kind::Assignment | Kind::Job | Kind::Figures => true,
                 Kind::Hello
                 | Kind::Turn
                 | Kind::Call
@@ -130,7 +130,7 @@ fn the_checkout_and_its_raise_fit_both_stock_links() {
         settings.limits.checkout.conflicts = conflicts;
         let engine = crate::workers::limits(&settings).expect("engine link at checkout capacity");
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges).unwrap();
         assert!(kit::valid(&engine), "{profile:?}, {conflicts}");
@@ -186,7 +186,7 @@ struct Joint {
 impl Joint {
     fn new(settings: &settings::Engine) -> Self {
         let mut worker = fixtures::worker_settings();
-        worker.jig.limits = settings.jig.limits;
+        worker.jig.limits = Some(settings.jig.limits);
         worker.jig.engine = config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
         let mut agent = fixtures::worker_agent();
         // The peer stops at the worker root; its agent fixture still has to
@@ -249,6 +249,7 @@ impl Joint {
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
+                    | kit::Request::FiguresTaken { .. }
                     | kit::Request::Closed) => {
                         panic!("unexpected engine output; the link must stay up: {other:?}")
                     }
@@ -344,7 +345,7 @@ fn workers(settings: &settings::Engine) -> Workers {
         &fixtures::files(),
         encoding,
         forges,
-        settings.limits.forge.forges,
+        &settings.limits,
         &crate::workers::limits(settings).unwrap(),
     )
     .unwrap()
@@ -466,7 +467,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v16::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -493,7 +494,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v16::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }

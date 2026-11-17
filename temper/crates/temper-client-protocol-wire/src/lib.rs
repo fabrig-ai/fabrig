@@ -29,6 +29,7 @@ pub const fn settings_kind(kind: u32) -> bool {
         || kind == 14
         || kind == 15
         || kind == 20
+        || kind == 21
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).

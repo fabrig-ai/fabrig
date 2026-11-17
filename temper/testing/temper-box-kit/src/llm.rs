@@ -102,17 +102,11 @@ impl Listening {
     /// Both consumers dial the same held listener, before either starts.
     pub fn configure(&self, directory: &Path) {
         let address = self.address().to_string();
-        for name in ["temper.json", "agent.json"] {
-            let path = directory.join(name);
-            let mut value: serde_json::Value =
-                serde_json::from_slice(&fs::read(&path).expect("LLM configuration")).expect("JSON");
-            if name == "temper.json" {
-                value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket": address});
-            } else {
-                value["endpoints"][0]["address"] = address.clone().into();
-            }
-            super::write_private(&path, &serde_json::to_vec(&value).expect("LLM configuration JSON"));
-        }
+        let path = directory.join("temper.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).expect("LLM configuration")).expect("JSON");
+        value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":address});
+        super::write_private(&path, &serde_json::to_vec(&value).expect("LLM configuration JSON"));
     }
 
     /// The world takes ownership of the still-open descriptor and the peer's queued accepts.

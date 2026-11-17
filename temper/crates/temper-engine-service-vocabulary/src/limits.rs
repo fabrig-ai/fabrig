@@ -407,6 +407,27 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
     }
     Ok(())
 }
+/// Every applied limit by dotted name (temper/docs/design/protocol/configuration/figures.md, 2).
+#[must_use]
+pub fn list(limits: &Limits) -> List<(&'static str, u64)> {
+    let shared = temper_service_core::limits::Shared {
+        checkout: limits.checkout,
+        git_component: limits.git_component,
+        peer: temper_service_core::limits::Peer {
+            forges: limits.forge.forges,
+            installations: limits.forges.installations,
+            token_bytes: limits.forge_component.token_bytes,
+        },
+    };
+    let mut values = temper_service_core::limits::list(&shared);
+    for name in &NAMES {
+        if !temper_service_core::limits::shared_name(name.name.as_bytes()) {
+            values.push((name.name, (name.value)(limits))).expect("uncapped named limits");
+        }
+    }
+    values
+}
+
 /// Build the root's limits from jig's children and temper's own room.
 #[must_use]
 pub fn engine(jig: &jig_protocol_config::Limits, limits: &Limits) -> Option<engine::Limits> {

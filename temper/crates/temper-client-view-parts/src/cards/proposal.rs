@@ -1086,6 +1086,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 4, scope, .. } => (b"project-landing".as_slice(), Some(scope)),
         c::Setting::Application { kind: 5, scope, .. } => (b"project-gates".as_slice(), Some(scope)),
         c::Setting::Application { kind: 14, scope, .. } => (b"project-areas".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 21, .. } => (b"agents".as_slice(), None),
         c::Setting::Application { kind: 15, scope, .. } => (b"project-triager".as_slice(), Some(scope)),
         c::Setting::Application { kind: 20, .. } => (b"welcome".as_slice(), None),
         c::Setting::Application { kind, scope, number } => {

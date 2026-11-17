@@ -234,6 +234,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"project-areas"] => {
             Address::Setting(Setting::Application { kind: 14, scope: project, number: 1 })
         }
+        [b"settings", b"agents"] => Address::Setting(Setting::Application { kind: 21, scope: 0, number: 1 }),
         [b"settings", b"project-triager"] => {
             Address::Setting(Setting::Application { kind: 15, scope: project, number: 1 })
         }

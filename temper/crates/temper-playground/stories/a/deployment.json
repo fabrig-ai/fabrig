@@ -93,10 +93,20 @@
         "fleet.attempts": 1,
         "fleet.calls": 1,
         "fleet.turns": 8,
+<<<<<<< HEAD
         "hub.transcript_bytes": 16777216,
         "hub.turn_bytes": 998198,
         "hub.turn_queue_bytes": 7985584,
         "io.output": 1048576,
+=======
+        "hub.accounts": 4,
+        "hub.event_bytes": 1024,
+        "hub.run_calls": 1,
+        "hub.slots": 1,
+        "hub.transcript_bytes": 3992192,
+        "hub.turn_bytes": 998044,
+        "hub.turn_queue_bytes": 7984352,
+>>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
         "notes.entries_per_scope": 2,
         "notes.party_entries": 2,
         "notes.recalled": 2,
@@ -174,18 +184,10 @@
   },
   "workers": [
     {
-      "agent": {
-        "arguments": [
-          "internal",
-          "agent",
-          "/opt/temper/agent.json"
-        ],
-        "configuration": "/opt/temper/agent.json",
-        "program": "/opt/temper/bin/temper"
-      },
       "engine": {
         "in_process": "workers"
       },
+<<<<<<< HEAD
       "limits": {
         "overrides": {
           "core.call_answer_bytes": 2048,
@@ -205,6 +207,8 @@
           "tasks.run_inbox": 8
         }
       },
+=======
+>>>>>>> 0e77c1c72dd38151a2338a36e3339fbd622bd03f
       "memory_bytes": 1152921504606846976,
       "name": "worker-a",
       "secret": "worker.secret",

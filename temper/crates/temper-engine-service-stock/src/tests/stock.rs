@@ -1804,6 +1804,14 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0,
             },
+            Kind {
+                number: 21,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29,
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1813,7 +1821,7 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 16;
+    const ITEMS: usize = 17;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -2357,4 +2365,20 @@ fn the_prepare_executor_needs_both_stock_executor_limits() {
             Err(crate::stock::Floor { limit: name, configured: 20, needed: 21, setting: Setting::Rules })
         );
     }
+}
+
+#[test]
+fn agents_default_is_declared() {
+    let stock = crate::stock::agents();
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let kinds = crate::stock::kinds(&limits, 1);
+    let kind = kinds.iter().find(|kind| kind.number == 21).unwrap();
+    assert_eq!(
+        (kind.scope, kind.connector, kind.per_scope, kind.charters),
+        (jig_domain_core::settings::KindScope::Deployment, 1, 1, 0)
+    );
+    assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
+    assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
+        && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
 }

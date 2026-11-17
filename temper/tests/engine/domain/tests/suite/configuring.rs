@@ -2745,3 +2745,29 @@ fn a_dependency_on_itself_or_a_missing_project_refuses_the_whole_proposal() {
         assert!(world.driver.store.rows.values().all(|record| !matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Setting(row) if row.key.kind == 13 && row.key.slot == temper_engine_domain_forge::settings::SettingSlot::Change))), "no part of a refused proposal becomes current");
     }
 }
+
+#[test]
+fn agents_setting_is_owned_accepted_read_and_restored() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (stock, _) = see_whole(&mut world.driver, &run, 1, "settings agents");
+    assert!(stock.contains("the stock"), "{stock}");
+    assert!(stock.contains("2147483648"), "{stock}");
+    let limits = json!({"window":1_048_576,"output":8192,"reasoning_item":65_536,"head_ms":60_000,"idle_ms":300_000,"oversized":"fail"});
+    let value = json!({"profile":{"policy.max_turns":900},"endpoints":{"openai":limits},"fallback":limits});
+    let items = json!([{"setting":{"kind":"agents"},"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 2, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = see_whole(&mut world.driver, &run, 3, "settings agents");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("agents JSON")).unwrap(), value);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    restart_stock_world(&mut world, &next);
+    let (text, _) = see_whole(&mut world.driver, &next, 10, "settings agents");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(text.lines().nth(1).expect("restored agents JSON")).unwrap(),
+        value
+    );
+}

@@ -21,7 +21,7 @@ pub fn one_process() -> SystemStand {
 }
 pub fn one_process_under_box(under_box: bool) -> SystemStand {
     let mut settings = super::worker_settings();
-    settings.jig.limits.core.tasks.run_inbox = 2;
+    settings.jig.limits.as_mut().expect("checked worker limits").core.tasks.run_inbox = 2;
     let agent = super::worker_agent();
     let limits = super::worker_limits();
     let worker = Worker::new(
@@ -33,7 +33,7 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
             wires: None,
             root: Fd::new(9),
             path: b"/worker".as_slice().into(),
-            agent: super::pinned_agent(&settings.jig.agent),
+            agent: super::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
         },
         7,
     )

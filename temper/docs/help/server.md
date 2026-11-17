@@ -14,8 +14,7 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
 - **Google client:** OAuth consent in Testing, members its test users,
   scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
   `https://temper.example.com/sign-in/google/return`.
-- `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
-  hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
+- `COMMIT`: same build's 12 hex digits on both Linux x86-64 hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
   ctl's client); on `worker`, `binaries='temper-worker temper-agent'`.
   On each:
 
@@ -32,12 +31,11 @@ tar -xzf examples.tar.gz --strip-components=3
 ```
 
 Binaries are suffixless gzip; keep the checksum layout. Strip
-`temper/docs/examples/` for `owned.json` and `owned/`.
+`temper/docs/examples/` for `owned.json`.
 
 ## 1. Write the engine's configuration
 
-Copy `owned.json` to `CONFIG/temper.json`, `owned/`'s files to
-`CONFIG/`; change:
+Copy `owned.json` to `CONFIG/temper.json`; change:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;
@@ -72,23 +70,22 @@ earlier turns' saves, even after restart. Only `0` refuses start:
 
 For more runs, raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
 `checkout.workspaces` and `git_component.operations`. A start names short
-limits. A slot is an agent process, up to `agent.json`'s `declared.memory`.
+limits. A slot is an agent process, up to the `agents` setting's `declared.memory`.
 
 Expect: valid JSON; nothing runs yet.
 
-If not: step 3 names the refused member.
+If not: step 3 names refused members.
 
 ## 2. Keep the secrets
 
-As `temper`, type Google's client secret without echo, chat or copying:
+As `temper`, type Google's secret without echo, chat or copying:
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
 ```
 
-On `worker`, make its data's `secrets/w1.secret`; copy its digest,
-SHA-256 of the digits without the line end, to `engine`'s
-`DATA/secrets/w1.digest`:
+On `worker`, make data's `secrets/w1.secret`; copy SHA-256 of its digits
+(no line end) to `engine`'s `DATA/secrets/w1.digest`:
 
 ```
 umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/w1.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
@@ -168,32 +165,30 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-- Worker: `temper-worker serve` with `worker`'s three directories;
-  document from the example's `workers[0]`,
-  `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
-  `secret` `"secrets/w1.secret"`; omit `engine`, keep only `workers`
-  and `application`'s `workers` and `limits`. Set `agent.program`:
-  `"/usr/local/bin/temper-agent"`, `agent.configuration` to the absolute
-  path of its `agent.json`, and `agent.arguments`: `[that path]`.
-  Unit as step 3's, with
-  `KillMode=control-group` so no agent or command outlives the worker,
-  and `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
+- `temper-worker serve`: three dirs. Use example's
+  `workers[0]` with `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
+  `secret` `"secrets/w1.secret"`; top-level only `workers` and
+  `application.workers`. Remove worker `limits` and `agent`,
+  `application.limits` and config's `agent.json`: refused as moved.
+  Each start: fetch engine figures, apply limits, write private
+  `ROOT/agent/agent.json`, runs executable sibling `temper-agent`.
+  `claude`: optional absolute executable; else PATH `claude` or fetched.
+  Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
+  `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
-  `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
-  run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-  `agent.json`'s `environment` is a list, not a map:
-  `[{"name": "PATH", "value": "/usr/bin:/bin"}]`
-  (temper help box).
-- The runner, Forgejo runner 13.2.1 under a user of its own, its
-  `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
-  `DATA/forge-1/runner/`; its jobs in rootless podman.
+  `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
+  `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
+  Entry `environment`: optional list, not a map; unique names:
+  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
+- Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
+  `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
 ```
 temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `worker`'s stderr says `linked w1` and the engine's address;
-Forgejo's site administration lists the runner online.
+Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
+then `linked w1` and engine address; Forgejo site administration: runner online.
 
 If not: limits below stock refuse before listeners open, naming limit,
 setting and required size: `engine.limits.overrides.core.policy_bytes:

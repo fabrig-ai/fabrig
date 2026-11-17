@@ -174,6 +174,10 @@ impl World {
         }
         panic!("a world iteration settles within its bound");
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the world routes the complete worker link boundary, including figures and restart notices"
+    )]
     fn route(&mut self, request: Request) {
         match request {
             request @ (Request::Restarting { .. } | Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => {
@@ -225,6 +229,7 @@ impl World {
                     );
                 }
             }
+            Request::Figures { .. } => self.root.push(request),
             Request::Ready => {
                 self.trace.push(Trace::Ready);
                 self.root.push(Request::Ready);
