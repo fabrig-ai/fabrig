@@ -20,7 +20,8 @@ and a fake GitHub's is a test's.
   `run`, `source`, `sign-in` and `remove`, and the box's group. A host's
   own units write it once, through `forge prepare`'s flags (section 4).
 - **The box opens a group's listener** when the group is first asked, at
-  its setup file's port, and holds it from then on (section 5).
+  its setup file's port, and holds it until the box ends or the group is
+  removed (section 5).
 - **The owned forge's sign-in through temper** is made with the forge:
   its client is added to the OpenID provider while the engine runs
   (section 6).
@@ -128,6 +129,13 @@ flags a person gives:
   listeners. One the box can't open fails the start, `failed N
   listener PORT taken`, and the set-up has failed (`../forge/engine.md`,
   2).
+- **A removed group's listener is closed** once its removal succeeds:
+  its steps closed and its remover run, its files removed, as the box
+  answers `removed N` (`box.md`, 1). A stopped group keeps its listener,
+  and so does one whose removal failed, to be asked again. So the box
+  holds a listener for each group it keeps, at most `box.groups`, never
+  one for each forge it has ever run; a forge set up again is a new forge
+  at a new port (section 2).
 - **At a later start,** the box opens each started group's listener
   from its setup file before any step, as it opened the document's.
   A group with no setup file stays dormant, named on the box's stderr.
