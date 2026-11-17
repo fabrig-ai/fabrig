@@ -132,9 +132,13 @@ fn a_second_parent_only_in_the_checkout_refuses_delivery_before_staging() {
             if committed { b"" } else { &parent_line },
         );
         remote(&mut started, head, (!committed).then_some(second), second, false);
-        let Some((_, git::Done::FailedWithOutput { fault, diagnostic })) = started.done() else { panic!("refused") };
-        assert_eq!(fault, git::Fault::Refused);
-        assert_eq!(diagnostic.output(), b"delivery second parent is not reachable from the branch's remote");
+        assert_eq!(
+            started.done(),
+            Some((
+                fixtures::OWNER,
+                git::Done::ParentUnreachable { head, merging: (!committed).then_some(second), parent: second }
+            ))
+        );
         assert!(started.below.out.io.is_empty());
     }
 }
@@ -165,4 +169,15 @@ fn a_producers_local_commit_after_an_unchecked_save_is_kept() {
     answer(&mut started, Command::DiffIndex { parent: head }, 0, b"");
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: head })));
     assert!(started.below.out.io.is_empty(), "the producer's commit already replaces the unchecked head");
+}
+
+#[test]
+fn a_local_catch_up_reset_moves_head_with_no_checkout_or_clean() {
+    let mut started = Started::new();
+    let op = git::Op::Reset { at: fixtures::at(), commit: fixtures::COMMIT };
+    assert!(!op.is_remote());
+    started.down(Request::Io { owner: fixtures::OWNER, op, deadline: fixtures::DEADLINE, identity: None });
+    answer(&mut started, Command::SnapshotReset { commit: fixtures::COMMIT }, 0, b"");
+    assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: fixtures::COMMIT })));
+    assert!(started.below.out.io.is_empty());
 }

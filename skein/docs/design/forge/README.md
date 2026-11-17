@@ -382,7 +382,7 @@ and no policy. Every type is a plain value.
 
 ### 3.4 The errors
 
-20 errors. A call's `Error` is the first failure of its requests, and
+21 errors. A call's `Error` is the first failure of its requests, and
 `forgejo.md`, 1.4 says which failure gives which.
 
 | Error | Means |
@@ -400,6 +400,7 @@ and no policy. Every type is a plain value.
 | `NothingToMerge` | the pull request would add nothing to its base |
 | `Closed` | the target is closed or merged |
 | `Stale` | the head the call required has moved |
+| `BaseMoved { base }` | an update's pull request is at the head it required, on another base commit than the one it was decided on: `base` the one the forge reported, none where it reported none |
 | `Conflict` | the change conflicts with its base |
 | `Protected` | a protection rule refused the write |
 | `Refused` | the repository's settings, or the forge's policy, refuse the write |
@@ -411,6 +412,9 @@ and no policy. Every type is a plain value.
 - **`Busy` is never a dialect's.** It is the client's own refusal
   (client.md, section 2.3). The component never produces it
   (connection.md, section 7).
+- **Nor is `BaseMoved`:** the client's check of an update's condition
+  gives it (client.md, 7.4), so its owner can tell a base gone on from a
+  head moved.
 - **`NotConnected` and `NotInstalled` are the component's,** never a
   dialect's, and cost nothing (connection.md, section 7).
   `NotInstalled` is GitHub's alone: the component chooses an

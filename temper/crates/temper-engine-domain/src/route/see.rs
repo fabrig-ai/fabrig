@@ -234,6 +234,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"project-areas"] => {
             Address::Setting(Setting::Application { kind: 14, scope: project, number: 1 })
         }
+        [b"settings", b"agents"] => Address::Setting(Setting::Application { kind: 21, scope: 0, number: 1 }),
         [b"settings", b"project-triager"] => {
             Address::Setting(Setting::Application { kind: 15, scope: project, number: 1 })
         }
@@ -259,6 +260,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"template", number] => setting_number(b"template", number),
         [b"settings", b"policy", number] => setting_number(b"policy", number),
         [b"settings", b"model", number] => setting_number(b"model", number),
+        [b"settings", b"worker", number] => setting_number(b"worker", number),
         [b"settings", b"charter-words", number] => setting_number(b"charter-words", number),
         [b"settings", b"forge-charter", number] => setting_number(b"forge-charter", number),
         [b"settings", b"template-goal", number] => setting_number(b"template-goal", number),
@@ -357,6 +359,7 @@ fn setting_number(kind: &[u8], word: &[u8]) -> Address {
         b"template" => Setting::Template(number),
         b"policy" => Setting::Policy(number),
         b"model" => Setting::Model(number),
+        b"worker" => Setting::Worker(number),
         b"charter-words" => Setting::Application { kind: 9, scope: 0, number },
         b"forge-charter" => Setting::Application { kind: 3, scope: 0, number },
         b"template-goal" => Setting::Application { kind: 11, scope: 0, number },

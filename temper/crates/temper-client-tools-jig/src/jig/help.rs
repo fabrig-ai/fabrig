@@ -148,7 +148,7 @@ fn argument_record(argument: &Argument, limits: &Limits, out: &mut Writer) -> Re
 pub fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
     out.put(match kind {
         Kind::Number | Kind::NumberRange { .. } => b"a number",
-        Kind::Count => b"a count",
+        Kind::Count | Kind::Places => b"a count",
         Kind::NamedNumber { words, prefixes, .. } => return choices(words, prefixes, out),
         Kind::Word { set } => return choices(set, &[], out),
         Kind::Text | Kind::Literal => b"text",
@@ -156,6 +156,8 @@ pub fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
         Kind::Duration => b"a duration: seconds, or a number with s, m or h",
         Kind::Proposal => b"a proposal, tN/K or pN/K",
         Kind::Digest => b"a digest, as a read prints it",
+        Kind::Sha256 => b"64 lowercase hexadecimal digits",
+        Kind::Worker => b"a worker name: ASCII letters, digits, -, _ or ., starting with a letter or digit",
         Kind::Condition => b"a condition",
         Kind::Project { .. } => b"a project's name or number",
         Kind::Finding => b"P/N: a project name or number, then a finding number",

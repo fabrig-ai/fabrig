@@ -169,8 +169,8 @@ Shape: `demo-line`. Paths: `application.demo.llm.asked[].turns[].lines[]` `appli
 
 ## More slots
 
-`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:
 
-- `hub.slots`, in `workers[0].limits.overrides`.
+- `hub.slots`, in `engine.limits.overrides`. Workers take their limits from the engine.
 - `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
 - `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

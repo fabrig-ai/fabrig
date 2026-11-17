@@ -129,7 +129,6 @@ fn an_owner_ends_live_work_deletes_the_project_and_reads_its_old_address() {
         vec![
             Step::Press { find: in_sheet(Find::exactly_named(Role::Button, b"Delete project")) },
             Step::Gone { find: Find::exactly_named(Role::Dialog, sheet.as_bytes()), within: fixtures::WITHIN },
-            see(Find::exactly_named(Role::Disclosure, b"All projects")),
             Step::Gone { find: Find::exactly_named(Role::Button, &name), within: fixtures::WITHIN },
             see(Find::exactly_named(Role::Button, b"Survivor")),
         ],

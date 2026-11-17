@@ -17,6 +17,7 @@ pub enum Shape {
     Document,
     Model,
     Catalogue,
+    Worker,
     Wake,
     WakeRule,
     WakeBatch,
@@ -93,6 +94,10 @@ pub enum Shape {
     Welcome,
     Area,
     AreaOwner,
+    Agents,
+    AgentProfile,
+    AgentEndpoints,
+    AgentLimits,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -318,6 +323,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
 pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
     match kind {
         b"model" => Some(Shape::Catalogue),
+        b"worker" => Some(Shape::Worker),
         b"charter" => Some(Shape::Charter),
         b"template" => Some(Shape::Template),
         b"policy" | b"project-policy" => Some(Shape::Policy),
@@ -335,6 +341,7 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"tier-check" => Some(Shape::TierCheckSettings),
         b"project-areas" => Some(Shape::ProjectAreas),
         b"project-triager" => Some(Shape::ProjectTriager),
+        b"agents" => Some(Shape::Agents),
         b"welcome" => Some(Shape::Welcome),
         b"template-goal" => Some(Shape::TemplateGoal),
         b"follow" => Some(Shape::Follow),

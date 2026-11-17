@@ -2,6 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [task.md](task.md).
 
+
 Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.

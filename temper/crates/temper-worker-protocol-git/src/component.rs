@@ -144,6 +144,7 @@ impl Component {
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
             git::Op::Reds { .. }
+            | git::Op::Reset { .. }
             | git::Op::Point { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
@@ -401,6 +402,7 @@ impl Component {
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
                     git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
                     | git::Op::Point { .. }
                     | git::Op::Store { .. }
                     | git::Op::Make { .. }

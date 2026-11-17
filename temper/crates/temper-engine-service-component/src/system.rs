@@ -342,12 +342,13 @@ impl Service {
 }
 /// Core settings with the application's private tools (domain/agent/ask-temper.md, 4).
 pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
-    let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
+    let mut core = temper_engine_service_vocabulary::startup::core(config, seeds.deployment, seeds.seed);
     let mut tools = List::with_capacity(1);
     for tool in temper_engine_smith::PRIVATE_TOOLS {
         tools.push(Box::from(tool)).expect("private tool names");
     }
     core.settings.private_tools = tools.into_boxed();
+    core.parts = temper_engine_domain_forge::parts::kinds(temper_client_protocol_wire::FORGE);
     core
 }
 

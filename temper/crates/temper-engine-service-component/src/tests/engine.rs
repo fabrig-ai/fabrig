@@ -1239,3 +1239,37 @@ fn a_retired_stored_setting_refuses_start_before_switch() {
         assert!(engine.store.pending_generation, "refused before switching generations");
     }
 }
+
+#[test]
+fn the_box_restores_local_and_an_engine_alone_has_no_default_worker() {
+    let mut service = fixtures::ready();
+    let workers = service.engine.as_ref().expect("engine").workers.host.component.workers();
+    assert_eq!(
+        workers,
+        &[jig_domain_core::settings::WorkerSetting {
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: 4,
+            digest: None,
+            withdrawn: false,
+        }]
+    );
+    let record = fixtures::get(
+        &mut service,
+        jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::Default(
+            jig_domain_core::settings::Setting::Worker(1),
+        ))),
+    );
+    let Some(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+        jig_domain_core::settings::Record::Default { default, .. },
+    ))) = record
+    else {
+        panic!("first start stored the default worker")
+    };
+    let jig_domain_core::settings::Value::Worker(worker) = default.value else { panic!("worker value") };
+    assert_eq!(worker.name.as_ref(), b"local");
+    let mut alone = fixtures::engine().jig;
+    alone.hosts.listener =
+        Box::new([jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 0).into()))]);
+    assert!(crate::system::core_config(&alone, &fixtures::seeds()).defaults.workers.is_empty());
+}

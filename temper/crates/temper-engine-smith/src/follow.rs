@@ -6,12 +6,13 @@ use temper_engine_domain_forge::follows::FollowAct;
 
 pub(crate) const SPEC: Spec = Spec {
     name: b"follow",
-    description: b"start: follow commit; hold/skip: follow commit reason; merge: follow commits (2+, queue order); list: project's follows; show: follow. Acts are owner's.",
+    description: b"Act on follows you own; list/show read the project's follows.",
     // MCP requires an object root without alternatives; conditionals keep each act's required members.
-    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"enum":["start","hold","skip","merge","list","show"]},"follow":{"type":"integer","minimum":1,"maximum":4294967295},"commit":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"commits":{"type":"array","minItems":2,"maxItems":32,"items":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}},"reason":{"type":"string","minLength":1,"maxLength":8192}},"required":["act"],"if":{"properties":{"act":{"enum":["list"]}}},"else":{"required":["follow"],"if":{"properties":{"act":{"enum":["merge"]}}},"then":{"required":["commits"]},"else":{"if":{"properties":{"act":{"enum":["show"]}}},"else":{"required":["commit"],"if":{"properties":{"act":{"enum":["hold","skip"]}}},"then":{"required":["reason"]}}}}}"#,
+    schema: br#"{"type":"object","additionalProperties":false,"properties":{"act":{"enum":["start","hold","skip","merge","list","show"],"description":"The act."},"follow":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Follow number."},"commit":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$","description":"Commit after which to act."},"commits":{"type":"array","minItems":2,"maxItems":32,"items":{"type":"string","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"description":"Commits, in queue order."},"reason":{"type":"string","minLength":1,"maxLength":8192,"description":"Why hold or skip."}},"required":["act"],"if":{"properties":{"act":{"enum":["list"]}}},"else":{"required":["follow"],"if":{"properties":{"act":{"enum":["merge"]}}},"then":{"required":["commits"]},"else":{"if":{"properties":{"act":{"enum":["show"]}}},"else":{"required":["commit"],"if":{"properties":{"act":{"enum":["hold","skip"]}}},"then":{"required":["reason"]}}}}}"#,
     // One declaration covers writes and reads; the root serves list/show without a durable call.
     effect: smith_domain_run::HostEffect::Write,
-    offer: crate::calls::Offer::Delegate,
+    whole: None,
+    offer: crate::calls::Offer::Family(jig_domain_core::ToolFamilies::JIG.delegate),
 };
 
 pub(crate) fn decode(value: &Value) -> Result<FollowCall, Problem> {

@@ -7,7 +7,6 @@ use std::{fs, mem::size_of};
 #[derive(Clone, Copy)]
 enum Part {
     Engine,
-    Worker,
     Application,
 }
 
@@ -15,7 +14,6 @@ impl Part {
     fn limits(self) -> &'static str {
         match self {
             Self::Engine => "/engine/limits/overrides",
-            Self::Worker => "/workers/0/limits/overrides",
             Self::Application => "/application/limits/overrides",
         }
     }
@@ -23,7 +21,6 @@ impl Part {
     fn path(self) -> &'static str {
         match self {
             Self::Engine => "engine.limits.overrides",
-            Self::Worker => "workers[0].limits.overrides",
             Self::Application => "application.limits.overrides",
         }
     }
@@ -104,14 +101,16 @@ fn transcript_padding_covers_all_resume_window_remainders() {
         let transcript = window + (box_bytes - LENGTH_BYTES) * (window / LENGTH_BYTES);
         set(&mut document, Part::Engine, "core.resume_bytes", window);
         set(&mut document, Part::Application, "root.journal.transcript_bytes", window);
-        for part in [Part::Engine, Part::Worker] {
+        {
+            let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
         let admit = |document: &Value| {
             temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
         };
         admit(&document).expect("both hubs hold the padded configured window");
-        for part in [Part::Engine, Part::Worker] {
+        {
+            let part = Part::Engine;
             set(&mut document, part, "hub.transcript_bytes", transcript - 1);
             let refusal = admit(&document).expect_err("one padding byte short");
             let path = format!("{}.hub.transcript_bytes", part.path());
@@ -128,14 +127,12 @@ fn transcript_padding_covers_all_resume_window_remainders() {
 fn turn_and_resume_bounds_admit_the_edge_and_refuse_one_byte_short() {
     for (part, name) in [
         (Part::Engine, "hub.turn_bytes"),
-        (Part::Worker, "hub.turn_bytes"),
         (Part::Engine, "core.resume_bytes"),
         (Part::Application, "root.journal.transcript_bytes"),
         (Part::Application, "root.loads.transcript_bytes"),
         (Part::Application, "root.loads.bytes"),
         (Part::Application, "root.loads.read_bytes"),
         (Part::Engine, "hub.transcript_bytes"),
-        (Part::Worker, "hub.transcript_bytes"),
     ] {
         edge(part, name);
     }

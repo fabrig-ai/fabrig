@@ -211,8 +211,10 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        room: None,
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -239,6 +241,7 @@ fn opening_row() -> ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: env().wall,
             ready_since: None,
             owns_turn: false,
@@ -251,6 +254,8 @@ fn opening_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,
@@ -348,6 +353,7 @@ fn verifying() -> Domain {
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
         delegate_running: false,
+        flake: false,
         delegate_live: false,
         review_request: None,
         start_conflict: None,

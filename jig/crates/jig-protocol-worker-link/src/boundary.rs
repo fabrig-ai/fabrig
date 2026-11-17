@@ -33,6 +33,10 @@ pub enum Scheme {
 }
 #[derive(Debug)]
 pub enum Request {
+    /// Each whole engine figure record (protocol/channel/figures.md, 4).
+    Figures {
+        figures: jig_protocol_worker_wire::Figures,
+    },
     CannotSendWhole {
         wire: &'static str,
         version: u16,

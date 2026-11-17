@@ -42,7 +42,7 @@ pub fn parse_over(
     let engine = engine::parse_over(document, at, jig, directories, sources, problems)?;
     let mut workers = List::with_capacity(u32::try_from(engine.workers.len()).expect("bounded workers"));
     for worker in engine.workers {
-        workers.push(Worker { root: worker.root, git: None }).expect("bounded workers");
+        workers.push(Worker { root: worker.root, git: None, claude: None, environment: Box::default() }).expect("bounded workers");
     }
     Some(Members {
         clients: engine.clients,

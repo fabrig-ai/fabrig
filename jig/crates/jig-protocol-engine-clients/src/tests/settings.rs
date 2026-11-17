@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
@@ -76,6 +76,7 @@ fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
             0,
             32,
             &f::models(),
+            &List::with_capacity(0),
             &f::wire()
         )
         .unwrap(),
@@ -404,6 +405,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Charter(value) => s::Setting::Charter(value.number),
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
+            s::Value::Worker(value) => s::Setting::Worker(value.number),
             s::Value::Model(value) => s::Setting::Model(value.number),
             s::Value::Rules(_) => s::Setting::Rules,
             s::Value::Application(_) => s::Setting::Application { kind: 1, scope: 0, number: 1 },
@@ -780,4 +782,79 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
     let wire = translate::setting_document(&document, &f::models(), &w::CEILINGS).unwrap();
     let restored = client::restore_setting_document(&wire, &f::client_limits()).unwrap();
     assert_eq!(restored.overlay.as_deref(), Some(&source));
+}
+
+#[test]
+fn worker_settings_and_linked_facts_cross_client_wire_27() {
+    use jig_client_domain::contract as c;
+    use jig_client_protocol_link::translate::settings as client;
+    assert_eq!(jig_client_protocol_wire::VERSION, 30);
+    for digest in [None, Some([9; 32])] {
+        let source = s::Value::Worker(Box::new(s::WorkerSetting {
+            number: 2,
+            name: b"w1".as_slice().into(),
+            places: 4,
+            digest,
+            withdrawn: false,
+        }));
+        let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+        wire.encode(&mut bytes).unwrap();
+        let wire = w::SettingValue::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).unwrap();
+        let restored = client::restore_setting_value(&wire, &f::client_limits()).unwrap();
+        let value = client::wire_setting_value(&restored, &w::CEILINGS).unwrap();
+        let item = w::SettingItem::new(
+            &w::CEILINGS,
+            w::SettingItemParts {
+                setting: translate::name(s::Setting::Worker(2), &w::CEILINGS).unwrap(),
+                edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value }).unwrap()),
+            },
+        )
+        .unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(item.measure()).unwrap());
+        item.encode(&mut bytes).unwrap();
+        assert_eq!(
+            translate::items(f::pieces(&[bytes.finish()]), &f::models(), &w::CEILINGS).unwrap().as_ref(),
+            &[s::Item { setting: s::Setting::Worker(2), edit: s::Edit::Set(source) }]
+        );
+    }
+    let refusal = crate::translate::refusals::refusal(
+        jig_domain_people::Refusal::NotWellFormed {
+            at: 3,
+            why: jig_domain_people::Malformed::Settings {
+                setting: s::Setting::Worker(2),
+                fault: s::Fault::Linked,
+                detail: None,
+            },
+        },
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let w::Refusal::Malformed(refusal) = refusal else { panic!("malformed") };
+    let w::Malformed::Settings(facts) = refusal.why() else { panic!("settings") };
+    assert_eq!(facts.fault(), &w::SettingFault::Linked);
+    let mut source = f::deployment_document();
+    source.worker_settings = List::from_boxed(Box::new([d::WorkerState {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([9; 32]),
+        withdrawn: true,
+        linked: true,
+        since: Some(Wall::from_nanos(123)),
+    }]));
+    let wire = crate::translate::deployment::document(&source, &w::CEILINGS).unwrap();
+    let client = jig_client_protocol_link::translate::documents::deployment(wire, &f::client_limits()).unwrap();
+    assert_eq!(
+        client.worker_settings.as_slice(),
+        &[c::WorkerState {
+            number: 2,
+            name: b"w1".as_slice().into(),
+            places: 4,
+            digest: Some([9; 32]),
+            withdrawn: true,
+            linked: true,
+            since: Some(Wall::from_nanos(123))
+        }]
+    );
 }

@@ -9554,6 +9554,8 @@ pub enum Setting {
     ProjectPolicy(ProjectPolicySetting),
     /// `model` carrying `SettingNumber`.
     Model(SettingNumber),
+    /// `worker` carrying `SettingNumber`.
+    Worker(SettingNumber),
 }
 
 impl Setting {
@@ -9633,6 +9635,8 @@ pub enum SettingFault {
     Owner,
     /// `judged` without a payload.
     Judged,
+    /// `linked` without a payload.
+    Linked,
 }
 
 impl SettingFault {
@@ -22930,7 +22934,7 @@ impl Setting {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
+            Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) | Self::Worker(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
             Self::Application(record) => 1_u32.checked_add(ApplicationSetting::measure(record)).expect("schema ceilings fit u32"),
             Self::ProjectPolicy(record) => 1_u32.checked_add(ProjectPolicySetting::measure(record)).expect("schema ceilings fit u32"),
             Self::Rules => 1,
@@ -22947,6 +22951,7 @@ impl Setting {
             Self::Application(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::ProjectPolicy(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Worker(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -22968,6 +22973,7 @@ impl Setting {
             4 => Self::Application(ApplicationSetting::decode_from(limits, reader)?),
             5 => Self::ProjectPolicy(ProjectPolicySetting::decode_from(limits, reader)?),
             6 => Self::Model(SettingNumber::decode_from(limits, reader)?),
+            7 => Self::Worker(SettingNumber::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -23023,7 +23029,7 @@ impl SettingFault {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Shape | Self::Count | Self::Reference | Self::Rules | Self::Budget | Self::Grace | Self::Owner | Self::Judged => 1,
+            Self::Shape | Self::Count | Self::Reference | Self::Rules | Self::Budget | Self::Grace | Self::Owner | Self::Judged | Self::Linked => 1,
         }
     }
 
@@ -23038,6 +23044,7 @@ impl SettingFault {
             Self::Grace => writer.put(&[5_u8])?,
             Self::Owner => writer.put(&[6_u8])?,
             Self::Judged => writer.put(&[7_u8])?,
+            Self::Linked => writer.put(&[8_u8])?,
         }
         Ok(())
     }
@@ -23060,6 +23067,7 @@ impl SettingFault {
             5 => Self::Grace,
             6 => Self::Owner,
             7 => Self::Judged,
+            8 => Self::Linked,
             _ => return Err(Problem { path: Path::SettingFaultTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -34857,6 +34865,7 @@ impl Setting {
         biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?).max(SettingNumber::encoded_bound_within(limits)?);
         biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?).max(ApplicationSetting::encoded_bound_within(limits)?);
         biggest = biggest.max(ProjectPolicySetting::encoded_bound_within(limits)?).max(SettingNumber::encoded_bound_within(limits)?);
+        biggest = biggest.max(SettingNumber::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -34872,6 +34881,7 @@ impl Setting {
         biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?).max(SettingNumber::decoded_bound_within(limits)?);
         biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?).max(ApplicationSetting::decoded_bound_within(limits)?);
         biggest = biggest.max(ProjectPolicySetting::decoded_bound_within(limits)?).max(SettingNumber::decoded_bound_within(limits)?);
+        biggest = biggest.max(SettingNumber::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }

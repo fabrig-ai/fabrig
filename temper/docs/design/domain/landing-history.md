@@ -78,8 +78,8 @@ what the row's `head` and `base` hold.
 | `joined` | it joins its queue (2.4), a landing (its first `formed` round), or a forge's own merge queue admits it | `line`: `queue`, `landing` or `forge_queue`; `place`, from 1, where its line has one; `priority`, its goal's, where its line orders by one | its head | `queue`: own; `landing`: the landing's task, the round |
 | `departed` | it leaves that line without landing | `line`; `cause`: from a landing, its leave cause (`landing.md`, 4.3, the stored `LandingLeave`); from a queue, `unready`, `conflict`, `repair` or `ejected` | its head | its `joined`'s |
 | `selected` | under `queue`, it is taken as the first to land (`first`) | none | its head; the base's tip | own |
-| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase` | its head; the base's tip | the entry's number, 0 |
-| `updated` | that update settles | `outcome`: `updated`, `conflict` or `failed` | the new head, when updated; the base's tip | the entry's number, 0 |
+| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase`; `forge_base`, the base commit its pull request had as the step that asked it read it, none where unread | its head; the base it asks for, its pin (`forge/README.md`, 6) | the entry's number, 0 |
+| `updated` | that update settles | `outcome`: `updated`, `conflict` or `failed`; `forge_base`, the base commit the forge reported: the pin, when updated, the client's `BaseMoved`'s, when refused so, none otherwise | the new head, when updated; its pin | the entry's number, 0 |
 | `job` | a prepare job (`turn`) or a merge job (`queue`, `merge_job`) is delegated, its task heard | `job`: `prepare` or `merge`; `task` | its head; the base | the job's task, its attempt |
 | `job-ended` | that attempt's end is heard, each attempt's as it ends (*A job's attempt*, below) | `job`; `outcome`: `done`, `conflict`, `failed`, `timeout`, `cancelled` or `lost`; `class`, where `failed`: `unprepared`, `run`, `result`, `unstarted`, `undelivered` or `unknown` | the prefix or head it pushed, where it pushed one | the job's task, its attempt |
 | `conflict` | a conflict is found: by a job, an update, the forge's mergeability or its merge | `with`: `branch` or `earlier` (an earlier member alone); `files`, how many, 0 where unknown | its head; the base | own |
@@ -441,7 +441,8 @@ of the forge's family (`../client/ctl/tools.md`, 2):
   `, whole since TIME` where the sweep took any; an event a line,
   `NUMBER AT KIND change TASK`, then `landing L round R unit U` where it
   has them, its head and base each as 12 hexadecimal digits, and its
-  kind's fields by name; then the next page's command, or `end`. With
+  kind's fields by name, a commit among them (`forge_base`) as 12
+  hexadecimal digits too and omitted where none; then the next page's command, or `end`. With
   `--json`: `{"events": [...], "after": CURSOR or null, "upper": N,
   "whole_since": TIME or null}`, each event every field of 2.1 by name,
   its kind as 2.2 names it and its fields as its members.

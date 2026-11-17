@@ -117,6 +117,7 @@ impl Page {
         self.up(jig_client::Up::Watched {
             watch: self.watch,
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
                 rows: List::from_boxed(lines.into()),
                 more,
             }))),
@@ -127,6 +128,7 @@ impl Page {
         self.answer(
             read,
             c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::uncapped(),
                 live_after: None,
                 ended: c::EndedGroup::Rows {

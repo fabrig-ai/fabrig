@@ -14,8 +14,8 @@ A deployment is one temper: its engine, the workers that run its agents, the for
   on this machine (temper help box). A **server** runs `temper-engine serve` for its engine alone and
   `temper-worker serve` for each worker alone (temper help server).
 
-**The three directories:** `CONFIG` holds `temper.json` and
-`agent.json`; `DATA` holds the store under `deployment`, workspaces,
+**The three directories:** `CONFIG` holds `temper.json`; `DATA` holds `agents.setting`, the box’s
+copy of its agents setting, the store under `deployment`, workspaces,
 forge state, the worker secret and box logs; `CACHE` holds fetched
 Forgejo and runner binaries at pinned versions.
 
@@ -32,7 +32,7 @@ are made with mode 0700.
 
 - `engine`: limits, model providers, admitted workers, listeners,
   owners, sign-in and first-start projects, each naming `"policy": 1`;
-- `workers`: engine addresses, names, secret files, slots and agent programs;
+- `workers`: engine addresses, names, secret files and slots; agent programs are derived;
 - `application`: managed and fake forge locations, landing rules,
   client and webhook listeners, sign-in, scripted model and application limits.
 
@@ -100,16 +100,16 @@ temper ctl settings apply`.
    names the configured endpoint serving it. Providers and endpoints stay
    in `CONFIG/temper.json`.
 5. For a larger output than an agent's endpoint's limits allow, raise those
-   limits in `CONFIG/agent.json` and restart, then change the model.
+   limits in the `agents` setting and restart, then change the model.
    Preserve endpoint addresses, transports and sign-in settings. The endpoint's
-   `reasoning_item` is the byte allowance per reasoning item; `head` and `idle`
+   `reasoning_item` is the byte allowance per reasoning item; `head_ms` and `idle_ms`
    are deadlines in milliseconds. A model can go quiet for minutes in a response;
-   init gives OpenAI's an `idle` of 300000 and Anthropic's 120000.
+   init gives OpenAI's an `idle_ms` of 300000 and Anthropic's 120000.
    Larger outputs may require larger agent and channel bounds; a refused start
    names the shortfall. Restart with the same `CONFIG`, `DATA` and `CACHE`.
 
-**Writing larger pieces:** `CONFIG/agent.json`'s
-`profile.declared.tool_payload` bounds bytes per piece: a write's
+**Writing larger pieces:** the `agents` setting’s
+`declared.tool_payload` bounds bytes per piece: a write's
 content, or an edit's combined old snippets and combined new snippets,
 each separately. A 4,487-byte design edit fits the shipped 10,662-byte
 profile. This is a deployment setting; changing a charter cannot raise it.
@@ -117,9 +117,9 @@ profile. This is a deployment setting; changing a charter cannot raise it.
 Keep these coupled values in `CONFIG/temper.json` aligned:
 
 - `application.limits.overrides.checkout.message_bytes` holds the payload.
-- `workers[0].limits.overrides.hub.event_bytes` equals payload minus 2,
+- `engine.limits.overrides.hub.event_bytes` equals payload minus 2,
   the message separator: payload `8194` requires event bytes `8192`.
-- Both engine and worker overrides `hub.turn_bytes` hold the derived
+- Engine overrides `hub.turn_bytes` hold the derived
   agent turn; `hub.turn_queue_bytes` holds that times the agent's turns.
   Engine `core.resume_bytes` holds the turn plus 4; both
   `hub.transcript_bytes` hold that resume window including its framing.
@@ -128,16 +128,15 @@ Keep these coupled values in `CONFIG/temper.json` aligned:
   Raise every short value startup reports together (temper help limits;
   temper help limits-engine).
 
-For example, `workers[0].limits.overrides.hub.event_bytes: 4096 bytes,
-short of agent.json profile.declared.tool_payload less the 2-byte
-separator, 8192 bytes` means set that override to `8192`. An event bound
+For example, `the engine’s figures: hub.event_bytes 4096: 4096 bytes,
+short of agents setting declared.tool_payload less the 2-byte separator, 8192 bytes` means set that override to `8192`. An event bound
 above that figure is refused with its configured value and upper bound;
 set it to the same required figure.
 
 A payload of `16386` can instead fail at the model:
 `input-answer: llm.input[endpoint=1]=99876; llm.answer[endpoint=1]=65536`.
 The encoded input must fit the model's answer capacity. Reduce the payload,
-or raise the agent endpoint's output limit in `CONFIG/agent.json` and restart,
+or raise the agent endpoint's output limit in the `agents` setting and restart,
 then change the model's `output` through Ask temper; this example needs
 at least 12,485 output tokens (eight answer bytes per token).
 Do not lower a receiving check. Recheck all derived carriers after that

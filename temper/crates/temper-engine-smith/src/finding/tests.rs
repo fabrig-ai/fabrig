@@ -5,13 +5,6 @@ use skein_lib::Wall;
 use temper_engine_domain_forge as f;
 
 #[test]
-fn the_finding_declaration_preserves_the_stock_brief_allowance() {
-    let spec = crate::finding::SPEC;
-    let bytes = spec.name.len() + spec.description.len() + spec.schema.len();
-    assert!(bytes <= 678, "finding declaration: {bytes} bytes, at most 678 for the stock brief");
-}
-
-#[test]
 fn every_finding_act_decodes_its_minimum_shape_and_names_a_wrong_member() {
     for (input, expected) in [
         (

@@ -72,6 +72,10 @@ impl Joint {
     /// Carry an unlinked client's contract operation to the real core.
     /// # Errors
     /// Returns work outside this transport's declared Jig owner intact.
+    #[expect(
+        clippy::result_large_err,
+        reason = "unsupported client work is returned intact; task queries own their parts"
+    )]
     pub fn down(
         &mut self,
         client: ClientId,
@@ -768,7 +772,7 @@ mod tests {
 fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     use crate::harness::Front;
     use jig_client::contract as c;
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire as w;
     use skein_lib::Writer;
     let now = Time::ZERO;
     let wall = super::fixture::clock(now);

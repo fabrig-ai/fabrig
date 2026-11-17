@@ -92,7 +92,7 @@ engine's and each worker's.
 | `root.loads.read_bytes` | the larger of 2 × T and a read's room: T, a row and a record |
 | `tasks.message_bytes`, `tasks.result_bytes` | P − 2 |
 | `tasks.inbox_bytes` | the agent's inbox × (P − 2) |
-| each worker's `hub.event_bytes` | P − 2 |
+| both `hub.event_bytes` | P − 2; the engine sends its hub limits to the workers (`figures.md`, 2) |
 | `checkout.message_bytes` | P |
 | `forge.client.op_bytes` | `tasks.result_bytes` |
 | both `hub.outcome_bytes`, both `core.call_answer_bytes` | the larger of the stock's figure and P |
@@ -125,7 +125,7 @@ writes only `slots`.
   assignment, message frames and inbox, near 61 MB a slot at jig's
   stock. It holds at jig's stock and at the figures temper's engine
   starts with, so the generated deployment starts: 40 on 2026-11-17
-  (temper's base with its derived carriers: 4,134,901,580 bytes at 40,
+  (temper's base with its derived carriers: 4,144,964,324 bytes at 40, including the figures opening,
   past the u32 at 48), where jig's
   stock alone holds 64. It is never below dev's 36. Where temper's
   derived figures make a slot larger still, temper's base sets its own

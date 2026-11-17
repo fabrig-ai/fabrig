@@ -34,6 +34,8 @@ use crate::git::{Commit, Done, Missing, Op};
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Event {
+    /// The answer to this hold's landed-dependency question; dropped unless waiting.
+    DependencyLanded { hold: Token, landed: bool },
     /// A clear supersedes check writes still in flight.
     Reds { hold: Token, action: crate::git::Reds },
     /// Prepare a workspace for `spec`, on behalf of `client`, which holds it
@@ -71,6 +73,8 @@ pub enum Event {
 /// checkout -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Ask whether a starting head's dependency has landed.
+    DependencyLanded { client: Token, head: Commit },
     /// A check results file, from the repository at its spec index.
     Results { client: Token, check: u64, repository: u32, bytes: Option<Box<[u8]>> },
     /// Every writable repository has been read for this check.
@@ -258,6 +262,12 @@ pub enum Outcome {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Landing {
+    /// The dependency's landing tip was merged locally; check and deliver again.
+    CaughtUp { tip: Commit },
+    /// Unchecked work was saved after merging the dependency's landing tip.
+    CaughtUpSaved { commit: Commit, tip: Commit },
+    /// The dependency's landing tip left a merge in progress.
+    CaughtUpConflict { files: Box<[Box<[u8]>]> },
     /// The design delivery merged this fetched goal tip before pushing.
     DesignMerged { commit: Commit, tip: Commit },
     /// The goal tip left a merge in progress for the run to settle.

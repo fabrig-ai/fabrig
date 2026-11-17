@@ -77,6 +77,7 @@ pub fn dismiss_making(
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher refuses outcomes of other family requests")]
 pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limits) -> Option<forge::Answer> {
     if record.family != wire::number(wire::Owner::Forge) {
         return None;
@@ -175,6 +176,8 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_) => return None,
     })
 }
@@ -293,6 +296,8 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
+        | w::Outcome::Checkpointed(_)
+        | w::Outcome::CheckpointRefused(_)
         | w::Outcome::EndRefused(_) => return None,
     })
 }

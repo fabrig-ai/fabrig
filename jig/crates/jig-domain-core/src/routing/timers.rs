@@ -79,7 +79,8 @@ impl Core {
     /// The deployment row this decision writes, if any (domain/engine/README.md, 5.4).
     #[must_use]
     pub fn decision_header(&mut self, wrote: bool) -> Option<Record> {
-        if wrote || self.counters.dirty() { Some(self.counters.commit_record()) } else { None }
+        let marked = core::mem::replace(&mut self.ended_groups.changed, false);
+        if wrote || marked || self.counters.dirty() { Some(self.counters.commit_record()) } else { None }
     }
 }
 

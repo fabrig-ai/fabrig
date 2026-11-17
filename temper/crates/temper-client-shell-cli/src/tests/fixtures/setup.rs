@@ -65,6 +65,7 @@ impl Frame {
             | f::Request::Reachable(_)
             | f::Request::AddDevice(_)
             | f::Request::RemoveDevice(_)
+            | f::Request::Checkpoint
             | f::Request::DismissMaking(_) => return false,
         };
         let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).expect("valid setup fixture");

@@ -65,6 +65,7 @@ fn recovery(error: skein_forge::api::Error) -> &'static [u8] {
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::InvalidAnswer => b"; resolve the reported forge failure, then release to read afresh",
     }

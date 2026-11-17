@@ -54,7 +54,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); a task with a transcript file keeps using it until retention drops it. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); a task with a transcript file keeps using it until retention drops it. A checkpoint, a deployment's state at one commit, is taken while the engine serves or over a stopped deployment, mostly by hard links, and the newest are kept (`protocol/store/checkpoints.md`); restoring one is later work. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
@@ -106,6 +106,9 @@ within its archive bound (`domain/engine/settings.md`, 2;
 Later pages, changes to a known name's figures and catalogue-number reuse
 remain deferred (`domain/engine/README.md`, section 10).
 The omitted-count mark gap remains `domain/engine/settings.status.md`, 12.
+Workers are settings of the kind `worker`: each admitted at its opening
+against its setting's digest and at its places, a linked one never
+removed, and the engine's document lists none (`domain/engine/workers.md`).
 A person's task can carry an LLM choice, and `Core::account_llm` builds
 one held to a named account, at its model's default effort
 (`domain/authority.md`, 6.1; `domain/accounts.md`, 4.3).
@@ -197,6 +200,7 @@ Design documents:
 - [`domain/authority.md`](domain/authority.status.md)
 - [`domain/connectors.md`](domain/connectors.status.md)
 - [`domain/engine/README.md`](domain/engine/README.status.md)
+- [`domain/engine/workers.md`](domain/engine/workers.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/people/README.md`](domain/people/README.status.md)
 - [`domain/hosts/README.md`](domain/hosts/README.status.md)
@@ -219,6 +223,7 @@ Design documents:
 - [`protocol/channel/README.md`](protocol/channel/README.status.md)
 - [`protocol/channel/wires.md`](protocol/channel/wires.status.md)
 - [`protocol/channel/bridges.md`](protocol/channel/bridges.status.md)
+- [`protocol/channel/figures.md`](protocol/channel/figures.status.md)
 - [`protocol/channel/restart.md`](protocol/channel/restart.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/configuration.md`](protocol/configuration.status.md)
@@ -228,6 +233,7 @@ Design documents:
 - [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
 - [`protocol/store/parts.md`](protocol/store/parts.status.md)
 - [`protocol/store/logs.md`](protocol/store/logs.status.md)
+- [`protocol/store/checkpoints.md`](protocol/store/checkpoints.status.md)
 - [`protocol/store/crates.md`](protocol/store/crates.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 

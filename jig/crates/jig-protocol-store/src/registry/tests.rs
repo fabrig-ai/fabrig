@@ -86,6 +86,7 @@ fn planning_store(sets: OwnerSets) -> Store {
     let events = fixtures::run(
         &mut store,
         crate::Request::Open {
+            purpose: crate::Purpose::Serve,
             owner: skein_lib::Token::new(1),
             root: fixtures::ROOT,
             installation: fixtures::INSTALLATION,

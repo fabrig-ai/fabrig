@@ -456,7 +456,13 @@ fn landed_sign_offs_keep_the_counted_review_and_survive_restart() {
         let view = changes_document(&mut world);
         for rows in [&view.landed, &view.landed_default] {
             let signed = rows.iter().find(|row| row.task == protocol).expect("protocol landing");
-            assert_eq!(signed.signed.as_ref(), &[expected], "restart {restarted}");
+            assert_eq!(signed.signed.len(), 1, "restart {restarted}");
+            let signed = &signed.signed[0];
+            assert_eq!(
+                (signed.person, signed.head, signed.at),
+                (expected.person, expected.head, expected.at),
+                "restart {restarted}"
+            );
             assert!(rows.iter().find(|row| row.task == docs).expect("docs landing").signed.is_empty());
         }
     }

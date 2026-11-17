@@ -145,7 +145,22 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         };
         let parties = if rng.chance(500) { vec![1, 5] } else { vec![] };
         let signed = if matches!(at, Where::Landed { .. }) {
-            let words = work::signed(1, &parties, Some(&jig_client_kit::stories::project()));
+            let signers: Vec<_> = parties
+                .iter()
+                .map(|party| {
+                    temper_client_protocol_wire::v1::ChangesSigned::new(
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                        temper_client_protocol_wire::v1::ChangesSignedParts {
+                            party: *party,
+                            name: Some(b"Sam".as_slice().into()),
+                            head: [0; 32],
+                            at: 0,
+                        },
+                    )
+                    .expect("signer")
+                })
+                .collect();
+            let words = work::signed(1, &signers);
             assert_eq!(words.is_some(), !parties.is_empty(), "only nonempty sign-offs have words");
             words
         } else {

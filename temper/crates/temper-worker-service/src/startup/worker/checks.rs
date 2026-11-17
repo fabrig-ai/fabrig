@@ -104,14 +104,14 @@ pub fn turns<E>(workers: &[config::Worker], agent: &settings::Agent, problems: &
         short(
             problems,
             path.member(b"hub.outcome_bytes"),
-            worker.limits.hub.outcome_bytes,
-            b"the agent's outcome (agent.json profile.declared.tool_payload)",
+            worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
+            b"the agent's outcome (agents setting declared.tool_payload)",
             Some(agent.outcome_bytes()),
         );
         short(
             problems,
             path.member(b"hub.turn_bytes"),
-            worker.limits.hub.turn_bytes,
+            worker.limits.as_ref().expect("checked worker limits").hub.turn_bytes,
             b"the agent's largest turn",
             Some(u64::from(agent.turn_body())),
         );

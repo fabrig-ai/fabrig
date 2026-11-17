@@ -139,7 +139,7 @@ fn team_watches_areas_redraws_and_closes_without_retrying_refusals() {
         &mut f,
         handle,
         roles,
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
     );
     let (_, card_handle, card_watch) = f.card.unwrap();
     let mut document = fixtures::chat::task();

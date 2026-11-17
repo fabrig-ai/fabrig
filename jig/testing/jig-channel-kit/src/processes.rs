@@ -207,9 +207,16 @@ fn engine_configured(inherited: &Inherited, calls: bool) -> Proc {
     engine_document(inherited, &if calls { fixtures::engine_call_document() } else { fixtures::engine_document() })
 }
 pub(crate) fn engine_document(inherited: &Inherited, document: &[u8]) -> Proc {
-    let mut service =
-        jig_test_service::startup(document, &fixtures::files(false), None, &fixtures::seeds(), None, None)
-            .expect("engine configuration");
+    let mut service = jig_test_service::startup_with_workers(
+        document,
+        &fixtures::files(false),
+        None,
+        &fixtures::seeds(),
+        None,
+        None,
+        fixtures::workers(),
+    )
+    .expect("engine configuration");
     service.adopt_signals(inherited.signal).expect("engine signal source");
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("deployment root").1;
     service.adopt_store(root, 1000).expect("store directory");

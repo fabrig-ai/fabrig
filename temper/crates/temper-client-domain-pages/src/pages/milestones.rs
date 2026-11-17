@@ -1,24 +1,24 @@
-//! Shared milestone reads and words (temper/docs/design/client/pages/milestone.md, 1 and 2).
-use super::{Request, goals::Goals};
+//! Milestone rows, page reads and words (temper/docs/design/client/pages/milestone.md, 1 and 2).
+use super::Request;
 use crate::{Limits, forge, owner::Owner};
 use alloc::boxed::Box;
 use core::cmp::Reverse;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Map, Queue, Wall};
-use temper_client_domain_forge::milestones as facts;
+use temper_client_domain_forge::{milestones as facts, parts};
 use temper_client_protocol_wire::v1 as w;
 
 mod words;
 pub use words::{Count, Headline, Mark, Segment, State, count, headline, state, strip};
 
 pub const DRAWN: u32 = 16;
-const HELD: u32 = 16;
 const PAGES: u32 = 4;
 const WEEK: u64 = 604_800_000_000_000;
 
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
     Some(c::TaskQuery {
+        parts: List::from_boxed(Box::new([parts::asks(temper_client_protocol_wire::MILESTONE_PART)])),
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, facts::TEMPLATE)?.label),
         tracked: Some(true),
@@ -58,14 +58,14 @@ fn document(page: &Readout, number: u64) -> Option<Box<c::Task>> {
     }
 }
 
-/// Usable by a milestone's own page as well as by the shared list.
+/// Reads kept by a milestone's own page and by its inbox filter.
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "held milestone values are public; read bookkeeping is private")]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "merged completeness, paging in flight, queued refresh and ended completeness move independently"
+    reason = "merged completeness, ended cuts, answered goals and opened watches move independently"
 )]
-pub struct Milestone {
+pub struct MilestoneRead {
     pub task: u64,
     pub document: Option<Box<c::Task>>,
     pub facts: Option<facts::Facts>,
@@ -84,13 +84,13 @@ pub struct Milestone {
     reading_totals: Option<(Wall, bool)>,
     ended_rows: Map<u64, c::TaskLine>,
     pages: u32,
-    reading_ended: bool,
-    refresh_ended: bool,
+    ended_read: super::ended::EndedRead,
+    ended_mark: Option<u64>,
     ended_more: bool,
     ended_answered: bool,
     watching_goals: bool,
 }
-impl Milestone {
+impl MilestoneRead {
     #[must_use]
     pub fn new(project: u32, task: u64, next: &mut u64) -> Self {
         Self {
@@ -112,8 +112,8 @@ impl Milestone {
             reading_totals: None,
             ended_rows: Map::uncapped(),
             pages: 0,
-            reading_ended: false,
-            refresh_ended: false,
+            ended_read: super::ended::EndedRead::new(),
+            ended_mark: None,
             ended_more: false,
             ended_answered: false,
             watching_goals: false,
@@ -121,6 +121,7 @@ impl Milestone {
     }
     fn query(&self) -> c::TaskQuery {
         c::TaskQuery {
+            parts: List::from_boxed(Box::new([parts::asks(temper_client_protocol_wire::GOAL_PART)])),
             project: Some(self.project),
             parent: Some(self.task),
             order: c::QueryOrder::Number,
@@ -132,9 +133,6 @@ impl Milestone {
             tracked: None,
         }
     }
-    pub fn configure(&mut self, line: &c::TaskLine, client: &Client, limits: &Limits, out: &mut Queue<Request>) {
-        self.configure_at(line.changed, line.chip.phase == c::Phase::Ended, client, limits, out);
-    }
     /// A task page already watches the same changed/ended facts in its document.
     pub(super) fn configure_at(
         &mut self,
@@ -145,18 +143,10 @@ impl Milestone {
         out: &mut Queue<Request>,
     ) {
         let key = (changed, ended);
-        let ending = key.1
-            && match self.key {
-                Some(old) => !old.1,
-                None => false,
-            };
         let opening = self.key.is_none();
         self.key = Some(key);
         if opening {
             self.configure_goals(client, limits, out);
-        }
-        if ending {
-            self.refresh_ended = true;
         }
         if self.document_at != Some(key) && self.reading_document.is_none() {
             self.reading_document = Some(key);
@@ -171,7 +161,6 @@ impl Milestone {
                 self.totals = None;
             }
         }
-        self.refresh(out);
         self.merge(client);
     }
     /// A milestone filter needs its merged goals, not its totals or another document read.
@@ -182,20 +171,16 @@ impl Milestone {
                 handle: self.live,
                 subject: Watchable::Jig(c::Subject::Tasks { query: self.query(), window: limits.client.domain.rows }),
             }));
-            self.refresh_ended = true;
+            self.refresh(out);
         }
-        self.refresh(out);
         self.merge(client);
     }
     fn refresh(&mut self, out: &mut Queue<Request>) {
-        if self.refresh_ended && !self.reading_ended {
-            self.refresh_ended = false;
-            self.pages = 0;
-            self.read_ended(None, out);
-        }
+        self.pages = 0;
+        self.read_ended(None, out);
     }
     fn read_ended(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
-        self.reading_ended = true;
+        self.ended_read.start();
         out.push(Request::Client(jig_client::Event::Read {
             handle: self.ended,
             read: Readable::Jig(c::Read::Tasks {
@@ -205,11 +190,12 @@ impl Milestone {
             }),
         }));
     }
-    pub fn told(&mut self, told: &Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, told: &Told, client: &Client, limits: &Limits, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if *handle == self.live => {
-                self.refresh_ended = true;
-                self.refresh(out);
+                if self.ended_read.changed(client, self.live) {
+                    self.refresh(out);
+                }
                 true
             }
             Told::Page { handle, page } if *handle == self.task_read => {
@@ -230,29 +216,38 @@ impl Milestone {
                 true
             }
             Told::Page { handle, page } if *handle == self.ended => {
-                self.reading_ended = false;
+                let mut following = None;
                 if self.pages == 0 {
                     self.ended_rows = Map::uncapped();
                     self.ended_more = false;
+                    self.ended_mark = None;
                 }
                 self.pages = self.pages.checked_add(1).expect("bounded ended pages");
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page
                     && let c::EndedGroup::Rows { rows, after, cut } = &page.ended
                 {
                     self.ended_answered = true;
+                    if self.pages == 1 {
+                        self.ended_mark = Some(page.ended_mark);
+                    }
                     for row in rows {
                         self.ended_rows.insert(row.chip.task, row.clone()).expect("bounded delivered rows");
                     }
                     self.ended_more |= *cut;
                     if let Some(after) = after {
-                        if self.pages < PAGES && !self.refresh_ended {
-                            self.read_ended(Some(after.clone()), out);
+                        if self.pages < PAGES {
+                            following = Some(after.clone());
                         } else {
                             self.ended_more = true;
                         }
                     }
                 }
-                self.refresh(out);
+                if self.ended_read.answered(self.ended_mark) {
+                    self.ended_more |= following.is_some();
+                    self.refresh(out);
+                } else if let Some(after) = following {
+                    self.read_ended(Some(after), out);
+                }
                 true
             }
             Told::Ended { handle, .. }
@@ -302,11 +297,64 @@ impl Milestone {
     }
 }
 
+/// A drawn milestone has no reads of its own (client/forge/parts.md, 5).
 #[derive(Debug)]
-struct Requester {
-    task: u64,
-    handle: Handle,
-    document: Option<Box<c::Task>>,
+pub struct Milestone {
+    pub task: u64,
+    pub facts: Option<RowFacts>,
+    pub goals: List<c::TaskLine>,
+    pub headlines: Map<u64, Box<[u8]>>,
+    pub more: u32,
+    pub totals: Option<w::MilestoneTotals>,
+}
+
+/// Only the facts a card gets from its line and part; document-only facts stay on its page.
+#[derive(Debug)]
+pub struct RowFacts {
+    pub name: Box<[u8]>,
+    pub maker: c::Requester,
+    pub whole: Option<Wall>,
+}
+impl Milestone {
+    #[must_use]
+    pub fn from_line(line: &c::TaskLine, limits: &jig_client_protocol_link::Limits) -> Self {
+        let mut drawn = Self {
+            task: line.chip.task,
+            facts: None,
+            goals: List::uncapped(),
+            headlines: Map::uncapped(),
+            more: 0,
+            totals: None,
+        };
+        if let Some(part) = parts::milestone(line, limits) {
+            drawn.facts = Some(RowFacts {
+                name: skein_lib::bytes::copy_of(line.chip.title.bytes()),
+                maker: line.requester,
+                whole: part.whole,
+            });
+            drawn.totals = Some(part.totals);
+            drawn.more = part.more;
+            let mut ordered = Map::uncapped();
+            for (goal, headline) in part.goals.into_boxed() {
+                let task = goal.chip.task;
+                ordered.insert(task, goal).expect("part goals fit");
+                if let Some(headline) = headline {
+                    drawn.headlines.insert(task, headline).expect("part goals fit");
+                }
+            }
+            for (_, goal) in &ordered {
+                drawn.goals.push(goal.clone()).expect("part goals fit");
+            }
+        }
+        drawn
+    }
+    #[must_use]
+    pub fn headline(&self, task: u64) -> Option<&[u8]> {
+        match self.headlines.get(&task) {
+            Some(headline) => Some(headline),
+            None => None,
+        }
+    }
 }
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "list handles are public; retained reads belong to the list")]
@@ -316,10 +364,9 @@ pub struct Milestones {
     query: Option<c::TaskQuery>,
     answered: bool,
     ended_rows: List<c::TaskLine>,
+    ended_read: super::ended::EndedRead,
     lines: List<c::TaskLine>,
     drawn: List<Milestone>,
-    requesters: List<Requester>,
-    sources: Map<u64, c::TaskLine>,
 }
 impl Milestones {
     #[must_use]
@@ -330,16 +377,11 @@ impl Milestones {
             query: None,
             answered: false,
             ended_rows: List::uncapped(),
+            ended_read: super::ended::EndedRead::new(),
             lines: List::uncapped(),
             drawn: List::with_capacity(DRAWN),
-            requesters: List::with_capacity(HELD),
-            sources: Map::uncapped(),
         }
     }
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the shared read takes the client's values, clock and allocator explicitly"
-    )]
     pub fn configure(
         &mut self,
         me: Option<&c::Me>,
@@ -347,7 +389,6 @@ impl Milestones {
         client: &Client,
         limits: &Limits,
         wall: Wall,
-        next: &mut u64,
         out: &mut Queue<Request>,
     ) {
         let query = match me {
@@ -356,13 +397,12 @@ impl Milestones {
         };
         if self.query != query {
             self.leave(out);
-            self.query = query;
+            self.query.clone_from(&query);
             self.answered = false;
             self.lines.clear();
             self.ended_rows.clear();
+            self.ended_read = super::ended::EndedRead::new();
             self.drawn.clear();
-            self.requesters.clear();
-            self.sources = Map::uncapped();
             if let Some(query) = query {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: self.live,
@@ -402,130 +442,61 @@ impl Milestones {
             }
         }
         let mut drawn = List::with_capacity(DRAWN);
-        let mut old = core::mem::replace(&mut self.drawn, List::with_capacity(0));
+        let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges)
+            .expect("validated client limits");
         for ordered in [&live, &ended] {
             for (_, line) in ordered {
                 if drawn.room() == 0 {
                     break;
                 }
-                let mut found = None;
-                for index in 0..old.len() {
-                    if old.get(index).expect("drawn index").task == line.chip.task {
-                        found = old.swap_remove(index);
-                        break;
-                    }
-                }
-                let mut read = match found {
-                    Some(read) => read,
-                    None => Milestone::new(project, line.chip.task, next),
-                };
-                read.configure(line, client, limits, out);
-                drawn.push(read).expect("drawn bound checked");
+                drawn.push(Milestone::from_line(line, &link)).expect("drawn bound checked");
             }
-        }
-        for read in &old {
-            read.leave(out);
         }
         self.drawn = drawn;
     }
-    fn read_ended(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+    fn read_ended(&mut self, out: &mut Queue<Request>) {
+        if let Some(query) = &self.query {
+            self.ended_read.start();
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended: None,
                 }),
             }));
         }
     }
-    /// Called after each page step, including deliveries of the shared goals and drawn goals.
-    pub fn requesters(&mut self, goals: Option<&Goals>, client: &Client, next: &mut u64, out: &mut Queue<Request>) {
-        if self.query.is_none() {
-            return;
-        }
-        let mut sources = Map::uncapped();
-        if let Some(goals) = goals {
-            if let Some(live) = goals.live(client) {
-                for line in &live.rows {
-                    sources.insert(line.chip.task, line.clone()).expect("held goals fit");
-                }
-            }
-            for line in goals.ended() {
-                if sources.get(&line.chip.task).is_none() {
-                    sources.insert(line.chip.task, line.clone()).expect("held goals fit");
-                }
-            }
-        }
-        for milestone in &self.drawn {
-            for line in &milestone.goals {
-                sources.insert(line.chip.task, line.clone()).expect("held goals fit");
-            }
-        }
-        for (task, line) in &sources {
-            if self.sources.get(task) == Some(line) {
-                continue;
-            }
-            let c::Requester::Task(requester) = line.requester else { continue };
-            let mut known = false;
-            for listed in &self.lines {
-                known |= listed.chip.task == requester;
-            }
-            for held in &self.requesters {
-                known |= held.task == requester;
-            }
-            if known {
-                continue;
-            }
-            if self.requesters.room() == 0 {
-                // Retain insertion order: the first held requester is the oldest.
-                let mut kept = List::with_capacity(HELD);
-                for (index, held) in core::mem::replace(&mut self.requesters, List::with_capacity(0))
-                    .into_boxed()
-                    .into_iter()
-                    .enumerate()
-                {
-                    if index == 0 {
-                        unwatch(held.handle, out);
-                    } else {
-                        kept.push(held).expect("held bound");
-                    }
-                }
-                self.requesters = kept;
-            }
-            let handle = allocate(next);
-            read_task(handle, requester, out);
-            self.requesters.push(Requester { task: requester, handle, document: None }).expect("held bound checked");
-        }
-        self.sources = sources;
-    }
-    pub fn told(&mut self, told: &Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+    pub fn told(&mut self, told: &Told, client: &Client, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if *handle == self.live => {
-                self.read_ended(out);
+                if self.ended_read.changed(client, self.live) {
+                    self.read_ended(out);
+                }
                 return true;
             }
             Told::Page { handle, page } if *handle == self.ended => {
                 self.answered = true;
+                let mut mark = None;
                 if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    mark = Some(page.ended_mark);
                     self.ended_rows = match &page.ended {
                         c::EndedGroup::Rows { rows, .. } => rows.clone(),
                         c::EndedGroup::None => List::uncapped(),
                     };
                 }
+                if self.ended_read.answered(mark) {
+                    self.read_ended(out);
+                }
                 return true;
             }
-            Told::Page { handle, page } => {
-                for held in self.requesters.iter_mut() {
-                    if held.handle == *handle {
-                        held.document = document(page, held.task);
-                        return true;
-                    }
-                }
-            }
             Told::Ended { handle, .. } if *handle == self.live => return true,
-            Told::Changed { .. }
+            Told::Page { .. }
+            | Told::Changed { .. }
             | Told::Ended { .. }
             | Told::Link { .. }
             | Told::Pending { .. }
@@ -534,23 +505,12 @@ impl Milestones {
             | Told::Dropped { .. }
             | Told::Text { .. } => {}
         }
-        for read in self.drawn.iter_mut() {
-            if read.told(told, limits, out) {
-                return true;
-            }
-        }
         false
     }
     pub fn leave(&self, out: &mut Queue<Request>) {
         if self.query.is_some() {
             unwatch(self.live, out);
             unwatch(self.ended, out);
-        }
-        for read in &self.drawn {
-            read.leave(out);
-        }
-        for held in &self.requesters {
-            unwatch(held.handle, out);
         }
     }
     /// The project's milestone list has answered; a project without its template has none.
@@ -589,21 +549,7 @@ impl Milestones {
     }
     #[must_use]
     pub fn of(&self, line: &c::TaskLine) -> Option<u64> {
-        let c::Requester::Task(task) = line.requester else { return None };
-        for line in &self.lines {
-            if line.chip.task == task {
-                return Some(task);
-            }
-        }
-        for held in &self.requesters {
-            if held.task == task
-                && let Some(document) = &held.document
-                && facts::is(&document.chip)
-            {
-                return Some(task);
-            }
-        }
-        None
+        facts::of(line)
     }
 }
 

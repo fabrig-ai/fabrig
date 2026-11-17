@@ -129,7 +129,7 @@ impl World {
         let mut delegate =
             temper_engine_domain_world::fixtures::report_delegate(b"Settle goal 1's status.", Box::new([]));
         delegate.executor = tasks::Executor::Procedure { connector: 1, code: 2 };
-        delegate.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 256 };
+        delegate.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 256, choices: Box::new([]) };
         delegate.authority = live.authority.clone();
         delegate.authority.delegation.depth = delegate.authority.delegation.depth.saturating_sub(1);
         delegate.authority.delegation.tasks = 6;

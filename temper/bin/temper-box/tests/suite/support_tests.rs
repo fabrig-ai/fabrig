@@ -38,7 +38,10 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
     );
-    let agent = temper_worker_shell::agent::read(&cluster.dir("w1").join("config/agent.json")).expect("agent profile");
+    let document = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
+    let bytes = serde_json::to_vec(&support::cluster::agent_configuration(&document, &cluster.dir("w1").join("data")))
+        .expect("agent JSON");
+    let agent = temper_worker_shell::agent::prepare_bytes(bytes.into()).expect("agent profile").agent;
     for process in ["engine", "w1"] {
         let root = cluster.dir(process);
         let directories = temper_real_loop_world::cluster::directories_in([
@@ -76,6 +79,9 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
 fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     use serde_json::json;
     let scratch = support::Scratch::new("cluster-turn-settings");
+    std::fs::create_dir_all(scratch.path().join("engine")).expect("engine directory");
+    std::fs::copy(cluster_turn_setup::fixture().join("settings.json"), scratch.path().join("engine/settings.json"))
+        .expect("worker settings");
     let calls: Vec<_> = [
         json!({}),
         json!({"newest":7}),
@@ -254,7 +260,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         let bytes = std::fs::read(root.join(path)).expect("fixture file");
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
-    let agent = temper_worker_shell::agent::read(&root.join("agent.json")).expect("story agent");
+    let agent = temper_fixtures::agent::prepared(root).agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,

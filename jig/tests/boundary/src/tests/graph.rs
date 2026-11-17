@@ -737,6 +737,7 @@ fn engine_worker_channels_link_only_their_boundary_configuration_and_foundation(
     assert_eq!(
         dependencies,
         [
+            "jig-domain-core-vocabulary",
             "jig-domain-host",
             "jig-domain-link",
             "jig-protocol-config",

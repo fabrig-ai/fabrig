@@ -432,6 +432,15 @@ fn core_ask(
 ) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {
+        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Parts(ask)) => {
+            let mut parts = List::uncapped();
+            for _row in &ask.rows {
+                for _kind in &ask.kinds {
+                    parts.push(core::MadePart::Failed(core::PartFailure::Unreadable)).expect("parts fit the ask");
+                }
+            }
+            work.push(Work::Core(core::Event::Parts { connector: number, token: ask.token, parts }));
+        }
         (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Public { reply, .. }) => {
             work.push(Work::Core(core::Event::PublicAnswered { reply, answer: None }));
         }
@@ -724,7 +733,8 @@ fn core_ask(
         | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
         | (
             Some(Connector::Infrastructure | Connector::Observability) | None,
-            core::Ask::Catalogue { .. }
+            core::Ask::Workers(_)
+            | core::Ask::Catalogue { .. }
             | core::Ask::StepMade { first: None, .. }
             | core::Ask::ForgetProjection { .. }
             | core::Ask::Adopt { .. }

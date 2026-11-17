@@ -201,6 +201,7 @@ fn row(number: u64, name: &[u8], phase: c::Phase) -> c::TaskLine {
 }
 fn tasks(live: Vec<c::TaskLine>, ended: Vec<c::TaskLine>, more: bool) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::from_boxed(live.into_boxed_slice()),
         live_after: if more { Some(f::cursor()) } else { None },
         ended: c::EndedGroup::Rows {

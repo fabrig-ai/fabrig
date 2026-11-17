@@ -63,6 +63,9 @@ impl Domain {
                     };
                 changes
                     .push(ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: *task,
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since,
@@ -115,6 +118,9 @@ impl Domain {
                 {
                     let change = self.changes.get(&member.change)?;
                     return Some(TrainLanding {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: row.landing.task,
                         member: member.change,
                         round: row.landing.preparation,
@@ -154,7 +160,10 @@ impl Domain {
                         .insert(
                             (key, change.task),
                             ChangesLanded {
-                                signed: change.signed.clone(),
+                                goal: None,
+                                chat: None,
+                                milestone: None,
+                                signed: signed(&change.signed),
                                 task: change.task,
                                 title: change.title.clone(),
                                 at: logged.at,
@@ -259,6 +268,15 @@ impl Domain {
         false
     }
 }
+fn signed(signs: &[crate::SignOff]) -> Box<[ChangesSigned]> {
+    let mut rows = List::with_capacity(u32::try_from(signs.len()).expect("bounded sign-offs"));
+    for sign in signs {
+        rows.push(ChangesSigned { person: sign.person, head: sign.head, at: sign.at, name: None })
+            .expect("one document sign-off per logged sign-off");
+    }
+    rows.into_boxed()
+}
+
 fn owns(row: &ChangeRow) -> bool {
     crate::domain::owns_turn(row)
 }

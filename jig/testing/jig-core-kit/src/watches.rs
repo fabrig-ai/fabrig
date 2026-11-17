@@ -619,7 +619,7 @@ pub(crate) fn named_subject(value: &core::documents::Watched, party: u64) -> Sub
         W::Accounts | W::Terminal { .. } => {
             unreachable!("Parties open no accounts watch; the accounts story uses the client peer")
         }
-        W::Query { query } => Subject::Query { query: *query },
+        W::Query { query } => Subject::Query { query: query.clone() },
         W::Run { task } => Subject::Run { task: *task },
         W::Settings => Subject::Settings,
         W::Deployment => Subject::Deployment,

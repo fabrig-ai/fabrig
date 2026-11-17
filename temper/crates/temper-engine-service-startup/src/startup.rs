@@ -213,14 +213,18 @@ impl Parsed {
         checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
         for (index, worker) in self.workers.iter_mut().enumerate() {
             if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
-                &mut worker.limits,
+                worker.limits.as_mut().expect("checked worker limits"),
                 agent.tool_payload,
                 agent.host_ask_input,
                 agent.host_reply_text,
             ) {
                 problems.push(call_input_path(indexed(index)), what.extend());
             }
-            checks::call_answer(indexed(index), worker.limits.core.call_answer_bytes, &mut problems);
+            checks::call_answer(
+                indexed(index),
+                worker.limits.as_ref().expect("checked worker limits").core.call_answer_bytes,
+                &mut problems,
+            );
         }
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
@@ -443,6 +447,9 @@ fn load_document(
     let engine = match engine_at {
         Some(at) => match engine_with(document, at, directories, given) {
             Ok(mut engine) => {
+                if check_start {
+                    checks::figures(&engine, &mut problems);
+                }
                 check_fleet_grace(&engine, &mut problems);
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
@@ -475,6 +482,15 @@ fn load_document(
         }
         match config::worker(document, *at, directories, &fixed_worker()) {
             Ok(worker) => {
+                if worker.agent.is_none() {
+                    problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
+                }
+                if worker.limits.is_none() {
+                    problems.push(indexed(index).member(b"limits"), What::Jig(config::What::Missing));
+                }
+                if worker.agent.is_none() || worker.limits.is_none() {
+                    continue;
+                }
                 workers.push(worker).expect("bounded workers");
                 worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
             }
@@ -749,7 +765,7 @@ pub fn checked_start_with(
     if !problems.is_empty() {
         return Err(problems);
     }
-    let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
+    let mut core = core(&parsed.engine, seeds.deployment, seeds.seed);
     core.jobs = crate::limits::jobs(&parsed.engine.limits);
     let mut warnings = Problems::empty();
     if let Some(agent) = &declaration {

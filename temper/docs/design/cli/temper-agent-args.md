@@ -19,14 +19,14 @@ Generated from temper-agent's table (`skein/docs/design/runtime/shell.md`, 14.3)
 - **Set:** internal
 - **Forms:** `AGENT.json`
 - Run one agent for a worker's run, on smith's agent configuration.
-- **Arguments:** `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- **Arguments:** `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### `temper-agent --list`
 
 - **Set:** internal
 - **Forms:** `AGENT.json`
 - Read one endpoint's model list, on smith's agent configuration.
-- **Arguments:** `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+- **Arguments:** `AGENT.json`: The agent's configuration, written and pinned under the worker's root.
 
 ### `temper-agent --mcp-relay`
 

@@ -25,6 +25,7 @@ pub fn task_line_from_summary(
 ) -> Result<TaskLine, Missing> {
     role(core, party, summary.project)?;
     Ok(TaskLine {
+        parts: List::with_capacity(0),
         chip: super::chip_from_summary(limits, summary),
         project: summary.project,
         requester: summary.requester,
@@ -95,6 +96,7 @@ pub fn task_line(
         tasks::Party::Person(_) | tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
     };
     Ok(TaskLine {
+        parts: List::with_capacity(0),
         chip: super::small::chip_with_core(core, limits, party, row)?,
         project: row.project,
         requester: row.requester,

@@ -14,7 +14,7 @@ fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64
     let chat = assigned_chat(&mut world, 92, ask);
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Small fix", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128, choices: Box::new([]) };
     delegate.authority = live_task(&world, chat.task).authority.clone();
     delegate.authority.budget.spend = if questions_up { 20 } else { 40 };
     delegate.authority.delegation.tasks = 6;

@@ -19,7 +19,7 @@ const FIRST_CLOSE: usize = 7;
 const SECOND_WAIT: usize = 8;
 const SECOND_CLOSE: usize = 9;
 #[test]
-fn two_workers_each_run_a_chat_to_its_end() {
+fn two_workers_take_figures_and_each_run_a_chat_to_its_end() {
     let cluster = run_cluster(
         WORKERS,
         || {
@@ -69,6 +69,10 @@ fn two_workers_each_run_a_chat_to_its_end() {
     let mut placed = Vec::new();
     for name in WORKERS {
         let worker = cluster.worker(name);
+        assert_eq!(worker.figures_lines().len(), 1, "{name} took figures once");
+        let line = &worker.figures_lines()[0];
+        assert!(line.starts_with("figures taken from 127.0.0.1:"), "{line}");
+        assert!(line.contains(" places, ") && line.ends_with(" limits, 1 endpoints\n"), "{line}");
         assert_eq!(worker.linked(), LINKS_PER_WORKER, "{name} linked once");
         assert_eq!(worker.end(), Some(&End::Worker(temper_service::worker_alone::End::Drained)), "{name} drained");
         assert_eq!(worker.ran().len(), RUNS_PER_WORKER, "{name} ran one chat");

@@ -1,4 +1,4 @@
-//! The link's shared values and fixed worker membership (jig/docs/design/domain/root.md, 2; domain/hosts/hub.md, 1).
+//! The link's shared values and worker membership (jig/docs/design/domain/root.md, 2; domain/hosts/hub.md, 1).
 //! The fleet, hub and accounts share these values; the crate holds no domain state.
 //! Account lists follow jig/docs/design/protocol/channel/records.md, 1.
 #![cfg_attr(not(test), no_std)]
@@ -46,7 +46,7 @@ impl SourceName {
     }
 }
 
-/// A position admitted from immutable configured membership.
+/// A position admitted from the current worker settings.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Worker {
     position: u32,
@@ -65,60 +65,76 @@ pub enum Problem {
     WorkerName { worker: u32, limit: u32 },
 }
 
-/// Owns the immutable names and mints positions only within that membership.
+/// A fleet member's stable identity and admission places (domain/engine/workers.md, 4).
+#[derive(Hash, Debug)]
+pub struct Member {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub withdrawn: bool,
+}
+/// Current worker settings, including withdrawn identities for link observations.
 #[derive(Hash, Debug)]
 pub struct Membership {
-    names: Box<[Box<[u8]>]>,
+    members: Box<[Member]>,
+    extent: u32,
 }
 impl Membership {
     #[must_use]
     pub fn empty() -> Self {
-        Self { names: Box::new([]) }
+        Self { members: Box::new([]), extent: 0 }
     }
     /// # Errors
-    /// A configured worker count or name exceeds its priced bound.
-    pub fn check(names: &[Box<[u8]>], workers: u32, name_bytes: u32) -> Result<(), Problem> {
-        let Ok(count) = u32::try_from(names.len()) else { return Err(Problem::Workers { limit: workers }) };
-        if count > workers {
-            return Err(Problem::Workers { limit: workers });
-        }
-        for (index, name) in names.iter().enumerate() {
-            let worker = u32::try_from(index).expect("membership count fits u32");
-            let Ok(bytes) = u32::try_from(name.len()) else {
-                return Err(Problem::WorkerName { worker, limit: name_bytes });
-            };
-            if bytes > name_bytes {
+    /// A worker number or name exceeds its priced bound.
+    pub fn new(members: Box<[Member]>, workers: u32, name_bytes: u32) -> Result<Self, Problem> {
+        let mut extent = 0;
+        for member in &members {
+            if member.number == 0 || member.number > workers {
+                return Err(Problem::Workers { limit: workers });
+            }
+            let worker = member.number.checked_sub(1).expect("positive worker number");
+            if member.name.len() > skein_lib::usize_of(name_bytes) {
                 return Err(Problem::WorkerName { worker, limit: name_bytes });
             }
+            extent = extent.max(member.number);
         }
-        Ok(())
-    }
-    /// # Errors
-    /// A configured worker count or name exceeds its priced bound.
-    pub fn new(names: Box<[Box<[u8]>]>, workers: u32, name_bytes: u32) -> Result<Self, Problem> {
-        Self::check(&names, workers, name_bytes)?;
-        Ok(Self { names })
+        Ok(Self { members, extent })
     }
     #[must_use]
-    pub fn len(&self) -> u32 {
-        u32::try_from(self.names.len()).expect("admitted membership count fits u32")
+    pub const fn len(&self) -> u32 {
+        self.extent
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.names.is_empty()
+        self.members.is_empty()
     }
     #[must_use]
     pub fn worker(&self, position: u32) -> Option<Worker> {
-        self.get(position)?;
+        self.places(position)?;
         Some(Worker { position })
+    }
+    #[expect(clippy::manual_find, reason = "step code uses an explicit bounded scan, not a closure")]
+    fn member(&self, position: u32) -> Option<&Member> {
+        let number = position.checked_add(1)?;
+        for member in &self.members {
+            if member.number == number {
+                return Some(member);
+            }
+        }
+        None
+    }
+    #[must_use]
+    pub fn places(&self, position: u32) -> Option<u32> {
+        let member = self.member(position)?;
+        if member.withdrawn { None } else { Some(member.places) }
     }
     #[must_use]
     pub fn get(&self, position: u32) -> Option<&[u8]> {
-        Some(self.names.get(usize::try_from(position).ok()?)?)
+        Some(&self.member(position)?.name)
     }
     #[must_use]
     pub fn name(&self, worker: Worker) -> &[u8] {
-        self.get(worker.position).expect("admitted configured position")
+        self.get(worker.position).expect("admitted worker identity stays in membership")
     }
 }
 

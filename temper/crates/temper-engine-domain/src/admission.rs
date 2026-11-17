@@ -133,6 +133,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::KeepProposedEffect { .. }
             | forge::Event::DropProposedEffect { .. }
             | forge::Event::Enqueue { .. }
+            | forge::Event::EnqueueCall { .. }
+            | forge::Event::DropProjection { .. }
             | forge::Event::KeepProjection { .. }
             | forge::Event::Project { .. }
             | forge::Event::FailProjection { .. }
@@ -152,6 +154,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
             | forge::Event::ReviewsChanged { .. }
+            | forge::Event::RoomUnavailable { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
@@ -199,7 +202,13 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     domain.changed();
     crate::domain::invalidate_input(domain, &event);
     match event {
-        event @ Event::Store(StoreInput::ReadLoaded { .. } | StoreInput::Switched) => {
+        event @ Event::Store(
+            StoreInput::ReadLoaded { .. }
+            | StoreInput::PartLoaded { .. }
+            | StoreInput::Switched
+            | StoreInput::Checkpointed { .. }
+            | StoreInput::CheckpointRefused { .. },
+        ) => {
             if domain.store_answers.is_empty() && domain.work.is_empty() {
                 step(domain, env, event);
             } else {

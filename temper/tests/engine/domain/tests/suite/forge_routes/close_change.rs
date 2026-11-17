@@ -77,7 +77,7 @@ fn make_change(
 ) -> u64 {
     let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Settle goal 7's status.", Box::new([]));
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 256, choices: Box::new([]) };
     delegate.authority = live_task(world, goal.task).authority.clone();
     delegate.authority.delegation.depth = delegate.authority.delegation.depth.saturating_sub(1);
     delegate.authority.delegation.tasks = 6;

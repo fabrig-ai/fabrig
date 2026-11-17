@@ -538,9 +538,11 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                             pending: List::with_capacity(0),
                         }))
                     }
-                    c::Subject::Tasks { .. } => {
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false }))
-                    }
+                    c::Subject::Tasks { .. } => c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
+                        rows: List::with_capacity(0),
+                        more: false,
+                    })),
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(documents::inbox(
                         entries(name),
                         me.needs_total,
@@ -596,6 +598,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     c::Read::Escalation { .. } => c::ReadValue::Escalation(Box::new(funds(name))),
                     c::Read::Task { task: number } => c::ReadValue::Task(Box::new(task(name, number))),
                     c::Read::Tasks { .. } => c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },

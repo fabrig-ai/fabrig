@@ -47,9 +47,16 @@ impl World {
         let mut configuration = configuration.unwrap_or_else(|| fixture(seed, requirement).0);
         if let Some(peers) = &peers {
             let workers = peers.workers.iter().filter(|worker| worker.channel != 0).count();
-            if workers > configuration.core.worker_names.len() {
-                configuration.core.worker_names =
-                    (0..workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
+            if workers > configuration.core.defaults.workers.len() {
+                configuration.core.defaults.workers = (0..workers)
+                    .map(|index| jig_domain_core::settings::WorkerSetting {
+                        number: u32::try_from(index + 1).expect("fixture worker count"),
+                        name: format!("worker-{index}").into_bytes().into_boxed_slice(),
+                        places: 1,
+                        digest: Some([7; 32]),
+                        withdrawn: false,
+                    })
+                    .collect();
             }
         }
         let rows = rows
@@ -165,7 +172,12 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
-    fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::OwnerSets) -> World {
+    fn empty(mut configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::OwnerSets) -> World {
+        // These nominal fixture workers offer the scenario's full fleet capacity.
+        // Stories that change places do so through settings after the start.
+        for worker in &mut configuration.core.defaults.workers {
+            worker.places = limits.core.fleet.slots;
+        }
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
         let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);

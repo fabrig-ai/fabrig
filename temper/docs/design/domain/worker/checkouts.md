@@ -118,8 +118,9 @@ runs as contained processes and whose output it parses.
   branch the start fetched, pointed at that fetch's commit: every start of a
   change's producer, a saved or resumed one's included, and a goal's later
   run. That tip is frozen for the hold: no later operation of the hold
-  moves the reference, so the project's checks take the same base at every
-  delivery and at finish (`tools/pre-pr/design.md`, section 2). A missing
+  moves the reference but a catch-up, which fetches it afresh (*A landed
+  dependency's catch-up*, below), so the project's checks take the same base at every
+  delivery and at finish until then (`tools/pre-pr/design.md`, section 2). A missing
   landing branch fails preparation. The next hold fetches it afresh, so
   the landing tip may move between attempts; a pin a cached checkout kept
   from an earlier hold is overwritten, never read. The pin changes neither
@@ -225,7 +226,9 @@ runs as contained processes and whose output it parses.
   commit. A second parent, in progress or at HEAD, must be reachable from a
   branch or tag on the delivery branch's remote; otherwise delivery refuses,
   saying that its second parent is not reachable from that remote, before
-  staging or committing. A new delivery commit becomes the checkout's HEAD
+  staging or committing; a head of a base with heads merged in whose
+  dependency has landed is caught up with instead (*A landed dependency's
+  catch-up*, below). A new delivery commit becomes the checkout's HEAD
   and clears its completed merge state (../../protocol/git.md, 4.7).
   A push is a fast-forward and never forced: if
   the branch moved incompatibly with the run's commit, the push fails and
@@ -263,8 +266,87 @@ runs as contained processes and whose output it parses.
   so a save's commit is never what the hold's next delivery or saved work
   names. An unchecked save uses the same checkout snapshot as a checked delivery:
   staged merges keep both parents, a matching local commit is kept, and a
-  new commit advances HEAD. Only the checked delivery runs the checks. A
+  new commit advances HEAD. Its second parent is checked, and a landed
+  dependency's head caught up with, as a delivery's is. Only the checked delivery runs the checks. A
   checked delivery's landing clears the record.
+- **A landed dependency's catch-up.** A producer that started early
+  works on a base with heads merged in: its HEAD is the last of those
+  merges, with the last head as its second parent. Once that head's
+  dependency lands, the landing squashes it and its branch is deleted
+  (`../forge/change/questions.md`, 1, *A running producer catches up*),
+  so no reference on the remote reaches the head, and the delivery's
+  check of its second parent ends `ParentUnreachable { head, merging,
+  parent }` (`../../protocol/git.md`, 4.7). The hold then catches up,
+  in a delivery and a save alike; this is the one reconciliation a hold
+  makes with its landing branch:
+  - **When.** The repository's start is a base with heads merged in and
+    `parent` is one of its heads. Any other unreachable parent is
+    refused as before, with the same words, and nothing is asked.
+  - **It asks.** The hold asks its client whether that head's
+    dependency has landed, `Request::DependencyLanded { client, head }`,
+    and waits, with no operation in flight, for exactly one
+    `Event::DependencyLanded { hold, landed }`. The worker asks the
+    engine (*Its ask*, below) and answers `landed: true` for the
+    engine's `landed` alone; `unlanded`, a refused ask, an answer that
+    doesn't decode and none within `checkout.reds_read_ms`, the bound of
+    the worker's other read of the engine (`../forge/reds.md`, 5.3), are
+    `false`. An abort, a release or a cut while it waits ends the push
+    as one with nothing in flight does: that repository and those after
+    it aborted, nothing committed or pushed.
+  - **Not landed:** refused as before, the fault `Refused` with
+    `delivery second parent is not reachable from the branch's remote`,
+    nothing staged, committed or pushed.
+  - **Landed: the work kept.** The working tree is committed locally on
+    the `head` the delivery read, with the `merging` it found in progress
+    as its second parent, the push's own title and body, and a
+    delivery's staging (`../../protocol/git.md`, 4.7); a tree equal to
+    `head`'s commits nothing. That commit, or `head`, becomes the
+    checkout's HEAD with every working file as it was, ignored files and
+    hidden logs included. Nothing is pushed yet.
+  - **The pin moved.** The landing branch, the start's branch, is
+    fetched afresh into `refs/temper/landing` (`../../protocol/git.md`,
+    4.3): the one move of the pin a hold makes, explicit, so the checks
+    that follow take the tip just caught up with as their base, and the
+    goal's reds are read against it (`../forge/reds.md`, 5.2).
+  - **The merge, work first.** That tip is merged into the work as a
+    producer's merge start merges its base (*A merge in progress*,
+    above): a clean merge is committed at once with two parents, the
+    work first and the tip second, the repository's identity as its
+    author and the title `Merge <branch>`, and checked out, clearing its
+    state; a conflict is left in progress, the tip its MERGE_HEAD and its
+    files named, for the run to settle as at any catch-up. A tip the work
+    already contains is no merge. The tip is on its branch, so the next
+    delivery's second parent is reachable, and its push carries the
+    work, the dependency's head beneath it, to the change's branch as a
+    fast-forward.
+  - **What the run is told.** A delivery pushes nothing, since its
+    checks ran on the tree before the merge: it is answered `CaughtUp {
+    tip }`, which the run reads as refused, with no path, `a dependency
+    you started from landed; its landing branch is merged into your
+    checkout: deliver again`, so its next delivery checks the merged
+    tree. A save, which runs no check, goes on as a save does from the
+    merge, its push recorded as any save's is (above), and is answered
+    `CaughtUpSaved { commit, tip }` once it lands: a save's receipt for
+    `commit`, adding `, merging the landing tip <tip> first`, `<tip>` as
+    a receipt spells a commit. A conflict, in either, is answered
+    `CaughtUpConflict { files }`, which the run reads as refused at its
+    first file, `a dependency you started from landed; settle the files
+    in conflict with its landing branch and deliver again`; a save of
+    that tree is refused for its markers until they are settled, as any
+    merge's is.
+  - **Its ask.** An application's ask on jig's channel, as the reds'
+    is (`../forge/reds.md`, 5.4), the run's task and attempt beside it,
+    one at a time per hold. `temper-worker-wire`'s `Ask` gains `landed`,
+    `Head { head }`, `head` a full object id in 32 bytes as the items
+    carry a merged head (`../../protocol/channel.md`, 4); its `Answer`
+    gains `landed` and `unlanded`, which carry nothing. The family moves
+    by one, from 9 to 10, its floor kept, with its kept text and patch
+    (`../../protocol/wires.md`, 3.1). A worker of the previous version
+    never asks, so it refuses as before; a worker of this version
+    meeting an engine of the previous one can't send `landed` up, so it
+    closes at the statement, `Ask` among the parts a worker sends whole,
+    and the engine goes first, as for the report (`../forge/reds.md`,
+    5.6).
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing
@@ -482,6 +564,13 @@ wire carries, keeps its first 4,096, where the fields are.
   store that keeps the contents its checkouts fetched, if a deployment
   shows the repeated fetches. A store made full before stores were
   blob-less stays whole, its later fetches blob-less.
+- **An earlier head lost.** A delivery checks HEAD's second parent
+  alone (`../../protocol/git.md`, 4.7), so of a start with several heads
+  merged in only the last is checked and caught up with (*A landed
+  dependency's catch-up*); an earlier head whose dependency landed or
+  was cancelled goes up beneath the push, as it did. Default: so; a
+  check of every head the start merged, if a deployment shows a push
+  carrying a cancelled dependency's work.
 - **The delivery's second-parent fetch** (`../../protocol/git.md`, 4.7) still
   asks the forge for every branch and tag, into the checkout: with the store
   borrowed, git sends only those branches' commits neither holds. Default:

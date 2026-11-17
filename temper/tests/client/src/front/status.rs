@@ -137,6 +137,7 @@ impl Joint {
                 charter.number = number;
             }
             config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
+            defaults.workers.clone_from(&config.core.defaults.workers);
             config.core.defaults = defaults;
             config.core.connectors = Box::new([fixtures::FORGE]);
             let provider = &mut config.core.settings.llm_providers.providers[0];

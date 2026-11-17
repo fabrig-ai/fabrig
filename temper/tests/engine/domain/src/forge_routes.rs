@@ -421,6 +421,16 @@ impl World {
         self
     }
 
+    /// A story's outbox bound, chosen before its root starts.
+    #[must_use]
+    pub fn with_forge_entries(mut self, entries: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.env.limits.forge.entries = entries;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("outbox room");
+        self
+    }
+
     #[must_use]
     pub fn configured_limits(
         with_read: bool,
@@ -1180,6 +1190,9 @@ impl World {
             }
             if kinds && index == 1 {
                 config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
+            }
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
             }
             for (project, landing) in &landings {
                 crate::oracle::config::set_landing(&mut config, *project, landing.clone());
@@ -2128,7 +2141,10 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
-    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+    fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         assert!(self.store.pending.is_empty(), "store answers precede a restart");
         assert!(self.pending.is_empty(), "API answers precede a restart");
         self.root =
@@ -2566,7 +2582,8 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
-                engine::Request::Account(_)
+                engine::Request::Worker(engine::WorkerRequest::Settings(_))
+                | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }
@@ -3233,7 +3250,12 @@ pub fn change_world_funded(
                         inputs: Box::new([]),
                     },
                     // Reserve 32 bytes for landing identity beside its live result label.
-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
+                    contract: tasks::Contract::Change {
+                        connector: 0,
+                        kind: 1,
+                        words: 32 + RESULT_MESSAGE_BYTES,
+                        choices: Box::new([]),
+                    },
                     authority: child_authority,
                     symbolic_grants: [2, 17]
                         .map(|kind| tasks::Grant {
@@ -3410,6 +3432,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -3551,7 +3574,11 @@ impl World {
     fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
         const REPLY: Token = Token::new(0x4e32);
         self.reads.clear();
-        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to: ReplyTo::new(REPLY), sign_in, read }));
+        self.send(engine::Event::Party(engine::PartyInput::Read {
+            reply_to: ReplyTo::new(REPLY),
+            sign_in,
+            read: Box::new(read),
+        }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {
                 return self.reads.remove(index).1;
@@ -3579,7 +3606,7 @@ impl World {
             window: documents::Window { rows: self.env.limits.documents.rows, after: None },
         }));
         self.oracle_settle();
-        let answer = self
+        let mut answer = self
             .oracle_documents
             .iter()
             .rev()
@@ -3592,6 +3619,15 @@ impl World {
         if answer.is_some() {
             self.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: watch }));
             self.oracle_settle();
+            // Changes provenance may arrive from ended-row loads after the first document.
+            // The restart oracle compares the settled projection, not that first empty view.
+            if let Some(forge_top::Document::Changes(_)) = &answer {
+                answer = self
+                    .oracle_documents
+                    .iter()
+                    .rev()
+                    .find_map(|(watcher, doc)| (*watcher == watch).then(|| doc.clone()));
+            }
         }
         self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
@@ -3607,7 +3643,7 @@ impl World {
         self.send(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(REPLY),
             sign_in: self.signed_in.expect("reader session"),
-            read,
+            read: Box::new(read),
         }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {

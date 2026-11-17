@@ -66,6 +66,7 @@ pub fn live(
                 up: Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(lines.into()),
                         more,
                     }))),
@@ -73,4 +74,12 @@ pub fn live(
             },
         },
     )
+}
+
+pub use temper_fixtures::milestones::part;
+
+#[must_use]
+pub fn in_milestone(mut line: c::TaskLine, milestone: u64) -> c::TaskLine {
+    line.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(None, Some(milestone))]));
+    line
 }
