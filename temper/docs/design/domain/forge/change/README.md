@@ -587,6 +587,17 @@ comment saying why, and its branch deleted, its commits still readable
 under the closed pull request. A change whose merge landed meanwhile
 ends landed, not cancelled.
 
+**A pull request already closed counts as closed** (2026-11-17). One the
+forge shows merged though temper recorded no merge of it, merged by
+another hand or by the forge itself, or closed by hand, takes the close
+as made: the forge's `Close` answers `Done` for a closed item (skein's
+`forge/forgejo.md`, 1.4, *A close of a closed item*). So a change that
+ends cancelled, or with no change (2), while its pull request shows
+merged ends as its ending says, its branch deleted, and is never held
+for the close; a change held for that refusal before ends at its next
+release. Its ending stays its own: a merge temper did not record is
+not its landing.
+
 **Ended, it is frozen** (2026-11-15). Its closed pull request stays its
 own: a change made after it on the same branch, at the same head or
 not, opens its own (2, step 2), and never takes it. From its end, its
