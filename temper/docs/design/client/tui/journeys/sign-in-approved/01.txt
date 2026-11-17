@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:42513                                     │
+│ Sign in this terminal to 127.0.0.1:43029                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ VPBH-NMZM, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:42513/terminal?code=VPBH-NMZM                  │
+│ SXGR-RVTP, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:43029/terminal?code=SXGR-RVTP                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:42513/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:43029/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

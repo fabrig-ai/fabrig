@@ -1,6 +1,6 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v27::*;
+use jig_client_protocol_wire::v28::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
@@ -43,6 +43,9 @@ fn records_1(bytes: &[u8]) {
     check!(ApprovalAsk, bytes);
     check!(ApprovalAsked, bytes);
     check!(ApprovalAskAnswer, bytes);
+    check!(LinkAsk, bytes);
+    check!(LinkAsked, bytes);
+    check!(LinkAskAnswer, bytes);
     check!(ApprovalRead, bytes);
     check!(ApprovalWaiting, bytes);
     check!(ApprovalState, bytes);

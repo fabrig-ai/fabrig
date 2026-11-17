@@ -1,4 +1,4 @@
-family jig-client-wire 27
+family jig-client-wire 28
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -53,6 +53,9 @@ enum SignOutAnswer { signed_out, not_ready }
 record ApprovalAsk {}
 record ApprovalAsked { secret: secret 32 code: fixed 8 expires: u64 }
 enum ApprovalAskAnswer { asked: ApprovalAsked, refused, not_ready, busy }
+record LinkAsk {}
+record LinkAsked { secret: secret 32 expires: u64 }
+enum LinkAskAnswer { asked: LinkAsked, refused, signed_out, not_ready, busy }
 record ApprovalRead { code: fixed 8 }
 record ApprovalWaiting { asked: u64 }
 enum ApprovalState { waiting: ApprovalWaiting, approved, taken, refused, expired, unknown, not_a_browser, signed_out, not_ready, busy }

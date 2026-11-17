@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 /// Jig's raw authorization query ceiling, shared with its wire codec.
-pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v27::CEILINGS.authorize_query;
+pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v28::CEILINGS.authorize_query;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
     Inbox { filter: Filter },
