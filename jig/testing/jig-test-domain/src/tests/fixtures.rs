@@ -76,7 +76,7 @@ pub fn authority() -> authority::Authority {
     }
 }
 pub fn env() -> Env<Limits> {
-    let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     let journal = JournalSizes {
         commits: 2,
         writes: profile.journal.writes,

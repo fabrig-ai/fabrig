@@ -398,3 +398,90 @@ fn findings_reach_words_name_the_triager_and_the_work() {
         assert_eq!(shared::rule(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), rule.as_bytes());
     }
 }
+
+#[test]
+fn delegation_headings_and_shared_lines_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        for words in [f::browser_words(), f::words()] {
+            assert_eq!(shared::delegation_line(&task, &words).title.as_ref(), cut);
+            for terminal in [false, true] {
+                let mut b = Builder::new(&f::tree_limits());
+                let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+                if terminal {
+                    crate::cards::delegation::terminal_card(&mut b, &task, &words, &mut bindings);
+                } else {
+                    crate::cards::delegation::card(&mut b, &task, &words, &mut bindings);
+                }
+                let tree = b.finish();
+                let heading = tree.nodes().iter().find(|node| node.role == Role::Heading { level: 3 }).unwrap();
+                assert_eq!(heading.name.as_deref(), Some(cut));
+                assert_eq!(f::text(&tree).windows(cut.len()).filter(|bytes| *bytes == cut).count(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn result_cards_and_close_delegate_rows_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        let result = c::Result {
+            task: task.chip.clone(),
+            ending: c::Ending::Done,
+            value: None,
+            at: None,
+            details: None,
+            acts: List::uncapped(),
+        };
+        let mut parent = f::task::document();
+        parent.delegates =
+            List::from_boxed(Box::new([c::LiveDelegate { chip: task.chip.clone(), takeover_budget: 0 }]));
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            crate::cards::result(&mut b, &result, &words);
+            let tree = b.finish();
+            assert!(f::find(&tree, Role::Heading { level: 3 }, cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            crate::confirm::fates(
+                &mut b,
+                &parent,
+                &[c::Operation::Cancel {
+                    project: f::PROJECT,
+                    task: task.chip.task,
+                    reason: f::delegation::text(b"closed"),
+                    grace: None,
+                }],
+                crate::words::Word::CloseTitle,
+                &words,
+                &mut bindings,
+            );
+            let tree = b.finish();
+            let fate = skein_lib::bytes::concat(&[b"T2 ", cut, b" is cancelled."]);
+            assert!(skein_lib::bytes::find(&f::text(&tree), &fate).is_some());
+        }
+    }
+}
+
+#[test]
+fn the_chat_switcher_cuts_titles_without_changing_its_destinations() {
+    for (title, cut) in f::row_titles() {
+        let mut row = f::chats::line();
+        row.chip.title = f::delegation::document(title);
+        let root = f::chats::listed(&[row], &[], false);
+        for words in [f::browser_words(), f::words()] {
+            let choices = shared::chats(&root, &words);
+            let choice = choices
+                .iter()
+                .find(|choice| choice.act == Act::Go { address: d::Address::Chat { task: f::chats::TASK } })
+                .unwrap();
+            assert_eq!(choice.words.as_ref(), cut);
+        }
+    }
+}

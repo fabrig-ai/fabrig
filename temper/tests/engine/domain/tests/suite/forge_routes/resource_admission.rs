@@ -466,8 +466,7 @@ fn stock_overlap_world() -> World {
             ..StoryLimits::default()
         },
     );
-    let stock =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let stock = temper_limits_fixtures::small();
     configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
     configured.env.limits.forge.tasks = stock.forge.tasks;
     let client = skein_forge_client::Limits {
@@ -507,7 +506,7 @@ fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
 
 #[test]
 fn resource_hold_account_survives_short_documents_and_unchanged_release() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.text_bytes = 128;
     let mut configured = World::configured_limits(
         true,

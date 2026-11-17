@@ -555,6 +555,7 @@ Design documents:
 - [`protocol/cluster.md`](protocol/cluster.status.md)
 - [`protocol/components.md`](protocol/components.status.md)
 - [`protocol/configuration/README.md`](protocol/configuration/README.status.md)
+- [`protocol/configuration/derived.md`](protocol/configuration/derived.status.md)
 - [`protocol/configuration/directories.md`](protocol/configuration/directories.status.md)
 - [`protocol/configuration/engine.md`](protocol/configuration/engine.status.md)
 - [`protocol/configuration/limits.md`](protocol/configuration/limits.status.md)

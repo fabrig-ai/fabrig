@@ -9,7 +9,6 @@ use super::{
     domain::{core_config, two_projects},
     fixtures::{ENGINE_SMALL, with},
 };
-use crate::{Profile, profile};
 use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Write};
 use jig_domain_people as people;
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
@@ -124,7 +123,7 @@ fn rows() -> [Row; 6] {
 
 #[test]
 fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile(Profile::Small).core };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::stock().core };
     let mut first_saves = Vec::new();
     for row in rows() {
         let mut core = Core::new(core_config(&row.document), &env.limits).expect("real Small core");

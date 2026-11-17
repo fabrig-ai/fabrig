@@ -48,7 +48,7 @@ pub fn script(directory: &Path, body: &str) -> Spec {
 }
 #[must_use]
 pub fn io() -> skein_io::Limits {
-    jig_protocol_config::profile(jig_protocol_config::Profile::Small).io
+    jig_protocol_config_fixtures::small().io
 }
 
 /// Socket waits use the harness deadline, including the kernel's positive minimum.

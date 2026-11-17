@@ -15,11 +15,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
     for files in [boxed.files.as_ref(), bare.as_ref()] {
         let document = parse(file_bytes(files, b"temper.json"));
         let limits = &document["engine"]["limits"];
-        let profile = jig_protocol_config::profile(match limits["profile"].as_str().unwrap() {
-            "small" => jig_protocol_config::Profile::Small,
-            "standard" => jig_protocol_config::Profile::Standard,
-            other => panic!("unknown profile {other}"),
-        });
+        let profile = jig_protocol_config::stock();
         let grace = profile.core.fleet.grace.as_millis();
         let engine = &limits["overrides"];
         let turn = engine["hub.turn_bytes"].as_u64().unwrap();

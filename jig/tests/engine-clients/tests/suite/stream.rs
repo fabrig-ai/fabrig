@@ -23,7 +23,7 @@ fn a_late_delivery_after_stream_loss_settles_the_core() {
 }
 #[test]
 fn a_wait_and_three_reads_keep_independent_streams_with_four_exchanges_free() {
-    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut limits = jig_protocol_config_fixtures::small();
     for (name, value) in [
         (b"clients.streams".as_slice(), 8),
         (b"clients.exchanges", 12),
@@ -72,7 +72,7 @@ fn a_third_stream_on_the_small_profile_is_refused_full() {
     let third = peer.request_stream();
     let (status, body) = peer.response(third);
     assert_eq!(status, Some(409));
-    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let small = jig_protocol_config_fixtures::small();
     let full = w::StreamsFull::decode(&w::CEILINGS, &mut Reader::new(body)).expect("full record");
     assert_eq!(full.bound(), &w::StreamBound::Transport);
     assert_eq!(full.size(), small.clients_http.streams);

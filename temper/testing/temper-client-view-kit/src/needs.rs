@@ -260,7 +260,7 @@ fn fixture_with_task(
                 _ => b"third",
             });
             if let Some(title) = title {
-                task.title = f::task::document_words(title);
+                task.title = c::DocumentText::complete(c::Text::new(title.into(), 4096).expect("fixture title"));
             }
             let q = c::Question {
                 task,

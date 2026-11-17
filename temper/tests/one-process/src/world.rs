@@ -298,8 +298,8 @@ impl Observe for ServiceObserver {
                 fixtures::codec()
             },
             families: temper_protocol_store::bounds(
-                &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+                &temper_limits_fixtures::small().forge,
+                jig_protocol_config_fixtures::small().core.tasks.spec_bytes,
             )
             .expect("application codec bounds"),
         }

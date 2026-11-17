@@ -43,6 +43,7 @@ pub(super) fn finish_shape(document: &Document, object: read::Object, path: &Pat
     problems.past = problems.past.saturating_add(found.past);
 }
 /// The shell supplies git; workspaces belong to the data directory (moved.md, 2).
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn fixed(directories: &config::Directories, git: Option<&[u8]>, problems: &mut Problems) -> Option<Worker> {
     let path = Path::root().member(b"application").member(b"workers").child(config::Segment::Index(0));
     if let Some(git) = git
@@ -69,6 +70,15 @@ pub(super) fn read(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<(Worker, Limits)> {
+    read_over(document, entry, directories, temper_service_core::derived::STOCK, problems)
+}
+pub(super) fn read_over(
+    document: &Document,
+    entry: u32,
+    directories: &config::Directories,
+    sources: temper_service_core::derived::Sources,
+    problems: &mut Problems,
+) -> Option<(Worker, Limits)> {
     let path = Path::root().member(b"application");
     let mut object = object(document, entry, &path, problems)?;
     if object.member(document, b"workers").is_some() {
@@ -76,11 +86,22 @@ pub(super) fn read(
     }
     let own = fixed(directories, None, problems);
     let limits = match required(&mut object, document, b"limits", &path, problems) {
-        Some(at) => temper_service_core::startup::configured_limits(document, at, &path.member(b"limits"), problems),
+        Some(at) => temper_service_core::startup::configured_limits_over(
+            document,
+            at,
+            &path.member(b"limits"),
+            sources,
+            problems,
+        ),
         None => None,
     };
     let limits = match limits {
-        Some(limits) => Some(Limits::shared(limits)),
+        Some(mut limits) => {
+            if let Some(slots) = temper_service_core::derived::slots(document) {
+                temper_service_core::derived::places(document, entry, slots, &mut limits);
+            }
+            Some(Limits::shared(limits))
+        }
         None => None,
     };
     if let Some(limits) = &limits {

@@ -1022,7 +1022,7 @@ fn oversized_explicit_bundle_refuses_before_creating_data_or_cache() {
     let scratch = Scratch::new("explicit-bundle-bytes");
     let source = scratch.dirs();
     let supplied = provision_bundle(&scratch.0.join("supplied"));
-    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let page = OpenOptions::new().write(true).open(supplied.join("index.html")).expect("fixture page");
     page.set_len(u64::from(limits.bundle_bytes) + 1).expect("one byte past the profile's bundle bound");
     let error = start(&source, Some(&supplied)).err().expect("oversized explicit bundle refused");
@@ -1037,7 +1037,7 @@ fn oversized_source_bundle_refuses_before_sandbox_creation() {
     let scratch = Scratch::new("source-bundle-bytes");
     let source = provisioned_source(&scratch);
     let original = fs::read(source.document()).expect("source public bytes");
-    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small).clients;
+    let limits = temper_limits_fixtures::small().clients;
     let page = OpenOptions::new().write(true).open(scratch.0.join("bundle-loopback/index.html")).expect("fixture page");
     page.set_len(u64::from(limits.bundle_bytes) + 1).expect("one byte past the admitted source bundle bound");
     let error = start(&source, None).err().expect("oversized source bundle refused");

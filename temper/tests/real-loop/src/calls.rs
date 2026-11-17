@@ -1,5 +1,6 @@
 //! Hosted commands observed through their pipes, exit and a service watch cue.
 //! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
+mod activity;
 use crate::fixtures;
 pub use temper_fixtures::browse::Browsed;
 use temper_fixtures::browse::Browser;
@@ -144,8 +145,19 @@ struct Bounds {
     timeout: Option<Duration>,
     success: bool,
     last_activity: bool,
+    whole_activity: bool,
 }
 impl Step {
+    /// A case observes whole history, independent of the stock's page sizes.
+    pub(super) fn whole_activity(mut self) -> Self {
+        let (Self::Call { argv, .. } | Self::Until { argv, .. }) = &mut self else {
+            panic!("activity observation must be a call")
+        };
+        argv.1.whole_activity = matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("show" | "activity"), ..])
+            && argv.0.iter().any(|arg| matches!(arg, Arg::Lit("--json")));
+        self
+    }
+
     /// Read the last observation page only if its source supplies a cursor.
     /// This must be the final step so an absent call cannot shift later indices.
     #[must_use]
@@ -566,6 +578,8 @@ pub(crate) struct Caller {
     scratch: PathBuf,
     root: Option<Fd>,
     current: Option<usize>,
+    activity: Option<(activity::Pages, Vec<Box<[u8]>>)>,
+    whole_activity: std::collections::BTreeSet<usize>,
     probe: Option<(Dir, Fd)>,
     probing: bool,
     running: Vec<Option<Running>>,
@@ -874,6 +888,8 @@ impl Caller {
             scratch,
             root: Some(root),
             current: None,
+            activity: None,
+            whole_activity: std::collections::BTreeSet::new(),
             probe: None,
             probing: false,
             running: Vec::with_capacity(count),
@@ -899,6 +915,10 @@ impl Caller {
         self.submit(call, Op::PipeRead { fd, buf: vec![0; 4096].into_boxed_slice() });
     }
     fn words(&self) -> Vec<Box<[u8]>> {
+        if let Some((_, words)) = &self.activity {
+            return words.clone();
+        }
+
         let (at, argv) = match &self.steps[self.next] {
             Step::SignIn { at } | Step::SameParty { at } => {
                 return vec![
@@ -956,9 +976,17 @@ impl Caller {
                         serde_json::from_slice(&self.calls[*call].stdout).expect("task JSON");
                     value["task"]["digest"].as_str().expect("task digest").as_bytes().into()
                 }
-                Arg::ActivityBefore(call) => {
-                    activity_cursor(&self.calls[*call].stdout).expect("previous activity page").into_bytes().into()
-                }
+                Arg::ActivityBefore(call) => activity_cursor(&self.calls[*call].stdout)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "previous activity page: exit {:?}, stdout {}, stderr {}",
+                            self.calls[*call].exit,
+                            String::from_utf8_lossy(&self.calls[*call].stdout),
+                            String::from_utf8_lossy(&self.calls[*call].stderr)
+                        )
+                    })
+                    .into_bytes()
+                    .into(),
                 Arg::InboxAfter(call) => {
                     let value: serde_json::Value =
                         serde_json::from_slice(&self.calls[*call].stdout).expect("inbox JSON");
@@ -1307,10 +1335,45 @@ impl Caller {
         self.browsed.push(self.browser.take().expect("finished browser").seen);
         true
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the command lifecycle retains one step while collecting its activity pages"
+    )]
     fn command_act(&mut self, now: Time) -> Result<bool, String> {
         let step = &self.steps[self.next];
         let Some(index) = self.current else {
             assert!(self.running.iter().flatten().count() < fixtures::CALLS_AT_ONCE as usize);
+            if let Step::Call { argv, .. } = step
+                && argv.1.whole_activity
+                && let Some(source) = argv
+                    .0
+                    .iter()
+                    .find_map(|arg| if let Arg::ActivityBefore(source) = arg { Some(*source) } else { None })
+                && self.whole_activity.contains(&source)
+            {
+                // Fixed first-edition page names alias the real, complete observation;
+                // they do not issue a request after its cursor is absent.
+                let source = &self.calls[source];
+                self.calls.push(Called {
+                    locked: None,
+                    released: None,
+                    busy: 0,
+                    exit: source.exit,
+                    stdout: source.stdout.clone(),
+                    stderr: source.stderr.clone(),
+                    spawned: now,
+                    ended: now,
+                    observed_at: source.observed_at,
+                    tries: 0,
+                    early: 0,
+                    answer: RefCell::new(None),
+                    timeout: RefCell::new(None),
+                });
+                self.running.push(None);
+                self.whole_activity.insert(self.calls.len() - 1);
+                return Ok(true);
+            }
+
             if let Step::Call { argv, .. } = step
                 && argv.1.last_activity
             {
@@ -1361,6 +1424,41 @@ impl Caller {
                 String::from_utf8_lossy(&call.stdout),
                 String::from_utf8_lossy(&call.stderr)
             );
+        }
+        if let Step::Call { argv, .. } | Step::Until { argv, .. } = step
+            && (self.activity.is_some()
+                || !matches!(step, Step::Until { holds, .. } if !holds.matches(&self.calls[index].stdout)))
+            && argv.1.whole_activity
+            && self.calls[index].exit == Some(Exit::Code(0))
+        {
+            if self.activity.is_none() {
+                let words = self.words();
+                self.activity = Some((
+                    activity::Pages::default(),
+                    vec![
+                        words[0].clone(),
+                        b"task".as_slice().into(),
+                        b"activity".as_slice().into(),
+                        words[3].clone(),
+                        b"--before".as_slice().into(),
+                        Box::default(),
+                        b"--limit".as_slice().into(),
+                        b"32".as_slice().into(),
+                        b"--json".as_slice().into(),
+                    ],
+                ));
+            }
+            let (pages, words) = self.activity.as_mut().expect("activity collection");
+            if let Some(cursor) = pages.push(&self.calls[index].stdout) {
+                words[5] = cursor.into_bytes().into_boxed_slice();
+                self.spawn(now, index);
+                return Ok(false);
+            }
+            let (pages, _) = self.activity.take().expect("finished collection");
+            if let Some(stdout) = pages.finish() {
+                self.calls[index].stdout = stdout;
+                self.whole_activity.insert(index);
+            }
         }
         let call = &mut self.calls[index];
         if matches!(step, Step::SameParty { .. }) && call.tries == 1 {

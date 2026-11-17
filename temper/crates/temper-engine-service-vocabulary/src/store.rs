@@ -265,7 +265,7 @@ mod sizing_tests {
     // budget refuses sign-ins while the map still has room.
     #[test]
     fn the_standard_store_holds_the_roots_fill_mark() {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+        let jig = jig_protocol_config::stock();
         let (application, _, _) = crate::tests::fixtures::store_limits();
         let mark = temper_engine_domain::core_limits(&application).fill_mark;
         assert_eq!(mark, jig.core.fill_mark);
@@ -283,7 +283,6 @@ mod sizing_tests {
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
-        assert_eq!(profile.store.page.bytes, 4_582_931);
     }
 
     #[test]

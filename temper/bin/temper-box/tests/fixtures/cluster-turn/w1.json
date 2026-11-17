@@ -17,7 +17,6 @@
         ]
       }},
       "limits": {{
-        "profile": "small",
         "overrides": {{
           "hub.accounts": 4,
           "hub.event_bytes": 4094,
@@ -33,6 +32,9 @@
           "link.ping_ms": 100,
           "link.silence_ms": 1000,
           "people.words": 512,
+          "hub.inbox": 8,
+          "tasks.run_inbox": 8,
+          "tasks.result_bytes": 4096,
           "tasks.message_bytes": 4096
         }}
       }},
@@ -41,7 +43,6 @@
   ],
   "application": {{
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,

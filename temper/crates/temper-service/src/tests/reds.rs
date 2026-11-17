@@ -23,7 +23,7 @@ fn ask_sizes_take_the_worker_ceiling_and_reds_answers_take_each_sides_bounds() {
 
 #[test]
 fn red_payload_ceilings_refuse_startup_with_the_forge_limit_named() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     let normal = crate::limits::worker(&own).bounds();
     for (bounds, name) in [
         (payload::Bounds { reds: 257, ..normal }, b"forge.branch_reds".as_slice()),

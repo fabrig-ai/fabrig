@@ -26,7 +26,7 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
         ),
         (
             b"application.limits.overrides",
-            br#"{"git_component.operations":1}"#,
+            br#"{"git_component.operations":0}"#,
             Path::root()
                 .member(b"application")
                 .member(b"limits")

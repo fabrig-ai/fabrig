@@ -293,7 +293,7 @@ fn start_with_binary_reader(
     };
     let place =
         Place { directory: directory.as_os_str().as_bytes().into(), user: super::login(user).map_err(refused)? };
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
+    let limits = jig_protocol_config::stock().io;
     if let Some(which) = which {
         return run_process(binary, owned, &place, which, listener, (number, directories), &limits).map_err(refused);
     }
@@ -377,7 +377,7 @@ fn fetch(
     .map_err(|why| text(&why.words()))?;
     let machine = temper_forge_setup::fetch::Fetch::new(pins, fetch_bytes);
     temper_forge_setup_shell::fetch::run(
-        &jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,
+        &jig_protocol_config::stock().io,
         &skein_shell::Trust::Machine { ssl_cert_file },
         machine,
         &mut std::io::stdout(),
