@@ -49,7 +49,7 @@ fn turn_world() -> World {
     world
 }
 
-fn tick(world: &mut World) {
+pub(super) fn tick(world: &mut World) {
     // Decisions take no simulated time; idle waits advance to the next peer or root timer.
     let interval = world.tick_interval;
     world.tick_interval = Duration::ZERO;
@@ -73,7 +73,7 @@ fn restart(world: &mut World) {
     world.send(worker_hello(world));
 }
 
-fn pushed_change(world: &mut World, owner: &engine::Assignment, call: u64) -> (u64, engine::Assignment) {
+pub(super) fn pushed_change(world: &mut World, owner: &engine::Assignment, call: u64) -> (u64, engine::Assignment) {
     let (change, producer) = make_change(world, owner, call, b"org/repo");
     let branch = producer.workspace.repositories[0].push.as_ref().expect("producer branch").clone();
     let base = world.fake.branch(b"org/repo", b"main").expect("main");
@@ -102,7 +102,7 @@ fn assert_unheld(world: &World) {
     }
 }
 
-fn await_prepare(world: &mut World) -> u64 {
+pub(super) fn await_prepare(world: &mut World) -> u64 {
     for _ in 0..PAIR_TICKS {
         tick(world);
         assert_unheld(world);
@@ -120,7 +120,7 @@ fn await_prepare(world: &mut World) -> u64 {
     landing
 }
 
-fn answer_prepare(world: &mut World) {
+pub(super) fn answer_prepare(world: &mut World) {
     // The world's worker stacks from the assigned workspace and answers through answer_job.
     world.automatic_prepare_jobs();
     tick(world);
@@ -128,7 +128,7 @@ fn answer_prepare(world: &mut World) {
     assert!(world.jobs.is_empty(), "worker answered the assigned prepare");
 }
 
-fn await_landed(world: &mut World, landing: u64) {
+pub(super) fn await_landed(world: &mut World, landing: u64) {
     for _ in 0..PAIR_TICKS {
         tick(world);
         assert_unheld(world);

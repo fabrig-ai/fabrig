@@ -966,6 +966,9 @@ mod wait_drill;
 #[path = "landing_restarts.rs"]
 mod restarts;
 
+#[path = "landing_two_goals.rs"]
+mod two_goals;
+
 #[path = "landing_go_live.rs"]
 pub(crate) mod go_live;
 
