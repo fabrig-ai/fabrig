@@ -547,8 +547,8 @@ instead (`../landing.md`, section 5).
   whose view lags spends `stall`, never `updates`. An update after a
   send, lost, is counted as before.
 - **Its words say what moved:** `head changed` for `Stale`, `base moved`
-  for `BaseMoved`, after the write's words (`update pull request #N:
-  base moved`). The history's `update` and `updated` lines carry the pin
+  for `BaseMoved`, in the write's account, whose layout is unchanged
+  otherwise (`update pull request: base moved; resource OWNER/REPO #N`). The history's `update` and `updated` lines carry the pin
   as their base and the base commit the forge reported beside it
   (`../landing-history.md`, 2.2).
 - **Other failures** of an update, apart from a conflict below, are a

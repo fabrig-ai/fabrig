@@ -1,6 +1,6 @@
 # forge-client: status
 
-2026-11-15. Where skein's code lags or departs from [client.md](client.md).
+2026-11-17. Where skein's code lags or departs from [client.md](client.md).
 
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).
@@ -16,3 +16,4 @@
   not a `Range`.
 
 - **Not yet:** 7.3, 10: the update conformance gap remains `forgejo.status.md`, 2.
+- **Not yet:** 7.4, 7.5: an update's check fails `Stale` for a moved base as for a moved head; no `BaseMoved` (`outbox/answer.rs`, `pulled`) [in flight: change 6054].
