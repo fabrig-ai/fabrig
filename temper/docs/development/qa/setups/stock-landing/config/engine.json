@@ -111,6 +111,8 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "forge.judge_projects": 8,
+        "forge.client.op_bytes": 4096,
         "root.journal.transcript_bytes": 4194304,
         "root.loads.bytes": 1334279,
         "root.loads.reply_bytes": 1334279,
