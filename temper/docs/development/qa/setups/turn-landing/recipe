@@ -7,5 +7,5 @@ ctl settings apply landing.json --against 1 --key qa-turn-landing
 deployment restart
 check
 ctl project show Hello
-ctl forge list
+ctl forge list --until made:1
 ctl forge repositories 1
