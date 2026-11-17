@@ -518,14 +518,16 @@ same. Then it moves into skein.
   each world's scenarios, referee tests, replay, and memory under the
   scenarios' ceilings, and the end-to-end tests against fakes. A scenario that needs
   randomness runs the few seeds that show its behaviour, and a cheap random
-  world may stand as a smoke test. They run by default (`cargo nextest run
-  --workspace`), and the suite takes at most **30 seconds** (15 seconds
+  world may stand as a smoke test. They run by default (`tools/tiers/one-process
+  default`, a binary's tests in one process, with nextest selecting and
+  building them: `tools/tiers/design.md`, 11), and the suite takes at most **30 seconds** (15 seconds
   before the user's doubling of 10-22, provisional), so it can serve as
   quick feedback during development, as often as is useful.
 - **Fuzzy tests** look for what no scenario names: sweeps of many random
   worlds, each settled under every invariant; domains driven at random
   under their ceilings; conformance over many seeds of faults; a
-  function against a naive one. They run with `--profile fuzzy`, and the
+  function against a naive one. They run with the `fuzzy` profile
+  (`tools/tiers/one-process fuzzy`), and the
   suite takes at most **2 minutes** (1 minute before the user's doubling of
   10-22, provisional): too slow to run in full at every turn of development.
   It is usually left alone until the merge gate, or run in part (one world's
@@ -551,9 +553,13 @@ their values. Common per-test guides quoted by those plans are:
 | 0.5 s for a focused world test | 1 s (0.5 s before the user's doubling of 10-22, provisional) |
 | 5 s for a fuzzy test | 10 s (5 s before the user's doubling of 10-22, provisional) |
 
-CPU budgets and wall hard limits are separate (8.1). Every full run
-reports each tree's tier CPU total and elapsed wall time; the gate
-reports them for both suites. The three questions in 8.1 govern a
+CPU budgets and wall hard limits are separate (8.1). Every run of the
+focused and fuzzy suites reports their CPU by tree and layer, beside each
+layer's budget, per-test reference and ideal
+(`tools/tiers/budgets.md`, 4), and its elapsed wall time; the gate
+reports them for both suites. The guides above are each layer's per-test
+references there, a tree's testing document setting its own where it has
+one, and the gate holds them (8.1). The three questions in 8.1 govern a
 budget missed, including whether a randomized test belongs in the fuzzy
 suite. Raising a budget is the user's decision, not a fix.
 
@@ -636,18 +642,59 @@ fixes it, and its owner runs it until then.
 Every tree's focused and fuzzy suites, and each slow tier (browser,
 process and live), have a CPU budget and a wall hard limit. A test's
 provenance (who wrote it, or why) is never a tier.
-The rule holds wherever they run: at the merge gate for focused and
-fuzzy, after landing, through `tools/tiers/run`, or in anyone's own run.
-Slow tiers never run in the gate.
+A slow tier's rule holds wherever it runs: after landing, through
+`tools/tiers/run`, or in anyone's own run. Slow tiers never run in the
+gate. **The focused and fuzzy suites' CPU budgets are judged at the merge
+gate:** a layer over its budget there is red, and every other run (the
+delivery check, a builder's, anyone's own) prints the same comparison as
+a warning naming the layer, its figure and its budget, since another
+machine's CPU, or a busy one's, isn't the gate's (the user, 11-16;
+`tools/tiers/budgets.md`, 5).
 
 **The budget is CPU seconds:** user plus system time of the tests'
 processes, descendants included, summed per suite (a tree's tier):
 measured per test in the slow tiers, where each test is a process, and per
 process in the focused and fuzzy suites, where a binary's tests share one
-and no test's CPU is measured (`tools/tiers/design.md`, 11). The user sets budgets from measured numbers. Until a
-tier's CPU budget is set, its existing figures stand, including the
-focused and fuzzy suites' 30 s and 120 s idle-machine budgets above.
+and a test's CPU is measured only in a process of its own, after the
+suite (`tools/tiers/design.md`, 11; `tools/tiers/references.md`, 4). The focused
+and fuzzy suites' budgets are by layer: each tree has one for each layer
+it has in each suite, and the repository's checks one of their own, in
+`tools/tiers/budgets.toml` (`tools/tiers/budgets.md`, 2). They started at
+the CI builder's gate figures of 11-16 plus a tenth, and beside each is
+its ideal, reported, never enforced. The user sets budgets from measured numbers. Until a
+slow tier's CPU budget is set, its existing figures stand.
 Live tests have budgets on the same terms.
+
+**A layer's budget at the gate only falls.** The figure in
+`tools/tiers/budgets.toml` is the user's ceiling. The gate holds the
+lower of that ceiling and the layer's lowest figure at main since the
+ceiling was last set, plus a tenth and at least a second: after each
+landing a budget falls to its layer's figure at main plus that, where it
+is lower, so what a repair wins is kept and the next change can't spend
+it, and nothing raises a budget by itself. The gate runs the packages a
+change reaches and takes the others' figures from a ledger of main's, so
+each layer is judged whole. A layer over its budget is the change's red
+where main is within it, or where the change adds more than the noise, a
+hundredth of the layer and at least half a second; otherwise the red is
+main's, as a failure the base has too is. The red names the binaries
+that grew and their tests (`tools/tiers/budgets.md`, 7 to 9). **Budget
+moves down the pyramid with the tests a change places lower** (section
+9): a line beside the budgets moves CPU seconds from one layer's budget
+to that of a layer below it, in any tree, and the gate checks that it
+goes down and applies it to the ceiling and the held budget alike. A
+move up is a raise (`tools/tiers/budgets.md`, 10).
+
+**Each test is held to its reference at the gate,** its layer's per-test
+guide (section 8). A new test, one main's ledger lacks, is run alone after
+the suite, in a process of its own, and stays within its reference, or is
+red. An existing test stays within the larger of its reference and half
+again its own CPU at main: its wall in the shared run flags it, past twice
+its figure at main and at least 50 ms over it, and a flagged test is run
+alone at the head and at the base and judged by the two figures. A test
+may pass its reference by a line beside the budgets giving its figure and
+why, which the change's review judges; it still counts in its layer, so a
+reason never raises a budget. Every other run judges nothing alone
+(`tools/tiers/references.md`).
 
 **Every test binary is in one layer,** a tier of section 2, since a
 process runs one binary's tests and its CPU is the binary's:
@@ -690,7 +737,8 @@ stays starved. The wall limits aren't ratcheted, since a selection's wall
 says nothing of the whole suite's: they change by the user's word alone.
 A harness's own deadline keeps 2.10's rule.
 
-**Over budget is red.** Repair it by asking these questions, in order:
+**Over budget is red,** at the gate for the focused and fuzzy suites'
+layers and wherever a slow tier runs. Repair it by asking these questions, in order:
 
 1. **Does the test belong to this tier?** Use the tier definitions in
    this strategy and the tree's testing document. If it does not belong,

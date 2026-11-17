@@ -16,8 +16,7 @@ pub(super) fn beneath(call: &Call, document: &c::ReadValue, me: &c::Me, limits: 
         Some((task, _))
             if task.chip.task == number
                 && task.project == project
-                && task.chip.details.details.executor
-                    == c::Executor::Procedure { connector: shapes::RECURRING, code: shapes::GATHERING } =>
+                && temper_client_domain_forge::milestones::is(&task.chip) =>
         {
             task
         }
@@ -125,7 +124,7 @@ fn narrow(task: &mut c::NewTask, milestone: &c::Task, now: Wall) {
     task.authority.delegation.tasks = if task.authority.delegation.depth == 0 {
         0
     } else {
-        task.authority.delegation.tasks.min(allowance.tasks.saturating_sub(1))
+        task.authority.delegation.tasks.min(milestone.tasks_left.saturating_sub(1))
     };
     if let Some(latest) = milestone.budget.deadline {
         let deadline = match task.deadline {

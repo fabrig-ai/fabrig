@@ -1,7 +1,7 @@
 use super::*;
 use crate::tests::{TuiWorld, tui_approval_reply};
 use temper_client_shell_tui::{host::Report, journey};
-fn saves() -> (Box<[u8]>, Box<[u8]>) {
+pub(super) fn saves() -> (Box<[u8]>, Box<[u8]>) {
     let mut world = TuiWorld::sized(b"127.0.0.1:9", skein_ui_screen::Size { rows: 24, columns: 80 });
     let first = world.save();
     world.mark();
@@ -154,7 +154,10 @@ fn stop_is_idempotent_restarts_and_end_stops_tui_first() {
     step(&mut m, Event::TuiWritten);
     assert!(matches!(step(&mut m, Event::End).as_slice(), [Action::CancelFace, Action::StopCtl, Action::StopTui]));
     assert!(matches!(step(&mut m, Event::TuiStopped).as_slice(), [Action::CloseBrowser]));
-    assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+    assert!(matches!(
+        step(&mut m, Event::FaceDone(Ok(()))).as_slice(),
+        [Action::Stop { process: Process::Box, force: false }]
+    ));
 }
 #[test]
 fn exit_and_failed_approval_leave_session_usable() {

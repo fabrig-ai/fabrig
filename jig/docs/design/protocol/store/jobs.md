@@ -4,7 +4,7 @@ How an owner rewrites what its store holds when a binary needs it in
 another shape than the store keeps: a key layout changed, a record split
 or folded, a summary to write for what already ended, a written change
 of a value's layout. A job is an owner's walk over ranges of the map,
-run once per store by the open, after the patches and the registry's
+run once per store by the open, after the registry's
 commit and before the root starts, in pages: the store reads each page,
 hands it to the job's owner, and commits what the owner answers (temper's
 `draft/store-shape.md`, sections 3 and 4, step 4). This document
@@ -24,10 +24,10 @@ designs what runs them.
 
 ## 1. A job
 
-Each owner's patch set names its jobs, in the order they run:
+Each owner set names its jobs, in the order they run:
 
 ```rust
-pub struct PatchSet {
+pub struct OwnerSet {
     // ... as `opening.md`, 3
     pub jobs: &'static [Job],           // in the order they run
 }
@@ -49,7 +49,7 @@ pub struct Converts {
   still declares a job a store has run does not run it again, and a
   name once used is never given to another job.
 - **Checked where the set is admitted,** beside `opening.md`, 3's
-  checks, a failure refused `Set` with patch 0: names given once in a
+  checks, a failure refused `Set { owner }`: names given once in a
   set and within their bound; ranges non-empty, ordered and within the
   owner's tag (the application's relative to it), a job's ranges in
   the map, never the secrets' store; a written job's family a registered
@@ -57,14 +57,13 @@ pub struct Converts {
   that value type's; a job's count names at most 16, each given once
   within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
 - **jig's set declares no job.** Every store at the floor (temper's
-  `draft/store-floor.md`, section 3) has run each job jig declared
-  before it, and an empty store's first commit marked each done (2), so
-  their done rows stay, inert, and their names stay used: `milestones`,
+  `draft/store-floor.md`, section 3) needs none of its retired jobs.
+  Their done rows stay, inert, and their names stay reserved: `milestones`,
   `live-task-parts`, `projection-parts`, `charter-versions`,
   `retention-rows`, `retention-proposals`, `settle-layouts`,
   `ended-talk` and `task-logs`.
 - **temper's job** (temper's `protocol/store.md`, 4):
-  `deleted-repository-forge-rows`, the first job that counts: it
+  `deleted-repository-forge-rows`: it
   drops the forge rows naming a repository whose record is gone, its
   answers counting them per family, and reads the repositories and
   forges stored while each page is out (3). Its done jobs' names stay
@@ -79,7 +78,7 @@ pub struct Converts {
 
 - **Pending:** a job of the binary's sets with no row in the store.
   A pending job makes the open write before serving (`layouts.md`, 5.5):
-  in a new generation, made by links, after the patches and the
+  in a new generation, made by links, after the
   registry's commit, and before the seal and the check (`opening.md`,
   2, step 4).
 - **Done:** its end's commit writes its row, `Job { ended }`, the number
@@ -101,18 +100,18 @@ pub struct Converts {
 
 - **A page** is the next rows of the job's ranges, in key order, from
   the first key past the last one consumed: at most `limits.store.ops`
-  rows and the store's page bytes, as a patch's page is
-  (`opening.md`, 2, step 4), read through the read edge
+  rows and the store's page bytes (`opening.md`, 2, step 4),
+  read through the read edge
   (`layouts.md`, 4), so each value is at the binary's layout with its
   family's version at its head. A written job's page holds only its
   value type's values at its layout, as stored (4).
 - **Handed to its owner:** `Event::Job` carries the job's owner and
   name and the page; the shell routes it to that owner's jobs
   (`jig_protocol_store::jobs::page` for jig's, the application's own
-  dispatch for its), as it routes a written site (`opening.md`, 3), and
-  answers `Request::Job`. While a page is out, the owner may read other
-  ranges of the map through `Store::patch_page`, as a written site's
-  owner may.
+  dispatch for its), and answers `Request::Job`. Frame reads have
+  their own written sites and routing (`opening.md`, 3). While a page
+  is out, the owner may read other ranges of the map through
+  `Store::patch_page`.
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
@@ -142,7 +141,7 @@ pub struct Converts {
   its owner, name, the rows it was handed, the commits it made and its
   counts, each declared name with the sum of its answers' numbers, the
   last page's included, a sum saturating at `u64::MAX`, in the job's
-  order, for the shell's line, as `Patched` is a patch's. The store
+  order, for the shell's line. The store
   sums what the owner counts and judges none of it: what a count means
   is its job's.
 
@@ -198,26 +197,9 @@ change no plan derives brings its own.
 
 ## 5. Settling jobs
 
-No set declares a settling job, and the store runs none: every store at
-the floor has run jig's and temper's `settle-layouts` (temper's
-`draft/store-floor.md`, sections 3 and 4.3). The check (`layouts.md`,
-5.3) takes no layout for one.
-
-### 5.1 Its pages
-
-None (5).
-
-### 5.2 The check
-
-None (5).
-
-### 5.3 Its end: retirement by proof
-
-None (5): a layout row retires as `layouts.md`, 5.4 says.
-
-### 5.4 F0's counts
-
-None (5).
+No set declares a settling job, and the store runs none. The check
+(`layouts.md`, 5.3) takes no layout for one. A layout row retires only
+as `layouts.md`, 5.4 says.
 
 ## 6. Tests
 

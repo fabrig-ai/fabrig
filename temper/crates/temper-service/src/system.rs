@@ -210,7 +210,7 @@ impl Service {
         self.engine.as_ref().expect("composition engine").setup_page(forge, state, now)
     }
     /// Test seam: replace this service's patch sets before `adopt_store`
-    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
+    /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }

@@ -14,19 +14,22 @@ fn link(secret: &str) -> Event {
 fn signing_in() -> Machine {
     let (mut m, _) = Machine::start(plan(), Time::ZERO);
     let actions = step(&mut m, link("first"));
-    assert!(matches!(actions.as_slice(), [Action::Start { process: Process::SignIn, .. }]));
+    assert!(matches!(actions.as_slice(), [Action::SignInFile { .. }]));
     m
 }
 fn opening() -> Machine {
     let mut m = signing_in();
     let actions = step(&mut m, exited(Process::SignIn, 0));
     assert!(
-        matches!(actions.as_slice(), [Action::Open(url)] if url.as_ref() == format!("{ROUTE}?secret=first").as_bytes())
+        matches!(actions.as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == format!("{ROUTE}?secret=first").as_bytes())
     );
     m
 }
 fn classified(m: &mut Machine) -> Vec<Action> {
-    assert!(matches!(step(m, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+    assert!(matches!(
+        step(m, Event::FaceDone(Ok(()))).as_slice(),
+        [Action::Stop { process: Process::Box, force: false }]
+    ));
     assert!(matches!(step(m, exited(Process::Box, 0)).as_slice(), [Action::Classify]));
     step(m, Event::Logs { serve: vec![], forges: vec![], box_tail: vec![] })
 }

@@ -772,31 +772,32 @@ Its stories of a proposal of settings (`settings.md`, 6): one proposed by a run 
 accepted by an owner, moving running work; one made stale by another
 change and withdrawn, its proposer told.
 
-Its stories of an upgrade across a fresh mark (`executors.md`, 2), over the store
-with fixture patch sets: a task mid-run on a worker, its window
-resumed from an earlier attempt, upgraded across the mark, the worker
+Its stories of crossed proofs and closed windows (`executors.md`, 2)
+plant that evidence in the store (`jig/tests/core/tests/support/closed_proofs.rs`):
+a task mid-run on a worker, its window resumed from an earlier attempt,
+its proof crossed and its window closed, the worker
 listing its run at its hello, the run stopped, the claim lost, its late
 turn refused, its writer slot held until the connector reads afresh,
 and its next attempt fresh with the closed window's tail; the same with
 no worker listing it, lost once the grace has passed; an in-process
 claim yet to commit a turn, settled at once as not started; a crash
-after the switch before the restart, the next restart settling the
-claim the same way; the next attempt claimed and the engine restarted
-before its first turn, adopted as any claim; and a second upgrade
-across another mark before that turn, settling it again.
+before adoption, the next restart settling the claim the same way;
+the next attempt claimed and the engine restarted before its first
+turn, adopted as any claim; and a successor's proof crossed before
+that turn, settling it again.
 
-Its stories of the restore before the switch (`restart.md`), over the store
-with fixture patch sets: a patched copy restored whole, its restores'
-commits in the copy, no secret served and no run adopted before the
-switch, switched, and the manifest naming the position then; a live set
-past limits lowered since, refused before the switch, the generation
-patched from still active and unchanged, and a start of the build before
-opening it as it was; a task naming a project the copy does not hold, a
-link that cannot be made, refusing the start before the switch with the
-task and the project named, the generation patched from the same; a
-crash during the restore, the next start patching a fresh copy; and a
-start with nothing pending, whose switch step switches nothing and
-commits the wires alone.
+Its stories of the restore before the switch (`restart.md`) use
+registry changes and declared fixture jobs: an upgraded copy restored
+whole, its restores' commits in the copy, no secret served and no run
+adopted before the switch, switched, and the manifest naming the
+position then; a live set past limits lowered since, refused before
+the switch, the source generation still active and unchanged, and a
+start of the build before opening it as it was; a task naming a project
+the copy does not hold, a link that cannot be made, refusing the start
+before the switch with the task and the project named, the source
+generation the same; a crash during the restore, the next start
+upgrading another copy; and a start with nothing pending, whose switch
+step switches nothing and commits the wires alone.
 
 Its referee holds the core to ../model.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (../testing.md,
@@ -892,10 +893,9 @@ section 5).
   naming both (`settings.md`, 7), or the default is kept as a change of its own,
   recorded in the release's revision. Default: refused, as a document
   naming a charter it lacks is. The refusal is the backstop: a release
-  that drops such a default carries its own patch for the stored
-  changes that name it, as every release that changes what is stored
-  does from the baseline on (temper's draft `draft/upgrades.md`, section 4),
-  so only a release that forgot its patch meets the refusal.
+  that drops such a default carries its owner's written job for the
+  stored changes that name it (`../../protocol/store/jobs.md`, 4),
+  so a release that leaves those references unrepaired meets the refusal.
 - **An application's kinds pinned,** a value read from a task's
   revision as a charter is, should an application's setting shape what a
   running task is given. Default: never pinned (`settings.md`, 5).

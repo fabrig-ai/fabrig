@@ -254,7 +254,7 @@ fn ready(
             }
         };
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
-        if let Err(failure) = codec::catalogue(store) {
+        if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));
             corrupt(store, owner, above);
             return;

@@ -609,7 +609,7 @@ Each within jig's suites' budgets.
 - **An account moved out of a stopped deployment,** one whose start
   is refused, without starting its engine: an application's tool,
   holding the deployment's lock as `store/opening.md`, 5's operations do,
-  opens the active generation with no patch or restore (so only a
+  opens the active generation with no upgrade or restore (so only a
   store this build keeps), finds the account's source in the accounts'
   family by its schema, makes the file's bytes from its record (5.6),
   and erases the source's row in the same act, one secrets' commit

@@ -112,10 +112,10 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                     4 => (1, "check refuses the build"),
                     _ => unreachable!(),
                 };
-                let patched = next(&mut random) % 3 == 0;
+                let ran_job = next(&mut random) % 3 == 0;
                 deployment.check_answer(
                     code,
-                    &format!("{}{verdict_line}", if patched { "temper-engine upgrade: patched store\n" } else { "" }),
+                    &format!("{}{verdict_line}", if ran_job { "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\n" } else { "" }),
                 );
                 accounts(&mut deployment, false, true);
                 accounts(&mut deployment, true, false);

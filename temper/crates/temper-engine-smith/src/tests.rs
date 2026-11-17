@@ -1669,6 +1669,60 @@ fn refusal_words(why: tasks::Refusal, blocked: Option<Box<[u64]>>, expected: &[u
     assert!(rendered.error());
 }
 
+#[test]
+fn a_batch_contract_refusal_names_the_member_and_report_bounds() {
+    let value = engine::CallAnswer::DelegationRefused(tasks::Problem::new(Some(7), tasks::Refusal::Contract));
+    let rendered = answer(&value);
+    assert_eq!(
+        rendered.text(),
+        b"Refused: task 7 result contract (words at most the result bound; a person's or a role's report at least 1)"
+    );
+    assert!(rendered.error());
+}
+
+#[test]
+fn delegates_contract_schema_names_the_person_report_floor() {
+    let mut delegate = None;
+    for tool in &crate::calls::SPECS {
+        if tool.name == b"delegate" {
+            delegate = Some(tool);
+        }
+    }
+    let delegate = delegate.expect("delegate declared");
+    let schema = crate::json::parse(delegate.whole()).expect("delegate whole JSON schema");
+    let contract = schema
+        .required(b"properties")
+        .unwrap()
+        .required(b"batch")
+        .unwrap()
+        .required(b"items")
+        .unwrap()
+        .required(b"properties")
+        .unwrap()
+        .required(b"contract")
+        .unwrap();
+    assert!(
+        contract
+            .required(b"description")
+            .unwrap()
+            .text(b"description")
+            .unwrap()
+            .ends_with(b"A person's or a role's report: words at least 1.")
+    );
+    assert_eq!(
+        contract
+            .required(b"properties")
+            .unwrap()
+            .required(b"words")
+            .unwrap()
+            .required(b"minimum")
+            .unwrap()
+            .number(b"minimum")
+            .unwrap(),
+        0
+    );
+}
+
 fn busy_problem(action: tasks::CapacityAction, cause: tasks::CapacityCause) -> tasks::Problem {
     tasks::Problem::capacity(
         Some(2),

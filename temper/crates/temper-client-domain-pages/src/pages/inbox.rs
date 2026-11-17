@@ -1,4 +1,5 @@
 //! The inbox keeps cards through refreshes (temper/docs/design/client/pages/README.md).
+mod tasks;
 pub mod whole;
 use super::Request;
 use crate::{
@@ -12,6 +13,7 @@ use jig_client::{
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
 };
 use skein_lib::{List, Queue, Set};
+pub use tasks::TaskRead;
 use whole::Whole;
 #[derive(Clone, Debug)]
 pub struct Card {
@@ -23,6 +25,7 @@ pub struct Card {
     pub handle: Handle,
     pub page: Option<ReadValue>,
     pub whole: Option<Whole>,
+    pub task: Option<TaskRead>,
     pub words: Option<contract::Text>,
     pub key: Option<jig_client::Key>,
     pub outcome: Option<jig_client::Outcome>,
@@ -35,6 +38,34 @@ pub enum QuestionWords<'a> {
     Cut(&'a [u8]),
 }
 impl Card {
+    /// The task named by the from line; proposals deliberately name none.
+    #[must_use]
+    pub fn source(&self) -> Option<u64> {
+        if let Some(ReadValue::PersonTask(task)) = &self.page
+            && crate::question::in_words(task)
+            && let contract::Requester::Task(requester) = task.requester
+        {
+            return Some(requester);
+        }
+        match self.object {
+            ObjectKey::Proposal(_) | ObjectKey::Note { .. } => None,
+            ObjectKey::Task(task)
+            | ObjectKey::Escalation(task)
+            | ObjectKey::PersonTask(task)
+            | ObjectKey::Result(task)
+            | ObjectKey::Question { task, .. } => Some(task),
+        }
+    }
+    #[must_use]
+    pub fn document(&self) -> Option<&contract::Task> {
+        let source = self.source()?;
+        match &self.page {
+            Some(ReadValue::Task(task)) if task.chip.task == source => return Some(task),
+            Some(ReadValue::Escalation(held)) if held.task.chip.task == source => return Some(&held.task),
+            Some(_) | None => {}
+        }
+        self.task.as_ref()?.document.as_deref()
+    }
     #[must_use]
     pub fn question_words(&self) -> Option<QuestionWords<'_>> {
         if let Some(ReadValue::Question(question)) = &self.page {
@@ -70,6 +101,8 @@ pub struct Inbox {
     pub filter: Filter,
     pub entries: Handle,
     pub cards: List<Card>,
+    /// The needs read's supplied ancestry, retained for milestone bands.
+    pub selection: Option<List<contract::InboxSelection>>,
     /// Incomplete source documents, for needs and updates respectively.
     pub cut: [bool; 2],
     answered: [bool; 2],
@@ -81,6 +114,8 @@ pub struct Inbox {
     pub queries: [Handle; 2],
     pub next: u64,
     pub window: u32,
+    pub goal: Option<TaskRead>,
+    pub milestone: Option<Box<super::milestones::Milestone>>,
     long_text: u32,
 }
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
@@ -94,7 +129,7 @@ pub fn card_capacity(reads: u32) -> u32 {
 impl Inbox {
     pub(super) fn new(filter: Filter, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
         let cards = card_capacity(limits.client.domain.reads);
-        let inbox = Self {
+        let mut inbox = Self {
             filter,
             long_text: limits.client.domain.long_text,
             cut: [false; 2],
@@ -106,12 +141,18 @@ impl Inbox {
             next: first.checked_add(3).expect("inbox handles fit"),
             window: limits.client.domain.rows.min((cards / 2).max(1)),
             cards: List::with_capacity(cards),
+            selection: None,
             previous: List::with_capacity(cards),
             arrived: [None, None],
             answered: [false; 2],
             known: false,
+            goal: None,
+            milestone: None,
             pending: Set::with_capacity(limits.client.domain.reads.checked_add(2).expect("inbox reads fit")),
         };
+        if let Some(goal) = filter.goal {
+            inbox.goal = Some(TaskRead::new(goal, &mut inbox.next, out));
+        }
         client(
             out,
             jig_client::Event::Watch {
@@ -127,16 +168,53 @@ impl Inbox {
         }
         for card in &self.cards {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
+            if let Some(task) = &card.task {
+                task.leave(out);
+            }
             if let Some(whole) = &card.whole {
                 client(out, jig_client::Event::Unwatch { handle: whole.handle });
             }
         }
+        if let Some(goal) = &self.goal {
+            goal.leave(out);
+        }
+        if let Some(milestone) = &self.milestone {
+            milestone.leave(out);
+        }
         self.next
+    }
+    pub(super) fn configure(&mut self, client: &Client, limits: &Limits, out: &mut Queue<Request>) {
+        if let Some(goal) = &self.goal
+            && let Some(task) = &goal.document
+            && temper_client_domain_forge::milestones::is(&task.chip)
+            && self.milestone.is_none()
+        {
+            self.milestone =
+                Some(Box::new(super::milestones::Milestone::new(task.project, task.chip.task, &mut self.next)));
+        }
+        if let Some(milestone) = &mut self.milestone {
+            milestone.configure_goals(client, limits, out);
+        }
+    }
+    #[must_use]
+    pub fn takes_goal(&self, goal: Option<u64>) -> bool {
+        if self.filter.goal.is_none() || self.filter.goal == goal {
+            return true;
+        }
+        if let Some(milestone) = &self.milestone {
+            for line in &milestone.goals {
+                if Some(line.chip.task) == goal {
+                    return true;
+                }
+            }
+        }
+        false
     }
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
         if self.filter.kind == Some(Kind::Finding) {
             self.replace(out);
+            self.release_previous(out);
             self.answered = [true, false];
             self.cut = [false; 2];
             return;
@@ -181,6 +259,23 @@ impl Inbox {
                 }
             }
         }
+        self.release_previous(out);
+    }
+    fn release_previous(&mut self, out: &mut Queue<Request>) {
+        for card in &self.previous {
+            if let Some(task) = &card.task {
+                let mut kept = false;
+                for current in &self.cards {
+                    if let Some(read) = &current.task {
+                        kept |= read.handle == task.handle;
+                    }
+                }
+                if !kept {
+                    task.leave(out);
+                }
+            }
+        }
+        self.previous.clear();
     }
     fn replace(&mut self, out: &mut Queue<Request>) {
         for card in self.cards.iter_mut() {
@@ -204,6 +299,9 @@ impl Inbox {
         self.replace(out);
         for index in 0..2 {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
+                if index == 0 {
+                    self.selection.clone_from(&page.selection);
+                }
                 *self.answered.get_mut(index).expect("inbox section") = true;
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
                 for row in &page.rows {
@@ -219,6 +317,7 @@ impl Inbox {
                 }
             }
         }
+        self.release_previous(out);
     }
     fn add(&mut self, row: &contract::InboxEntry, out: &mut Queue<Request>) {
         if let Some(filter) = self.filter.project
@@ -278,6 +377,7 @@ impl Inbox {
                 handle,
                 page: None,
                 whole: None,
+                task: None,
                 words: None,
                 key: None,
                 outcome: None,
@@ -290,6 +390,7 @@ impl Inbox {
                 let card = self.cards.get_mut(index).expect("new card");
                 card.page = old.page.take();
                 card.whole = old.whole.take();
+                card.task = old.task.take();
                 card.words = old.words.take();
                 card.key = old.key;
                 card.outcome = old.outcome.take();
@@ -298,7 +399,21 @@ impl Inbox {
         }
         self.pending.insert(handle).expect("inbox card reads fit");
         client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
-        self.read_whole(self.cards.len().checked_sub(1).expect("new card"), out);
+        let index = self.cards.len().checked_sub(1).expect("new card");
+        self.read_whole(index, out);
+        self.read_task(index, out);
+    }
+    fn read_task(&mut self, index: u32, out: &mut Queue<Request>) {
+        let card = self.cards.get_mut(index).expect("bounded card index");
+        let Some(source) = card.source() else { return };
+        if card.document().is_some() || card.task.is_some() {
+            return;
+        }
+        // A person task in words names its requester only after the card has arrived.
+        if card.page.is_none() {
+            return;
+        }
+        card.task = Some(TaskRead::new(source, &mut self.next, out));
     }
     fn read_whole(&mut self, index: u32, out: &mut Queue<Request>) {
         let card = self.cards.get_mut(index).expect("bounded card index");
@@ -330,7 +445,24 @@ impl Inbox {
     pub const fn known(&self) -> bool {
         self.known
     }
-    pub(super) fn told(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(&mut self, source: &Client, told: Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+        if let Some(milestone) = &mut self.milestone
+            && milestone.told(&told, limits, out)
+        {
+            return true;
+        }
+        if let Some(goal) = &mut self.goal
+            && goal.told(&told)
+        {
+            return true;
+        }
+        for card in self.cards.iter_mut() {
+            if let Some(task) = &mut card.task
+                && task.told(&told)
+            {
+                return true;
+            }
+        }
         let changed = self.receive(source, told, out);
         self.known |= self.answered(InboxReadGroup::Needs) && self.delivered(source);
         changed
@@ -368,6 +500,7 @@ impl Inbox {
                 if card.handle == handle {
                     card.page = Some(value);
                     self.read_whole(index, out);
+                    self.read_task(index, out);
                     return true;
                 }
             }

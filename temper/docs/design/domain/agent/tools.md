@@ -538,6 +538,19 @@ any `delegate` (jig's authority, named and decided once):
 A `delegate` refused for an executor or a grant says, too, that a
 repository change is `change`'s.
 
+**A person's report has a floor.** jig refuses a report contract bound at
+0 words addressed to a person or a role (jig's `domain/people/README.md`,
+7), and the run learns it before and after the call:
+
+- **The schema says it:** `delegate`'s `contract` description ends
+  `A person's or a role's report: words at least 1.`; its `words` keeps
+  `minimum` 0, which an agent's report and a verdict's choices still
+  take.
+- **The refusal names the bound:** a batch refused as `Refusal::Contract`
+  reads `task <N> result contract (words at most the result bound; a
+  person's or a role's report at least 1)`, whatever the tool that made
+  the batch, so that a run can mend the member it names.
+
 **What a plan decides.** Beside the words and the repository, a call
 names what a plan decides of each change, and the root still builds the
 delegate from what it knows:

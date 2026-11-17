@@ -21,6 +21,7 @@ mod home;
 mod how;
 mod inbox;
 mod members;
+mod milestones;
 mod parts;
 mod paste;
 mod project_pages;

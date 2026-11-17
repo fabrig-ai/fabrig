@@ -854,11 +854,11 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
 - **A change's state** grows its landing, its clean merges' heads, its
   way (`queue` or `turn`), its judgement at its prefix, its landing's
   asks: judge, resolve, repair, landed.
-- **Patched,** before the first release (`../protocol/store.md`,
-  section 2): each new member at the end of its record, added by the
-  store's patch (`../protocol/baseline.md`, 7), every existing row
-  taking none, zero, false or empty, its member branch its round's
-  branch; and a new variant at the end of an enumeration.
+- **Registered layouts,** converted at read (`../protocol/store.md`,
+  section 4): new fields declare their defaults, renamed parts their
+  former names. A change no plan derives is a written job, not a map
+  patch; no version moves (`../protocol/floor.md`, 6). The floor's
+  rows already hold each member's branch; opening guesses none.
 - **Bounded** by the forge's limits (`../protocol/configuration/limits.md`
   ): `landings`, live landings per deployment, one per train;
   `landing_members`, changes per landing, at least every project's

@@ -461,17 +461,11 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   (`../../client/ctl/tools.md`, 3), and the document's older forms of an
   authority, a pattern and a role's permissions (milliseconds, text
   segments) meet nothing.
-- **Before the baseline** (`../../draft/upgrades.md`, 4.1): the settings change the store's families, so a
-  deployment is made again, and nothing is imported. A document `temper-box
-  init` wrote carried the stock values, now the binary's; one an
-  operator edited is told again, after the start, as a proposal ("Tell
-  temper how you work").
-- **From the baseline,** were the members to go after it
-  (`../../draft/upgrades.md`, section 10): the release that removes them
-  accepts each for one release with a warning naming its setting, and
-  at that start takes its values as stored changes where the store has
-  none, in a revision recorded as the release's and as from the
-  document, so nothing configured is lost; the next release refuses it.
+- **Configuration is not imported into a store.** Removed members
+  are refused by name; the binary supplies the stock, and an
+  operator's changes are proposals after the start ("Tell temper how
+  you work"). A store below the floor follows its named refusal
+  (`../floor.md`, 4), not a settings import.
 - **Across jig and temper:** jig reads the four members for an
   application that passes no defaults (its bridge, which stays jig's),
   and refuses them for one that passes its own. temper passes its own

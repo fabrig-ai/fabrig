@@ -2,7 +2,7 @@
 /// Template numbers used by the literal wire fixtures.
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire::v27 as w;
 use skein_lib::{Duration, List, Writer};
 mod owner;
 pub use owner::*;
@@ -136,6 +136,7 @@ pub fn task_record() -> w::Task {
             .expect("fixture flags"),
             last_activity: 0,
             made: 7,
+            tasks_left: 5,
             waits_on: w::WaitsOn::Nothing,
             chip: chip_record(),
             goal: None,

@@ -1,6 +1,6 @@
 //! The ordered pass brief (qa/passes.md, 4), resolving each landing's drafts as triage does.
 use crate::{
-    Case, CaseState, FindingState, Home, Ledger, Pass, PassStart, Refusal, Session, brief::landing_drafts,
+    Case, CaseState, FindingState, Home, Kind, Ledger, Pass, PassStart, Refusal, Session, brief::landing_drafts,
     faces::GitFace, pass_files,
 };
 use std::fmt::Write;
@@ -17,7 +17,11 @@ pub(crate) fn render(
     let mut text = String::from(
         "# What a pass is\n\nRun the green path only. Run ctl cases first in a ctl session, `temper-qa pass open --ctl`, with no browser. A ctl case's steps are ctl and forge lines; compare its see with what ctl printed. Start each case from its setup's restored copy, restoring between cases. Cases on one setup may share a restore only where none changes what the next sees; say which in the outcome's notes. Compare a page's words where a case gives them (see, as a `web see` line for a `web` case and a `tui see` line for a `tui` case); judge the rest against the draft's promises. A `tui` case's steps are `tui` lines; the TUI starts at its first line and the session signs it in. Keep its finding's evidence as the screen's rows: `pass line \"tui look\"`'s answer saved to a file. Looks are a person's judgement, not this pass's. Record each outcome as reached and each finding as found. A finding never stops the pass. Blocked is for the pass's own reasons, failed for temper's. What is off the path is a note unless it is a security hole or lost data. A fault beside a case on its landing's surface is a finding. The fakes alone: the person's forge is the box's fake Forgejo. A case no line or setup can bring to its state is a gap, not blocked: `temper-qa pass gap CASE KIND WHY`.\n\n## Pass\n\n",
     );
-    writeln!(text, "Pass {}; place {}; build {}", pass.number, pass.place, pass.build).expect("string");
+    writeln!(text, "Pass {}; place {} ({}); build {}", pass.number, pass.place, pass.kind.name(), pass.build)
+        .expect("string");
+    if pass.kind == Kind::Deployment {
+        text.push_str("At this deployment's place run ctl cases first in a ctl session, `temper-qa pass open --ctl`, then web and tui cases in a full session, `temper-qa pass open`, the browser and the TUI on the deployment's engine. The owner's changes are `deployment patch DOCUMENT PATH` lines; write their PATHs in the pass's files directory first. These lines end the TUI and load the page again.\n");
+    }
     writeln!(text, "Tree: {}", home.pass_tree(&pass.place).display()).expect("string");
     if resumed {
         let request = pass.requests.last().expect("resume's request");
@@ -99,14 +103,12 @@ fn write_resume(text: &mut String, ledger: &Ledger, session: &Session, cases: &[
 }
 
 fn write_setups(git: &mut impl GitFace, text: &mut String, home: &Home, pass: &Pass) -> Result<(), Refusal> {
-    writeln!(
-        text,
-        "\n## Setups\n\nDirectory: {}\n- fresh: an empty box",
-        pass_files::setups(home, pass.number).display()
-    )
-    .expect("string");
-    for name in crate::brief::setup_names(git, &pass.build, &home.configuration.surfaces)? {
-        if name != "fresh" {
+    writeln!(text, "\n## Setups\n\nDirectory: {}", pass_files::setups(home, pass.number).display()).expect("string");
+    if pass.kind.offers_fresh() {
+        text.push_str("- fresh: an empty box\n");
+    }
+    for (name, kind) in crate::brief::setup_names(git, &pass.build, &home.configuration.surfaces)? {
+        if name != "fresh" && kind == pass.kind {
             let path = format!("{}/{name}/README.md", pass_files::SETUPS);
             let bytes = git.file(&pass.build, &path)?.unwrap_or_default();
             writeln!(text, "- {name}: {}", first_sentence(&String::from_utf8_lossy(&bytes))).expect("string");

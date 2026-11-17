@@ -291,7 +291,7 @@ long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). `temper-box init` writes 300,000, five minutes
 (`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
-settled stop, the swap, its store's patching, its switch, its listeners
+settled stop, the swap, its store's registry commit and jobs, its switch, its listeners
 again) passes within it and each run is adopted where it stands; a
 deployment whose engine takes longer to start raises it, and the
 engine's grace with it (below). The playground's worker document

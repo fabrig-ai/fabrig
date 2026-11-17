@@ -69,6 +69,14 @@ impl Child {
     pub fn stop(&mut self, pump: &mut Pump, force: bool) {
         self.stopping = true;
         if let Some(child) = self.identity {
+            if force && (self.process == Process::Box || self.process.deployment_log().is_some()) {
+                pump.request(io::Request::Signal {
+                    child,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: io::kernel::Reason::Unknown,
+                });
+            }
             pump.request(if force {
                 io::Request::Close { entity: child }
             } else {
@@ -146,12 +154,15 @@ impl Child {
                     let at = index - usize::from(self.input.is_some());
                     match up {
                         Up::Bytes(bytes) => {
-                            if self.process == Process::Box {
+                            if self.process == Process::Box || self.process.deployment_log().is_some() {
                                 self.fragments[at].extend_from_slice(&bytes);
                                 while let Some(end) = self.fragments[at].iter().position(|byte| *byte == b'\n') {
-                                    events.push(Event::BoxLine {
-                                        output: if at == 0 { Output::Stdout } else { Output::Stderr },
-                                        line: self.fragments[at].drain(..=end).collect(),
+                                    let output = if at == 0 { Output::Stdout } else { Output::Stderr };
+                                    let line = self.fragments[at].drain(..=end).collect();
+                                    events.push(if self.process == Process::Box {
+                                        Event::BoxLine { output, line }
+                                    } else {
+                                        Event::ProcessLine { process: self.process, output, line }
                                     });
                                 }
                             } else {
@@ -161,9 +172,12 @@ impl Child {
                         }
                         Up::End | Up::Failed(_) => {
                             if !self.fragments[at].is_empty() {
-                                events.push(Event::BoxLine {
-                                    output: if at == 0 { Output::Stdout } else { Output::Stderr },
-                                    line: std::mem::take(&mut self.fragments[at]).into(),
+                                let output = if at == 0 { Output::Stdout } else { Output::Stderr };
+                                let line = std::mem::take(&mut self.fragments[at]).into();
+                                events.push(if self.process == Process::Box {
+                                    Event::BoxLine { output, line }
+                                } else {
+                                    Event::ProcessLine { process: self.process, output, line }
                                 });
                             }
                             self.ended[at] = true;

@@ -10,7 +10,7 @@ pub(super) fn read(log: &[u8], name: BoxValue) -> Result<Box<[u8]>, String> {
     };
     let value = log
         .split(|byte| *byte == b'\n')
-        .filter_map(|line| super::strip_log_time(line).strip_prefix(prefix))
+        .filter_map(|line| super::place::strip_log_time(line).strip_prefix(prefix))
         .next_back()
         .filter(|value| !value.is_empty())
         .ok_or_else(|| format!("session/box.log: lacks {} line", String::from_utf8_lossy(prefix).trim_end()))?;

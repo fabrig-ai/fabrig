@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-store-records.workspace = true
 jig-protocol-store-people.workspace = true
 jig-protocol-store-tasks.workspace = true
 jig-protocol-store-core.workspace = true
@@ -27,19 +28,16 @@ jig-domain-accounts.workspace = true
 
 jig-domain-authority.workspace = true
 jig-domain-fleet.workspace = true
-jig-domain-link.workspace = true
 
 [dev-dependencies]
+jig-protocol-store-kit.workspace = true
 skein-rows.workspace = true
 skein-codegen.workspace = true
-skein-scratch.workspace = true
 jig-test-patches-smith.workspace = true
 jig-test-layouts.workspace = true
 jig-test-patches-jig.workspace = true
 skein-fake-machine.workspace = true
 skein-sim.workspace = true
-jig-domain-brief.workspace = true
-jig-domain-views.workspace = true
 
 [lints]
 workspace = true

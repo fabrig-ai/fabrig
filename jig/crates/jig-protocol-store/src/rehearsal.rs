@@ -201,7 +201,7 @@ pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
 fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;
     let bytes = open::get(store, owner, key).ok()??;
-    crate::codec::component::kept_wires(&bytes)
+    crate::rows::kept_wires(&bytes)
 }
 
 pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {

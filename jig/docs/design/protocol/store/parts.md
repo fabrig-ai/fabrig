@@ -161,8 +161,6 @@ record ProjectionWords { goal: u64 task: u64 words: bytes 262144 }
 - **Fuzzy:** the tasks world's lifecycle and amendments suites, with
   their restart cuts, read every live task back equal after a restart;
   the store codecs' fuzzy decoders take the new variants.
-- **The real families** (`layouts.md`, 8): the new value type is new
-  since the kept text, and every other type derives.
 
 ## 6. Open questions
 

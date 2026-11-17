@@ -1,5 +1,6 @@
 //! The referee's loop and verdicts over the simulated world's steps (testing/world.md, 3).
 use crate::heap::{Findings, Heap, Metered};
+use crate::referee::Control;
 use crate::{
     Controls, Cut, Digests, Host, HostedProgram, Inherited, Machine, Memory, NoMachine, Outcome, Referee,
     StartupAppend, StartupAppends, StartupRoot, StartupRoots,
@@ -207,9 +208,12 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             inputs(sim, pids, procs);
             self.referee.act(now, procs);
             loop {
-                let signal = self.controls.signals.borrow_mut().pop();
-                let Some((host, signal)) = signal else { break };
-                self.inner.signal(host, signal);
+                let control = self.controls.pending.borrow_mut().pop();
+                let Some(control) = control else { break };
+                match control {
+                    Control::Signal { host, signal } => self.inner.signal(host, signal),
+                    Control::Cut { host, cut } => self.inner.cut_now(host, cut),
+                }
             }
             let mut turns = Observing { referee: &mut self.referee, faults: &mut faults, findings: &findings };
             let step = self.inner.try_step_with(&mut turns)?;
@@ -220,7 +224,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             if last_word.is_none() && self.referee.passed() {
                 last_word = Some(self.referee.last_word().at(now));
             }
-            if self.inner.busy() || !self.controls.signals.borrow().is_empty() {
+            if self.inner.busy() || !self.controls.pending.borrow().is_empty() {
                 continue;
             }
             let settled = self.inner.settled();

@@ -147,6 +147,7 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
     let mut line = line();
     line.chip.task = task;
     match state {
+        State::Waits(_) | State::WaitsForRoom => unreachable!("this fixture supplies no waiting row"),
         State::Planning => line.delegates_total = EMPTY,
         State::Needs { funds: false } | State::Running => {}
         State::Needs { funds: true } => {
@@ -199,7 +200,12 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
                     c::ChipEnding::Cancelled { reason: text(), result: None, by: line.requester, at: Wall::EPOCH }
                 }
                 State::Failed => c::ChipEnding::Failed(text()),
-                State::Needs { .. } | State::Paused | State::Planning | State::Running => unreachable!(),
+                State::Needs { .. }
+                | State::Paused
+                | State::Waits(_)
+                | State::WaitsForRoom
+                | State::Planning
+                | State::Running => unreachable!(),
             });
         }
     }

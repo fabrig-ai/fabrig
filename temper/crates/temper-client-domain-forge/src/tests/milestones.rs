@@ -9,6 +9,62 @@ use skein_lib::Wall;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[test]
+fn the_gathering_executor_alone_marks_a_milestone() {
+    assert_eq!(milestones::TEMPLATE, 8);
+    let mut chip = chat::task().chip;
+    for (executor, expected) in [
+        (
+            c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING },
+            true,
+        ),
+        (
+            c::Executor::Procedure {
+                connector: jig_client::shapes::RECURRING,
+                code: jig_client::shapes::GATHERING + 1,
+            },
+            false,
+        ),
+        (
+            c::Executor::Procedure {
+                connector: jig_client::shapes::RECURRING - 1,
+                code: jig_client::shapes::GATHERING,
+            },
+            false,
+        ),
+        (c::Executor::Agent { charter: 8 }, false),
+    ] {
+        chip.details.details.executor = executor;
+        assert_eq!(milestones::is(&chip), expected);
+    }
+}
+
+#[test]
+fn lineage_is_root_first_and_the_next_chip_is_the_goal() {
+    // Jig reverses the requester walk in documents/task_tree.rs, task_with_lineage;
+    // the wire's document translation preserves that order.
+    let mut task = chat::task();
+    let mut milestone = task.chip.clone();
+    milestone.task = 40;
+    milestone.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    let mut goal = task.chip.clone();
+    goal.task = 41;
+    let mut root = task.chip.clone();
+    root.task = 39;
+    task.lineage_chips = skein_lib::List::from_boxed(Box::new([root, milestone.clone(), goal.clone()]));
+    let lineage = milestones::lineage(&task).unwrap();
+    assert_eq!((lineage.milestone.task, lineage.goal.task), (40, 41));
+    task.lineage_chips = skein_lib::List::from_boxed(Box::new([milestone]));
+    task.requester = c::Requester::Task(40);
+    let lineage = milestones::lineage(&task).unwrap();
+    assert_eq!((lineage.milestone.task, lineage.goal.task), (40, task.chip.task));
+    task.requester = c::Requester::Person(40);
+    assert!(milestones::lineage(&task).is_none());
+    task.lineage_chips = skein_lib::List::from_boxed(Box::new([goal]));
+    assert!(milestones::lineage(&task).is_none());
+}
+
+#[test]
 fn facts_keep_the_name_words_maker_and_concluding_wall() {
     let mut task = chat::task();
     task.requester = c::Requester::Person(73);

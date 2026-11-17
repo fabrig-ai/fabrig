@@ -255,7 +255,9 @@
       finding the person holds is a card of its own, drawn as 1,
       **Findings, drawn**, *A finding's own card* says; any other card has:
       - *its from line,* mono: on Home on All projects (1) the
-        project's chip, `temper-chip`, its name; the asked task's link as
+        project's chip, `temper-chip`, its name; the milestone and the
+        goal it comes from, as *Needs you*'s from line names them
+        (`needs-you.md`, 1, *The card*); the asked task's link as
         the inbox's card has it; its kind and age ("Add a README · a
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
@@ -337,11 +339,36 @@
     bigger work, a chat can write a draft beside it and start a goal from
     it: a plan, its tasks, landing."; and "Show goals", to
     `Settings`, once `Settings` has that switch, not before.
-  - *Goals,* in Chats' place with a goal in the project, a region named
-    "Goals": its head the level-2 heading "Goals" and, at its right, "All
-    N", to `Goals { project, filter: All }`; then `Goals`' row (`work.md`, 1,
-    *Goals*), live first and then ended, as many as the larger of 5 and the
-    live goals. Its reads are that page's.
+  - *Goals,* in Chats' place while the project has a goal or a milestone
+    (`Domain::has_goals`, `milestone.md`, 1), a region named "Goals",
+    grouped (`../../draft/milestones.md`, 5.1): a plain goal is a row, and
+    a milestone one row for all its goals, which have no rows of their own.
+    Its reads are `Goals`' and the project's milestones' (`milestone.md`, 1).
+    - *Its head:* the level-2 heading "Goals" and, at its right, "All N
+      goals", N the goals read, each counted once, milestones not counted,
+      "All N+ goals" while `Goals` leaves rows unread, to `Goals { project,
+      filter: All }`, which counts the same.
+    - *Its rows:* `Goals`' row (`work.md`, 1, *Goals*) for each goal read
+      that `Milestones::of` names no milestone of; a milestone's row for
+      each drawn milestone (`milestone.md`, 1): each live one, and each
+      ended within the seven days before the wall. A goal in a milestone
+      not drawn has no row. Live rows first, by last activity, a
+      milestone's being the newest of its own and its goals', a tie the
+      lower task number first; then ended rows, the newest end first. As
+      many as the larger of 5 and the live rows, counted after grouping.
+    - *A milestone's row,* one link to its `Task`, `temper-goals-row` and
+      `temper-ms-row`, as the mockup `../web/home-for-a-person/home.html`
+      draws it: its top line, `temper-goals-top`, at the left its tag and
+      its name, its chip's title, and at the right, in
+      `temper-goals-progress`, its count, "7 / 8 done · ", and its state's
+      word in its state's token; then its strip; then its headline,
+      `temper-goals-line` (`milestone.md`, 2). An ended row is marked as a
+      goal's is. On a phone it keeps its top line and its strip, its
+      headline not drawn under 760 px. In the terminal it is one link,
+      "milestone · Store shape · 7 / 8 done · running", then the strip's
+      line, then the headline.
+    - *A goal row's wait* names its dependencies from the drawn
+      milestones' goals too (`work.md`, 1, *A wait's names*).
   - *The foot,* `temper-home-facts`, after the last section, 13.5 px and
     muted: "Landing: ", then the landing's line (`../forge/pages.md`, *Changes*), the
     same function's, from `queued`, `last_landed`, `branch` and `red`:
@@ -724,7 +751,10 @@
     top rule), a `temper-decision` a row (`.decision`), at most 7, the newest
     kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
     `../view.md`, 6's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
-    01:05"; muted, the question; `temper-decision-took` (500), what it took;
+    01:05"; a row whose task is under a milestone, by its read document's
+    lineage (`milestones::lineage`, `milestone.md`, 1), "Store shape › TITLE
+    · 01:05", the milestone's name first (`../../draft/milestones.md`, 5.1),
+    after PROJECT where PROJECT is said; muted, the question; `temper-decision-took` (500), what it took;
     `temper-decision-allowed` (13.5 px, muted), what allowed it (below).
     The agent's why is left to the task's page, which keeps its call
     whole (`../../draft/home-for-a-person.md`, 3): no row draws it. At

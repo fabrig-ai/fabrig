@@ -51,7 +51,7 @@ pair = "default"
 package = "jig-protocol-engine-clients"
 filter = "kind(lib)"
 
-# jig/crates/jig-protocol-store/src/tests.rs and its fixture helper modules; all unit callers.
+# Component fixtures; all unit callers.
 [[fixture]]
 paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.rs"]
 [[fixture.reader]]
@@ -59,6 +59,27 @@ pair = "default"
 package = "jig-protocol-store"
 filter = "kind(lib)"
 
+# Translation fixtures; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-protocol-store-records/src/tests/fixtures.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
+filter = "kind(lib)"
+
+# Shared domain fixtures; both pieces' unit callers.
+[[fixture]]
+paths = ["jig/testing/jig-protocol-store-kit/src/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
+filter = "kind(lib)"
+
+# src/tests/{format,frame_memory}.rs; jig/tests/store-codecs/tests/suite/drift.rs: layouts().
 # Store unit and drift tests; one-process rehearsal corrupts the captured deployment header.
 [[fixture]]
 paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.schema"]
@@ -927,6 +948,18 @@ filter = "binary(=suite) & test(/^fuzzy::upgrade::/)"
 paths = ["temper/tests/one-process/golden/settled/README.md"]
 disposition = "provenance"
 reason = "Settled story, rewrite command and image file descriptions."
+
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/scripts.json"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-real-loop-world"
+filter = "binary(=suite) & test(/^turn_landing::/)"
+
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/README.md"]
+disposition = "provenance"
+reason = "Cue words and ctl latch acts for the turn-landing script fixture."
 
 # Recording provenance for the B0 and B1 replay fixtures.
 [[fixture]]

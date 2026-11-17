@@ -90,6 +90,7 @@ struct Judge {
     store: Rc<RefCell<Store>>,
     stage: Stage,
     handed: bool,
+    answers: usize,
     drained: bool,
     checked: Cell<u64>,
 }
@@ -157,7 +158,7 @@ impl Judge {
             self.handed = true;
             self.stage = Stage::First;
         }
-        for answer in &caller.answers {
+        for answer in &caller.answers[self.answers..] {
             match (&(answer.exit), &(Exit::Code(0))) {
                 (left, right) if left != right => {
                     let finding = format!(
@@ -178,6 +179,7 @@ impl Judge {
                 _ => {}
             }
         }
+        self.answers = caller.answers.len();
         match self.stage {
             Stage::First if caller.answers.len() == 4 && push.received().len() == 1 => {
                 let received = &push.received()[0];
@@ -356,6 +358,7 @@ pub fn run() {
                 store,
                 stage: Stage::Setup,
                 handed: false,
+                answers: 0,
                 drained: false,
                 checked: Cell::new(u64::MAX),
             },

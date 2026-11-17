@@ -128,9 +128,9 @@ Offered where the run's charter names the delegate family and its authority hold
     - `person`: integer >=0.
     - `role`: integer >=0.
   - `spec`: object; required. the `spec` form, under Shared forms.
-  - `contract`: object; required. {kind: report, words}, {kind: change, connector, change_kind, words} or {kind: verdict, choices: [{code, words}]}.
+  - `contract`: object; required. Report: words; change: connector,change_kind,words; verdict: choices. A person's or a role's report: words at least 1.
     - `kind`: one of `report|change|verdict`; required.
-    - `words`: integer >=0.
+    - `words`: integer >=0. A person's or a role's report: words at least 1.
     - `connector`: integer >=0.
     - `change_kind`: integer >=0.
     - `choices`: array.

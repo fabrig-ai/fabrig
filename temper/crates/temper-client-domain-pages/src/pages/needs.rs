@@ -357,7 +357,7 @@ impl Session {
             for row in approvals.rows() {
                 if inbox.filter.kind.is_none()
                     && (inbox.filter.project.is_none() || inbox.filter.project == Some(row.project))
-                    && (inbox.filter.goal.is_none() || inbox.filter.goal == row.goal)
+                    && inbox.takes_goal(row.goal)
                     && self.later(ObjectKey::Task(row.task)) == later
                 {
                     needs.push(Need::Approval(row)).expect("approval rows fit");

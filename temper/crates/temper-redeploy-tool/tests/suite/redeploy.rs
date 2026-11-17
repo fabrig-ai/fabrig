@@ -339,11 +339,11 @@ fn together_drains_in_one_batch_before_the_engine_and_starts_engine_first() {
 }
 
 #[test]
-fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
+fn job_checks_back_up_at_the_seam_clock_before_any_swap() {
     let mut hosts = staged(1);
     hosts.at = 1_700_000_000 * SECOND;
     hosts
-        .check_answer(0, "temper-engine upgrade: patched generation 3\ntemper-engine upgrade: workers may stay: yes\n");
+        .check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\ntemper-engine upgrade: workers may stay: yes\n");
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
     let backup = format!("{NEW}-20231114T221320Z");
@@ -351,12 +351,36 @@ fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
     let backup_at = position(&hosts, &format!("backup '{backup}'"));
     let swap_at = hosts.lines.iter().position(|call| call.line.starts_with("swap ")).unwrap();
     assert!(backup_at < swap_at);
+    assert!(hosts.lines.iter().filter(|call| call.line.starts_with("swap ")).all(|call| call.part == Part::Engine));
+    assert!(hosts.workers.iter().all(|worker| worker.running && worker.installed.values().all(|build| build == OLD)));
+}
+
+#[test]
+fn checks_without_jobs_take_no_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: workers may stay: yes\n");
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.backup, None);
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
+}
+
+#[test]
+fn job_checks_keep_the_journals_existing_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
+    let mut journal = super::journal();
+    journal.record.backup = Some("existing-backup".into());
+    let outcome = redeploy(&hosts.description.clone(), NEW, Mode::Engine, &mut journal, &mut hosts);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(journal.record.backup.as_deref(), Some("existing-backup"));
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
 }
 
 #[test]
 fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
     let mut hosts = staged(2);
-    hosts.check_answer(0, "temper-engine upgrade: patched generation 3\nworkers may stay: yes");
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
     hosts.opening(1, Opening::Refused { nanoseconds: SECOND, text: "temper-worker-wire too old".into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Failed);
@@ -402,7 +426,7 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
                 Mode::Together
             }
             "backup" => {
-                hosts.check_answer(0, "upgrade: patched store\nworkers may stay: yes");
+                hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
                 hosts.fail_line(Part::Engine, &format!("backup '{NEW}-19700101T000001Z'"), 1);
                 Mode::Engine
             }

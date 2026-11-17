@@ -2,7 +2,7 @@
 
 Draft, 2026-11-11, from a session with the user that day; amended
 2026-11-12 with the user, for QA on the fakes alone and for stores
-patched forward; amended 2026-11-14 with the user, for places of two
+opened through their registry and jobs; amended 2026-11-14 with the user, for places of two
 kinds, a box and a deployment, and for ctl first. Goals land on
 the project's deployment faster than anyone can check them by hand. This
 draft makes QA after landing keep up: an agent beside the deployment,
@@ -45,9 +45,10 @@ trips".
   runs them first, with no browser and no terminal.
 - **Setups** (section 5): a recipe, kept in the repository, and a copy of
   the stopped place it reaches, box or deployment, kept as a cache. A
-  copy is restored at its place with the pass's build, which patches its
-  store forward; one the build refuses is a finding, and is made again
-  from its recipe. The catalogue grows as passes need new states.
+  copy is restored at its place with the pass's build, which opens its
+  store through its registry and jobs; a copy below the floor is refused
+  by name, naming bridge build `3d1c717d379e`, and made again from its
+  recipe, with no finding. The catalogue grows as passes need new states.
 - **No real backend** (section 6): the fake forges, keeping their state
   across a restart, and the fake model on the setup's scripts, strict, so
   that a turn no script answers fails rather than drifts. No place runs a
@@ -254,12 +255,10 @@ trips".
   are private, whatever the umask its process runs under. The recipe's
   closing check, `ctl` lines for a recipe with no web or TUI line, runs
   before any case starts.
-- **Patched forward, or a finding:** a stored format's change moves its
-  version and brings its patch (the user, 2026-11-12; `upgrades.md`, 4
-  and 6), so a newer build patches an older copy's store as it starts,
-  as a redeploy does. A copy it refuses, by name, or whose patching
-  fails, is a finding against temper, naming the store, the copy's commit
-  and the pass's build, so that every pass also proves the patches. The
+- **Opened, or refused below the floor:** a registered store changes by
+  defaults, former names or a written job (jig's `protocol/store/layouts.md`).
+  A copy below the floor is refused by name, naming bridge build
+  `3d1c717d379e`; this is expected, not a finding. The
   pass then walks the recipe from its nearest ancestor whose copy
   restores, saves the new copy, and goes on with the setup's cases. Any
   other failure to start, or a panic, is a finding (section 7).
@@ -365,8 +364,9 @@ trips".
   panics, a recipe's step that broke with no landing meaning it to,
   section 5) is failed, with that finding. This is
   `../../development/qa.md`, 6's finding for a start refused or a panic.
-  A copy's store refused, or its patching failed, is a finding of its
-  own, and the setup's cases go on from the copy made again (section 5).
+  A copy's store below the floor is refused by name, naming bridge build
+  `3d1c717d379e`, with no finding, and the setup's cases go on from the
+  copy made again (section 5). A registry or job failure is a finding.
 - **Evidence beside the ledger:** each finding's screenshot or screen
   text, and the box's log where it matters, with the case and the
   commit.
@@ -452,9 +452,9 @@ For the first passes, on the web client and the TUI:
 - **A box at its place:** a stopped box's data and configuration,
   unpacked where they were made, start with a newer build installed in
   the same `bin/`, with its fake forges' repositories, pull requests and
-  checks and its tasks as they were, its store patched forward as a
-  redeploy patches it; a store the build has no patch for is refused by
-  name, never read wrongly.
+  checks and its tasks as they were, its store opened through its
+  registry and jobs as at a redeploy; a store below the floor is refused
+  by name, naming bridge build `3d1c717d379e`, never read wrongly.
   A process-tier story proves it: the engine, its agents, its adapters
   and the bundle all run the newer build, and nothing runs the old one.
 - **The fake model's scripts and strictness:** `temper box
@@ -526,8 +526,8 @@ Focused and fuzzy suites alone, each failing first:
   queue at a session's end; a case blocked twice leaving the queue;
 - the recipe format: its chain read and walked, a cycle or a ninth parent
   refused, its hash changing with its parents';
-- a copy whose store a newer build refuses by name: a finding naming the
-  store, the copy's commit and the build, and the copy made again from
+- a copy whose store is below the floor: refused by name, naming bridge
+  build `3d1c717d379e`, with no finding, and the copy made again from
   its nearest restoring ancestor;
 - the fake model: a box's scripts given in place of its own; under the
   strict switch, a turn no script answers fails, naming the request;
@@ -542,7 +542,7 @@ Focused and fuzzy suites alone, each failing first:
   no Forgejo or runner started;
 - a deployment at its place: its engine, worker and agent started from a
   setup's `config/` on the fakes, stopped, saved, and restored with a
-  newer build of each, its store patched forward and its fakes' state
+  newer build of each, its store opened through its registry and jobs and its fakes' state
   back; a project there landing by `turn` at a `batch` of two, its gate
   dispatched on the fake Forgejo and the turn merged by the worker's
   git; ctl signed in with no link printed; the place's directories

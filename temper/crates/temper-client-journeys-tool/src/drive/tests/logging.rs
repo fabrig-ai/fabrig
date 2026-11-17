@@ -34,16 +34,16 @@ fn log_and_failure_tail(ctl: bool) {
         let actions = box_output(&mut machine, &mut file, Output::Stderr, DATA);
         assert!(matches!(actions.as_slice(), [Action::Log { line }] if line.as_ref() == DATA));
         let actions = box_output(&mut machine, &mut file, Output::Stdout, FIRST);
-        let [Action::Start { process: Process::SignIn, program }] = actions.as_slice() else {
+        let [Action::SignInFile { program, .. }] = actions.as_slice() else {
             panic!("stdout starts sign-in without logging: {actions:?}")
         };
-        assert_eq!(program.input, Input::Bytes(FIRST.into()));
+        assert_eq!(program.input, Input::Null);
         let actions = box_output(&mut machine, &mut file, Output::Stderr, FORGE);
         assert!(matches!(actions.as_slice(), [Action::Log { line }] if line.as_ref() == FORGE));
         if !ctl {
             let actions = step(&mut machine, exited(Process::SignIn, 0));
             assert!(
-                matches!(actions.as_slice(), [Action::Open(url)] if url.as_ref() == FIRST.strip_suffix(b"\n").expect("newline"))
+                matches!(actions.as_slice(), [Action::RemoveLink, Action::Open(url)] if url.as_ref() == FIRST.strip_suffix(b"\n").expect("newline"))
             );
             assert!(step(&mut machine, Event::FaceDone(Ok(()))).is_empty());
         }
@@ -58,13 +58,19 @@ fn log_and_failure_tail(ctl: bool) {
         assert!(box_output(&mut machine, &mut file, Output::Stdout, LATER).is_empty());
         let actions = box_output(&mut machine, &mut file, Output::Stderr, failure);
         if ctl {
-            assert!(matches!(actions.as_slice(), [Action::Log { .. }, Action::StopCtl, Action::TerminateBox]));
+            assert!(matches!(
+                actions.as_slice(),
+                [Action::Log { .. }, Action::StopCtl, Action::Stop { process: Process::Box, force: false }]
+            ));
         } else {
             assert!(matches!(
                 actions.as_slice(),
                 [Action::Log { .. }, Action::CancelFace, Action::StopCtl, Action::CloseBrowser]
             ));
-            assert!(matches!(step(&mut machine, Event::FaceDone(Ok(()))).as_slice(), [Action::TerminateBox]));
+            assert!(matches!(
+                step(&mut machine, Event::FaceDone(Ok(()))).as_slice(),
+                [Action::Stop { process: Process::Box, force: false }]
+            ));
         }
         assert!(matches!(step(&mut machine, exited(Process::Box, 1)).as_slice(), [Action::Classify]));
 
