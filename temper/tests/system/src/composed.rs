@@ -811,7 +811,6 @@ impl World {
             engine::Request::Drained => self.absence.drained = true,
             engine::Request::Worker(engine::WorkerRequest::Settings(_))
             | engine::Request::Store(engine::StoreRequest::Catalogue { .. })
-
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
             engine::Request::Store(engine::StoreRequest::Switch) => {

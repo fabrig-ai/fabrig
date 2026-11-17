@@ -293,7 +293,7 @@ pub fn golden(directory: &Path) {
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
             .expect("golden JSON");
-    // N7's operators' step for the started copy (protocol/baseline.md, 6).
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
     document["workers"][0]["name"] = "local".into();
     document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();

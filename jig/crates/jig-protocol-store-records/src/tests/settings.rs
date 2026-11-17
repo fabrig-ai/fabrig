@@ -181,7 +181,7 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         proposal: Some((people::Proposer::Task(8), 9)),
         moved: true,
     };
-    let mut rows = skein_lib::List::with_capacity(34);
+    let mut rows = skein_lib::List::with_capacity(40);
     for row in [
         s::Record::Extent { oldest: 1, keys: 1 },
         s::Record::Revision {

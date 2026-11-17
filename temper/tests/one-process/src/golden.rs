@@ -701,7 +701,7 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
 fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
-    // N7's operators' step for the started copy (protocol/baseline.md, 6).
+    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
     document["workers"][0]["name"] = "local".into();
     document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();

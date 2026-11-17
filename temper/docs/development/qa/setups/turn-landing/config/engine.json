@@ -53,12 +53,6 @@
         {
           "socket": "{place.workers}"
         }
-      ],
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "{place.data}/engine/secrets/worker.digest"
-        }
       ]
     },
     "clients": {

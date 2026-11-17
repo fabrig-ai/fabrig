@@ -539,7 +539,7 @@ fn settings_items_fit_at_the_count_and_byte_bounds() {
 
 // The standard inventory has 8 charters + 16 templates + 9 policies + the rules.
 const STANDARD_SETTINGS: u32 = 34;
-const MAX_SETTINGS: u32 = 256; // SettingsDocument.settings on client wire 23.
+const MAX_SETTINGS: u32 = w::CEILINGS.settings_document_settings;
 
 fn settings_inventory(count: u32) -> c::SettingsDocument {
     let mut settings = List::with_capacity(count);

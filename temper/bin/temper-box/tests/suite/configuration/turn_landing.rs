@@ -44,8 +44,7 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     assert!(engine.limits.core.tasks.spec_bytes >= 16384);
     assert!(engine.limits.core.tasks.result_bytes >= 4096);
     assert_eq!(engine.limits.core.fleet.engine_slots, 0);
-    assert_eq!(engine.hosts.workers.len(), 1);
-    assert_eq!(engine.hosts.workers[0].digest.as_ref(), b"/turn/data/engine/secrets/worker.digest");
+    assert!(json(&bytes)["engine"]["hosts"].get("workers").is_none(), "workers are admitted through settings");
 
     let bytes = rendered("worker.json");
     assert_eq!(startup::shape(&bytes, &directories).expect("worker shape"), Shape::WorkerAlone);
