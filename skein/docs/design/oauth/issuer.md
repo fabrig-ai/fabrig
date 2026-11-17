@@ -12,8 +12,9 @@ lives, are its caller's: in jig, the clients' component's provider.
 ## 1. In one page
 
 - **Stateless, a value and functions.** An `Issuer` is built once from
-  its settings, checked, and never changes: its identifier and
-  endpoints, its clients' registrations, and its signing key. Each of its
+  its settings and checked: its identifier and endpoints, its clients'
+  registrations, and its signing key. Only its registrations change
+  after, a client added or removed by its caller (section 2). Each of its
   functions takes a request's bytes or a grant and gives bytes, and the
   same inputs give the same bytes. It holds no code, token, sign-in or
   clock.
@@ -65,8 +66,12 @@ pub struct Client {
 }
 pub struct Issuer { /* the settings, checked; the key's public half and its kid */ }
 
+pub enum ClientError { Invalid(Error), Duplicate, Full, Unknown }
+
 impl Issuer {
     pub fn new(settings: Settings, limits: Limits) -> Result<Issuer, Error>;
+    pub fn add_client(&mut self, client: Client) -> Result<(), ClientError>;
+    pub fn remove_client(&mut self, id: &[u8]) -> Result<(), ClientError>;
 }
 ```
 
@@ -80,7 +85,16 @@ impl Issuer {
   (`0x21` to `0x7e`), unique among the clients; a secret of 1 to
   `client_bytes` bytes, or none; and one redirect URI, under the URLs' rules
   above, compared byte for byte wherever a request names it. There are
-  1 to `limits.clients` clients.
+  0 to `limits.clients` clients: an issuer with none refuses every
+  authorization request as `UnknownClient` until one is added.
+- **A registration changes while the issuer runs.** `add_client` checks
+  the client under the rules above, as `new` checks a configured one
+  (`Invalid` with `new`'s error), and refuses an id already held
+  (`Duplicate`) or a client past `limits.clients` (`Full`).
+  `remove_client` drops the client with that id, `Unknown` when none
+  has it. The issuer keeps no code or token, so its caller drops the
+  removed client's codes, access tokens and pending authorizations;
+  every other client's grants stand.
 - **A client with a secret is confidential, one with none public.** Each is
   so alone: one client's being public changes nothing the issuer asks of
   another. A public client is for a peer that holds no secret worth the
@@ -95,7 +109,7 @@ impl Issuer {
 - **`Error`**, `new`'s and the encoders': `Limits` (a value past its
   bound, or an unrepresentable derived capacity), `Address` (a
   URL off its rules), `Client` (an id or secret off its rules, a
-  repeated id, no client), `Key` (a key `rs256_public` refuses),
+  repeated id), `Key` (a key `rs256_public` refuses),
   `Claims` (a `Person` off section 6's rules), `Sign` (`sign_rs256_pkcs8`
   gave none for a key it took before).
 - **What a request leaves to its caller,** each kept by the caller as it

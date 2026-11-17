@@ -117,27 +117,17 @@ fn names(line: &[u8]) -> Vec<&[u8]> {
     result
 }
 
-fn prefix_key(bytes: &[u8]) -> u32 {
-    bytes.iter().fold(0, |key, byte| (key << 8) | u32::from(byte.to_ascii_lowercase()))
-}
-
-/// A case-folded prefix set derived from the list, never another list of names.
+/// A case-folded literal search derived from the list, never another list of names.
 fn may_hold_name(text: &[u8]) -> bool {
-    static PREFIXES: OnceLock<(usize, [bool; 256], Vec<u32>)> = OnceLock::new();
-    let (width, initials, prefixes) = PREFIXES.get_or_init(|| {
-        let width = entries().iter().map(|entry| entry.text.len()).min().unwrap_or(1).min(4);
-        let mut initials = [false; 256];
-        for entry in entries() {
-            initials[usize::from(entry.text[0])] = true;
-        }
-        let mut prefixes: Vec<u32> = entries().iter().map(|entry| prefix_key(&entry.text[..width])).collect();
-        prefixes.sort_unstable();
-        prefixes.dedup();
-        (width, initials, prefixes)
-    });
-    text.windows(*width).any(|part| {
-        initials[usize::from(part[0].to_ascii_lowercase())] && prefixes.binary_search(&prefix_key(part)).is_ok()
-    })
+    static SEARCH: OnceLock<aho_corasick::AhoCorasick> = OnceLock::new();
+    SEARCH
+        .get_or_init(|| {
+            aho_corasick::AhoCorasick::builder()
+                .ascii_case_insensitive(true)
+                .build(entries().iter().map(|entry| entry.text.as_slice()))
+                .expect("bounded nonempty ASCII names")
+        })
+        .is_match(text)
 }
 
 /// Every name in a file's `text`: its line, from 1, and its text.

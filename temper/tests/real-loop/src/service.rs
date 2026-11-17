@@ -142,8 +142,14 @@ impl ServiceHost {
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations = temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
-            .expect("standalone operation count");
+        let operations = temper_box_shell::operations_in_with(
+            &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
+            b"/",
+            &roots,
+            &config,
+            &fixtures::given(&path),
+        )
+        .expect("standalone operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
         let records_seeded =
@@ -394,13 +400,41 @@ impl ServiceHost {
     }
     fn prepare_service(&self) -> Driven {
         use std::os::fd::{AsRawFd, IntoRawFd};
-        let prepared = temper_box_shell::prepare_in_with(
-            &[],
-            b"/",
-            &Self::directories(&self.path, self.cluster.is_some()),
-            &fixtures::given(&self.path),
-        )
-        .expect("standalone preparation");
+        let directories = Self::directories(&self.path, self.cluster.is_some());
+        let environment = [(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())];
+        let prepared = if let Some(shape @ crate::cluster::Shape::Worker { .. }) = &self.cluster {
+            let bytes = directories.read().expect("worker document");
+            let mut part = temper_service::startup::worker_part(
+                &bytes,
+                &temper_service_shell::jig_directories(&directories),
+                Some(b"/usr/bin/git"),
+            )
+            .expect("worker part");
+            let agent: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(self.path.join("agent.json")).expect("agent document"))
+                    .expect("agent JSON");
+            part.worker.jig.graces = shape.graces(&agent);
+            part.worker.jig.stop_bound = jig_protocol_config::stop_bound(
+                &part.worker.jig.graces,
+                part.worker.jig.limits.link.ping,
+                part.worker.jig.limits.link.silence,
+            )
+            .expect("world stop bound");
+            temper_box_shell::Service::Worker(
+                temper_worker_shell::worker::alone_part(&directories, part, &mut Vec::new(), &environment)
+                    .expect("typed worker preparation"),
+            )
+        } else {
+            let (given, projects) = fixtures::given_and_projects(&self.path);
+            temper_box_shell::prepare_in_with_projects(
+                &environment,
+                b"/",
+                &Self::directories(&self.path, self.cluster.is_some()),
+                &given,
+                &projects,
+            )
+            .expect("standalone preparation")
+        };
         let mut service = Driven::new(prepared);
         if let Some(blob) = self.blob_address
             && let temper_box_shell::Service::Joined(joined) = &mut service.service

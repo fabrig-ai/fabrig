@@ -358,6 +358,21 @@ impl Machine {
         group.forge = forge;
         None
     }
+    /// A refused setup leaves its admitted, unstarted slot dormant.
+    pub fn cancel_start(&mut self, forge: u16) {
+        if let Some(index) = self.group(forge) {
+            let group = self.groups.get_mut(index).expect("bound group");
+            if group.status == Status::Writing {
+                group.status = Status::Dormant;
+            }
+        }
+    }
+    /// No child was started when the removal probe found its directory absent.
+    pub fn remover_absent(&mut self, step: usize) {
+        let state = self.states.get_mut(step).expect("remover step");
+        assert_eq!(state.role, Role::Remover, "only a remover is skipped");
+        state.phase = Phase::Dormant;
+    }
     /// The number substituted into a kind slot, including its remover.
     #[must_use]
     pub fn bound(&self, step: usize) -> Option<u16> {

@@ -10,12 +10,6 @@ use jig_protocol_config as config;
 const SIGN_IN: &str = r#"{"google":{"provider":3,"client":"temper-test","secret":"google.secret","endpoints":{"issuer":"http://127.0.0.1:31999","authorization":"http://127.0.0.1:31999/auth","token":"http://127.0.0.1:31999/token","keys":"http://127.0.0.1:31999/keys","transport":"plaintext"}},"members":[{"address":"Sam@example.com","login":"sam"}]}"#;
 fn jig() -> config::Engine {
     let mut jig = fixtures::engine().jig;
-    let mut providers = skein_lib::List::with_capacity(3);
-    for provider in jig.providers {
-        providers.push(provider).unwrap();
-    }
-    providers.push(config::IdentityProvider { number: 3, kind: config::ProviderKind::Application }).unwrap();
-    jig.providers = providers.into_boxed();
     jig.owners[0].identity =
         jig_domain_people::IdentityKey { provider: 3, subject: b"Sam@example.com".as_slice().into() };
     jig

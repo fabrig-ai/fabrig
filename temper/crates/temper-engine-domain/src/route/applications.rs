@@ -253,6 +253,11 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::SetDraft { request, token, party: person, call }));
         }
         Application::Forge(ask) => {
+            if let forge::Ask::SetUp { forge: forge::Making::New(forge::ForgeAsk::Owned), .. } = &ask
+                && let Some(identity) = domain.core.people.identity(person)
+            {
+                domain.forge.setup_person(request, identity.login.clone());
+            }
             if let Some(context) = domain.application_playground.take() {
                 if domain.playground_contexts.len() == domain.playground_contexts.capacity() {
                     finished(domain, request, Err(people::Again::Busy));

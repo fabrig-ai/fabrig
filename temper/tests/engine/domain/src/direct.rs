@@ -278,6 +278,25 @@ impl Driver {
                         &self.env.limits.forge.client,
                     );
                 }
+                engine::Request::ChoosePlace { request, kind, .. } => {
+                    let port = 3000;
+                    let place = temper_engine_domain_forge::Place {
+                        api: temper_engine_domain_forge::Address {
+                            host: b"127.0.0.1".as_slice().into(),
+                            port,
+                            tls: None,
+                        },
+                        git: format!("http://127.0.0.1:{port}").into_bytes().into_boxed_slice(),
+                        web: None,
+                    };
+                    let git_program = match kind {
+                        temper_engine_domain_forge::BoxKind::Owned => None,
+                        temper_engine_domain_forge::BoxKind::Fake => Some(b"/data/demo/bin/git".as_slice().into()),
+                    };
+                    self.events.push_back(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::PlaceChosen { request, place: Some(place), git_program },
+                    )));
+                }
                 engine::Request::AdoptAccess { forge, request, .. } => {
                     self.events.push_back(engine::Event::Forge(Box::new(
                         temper_engine_domain_forge::Event::AccessAnswered { forge, request, answer: Ok(()) },

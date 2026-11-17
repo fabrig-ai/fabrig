@@ -17,11 +17,13 @@ fn read_owned(owned: &str) -> Result<Owned, Box<[u8]>> {
     let source = format!(r#"{{"owned":{owned}}}"#);
     let mut ps = problem::Problems::empty();
     let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let machine = crate::machine::read(&fixtures::document(source.as_bytes()), 0, &limits::small(), &dirs, &mut ps);
+    let machine =
+        crate::tests::machine_config::read(&fixtures::document(source.as_bytes()), 0, &limits::small(), &dirs, &mut ps);
     if !ps.is_empty() {
         return Err(problem::lines(&ps));
     }
-    match crate::machine::entry(&machine.unwrap(), 2, crate::machine::BoxKind::Owned, &dirs).unwrap().mode {
+    match crate::tests::machine_config::entry(&machine.unwrap(), 2, crate::machine::BoxKind::Owned, &dirs).unwrap().mode
+    {
         Mode::Owned(owned) => Ok(owned),
         Mode::Managed { .. } | Mode::Fake(_) => panic!("owned"),
     }
