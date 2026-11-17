@@ -1210,15 +1210,17 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 
 #[test]
 fn init_inbox_holds_three_message_credits_within_the_store_codec() {
+    // Fabrig's own development's 63,740-byte payload, less the separator.
+    const MESSAGE: u32 = 63_738;
     let engine = engine(&generated());
     let limits = &engine.limits.core;
-    assert_eq!(limits.tasks.result_bytes, 10_660);
-    assert_eq!(limits.tasks.message_bytes, 10_660);
+    assert_eq!(limits.tasks.result_bytes, MESSAGE);
+    assert_eq!(limits.tasks.message_bytes, MESSAGE);
     assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
     // protocol/configuration/stock.md: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
     let required = 2 * limits.tasks.message_bytes + 5 * limits.tasks.result_bytes;
-    assert_eq!(required, 74_620);
+    assert_eq!(required, 446_166);
     assert!(limits.tasks.inbox_bytes >= required);
     assert!(jig_protocol_store::codec::limits(limits).is_some(), "the three-credit inbox fits the pinned store codec");
 }
