@@ -274,6 +274,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
+            delivered: None,
             landing: if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
                 Some(b"main".as_slice().into())
             } else {
@@ -394,6 +395,7 @@ pub fn replaced_pin(case: PinCase) {
         account: None,
         push: Some(b"topic".as_slice().into()),
         expected: None,
+        delivered: None,
         landing: Some(b"main".as_slice().into()),
         save: Some(b"saved".as_slice().into()),
     };
@@ -494,6 +496,7 @@ pub fn resolution_conflict(pushed: bool) {
             push: Some(push.into()),
             prefixes: Box::new([]),
             expected,
+            delivered: None,
             landing: None,
         }]),
     };
@@ -633,6 +636,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -671,6 +675,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: if retry { Some(b"main".as_slice().into()) } else { None },
         }]),
     };
@@ -747,6 +752,7 @@ fn heads_spec(heads: &[u64]) -> Spec {
             account: None,
             push: Some(b"early".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: None,
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -900,6 +906,7 @@ pub fn goal_later_run(case: Case) {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: None,
+            delivered: None,
             landing: Some(b"main".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
@@ -1006,6 +1013,7 @@ fn design_start() -> (World, Vec<u8>, u64) {
             account: None,
             push: Some(b"g".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
+            delivered: None,
             landing: Some(b"g".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),

@@ -35,6 +35,7 @@
 //! producer retry compares with the landing pin fetched during preparation:
 //! unchanged existing work outside that tip is delivered by a fresh guarded push, after
 //! a local ancestry query. This snapshot never changes the checkout start.
+//! A checked push first repushes a start covered by the task's own delivery and the fetched push head.
 //! An early producer whose snapshot loses a starting head asks its client
 //! whether that dependency landed, with no IO in flight while it waits.
 //! Catch-up keeps its work locally, moves the landing pin, and merges that tip
@@ -209,6 +210,8 @@ pub(crate) struct Tips {
     head: Commit,
     pushed: Option<Commit>,
     delivered: bool,
+    /// Prepare's fetched push head and this task's own delivery both cover the start.
+    redeliver: bool,
     unchecked: bool,
     merging: Option<Commit>,
     expected: Option<Commit>,
@@ -1298,6 +1301,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                     head: commit,
                     pushed,
                     delivered: false,
+                    redeliver: delivered_start(holding, repository, commit, pushed),
                     unchecked: false,
                     merging: None,
                     design_merged: None,
@@ -1773,12 +1777,25 @@ fn resume_contained(holding: &mut Holding, repository: u32, ours: Commit) -> Nex
     }
 }
 
+/// Only a fetched push branch at the checkout start can corroborate the task's delivery.
+fn delivered_start(holding: &Holding, repository: u32, commit: Commit, pushed: Option<Commit>) -> bool {
+    let spec = nth(holding, repository);
+    if spec.delivered != Some(commit) || pushed != Some(commit) {
+        return false;
+    }
+    match &spec.push {
+        Some(branch) => fetched(holding, repository, &Want::Branch { branch: copy_of(branch) }) == Some(commit),
+        None => false,
+    }
+}
+
 fn begin_merge(holding: &mut Holding, repository: u32, ours: Commit, merging: Option<Commit>) -> Next {
     let tips = Tips {
         start: ours,
         head: ours,
         pushed: Some(ours),
         delivered: false,
+        redeliver: false,
         unchecked: false,
         merging,
         design_merged: None,
@@ -2219,6 +2236,18 @@ fn pushed(
                     Some(commit) => return push_commit(holding, id, push, repository, commit, env, out),
                     None => {
                         let prior = landed_before(holding, &push.to, repository);
+                        let current = tips_mut(holding, repository);
+                        let redeliver = match push.to {
+                            To::Branches => current.redeliver && current.head == current.start,
+                            To::Unchecked | To::Saved => false,
+                        };
+                        if prior == Landing::Unchanged && redeliver {
+                            if current.expected.is_none() {
+                                current.expected = Some(current.start);
+                            }
+                            let head = current.head;
+                            return push_commit(holding, id, push, repository, head, env, out);
+                        }
                         let comparison = match push.to {
                             To::Branches | To::Unchecked => tips(holding, repository).landing,
                             To::Saved => None,

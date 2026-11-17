@@ -270,6 +270,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                         head: from,
                         pushed: None,
                         delivered: false,
+                        redeliver: false,
                         unchecked: false,
                         merging: None,
                         expected: None,

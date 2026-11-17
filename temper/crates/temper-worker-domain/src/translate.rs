@@ -60,6 +60,7 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
         push,
         prefixes,
         expected,
+        delivered: None,
         landing,
     }
 }
