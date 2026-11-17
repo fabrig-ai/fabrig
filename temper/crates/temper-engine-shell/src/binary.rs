@@ -91,6 +91,15 @@ fn dispatch(
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             crate::upgrade::run(ENGINE.binary, &directories, &request, commit).map_err(|why| (1, why))
         }
+        Reach::Words(["checkpoint"]) => {
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine checkpoint: {why}\n")))?;
+            let working = working.as_os_str().as_bytes();
+            let (directories, request) =
+                crate::checkpoint::configure(arguments, &captured.environment, working).map_err(|why| refused(&why))?;
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            crate::checkpoint::run(ENGINE.binary, &directories, &request, &captured.environment, working, commit)
+                .map_err(|why| (1, why))
+        }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
             let (directories, rest) =

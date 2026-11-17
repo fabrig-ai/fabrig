@@ -19,6 +19,7 @@ fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
+        Command::Checkpoint { .. } => vec!["checkpoint"],
         Command::Upgrade { request, .. } => match request {
             temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
             temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
@@ -60,6 +61,9 @@ fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
         (&["versions"], &["versions"]),
+        (&["checkpoint"], &["checkpoint"]),
+        (&["checkpoint"], &["checkpoint", "--remove", "00000000000000000012-00000000000000ff"]),
+        (&["checkpoint"], &["checkpoint", "--hold", "00000000000000000012-00000000000000ff", "--", "cmd", "arg"]),
         (&["upgrade", "--check"], &["upgrade", "--check", "/backup"]),
         (&["upgrade", "--back"], &["upgrade", "--back"]),
         (&["init"], &["init"]),
@@ -171,7 +175,21 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]);
+    assert_eq!(
+        names,
+        [
+            "init",
+            "serve",
+            "program-login",
+            "help",
+            "versions",
+            "upgrade",
+            "upgrade",
+            "checkpoint",
+            "checkpoint",
+            "checkpoint"
+        ]
+    );
     assert!(text.contains("temper-box [--config DIR]"));
 }
 

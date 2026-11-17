@@ -58,6 +58,12 @@ impl State {
 }
 
 pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
+    prepare_stopped(engine);
+    engine.upgrade = Some(State::new(rehearsal, engine.workers.judgement()));
+}
+
+/// Shut down every unstarted owner except the store, for a stopped-deployment tool.
+pub(crate) fn prepare_stopped(engine: &mut Engine) {
     assert!(!engine.store.opened, "upgrade chosen before the store opens");
     // The serving adapter queues its worker listeners at construction. They are
     // not part of restoring, and no rehearsal submits them, even on a refusal.
@@ -75,7 +81,6 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
     engine.setup.close();
     engine.forge.down(skein_forge_connection::Request::Close);
     crate::engine::forge_pass(engine);
-    engine.upgrade = Some(State::new(rehearsal, engine.workers.judgement()));
 }
 
 /// Keep the store alive until Close has emptied its scratch, even after a refusal.

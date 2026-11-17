@@ -5,6 +5,8 @@ mod box_binary;
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]
 mod box_lifetime;
+#[path = "process/checkpoint.rs"]
+mod checkpoint;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
