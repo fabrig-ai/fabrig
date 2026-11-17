@@ -74,6 +74,15 @@ it would read otherwise. The engine's side is
   (`README.md`, section 4). It hands a value's bytes to the application
   undecoded, as it hands an application's read (`../client/README.md`,
   section 13); the application decodes them as its own records.
+- **The client's contract** (`jig_client_domain::contract`) names them
+  as the wire does: `PartAsk { owner: u16, kind: u32, version: u32 }`,
+  the owner a family's number; `TaskQuery`'s `parts`, a list of at most
+  4; `TaskLine`'s `parts`, one `RowPart` per part asked: `Value(Family)`,
+  the record under its owner as an application's read is handed
+  (`boundary::Family { family, version, bytes }`), `NotServed(NotServed)`,
+  `Unknown`, or `Failed(PartFailure)`, `PartFailure` being `Busy`,
+  `TooLarge` or `Unreadable`; and `Tasks`' and `TaskPage`'s
+  `ended_mark`, a `u64`.
 
 ## 4. Made as reads are
 
