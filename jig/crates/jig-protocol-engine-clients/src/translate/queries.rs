@@ -95,7 +95,7 @@ pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w:
         WaitsOn::Nothing => w::WaitsOn::Nothing,
     })
 }
-pub(super) fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLine, w::Problem> {
+pub fn line(value: &d::TaskLine, limits: &w::Limits) -> Result<w::TaskLine, w::Problem> {
     line_parts(value, &List::with_capacity(0), limits)
 }
 pub(super) fn line_parts(

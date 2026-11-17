@@ -6383,9 +6383,11 @@ dependencies = [
 name = "temper-engine-domain-forge-vocabulary"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-engine-clients",
  "skein-forge",
  "skein-forge-client",
  "skein-lib",

@@ -26,6 +26,7 @@ pub(crate) mod landing;
 mod milestones;
 pub(crate) mod now;
 mod panels;
+pub(crate) mod parts;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
@@ -309,6 +310,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Store(crate::StoreInput::PartLoaded { waiter, result }) => {
+            domain.work.push(Work::PartsLoaded { waiter, result });
+        }
         Event::Store(crate::StoreInput::ReadLoaded { load, result }) => {
             domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
         }
@@ -409,10 +413,12 @@ fn route_core_with_job(
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
     standing::saved(domain, env, decision, &requests);
+    let note_projects = parts::note_projects(&requests);
     let mut output = requests;
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
@@ -441,6 +447,7 @@ fn route_core_with_job(
                 save(decision, &env.limits, Write::CopySettingsRevision(number));
             }
             core::Request::Write(core::Write::Erase(key)) => {
+                parts::erased(domain, &key, &note_projects);
                 if let core::Key::Accounts(jig_domain_accounts::Key::Account { number }) = &key {
                     trials::route(domain, env, temper_engine_domain_trials::Event::AccountGone { account: *number });
                 }
@@ -489,6 +496,8 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             break;
         };
         match work {
+            Work::PartsFailed { waiter } => parts::failed(domain, env, decision, waiter, core::PartFailure::Busy),
+            Work::PartsLoaded { waiter, result } => parts::joined(domain, env, decision, waiter, result),
             Work::StartDone(phase) => {
                 if phase == core::start::Phase::LoadCore
                     && let Err(short) = domain.check_room()
@@ -772,7 +781,8 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
             | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
-            | crate::StoreInput::ReadLoaded { .. },
+            | crate::StoreInput::ReadLoaded { .. }
+            | crate::StoreInput::PartLoaded { .. },
         )
         | Event::Account(_) => {}
     }

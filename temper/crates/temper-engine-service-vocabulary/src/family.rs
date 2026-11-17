@@ -6,6 +6,7 @@ use skein_lib::{List, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use temper_engine_domain_forge::parts;
 use temper_engine_domain_forge_change as change;
 mod findings;
 mod history;

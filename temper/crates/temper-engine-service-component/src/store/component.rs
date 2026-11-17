@@ -102,6 +102,7 @@ impl Store {
             out @ (root::StoreRequest::Switch
             | root::StoreRequest::Commit { .. }
             | root::StoreRequest::Load { .. }
+            | root::StoreRequest::PartRead { .. }
             | root::StoreRequest::Read { .. }) => out,
         };
         #[cfg(test)]

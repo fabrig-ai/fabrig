@@ -197,7 +197,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     domain.changed();
     crate::domain::invalidate_input(domain, &event);
     match event {
-        event @ Event::Store(StoreInput::ReadLoaded { .. } | StoreInput::Switched) => {
+        event @ Event::Store(StoreInput::ReadLoaded { .. } | StoreInput::PartLoaded { .. } | StoreInput::Switched) => {
             if domain.store_answers.is_empty() && domain.work.is_empty() {
                 step(domain, env, event);
             } else {

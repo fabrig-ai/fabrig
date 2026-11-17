@@ -16,13 +16,7 @@ use skein_lib::Token;
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
         core::Ask::Parts(ask) => {
-            let mut parts = List::uncapped();
-            for _row in &ask.rows {
-                for _kind in &ask.kinds {
-                    parts.push(core::MadePart::Failed(core::PartFailure::Unreadable)).expect("parts fit the ask");
-                }
-            }
-            domain.work.push(Work::Core(core::Event::Parts { connector, token: ask.token, parts }));
+            super::parts::ask(domain, env, decision, connector, ask);
             None
         }
 

@@ -28,6 +28,8 @@ pub mod task;
 pub mod task_wait;
 pub(crate) mod watches;
 pub use objects::document;
+/// Translate a task line without application parts (domain/engine/views.md, 2).
+pub use queries::line as task_line;
 
 fn problem(reason: skein_codec::Reason) -> w::Problem {
     w::Problem { path: w::Path::OwnedRecord, reason }

@@ -1446,6 +1446,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::TaskProposalLoaded { .. }
             | Work::EndedFailed { .. }
             | Work::ForgeSettings(_)
+            | Work::PartsLoaded { .. }
+            | Work::PartsFailed { .. }
             | Work::ForgeRead { .. } => {}
         }
     }
@@ -5493,6 +5495,9 @@ pub(crate) fn outputs(
             }
             forge::Request::Settled { unfinished } => crate::settling::finished(domain, unfinished),
             forge::Request::Save { record, release, read_afresh } => {
+                if let forge::Stored::Milestone(row) = &record {
+                    super::parts::marked(domain, row.task);
+                }
                 // Both opening and finding a pull save the change with its number.
                 if let forge::Stored::ChangeHot(hot) = &record
                     && let Some(mut row) = domain.forge.change(hot.task).cloned()
@@ -5516,6 +5521,9 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::Erase { key } => {
+                if let forge::Key::Milestone(task) = &key {
+                    super::parts::marked(domain, *task);
+                }
                 super::ways::erased(domain, &key);
                 save(decision, &env.limits, Write::Erase(Key::Forge(key)));
             }

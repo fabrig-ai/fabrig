@@ -643,6 +643,11 @@ pub enum StoreInput {
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
     },
+    /// A joined milestone-delegates load owned by the root.
+    PartLoaded {
+        waiter: Token,
+        result: core::reads::Loaded,
+    },
     /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
     ReadLoaded {
         load: Token,
@@ -1169,6 +1174,11 @@ pub enum StoreRequest {
         /// Hard decoded-page byte limit, enforced before and after protocol decoding.
         bytes: u32,
     },
+    /// Joined rows for a root-owned milestone part, answered by `PartLoaded`.
+    PartRead {
+        waiter: Token,
+        range: Box<core::reads::Range>,
+    },
     /// One core read load after every preceding commit, answered by `ReadLoaded`.
     Read {
         load: Token,
@@ -1218,6 +1228,8 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
+    PartsLoaded { waiter: Token, result: core::reads::Loaded },
+    PartsFailed { waiter: Token },
     CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
@@ -1329,6 +1341,7 @@ pub(crate) enum Read {
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
+    Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
     Remember(Box<crate::route::remember::RememberRead>),
 }
@@ -1399,6 +1412,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::WatchEnded { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => Request::Party(PartyRequest::Deliver(delivery)),
+        Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
         Delivery::Drained => Request::Drained,

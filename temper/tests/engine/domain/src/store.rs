@@ -419,7 +419,9 @@ impl Store {
                     }
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
+                    reply @ (engine::StoreInput::Switched
+                    | engine::StoreInput::ReadLoaded { .. }
+                    | engine::StoreInput::PartLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }
@@ -454,6 +456,7 @@ impl Store {
             if let Some(reply) = self.replies.pop() {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
+                    engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::MissingLink { .. }

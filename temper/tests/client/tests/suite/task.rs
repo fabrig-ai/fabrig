@@ -542,6 +542,68 @@ fn a_chats_goal_shows_its_report_from_its_goals_row() {
     assert_eq!(world.root(person).person().pages().address(), &fixtures::task_page(goal.task));
 }
 
+#[test]
+fn goals_query_carries_report_headlines_through_the_joined_engine() {
+    use jig_client::{Asker, Handle, Latest, Watchable, contract as c};
+    use skein_lib::{List, Reader};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = report_front();
+    fixtures::adopt_change_repository(world.front());
+    let chat = report_chat(world.front());
+    world.front().next_client_limits(report_limits());
+    let person = world.client_with(fixtures::PARTY, fixtures::chat_page(chat.task), report_limits(), report_root);
+    let messages = report_host_call(world.front(), &chat, 1, b"goal", br#"{"words":"A goal with a report."}"#);
+    report_turn(world.front(), &chat, 1, messages);
+    world.run(Until::Steps(100));
+    let goal = world.front().assignments.iter().find(|run| run.task != chat.task).expect("joined goal part").clone();
+    let input = format!(
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{}}},"description":"report: Two of three landed","body":"The report body."}}"#,
+        goal.task
+    );
+    let messages = report_host_call(world.front(), &goal, 1, b"note", input.as_bytes());
+    report_turn(world.front(), &goal, 1, messages);
+    world.run(Until::Steps(100));
+    let handle = Handle { asker: Asker(99), number: 1 };
+    let mut parts = List::with_capacity(1);
+    parts
+        .push(c::PartAsk { owner: wire::FORGE, kind: wire::GOAL_PART, version: wire::CLIENT_VERSION })
+        .expect("joined goal part");
+    world.event(
+        person,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Watch {
+                handle,
+                subject: Watchable::Jig(c::Subject::Tasks {
+                    query: c::TaskQuery {
+                        project: Some(1),
+                        requester: None,
+                        root: None,
+                        parent: None,
+                        label: Some(2),
+                        tracked: Some(true),
+                        phase: None,
+                        executor: None,
+                        order: c::QueryOrder::Priority,
+                        parts,
+                    },
+                    window: 16,
+                }),
+            },
+        }
+        .into(),
+    );
+    world.run(Until::Steps(100));
+    let client = world.root(person).person().client();
+    let Some(Latest::Jig(c::Delivery::Tasks(rows))) = client.document(handle).expect("joined goal part").latest else {
+        panic!("Goals rows")
+    };
+    let row = rows.rows.iter().find(|row| row.chip.task == goal.task).expect("goal row");
+    let Some(c::RowPart::Value(part)) = row.parts.get(0) else { panic!("goal part: {:?}", row.parts) };
+    let part = w::GoalPart::decode(&w::CEILINGS, &mut Reader::new(&part.bytes)).expect("joined goal part");
+    assert_eq!(part.report().as_ref().expect("joined goal part").headline(), b"Two of three landed");
+}
+
 fn report_text(words: &[u8]) -> Find {
     Find::text(words).within(Box::new([Target::ExactRole { role: Role::Region, name: b"Report".as_slice().into() }]))
 }
@@ -655,6 +717,7 @@ fn report_front() -> Joint {
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
         config.core.connectors = Box::new([fixtures::FORGE]);
+        config.core.parts = temper_engine_domain_forge::parts::kinds(fixtures::FORGE);
         for permission in &mut config.core.seed_projects[0].policy.permissions {
             permission.connector = fixtures::FORGE;
         }

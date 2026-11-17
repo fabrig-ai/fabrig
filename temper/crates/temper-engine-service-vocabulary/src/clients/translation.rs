@@ -219,6 +219,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
+        | root::Delivery::PartLoad { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }

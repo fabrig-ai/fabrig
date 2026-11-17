@@ -487,6 +487,7 @@ impl World {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exhaustive root-output routing pass")]
     fn observe(&mut self) {
         while let Some(request) = self.out.pop() {
             self.trace.push(format!("output {request:?}"));
@@ -526,6 +527,10 @@ impl World {
                         self.frozen_cut = true;
                         return;
                     }
+                }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
                 }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);

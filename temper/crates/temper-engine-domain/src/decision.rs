@@ -166,6 +166,11 @@ pub enum Delivery {
         previous: Option<u64>,
         word: jig_domain_tasks::Word,
     },
+    /// A milestone part uses the store's ended-query joins, after preceding commits.
+    PartLoad {
+        waiter: Token,
+        range: Box<jig_domain_core::reads::Range>,
+    },
     /// Root internal historical read, released after preceding commit; consumed
     /// once by root and never exposed to the shell.
     ReadEscalationDecision {
@@ -579,6 +584,7 @@ impl Decision {
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
