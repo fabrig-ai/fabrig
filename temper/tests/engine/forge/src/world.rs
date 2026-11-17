@@ -1,6 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
+use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_forge::{self as top, history as history_rows};
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
@@ -147,6 +148,8 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    // Index coordinates keep number/project order; reads still observe event erasure and replacement.
+    history_by_change: BTreeMap<u64, BTreeSet<(u64, u32)>>,
     history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
     history_page_rows: u32,
     history_hold: bool,
@@ -787,6 +790,7 @@ impl World {
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
             stored: Map::with_capacity(4096),
+            history_by_change: BTreeMap::new(),
             history_loads: Vec::new(),
             history_page_rows: 32,
             history_hold: false,
@@ -1191,16 +1195,15 @@ impl World {
     #[must_use]
     pub fn history(&self, change: u64) -> Vec<history_rows::Event> {
         let mut events = Vec::new();
-        for (_, record) in &self.stored {
-            if let top::Stored::HistoryChange(index) = record
-                && index.change == change
-                && let Some(top::Stored::HistoryEvent(event)) =
-                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
-            {
-                events.push(event.clone());
+        if let Some(indexes) = self.history_by_change.get(&change) {
+            for &(number, project) in indexes {
+                if let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project, number })
+                {
+                    events.push(event.clone());
+                }
             }
         }
-        events.sort_by_key(|event| event.number);
         events
     }
 
@@ -1230,7 +1233,7 @@ impl World {
 
     /// Erase a fixture event while retaining its index rows.
     pub fn erase_history_event(&mut self, project: u32, number: u64) {
-        self.stored.remove(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
+        self.erase_record(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
     }
 
     pub fn fallback(&mut self, interval: Duration) {
@@ -1709,21 +1712,20 @@ impl World {
                         let top::Request::Save { record, .. } = kept.pop().expect("projection keep count") else {
                             panic!("admitted projection saves only")
                         };
-                        self.stored.insert(key(&record), record).expect("world store capacity");
+                        self.store_record(record);
                     }
                 }
                 top::Request::Save { record, release, .. } => {
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
-                    let key = key(&record);
-                    self.stored.insert(key, record).expect("world store capacity");
+                    self.store_record(record);
                     if let Some(entry) = release {
                         self.to_top.push((self.generation, top::Event::Committed { entry }));
                     }
                 }
                 top::Request::Erase { key } => {
-                    let removed = self.stored.remove(&key);
+                    let removed = self.erase_record(&key);
                     // Last rows can be replaced while loaded; release also erases an unwatched client repository.
                     if !matches!(
                         key,
