@@ -39,7 +39,6 @@ fn the_files_are_named_in_order() {
         ("digest", b"worker.digest".as_slice(), Directory::Data, Some(true)),
         ("demo key", b"demo/llm.key".as_slice(), Directory::Data, Some(true)),
         ("demo git", b"demo/bin/git".as_slice(), Directory::Data, None),
-        ("agent", b"agent.json".as_slice(), Directory::Config, Some(false)),
         ("document last", b"temper.json".as_slice(), Directory::Config, Some(false)),
     ];
     assert_eq!(answered.files.len(), expected.len());

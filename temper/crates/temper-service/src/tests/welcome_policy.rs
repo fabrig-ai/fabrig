@@ -134,7 +134,7 @@ fn a_fresh_init_names_the_standard_profiles() {
             temper_init::Content::Bytes { .. } | temper_init::Content::Link { .. } => None,
         })
         .expect("generated temper.json");
-    for path in [b"engine.limits.profile".as_slice(), b"workers[0].limits.profile", b"application.limits.profile"] {
+    for path in [b"engine.limits.profile".as_slice(), b"engine.limits.profile", b"application.limits.profile"] {
         assert_eq!(fixtures::value(&init, path).as_ref(), br#""standard""#, "{}", str::from_utf8(path).unwrap());
     }
     let overrides = fixtures::value(&init, b"engine.limits.overrides");

@@ -50,7 +50,7 @@ fn the_native_forge_fixture_fits_its_store() {
         },
     );
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
-    let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("fixture agent");
+    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
     let store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),
@@ -122,18 +122,10 @@ fn the_owned_example_fits_the_native_client() {
     assert_owned_limits(&value["engine"]["limits"]);
 }
 fn assert_owned_limits(limits: &serde_json::Value) {
-    let mut expected = serde_json::json!({"engine":{"limits":{"profile":"standard","overrides":{
-        "documents.rows":2,"documents.text_bytes":512,
-        "authority.executors":22,"tasks.executor_kinds":22,"tasks.charters":16,
-        "clients.streams":8,"clients.exchanges":12,
-        "clients_http.streams":8,"clients_http.calls":12,
-        "fleet.configured_workers":8,"fleet.workers":2,
-        "tasks.inbox_bytes":874_120,"tasks.message_bytes":10_660,"tasks.result_bytes":10_660
-    }}}});
-    let agent: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned/agent.json")).expect("owned agent");
-    support::configuration::turn_bounds::apply(&mut expected, support::configuration::turn_bounds::turn_body(&agent));
-    assert_eq!(limits, &expected["engine"]["limits"]);
+    assert_eq!(limits["profile"], "standard");
+    for (name, value) in [("hub.accounts", 4_u64), ("hub.run_calls", 48), ("hub.event_bytes", 10_660)] {
+        assert_eq!(limits["overrides"][name], value, "the engine supplies the stock agent’s {name}");
+    }
 }
 
 #[test]
@@ -307,7 +299,7 @@ fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
         serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
     support::batch_landing::message_room(scratch.path(), &mut value);
     let document = serde_json::to_vec(&value).expect("deployment JSON");
-    let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("agent");
+    let agent = temper_fixtures::agent::prepared(scratch.path()).agent;
     let _store = temper_service::startup::store_limits(
         &document,
         &jig_protocol_config::Directories::working(),

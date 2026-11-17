@@ -105,45 +105,6 @@ pub fn standalone(
         if !in_process(&worker.engine) {
             problems.push(path.member(b"engine"), What::Standalone);
         }
-        let command = match (
-            worker.agent.as_ref().expect("checked worker agent").arguments.first(),
-            worker.agent.as_ref().expect("checked worker agent").arguments.get(1),
-        ) {
-            (Some(first), Some(second)) => first.as_ref() == b"internal" && second.as_ref() == b"agent",
-            _ => false,
-        };
-        let old_command = match worker.agent.as_ref().expect("checked worker agent").arguments.first() {
-            Some(first) => first.as_ref() == b"agent",
-            None => false,
-        };
-        if old_command {
-            problems.push(
-                path.member(b"agent").member(b"arguments"),
-                What::Half(crate::startup::EngineWhat::OldAgentCommand),
-            );
-        } else if command {
-            let absolute = match worker.agent.as_ref().expect("checked worker agent").arguments.get(2) {
-                Some(value) => value.starts_with(b"/"),
-                None => false,
-            };
-            if worker.agent.as_ref().expect("checked worker agent").arguments.len() != 3 || !absolute {
-                problems.push(path.member(b"agent").member(b"arguments"), What::Absolute);
-            }
-        } else {
-            for (index, value) in worker.agent.as_ref().expect("checked worker agent").arguments.iter().enumerate() {
-                if !value.starts_with(b"/") {
-                    problems.push(at(index, path.member(b"agent").member(b"arguments")), What::Absolute);
-                }
-            }
-        }
-        for (name, value) in [
-            (b"program".as_slice(), &worker.agent.as_ref().expect("checked worker agent").program),
-            (b"configuration", &worker.agent.as_ref().expect("checked worker agent").configuration),
-        ] {
-            if !value.starts_with(b"/") {
-                problems.push(path.member(b"agent").member(name), What::Absolute);
-            }
-        }
     }
 }
 pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: u32, problems: &mut Problems) {
@@ -235,7 +196,7 @@ pub fn turns(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
@@ -274,7 +235,7 @@ pub fn turns(
                 problems,
                 path.member(b"hub.outcome_bytes"),
                 worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                b"the agent's outcome (agents setting declared.tool_payload)",
                 Some(agent.outcome_bytes),
             );
             short(
@@ -379,17 +340,6 @@ pub(crate) fn process_io(engine: &skein_io::Limits, worker: Option<&skein_io::Li
     }
     io.sockets = limits::SOCKETS;
     Some(io)
-}
-pub(super) fn raw_worker(document: &skein_json::Document, at: u32, path: &Path, problems: &mut Problems) {
-    if let Ok(mut worker) = config::read::Object::new(document, at)
-        && let Some(agent_at) = worker.member(document, b"agent")
-        && let Ok(mut agent) = config::read::Object::new(document, agent_at)
-        && let Some(at) = agent.member(document, b"configuration")
-        && let Ok(value) = config::read::text(document, at, 4096)
-        && !value.starts_with(b"/")
-    {
-        problems.push(path.member(b"agent").member(b"configuration"), What::Absolute);
-    }
 }
 pub(super) fn names(remote: Option<u64>, limits: &limits::Limits, problems: &mut Problems) {
     if remote.unwrap_or(u64::MAX) > u64::from(limits.checkout.name_bytes) {

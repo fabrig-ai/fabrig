@@ -9,7 +9,12 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 35] = [
+pub static SHAPES: [Shape; 36] = [
+    Shape {
+        name: "worker-environment",
+        paths: &["application.workers[].environment[]"],
+        line: "One variable passed to agents’ programs.",
+    },
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -128,7 +133,7 @@ pub static SHAPES: [Shape; 35] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 128] = [
+pub static MEMBERS: [Member; 132] = [
     Member {
         shape: "document",
         name: "engine",
@@ -316,6 +321,42 @@ pub static MEMBERS: [Member; 128] = [
         bound: "absolute executable path; at most 1,048,576 bytes",
         required: true,
         line: "The git program used when a repository names none, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "application-worker",
+        name: "claude",
+        kind: "text",
+        bound: "absolute executable path; at most 4,096 bytes",
+        required: false,
+        line: "Claude Code’s program; absent, use PATH’s claude or the fetched build.",
+        gone: None,
+    },
+    Member {
+        shape: "application-worker",
+        name: "environment",
+        kind: "list of worker-environment",
+        bound: "unique variable names",
+        required: false,
+        line: "The environment agents’ programs receive; absent, empty.",
+        gone: None,
+    },
+    Member {
+        shape: "worker-environment",
+        name: "name",
+        kind: "text",
+        bound: "at most 1,048,576 bytes",
+        required: true,
+        line: "The variable’s name.",
+        gone: None,
+    },
+    Member {
+        shape: "worker-environment",
+        name: "value",
+        kind: "text",
+        bound: "at most 1,048,576 bytes",
+        required: true,
+        line: "The variable’s value.",
         gone: None,
     },
     Member {

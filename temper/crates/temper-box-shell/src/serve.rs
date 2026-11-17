@@ -38,6 +38,8 @@ pub fn prepare_with_store(
         None,
         None,
         &service::stock::Given::Stock,
+        None,
+        false,
     )
     .map(|(service, store, _)| (service, store))
 }
@@ -57,6 +59,8 @@ fn prepare_with_limits(
     link_secret: Option<Secret>,
     local_secret: Option<Secret>,
     given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+    sizing: bool,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
@@ -70,12 +74,26 @@ fn prepare_with_limits(
     let engine = engine::settings(bytes, directories, given);
     let engine::Runtimes { roots, github } = engine::runtimes(&named.machine)?;
     let user = skein_shell::effective_user();
-    let agent = named.worker.as_ref().map(agent::prepare_worker).transpose()?;
-    if let Some(worker) = &named.worker {
-        named.files = agent::without_configuration(core::mem::take(&mut named.files), &worker.agent);
-        named.asked_files = agent::without_configuration(core::mem::take(&mut named.asked_files), &worker.agent);
-    }
-    let engine::Inputs { mut files, google, bundle } = engine::before_root(
+    let copy = path(&directories.data).join("agents.setting");
+    let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
+    let agents = initial.clone().unwrap_or_else(service::stock::agents);
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents)
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let agent = part
+        .as_mut()
+        .map(|part| -> Result<_, String> {
+            let prepared = prepare_agent(part, directories, environment)?;
+            if let Some(program) = program {
+                part.named.program = program.as_os_str().as_encoded_bytes().into();
+                part.worker.jig.agent.as_mut().expect("derived agent").program.clone_from(&part.named.program);
+            }
+            let named = named.worker.as_mut().expect("box worker named");
+            named.program.clone_from(&part.named.program);
+            named.arguments.clone_from(&part.named.arguments);
+            Ok(prepared)
+        })
+        .transpose()?;
+    let engine::Inputs { files, google, bundle } = engine::before_root(
         &mut named.files,
         &mut named.asked_files,
         named.sign_in.as_ref(),
@@ -84,13 +102,6 @@ fn prepare_with_limits(
         user,
         record,
     )?;
-    if let Some(prepared) = &agent {
-        files = agent::with_configuration(
-            files,
-            &named.worker.as_ref().expect("local agent checked").agent,
-            &prepared.bytes,
-        );
-    }
     let runtime = named
         .worker
         .as_ref()
@@ -104,7 +115,7 @@ fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
-    let mut service = service::startup::with_setup_given(
+    let mut service = service::startup::with_setup_worker_given(
         bytes,
         &jig_directories(directories),
         &files,
@@ -118,13 +129,18 @@ fn prepare_with_limits(
         program_login,
         given,
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
+        part,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if named.worker.is_some() {
+        service.engine_component().keep_agents(copy.as_os_str().as_encoded_bytes().into(), initial);
+    }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent {
         let worker = named.worker.as_ref().expect("local agent checked");
-        let sources = worker::sources(
+        let source_inputs = if sizing { worker::sources_without_parent } else { worker::sources };
+        let sources = source_inputs(
             &agent.agent,
             agent.environment.clone(),
             path(&worker.program),
@@ -144,6 +160,98 @@ fn prepare_with_limits(
     }
     engine::adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
     Ok((Service::Joined(service), named.deployment, limits.line_bytes))
+}
+pub(crate) fn configured_agent(
+    bytes: &[u8],
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+) -> Result<Option<agent::Prepared>, String> {
+    let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
+        .unwrap_or_else(service::stock::agents);
+    let mut part =
+        service::startup::box_worker(bytes, &jig_directories(directories), &service::stock::Given::Stock, &initial)
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
+}
+fn prepare_agent(
+    part: &mut service::startup::WorkerPart,
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+) -> Result<agent::Prepared, String> {
+    box_inputs_worker(part, directories)?;
+    let claude =
+        part.claude.as_deref().map(path).map(std::path::Path::to_path_buf).or_else(|| worker::find_claude(environment));
+    let bytes = agent::figures::configuration(
+        part.figures.as_ref().expect("box figures"),
+        claude.as_deref(),
+        path(&directories.data),
+        &part.environment,
+    )?;
+    agent::prepare_bytes(bytes)
+}
+/// A bad copy never prevents the box from starting with the stock.
+pub(crate) fn agents_setting(
+    path: &std::path::Path,
+    log: &mut impl std::io::Write,
+) -> Option<temper_client_protocol_wire::v1::AgentFigures> {
+    use std::io::Read;
+    use temper_client_protocol_wire::v1::{AgentFigures, CEILINGS};
+    let bound = AgentFigures::encoded_bound(&CEILINGS).expect("agents codec bound");
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(why) => {
+            let _ = writeln!(log, "agents.setting: {why}; using the default");
+            return None;
+        }
+    };
+    let mut bytes = Vec::new();
+    if let Err(why) = file.take(bound.checked_add(1).expect("bounded codec")).read_to_end(&mut bytes) {
+        let _ = writeln!(log, "agents.setting: {why}; using the default");
+        return None;
+    }
+    let mut reader = skein_lib::Reader::new(&bytes);
+    match AgentFigures::decode(&CEILINGS, &mut reader) {
+        Ok(value) if reader.is_empty() => Some(value),
+        Ok(_) | Err(_) => {
+            let _ = writeln!(log, "agents.setting: cannot decode; using the default");
+            None
+        }
+    }
+}
+pub(crate) fn box_inputs_worker(
+    part: &mut service::startup::WorkerPart,
+    directories: &Directories,
+) -> Result<(), String> {
+    match std::fs::symlink_metadata(path(&directories.config).join("agent.json")) {
+        Ok(_) => {
+            const MOVED: &str =
+                "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it";
+            return Err(MOVED.into());
+        }
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(format!("agent.json: {why}")),
+    }
+    if let Some(claude) = &part.claude {
+        use std::os::unix::fs::PermissionsExt;
+        if !std::fs::metadata(path(claude))
+            .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+        {
+            return Err(format!(
+                "application.workers[0].claude: {}: must be an absolute path to an executable file",
+                path(claude).display()
+            ));
+        }
+    }
+    part.named.program = std::env::current_exe().map_err(|why| why.to_string())?.as_os_str().as_encoded_bytes().into();
+    part.named.arguments =
+        Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), part.named.agent.clone()]);
+    part.worker.jig.agent = Some(jig_protocol_config::Agent {
+        program: part.named.program.clone(),
+        arguments: part.named.arguments.clone(),
+        configuration: part.named.agent.clone(),
+    });
+    Ok(())
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -188,6 +296,8 @@ fn operations_in_mode(
         None,
         None,
         &service::stock::Given::Stock,
+        None,
+        true,
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -215,6 +325,17 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<Service, String> {
+    prepare_in_with_program(binary, environment, working, directories, given, None)
+}
+/// A world's fake agent is a typed startup input, never a document member.
+pub fn prepare_in_with_program(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
@@ -229,6 +350,8 @@ pub fn prepare_in_with(
         None,
         None,
         given,
+        program,
+        false,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -259,6 +382,8 @@ pub fn operations_in_with(
         None,
         None,
         given,
+        None,
+        true,
     )
     .map(|(service, _, _)| service.operations());
     close(owned);
@@ -291,6 +416,8 @@ pub fn run(
                 input.link,
                 input.local,
                 &service::stock::Given::Stock,
+                None,
+                false,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

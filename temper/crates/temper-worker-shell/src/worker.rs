@@ -172,6 +172,28 @@ pub fn sources(
     user: u32,
     environment: &[EnvironmentEntry],
 ) -> Result<Sources, String> {
+    source_inputs(agent, command_environment, agent_program, cache, user, environment, true)
+}
+/// Compute source resources without opening the borrowed parent used only while running.
+pub fn sources_without_parent(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    agent_program: &std::path::Path,
+    cache: &std::path::Path,
+    user: u32,
+    environment: &[EnvironmentEntry],
+) -> Result<Sources, String> {
+    source_inputs(agent, command_environment, agent_program, cache, user, environment, false)
+}
+fn source_inputs(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    agent_program: &std::path::Path,
+    cache: &std::path::Path,
+    user: u32,
+    environment: &[EnvironmentEntry],
+    open_parent: bool,
+) -> Result<Sources, String> {
     let reuse = crate::workspace_reuse(environment);
     let dump = crate::dump_llm(environment).map(|directory| directory.as_os_str().as_bytes().into());
     let resources = if let Some(program) = agent.programs.first() {
@@ -181,8 +203,11 @@ pub fn sources(
         }
         // Source commands use the agent's explicit command environment.
         let environment = command_environment;
-        let parent =
-            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
+        let parent = if open_parent {
+            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok()
+        } else {
+            None
+        };
         let resources = service::program_sources::configured(program, environment, user, parent)
             .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         Some(resources)

@@ -309,8 +309,13 @@ impl ServiceHost {
         fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
             .expect("misconfigured start");
         for _ in 0..self.start_failures {
-            let Err(failure) = temper_box_shell::prepare_in_with(&[], b"/", &directories, &fixtures::given(&self.path))
-            else {
+            let Err(failure) = temper_box_shell::prepare_in_with_program(
+                &[],
+                b"/",
+                &directories,
+                &fixtures::given(&self.path),
+                Some(&self.path.join("temper-agent")),
+            ) else {
                 panic!("unknown engine profile must refuse the start")
             };
             assert!(failure.contains("engine.limits.profile"), "{failure}");
@@ -410,9 +415,10 @@ impl ServiceHost {
                 fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
             }
             if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
-                let mut agent: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(self.path.join("agent.json")).expect("world agent fixture"))
-                        .expect("agent JSON");
+                let mut agent: serde_json::Value = serde_json::from_slice(
+                    &std::fs::read(self.path.join("world-agent.json")).expect("world agent fixture"),
+                )
+                .expect("agent JSON");
                 agent["profile"]["policy"]["unacknowledged"] = 1.into();
                 crate::cluster::seed_agents(&self.path, &agent);
             }
@@ -453,11 +459,12 @@ impl ServiceHost {
                 .expect("worker built from figures"),
             )
         } else {
-            temper_box_shell::prepare_in_with(
+            temper_box_shell::prepare_in_with_program(
                 &[],
                 b"/",
                 &Self::directories(&self.path, self.cluster.is_some()),
                 &fixtures::given(&self.path),
+                Some(&self.path.join("temper-agent")),
             )
             .expect("standalone preparation")
         };

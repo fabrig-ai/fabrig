@@ -6,3 +6,5 @@ pub mod client_documents;
 pub mod first_run;
 pub mod memory_literal;
 pub mod ports;
+
+pub mod agent;

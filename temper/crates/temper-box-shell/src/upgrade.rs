@@ -11,7 +11,7 @@ pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, St
 fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
     let mut named = crate::setup::check(&bytes, &jig_directories(directories))?.named;
-    let agent = named.worker.as_ref().map(temper_worker_shell::agent::preflight_worker).transpose()?;
+    let agent = crate::serve::configured_agent(&bytes, directories, &[])?;
     let engine::Inputs { files, google, bundle } = engine::before_root(
         &mut named.files,
         &mut named.asked_files,
@@ -29,7 +29,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         &bytes,
         &jig_directories(directories),
         &files,
-        agent.as_ref(),
+        agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
         &service::stock::Given::Stock,

@@ -223,6 +223,9 @@ fn workers(
                     }
                 }
             }
+            // The joined start checks these worker-only machine facts.
+            let _claude = object.member(document, b"claude");
+            let _environment = object.member(document, b"environment");
             read::finish(object, document, &path, problems);
             if let Some(root) = root {
                 if let Some(git) = &git

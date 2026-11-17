@@ -49,7 +49,7 @@ pub(crate) fn configure(value: &mut Value) {
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
-    value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = CHARTER_BYTES.into();
+    value["engine"]["limits"]["overrides"]["hub.charter_bytes"] = CHARTER_BYTES.into();
     value["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 45_000.into();
     value["application"]["limits"]["overrides"]["forge.client.window_ms"] = 100.into();
     value["application"]["limits"]["overrides"]["forge.issue_policy.interval_ms"] = 100.into();

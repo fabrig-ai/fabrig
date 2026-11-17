@@ -49,12 +49,22 @@ pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<
 }
 /// Parse jig's worker member before startup constructs any component.
 pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result<Worker, Problems> {
+    worker_with_limits(document, at, directories, &profile(Profile::Standard))
+}
+/// Parse a worker using the application's supplied defaults when it declares no limits.
+/// (jig/docs/design/protocol/configuration.md, 4).
+pub fn worker_with_limits(
+    document: &Document,
+    at: u32,
+    directories: &Directories,
+    defaults: &Limits,
+) -> Result<Worker, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "worker") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Standard);
+    let mut limits = *defaults;
     let has_limits = object.member(document, b"limits");
     if let Some(at) = has_limits {
         let parsed = overrides::parse(document, at, &path.member(b"limits"));

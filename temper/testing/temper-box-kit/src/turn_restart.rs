@@ -101,14 +101,14 @@ pub fn staging_limits(value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 63_738).into();
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["profile"] = "standard".into();
-    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["engine"]["limits"]["profile"] = "standard".into();
+    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
     value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
-    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
     value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
@@ -131,26 +131,21 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
     config["engine"]["limits"]["overrides"]["tasks.message_bytes"] = prepare.result.into();
     config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
-    config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
+    config["engine"]["limits"]["overrides"]["tasks.result_bytes"] = prepare.result.into();
     config["application"]["limits"]["overrides"]["forge.client.op_bytes"] = prepare.result.into();
-    let agent_path = root.join("agent.json");
-    let mut agent: Value =
-        serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("agent JSON");
+    let mut agent = temper_fixtures::agent::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
     config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
-    config["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
+    config["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = tool_payload.into();
+    config["engine"]["limits"]["overrides"]["hub.event_bytes"] = prepare.result.into();
     config["application"]["limits"]["overrides"]["checkout.message_bytes"] = tool_payload.into();
     // Let the call carriers follow the agent's declared payload.
     config["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove("core.call_answer_bytes");
-    config["workers"][0]["limits"]["overrides"]
-        .as_object_mut()
-        .expect("worker overrides")
-        .remove("core.call_answer_bytes");
+    config["engine"]["limits"]["overrides"].as_object_mut().expect("worker overrides").remove("core.call_answer_bytes");
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    temper_fixtures::agent::apply(&mut config, root, &agent);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
@@ -202,7 +197,7 @@ pub mod tests {
             "the turn declares the prepare job"
         );
         assert!(
-            config["workers"][0]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
+            config["engine"]["limits"]["overrides"]["tasks.result_bytes"].as_u64().expect("worker result carrier")
                 >= u64::from(prepare.result),
             "the worker carries the prepare result"
         );

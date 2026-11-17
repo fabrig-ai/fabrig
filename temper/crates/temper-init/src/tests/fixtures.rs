@@ -3,7 +3,6 @@ use core::num::NonZeroU16;
 use serde_json::Value;
 
 pub const OWNED: &[u8] = include_bytes!("../../../../docs/examples/owned.json");
-pub const AGENT: &[u8] = include_bytes!("../../../../docs/examples/owned/agent.json");
 pub const DIRECTORIES: Directories<'static> = Directories { config: b"/c/temper", data: b"/d/temper/" };
 
 pub fn facts() -> Facts<'static> {

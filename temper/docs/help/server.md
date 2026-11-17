@@ -31,12 +31,11 @@ tar -xzf examples.tar.gz --strip-components=3
 ```
 
 Binaries are suffixless gzip; keep the checksum layout. Strip
-`temper/docs/examples/` for `owned.json` and `owned/`.
+`temper/docs/examples/` for `owned.json`.
 
 ## 1. Write the engine's configuration
 
-Copy `owned.json` to `CONFIG/temper.json`, `owned/`'s files to
-`CONFIG/`; change:
+Copy `owned.json` to `CONFIG/temper.json`; change:
 
 - `engine.hosts`: `{"workers": [{"name": "w1", "digest":
   "secrets/w1.digest"}], "listener": [{"socket": "127.0.0.1:8369"}]}`;

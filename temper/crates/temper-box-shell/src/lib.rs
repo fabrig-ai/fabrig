@@ -2,8 +2,6 @@
 // tests::configuration includes the shared integration fixture, which names temper_box_shell::directories.
 extern crate self as temper_box_shell;
 use skein_io::kernel::Exit;
-#[cfg(test)]
-use skein_io::kernel::Fd;
 use skein_shell::Clock;
 use std::{
     ffi::OsString,
@@ -363,13 +361,8 @@ pub fn run(
             return temper_agent_shell::list("temper internal agent-list", &configuration);
         }
         Command::ProgramLogin { directories, name } => {
-            return temper_worker_shell::program_login::run(
-                &directories,
-                &name,
-                environment,
-                Some(program_login::deployment),
-            )
-            .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+            return program_login::run(&directories, &name, environment)
+                .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
@@ -401,16 +394,6 @@ fn path(bytes: &[u8]) -> &Path {
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
-#[cfg(test)]
-fn prepare(
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    bytes: &[u8],
-    owned: &mut Vec<Fd>,
-) -> Result<Service, String> {
-    serve::prepare("temper", environment, working, directories, bytes, owned)
-}
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(
@@ -445,6 +428,16 @@ pub fn prepare_in_with(
     given: &service::stock::Given,
 ) -> Result<Service, String> {
     serve::prepare_in_with("temper", environment, working, directories, given)
+}
+/// A world supplies its fake agent through typed startup facts, never a document.
+pub fn prepare_in_with_program(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    program: Option<&std::path::Path>,
+) -> Result<Service, String> {
+    serve::prepare_in_with_program("temper", environment, working, directories, given, program)
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(

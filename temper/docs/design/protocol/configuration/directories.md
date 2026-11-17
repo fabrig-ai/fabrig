@@ -202,7 +202,7 @@ is absent, it retains the named profile's capacity, raised to at least 3,
 alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
-Reuse requires agent.json/programs/claude_code/path to equal that sibling.
+Reuse requires application.workers[0].claude to equal that sibling.
 A different retained path refuses with that member named and explicit reset
 instructions; no credential or login state is imported. A correct path with
 a missing or nonexecutable sidecar instead refuses with the executable path
@@ -211,7 +211,7 @@ asking for a reset. Startup builds or fetches nothing. A walk that needs a
 fake program story provisions it outside startup, then uses ordinary
 program-login; the product links no fake-adapter story machinery.
 
-The required retained documents are temper.json, agent.json, github.json,
+The required retained documents are temper.json, github.json,
 oauth.json, llm.json and forgejo.json. One validation path checks every
 required file before any child starts. A missing required file refuses by
 name with reset instructions, without generating a replacement on reuse.

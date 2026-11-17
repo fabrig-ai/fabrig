@@ -23,22 +23,6 @@ pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     result.into_boxed_slice()
 }
 
-pub fn without(input: &[u8], path: &[u8]) -> Box<[u8]> {
-    let span = member_span(input, path);
-    let name = path.rsplit(|byte| *byte == b'.').next().unwrap();
-    let key = [b"\"".as_slice(), name, b"\"".as_slice()].concat();
-    let start = input[..span.start].windows(key.len()).rposition(|part| part == key).unwrap();
-    let comma =
-        input[span.end..].iter().position(|byte| !byte.is_ascii_whitespace()).unwrap().checked_add(span.end).unwrap();
-    if input[comma] == b',' {
-        [input[..start].to_vec(), input[comma.checked_add(1).unwrap()..].to_vec()].concat().into_boxed_slice()
-    } else {
-        let previous = input[..start].iter().rposition(|byte| !byte.is_ascii_whitespace()).unwrap();
-        assert_eq!(input[previous], b',', "the last fixture member follows another");
-        [input[..previous].to_vec(), input[span.end..].to_vec()].concat().into_boxed_slice()
-    }
-}
-
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     let document = jig_protocol_config::document(
         input,
@@ -141,8 +125,6 @@ pub fn owned_worker_alone_document() -> Box<[u8]> {
     input.extend_from_slice(&owned[member_span(owned, b"application.workers")]);
 
     input.extend_from_slice(b"}}");
-    let input = without(&input, b"workers[0].agent");
-    let input = without(&input, b"workers[0].limits");
     let input = with(&input, b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
     let input = with(&input, b"workers[0].name", br#""w1""#);
     with(&input, b"workers[0].secret", br#""secrets/w1.secret""#)

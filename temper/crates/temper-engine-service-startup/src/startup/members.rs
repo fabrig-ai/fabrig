@@ -124,7 +124,7 @@ pub(super) static SHAPES: [Shape; 35] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub(super) static MEMBERS: [Member; 128] = [
+pub(super) static MEMBERS: [Member; 130] = [
     Member {
         shape: "document",
         name: "engine",
@@ -312,6 +312,24 @@ pub(super) static MEMBERS: [Member; 128] = [
         bound: "absolute executable path; at most 1,048,576 bytes",
         required: true,
         line: "The git program used when a repository names none, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "application-worker",
+        name: "claude",
+        kind: "text",
+        bound: "absolute executable path; at most 4,096 bytes",
+        required: false,
+        line: "The joined start checks the worker’s Claude Code program.",
+        gone: None,
+    },
+    Member {
+        shape: "application-worker",
+        name: "environment",
+        kind: "JSON value",
+        bound: "unique variable names",
+        required: false,
+        line: "The joined start checks the environment agents’ programs receive.",
         gone: None,
     },
     Member {

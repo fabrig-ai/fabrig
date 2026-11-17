@@ -65,7 +65,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     )
     .unwrap();
     let worker = config::worker(&document, *ats.get(0).unwrap(), &directories).unwrap();
-    part.worker.jig.limits = worker.limits;
+    let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
+    let engine = config::engine(&document, engine_at, &directories, config::Defaults::Passed).unwrap();
+    part.worker.jig.limits = Some(engine.limits);
     part.worker.jig.slots = worker.slots;
     let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
     let at = temper_service_core::startup::member(&document, application, b"limits").unwrap();

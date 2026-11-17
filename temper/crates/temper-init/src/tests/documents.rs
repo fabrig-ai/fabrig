@@ -33,7 +33,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 worker["graces"],
                 json!({"grace_ms":300_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
             );
-            assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
+            assert!(worker.get("limits").is_none());
             let bytes = serde_json::to_vec(worker).unwrap();
             let document = jig_protocol_config::document(
                 &bytes,
@@ -42,7 +42,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
             .unwrap();
             let worker =
                 jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
-            let limits = worker.limits.expect("configured worker limits");
+            let limits = profile;
             let stop = jig_protocol_config::stop_bound(&worker.graces, limits.link.ping, limits.link.silence)
                 .unwrap()
                 .as_millis();
@@ -160,16 +160,6 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
     assert_eq!(endpoint["server_name"], "api.openai.com");
     assert_eq!(endpoint["headers"], parse(b"[]"));
     assert!(owned["engine"]["llm"].get("models").is_none());
-    let agent = parse(fixtures::AGENT);
-    let endpoint = &agent["endpoints"][0];
-    assert_eq!(endpoint["name"], "openai");
-    assert_eq!(endpoint["provider"], "openai");
-    assert_eq!(endpoint["dialect"], 3_u32);
-    assert_eq!(endpoint["address"], "api.openai.com:443");
-    assert_eq!(endpoint["transport"], "tls");
-    assert_eq!(endpoint["server_name"], "api.openai.com");
-    assert_eq!(endpoint["headers"], parse(b"[]"));
-    assert_eq!(endpoint["limits"]["reasoning_item"], 65_536_u32);
 }
 
 #[test]
@@ -213,7 +203,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
         let template = parse(include_bytes!("../../template/temper.json"));
-        for pointer in ["/engine/limits/overrides", "/workers/0/limits/overrides", "/application/limits/overrides"] {
+        for pointer in ["/engine/limits/overrides", "/application/limits/overrides"] {
             for (name, bytes) in template.pointer(pointer).expect("template overrides").as_object().expect("limit map")
             {
                 if name.starts_with("hub.turn")
@@ -254,7 +244,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     owned["engine"]["llm"]["endpoints"][0],
                     anthropic("endpoints"),
                     anthropic("direct"),
-                    {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "demo",
+                    {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
                      "address": {"socket": format!("127.0.0.1:{}", facts.ports.llm)},
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
@@ -293,15 +283,15 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
-            ("/workers/0/agent/program", json!(text(facts.binary))),
-            ("/workers/0/agent/configuration", json!("/c/temper/agent.json")),
-            ("/workers/0/agent/arguments/2", json!("/c/temper/agent.json")),
         ] {
             set(&mut expected, path, value);
         }
         for member in ["charters", "templates", "policies", "rules"] {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
+        }
+        if let Some(claude) = facts.claude {
+            expected["application"]["workers"][0]["claude"] = json!(text(claude));
         }
         assert_eq!(actual, expected, "{row}");
     }
@@ -485,48 +475,6 @@ fn demo_turn(text: &str) -> Value {
     json!({"lines": [{"text": text}], "finish": "stop", "tokens": text.len().div_ceil(4)})
 }
 
-fn demo_agent(port: u16) -> Value {
-    json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
-           "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
-           "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
-           "limits": { "window": 1_048_576_u64, "output": 8_192_u64,
-                       "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}})
-}
-
-#[test]
-fn the_agent_profile_holds_a_run_and_twenty_five_sub_agents() {
-    for source in [template::AGENT, fixtures::AGENT] {
-        let agent = parse(source);
-        assert_eq!(agent["profile"]["declared"]["conversations"], 26_u32);
-    }
-}
-
-#[test]
-fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
-    let owned = parse(fixtures::AGENT);
-    for (row, facts) in cases() {
-        let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
-        let mut expected = owned.clone();
-        let programs = match facts.claude {
-            Some(claude) => json!({"claude_code": {"path": text(claude), "directory": "/d/temper/programs"}}),
-            None => json!({"claude_code": {"path": "fetched", "directory": "/d/temper/programs"}}),
-        };
-        set(&mut expected, "/programs", programs);
-        set(
-            &mut expected,
-            "/endpoints",
-            json!([
-                owned["endpoints"][0],
-                anthropic_agent("endpoints"),
-                anthropic_agent("direct"),
-                demo_agent(facts.ports.llm.get())
-            ]),
-        );
-        expected["endpoints"][0]["limits"] = agent_limits("openai");
-        assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
-    }
-}
-
 #[test]
 fn facts_are_written_as_json_text() {
     for (row, binary, escaped) in [
@@ -541,17 +489,16 @@ fn facts_are_written_as_json_text() {
             b"\"/opt/\\n\\t\\u0001/\xc3\xa9/temper\"".as_slice(),
         ),
     ] {
-        let facts = crate::Facts { binary, ..fixtures::facts() };
+        let facts = crate::Facts { git: Some(binary), ..fixtures::facts() };
         let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid text paths");
         let document = content(&answered, b"temper.json");
         assert!(bytes::find(document, escaped).is_some(), "{row}: JSON escaped the path");
         let parsed = parse(document);
         assert_eq!(parsed["engine"]["llm"]["endpoints"][3]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
-        assert_eq!(parse(content(&answered, b"agent.json"))["endpoints"][3], demo_agent(8370), "{row}");
         assert_eq!(
             parsed
-                .pointer("/workers/0/agent/program")
-                .expect("the worker has an agent program")
+                .pointer("/application/workers/0/git")
+                .expect("the worker has git")
                 .as_str()
                 .expect("a JSON path is text")
                 .as_bytes(),
@@ -565,55 +512,7 @@ fn facts_are_written_as_json_text() {
 fn no_placeholder_is_left() {
     for (row, facts) in cases() {
         let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
-        for name in [b"temper.json".as_slice(), b"agent.json".as_slice()] {
-            assert_eq!(bytes::find(content(&answered, name), b"\"$"), None, "{row}: {name:?}");
-        }
-    }
-    for (row, source, expected) in [
-        (
-            "temper",
-            template::TEMPER,
-            [
-                (b"\"$binary\"".as_slice(), 1_u32),
-                (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
-                (b"\"$listener\"".as_slice(), 1),
-                (b"\"$forge\"".as_slice(), 1),
-                (b"\"$forge_git\"".as_slice(), 1),
-                (b"\"$owned\"".as_slice(), 1),
-                (b"\"$owned_git\"".as_slice(), 1),
-                (b"\"$login\"".as_slice(), 1),
-                (b"\"$email\"".as_slice(), 2),
-                (b"\"$provider\"".as_slice(), 1),
-                (b"\"$owned_sign_in\"".as_slice(), 1),
-                (b"\"$llm\"".as_slice(), 2),
-                (b"\"$webhooks\"".as_slice(), 1),
-            ]
-            .as_slice(),
-        ),
-        ("agent", template::AGENT, [(b"\"$programs\"".as_slice(), 1_u32), (b"\"$llm\"".as_slice(), 1)].as_slice()),
-        (
-            "bare",
-            template::BARE,
-            [
-                (b"\"$binary\"".as_slice(), 1_u32),
-                (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
-                (b"\"$listener\"".as_slice(), 1),
-                (b"\"$webhooks\"".as_slice(), 1),
-            ]
-            .as_slice(),
-        ),
-        ("bare agent", template::BARE_AGENT, [(b"\"$programs\"".as_slice(), 1_u32)].as_slice()),
-    ] {
-        // Exact token counts catch missing, extra and misspelled placeholders.
-        let mut count = 0_u32;
-        for (token, wanted) in expected {
-            assert_eq!(bytes::count(source, token, u32::MAX), *wanted, "{row}: {token:?}");
-            count = count.checked_add(*wanted).expect("the table's token count fits");
-        }
-        assert_eq!(bytes::count(source, b"\"$", u32::MAX), count, "{row}: only known tokens");
-        parse(source);
+        assert_eq!(bytes::find(content(&answered, b"temper.json"), b"\"$"), None, "{row}");
     }
 }
 
@@ -683,9 +582,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         for member in ["providers", "endpoints"] {
             expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
         }
-        let mut agent = parse(content(&boxed, b"agent.json"));
-        agent["endpoints"].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
-        let names = [b"worker.secret".as_slice(), b"worker.digest", b"agent.json", b"temper.json"];
+        let names = [b"worker.secret".as_slice(), b"worker.digest", b"temper.json"];
         assert_eq!(bare.len(), names.len(), "{row}");
         for (file, name) in bare.iter().zip(names) {
             assert_eq!(file.name, name, "{row}");
@@ -698,10 +595,6 @@ fn the_bare_document_is_the_box_less_its_parts() {
                     assert_eq!(parse(bytes), expected, "{row}");
                     assert!(!private);
                 }
-                b"agent.json" => {
-                    assert_eq!(parse(bytes), agent, "{row}");
-                    assert!(!private);
-                }
                 _ => assert_eq!(file, source, "{row}: shared secret and digest"),
             }
         }
@@ -709,11 +602,6 @@ fn the_bare_document_is_the_box_less_its_parts() {
 }
 
 // protocol/configuration/stock.md: the seven declarations, including their document order.
-
-fn agent_limits(endpoint: &str) -> Value {
-    json!({"window":1_048_576_u32,"output":8192,"reasoning_item":65_536_u32,
-        "head":60_000_u32,"idle":if endpoint == "openai" {300_000_u32} else {120_000_u32}})
-}
 
 fn anthropic(member: &str) -> Value {
     match member {
@@ -733,17 +621,6 @@ fn anthropic(member: &str) -> Value {
         _ => panic!("known LLM member"),
     }
 }
-fn anthropic_agent(member: &str) -> Value {
-    let mut endpoint = anthropic(member);
-    endpoint["address"] = json!("api.anthropic.com:443");
-    let object = endpoint.as_object_mut().unwrap();
-    for (old, new) in [("connect_ms", "connect"), ("handshake_ms", "handshake")] {
-        let value = object.remove(old).unwrap();
-        object.insert(new.into(), value);
-    }
-    endpoint["limits"] = agent_limits("anthropic");
-    endpoint
-}
 #[test]
 fn every_deployment_offers_claude_found_or_fetched() {
     // protocol/setup/init.md, 3: OpenAI, Anthropic and demo fit in one offer.
@@ -753,21 +630,23 @@ fn every_deployment_offers_claude_found_or_fetched() {
         let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
         for files in [boxed.files.as_ref(), bare.as_ref()] {
             let document = parse(file_bytes(files, b"temper.json"));
-            let agent = parse(file_bytes(files, b"agent.json"));
+
             // Providers and endpoints keep their order beside the seven model declarations.
             for (member, at) in [("providers", 1), ("endpoints", 1)] {
                 assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
             assert!(document["engine"]["llm"].get("models").is_none());
             assert_eq!(document["engine"]["llm"]["endpoints"][2], anthropic("direct"), "{row}: direct");
-            assert_eq!(agent["endpoints"][1], anthropic_agent("endpoints"), "{row}");
-            assert_eq!(agent["endpoints"][2], anthropic_agent("direct"), "{row}");
-            assert_eq!(
-                agent["programs"]["claude_code"],
-                json!({"path": text(facts.claude.unwrap_or(crate::FETCHED)), "directory": "/d/temper/programs"}),
-                "{row}"
-            );
-            assert_eq!(agent["environment"], parse(b"[]"), "{row}");
+            match facts.claude {
+                Some(claude) => assert_eq!(document["application"]["workers"][0]["claude"], text(claude), "{row}"),
+                None => assert!(document["application"]["workers"][0].get("claude").is_none(), "{row}"),
+            }
+            for file in files {
+                assert_ne!(file.name, b"agent.json");
+            }
+            for member in ["agent", "limits"] {
+                assert!(document["workers"][0].get(member).is_none(), "{row}: {member}");
+            }
             let bytes = serde_json::to_vec(&document["engine"]["limits"]).unwrap();
             let parsed = jig_protocol_config::document(
                 &bytes,

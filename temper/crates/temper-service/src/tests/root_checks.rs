@@ -13,7 +13,6 @@ use crate::startup::{Problems, checks, lines};
 // The stock catalogue holds twelve charters and six templates.
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":6,"authority.executors":22,"tasks.executor_kinds":22,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
-const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {
     let found = match fixtures::start(
@@ -127,7 +126,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
 #[test]
 fn the_hubs_accounts_past_the_agents_name_both_limits() {
     let document =
-        overridden(&fixtures::document(), b"workers[0].limits.overrides", WORKER_OVERRIDES, r#""hub.accounts":4096"#);
+        overridden(&fixtures::document(), b"engine.limits.overrides", ENGINE_OVERRIDES, r#""hub.accounts":4096"#);
     assert_eq!(
         &*started(&document),
         b"workers[0].limits.overrides.hub.accounts: must agree with the agent's accounts\n"
@@ -137,11 +136,7 @@ fn the_hubs_accounts_past_the_agents_name_both_limits() {
 #[test]
 fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
     assert_eq!(
-        &*started(&fixtures::with(
-            &engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#),
-            b"workers[0].limits.overrides",
-            format!("{{{WORKER_OVERRIDES},\"hub.transcript_bytes\":262161}}").as_bytes(),
-        )),
+        &*started(&engine_with(r#""core.resume_bytes":65541,"hub.transcript_bytes":262161"#)),
         b"application.limits.overrides.root.journal.transcript_bytes: 65540 bytes, short of core.resume_bytes, 65541 bytes\n"
     );
 }
@@ -479,10 +474,11 @@ fn reference_document(generated: &[u8]) -> Box<[u8]> {
     let merged = merge_profile(generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
     let mut document: serde_json::Value = serde_json::from_slice(&merged).unwrap();
     let room = reference_room();
-    let overlay = serde_json::to_vec(&room["worker"]).unwrap();
-    for worker in document["workers"].as_array_mut().unwrap() {
-        *worker = serde_json::from_slice(&merge_profile(&serde_json::to_vec(worker).unwrap(), &overlay)).unwrap();
-    }
+    document["engine"]["limits"] = serde_json::from_slice(&merge_profile(
+        &serde_json::to_vec(&document["engine"]["limits"]).unwrap(),
+        &serde_json::to_vec(&room["worker"]["limits"]).unwrap(),
+    ))
+    .unwrap();
     document["application"] = serde_json::from_slice(&merge_profile(
         &serde_json::to_vec(&document["application"]).unwrap(),
         &serde_json::to_vec(&room["application"]).unwrap(),
@@ -520,15 +516,9 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
     }
+    assert_eq!(engine["hub.event_bytes"].as_u64(), Some(payload - 2));
     for worker in document["workers"].as_array().unwrap() {
-        for (name, value) in [
-            ("hub.event_bytes", payload - 2),
-            ("hub.transcript_bytes", transcript),
-            ("hub.turn_bytes", turn),
-            ("hub.turn_queue_bytes", 8 * turn),
-        ] {
-            assert_eq!(worker["limits"]["overrides"][name].as_u64(), Some(value), "worker {name}");
-        }
+        assert!(worker.get("limits").is_none());
     }
     for (name, value) in [
         ("checkout.message_bytes", payload),

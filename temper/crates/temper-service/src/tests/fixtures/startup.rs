@@ -38,18 +38,17 @@ pub fn document() -> Box<[u8]> {
         .unwrap()
         .replace(",\n{\"name\": \"worker-b\", \"digest\": \"secrets/worker-b.digest\"}", "");
     document.extend_from_slice(engine.as_bytes());
-    document.extend_from_slice(br#", "workers":[{
+    document.extend_from_slice(
+        br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "programs":{"check_interval_ms":60000},
-"agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":"#);
+"memory_bytes":1152921504606846976}],"application":"#,
+    );
     document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
     document.extend_from_slice(b"}");
     let document = document.into_boxed_slice();
     let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
-    let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
     with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
 }
@@ -165,9 +164,6 @@ fn engine_turn_limits() -> String {
     let mut result = overrides.split_once('}').unwrap().0.to_string();
     result.push('}');
     result
-}
-fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {

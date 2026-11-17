@@ -103,6 +103,14 @@ impl engine::Engine {
         }
         Ok(engine)
     }
+    /// Keep kind 20 in the box's data directory (protocol/configuration/figures.md, 4).
+    pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {
+        self.workers.keep_agents(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_agents_write()
+    }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
         match engine.clients.playground_read() {

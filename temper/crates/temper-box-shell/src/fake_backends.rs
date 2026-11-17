@@ -22,7 +22,7 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
-const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
+const REQUIRED: &[&str] = &["temper.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
@@ -490,47 +490,23 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         }
     }
     if !contained(&dirs.data, &named.deployment)
-        || named.worker.as_ref().is_none_or(|worker| {
-            !contained(&dirs.data, &worker.root)
-                || worker.agent.as_ref() != crate::path(&dirs.config).join("agent.json").as_os_str().as_bytes()
-        })
+        || named.worker.as_ref().is_none_or(|worker| !contained(&dirs.data, &worker.root))
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
     let tree = Json::decode(bytes)?;
-    let configuration = tree.string("workers/0/agent/configuration")?;
-    let argv = tree.at("workers/0/agent/arguments")?;
-    let wanted = Json::Array(vec![
-        Json::String(b"internal".as_slice().into()),
-        Json::String(b"agent".as_slice().into()),
-        Json::String(configuration.into()),
-    ]);
-    argv.same(&wanted, "workers/0/agent/arguments")?;
-    let agent_document = public(&crate::path(&dirs.config).join("agent.json"))?;
-    let agent_tree = Json::decode(&agent_document)?;
-    let adapter = agent_tree.string("programs/claude_code/path")
-        .map_err(|_| "agent.json/programs/claude_code/path: unsupported adapter; remove this sandbox directory explicitly to reset it".to_string())?;
+    let adapter = tree.string("application/workers/0/claude").map_err(|_| {
+        "application/workers/0/claude: unsupported adapter; remove this sandbox directory explicitly to reset it"
+            .to_string()
+    })?;
     adapter_identity(adapter, expected)?;
     provisioned_program(expected)?;
-    if tree.string("workers/0/agent/program")?
-        != std::env::current_exe().map_err(|why| why.to_string())?.as_os_str().as_bytes()
-    {
-        return Err("workers/0/agent/program: expected this temper binary".into());
-    }
     for file in &named.files {
         if !file.private {
             let asset = public(crate::path(&file.path))?;
             if asset.len() > usize::try_from(file.max).expect("file bound fits") {
                 return Err(format!("{}: public asset past its byte bound", crate::file_path(file.at.clone())));
             }
-        }
-    }
-    let agent = temper_worker_shell::agent::preflight_worker(
-        named.worker.as_ref().ok_or("workers: standalone takes one worker")?,
-    )?;
-    for program in agent.programs {
-        if !contained(&dirs.data, &program.directory) {
-            return Err("agent.programs.directory: must stay under effective data".into());
         }
     }
     match &named.bundle {
@@ -608,7 +584,7 @@ fn sibling(binary: &Path) -> Result<PathBuf, String> {
 }
 fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
     if given != expected.as_os_str().as_bytes() {
-        return Err("agent.json/programs/claude_code/path: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
+        return Err("application/workers/0/claude: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
     }
     Ok(())
 }
@@ -717,9 +693,8 @@ fn prepare(
             fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|why| why.to_string())?;
         }
     }
-    if let Some((temper, agent)) = source.rebase(&effective)? {
+    if let Some(temper) = source.rebase(&effective)? {
         write(&effective.document(), &temper, true)?;
-        write(&crate::path(&effective.config).join("agent.json"), &agent, true)?;
         // Imported listeners retain their source values; init's new reservations do not represent them.
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
@@ -742,8 +717,7 @@ fn prepare(
         claude: bytes(adapter),
     };
     let documents =
-        backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
-            .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+        backends::rewrite(&initial, &paths, &peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     // Existing peer decoders check their generated documents before any marker is published.
     let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -753,13 +727,12 @@ fn prepare(
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     for (name, document) in [
         ("temper.json", &documents.temper),
-        ("agent.json", &documents.agent),
         ("github.json", &documents.github),
         ("oauth.json", &documents.oauth),
         ("llm.json", &documents.llm),
         ("forgejo.json", &documents.forgejo),
     ] {
-        write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
+        write(&crate::path(&effective.config).join(name), document, name == "temper.json")?;
     }
     write(
         &crate::path(&effective.data).join("github-app.pem"),

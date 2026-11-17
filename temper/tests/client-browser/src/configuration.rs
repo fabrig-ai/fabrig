@@ -21,7 +21,7 @@ const RELATIVE: &[&str] = &[
     "worker-root",
 ];
 
-pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
+pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -70,11 +70,10 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
-    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
-    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
-    value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
+    value["workers"][0].as_object_mut().expect("worker").remove("agent");
+    value["workers"][0].as_object_mut().expect("worker").remove("limits");
+    value["engine"]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
@@ -128,7 +127,7 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
 }
 
 /// The deployment's files and its two documents, `agent.json` and `temper.json`, in `directory`.
-pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
+pub(crate) fn write(directory: &Path, bundle: &Path) {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["", "accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
@@ -145,9 +144,10 @@ pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
     private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) = documents(directory, program, bundle);
-    private(&directory.join("agent.json"), &agent);
-    private(&directory.join("temper.json"), &value);
+    let (agent, value) = documents(directory, bundle);
+    let mut value = serde_json::from_slice(&value).expect("deployment JSON");
+    temper_fixtures::agent::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 
 /// The three directories share the scratch root, as the process tier's flags do.
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn the_picker_fixture_admits_stock_models_for_every_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, value) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, value) = super::documents(directory, &directory.join("bundle"));
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
         let value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
         let engine = stock_engine(&value);
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn the_browser_fixture_admits_every_stock_charter() {
         let directory = std::path::Path::new("/fixture");
-        let (agent, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let (agent, bytes) = super::documents(directory, &directory.join("bundle"));
         let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
         let engine = stock_engine(&value);
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");

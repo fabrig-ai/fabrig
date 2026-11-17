@@ -794,11 +794,18 @@ impl Judge {
             return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
+        // Open initial links in the fixture's order, independently of fetch timing.
+        let mut preceding_linked = true;
         for proc in workers.iter_mut() {
             let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
             worker.address = peer.address();
-            if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
-                *engine = service.workers_address;
+            let opened = worker.started_at().is_some();
+            let linked = worker.linked() > 0;
+            if let Some(crate::cluster::Shape::Worker { engine, started, .. }) = &mut worker.cluster {
+                if opened || preceding_linked {
+                    *engine = service.workers_address;
+                }
+                preceding_linked &= !*started || linked;
             }
         }
         if caller.stopping_engine() {

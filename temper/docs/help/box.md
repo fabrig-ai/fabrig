@@ -68,18 +68,17 @@ refuses it.
 Expect: `init: wrote DATA/worker.secret`; last line: box command.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
-OpenAI's, using `claude` on `PATH` when init runs, else fetching its pinned
+OpenAI's, using the worker entry’s `claude`, else `claude` on `PATH` at start, else fetching its pinned
 build on first use. Logins: `DATA/programs`, apart from your Claude Code configuration.
-`PROGRAMS`: that directory or an existing login's parent;
-`CONFIG/agent.json`'s `programs.claude_code.directory` (step 5).
+`PROGRAMS`: `DATA/programs` or an existing login’s parent (step 5).
 
 Expect: `me` lists provider 2, Anthropic, `claude_code`.
 Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
 
-**Coding runs:** edit `CONFIG/agent.json`'s `environment` before step 2;
-preserve the rest of the document. Init's array is empty. Commands and
+**Coding runs:** edit `application.workers[0].environment` in `CONFIG/temper.json` before step 2;
+preserve the rest of the document. Absent, the array is empty. Commands and
 checks get exactly the configured environment, independent of unit and
 runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
 

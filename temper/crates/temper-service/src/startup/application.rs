@@ -47,8 +47,14 @@ pub fn parse(
             &Path::root().member(b"application"),
             &mut found,
         );
-        assert!(found.is_empty(), "the engine's document grammar checked this member");
-        workers.push(worker.expect("checked worker row")).expect("application worker count");
+        let found = super::problems::from_worker(found);
+        for problem in found.problems.into_boxed() {
+            problems.push_file(problem.path, problem.what, problem.file);
+        }
+        problems.past = problems.past.saturating_add(found.past);
+        if let Some(worker) = worker {
+            workers.push(worker).expect("application worker count");
+        }
     }
     Some(Members {
         clients: engine.clients,

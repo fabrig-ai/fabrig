@@ -719,7 +719,7 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
         assert!(output.contains("[file truncated]"));
         if index < 3 {
             assert!(output.contains("8192"), "effective bound: {output}");
-            assert!(output.contains("agent.json profile.declared.tool_payload"));
+            assert!(output.contains("agents setting declared.tool_payload"));
         }
         assert!(!output.contains("Family numbers"));
     }

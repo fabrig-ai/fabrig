@@ -9,6 +9,13 @@ Every member is read at startup; a change to any member needs a restart.
 Objects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.
 Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.
 
+## application.workers[].environment[]
+
+Shape: `worker-environment`. Paths: `application.workers[].environment[]`. One variable passed to agents’ programs.
+
+- `name`: text, at most 1,048,576 bytes; required; init leaves it out. The variable’s name.
+- `value`: text, at most 1,048,576 bytes; required; init leaves it out. The variable’s value.
+
 ## document
 
 Shape: `document`. Paths: `document`. The top-level members of the configuration document.
@@ -46,6 +53,8 @@ Shape: `application-worker`. Paths: `application.workers[]`. One worker’s work
 
 - `root`: text, data path; at most 1,048,576 bytes; required; init writes "workspaces". The private directory holding the worker’s checkouts.
 - `git`: text or null, absolute executable path; at most 1,048,576 bytes; required; init writes "/usr/bin/git". The git program used when a repository names none, or null for none.
+- `claude`: text, absolute executable path; at most 4,096 bytes; optional; init writes "/usr/bin/claude". Claude Code’s program; absent, use PATH’s claude or the fetched build.
+- `environment`: list of worker-environment, unique variable names; optional; init leaves it out. The environment agents’ programs receive; absent, empty.
 
 ## application.clients
 
@@ -325,8 +334,8 @@ Shape: `machine-tls`. Paths: `application.machine.github.transport.tls`. TLS ide
 
 ## More slots
 
-`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:
 
-- `hub.slots`, in `workers[0].limits.overrides`.
+- `hub.slots`, in `engine.limits.overrides`. Workers take their limits from the engine.
 - `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
 - `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

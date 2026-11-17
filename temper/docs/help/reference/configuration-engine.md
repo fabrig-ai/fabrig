@@ -32,10 +32,10 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 
 ## engine.limits
 
-Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
+Shape: `limits`. Paths: `engine.limits`. A limits profile and named overrides, shared by engines and workers.
 
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
+- `overrides`: object, known limit names; optional; init writes {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"authority.executors":22,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":22,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660}. Overrides the profile's limits by their dotted names.
 
 ## engine.deployment
 
@@ -79,7 +79,7 @@ Shape: `endpoint`. Paths: `engine.llm.endpoints[]`. A model endpoint and its tra
 - `name`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "anthropic-api" | "demo". Names the endpoint for configured models to refer to.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 4 | 3. Gives the endpoint's number, unique among endpoints.
 - `dialect`: integer, 2 or 3; required; init writes 3 | 2. Chooses the endpoint's model protocol dialect.
-- `provider`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the endpoint's provider for the model protocol.
+- `provider`: text, 4096 bytes; required; init writes "openai" | "anthropic". Names the endpoint's provider for the model protocol.
 - `program`: text, 32 bytes; optional; init writes "claude_code". Names a program offered by every provider whose models use this endpoint.
 - `address`: address, network address; required; init writes {"host":"api.openai.com","port":443} | {"host":"api.anthropic.com","port":443} | {"socket":"127.0.0.1:8370"}. Gives the endpoint's socket address or host and port.
 - `transport`: text, tls or plaintext; required; init writes "tls" | "plaintext". Selects TLS or plaintext, with plaintext restricted to loopback.
@@ -214,8 +214,8 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
 - `graces`: graces; required; init writes object. Gives the graces used to compute the worker's stop bound.
 - `programs`: programs; required; init writes object. Configures the host's local source-login checks.
-- `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
-- `limits`: limits; required; init writes object. Selects the worker's limits profile and overrides.
+- `agent`: refused: moved: temper writes the agent's configuration from its engine's figures; remove it
+- `limits`: refused: moved: a worker takes its limits from its engine; remove it
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
 
 ## workers[].programs
@@ -233,11 +233,3 @@ Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its
 - `agent_stop_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 5000. Gives the stop grace of an agent's process tree.
 - `delivery_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the deadline for a delivery.
 - `save_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the grace for saving the worker's state.
-
-## workers[].agent
-
-Shape: `agent`. Paths: `workers[].agent`. The program a worker spawns for each run.
-
-- `program`: text, 4096 bytes; required; init writes "/opt/temper/bin/temper-box". Names the agent executable, passed as written.
-- `arguments`: list of text, 4096 bytes per argument; required; init writes ["internal","agent","/etc/temper/agent.json"]. Gives the agent's arguments, passed as written.
-- `configuration`: text, 4096 bytes; configuration path; required; init writes "/etc/temper/agent.json". Names smith's agent configuration document, which jig does not read.

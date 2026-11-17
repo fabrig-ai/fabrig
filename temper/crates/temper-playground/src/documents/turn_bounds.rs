@@ -33,21 +33,13 @@ pub fn apply(document: &mut Value, turn: u32) {
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("turn box slot");
     let window = resume + (box_bytes - 4) * (resume / 4);
     let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
-    let output = document["workers"]
-        .as_array()
-        .and_then(|workers| workers.iter().map(|worker| worker_output(&worker["limits"], turn)).max())
-        .or_else(|| (!document["engine"].is_null()).then(|| worker_output(&document["engine"]["limits"], turn)));
+
     if !document["engine"].is_null() {
+        let output = worker_output(&document["engine"]["limits"], turn);
         let limits = &mut document["engine"]["limits"]["overrides"];
         hub(limits, turn, window);
         limits["core.resume_bytes"] = resume.into();
-        limits["io.output"] = output.expect("engine room derived").into();
-    }
-    if let Some(workers) = document["workers"].as_array_mut() {
-        for worker in workers {
-            hub(&mut worker["limits"]["overrides"], turn, window);
-            worker["limits"]["overrides"]["io.output"] = output.expect("worker room derived").into();
-        }
+        limits["io.output"] = output.into();
     }
     if !document["application"]["limits"].is_null() {
         let limits = &mut document["application"]["limits"]["overrides"];

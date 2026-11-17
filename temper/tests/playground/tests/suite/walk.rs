@@ -53,7 +53,7 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
         double(overrides);
     }
     document["engine"]["limits"]["overrides"]["io.output"] =
-        document["workers"][0]["limits"]["overrides"]["io.output"].clone();
+        document["engine"]["limits"]["overrides"]["io.output"].clone();
     serde_json::to_vec(&document).expect("doubled deployment document").into_boxed_slice()
 }
 

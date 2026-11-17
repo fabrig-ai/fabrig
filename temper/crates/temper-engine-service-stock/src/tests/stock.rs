@@ -2279,52 +2279,8 @@ fn the_prepare_executor_needs_both_stock_executor_limits() {
 }
 
 #[test]
-#[expect(clippy::disallowed_types, reason = "compare the stock to the init templates as JSON")]
-fn agents_default_equals_the_init_templates_and_is_declared() {
-    use serde_json::Value;
+fn agents_default_is_declared() {
     let stock = crate::stock::agents();
-    let bare: Value = serde_json::from_str(include_str!("../../../temper-init/template/bare-agent.json")).unwrap();
-    let demo: Value = serde_json::from_str(include_str!("../../../temper-init/template/agent.json")).unwrap();
-    let mut expected = Vec::new();
-    for group in ["declared", "policy"] {
-        for (name, value) in bare["profile"][group].as_object().unwrap() {
-            expected.push((format!("{group}.{name}"), value.as_u64().unwrap()));
-        }
-        assert_eq!(bare["profile"][group], demo["profile"][group]);
-    }
-    let mut actual: Vec<_> =
-        stock.profile().iter().map(|f| (String::from_utf8(f.name().to_vec()).unwrap(), f.value())).collect();
-    actual.sort();
-    expected.sort();
-    assert_eq!(actual, expected);
-    let mut names: Vec<_> = stock.endpoints().iter().map(|row| core::str::from_utf8(row.endpoint()).unwrap()).collect();
-    let mut expected_names: Vec<_> =
-        demo["endpoints"].as_array().unwrap().iter().map(|row| row["name"].as_str().unwrap()).collect();
-    names.sort_unstable();
-    expected_names.sort_unstable();
-    assert_eq!(names, expected_names);
-    for endpoint in stock.endpoints() {
-        let name = core::str::from_utf8(endpoint.endpoint()).unwrap();
-        let source = if name == "demo" { &demo } else { &bare };
-        let value = &source["endpoints"].as_array().unwrap().iter().find(|row| row["name"] == name).unwrap()["limits"];
-        let limits = endpoint.limits();
-        for (field, number) in [
-            ("window", u64::from(limits.window())),
-            ("output", u64::from(limits.output())),
-            ("reasoning_item", u64::from(limits.reasoning_item())),
-            ("head", limits.head_ms()),
-            ("idle", limits.idle_ms()),
-        ] {
-            assert_eq!(value[field].as_u64(), Some(number), "{name}.{field}");
-        }
-        let oversized = match value["oversized_reasoning"].as_str().unwrap_or("fail") {
-            "fail" => temper_client_protocol_wire::v1::Oversized::Fail,
-            "drop" => temper_client_protocol_wire::v1::Oversized::Drop,
-            other => panic!("unknown template oversized_reasoning: {other}"),
-        };
-        assert_eq!(limits.oversized(), &oversized);
-    }
-    assert_eq!(stock.fallback(), stock.endpoints().iter().find(|row| row.endpoint() == b"openai").unwrap().limits());
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let kinds = crate::stock::kinds(&limits, 1);

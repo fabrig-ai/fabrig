@@ -35,6 +35,8 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
+temper-fixtures.workspace = true
 skein-world.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-domain-accounts.workspace = true

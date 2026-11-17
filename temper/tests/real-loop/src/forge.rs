@@ -44,13 +44,14 @@ fn setup() -> api::Setup {
 }
 pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::Result<()> {
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("temper.json"))?)?;
-    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("agent.json"))?)?;
+    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("world-agent.json"))?)?;
     config["application"]["webhooks"] = serde_json::json!({"listener":{"socket":"127.0.0.1:0"}});
 
     (fixture.configure)(&mut config, &mut agent, forge);
     fixtures::turn_bounds::apply(&mut config, fixtures::turn_bounds::turn_body(&agent));
+    temper_fixtures::agent::apply(&mut config, scratch, &agent);
     fixtures::finish_configuration(scratch, &mut config)?;
-    fixtures::private(&scratch.join("agent.json"), &serde_json::to_vec(&agent)?)
+    fixtures::private(&scratch.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
 /// The outside forge API at each change of its branches or open pulls.
 pub struct Snapshot {

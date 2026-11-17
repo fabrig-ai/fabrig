@@ -8,10 +8,7 @@ fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
     assert!(value["engine"]["limits"]["overrides"]["core.resume_bytes"].as_u64().unwrap() >= 4_194_304);
-    assert_eq!(
-        value["engine"]["limits"]["overrides"]["io.output"],
-        value["workers"][0]["limits"]["overrides"]["io.output"]
-    );
+    assert!(value["workers"][0].get("limits").is_none());
     let result = temper_service::startup::with_setup_given(
         &bytes,
         &jig_protocol_config::Directories::working(),
@@ -47,11 +44,9 @@ fn resumes_have_a_floor_without_raising_turn_carriers() {
         let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
         let engine = &document["engine"]["limits"]["overrides"];
         assert_eq!(engine["core.resume_bytes"], resume);
-        for hub in [engine, &document["workers"][0]["limits"]["overrides"]] {
-            assert_eq!(hub["hub.transcript_bytes"], window);
-            assert_eq!(hub["hub.turn_bytes"], turn);
-            assert_eq!(hub["hub.turn_queue_bytes"], 8 * turn);
-        }
+        assert_eq!(engine["hub.transcript_bytes"], window);
+        assert_eq!(engine["hub.turn_bytes"], turn);
+        assert_eq!(engine["hub.turn_queue_bytes"], 8 * turn);
         let root = &document["application"]["limits"]["overrides"];
         assert_eq!(root["root.journal.transcript_bytes"], resume);
         assert_eq!(root["root.loads.transcript_bytes"], turn);

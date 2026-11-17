@@ -208,6 +208,32 @@ pub struct WorkerPart {
     pub environment: Box<[application::EnvironmentEntry]>,
     pub figures: Option<jig_protocol_worker_wire::Figures>,
 }
+impl WorkerPart {
+    /// The box's local worker before applying its engine's figures.
+    #[must_use]
+    pub fn in_process(
+        jig: config::Worker,
+        own: application::Worker,
+        directories: &config::Directories,
+        limits: Limits,
+    ) -> Self {
+        Self {
+            call_answer: CallAnswer::Explicit,
+            named: NamedWorker {
+                root: own.root.clone(),
+                agent: directories.join(config::Directory::Data, b"agent.json").expect("bounded data path"),
+                program: Box::default(),
+                arguments: Box::default(),
+            },
+            worker: settings::Worker { jig, root: own.root, git: own.git },
+            limits,
+            files: Box::default(),
+            claude: own.claude,
+            environment: own.environment,
+            figures: None,
+        }
+    }
+}
 /// Read exactly a worker's part for serve and program-login (protocol/cluster.md, 1).
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
     let document = document(input, directories, true)?;

@@ -65,7 +65,7 @@ impl Harness for Incident {
         ] {
             value["engine"]["limits"]["overrides"][name] = count.into();
         }
-        value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
+        value["engine"]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
         value["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 45_000.into();
         value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);

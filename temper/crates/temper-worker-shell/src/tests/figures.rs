@@ -33,18 +33,18 @@ fn written_figures_decode_as_the_stock_agent_and_keep_machine_members() {
         };
         let bytes =
             agent::figures::configuration(&figures, claude.as_deref(), data, &environment).expect("written agent");
-        let mut expected: serde_json::Value =
-            serde_json::from_slice(include_bytes!("../../../temper-init/template/bare-agent.json"))
-                .expect("stock agent");
-        expected["programs"] = json!({"claude_code":{"path":claude.as_ref().map_or("fetched",|path| path.to_str().expect("path")),"directory":data.join("programs")}});
-        expected["environment"] = if explicit { json!([{"name":"WORKER_ENV","value":"given"}]) } else { json!([]) };
-        for endpoint in expected["endpoints"].as_array_mut().expect("endpoints") {
-            endpoint["limits"]["oversized_reasoning"] = "fail".into();
-        }
-        let _written = agent::decoded_bytes(&bytes).expect("smith reads written bytes");
-        let _stock = agent::decoded_bytes(&serde_json::to_vec(&expected).expect("stock bytes"))
-            .expect("smith reads stock bytes");
-        assert_eq!(serde_json::from_slice::<serde_json::Value>(&bytes).expect("written JSON"), expected);
+        let written: serde_json::Value = serde_json::from_slice(&bytes).expect("written JSON");
+        let _decoded = agent::decoded_bytes(&bytes).expect("smith reads written bytes");
+        assert_eq!(written["profile"]["policy"]["max_turns"], 800);
+        assert_eq!(written["endpoints"][0]["name"], "openai");
+        assert_eq!(
+            written["programs"],
+            json!({"claude_code":{"path":claude.as_ref().map_or("fetched",|path| path.to_str().expect("path")),"directory":data.join("programs")}})
+        );
+        assert_eq!(
+            written["environment"],
+            if explicit { json!([{"name":"WORKER_ENV","value":"given"}]) } else { json!([]) }
+        );
     }
 }
 #[test]

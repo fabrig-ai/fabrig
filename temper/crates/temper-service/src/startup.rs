@@ -11,6 +11,9 @@ pub use worker::WorkerPart;
 #[cfg(test)]
 #[path = "tests/startup_calls.rs"]
 mod calls_tests;
+#[cfg(test)]
+#[path = "tests/figures.rs"]
+mod figures_tests;
 
 mod checkout {
     use super::{Problems, settings};
@@ -103,13 +106,37 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 
 pub use worker::NamedWorker;
 
-fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
+fn named_worker(directories: &config::Directories, own: &application::Worker) -> NamedWorker {
     NamedWorker {
         root: own.root.clone(),
-        agent: worker.agent.as_ref().expect("checked worker agent").configuration.clone(),
-        program: worker.agent.as_ref().expect("checked worker agent").program.clone(),
-        arguments: worker.agent.as_ref().expect("checked worker agent").arguments.clone(),
+        agent: directories.join(config::Directory::Data, b"agent.json").expect("bounded data path"),
+        program: Box::default(),
+        arguments: Box::default(),
     }
+}
+
+/// The box composes before opening its store (protocol/configuration/figures.md, 4).
+pub fn box_worker(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+) -> Result<Option<WorkerPart>, Problems> {
+    let parsed = parse_with(document, directories, given)?;
+    let Some(jig) = parsed.workers.into_iter().next() else { return Ok(None) };
+    let own = parsed.application.workers.into_iter().next().expect("one application worker checked");
+    let figures =
+        temper_engine_service::figures::Composer::new(&parsed.engine, &parsed.application.limits).compose(agents);
+    let mut parts = figures.into_parts();
+    parts.places = parsed.engine.limits.core.fleet.slots;
+    let figures =
+        jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, parts).expect("composed figures");
+    let mut part = WorkerPart::in_process(jig, own, directories, crate::limits::worker(&parsed.application.limits));
+    match temper_worker_service::figures::apply(&mut part, figures) {
+        Ok(_) => {}
+        Err(found) => return Err(problems::from_worker(found)),
+    }
+    Ok(Some(part))
 }
 
 /// The files and directories the binary reads and opens before startup.
@@ -179,7 +206,6 @@ struct Parsed {
     workers: Box<[config::Worker]>,
     application: application::Members,
     engine_call_answer: CallAnswer,
-    worker_call_answers: Box<[CallAnswer]>,
 }
 impl Parsed {
     fn compose(&mut self, agent: &Declaration) -> Result<(), Problems> {
@@ -193,20 +219,11 @@ impl Parsed {
             problems.push(call_input_path(Path::root().member(b"engine")), what.extend());
         }
         checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
-        for (index, worker) in self.workers.iter_mut().enumerate() {
-            if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
-                worker.limits.as_mut().expect("checked worker limits"),
-                agent.tool_payload,
-                agent.host_ask_input,
-                agent.host_reply_text,
-            ) {
-                problems.push(call_input_path(indexed(index)), what.extend());
-            }
-            checks::call_answer(
-                indexed(index),
-                worker.limits.as_ref().expect("checked worker limits").core.call_answer_bytes,
-                &mut problems,
-            );
+        if !problems.is_empty() {
+            return Err(problems);
+        }
+        for worker in &mut self.workers {
+            worker.limits = Some(self.engine.limits);
         }
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
@@ -353,27 +370,36 @@ fn load_document(
         None => List::with_capacity(0),
     };
     let mut workers = List::with_capacity(ats.len());
-    let mut worker_call_answers = List::with_capacity(ats.len());
     for (index, at) in ats.iter().enumerate() {
         if shape == Shape::EngineAlone {
             continue;
         }
-        if check_start {
-            checks::raw_worker(document, *at, &indexed(index), &mut problems);
+        let mut moved = false;
+        for (name, words) in [(b"limits".as_slice(), worker::MOVED_LIMITS), (b"agent".as_slice(), worker::MOVED_AGENT)]
+        {
+            if member(document, *at, name).is_some() {
+                problems.push(indexed(index).member(name), What::Jig(config::What::Because(words)));
+                moved = true;
+            }
         }
-        match config::worker(document, *at, directories) {
-            Ok(worker) => {
-                if worker.agent.is_none() {
-                    problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
+        if moved {
+            continue;
+        }
+        let defaults = match &engine {
+            Some(engine) => engine.limits,
+            None => config::profile(config::Profile::Standard),
+        };
+        match config::worker_with_limits(document, *at, directories, &defaults) {
+            Ok(mut worker) => {
+                if let Some(engine) = &engine {
+                    worker.limits = Some(engine.limits);
                 }
-                if worker.limits.is_none() {
-                    problems.push(indexed(index).member(b"limits"), What::Jig(config::What::Missing));
-                }
-                if worker.agent.is_none() || worker.limits.is_none() {
-                    continue;
-                }
+                worker.agent = Some(config::Agent {
+                    program: Box::default(),
+                    arguments: Box::default(),
+                    configuration: directories.join(config::Directory::Data, b"agent.json").expect("bounded data path"),
+                });
                 workers.push(worker).expect("bounded workers");
-                worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
             }
             Err(found) => problems.append(found, &indexed(index)),
         }
@@ -396,18 +422,11 @@ fn load_document(
     }
     let application = application.expect("required application checked");
     let workers = workers.into_boxed();
-    let worker_call_answers = worker_call_answers.into_boxed();
     let engine_call_answer = CallAnswer::read(document, engine_at.expect("required engine checked"));
     if !check_start {
         return Ok((
             shape,
-            Some(Parsed {
-                engine: engine.expect("required engine checked"),
-                workers,
-                application,
-                engine_call_answer,
-                worker_call_answers,
-            }),
+            Some(Parsed { engine: engine.expect("required engine checked"), workers, application, engine_call_answer }),
         ));
     }
     if shape == Shape::EngineAlone && !ats.is_empty() {
@@ -456,13 +475,7 @@ fn load_document(
     }
     Ok((
         shape,
-        Some(Parsed {
-            engine: engine.expect("required engine checked"),
-            workers,
-            application,
-            engine_call_answer,
-            worker_call_answers,
-        }),
+        Some(Parsed { engine: engine.expect("required engine checked"), workers, application, engine_call_answer }),
     ))
 }
 
@@ -475,8 +488,17 @@ fn load(
 }
 fn all_files(parsed: &Parsed) -> Box<[config::File]> {
     let engine = config::files(&parsed.engine);
-    let worker = match parsed.workers.first() {
-        Some(worker) => config::worker_files(worker),
+    let worker: Box<[config::File]> = match parsed.workers.first() {
+        Some(worker) => {
+            let configuration = Path::root().member(b"agent").member(b"configuration");
+            let mut files = List::uncapped();
+            for file in config::worker_files(worker) {
+                if file.at != configuration {
+                    files.push(file).expect("uncapped named files");
+                }
+            }
+            files.into_boxed()
+        }
         None => Box::new([]),
     };
     let application = application::files(&parsed.application);
@@ -529,9 +551,10 @@ pub fn named_with(
         llm: parsed.engine.llm,
         projects: parsed.engine.projects,
         worker: match parsed.workers.first() {
-            Some(worker) => {
-                Some(named_worker(worker, parsed.application.workers.first().expect("one application worker checked")))
-            }
+            Some(_) => Some(named_worker(
+                directories,
+                parsed.application.workers.first().expect("one application worker checked"),
+            )),
             None => None,
         },
     })
@@ -584,7 +607,6 @@ pub fn check(
 }
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
 pub(crate) fn checked_start_with(
@@ -594,10 +616,28 @@ pub(crate) fn checked_start_with(
     agent: Option<&settings::Agent>,
     seeds: &settings::Seeds,
     forges: List<crate::ForgeRuntime>,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
 ) -> Result<CheckedStart, Problems> {
+    checked_start_using(document, directories, files, agent, seeds, forges, setup, given, None)
+}
+#[expect(clippy::too_many_arguments, reason = "the box supplies its applied worker beside the checked engine inputs")]
+#[expect(clippy::too_many_lines, reason = "one checked startup pass preserves diagnostic order")]
+fn checked_start_using(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    _setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    part: Option<WorkerPart>,
+) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
+    if let Some(part) = part {
+        parsed.workers = Box::new([part.worker.jig]);
+    }
     let agent = match parsed.workers.first() {
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,
@@ -837,15 +877,56 @@ pub fn with_setup_given(
     given: &crate::stock::Given,
     program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
+    with_setup_worker_given(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        runtime,
+        forges,
+        setup,
+        box_line_bytes,
+        program_login,
+        given,
+        program_environment,
+        None,
+    )
+}
+#[expect(clippy::too_many_arguments, reason = "the box supplies its composed worker beside runtime facts")]
+pub fn with_setup_worker_given(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    runtime: Option<WorkerRuntime>,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    box_line_bytes: Option<u32>,
+    program_login: Option<Box<[u8]>>,
+    given: &crate::stock::Given,
+    program_environment: Box<[u8]>,
+    part: Option<WorkerPart>,
+) -> Result<Service, Problems> {
+    let figures = match &part {
+        Some(part) => part.figures.clone(),
+        None => None,
+    };
     let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } =
-        checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
+        checked_start_using(document, directories, files, agent, seeds, forges, setup, given, part)?;
     engine.program_environment = program_environment;
 
-    let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
-    {
-        Ok(worker) => worker,
-        Err(found) => return Err(problems::from_worker(found)),
-    };
+    let mut worker =
+        match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed) {
+            Ok(worker) => worker,
+            Err(found) => return Err(problems::from_worker(found)),
+        };
+    if let (Some(worker), Some(figures)) = (&mut worker, figures) {
+        worker.built_from(figures);
+    }
     match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
         Ok(mut service) => {
             for warning in &warnings.problems {
@@ -910,7 +991,8 @@ fn checked_worker(
     if let Some(agent) = agent {
         let worker = workers.into_iter().next().expect("one worker checked");
         let own = own.into_iter().next().expect("one application worker checked");
-        let worker = settings::Worker { jig: worker, root: own.root, git: own.git };
+        let mut worker = settings::Worker { jig: worker, root: own.root, git: own.git };
+        worker.jig.limits.as_mut().expect("checked worker limits").hub.source_interval = worker.jig.check_interval;
         checks::worker(&crate::worker_settings::root_limits(&worker, agent, limits), &mut problems);
         checks::grants(engine, worker.jig.limits.as_ref().expect("checked worker limits"), agent, &mut problems);
         if !problems.is_empty() {

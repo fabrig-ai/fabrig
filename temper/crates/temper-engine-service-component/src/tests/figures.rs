@@ -353,3 +353,44 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
     service.engine.as_mut().unwrap().store = store;
     service
 }
+
+#[test]
+fn box_copy_follows_owner_changes_and_repairs_a_different_restore() {
+    let stock = crate::stock::agents();
+    let mut service = started(None);
+    service.engine.as_mut().unwrap().keep_agents(b"/data/agents.setting".as_slice().into(), Some(stock.clone()));
+    fixtures::restart(&mut service);
+    assert!(service.engine.as_mut().unwrap().take_agents_write().is_none());
+    let mut parts = stock.clone().into_parts();
+    for row in parts.profile.iter_mut() {
+        if row.name() == b"policy.max_turns" {
+            *row = s::AgentFigure::new(
+                &s::CEILINGS,
+                s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
+            )
+            .unwrap();
+        }
+    }
+    let agents = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let engine = service.engine.as_mut().unwrap();
+    signed_in(engine);
+    changed(engine, &agents, 1);
+    let (path, bytes) = engine.take_agents_write().expect("accepted owner change keeps copy");
+    assert_eq!(path.as_ref(), b"/data/agents.setting");
+    let mut reader = skein_lib::Reader::new(&bytes);
+    assert_eq!(s::AgentFigures::decode(&s::CEILINGS, &mut reader).unwrap(), agents);
+    assert!(reader.is_empty());
+    assert!(engine.take_agents_write().is_none());
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_agents(path.clone(), Some(stock));
+    fixtures::restart(&mut service);
+    assert_eq!(service.engine.as_mut().unwrap().take_agents_write(), Some((path.clone(), bytes.clone())));
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_agents(path, Some(agents));
+    fixtures::restart(&mut service);
+    assert!(service.engine.as_mut().unwrap().take_agents_write().is_none());
+}

@@ -38,7 +38,7 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "preserve the rest of the document",
         "exactly the configured environment",
         "deployment-specific absolute paths",
@@ -117,8 +117,8 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             .expect("init worker");
         let bound = jig_protocol_config::stop_bound(
             &worker.graces,
-            worker.limits.as_ref().expect("configured worker limits").link.ping,
-            worker.limits.as_ref().expect("configured worker limits").link.silence,
+            jig_protocol_config::profile(jig_protocol_config::Profile::Standard).link.ping,
+            jig_protocol_config::profile(jig_protocol_config::Profile::Standard).link.silence,
         )
         .expect("stop bound");
         assert!(bound < timeout, "the unit must outlast the worker's stop bound");
@@ -167,26 +167,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 }
 
 fn coding_run_agent_document() -> serde_json::Value {
-    let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
-    let facts = temper_init::Facts {
-        sign_in: false,
-        binary: b"/opt/temper/bin/temper-box",
-        git: Some(b"/usr/bin/git"),
-        claude: Some(b"/opt/temper/bin/claude"),
-        ports: temper_init::Ports {
-            clients: port(8367),
-            owned: port(8368),
-            forge: port(8369),
-            llm: port(8370),
-            webhooks: port(8371),
-        },
-        login: Some(b"coder"),
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init files");
-    let file = answer.files.iter().find(|file| file.name == b"agent.json").expect("init agent document");
-    let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("agent document bytes") };
-    let mut document: serde_json::Value = serde_json::from_slice(bytes).expect("init agent JSON");
+    let mut document = temper_fixtures::agent::stock(true);
     // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
     for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
         endpoint["address"] = "127.0.0.1:9".into();
@@ -836,12 +817,12 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "local model",
         "`endpoint` in `engine.llm.providers`",
         "`CONFIG/temper.json`",
-        "`CONFIG/agent.json`",
+        "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
-        "`head`",
-        "`idle`",
+        "`head_ms`",
+        "`idle_ms`",
         "Preserve",
         "stop",
         "restart, then change the model",

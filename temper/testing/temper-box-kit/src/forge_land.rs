@@ -1086,7 +1086,6 @@ pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
         ("data/deployment", true),
         ("data/forge-1/forgejo", true),
         ("config/temper.json", false),
-        ("config/agent.json", false),
         ("data/box/started/1", false),
         ("data/forge-1/forgejo/app.ini", false),
         ("data/forge-1/forgejo/forgejo.db", false),
@@ -1571,9 +1570,8 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     }
     let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
-    let agent_path = config.join("agent.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-    let mut agent: serde_json::Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent")).expect("JSON");
+    let mut agent = temper_fixtures::agent::read(config);
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1621,7 +1619,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "path":executable, "directory":login.parent().expect("held login parent")
     });
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
+    temper_fixtures::agent::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.

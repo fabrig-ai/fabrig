@@ -720,9 +720,7 @@ fn receiving(tool_payload: Option<u32>) -> run::Limits {
             },
         }]),
     };
-    let mut template: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
-            .expect("shipped agent settings");
+    let mut template: serde_json::Value = temper_fixtures::agent::stock(true);
     if let Some(bytes) = tool_payload {
         template["profile"]["declared"]["tool_payload"] = bytes.into();
     }

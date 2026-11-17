@@ -112,7 +112,6 @@ impl Shape {
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
-    #[expect(clippy::too_many_lines, reason = "both cluster shapes share the supervision and link timing inputs")]
     pub(crate) fn write(&self, path: &Path, standing: bool) {
         use serde_json::json;
         let config = path.join("config");
@@ -169,13 +168,6 @@ impl Shape {
             Self::Engine { workers, .. } => {
                 document["engine"]["llm"]["providers"][0]["name"] = "openai".into();
                 document["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
-                let worker_limits =
-                    document["workers"][0]["limits"]["overrides"].as_object().expect("worker limits").clone();
-                for (name, value) in worker_limits {
-                    if name.starts_with("hub.") || name == "io.output" {
-                        document["engine"]["limits"]["overrides"][name] = value;
-                    }
-                }
                 document["workers"] = json!([]);
                 document["application"]["workers"] = json!([]);
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
@@ -386,7 +378,7 @@ mod tests {
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
         fixtures::write(&data, address, address).expect("fixture documents");
-        let path = data.join("agent.json");
+        let path = data.join("world-agent.json");
         let expected: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
 

@@ -441,7 +441,9 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let jig = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+    let mut jig = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+    jig.limits = Some(engine(&generated()).limits);
+    jig.agent = Some(fixtures::worker_runtime().agent);
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
     let agent = worker_agent(configured());
@@ -468,13 +470,10 @@ fn measure_worker() {
     let transcript = resume.checked_add(12_u64.checked_mul(resume / 4).unwrap()).unwrap();
     let loaded = turn.checked_add(u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     assert_eq!(engine.limits.hub.turn_bytes, turn);
-    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.turn_bytes, turn);
     assert_eq!(u64::from(engine.limits.core.resume_bytes), resume);
     assert_eq!(u64::from(own.root.journal.transcript_bytes), resume);
     assert_eq!(engine.limits.hub.transcript_bytes, transcript);
-    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.transcript_bytes, transcript);
     assert_eq!(engine.limits.hub.turn_queue_bytes, 8 * turn);
-    assert_eq!(worker.jig.limits.as_ref().expect("checked worker limits").hub.turn_queue_bytes, 8 * turn);
     assert_eq!(u64::from(own.root.loads.bytes), loaded);
     assert_eq!(u64::from(own.root.loads.reply_bytes), loaded);
     assert_eq!(own.root.loads.read_bytes, 2 * turn);

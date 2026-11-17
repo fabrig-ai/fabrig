@@ -33,6 +33,8 @@ temper-worker-domain-checkout.workspace = true
 temper-worker-protocol-git.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
+temper-fixtures.workspace = true
 smith-agent-shell.workspace = true
 smith-local-service.workspace = true
 skein-world.workspace = true

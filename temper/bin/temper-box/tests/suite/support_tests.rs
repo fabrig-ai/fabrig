@@ -257,7 +257,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         let bytes = std::fs::read(root.join(path)).expect("fixture file");
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
-    let agent = temper_worker_shell::agent::read(&root.join("agent.json")).expect("story agent");
+    let agent = temper_fixtures::agent::prepared(root).agent;
     let seeds = Seeds {
         link_secret: None,
         local_secret: None,

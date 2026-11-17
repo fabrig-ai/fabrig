@@ -135,45 +135,27 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
 }
 
 #[test]
-fn an_endpoint_or_model_missing_from_the_agent_is_named() {
-    let document = fixtures::document();
-    for (row, endpoints, models, expected) in [
-        (
-            "endpoint",
-            false,
-            true,
-            b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
-        ),
-        ("model", true, false, b"engine.charters[0].model: not in the agent's configuration under the same name"),
-    ] {
-        let mut agent = fixtures::startup_agent();
-        if !endpoints {
-            agent.endpoints = smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0));
-        }
-        if !models {
-            agent.bounds.endpoints = Box::new([]);
-        }
-        let result = fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        );
-        if models {
-            assert_eq!(&*lines(&result.err().expect("endpoint is deployment configuration")), expected, "row {row}");
-        } else {
-            let mut service = result.expect("a charter model shortfall warns");
-            assert_eq!(
-                service.notes().pop(),
-                Some(crate::Note::Engine(crate::EngineNote::StartupWarning { line: expected.into() }))
-            );
-            assert_eq!(service.notes().pop(), None, "one selected warning");
-        }
-    }
+fn a_model_missing_from_the_agent_is_named() {
+    let mut agent = fixtures::startup_agent();
+    agent.bounds.endpoints = Box::new([]);
+    let mut service = fixtures::start(
+        &fixtures::document(),
+        &config::Directories::working(),
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .expect("a charter model shortfall warns");
+    assert_eq!(
+        service.notes().pop(),
+        Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
+            line: b"engine.charters[0].model: not in the agent's configuration under the same name".as_slice().into(),
+        }))
+    );
+    assert_eq!(service.notes().pop(), None, "one selected warning");
 }
 #[test]
 fn git_component_limits_against_the_checkout_name_both() {
@@ -204,7 +186,7 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
     );
     let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
     document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
-    document["workers"][0]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
     agent.host_limits.path_bytes = 4096;
@@ -296,8 +278,6 @@ enum Shape {
     ClientRemote,
     ClientRemoteApproval,
     Connectors,
-    Program,
-    Configuration,
 }
 fn apply_shape(
     shape: Shape,
@@ -333,17 +313,11 @@ fn apply_shape(
             engine.clients.link = false;
         }
         Shape::Connectors => engine.connectors = Box::new([1, 2]),
-        Shape::Program => {
-            workers[0].agent.as_mut().expect("checked worker agent").program = b"temper".as_slice().into();
-        }
-        Shape::Configuration => {
-            workers[0].agent.as_mut().expect("checked worker agent").configuration = b"agent.json".as_slice().into();
-        }
     }
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 7] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
         (
@@ -371,16 +345,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Shape::Connectors,
             Path::root().member(b"engine").member(b"connectors"),
             What::Half(crate::startup::EngineWhat::Connectors),
-        ),
-        (
-            Shape::Program,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
-            What::Absolute,
-        ),
-        (
-            Shape::Configuration,
-            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"configuration"),
-            What::Absolute,
         ),
     ]
 }
@@ -635,7 +599,7 @@ fn direct_model_bounds_are_checked_as_well_as_the_program_way() {
         agent.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
         let mut identity = Problems::empty();
         checks::agent(&engine, &agent.declaration(), &mut identity);
-        assert_eq!(identity.is_empty(), window.is_some(), "the direct endpoint must also resolve");
+        assert!(identity.is_empty(), "endpoint names are supplied by construction");
         let core = config::core(&engine, [7; 16], 7);
         let mut problems = Problems::empty();
         let warnings = checks::admission(&core, &engine, &agent.declaration(), &mut problems);
@@ -927,12 +891,12 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         (
             "engine.limits.overrides.hub.outcome_bytes",
             agent.host_limits.outcome_bytes,
-            "the agent's outcome (agent.json profile.declared.tool_payload)",
+            "the agent's outcome (agents setting declared.tool_payload)",
         ),
         (
             "workers[0].limits.overrides.hub.outcome_bytes",
             agent.host_limits.outcome_bytes,
-            "the agent's outcome (agent.json profile.declared.tool_payload)",
+            "the agent's outcome (agents setting declared.tool_payload)",
         ),
         (
             "application.limits.overrides.forge.client.op_bytes",

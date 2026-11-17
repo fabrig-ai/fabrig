@@ -26,8 +26,8 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
     if let Some(programs) = programs {
         agent["programs"] = serde_json::json!({"claude_code":{"path":executable,"directory":programs}});
     }
-    fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
     fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
+    temper_fixtures::agent::install(directory, &agent);
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
 }
 

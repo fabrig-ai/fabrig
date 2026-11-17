@@ -5567,6 +5567,7 @@ dependencies = [
  "temper-agent-shell",
  "temper-box-machine",
  "temper-client-bundle",
+ "temper-client-protocol-wire",
  "temper-client-shell",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
@@ -6603,6 +6604,7 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
+ "serde_json",
  "skein-codec",
  "skein-forge",
  "skein-forge-connection",
@@ -6626,6 +6628,7 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-protocol-store",
@@ -6849,6 +6852,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-engine-service-startup",
  "temper-engine-service-stock",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-protocol-store",
@@ -6926,9 +6930,15 @@ name = "temper-fixtures"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-protocol-config",
+ "serde_json",
  "skein-io",
  "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-test-env",
+ "temper-worker-shell",
 ]
 
 [[package]]
@@ -7019,6 +7029,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "temper-fetch",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -7556,6 +7567,7 @@ dependencies = [
  "temper-engine-domain-world",
  "temper-engine-service",
  "temper-engine-smith",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
  "temper-protocol-brief",
@@ -7695,6 +7707,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake-checkout",
+ "temper-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-worker-checkout-world",
@@ -7860,6 +7873,7 @@ dependencies = [
  "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "serde_json",
  "skein-channel",
  "skein-codec",
  "skein-io",
@@ -7879,6 +7893,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-fixtures",
  "temper-protocol-brief",
  "temper-protocol-worker-wire",
  "temper-service-core",
@@ -7932,6 +7947,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-protocol",
  "temper-engine-service-vocabulary",
+ "temper-fixtures",
  "temper-launcher",
  "temper-playground",
  "temper-service",

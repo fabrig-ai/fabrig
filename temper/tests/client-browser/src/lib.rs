@@ -210,7 +210,7 @@ impl Tier {
     #[must_use]
     pub fn new(name: &str) -> Self {
         let scratch = skein_scratch::Scratch::new(name);
-        configuration::write(scratch.path(), &temper(), &bundle());
+        configuration::write(scratch.path(), &bundle());
         Self { scratch, forged: forgery::request(), command: "serve" }
     }
     /// Give the deployment a usable model without a credential or a reachable LLM peer.
@@ -526,8 +526,7 @@ mod tests {
     }
 
     fn tier_configuration() -> (serde_json::Value, serde_json::Value) {
-        let (agent, value) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (agent, value) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
     fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
@@ -543,8 +542,7 @@ mod tests {
     }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
-        let (_, deployment) =
-            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
         let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
             .expect("browser deployment admits stock settings");
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);

@@ -1556,7 +1556,7 @@ fn compare_paged_recovery(text: &mut Text) -> Result<(), Problem> {
 }
 
 fn answer_configuration(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"To read the whole content, increase the limiting core.call_answer_bytes (including tool name) or agent.json profile.declared.tool_payload (agent.limits.bodies.host_reply_text). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance.\n")
+    text.add(b"To read the whole content, increase the limiting core.call_answer_bytes (including tool name) or agents setting declared.tool_payload (agent.limits.bodies.host_reply_text). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance.\n")
 }
 
 fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {

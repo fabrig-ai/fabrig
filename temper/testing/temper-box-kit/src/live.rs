@@ -21,8 +21,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     value["engine"]["llm"] = owned["engine"]["llm"].clone();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
-    let agent_path = directory.join("agent.json");
-    let mut agent: Value = serde_json::from_slice(super::owned::SHIPPED[0].1).expect("owned agent JSON");
+    let mut agent: Value = temper_fixtures::agent::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
             std::env::split_paths(&path).map(|directory| directory.join("claude")).find(|program| program.is_file())
@@ -35,7 +34,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
         }
     }
     agent["profile"]["policy"]["max_turns"] = 16.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
     value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     let scripts = super::landing_scripts(super::ANSWER, forge);
     let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &scripts[0].turns[0].lines[0] else {
@@ -51,7 +50,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     );
     super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
-    write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent JSON"));
+    temper_fixtures::agent::install(directory, &agent);
     instructions
 }
 
