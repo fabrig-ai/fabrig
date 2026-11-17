@@ -1917,6 +1917,7 @@ pub(crate) fn asking_member(driver: &mut Driver) -> u64 {
         .expect("member signed in");
     let reply = ReplyTo::new(Token::new(2001));
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(2001)),
         identity: people::Identity {

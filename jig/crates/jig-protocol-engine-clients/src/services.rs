@@ -211,6 +211,7 @@ impl Component {
         };
         self.pending.exchanges.insert(exchange, Waiting::Core { held: None }).expect("same get slot");
         out.push(Request::Core(Box::new(core::Event::SignIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(exchange),
             identity,

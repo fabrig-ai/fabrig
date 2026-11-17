@@ -624,6 +624,7 @@ impl Component {
     pub(super) fn link_sign_in(&mut self, exchange: Token, held: Option<u64>, out: &mut Queue<Request>) {
         self.pending.exchanges.insert(exchange, Waiting::Core { held }).expect("admitted link slot");
         out.push(Request::Core(Box::new(core::Event::SignIn {
+            until: None,
             reply_to: ReplyTo::new(exchange),
             identity: self.settings.link.as_ref().expect("link enabled").clone(),
             held,

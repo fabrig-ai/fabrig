@@ -3047,6 +3047,7 @@ impl World {
     pub fn sign_in(&mut self) {
         self.until(Until::Ready);
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(90)),
             identity: people::Identity {

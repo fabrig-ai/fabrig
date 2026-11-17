@@ -635,6 +635,7 @@ fn project_ways() -> settings::Value {
 
 fn project_member(driver: &mut temper_engine_domain_world::direct::Driver) -> u64 {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(60)),
         identity: people::Identity {

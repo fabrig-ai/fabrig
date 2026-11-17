@@ -850,7 +850,7 @@ impl Peer {
         let event = self.core.pop_front().expect("core sign-in");
         // The assertion first checks the variant; destructuring reads its public vocabulary.
         assert!(matches!(event, core::Event::SignIn { .. }));
-        if let core::Event::SignIn { held: None, reply_to, identity } = event {
+        if let core::Event::SignIn { until: None, held: None, reply_to, identity } = event {
             assert_eq!(identity, self.mint_identity.take().unwrap_or_else(fixtures::first_owner));
             reply_to
         } else {

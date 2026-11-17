@@ -121,6 +121,7 @@ impl World {
                     },
                 })),
                 root::Event::Core(core::Event::SignIn {
+                    until: None,
                     held: None,
                     reply_to: ReplyTo::new(Token::new(101)),
                     identity: people::Identity {

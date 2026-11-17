@@ -944,6 +944,8 @@ pub enum PartyInput {
     SignedIn {
         /// Authenticated sign-in offered beside the printed link.
         held: Option<u64>,
+        /// Cap on a new sign-in's expiry, handed to people unchanged.
+        until: Option<Wall>,
         /// Web-issued right to this one sign-in reply, moved through people to a durable terminal.
         reply_to: ReplyTo,
         /// Protocol-authenticated forge/user key and display bytes, bounded by people

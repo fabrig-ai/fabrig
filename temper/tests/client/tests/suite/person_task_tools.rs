@@ -610,6 +610,7 @@ fn sign_in_stranger(ctl: &mut Ctl) -> u64 {
     let driver = &mut ctl.front.engine;
     // A held person without a project role reaches executor permission admission.
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: skein_lib::ReplyTo::new(REPLY),
         identity: jig_domain_people::Identity {

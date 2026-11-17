@@ -30,7 +30,12 @@ impl Component {
         let name = self.name();
         self.pending.mints.insert(name, exchange).expect("admitted mint");
         self.pending.exchanges.insert(name, Waiting::Core { held: None }).expect("admitted exchange");
-        out.push(Request::Core(Box::new(core::Event::SignIn { held: None, reply_to: ReplyTo::new(name), identity })));
+        out.push(Request::Core(Box::new(core::Event::SignIn {
+            until: None,
+            held: None,
+            reply_to: ReplyTo::new(name),
+            identity,
+        })));
     }
     pub(super) fn mint_refused(&mut self, name: Token, why: MintRefusal, out: &mut Queue<Request>) -> bool {
         if let Some(exchange) = self.pending.mints.remove(&name) {

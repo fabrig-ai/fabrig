@@ -434,6 +434,27 @@ fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs()
 }
 
 #[test]
+fn a_sign_in_cap_routes_from_the_party_input_to_the_core() {
+    let (mut domain, env) = resume_fixture::root();
+    let cap = Wall::from_nanos(1200);
+    crate::step(
+        &mut domain,
+        &env,
+        crate::Event::Party(crate::PartyInput::SignedIn {
+            reply_to: skein_lib::ReplyTo::new(Token::new(73)),
+            identity: jig_domain_people::Identity {
+                key: jig_domain_people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+            held: None,
+            until: Some(cap),
+        }),
+    );
+    assert_eq!(domain.core.people.next_wall_expiry(), Some(cap));
+}
+
+#[test]
 fn new_work_waits_at_the_watermark_and_admitted_work_is_always_taken() {
     use crate::{Event, PartyInput, StoreInput};
     use skein_lib::{ReplyTo, Token};

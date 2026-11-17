@@ -13,6 +13,7 @@ pub(super) fn signed_in(core: &mut Core, env: &Env<Limits>) {
         core,
         env,
         Event::People(people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(7200)),
             person: 1,
@@ -67,8 +68,11 @@ fn a_sign_in_at_the_fill_mark_is_refused() {
         login: b"second".as_slice().into(),
         name: b"B Person".as_slice().into(),
     };
-    let mut out =
-        step(&mut core, &env, Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(7201)), identity });
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::SignIn { until: None, held: None, reply_to: ReplyTo::new(Token::new(7201)), identity },
+    );
     let Some(Request::Now(now)) = out.pop() else { panic!("one refusal, first") };
     let Now::SignInRefused { to } = *now else { panic!("the sign-in's refusal") };
     assert_eq!(to.into_token(), Token::new(7201));
@@ -131,12 +135,13 @@ fn a_full_sign_in_pool_holds_its_answer_and_advances_the_deployment_numbers() {
         drop(step(
             &mut core,
             &env,
-            Event::SignIn { held: None, reply_to: ReplyTo::new(token), identity: identity.clone() },
+            Event::SignIn { until: None, held: None, reply_to: ReplyTo::new(token), identity: identity.clone() },
         ));
     }
     let before = core.counters.next_commit();
     assert!(!core.counters.dirty());
-    let mut out = step(&mut core, &env, Event::SignIn { held: None, reply_to: ReplyTo::new(token), identity });
+    let mut out =
+        step(&mut core, &env, Event::SignIn { until: None, held: None, reply_to: ReplyTo::new(token), identity });
     let Some(Request::Held(held)) = out.pop() else { panic!("Full waits for durability") };
     let Held::PeopleReply { to, reply } = *held else { panic!("people reply") };
     assert_eq!(to.into_token(), token);

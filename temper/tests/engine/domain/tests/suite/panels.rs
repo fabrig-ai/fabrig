@@ -404,6 +404,7 @@ fn panel_sign_in(driver: &mut Driver, identity: u64) -> (u64, u64) {
     driver.serial += 1;
     let reply = Token::new(driver.serial);
     driver.send(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(reply),
         identity: jig_domain_people::Identity {

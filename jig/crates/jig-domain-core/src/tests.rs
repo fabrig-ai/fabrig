@@ -3337,6 +3337,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
         &mut core.people,
         &env,
         people::Event::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(500)),
             person: 10,

@@ -31,6 +31,7 @@ fn follow_owner_and_project_owner_can_act_but_an_unrelated_member_cannot() {
     let a = push(&mut world, b"Fix handoff");
     let owner = world.signed_in.take().unwrap();
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(170)),
         identity: people::Identity {

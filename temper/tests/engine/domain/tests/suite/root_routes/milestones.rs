@@ -229,6 +229,7 @@ fn milestone_reads_reject_other_tasks_projects_and_parties_without_a_role() {
     assert_eq!(read(&mut driver, 2, 1), None, "a milestone of another project");
     assert_eq!(read(&mut driver, 1, 999), None, "no milestone record");
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(901)),
         identity: people::Identity {

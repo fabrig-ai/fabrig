@@ -373,6 +373,7 @@ impl Component {
             people::Reply::Signer(Some(signer)) => {
                 self.pending.exchanges.insert(exchange, Waiting::ApprovalCore { digest }).expect("reserved take slot");
                 out.push(Request::Core(Box::new(core::Event::SignIn {
+                    until: None,
                     reply_to: ReplyTo::new(exchange),
                     identity: signer.identity,
                     held: None,

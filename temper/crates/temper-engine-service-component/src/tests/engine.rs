@@ -529,6 +529,7 @@ fn startup_admission_keeps_no_forge() {
     assert!(engine.clients.starting.is_none());
     assert_eq!(engine.domain.forge_connection(1), forge::Connection::NotConnected);
     engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(100)),
         identity: jig_domain_people::Identity {

@@ -37,7 +37,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
             };
             root::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }
         }
-        core::Event::SignIn { reply_to, identity, held } => root::PartyInput::SignedIn { reply_to, identity, held },
+        core::Event::SignIn { until, reply_to, identity, held } => {
+            root::PartyInput::SignedIn { until, reply_to, identity, held }
+        }
         core::Event::People(people::Event::Ask { reply_to, sign_in, key, ask, models }) => {
             root::PartyInput::Ask { reply_to, sign_in, key, ask, models }
         }
@@ -268,6 +270,23 @@ pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
 mod tests {
     use super::*;
     use skein_lib::{ReplyTo, Token};
+
+    #[test]
+    fn a_sign_in_cap_crosses_the_clients_boundary() {
+        let reply_to = ReplyTo::new(Token::new(1));
+        let identity = people::Identity {
+            key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+            login: b"person".as_slice().into(),
+            name: b"Person".as_slice().into(),
+        };
+        let cap = skein_lib::Wall::from_nanos(1200);
+        let input = to_root(core::Event::SignIn { reply_to, identity: identity.clone(), held: None, until: Some(cap) })
+            .expect("client sign-in");
+        let root::PartyInput::SignedIn { reply_to: to, identity: given, held, until } = input else {
+            panic!("sign-in input")
+        };
+        assert_eq!((to, given, held, until), (ReplyTo::new(Token::new(1)), identity, None, Some(cap)));
+    }
 
     #[test]
     fn an_owner_settings_request_crosses_the_clients_boundary() {
