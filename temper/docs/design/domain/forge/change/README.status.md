@@ -9,6 +9,10 @@
   saw merged or closed, and a refused close holds it whatever temper saw
   since (`temper-engine-domain-forge/src/domain.rs`, `release_pull`,
   `release_outcome`) [in flight: change 7116].
+- **Not yet:** 4, *A pull request already closed counts as closed*: the
+  forge's `Close` of a pull request Forgejo shows merged is refused, so
+  its change is held (skein's `forge/forgejo.status.md`) [in flight:
+  change 7115].
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
 - **Not yet:** 2, step 1: an early start merges its dependencies' branch
