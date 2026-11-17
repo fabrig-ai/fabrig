@@ -7,10 +7,6 @@
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
 - **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's
   checkout has no pin of the head their delivery replaces.
-- **Not yet:** 4, *A decision's words*: charter 5's *Asking your
-  requester* (`temper/docs/charters/stock/goal.md`) doesn't yet say a
-  decision's question is one sentence and each option one line.
-  [in flight: change 7247]
 
 - **Not yet:** 3: a verdict's follow-up tasks.
 - **Not yet:** 3: no supplied real-model landing proves the
