@@ -238,8 +238,12 @@ impl Fixture {
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
-                                goal: None,
-                                chat: None,
+                                goal: if task == QUEUED_GOAL {
+                                    Some(origin(GOAL, b"membership-handoff"))
+                                } else {
+                                    None
+                                },
+                                chat: if task == QUEUED_CHAT { Some(origin(CHAT, b"chat")) } else { None },
                                 milestone: None,
                                 task,
                                 title: title.into(),
@@ -256,7 +260,7 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    goal: None,
+                    goal: Some(origin(GOAL, b"membership-handoff")),
                     chat: None,
                     milestone: None,
                     signed: List::with_capacity(8),
@@ -304,26 +308,6 @@ impl Fixture {
                 bytes: wire::changes_panel(&panel),
             },
         });
-        for (read, what) in self.reads() {
-            if let c::Read::Task { task } = what {
-                let mut document = f::task::document();
-                document.chip.task = task;
-                document.goal = if task == QUEUED_GOAL || task == LANDED { Some(GOAL) } else { None };
-                document.lineage_chips = List::with_capacity(1);
-                if task == QUEUED_CHAT {
-                    let mut chip = document.chip.clone();
-                    chip.task = CHAT;
-                    chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                    document.lineage_chips.push(chip).unwrap();
-                } else if document.goal.is_some() {
-                    let mut chip = document.chip.clone();
-                    chip.task = GOAL;
-                    chip.title = text(b"membership-handoff");
-                    document.lineage_chips.push(chip).unwrap();
-                }
-                self.answer(read, c::ReadValue::Task(Box::new(document)));
-            }
-        }
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
@@ -400,11 +384,7 @@ impl Fixture {
                             document.chip = own.chip.clone();
                             document.concluded = whole.then_some(c::Concluded { by: 1, at: NOW });
                         } else {
-                            document.chip.task = task;
-                            document.goal = Some(3);
-                            let mut goal = line(3, b"C4 running").chip;
-                            goal.details.details.executor = c::Executor::Agent { charter: 1 };
-                            document.lineage_chips = list(&[own.chip.clone(), goal]);
+                            panic!("only the milestone reads a task: {task}");
                         }
                         self.answer(read, c::ReadValue::Task(Box::new(document)));
                     }
@@ -469,7 +449,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let branch = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
-            goal: None,
+            goal: Some(origin(GOAL, b"The whole goal")),
             chat: None,
             milestone: None,
             signed: List::with_capacity(8),
@@ -484,7 +464,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let landing = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
-            goal: None,
+            goal: Some(origin(GOAL, b"The whole goal")),
             chat: None,
             milestone: None,
             signed: List::with_capacity(8),
@@ -518,18 +498,6 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
             bytes: wire::changes_panel(&panel),
         },
     });
-    for (read, what) in page.reads() {
-        if let c::Read::Task { task } = what {
-            let mut document = f::task::document();
-            document.chip.task = task;
-            document.goal = Some(GOAL);
-            let mut chip = document.chip.clone();
-            chip.task = GOAL;
-            chip.title = text(b"The whole goal");
-            document.lineage_chips = list(&[chip]);
-            page.answer(read, c::ReadValue::Task(Box::new(document)));
-        }
-    }
     let (tree, bindings) = page.tree(&f::words());
     assert!(has(&tree, "Landed this week · 1"), "counts main landings, not goal-branch changes");
     assert!(has(&tree, "One landed this week."));
@@ -551,7 +519,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     }
     assert_eq!(tasks.as_slice(), &[GOAL]);
 
-    // Chat and unread tasks stay change rows; a goal without its chip uses the change's title.
+    // Rows without a goal stay change rows; a named chat keeps its provenance.
     let mut parts = panel.into_parts();
     let mut branches = List::with_capacity(2);
     for row in parts.landed.into_boxed() {
@@ -569,7 +537,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
                     &w::CEILINGS,
                     w::ChangesLandedParts {
                         goal: None,
-                        chat: None,
+                        chat: if task == 30 { Some(origin(CHAT, b"chat")) } else { None },
                         milestone: None,
                         signed: List::with_capacity(8),
                         task,
@@ -593,24 +561,6 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
             bytes: wire::changes_panel(&panel),
         },
     });
-    for (read, what) in page.reads() {
-        if let c::Read::Task { task } = what {
-            if task == 31 {
-                continue;
-            }
-            let mut document = f::task::document();
-            document.chip.task = task;
-            document.goal = if task == 32 { Some(GOAL) } else { None };
-            document.lineage_chips = List::uncapped();
-            if task == 30 {
-                let mut chip = document.chip.clone();
-                chip.task = CHAT;
-                chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                document.lineage_chips = list(&[chip]);
-            }
-            page.answer(read, c::ReadValue::Task(Box::new(document)));
-        }
-    }
     let (tree, _) = page.tree(&f::words());
     assert!(has(&tree, "Landed this week · 3"));
     assert!(has(&tree, "Chat landing"));
@@ -983,9 +933,9 @@ fn queued_change(task: u64) -> w::ChangesQueued {
     w::ChangesQueued::new(
         &w::CEILINGS,
         w::ChangesQueuedParts {
-            goal: None,
+            goal: Some(origin(3, b"C4 running")),
             chat: None,
-            milestone: None,
+            milestone: Some(origin(M, b"Store shape")),
             task,
             title: b"Move the reader".as_slice().into(),
             ready_since: RECENT,
@@ -1155,9 +1105,9 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
         let landing = w::ChangesLanded::new(
             &w::CEILINGS,
             w::ChangesLandedParts {
-                goal: None,
+                goal: Some(origin(3, b"C4 running")),
                 chat: None,
-                milestone: None,
+                milestone: Some(origin(M, b"Store shape")),
                 task: 21,
                 title: b"The landing".as_slice().into(),
                 at: RECENT,
@@ -1289,4 +1239,8 @@ fn a_placed_goal_uses_the_shared_live_row_while_the_milestones_read_catches_up()
     assert!(has(&tree, "C4 running"));
     assert!(!has(&tree, "Stale ended goal"));
     assert_eq!(styled(&tree, look::WORK_ROW).len(), 1, "a live goal has one place, never an ended line too");
+}
+
+fn origin(task: u64, title: &[u8]) -> w::ChangeFrom {
+    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.into() }).unwrap()
 }

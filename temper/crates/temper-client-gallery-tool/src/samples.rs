@@ -1821,15 +1821,18 @@ fn start_domain(sample: &Sample) -> Domain {
     root
 }
 /// Kept sign-offs in the Team and Work samples, as the whole story draws them.
-pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
+pub(super) fn signoffs(
+    parties: &[(u64, &str)],
+    at: u64,
+) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
     use temper_client_protocol_wire::v1 as w;
     let mut signed = skein_lib::List::with_capacity(8);
-    for party in parties {
+    for (party, name) in parties {
         signed
             .push(
                 w::ChangesSigned::new(
                     &w::CEILINGS,
-                    w::ChangesSignedParts { name: None, party: *party, head: [0xab; 32], at },
+                    w::ChangesSignedParts { name: Some(name.as_bytes().into()), party: *party, head: [0xab; 32], at },
                 )
                 .expect("sample signer"),
             )

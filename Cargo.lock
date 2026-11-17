@@ -6076,6 +6076,8 @@ name = "temper-client-view-setup"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
  "skein-lib",
  "skein-ui",
  "skein-ui-text",

@@ -236,8 +236,8 @@ impl Fixture {
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
-                                goal: None,
-                                chat: None,
+                                goal: if task == QUEUED_GOAL { Some(origin(GOAL)) } else { None },
+                                chat: if task == QUEUED_CHAT { Some(origin(CHAT)) } else { None },
                                 milestone: None,
                                 task,
                                 title: title.into(),
@@ -254,10 +254,25 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    goal: None,
+                    goal: Some(origin(GOAL)),
                     chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
+                    milestone: Some(
+                        w::ChangeFrom::new(
+                            &w::CEILINGS,
+                            w::ChangeFromParts { task: 100, title: b"Store shape".as_slice().into() },
+                        )
+                        .unwrap(),
+                    ),
+                    signed: list(&[w::ChangesSigned::new(
+                        &w::CEILINGS,
+                        w::ChangesSignedParts {
+                            party: 5,
+                            name: Some(b"Sam".as_slice().into()),
+                            head: [0; 32],
+                            at: RECENT,
+                        },
+                    )
+                    .unwrap()]),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
@@ -302,26 +317,6 @@ impl Fixture {
                 bytes: wire::changes_panel(&panel),
             },
         });
-        for (read, what) in self.reads() {
-            if let c::Read::Task { task } = what {
-                let mut document = f::task::document();
-                document.chip.task = task;
-                document.goal = if task == QUEUED_GOAL || task == LANDED { Some(GOAL) } else { None };
-                document.lineage_chips = List::with_capacity(1);
-                if task == QUEUED_CHAT {
-                    let mut chip = document.chip.clone();
-                    chip.task = CHAT;
-                    chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                    document.lineage_chips.push(chip).unwrap();
-                } else if document.goal.is_some() {
-                    let mut chip = document.chip.clone();
-                    chip.task = GOAL;
-                    chip.title = text(b"membership-handoff");
-                    document.lineage_chips.push(chip).unwrap();
-                }
-                self.answer(read, c::ReadValue::Task(Box::new(document)));
-            }
-        }
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
@@ -409,6 +404,8 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
             "Read barriers",
             "Open the draft",
             "Landed this week · 1",
+            "signed by Sam",
+            "in Store shape",
         ] {
             assert!(has(&tree, value), "missing {value}");
         }
@@ -445,4 +442,9 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
         assert!(has(&tree, "Open the draft"));
         assert!(!has(&tree, "In flight · 3"));
     }
+}
+
+fn origin(task: u64) -> w::ChangeFrom {
+    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"membership-handoff".as_slice().into() })
+        .unwrap()
 }

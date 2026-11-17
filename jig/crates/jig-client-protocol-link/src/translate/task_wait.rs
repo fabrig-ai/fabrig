@@ -2,7 +2,8 @@
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 
-pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
+#[must_use]
+pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
     Some(match value? {
         w::TaskRunWait::Credential => c::TaskRunWait::Credential,
         w::TaskRunWait::Host => c::TaskRunWait::Host,

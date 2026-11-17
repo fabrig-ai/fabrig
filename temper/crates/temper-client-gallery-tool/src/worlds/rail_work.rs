@@ -112,7 +112,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         ended: c::EndedGroup::Rows { rows: rows(work, &query, true), after: None, cut: false },
                     }))),
                     c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(notes(work, &scope)))),
-                    c::Read::Task { task } => Some(c::ReadValue::Task(Box::new(change_task(work, task)))),
+                    c::Read::Task { task } => Some(c::ReadValue::Task(Box::new(base_task(task, "Change")))),
                     _ => super::read_value(super::World::Bare, &what, Then::Shown, None),
                 };
                 if let Some(value) = value {
@@ -433,8 +433,8 @@ fn changes(work: Work) -> w::ChangesPanel {
                     w::ChangesQueued::new(
                         &w::CEILINGS,
                         w::ChangesQueuedParts {
-                            goal: None,
-                            chat: None,
+                            goal: change_origin(work, *task).0,
+                            chat: change_origin(work, *task).1,
                             milestone: None,
                             task: *task,
                             title: title.as_bytes().into(),
@@ -469,11 +469,11 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    goal: None,
-                    chat: None,
+                    goal: change_origin(work, *task).0,
+                    chat: change_origin(work, *task).1,
                     milestone: None,
                     signed: crate::samples::signoffs(
-                        if matches!(work, Work::Whole) { &[73] } else { &[] },
+                        if matches!(work, Work::Whole) { &[(73, "Owner")] } else { &[] },
                         at(-2482).as_nanos(),
                     ),
                     commit: [0xab; 32],
@@ -513,8 +513,7 @@ fn changes(work: Work) -> w::ChangesPanel {
     )
     .expect("changes panel")
 }
-fn change_task(work: Work, number: u64) -> c::Task {
-    let mut task = base_task(number, "Change");
+fn change_origin(work: Work, number: u64) -> (Option<w::ChangeFrom>, Option<w::ChangeFrom>) {
     let origin = match work {
         Work::Whole => match number {
             100 | 103 | 104 => Some((true, 80, "membership-handoff")),
@@ -524,14 +523,14 @@ fn change_task(work: Work, number: u64) -> c::Task {
         Work::Pair => Some((false, number - 90, PAIR_CHATS[usize::try_from(number - 100).expect("few changes")].1)),
         Work::Empty => None,
     };
-    if let Some((goal, number, title)) = origin {
-        task.goal = goal.then_some(number);
-        let mut chip = base_task(number, title).chip;
-        chip.executor = c::ChipExecutor::Agent { charter: 1 };
-        task.lineage_chips = List::with_capacity(1);
-        task.lineage_chips.push(chip).expect("change origin");
+    match origin {
+        Some((goal, task, title)) => {
+            let from = w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.as_bytes().into() })
+                .expect("change origin");
+            if goal { (Some(from), None) } else { (None, Some(from)) }
+        }
+        None => (None, None),
     }
-    task
 }
 fn project_document(number: u32) -> c::Project {
     let mut members = List::with_capacity(2);

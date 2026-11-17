@@ -356,7 +356,7 @@ fn row_start(
     when: &[u8],
 ) {
     let from = match root.pages().changes() {
-        Some(page) => page.from(root.client(), task),
+        Some(page) => page.from(task),
         None => None,
     };
     let from = match from {

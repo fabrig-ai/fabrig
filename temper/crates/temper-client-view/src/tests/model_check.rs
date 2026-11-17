@@ -345,3 +345,38 @@ pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
     );
     (b.finish(), bindings)
 }
+
+#[test]
+fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
+    let (mut root, watch, _) = fed(d::WayKind::Program);
+    let mut parts = row(v::TrialStep::Answers, v::TrialState::Running).into_parts();
+    let wait = jig_client_protocol_wire::TaskRunWait::Credential;
+    let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
+    wait.encode(&mut writer).unwrap();
+    parts.run_wait = Some(writer.finish());
+    let out = rows(&mut root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { subject: jig_client::Watchable::Jig(c::Subject::Task { .. }), .. },
+                },
+        } = request
+        {
+            panic!("a trial follows its row, not a task watch");
+        }
+    }
+    for state in [v::TrialState::Running, failed(v::TrialWhy::Waited)] {
+        if state != v::TrialState::Running {
+            rows(&mut root, watch, &[row(v::TrialStep::Answers, state)]);
+        }
+        for words in [f::words(), f::browser_words()] {
+            let trial = model_check::trial(&root, &words).unwrap();
+            let State::Stopped { at, why, .. } = trial.state else { panic!("the row's wait stops the trial line") };
+            assert_eq!(at, 2);
+            assert_eq!(why.as_ref(), b"This work needs a credential from its forge.");
+            let tree = from_root(&root, &words).0;
+            position(&tree, Role::Paragraph, &why);
+        }
+    }
+}

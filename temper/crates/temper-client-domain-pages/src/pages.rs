@@ -902,7 +902,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             if let Some(changes) = pages.changes.take() {
                 changes.leave(out);
-                pages.next = pages.next.max(changes.next());
             }
             if let Some(home) = pages.home.take() {
                 home.leave(out);
@@ -1362,9 +1361,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(inbox) = &pages.inbox {
         pages.next = pages.next.max(inbox.next);
     }
-    if let Some(changes) = &pages.changes {
-        pages.next = pages.next.max(changes.next());
-    }
     if let Some(chats) = &pages.chats {
         pages.next = pages.next.max(chats.goals.number.checked_add(1).expect("chat handles fit"));
     }
@@ -1385,9 +1381,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     }
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
-    }
-    if let Some(changes) = &mut pages.changes {
-        changes.reserve(pages.next);
     }
     let showing = pages.watching
         && pages.project.is_some()
@@ -1494,9 +1487,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         inbox.next = inbox.next.max(pages.next);
         inbox.configure(client, &env.limits, out);
         pages.next = pages.next.max(inbox.next);
-    }
-    if let Some(changes) = &mut pages.changes {
-        changes.reserve(pages.next);
     }
     if let Some(task) = &mut pages.task {
         task.next = task.next.max(pages.next);
@@ -2069,7 +2059,6 @@ fn went(
         }
         if let Some(changes) = pages.changes.take() {
             changes.leave(out);
-            pages.next = pages.next.max(changes.next());
         }
         if let Some(home) = pages.home.take() {
             home.leave(out);

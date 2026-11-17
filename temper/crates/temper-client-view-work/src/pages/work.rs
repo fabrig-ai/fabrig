@@ -611,7 +611,7 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
         }
         let when = times.say(words, TimeForm::Clock, row.at);
         let origin = match root.pages().changes() {
-            Some(page) => page.from(root.client(), row.change),
+            Some(page) => page.from(row.change),
             None => None,
         };
         let (task, title) = match row.item {

@@ -552,29 +552,24 @@ pub fn overrides(root: &dyn Root, project: u32) -> Overrides {
     }
 }
 
-/// Name a landing's signers, reader first, leaving words out until people are read.
+/// Name a landing's signers, reader first, from the names on its row.
 #[must_use]
-pub fn signed(reader: u64, parties: &[u64], people: Option<&c::Project>) -> Option<Box<[u8]>> {
+pub fn signed(reader: u64, signers: &[w::ChangesSigned]) -> Option<Box<[u8]>> {
     use super::signing::{count, join};
-    let people = people?;
     let mut names: List<Box<[u8]>> = List::uncapped();
-    if parties.contains(&reader) {
-        names.push(b"you".as_slice().into()).expect("one name per signer");
+    for signer in signers {
+        if signer.party() == reader {
+            names.push(b"you".as_slice().into()).expect("one name for the reader");
+            break;
+        }
     }
     let mut others = 0_u32;
-    for party in parties {
-        if *party == reader {
+    for signer in signers {
+        if signer.party() == reader {
             continue;
         }
-        let mut name = None;
-        for member in &people.members {
-            if member.party == *party {
-                name = Some(if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() });
-                break;
-            }
-        }
-        match name {
-            Some(name) => names.push(name.into()).expect("one name per signer"),
+        match signer.name() {
+            Some(name) => names.push(name.clone()).expect("one name per signer"),
             None => others = others.saturating_add(1),
         }
     }
@@ -598,14 +593,6 @@ pub fn signed(reader: u64, parties: &[u64], people: Option<&c::Project>) -> Opti
         words = join(&[&words, separator, name]);
     }
     Some(words)
-}
-
-fn row_signed(reader: u64, row: &w::ChangesLanded, people: Option<&c::Project>) -> Option<Box<[u8]>> {
-    let mut parties = List::with_capacity(row.signed().len());
-    for signer in row.signed() {
-        parties.push(signer.party()).expect("one party per sign-off");
-    }
-    signed(reader, parties.as_slice(), people)
 }
 
 /// Gather the four lists only once each has answered (client/pages/README.md, Work).
@@ -633,7 +620,6 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
         State::Ended => None,
     };
     let mut facts = Facts::default();
-    let people = root.pages().team.document(project);
     let reader = root.pages().me(root.client())?.party.number;
     match drafts.state() {
         super::drafts::State::Loading => return None,
@@ -707,7 +693,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
                     task: row.task(),
                     at: Where::Landed { at: Wall::from_nanos(row.at()), default_branch: row.default_branch() },
                     belongs: belongs(root, row.task()),
-                    signed: row_signed(reader, row, people),
+                    signed: signed(reader, row.signed().as_slice()),
                 })
                 .expect("one fact per change row");
         }
@@ -719,8 +705,8 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
                     commit: *row.commit(),
                     at: Wall::from_nanos(row.at()),
                     belongs: belongs(root, row.task()),
-                    signed: row_signed(reader, row, people),
-                    milestone: landed_milestone(root, row.task()),
+                    signed: signed(reader, row.signed().as_slice()),
+                    milestone: landed_milestone(root, row),
                 })
                 .expect("one fact per default-branch landing");
         }
@@ -764,12 +750,11 @@ fn gather_goal(facts: &mut Facts, milestones: &super::milestones::Milestones, ro
         .expect("one fact per goal");
 }
 
-fn landed_milestone(root: &dyn Root, task: u64) -> Option<LandedMilestone> {
-    let document = root.pages().changes()?.document(task)?;
-    document.goal?;
-    let lineage = temper_client_domain_forge::milestones::lineage(document)?;
+fn landed_milestone(root: &dyn Root, row: &w::ChangesLanded) -> Option<LandedMilestone> {
+    row.goal().as_ref()?;
+    let from = row.milestone().as_ref()?;
     let mut completed = None;
-    if let Some(milestone) = root.pages().milestones()?.milestone(lineage.milestone.task)
+    if let Some(milestone) = root.pages().milestones()?.milestone(from.task())
         && let Some(totals) = &milestone.totals
         && let Some(ended) = totals.ended()
         && let Some(landing) = totals.last_landing()
@@ -777,12 +762,12 @@ fn landed_milestone(root: &dyn Root, task: u64) -> Option<LandedMilestone> {
     {
         let complete = super::milestones::state(line, milestone.goals.as_slice(), Some(totals), false)
             == super::milestones::State::Complete
-            && landing.change() == task;
+            && landing.change() == row.task();
         if complete {
             completed = Some(Wall::from_nanos(*ended));
         }
     }
-    Some(LandedMilestone { name: lineage.milestone.title.bytes().into(), completed })
+    Some(LandedMilestone { name: from.title().into(), completed })
 }
 
 #[expect(clippy::manual_find, reason = "step code uses no closures")]
@@ -817,7 +802,7 @@ fn belongs(root: &dyn Root, task: u64) -> Belongs {
     if let Some(goal) = page.goal(task) {
         return Belongs::Goal(goal);
     }
-    match page.from(root.client(), task) {
+    match page.from(task) {
         Some(From::Chat(task)) => Belongs::Chat(task),
         Some(From::Goal(_)) | None => Belongs::Nothing,
     }

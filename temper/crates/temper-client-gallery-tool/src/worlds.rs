@@ -4990,7 +4990,6 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
 pub(super) fn changes_world(name: &str) -> Domain {
     use jig_client::{Down, Readable, Up, Watchable};
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let limits = limits();
     let (mut root, mut out) = started(Address::Changes { project: PROJECT });
     let panel = changes_panel(name);
     for _ in 0..256 {
@@ -5053,26 +5052,6 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     }
                 }
             }
-            Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
-                let mut document = base_task(task, "Change");
-                document.project = PROJECT;
-                document.lineage_chips = List::with_capacity(1);
-                let (goal, title) = match task {
-                    100 | 103 | 104 | 105 => (Some(80), "first-run-projects"),
-                    101 => (Some(81), "forge-cards"),
-                    106 => (Some(82), "pane-chat-line"),
-                    102 => (None, "chat T6"),
-                    107 => (None, "chat T2"),
-                    _ => unreachable!("listed sample task"),
-                };
-                document.goal = goal;
-                let mut chip = document.chip.clone();
-                chip.task = goal.unwrap_or(if task == 107 { 2 } else { 6 });
-                chip.title = doc(title);
-                chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                document.lineage_chips.push(chip).expect("one lineage chip");
-                answer(&mut root, read, c::ReadValue::Task(Box::new(document)), &mut out);
-            }
             Down::Read { .. }
             | Down::Open { .. }
             | Down::Continue { .. }
@@ -5083,7 +5062,6 @@ pub(super) fn changes_world(name: &str) -> Domain {
         }
     }
     assert!(out.is_empty(), "changes sample settled");
-    assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
 pub(super) fn project_ways(
@@ -5133,6 +5111,23 @@ pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Re
     );
 }
 
+fn changes_origin(
+    task: u64,
+) -> (Option<temper_client_protocol_wire::v1::ChangeFrom>, Option<temper_client_protocol_wire::v1::ChangeFrom>) {
+    use temper_client_protocol_wire::v1 as v;
+    let (goal, task, title) = match task {
+        100 | 103 | 104 | 105 => (true, 80, "first-run-projects"),
+        101 => (true, 81, "forge-cards"),
+        106 => (true, 82, "pane-chat-line"),
+        102 => (false, 6, "chat"),
+        107 => (false, 2, "chat"),
+        _ => unreachable!("listed sample task"),
+    };
+    let from = v::ChangeFrom::new(&v::CEILINGS, v::ChangeFromParts { task, title: title.as_bytes().into() })
+        .expect("sample origin");
+    if goal { (Some(from), None) } else { (None, Some(from)) }
+}
+
 #[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
@@ -5150,8 +5145,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesQueued::new(
                         &v::CEILINGS,
                         v::ChangesQueuedParts {
-                            goal: None,
-                            chat: None,
+                            goal: changes_origin(task).0,
+                            chat: changes_origin(task).1,
                             milestone: None,
                             task,
                             title: title.as_bytes().into(),
@@ -5193,8 +5188,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
-                            goal: None,
-                            chat: None,
+                            goal: changes_origin(task).0,
+                            chat: changes_origin(task).1,
                             milestone: None,
                             signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
@@ -5215,7 +5210,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     &v::CEILINGS,
                     v::ChangesLandedParts {
                         goal: None,
-                        chat: None,
+                        chat: changes_origin(107).1,
                         milestone: None,
                         signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],

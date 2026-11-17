@@ -252,8 +252,8 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
     let mut rows = List::with_capacity(5);
     if !alone {
         let at = super::now(crate::samples::World::Solo).as_nanos().saturating_sub(86_400_000_000_000);
-        let both = [reader, SAM];
-        let sam = [SAM];
+        let both = [(reader, "Reader"), (SAM, "Sam")];
+        let sam = [(SAM, "Sam")];
         for task in 1..=5 {
             rows.push(
                 w::ChangesLanded::new(

@@ -124,6 +124,7 @@ fn trial_home(beginning: bool) -> d::Domain {
 fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
     let rows: Box<[d::forge::trials::Row]> = match state {
         Some(state) => Box::new([d::forge::trials::Row {
+            run_wait: None,
             account: 1,
             task: Some(91),
             took: None,
