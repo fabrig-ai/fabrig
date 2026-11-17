@@ -246,6 +246,7 @@ impl App for Temper {
             | Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::AskedLink(_)
                     | jig_client::UnlinkedRequest::Approval(_)
                     | jig_client::UnlinkedRequest::Authorized(_)
                     | jig_client::UnlinkedRequest::Told { .. }

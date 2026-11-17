@@ -3,6 +3,18 @@ use jig_client_protocol_wire::v28 as w;
 use skein_http::Method;
 use skein_lib::stream::{Down, Up};
 mod fixtures;
+
+#[test]
+fn a_printed_link_has_the_client_mappings_asked_link_bytes() {
+    let settings = fixtures::mount().settings;
+    let secret = Secret::new(Box::new([7; 32]));
+    let address = core::net::SocketAddr::from(([127, 0, 0, 1], 8080));
+    assert_eq!(
+        printed_link(address, &link_path(&settings, &secret)).as_ref(),
+        b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+}
+
 #[test]
 fn a_read_post_becomes_the_component_s_read_exchange() {
     let mut mount = fixtures::mount();

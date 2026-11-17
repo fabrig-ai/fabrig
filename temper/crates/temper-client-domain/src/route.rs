@@ -316,6 +316,7 @@ pub(crate) fn route_client(
     while let Some(request) = child.pop() {
         match request {
             jig_client::Request::Told { told: value } => told(root, env, value, out),
+            jig_client::Request::AskedLink(_) => {}
             jig_client::Request::Approval(answer) => approval(root, env, answer, out),
             jig_client::Request::Authorized(answer) => crate::authorize::answered(root, answer, out),
             request @ (jig_client::Request::Save { .. }
@@ -337,6 +338,7 @@ pub(crate) fn route_unlinked(
     while let Some(request) = child.pop() {
         match request {
             jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::AskedLink(_) => {}
             jig_client::UnlinkedRequest::Approval(answer) => approval(root, env, answer, out),
             jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
             request @ (jig_client::UnlinkedRequest::ApprovalAct(_)

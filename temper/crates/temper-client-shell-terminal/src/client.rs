@@ -277,6 +277,7 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -330,6 +331,7 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -399,7 +401,8 @@ impl NativeClient {
                             | jig_client::Message::SignInLink(_)
                             | jig_client::Message::SignInService => Some(false),
                             jig_client::Message::SignOut => Some(true),
-                            jig_client::Message::ApprovalAsk(_)
+                            jig_client::Message::LinkAsk(_)
+                            | jig_client::Message::ApprovalAsk(_)
                             | jig_client::Message::ApprovalRead(_)
                             | jig_client::Message::ApprovalDecide(_)
                             | jig_client::Message::Authorize(_)

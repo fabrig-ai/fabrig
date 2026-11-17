@@ -61,7 +61,8 @@ impl Link {
                     out.push(Request::Approval(kind.busy()));
                     return;
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignInApproval

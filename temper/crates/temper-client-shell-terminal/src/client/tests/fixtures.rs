@@ -39,7 +39,8 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
                 }
                 // M4's Authorize place answers it
                 jig_client::Message::Authorize(_) => {}
-                jig_client::Message::ApprovalAsk(_)
+                jig_client::Message::LinkAsk(_)
+                | jig_client::Message::ApprovalAsk(_)
                 | jig_client::Message::ApprovalRead(_)
                 | jig_client::Message::ApprovalDecide(_)
                 | jig_client::Message::SignInApproval(_)

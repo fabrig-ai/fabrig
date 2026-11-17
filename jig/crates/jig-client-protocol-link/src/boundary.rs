@@ -20,6 +20,7 @@ pub enum Event {
         with: With,
     },
     SignOut,
+    AskLink,
     AskApproval,
     ReadApproval {
         code: ApprovalCode,
@@ -85,6 +86,7 @@ pub enum Request {
     },
     Authorized(Authorized),
     Approval(Approval),
+    AskedLink(AskedLink),
     Save {
         record: Record,
     },
@@ -186,6 +188,7 @@ pub enum Signing {
 #[derive(PartialEq, Eq)]
 pub enum Message {
     Authorize(Box<[u8]>),
+    LinkAsk(Box<[u8]>),
     ApprovalAsk(Box<[u8]>),
     ApprovalRead(Box<[u8]>),
     ApprovalDecide(Box<[u8]>),
@@ -247,6 +250,14 @@ pub enum Taking {
     Unknown,
 }
 
+/// An asked link's transient answer (jig/docs/design/client/domain/client/README.md, 9).
+#[derive(Debug, PartialEq, Eq)]
+pub enum AskedLink {
+    Asked { secret: Secret, expires: u64 },
+    NotAsked(NotAsked),
+    SignedOut,
+}
+
 /// An approval's single answer to its host (jig/docs/design/protocol/client/sign-in.md).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Approval {
@@ -295,6 +306,7 @@ impl core::fmt::Debug for Message {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Authorize(body) => f.debug_struct("Authorize").field("body_len", &body.len()).finish(),
+            Self::LinkAsk(body) => f.debug_struct("LinkAsk").field("body_len", &body.len()).finish(),
             Self::ApprovalAsk(body) => f.debug_struct("ApprovalAsk").field("body_len", &body.len()).finish(),
             Self::ApprovalRead(body) => f.debug_struct("ApprovalRead").field("body_len", &body.len()).finish(),
             Self::ApprovalDecide(body) => f.debug_struct("ApprovalDecide").field("body_len", &body.len()).finish(),
@@ -317,6 +329,7 @@ impl core::fmt::Debug for Event {
         match self {
             Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
             Self::SignOut => f.write_str("SignOut"),
+            Self::AskLink => f.write_str("AskLink"),
             Self::AskApproval => f.write_str("AskApproval"),
             Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
             Self::DecideApproval { code, approve } => {

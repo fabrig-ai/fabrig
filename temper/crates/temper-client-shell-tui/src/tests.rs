@@ -3309,6 +3309,7 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),
         Message::Read(_) => read.measure(),
         Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)
@@ -3325,6 +3326,7 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         Message::Unwatch(_) => w::CloseAnswer::Closed.encode(&mut writer).expect("watch closed"),
         Message::Read(_) => read.encode(&mut writer).expect("read answer"),
         Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)

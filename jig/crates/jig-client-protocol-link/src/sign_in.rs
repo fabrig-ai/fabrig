@@ -119,6 +119,7 @@ impl Link {
             ExchangeKind::SignOut { .. }
             | ExchangeKind::SignIn
             | ExchangeKind::SignInApproval
+            | ExchangeKind::LinkAsk
             | ExchangeKind::Approval(_)
             | ExchangeKind::Authorize
             | ExchangeKind::Attempt { .. }
@@ -166,7 +167,8 @@ impl Link {
                     Ok(_) | Err(_) => Signing::Lost,
                 },
                 ExchangeKind::SignInApproval => self.approval_signing_answer(&mut reader, out),
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::Attempt { .. }
                 | ExchangeKind::Read { .. }
@@ -183,7 +185,8 @@ impl Link {
                 ExchangeKind::SignInApproval => {
                     tokens.push(*token).expect("bounded attempts");
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::Authorize
                 | ExchangeKind::SignIn
                 | ExchangeKind::SignOut { .. }

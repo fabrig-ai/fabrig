@@ -351,6 +351,7 @@ fn a_sign_out_that_did_not_reach_the_engine_tells_the_link() {
             Request::Told { told: Told::Link { link } } => links.push(*link).unwrap(),
             Request::Exchange { .. }
             | Request::OpenStream { .. }
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Authorized(_)
             | Request::ServiceCredential { .. }
@@ -384,6 +385,7 @@ fn the_link_s_service_credential_leaves_once_as_a_host_duty() {
             | Request::Save { .. }
             | Request::Erase { .. }
             | Request::Told { .. }
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::Authorized(_) => {}
         }

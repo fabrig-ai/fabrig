@@ -397,6 +397,7 @@ impl Composition {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));
                 let message = match message {
+                    link::Message::LinkAsk(_) => unreachable!("this world does not ask links"),
                     link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
                     link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
                     link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
@@ -432,6 +433,7 @@ impl Composition {
                 self.heard.get_mut(&client).expect("linked client's store").push(jig_client::Event::Stored);
             }
             jig_client::Request::Told { .. }
+            | jig_client::Request::AskedLink(_)
             | jig_client::Request::Approval(_)
             | jig_client::Request::Authorized(_)
             | jig_client::Request::ServiceCredential { .. } => {}
@@ -445,7 +447,8 @@ impl Composition {
                 link::Event::Lost { exchange } => jig_client::Event::Lost { exchange },
                 link::Event::Streamed { message } => jig_client::Event::Streamed { message },
                 link::Event::StreamGone => jig_client::Event::StreamGone,
-                link::Event::AskApproval
+                link::Event::AskLink
+                | link::Event::AskApproval
                 | link::Event::ReadApproval { .. }
                 | link::Event::DecideApproval { .. }
                 | link::Event::SignIn { .. }
@@ -937,7 +940,9 @@ impl Composition {
                 self.link(client, link::Event::Stored);
                 return;
             }
-            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
+            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } | link::Request::AskedLink(_) => {
+                return;
+            }
             link::Request::Approval(answer) => {
                 if let link::Approval::Asked { secret, code, expires } = &answer {
                     self.asked.insert(client, (secret.clone(), *code, *expires));

@@ -6,7 +6,7 @@ mod fixtures;
 mod stream;
 use fixtures::{credential, mapping};
 const EXCHANGE: u64 = 11;
-const ROUTES: [&[u8]; 13] = [
+const ROUTES: [&[u8]; 14] = [
     b"/jig/v1/request",
     b"/jig/v1/read",
     b"/jig/v1/watch",
@@ -20,6 +20,7 @@ const ROUTES: [&[u8]; 13] = [
     b"/jig/v1/approval/read",
     b"/jig/v1/approval/decide",
     b"/jig/v1/sign-in/approval",
+    b"/jig/v1/link/ask",
 ];
 const STATUSES: [u16; 4] = [201, 401, 500, 503];
 #[test]
@@ -83,6 +84,25 @@ fn a_printed_link_gives_its_host_and_secret() {
     assert_eq!(result.host.as_ref(), b"127.0.0.1:8080");
     assert_eq!(result.secret.expose(), &fixtures::LINK_SECRET);
 }
+#[test]
+fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
+    let secret = skein_lib::Secret::new(Box::new([7; 32]));
+    let url = link_url(&mapping(), b"127.0.0.1:8080", &secret);
+    assert_eq!(
+        url.as_ref(),
+        b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+    for (prefix, host, bytes) in
+        [(b"/jig".as_slice(), b"127.0.0.1:8080".as_slice(), [7; 32]), (b"/other", b"[::1]:8081", [255; 32])]
+    {
+        let secret = skein_lib::Secret::new(Box::new(bytes));
+        let mapping = Mapping::new(prefix).unwrap();
+        let parsed = printed(&mapping, &link_url(&mapping, host, &secret)).unwrap();
+        assert_eq!(parsed.host.as_ref(), host);
+        assert_eq!(parsed.secret, secret);
+    }
+}
+
 #[test]
 fn a_printed_link_under_another_prefix_is_refused() {
     assert_eq!(

@@ -546,6 +546,7 @@ impl Composition {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));
                 let message = match message {
+                    link::Message::LinkAsk(_) => unreachable!("this world does not ask links"),
                     link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
                     link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
                     link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
@@ -651,7 +652,9 @@ impl Composition {
                 self.link(client, link::Event::Stored);
                 return;
             }
-            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
+            link::Request::Fact { .. } | link::Request::ServiceCredential { .. } | link::Request::AskedLink(_) => {
+                return;
+            }
             link::Request::Approval(answer) => {
                 self.approval_answers.entry(client).or_default().push_back(answer);
                 return;

@@ -64,6 +64,7 @@ impl Link {
             | Message::SignInService
             | Message::SignOut
             | Message::Authorize(_)
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
@@ -86,6 +87,7 @@ impl Link {
             | Message::SignInService
             | Message::SignOut
             | Message::Authorize(_)
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
@@ -111,7 +113,8 @@ impl Link {
         for _ in 0..count {
             match out.pop().expect("counted step outputs") {
                 Request::Exchange { exchange, message, credential } => match message {
-                    message @ (Message::ApprovalAsk(_)
+                    message @ (Message::LinkAsk(_)
+                    | Message::ApprovalAsk(_)
                     | Message::ApprovalRead(_)
                     | Message::ApprovalDecide(_)
                     | Message::SignInApproval(_)) => out.push(Request::Exchange { exchange, message, credential }),
@@ -142,6 +145,7 @@ impl Link {
                 | Request::Ended { .. }
                 | Request::Hello { .. }
                 | Request::Read { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::Signing { .. }

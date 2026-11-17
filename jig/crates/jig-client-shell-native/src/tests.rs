@@ -254,6 +254,7 @@ impl skein_shell::Host for Disk {
                 }
                 client::Event::Lost { .. } => self.closing = true,
                 other @ (client::Event::SignIn { .. }
+                | client::Event::AskLink
                 | client::Event::AskApproval
                 | client::Event::ReadApproval { .. }
                 | client::Event::DecideApproval { .. }

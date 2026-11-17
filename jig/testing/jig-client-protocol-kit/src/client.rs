@@ -152,7 +152,8 @@ impl Front {
     }
     fn request(&mut self, now: Time, request: client::Request) {
         match request {
-            client::Request::Approval(_)
+            client::Request::AskedLink(_)
+            | client::Request::Approval(_)
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
             client::Request::Told { told } => {
