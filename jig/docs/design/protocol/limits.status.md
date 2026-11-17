@@ -1,6 +1,8 @@
 # limits: status
 
-2026-11-16. Where the tree's code lags or departs from [limits.md](limits.md).
+2026-11-17. Where the tree's code lags or departs from [limits.md](limits.md).
+
+- **Not yet:** the whole document: `clients.reads_per_client` and `clients.openings_per_client` [in flight: change 6346].
 
 - **Not yet:**  the horizons and host settings remain `configuration.status.md`, 3, 4 and 6. The calendar child remains `configuration.status.md`, 5. the whole document: the people envelope diagnostics' words name `people-v13`, where the people family is v17 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
 - **Departs:** the whole document: standard's map budget is its core's fill

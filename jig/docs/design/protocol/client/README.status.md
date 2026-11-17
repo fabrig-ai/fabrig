@@ -1,6 +1,6 @@
 # client: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-17. Where jig's code lags or departs from [README.md](README.md).
 Unlisted sections have no known gap.
 
 Sections 10 and 11's transport accounting is present: emitted exchanges
@@ -16,5 +16,8 @@ watch ending.
   to use the current terminal's link still holds.
 
 - **Not yet:** 4: a turn read answered gone past its transcript's horizon: no retention drops a transcript (`../store/README.md`, 6.1). 11: the protocol world's stories over an in-process transport: `jig/tests/client-protocol` runs them through native HTTP bytes alone.
+- **Not yet:** 10 and 11: the per-sign-in reads and openings in flight, `reads_per_client` and `openings_per_client`, and a batch one exchange whatever its members; a batch's tests at the component and at the mapping's engine end [in flight: change 6346].
+- **Not yet:** 9 and 11: the native shell handing a batch's body on in pieces; the client end's tests of a batch [in flight: change 6354].
+- **Not yet:** 1, 4, 5, 10 and 11: reads, openings and closings sent many in one batch, the link's transport credit one per exchange, a batch one whatever its members; a batch's tests at the link [in flight: change 6355].
 - **Departs:** 8, *Never taken, nothing made*: the approval-expiry reservation remains `sign-in.status.md` (Departs, the whole document).
 - **Departs:** 4: a tree's `next` is a cursor no read takes: `jig/crates/jig-protocol-engine-clients/src/translate/watches.rs` writes it with `cursor::encode_tree`, in the form `Tree`; `cursor::decode` refuses that form, `cursor::decode_window`, which a family's window reads, takes a bare `DocumentCursor` (`jig/crates/jig-protocol-engine-clients/src/tests/reads.rs`), and a watch opens with no cursor at all, so a client that gives it back is refused. It stays because the request of 2026-11-05 held behaviour still while the cursor became a schema's record, and no debt item holds it.  the mounted-call peer-end departure remains `default-http.status.md`, 4.

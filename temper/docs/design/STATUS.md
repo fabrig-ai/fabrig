@@ -650,7 +650,7 @@ Drafts:
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
-- [`draft/page-round-trips.md`](draft/page-round-trips.status.md)
+- [`draft/page-round-trips.md`](draft/page-round-trips.status.md) — R1, goal 6234: jig's batch, many reads and watches in one exchange, its replies streamed as each is released; the client root settling before its link sends; a stream naming the one it replaces; jig's client wire 28 (jig's `protocol/client/wire.md`, 2; `protocol/client/default-http.md`, 6).
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)

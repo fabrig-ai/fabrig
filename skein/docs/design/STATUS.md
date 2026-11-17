@@ -39,6 +39,8 @@ a field's options keep focus while arrows move, Enter presses and Tab
 completes. The kept store and full-screen reports with Escape-only
 locking are present; real-key checks belong to consuming applications
 after landing (`ui/README.md`, 3.2 and 4.2 and `ui/markdown.md`; `ui/web/elements.md` and `ui/web/README.md`, 5, 8, 9 and 12).
+Fetch reads an exchange's body in pieces when the exchange asks, as it
+reads the stream (`ui/web/README.md`, 8).
 Branches, merges, more shapes and
 sequence diagrams remain later work (`ui/README.md`, section 15); the practice
 and home of draft acceptance cases remain the user's open decision

@@ -1,6 +1,6 @@
 # client: status
 
-2026-11-08. Where jig's code lags or departs from [README.md](README.md).
+2026-11-17. Where jig's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap, including `watches.md`, 2's `watches_full`
 fact for `me` and application watches through retries and recovery.
@@ -34,6 +34,8 @@ independent of readable turns.
 - **Not yet:** 9: no story relays a person's decision with their own credential.
   14, 16: the one-shot mode and its story, and a service in a host or world
   (the client takes `With::Service`).
+- **Not yet:** 4.1, *The settling*: `settle`, and a linked client's `step` and `fire` giving no exchange or stream [in flight: change 6345].
+- **Not yet:** 4 and 13: the transport's `Part` and `Done`, and `OpenStream`'s `replaces` [in flight: change 6354].
 - **Departs:** 13: a turn answer that `translate::turn::inspect` cannot decode
   ends malformed before the link emits `Fact::UndecodableDocument`
   (`jig-client-protocol-link/src/component.rs`, `read_answer`). Other read

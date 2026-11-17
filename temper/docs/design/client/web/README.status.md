@@ -1,6 +1,9 @@
 # browser: status
 
-2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+2026-11-17. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2.1: the root settled once per report before its requests are carried [in flight: change 6345].
+- **Not yet:** 2.1: a batch's answer read a piece at a time, as the stream is [in flight: change 6354].
 
 
 
