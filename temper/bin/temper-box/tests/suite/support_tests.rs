@@ -38,7 +38,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
     );
-    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     let agent = temper_worker_shell::agent::read(&cluster.dir("w1").join("config/agent.json")).expect("agent profile");
     for process in ["engine", "w1"] {
         let root = cluster.dir(process);
