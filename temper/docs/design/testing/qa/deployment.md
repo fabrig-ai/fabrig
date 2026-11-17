@@ -1,6 +1,6 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5,
+Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/landed-qa.md`, sections 2, 5,
 6 and 10, milestones Q6 and Q7 of `../../draft/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
@@ -53,12 +53,17 @@ writes it, with the fakes in place of real backends
 |---|---|---|
 | `engine.json` | the engine's | an engine alone (`../../protocol/cluster.md`, 1), as `temper-engine serve` takes it |
 | `worker.json` | the worker's | a worker alone, one worker, as `temper-worker serve` takes it |
-| `agent.json` | the worker's agent's | smith's agent configuration (`../../protocol/configuration/README.md`, 4) |
 | `forgejo.json` | the fake Forgejo's | `temper-box fake forge --document`'s, with no `github` member (`../fakes.md`, 2) |
 | `model.json` | the fake model's | `temper-box fake llm --document`'s (`../../protocol/setup/playground.md`) |
 
 - **Each one required,** a regular file of at most 256 KiB, and nothing
   else in `config/`.
+- **No `agent.json`:** temper writes the worker's agent's configuration,
+  pinned under the worker's root at each start, from the engine's
+  figures and the machine's programs, and a worker refuses an
+  `agent.json` beside its document
+  (`../../protocol/configuration/figures.md`, 6 and 7). A setup's
+  `config/agent.json` is refused as any other unexpected file is.
 - **No credential:** no document holds a key, a token or a secret
   (`../../draft/landed-qa.md`, 5). The worker's secret and its digest are
   the place's (section 4); the model's key and the forge's admin token
@@ -125,10 +130,10 @@ for a deployment:
 | Path | What |
 |---|---|
 | `config/engine/temper.json` | the engine's document, rendered |
-| `config/worker/temper.json`, `config/worker/agent.json` | the worker's and its agent's, rendered |
+| `config/worker/temper.json` | the worker's, rendered |
 | `config/forgejo.json`, `config/model.json` | the fakes' documents, rendered |
 | `data/engine/` | the engine's data directory: its store, `secrets/worker.digest` |
-| `data/worker/` | the worker's: `secrets/worker.secret`, its workspaces, its programs |
+| `data/worker/` | the worker's: `secrets/worker.secret`, its workspaces, its programs, and its agent's configuration as temper pins it, `workspaces/agent/agent.json` |
 | `data/forgejo/` | the fake Forgejo's kept state, `state`, and the outputs its document names there |
 | `data/model/` | the fake model's outputs its document names there |
 | `data/bin/git` | a link to `{place.bin}/temper-box`, the fake git program (`../fakes.md`, 3) |
@@ -258,7 +263,8 @@ session's, never the deployment's: no copy holds it.
 
 `deployment patch DOCUMENT PATH`, an owner's change to the deployment's
 configuration between two of its starts (`../../draft/landed-qa.md`,
-10): DOCUMENT `engine`, `worker` or `agent`; PATH a file of the files
+10): DOCUMENT `engine` or `worker`, the documents an owner writes
+(section 2); PATH a file of the files
 directory as a `forge commit` line's is, the session's `--files DIR` or,
 on a walk, the recipe's own `files/` (`../../client/drive.md`, 3.5), at
 most 64 KiB.
@@ -271,8 +277,8 @@ most 64 KiB.
    afresh.
 3. **Stopped:** the worker, then the engine, as at the end (section 7),
    each exiting 0.
-4. **Patched:** the patch applied to `config/engine/temper.json`,
-   `config/worker/temper.json` or `config/worker/agent.json`, written to
+4. **Patched:** the patch applied to `config/engine/temper.json` or
+   `config/worker/temper.json`, written to
    a temporary file beside it and renamed over it.
 5. **Started again:** the engine, then the worker, as section 5's steps
    3 and 4. ctl's sign-in and the browser's are the engine store's and
