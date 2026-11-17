@@ -4,7 +4,7 @@ use crate::{Arrived, Below, CheckpointRefusal, Root, Store, generations};
 use alloc::boxed::Box;
 use skein_io::{file, kernel::Error};
 use skein_lib::{Decimal, Writer};
-pub(crate) const CHUNK: u32 = 1_048_576;
+pub const CHUNK: u32 = 1_048_576;
 
 #[derive(Debug)]
 pub(crate) enum Step {

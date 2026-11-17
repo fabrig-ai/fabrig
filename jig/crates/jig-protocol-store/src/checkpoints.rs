@@ -7,6 +7,9 @@ pub(crate) mod sweep;
 pub(crate) mod taking;
 use skein_lib::{Decimal, bytes};
 
+/// The checkpoint copy chunk bound (protocol/store/checkpoints.md, 4.5).
+pub use files::CHUNK;
+
 /// The checkpoint record's file-list ceiling (protocol/store/checkpoints.md, 2.3).
 pub const FILES: u32 = 65_536;
 pub(crate) const DIRECTORY: &[u8] = b"checkpoints";
