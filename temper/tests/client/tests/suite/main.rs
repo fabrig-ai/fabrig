@@ -35,6 +35,7 @@ mod milestone_tools;
 mod names;
 mod only_you;
 mod open_chat;
+mod paging;
 mod playground;
 mod project_delete;
 mod project_fund;

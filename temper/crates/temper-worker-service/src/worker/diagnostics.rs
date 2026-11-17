@@ -43,6 +43,47 @@ impl Worker {
     }
 }
 
+pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Note> {
+    match event {
+        root::Event::Link(link) => match link {
+            hub::LinkDown::Cancel { run, attempt } => {
+                Some(crate::worker_alone::Note::Cancelling { run: run.raw(), attempt: attempt.raw() })
+            }
+            hub::LinkDown::Asked { .. }
+            | hub::LinkDown::ReadList { .. }
+            | hub::LinkDown::Sources { .. }
+            | hub::LinkDown::Check { .. }
+            | hub::LinkDown::SignOut { .. }
+            | hub::LinkDown::AssignJob { .. }
+            | hub::LinkDown::Assign { .. }
+            | hub::LinkDown::Message { .. }
+            | hub::LinkDown::Relayed { .. }
+            | hub::LinkDown::TurnKept { .. }
+            | hub::LinkDown::Acknowledge { .. }
+            | hub::LinkDown::Grant { .. } => None,
+        },
+        root::Event::RedsAsk { .. }
+        | root::Event::RedsAnswer { .. }
+        | root::Event::SourceAnswered { .. }
+        | root::Event::ListRead { .. }
+        | root::Event::Assign { .. }
+        | root::Event::AssignJob { .. }
+        | root::Event::Ready
+        | root::Event::Lost
+        | root::Event::GracePassed
+        | root::Event::Resend { .. }
+        | root::Event::RelayCancelled { .. }
+        | root::Event::Process(_)
+        | root::Event::Job { .. }
+        | root::Event::Live { .. }
+        | root::Event::Decoded { .. }
+        | root::Event::Encoded { .. }
+        | root::Event::Activity { .. }
+        | root::Event::Done { .. }
+        | root::Event::Shutdown { .. } => None,
+    }
+}
+
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
         root::Event::RedsAsk { .. } | root::Event::RedsAnswer { .. } => WorkerEvent::Link(LinkEvent::Asked),

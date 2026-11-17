@@ -4,7 +4,9 @@
 the choices they make, each with its reasons. Sections 1, 4, 5 and 6 are
 the reference's: `reference-code-production.md`, `archive/reference-landing.md`
 and `reference-case.md` cite its choices, N1 to N24, by number. Where the
-design still lags a draft is that draft's status, not these notes.
+design still lags a draft is that draft's status, not these notes. Section
+22's moved beside its draft, as `test-budgets.notes.md`, this file being near
+the size limit (`DESIGN.md`, 4 and 5).
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`,
 `../domain/worker/README.md` and `findings.md` are temper's `../domain/` documents; jig's
@@ -737,13 +739,6 @@ The reasons behind `config.md`, from the user, 2026-11-16.
   - the workers' wire declared breaking rather than bridged, dev's parts redeploying together (6.3);
   - the `toml` crate's parser alone, already in the workspace for smith's `config.toml`, so no crate is added; `toml_parser` alone is lighter but leaves tables, dotted keys and duplicates to temper, and `basic-toml` or `toml-span` would add a second parser (4.1).
 
-## 22. Test budgets
+## 23. Pages in few round trips
 
-The reasons behind `test-budgets.md`, from the user, 2026-11-16.
-
-- **The ask:** the testing strategy "hasn't been quite honored", and "the only reliable way to enforce it is to put hard guardrails on focused and fuzzy tests budgets": CPU budgets, a very generous wall limit as a last resort for busy builders and a stricter one at the gate, a budget for each layer of the pyramid, and figures that start at what's in place today and converge to the ideal.
-- **Their word on the draft's first proposal:** starting at today's figures, raises and cuts alike, "approved"; the gate's wall red after one rerun unless starved, "ok"; over budget red at the gate alone, a warning elsewhere, "ok".
-- **A reference for each test,** theirs: "if you add a new test T in layer L, T CPU budget should be within T's reference budget for a single test, or be justified".
-- **The ideal,** theirs: "given all temper behavior, functionality, and programming model, what would be the 'theoretical' lower bound limit for the tests?", calibrated by "this number of tests times their weight, respectively, by layer". Its estimate and 100 s: "go ahead".
-- **The open items and the hand-off:** "for the open items, I'll go with your recs, just pick what you deem more fit. then send the draft to temper/queue for execution". The picks: the layers' ideals replace temper's worlds' sums, the 8 s being under the estimate's floor; jig's ideal the strategy's 30 s, its floor 26 s; the repository's checks 30 s; the starved reading's quarter as a first figure, the gate reporting each run's stall.
-- **The draft's readings,** not the user's words: the layers as the strategy's tiers, a binary in one; a ledger of main's figures for a partial run; the ratchet's tenth, from the gate's 1% spread; existing tests held to their own figure too, since the growth of 11-12 to 11-15 was existing tests' (`focused-pyramid.md`, 3); a test's CPU measured alone, since a shared process measures none; the guides as references, at today's 90th percentile below the top; moves only down; the wall limits at today's longest run plus a quarter, and three times that elsewhere.
+The reasons behind `page-round-trips.md`, 2026-11-17, whose head holds the user's words. Its readings, not theirs: a budget in waves and requests, held by a test, since a plan measures no latency; batches and parts as jig's mechanisms, so that the engine knows no page; `me` in the hello, two waves for three; sections top down, so nothing read moves; Home later, its cards being other rows.

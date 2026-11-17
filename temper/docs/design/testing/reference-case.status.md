@@ -1,6 +1,6 @@
 # reference-case: status
 
-2026-11-11. Where the tree's code lags or departs from [reference-case.md](reference-case.md).
+2026-11-16. Where the tree's code lags or departs from [reference-case.md](reference-case.md).
 
 - **Departs:** the whole document: the fuzzy story-placement departure remains `checks.status.md`, 1.
 

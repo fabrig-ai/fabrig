@@ -41,7 +41,7 @@ A draft being carried out may have an execution file beside it, `<name>.executio
 - A retired or superseded draft is deleted, not marked. A draft whose vision the design now carries in full is deleted or moved to `draft/archive/`.
 - Documents and sections move with `tools/citations/move.py`, from a map of where each goes: it moves the text and rewrites every citation to match, so sections are renumbered freely through it (`tools/citations/README.md`). Whoever moves one repairs what the tool lists under **By hand**. A section removed outright leaves its number unused, and whoever removes it fixes every citation to it.
 - Citations are checked by code, not by hand: a branch with a broken path, section or status-label citation does not land (`tools/citations/`). Before pushing, run `python3 -I -B tools/citations/citations.py --base origin/main` from the repository root, which lists each broken one by file and line, and spend no review on hunting them.
-- The reasons behind drafts go in `draft/notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
+- The reasons behind drafts go in `draft/notes.md`, or, where they would take it past the size limit, beside their draft as `<draft>.notes.md`, as `test-budgets.notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
 - Each tree's `docs/design/STATUS.md` indexes its status files under a one-paragraph summary.
 
 ## 5. Their shape

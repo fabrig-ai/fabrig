@@ -263,6 +263,18 @@ read through its index (4.1).
   head it pushed read back from the forge where it pushed one. Each
   transition is stored once, so a restart or a reread writes neither
   again.
+- **A prepare's job record** (`LandingRow.job`), made where an attempt
+  is first known, a claim, and so after jig admitted its child, names
+  its child, its attempt, the round and the suffix it prepares, and,
+  once heard, its outcome. It is evidence for the round's prepare
+  (`landing-preparing.md`, 2), never alone: a child that answered
+  (`done`, `conflict`) is read through its answer, one that ended with
+  no answer (`lost`, `cancelled`, `timeout`, `failed`) is absence, and
+  a record of an earlier round or another suffix is none. A retried
+  attempt of the same child replaces the record with its own, its
+  lost attempt's `job-ended` written as ever; a replacement child,
+  asked after proven absence, writes its own `job` at its first claim.
+  A restart or a release that reads the record writes nothing.
 
 - **A cut that keeps a prefix:** a search's cut (`landing-search.md`,
   4) takes its suffix out of the round, and the green prefix goes on

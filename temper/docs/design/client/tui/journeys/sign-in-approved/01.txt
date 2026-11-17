@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:36401                                     │
+│ Sign in this terminal to 127.0.0.1:35013                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ SRXB-DGVS, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:36401/terminal?code=SRXB-DGVS                  │
+│ PXQB-NLBR, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:35013/terminal?code=PXQB-NLBR                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:36401/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:35013/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

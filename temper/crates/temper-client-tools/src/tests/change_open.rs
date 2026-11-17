@@ -242,14 +242,14 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
         b"temper ctl: change open: project shop has no repository a change lands into\n"
     );
 }
-fn core(why: jig_client_protocol_wire::v26::Refusal) -> w::Outcome {
+fn core(why: jig_client_protocol_wire::v27::Refusal) -> w::Outcome {
     let mut bytes = skein_lib::Writer::new(usize::try_from(why.measure()).unwrap());
     why.encode(&mut bytes).unwrap();
     w::Outcome::CoreRefused(w::CoreRefused::new(&w::CEILINGS, w::CoreRefusedParts { refusal: bytes.finish() }).unwrap())
 }
 #[test]
 fn core_refusals_use_jigs_words_on_one_prefixed_line() {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     for why in [
         j::Refusal::Authority(
             j::RefusalAuthority::new(

@@ -4,6 +4,14 @@ use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone a
 const BINARY: &str = "temper-worker";
 
 #[test]
+fn a_cancel_names_the_run_attempt_and_engine() {
+    assert_eq!(
+        worker_note_words(BINARY, worker::Note::Cancelling { run: 7, attempt: 2 }),
+        "temper-worker worker: run 7 attempt 2 cancelled by the engine\n"
+    );
+}
+
+#[test]
 fn opening_refusals_name_the_reason_and_the_engines_text() {
     for (reason, text, expected) in [
         (

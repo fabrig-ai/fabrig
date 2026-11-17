@@ -1,7 +1,7 @@
 # references: status
 
-2026-11-16. Where the code lags or departs from [references.md](references.md).
+2026-11-17. Where the code lags or departs from [references.md](references.md).
 
-- **Not yet:** 3, 4: `run` takes no `ledger` and runs nothing alone: no `reference` or `empty` process, and no `references` in `results.json` [in flight: change 5752].
-- **Not yet:** 2, 6: `budgets()` reads no `reasons`, and `summary` judges no test by its reference: it takes no `base`, its result has no `references`, and `tools/tiers/cpu-summary` takes no `--base` [in flight: change 5753].
-- **Not yet:** 5: `tools/tiers/one-process` has no `--alone` [in flight: change 5754].
+- **Not yet:** 1 and 3: the delivery check runs nothing alone, with main's ledgers or without, so no delivery is refused for a test past its reference [in flight: change 6350].
+
+No other gaps.
