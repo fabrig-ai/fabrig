@@ -109,6 +109,52 @@ fn assert_one_refusal(story: &Story) {
     assert_eq!(story.made(fixtures::FIRST_OWNER), 1);
 }
 #[test]
+fn a_request_past_64_kib_is_stored_sent_and_answered_by_the_engine() {
+    let mut story = Story::live_with_large_requests(fixtures::SEED);
+    story.read(
+        PROJECT_PAGE,
+        Readable::Jig(contract::Read::Setting(contract::ReadSetting {
+            setting: contract::Setting::Charter(contract::SettingNumber { number: 1 }),
+            revision: 1,
+            proposal: None,
+        })),
+    );
+    assert!(story.run_until(|s| !s.pages(PROJECT_PAGE).is_empty(), Duration::from_secs(1)));
+    let pages = story.pages(PROJECT_PAGE);
+    let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Setting(document)))] = pages.as_slice() else {
+        panic!("whole charter: {pages:?}")
+    };
+    let Some(contract::SettingValue::Charter(mut charter)) = document.value.clone() else { panic!("charter") };
+    charter.instructions = contract::Text::new(vec![b'x'; 85_000].into_boxed_slice(), 1_048_576).expect("instructions");
+    let mut items = skein_lib::List::with_capacity(1);
+    items
+        .push(contract::SettingItem {
+            setting: document.setting,
+            edit: contract::SettingEdit::Set(contract::SettingSet { value: contract::SettingValue::Charter(charter) }),
+        })
+        .expect("one item");
+    story.send(
+        STOP,
+        Ask::Jig(Box::new(contract::Ask::ChangeSettings(contract::ChangeSettings {
+            against: document.revision,
+            items,
+            running: contract::Running::Stays,
+        }))),
+    );
+    assert!(
+        story.run_until(|s| !s.answered(STOP).is_empty(), Duration::from_secs(1)),
+        "saved {}, exchanges {}, made {}, pending {:?}",
+        story.largest_saved_record(),
+        story.exchanges(),
+        story.made(fixtures::FIRST_OWNER),
+        story.client.pending(STOP)
+    );
+    assert!(story.largest_saved_record() > 65_536, "the in-memory store held the whole request");
+    assert_one_refusal(&story);
+    assert!(story.told_at(STOP) >= story.durable_at(fixtures::FIRST_OWNER));
+}
+
+#[test]
 fn a_stop_is_answered_once_after_its_commit_is_durable() {
     let mut story = Story::live(fixtures::SEED);
     story.send(STOP, stop(STOP_TASK));
@@ -268,7 +314,7 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, PROOF_WAIT));
     assert_eq!(story.answered(FAMILY_REQUEST), vec![]);
     story.restart_serving(jig_client_kit::test::list([
-        jig_protocol_engine_clients::Served { family: None, first: 26, last: 26 },
+        jig_protocol_engine_clients::Served { family: None, first: 27, last: 27 },
         jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));

@@ -27,6 +27,35 @@ fn a_record_of_another_store_version_is_dropped_and_told() {
     assert_eq!(harness.out.len(), 1);
 }
 #[test]
+fn a_request_past_64_kib_is_saved_before_it_is_sent() {
+    const REQUEST_BYTES: usize = 85_000;
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits { document_bytes: 1_048_576, ask_bytes: 131_328, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    let mut harness = fixtures::Harness::new(&limits);
+    let ask = Ask::Family {
+        scope: jig_client_domain::contract::Scope::Project(1),
+        record: Family { family: 19, version: 23, bytes: skein_lib::bytes::zeroed(REQUEST_BYTES) },
+    };
+    let mut saved = fixtures::saved_table(fixtures::message());
+    saved.record.request.request = ask.clone();
+    harness.save(saved);
+    harness.link.step(
+        Time::ZERO,
+        Event::Send { attempt: fixtures::ATTEMPT, key: fixtures::KEY, ask, value: None },
+        &mut harness.out,
+    );
+    assert_eq!(harness.out.len(), 1, "one Save before sending");
+    let Some(Request::Save { record }) = harness.out.iter().next() else { panic!("one Save") };
+    assert!(record.bytes.len() > 65_536);
+    assert!(record.bytes.len() < 86_000);
+    assert_eq!(harness.exchanges(), 0);
+    harness.written();
+    assert_eq!(harness.exchanges(), 1);
+    assert_eq!(harness.out.len(), 2, "one Save and one exchange");
+}
+
+#[test]
 fn a_step_s_writes_leave_before_its_exchanges() {
     let mut harness = pending_write(fixtures::saved_table(fixtures::message()));
     assert_eq!(harness.exchanges(), 0);
