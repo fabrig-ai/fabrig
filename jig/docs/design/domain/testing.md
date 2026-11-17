@@ -528,9 +528,10 @@ refuse as committed. Their whole sweeps are under
 manifest and admission cases are data rows of their behaviour's table;
 copy mutations and check/switch cuts have one owner each. A sweep over
 file operations holds its settled prefix once, forking at each
-operation as section 4's sweeps do, and a branch after a crash (going
-back, or recovering forward) forks from the crashed image rather than
-building it again; a fixture drawn from the cut's own seed is built per
+operation as section 4's sweeps do; where a crash has two branches
+(going back, or recovering forward), each branch is a child forked from
+the held prefix that takes the crash itself, rather than a prefix built
+again for each; a fixture drawn from the cut's own seed is built per
 cut. These are component-world scenarios, not a separate tier. `jig-test::process` also
 runs in focused: three paths through the shipped binary against fakes,
 including its bundle page under the reference policy. Startup, HTTP and
