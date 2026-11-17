@@ -186,7 +186,11 @@ store keeps its row until the first patch it meets writes the levels.
   is 0), or configures more of a thing than the override bounds (its
   default charters, against `tasks.charters` 9), the test raises that
   override to this build's floor or count in the copy it starts the
-  service with, and the file stays as kept. Nothing
+  service with, and the file stays as kept. Its `limits.profile`
+  `small`, which the stock retires (`../draft/config.md`, 5), is
+  dropped from that copy, which takes small's figures from the test
+  fixtures as the world's other tests do, with the kept overrides over
+  them. Nothing
   else in the configuration is changed: a member the build refuses by
   name stays a red for the change that refused it
   (`../draft/upgrades.md`, 10).

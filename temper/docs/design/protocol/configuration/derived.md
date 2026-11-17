@@ -106,6 +106,7 @@ engine's and each worker's.
 | a worker's `checkout.workspaces` | its `slots` |
 | a worker's `git_component.operations` | its `checkout.workspaces` |
 | `forge_component.body_bytes` | 2 × `forge.client.op_bytes` + 21, skein's marker length |
+| `forge_component.repositories` | `forge.repositories`, the most the start's check takes |
 | `clients_http.calls` | the larger stream bound + 4 |
 | `clients.exchanges` | the larger of the larger stream bound + 4 and `clients_http.calls` |
 
