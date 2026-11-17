@@ -212,8 +212,10 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
             });
             entry += 1;
             world.run_for(0);
+        } else if world.wall() >= deadline {
+            break;
         } else {
-            world.run_for(1);
+            world.run_until_output(until.unwrap_or(deadline).min(deadline));
         }
     }
     assert_eq!(finishes.len(), 1, "QA: domain/forge/change/README.md 2: confirming read must Finish by {deadline:?}");
