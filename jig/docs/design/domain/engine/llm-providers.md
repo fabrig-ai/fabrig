@@ -85,6 +85,12 @@ accounts is `../accounts.md`, 3.4; a provider's list is `settings.md`,
   handshake bounds. At most `ENDPOINTS`, 64, across every provider, the
   workers' figures' bound (temper's `protocol/configuration/figures.md`,
   2).
+- **Its lists' bounds,** each a *shape* refusal past it: an endpoint's
+  headers at most 16, the worker wire's `AgentEndpoint.headers` bound,
+  since a header past it never reaches a worker; a provider's `programs`
+  and a registration's `scopes` and `must_grant` at most 64 each. The
+  stored value's lists take these counts, so a proposal's encoded worst
+  case stays within its `u32` envelope.
 - **No secret.** A registration with a client secret is out of shape, as
   in a document, and so is a header named, in any case,
   `authorization`, `proxy-authorization`, `x-api-key`, `api-key` or
