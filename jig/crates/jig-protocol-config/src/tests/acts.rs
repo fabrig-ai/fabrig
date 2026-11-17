@@ -68,7 +68,7 @@ fn every_configured_connector_can_hold_one_full_grant() {
             {"connector":2,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}],"#,
     );
     let engine = engine(&document).expect("one full grant per configured connector");
-    assert_eq!(engine.limits.core.people.act_grants, engine.limits.core.connectors);
+    assert_eq!(engine.limits.core.people.act_grants, u32::try_from(engine.connectors.len()).unwrap());
     for grant in &engine.acts {
         assert_eq!(&*grant.may, ActKind::ALL);
     }

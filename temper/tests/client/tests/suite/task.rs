@@ -326,7 +326,7 @@ fn open_delegate_and_return_to_goal(goal: u64, first: u64, attempt: u64) -> Vec<
             find: Find::named(Role::Heading { level: 1 }, format!("T{first} · Investigate the change").as_bytes()),
             within: fixtures::WITHIN,
         },
-        Step::See {
+        Step::Gone {
             find: Find::text(b"Investigate the change")
                 .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task brief".as_slice().into() }])),
             within: fixtures::WITHIN,

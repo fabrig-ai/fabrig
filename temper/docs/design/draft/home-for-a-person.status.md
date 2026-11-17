@@ -4,6 +4,8 @@
 
 Section 3 is designed, milestone H1 of `home-for-a-person.execution.md` (`../client/pages/home.md`, 1; `../client/pages/needs-you.md`, 1; `../client/pages/work.md`, 1); the rest is carried out there, with `milestones.md`.
 
+Section 3's title cut past 80 characters holds on every line, row and card that names a task by its title, not on Goals' rows alone, by Work's one function (`../client/pages/README.md`, 2, *A task's title on a line*); a task's own page keeps its whole first line as its heading.
+
 Sections 4 (`../domain/agent/charter.md`, 4, *Words a person reads first*) and 7 (`../domain/agent/agents.md`, 2, *Its person by name*) are designed; `home-for-a-person.execution.md` carries the rest out, with `milestones.md`.
 
 Section 5's groups are designed, milestone F1 of `home-for-a-person.execution.md`: the line form's `Findings:` and `Group:` lines (`../domain/agent/agents.md`, 2), the triager's groups and their questions (`../domain/areas.md`, 6, *Its groups*), and a group's card on Needs you and on Home, counted in the headline and the head (`../client/pages/needs-you.md`, 1, *A group of findings*; `../client/pages/home.md`, 1, **Findings, drawn**).

@@ -92,7 +92,7 @@ pub const CEILINGS: Limits = Limits {
     last_exact_bytes: 4_096,
     last_open_bytes: 4_096,
     pattern_segments: 8,
-    delegation_kinds: 32,
+    delegation_kinds: 64,
     authority_grants: 32,
     authority_note_resources: 32,
     rules_implies: 32,

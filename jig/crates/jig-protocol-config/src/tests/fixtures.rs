@@ -15,7 +15,7 @@ pub fn path(segments: &[&[u8]]) -> Path {
 }
 
 pub const ENGINE_SMALL: &[u8] = br#"{
-"limits": {"profile": "small"},
+"limits": {"profile": "standard"},
 "llm": {
 "providers": [{"name":"Fake","number":1,"models":["small"],"sources":{}}],
 "endpoints": [{
@@ -110,7 +110,7 @@ pub const WORKER_SMALL: &[u8] = br#"{
 "programs":{"check_interval_ms":60000},
 "graces": {"grace_ms": 30000, "drain_ms": 10000, "agent_stop_ms": 10000, "delivery_ms": 20000, "save_ms": 5000},
 "agent": {"program": "jig-test", "arguments": ["agent"], "configuration": "agent.json"},
-"limits": {"profile": "small"}, "memory_bytes": 1073741824
+"limits": {"profile": "standard"}, "memory_bytes": 1073741824
 }"#;
 
 /// `ENGINE_SMALL` ends with its projects array, which this fixture empties whole.

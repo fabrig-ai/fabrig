@@ -970,6 +970,10 @@ pub(super) fn answered(
             &env.limits,
             runner.parts.expect("host vocabulary").diagnostic_prefix(),
         );
+        if sent.called.call.tool == rows::GOAL_START_AT && printed.status == 0 {
+            let text = words(&sent.called.call, 2, &env.limits).expect("sent goal has loaded TEXT");
+            render::goal_title::warn(text.bytes(), sent.called.json, &mut printed.stderr);
+        }
         if sent.called.call.tool == rows::PARTY_MAKE_AT
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
                 c::Outcome::Made { what: c::Made::Service { party } }

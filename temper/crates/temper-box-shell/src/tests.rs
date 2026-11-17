@@ -10,8 +10,7 @@ mod settings_fields;
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
-    use jig_protocol_config::profile::{Profile, profile};
-    let span = profile(Profile::Small).clients.link_span;
+    let span = jig_protocol_config_fixtures::small().clients.link_span;
     let hour = skein_lib::Duration::from_secs(3600);
     let hours = span.as_nanos().div_euclid(hour.as_nanos());
     let words = format!("within {hours} hours");
@@ -417,5 +416,5 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 // temper/docs/design/protocol/setup/owned.md, 6.
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
-    assert_eq!(temper_launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);
+    assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
 }

@@ -1056,7 +1056,11 @@ impl Words {
             crate::Notice::Closed { task, title } => {
                 let line = self.say(Word::ClosedChat, &[Hole::Number(*task)]);
                 match title {
-                    Some(title) => skein_lib::bytes::concat(&[&line, &self.say(Word::Separator, &[]), title]),
+                    Some(title) => skein_lib::bytes::concat(&[
+                        &line,
+                        &self.say(Word::Separator, &[]),
+                        &temper_client_view_parts::shared::row_title(title),
+                    ]),
                     None => line,
                 }
             }

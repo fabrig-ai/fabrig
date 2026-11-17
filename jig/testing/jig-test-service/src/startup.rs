@@ -2,7 +2,7 @@
 use crate::{Agent, Engine, Files, Limits, Seeds, Service, limits, system::System};
 use alloc::boxed::Box;
 use jig_domain_link::valid_program_endpoints;
-use jig_protocol_config::{self as config, Path, Problems, Profile, Segment, What, read};
+use jig_protocol_config::{self as config, Path, Problems, Segment, What, read};
 use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_json::Document;
@@ -156,12 +156,13 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let mut application = object(document, application.expect("required application checked"), &application_path)?;
     let (listener, bundle) =
         server(document, &mut application, link_enabled(document, at), approval_enabled(document, at), &mut problems)?;
-    let engine = match config::engine(
+    let engine = match config::engine_over(
         document,
         at,
         &config::Directories::working(),
         config::Defaults::Document,
         &config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     ) {
         Ok(value) => value,
         Err(found) => {
@@ -175,17 +176,7 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     if engine.clients.provider.is_some() {
         return Err(problem(Path::root().member(b"engine").member(b"clients").member(b"provider"), What::Form));
     }
-    let mut engine_object = object(document, at, &path.member(b"engine"))?;
-    let at = engine_object.member(document, b"limits").expect("engine parser checked limits");
-    let mut profile = object(document, at, &path)?;
-    let at = profile.member(document, b"profile").expect("engine parser checked profile");
-    let profile = text(document, at, 16, &path)?;
-    let profile = match profile.as_ref() {
-        b"small" => Profile::Small,
-        b"standard" => Profile::Standard,
-        _ => return Err(problem(path, What::Form)),
-    };
-    let limits = limits::for_profile(profile, &engine.limits);
+    let limits = limits::small(&engine.limits);
     let path = Path::root().member(b"application");
     let _workers = application.member(document, b"workers");
     let at = application.required(document, b"credential", &path, &mut problems);
@@ -591,11 +582,12 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
     let mut specs = List::with_capacity(workers.len());
     for (index, at) in workers.iter().enumerate() {
         let here = indexed(&path.member(b"workers"), index);
-        let worker = match config::worker(
+        let worker = match config::worker_over(
             document,
             *at,
             &config::Directories::working(),
             &jig_protocol_config::FixedWorker::NONE,
+            &jig_protocol_config_fixtures::small(),
         ) {
             Ok(worker) => worker,
             Err(found) => {

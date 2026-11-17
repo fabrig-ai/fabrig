@@ -725,6 +725,7 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
 fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    bridge_kept_profiles(&mut document);
     temper_playground::documents::settings::strip_fixed(&mut document);
     // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
@@ -789,4 +790,29 @@ fn restart_history(store: &Store) -> Result<(), String> {
         return Err(String::from("signal-stopped coding task due at the same attempt on a plain reopen"));
     }
     Ok(())
+}
+
+/// The permanent floor keeps its bytes; only its working copy spells out
+/// the fixture figures that its retired profile selected (protocol/floor.md, 5).
+pub(crate) fn bridge_kept_profiles(document: &mut serde_json::Value) {
+    let jig = jig_protocol_config_fixtures::small();
+    for path in ["/engine/limits", "/workers/0/limits"] {
+        let limits = document.pointer_mut(path).expect("kept limits");
+        assert_eq!(limits["profile"], "small");
+        limits.as_object_mut().expect("kept object").remove("profile");
+        let overrides = limits["overrides"].as_object_mut().expect("kept object");
+        for name in &jig_protocol_config::names::NAMES {
+            if name.name != "views.watchers" && name.name != "views.watchers_per_party" {
+                overrides.entry(name.name).or_insert_with(|| (name.value)(&jig).into());
+            }
+        }
+    }
+    let own = temper_limits_fixtures::small();
+    let limits = document.pointer_mut("/application/limits").expect("kept application limits");
+    assert_eq!(limits["profile"], "small");
+    limits.as_object_mut().expect("kept object").remove("profile");
+    let overrides = limits["overrides"].as_object_mut().expect("kept object");
+    for name in &temper_service::limits::NAMES {
+        overrides.entry(name.name).or_insert_with(|| (name.value)(&own).into());
+    }
 }

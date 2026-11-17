@@ -13,7 +13,7 @@ use crate::startup::{Problems, checks, lines};
 // The stock catalogue holds twelve charters and seven templates.
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":7,"authority.executors":22,"tasks.executor_kinds":22,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
-const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
+const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {
     let found = match fixtures::start(
@@ -114,7 +114,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
             b"",
             "watched names: {watched}"
         );
-        let mut own = crate::limits::profile(crate::limits::Profile::Small);
+        let mut own = temper_limits_fixtures::small();
         own.forge.resources_per_task = watched;
         assert_eq!(
             crate::translate::limits(&own).expect("channel limits").items_repositories,
@@ -288,8 +288,8 @@ fn unaccountable_policy_bytes_use_the_existing_bound_formatter() {
 
 #[test]
 fn the_small_engine_watermark_counts_commits_and_door_outputs() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let root = crate::limits::engine(&jig, &own).unwrap();
     assert_eq!(root.watermark, own.root.journal.commits + own.root.journal.deliveries);
     assert_eq!(root.watermark, 515);
@@ -297,7 +297,7 @@ fn the_small_engine_watermark_counts_commits_and_door_outputs() {
 
 #[test]
 fn judge_projects_past_the_wires_dismissals_name_both() {
-    let mut limits = crate::limits::profile(crate::limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     for (projects, expected) in [
         (1024, b"".as_slice()),
         (1025, b"application.limits.overrides.forge.judge_projects: must agree with wire::DISMISSED / 8\n".as_slice()),
@@ -310,97 +310,50 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
 }
 
 fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
+    drop(checked_profile(document, agent));
+}
+fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::settings::Engine {
     let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
     let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
     for file in named.files {
         entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
     }
-    let found = crate::startup::check(
+    checked_profile_with_files(document, agent, &crate::settings::Files { entries })
+}
+fn checked_profile_with_files(
+    document: &[u8],
+    agent: &crate::settings::Agent,
+    files: &crate::settings::Files,
+) -> crate::settings::Engine {
+    match crate::startup::checked_start_with(
         document,
         &jig_protocol_config::Directories::working(),
-        &crate::settings::Files { entries },
-        agent,
+        files,
+        Some(agent),
         &fixtures::seeds(),
-        None,
         skein_lib::List::with_capacity(0),
         None,
-    );
-    if let Err(problems) = found {
-        panic!("{}", String::from_utf8_lossy(&lines(&problems)));
+        &crate::stock::Given::Stock,
+        None,
+    ) {
+        Ok(checked) => checked.engine,
+        Err(problems) => panic!("{}", String::from_utf8_lossy(&lines(&problems))),
     }
 }
 
 /// Merge every shipped overlay member as protocol/configuration/reference.md requires.
-fn merge_profile(base: &[u8], overlay: &[u8]) -> Box<[u8]> {
-    use skein_json::writer::{Encoder, Limits};
-    let bounds = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
-    let base = jig_protocol_config::document(base, &bounds).unwrap();
-    let overlay = jig_protocol_config::document(overlay, &bounds).unwrap();
-    let mut tokens = Vec::new();
-    merge_profile_members((&base, 0), (&overlay, 0), &mut tokens);
-    let merged =
-        skein_json::Document::from_tokens(&tokens, &skein_json::document::Limits { tokens: 16_384, text: 1_048_576 })
-            .unwrap();
-    let limits = Limits { depth: 32, length: 1_048_576 };
-    let mut measure = Encoder::measure(&limits);
-    measure.document(&merged);
-    let mut writer = Encoder::write(measure.measured().unwrap(), &limits);
-    writer.document(&merged);
-    writer.finish()
-}
-
-fn merge_profile_members(
-    base: (&skein_json::Document, u32),
-    overlay: (&skein_json::Document, u32),
-    tokens: &mut Vec<skein_json::Token>,
-) {
-    use skein_json::{Kind, Token};
-    if base.0.token(base.1).unwrap().kind != Kind::ObjectStart
-        || overlay.0.token(overlay.1).unwrap().kind != Kind::ObjectStart
-    {
-        copy_profile_value(overlay, tokens);
-        return;
-    }
-    tokens.push(Token::ObjectStart);
-    for (document, start, retained) in [(base.0, base.1, true), (overlay.0, overlay.1, false)] {
-        let mut at = start.checked_add(1).unwrap();
-        while document.token(at).unwrap().kind != Kind::ObjectEnd {
-            let key = document.text(document.token(at).unwrap()).unwrap();
-            let value = at.checked_add(1).unwrap();
-            let previous = base.0.member(base.1, key);
-            if retained || previous.is_none() {
-                tokens.push(Token::Key(key.into()));
-                if let (Some(original), Some(replacement)) = (previous, overlay.0.member(overlay.1, key)) {
-                    merge_profile_members((base.0, original), (overlay.0, replacement), tokens);
+fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
+    match (base, overlay) {
+        (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
+            for (name, value) in overlay {
+                if let Some(previous) = base.get_mut(&name) {
+                    merge_profile_members(previous, value);
                 } else {
-                    copy_profile_value((document, value), tokens);
+                    base.insert(name, value);
                 }
             }
-            at = jig_protocol_config::read::after(document, value).unwrap();
         }
-    }
-    tokens.push(Token::ObjectEnd);
-}
-
-fn copy_profile_value(source: (&skein_json::Document, u32), tokens: &mut Vec<skein_json::Token>) {
-    use skein_json::{Kind, Token};
-    let (document, start) = source;
-    for at in start..jig_protocol_config::read::after(document, start).unwrap() {
-        let record = document.token(at).unwrap();
-        let text = document.text(record).unwrap();
-        tokens.push(match record.kind {
-            Kind::ObjectStart => Token::ObjectStart,
-            Kind::ObjectEnd => Token::ObjectEnd,
-            Kind::ArrayStart => Token::ArrayStart,
-            Kind::ArrayEnd => Token::ArrayEnd,
-            Kind::Key => Token::Key(text.into()),
-            Kind::String => Token::String(text.into()),
-            Kind::Number => Token::Number(text.into()),
-            Kind::True => Token::True,
-            Kind::False => Token::False,
-            Kind::Null => Token::Null,
-            Kind::Long => panic!("profile text is retained"),
-        });
+        (base, overlay) => *base = overlay,
     }
 }
 
@@ -490,18 +443,16 @@ fn reference_agent() -> crate::settings::Agent {
 }
 
 fn reference_document(generated: &[u8]) -> Box<[u8]> {
-    let merged = merge_profile(generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
-    let mut document: serde_json::Value = serde_json::from_slice(&merged).unwrap();
+    let mut document: serde_json::Value = serde_json::from_slice(generated).unwrap();
+    merge_profile_members(
+        &mut document,
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json")).unwrap(),
+    );
     let room = reference_room();
-    let overlay = serde_json::to_vec(&room["worker"]).unwrap();
     for worker in document["workers"].as_array_mut().unwrap() {
-        *worker = serde_json::from_slice(&merge_profile(&serde_json::to_vec(worker).unwrap(), &overlay)).unwrap();
+        merge_profile_members(worker, room["worker"].clone());
     }
-    document["application"] = serde_json::from_slice(&merge_profile(
-        &serde_json::to_vec(&document["application"]).unwrap(),
-        &serde_json::to_vec(&room["application"]).unwrap(),
-    ))
-    .unwrap();
+    merge_profile_members(&mut document["application"], room["application"].clone());
     serde_json::to_vec(&document).unwrap().into_boxed_slice()
 }
 
@@ -552,7 +503,7 @@ fn the_reference_room_starts_and_holds_its_relations() {
         (
             "forge.client.answer_bytes",
             2 * (2 * (payload - 2) + 21)
-                + u64::from(crate::limits::profile(crate::limits::Profile::Standard).forge_component.string_bytes)
+                + u64::from(crate::limits::stock().forge_component.string_bytes)
                 + u64::try_from(skein_forge::measure::FILE_BYTES).unwrap(),
         ),
         ("root.journal.run_bytes", 65_536),
@@ -594,4 +545,155 @@ fn landing_members_fits_the_prepare_prefixes_channel_envelope() {
     let words = root(&limits);
     assert!(!words.is_empty(), "a sixth prefix exceeds the wire envelope");
     assert!(String::from_utf8_lossy(&words).contains("forge.landing_members"));
+}
+
+#[test]
+fn init_documents_start_without_carrier_overrides() {
+    let generated = super::stock::generated();
+    let original: serde_json::Value = serde_json::from_slice(&generated).unwrap();
+    let mut input = original.clone();
+    let jig_names = [
+        "core.resume_bytes",
+        "hub.turn_bytes",
+        "hub.transcript_bytes",
+        "hub.turn_queue_bytes",
+        "io.output",
+        "tasks.message_bytes",
+        "tasks.result_bytes",
+        "tasks.inbox_bytes",
+        "hub.event_bytes",
+        "hub.outcome_bytes",
+        "core.call_answer_bytes",
+    ];
+    for at in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
+        let overrides = input.pointer_mut(at).unwrap().as_object_mut().unwrap();
+        for name in jig_names {
+            overrides.remove(name);
+        }
+    }
+    let own_names = [
+        "root.journal.transcript_bytes",
+        "root.loads.transcript_bytes",
+        "root.loads.bytes",
+        "root.loads.reply_bytes",
+        "root.loads.read_bytes",
+        "checkout.message_bytes",
+        "checkout.workspaces",
+        "git_component.operations",
+        "forge.client.op_bytes",
+        "forge.client.answer_bytes",
+        "forge_component.body_bytes",
+    ];
+    for name in own_names {
+        input["application"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
+    }
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let bytes = serde_json::to_vec(&input).unwrap();
+    let checked = checked_profile_with_files(&bytes, &agent, &super::stock::files());
+    for name in jig_names {
+        if let Some(previous) = original["engine"]["limits"]["overrides"][name].as_u64() {
+            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+            let expected = if name == "io.output" {
+                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
+            } else {
+                previous
+            };
+            assert_eq!((named.value)(&checked.jig.limits), expected, "engine {name}");
+        }
+    }
+    for name in own_names {
+        if let Some(previous) = original["application"]["limits"]["overrides"][name].as_u64() {
+            let named = crate::limits::find(name.as_bytes()).unwrap();
+            assert_eq!((named.value)(&checked.limits), previous, "application {name}");
+        }
+    }
+    let worker_bytes = serde_json::to_vec(&input["workers"][0]).unwrap();
+    let document = jig_protocol_config::document(
+        &worker_bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    let worker = temper_service_core::derived::worker_document(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        temper_service_core::derived::Sources::agent(&agent.declaration()),
+    )
+    .unwrap();
+    for name in jig_names {
+        if let Some(previous) = original["workers"][0]["limits"]["overrides"][name].as_u64() {
+            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+            let expected = if name == "io.output" {
+                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
+            } else {
+                previous
+            };
+            assert_eq!((named.value)(&worker.limits), expected, "worker {name}");
+        }
+    }
+}
+
+#[test]
+fn reference_overrides_stand_over_the_derived_base() {
+    let input = reference_document(&super::stock::generated());
+    let agent = reference_agent();
+    let checked = checked_profile_with_files(&input, &agent, &super::stock::files());
+    let document: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    for (name, expected) in document["engine"]["limits"]["overrides"].as_object().unwrap() {
+        let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
+        assert_eq!((named.value)(&checked.jig.limits), expected.as_u64().unwrap(), "engine {name}");
+    }
+    for (name, expected) in document["application"]["limits"]["overrides"].as_object().unwrap() {
+        let named = crate::limits::find(name.as_bytes()).unwrap();
+        assert_eq!((named.value)(&checked.limits), expected.as_u64().unwrap(), "application {name}");
+    }
+}
+
+#[test]
+fn box_start_refuses_twice_the_stock_turn_without_panicking() {
+    let document = super::stock::generated();
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    agent.limits.bodies.turn_body = temper_service_core::derived::STOCK.turn * 2;
+    let found = crate::startup::checked_start_with(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        &fixtures::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        skein_lib::List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+        None,
+    )
+    .err()
+    .unwrap();
+    assert_eq!(lines(&found).as_ref(), b"engine.limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\nworkers[0].limits.overrides.io.output: cannot derive from the agent's largest turn (T) within the worker wire's ceilings\n");
+}
+
+#[test]
+fn forge_body_follows_the_effective_operation_unless_overridden() {
+    let jig = fixtures::guard_engine().jig;
+    for (overrides, expected) in [
+        (r#"{"forge.client.op_bytes":1000}"#, 2021),
+        (r#"{"forge.client.op_bytes":1000,"forge_component.body_bytes":3000}"#, 3000),
+    ] {
+        let input = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides.as_bytes());
+        let input = core::str::from_utf8(&input).unwrap().replace(",\"forge_component.body_bytes\":16384", "");
+        let document = jig_protocol_config::document(
+            input.as_bytes(),
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+        )
+        .unwrap();
+        let mut problems = Problems::empty();
+        let own = crate::startup::application::parse(
+            &document,
+            document.member(0, b"application").unwrap(),
+            &jig,
+            &jig_protocol_config::Directories::working(),
+            &mut problems,
+        )
+        .unwrap();
+        assert!(problems.is_empty());
+        assert_eq!(own.limits.forge_component.body_bytes, expected);
+    }
 }

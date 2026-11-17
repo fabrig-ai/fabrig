@@ -115,6 +115,45 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Priority 2").is_none());
 }
 
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary view tests assemble text and inspect semantic nodes"
+)]
+fn proposed_titles_cut_but_unpublished_words_stay_whole() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    for (written, heading, body) in [
+        ("Short title\nBody.".to_owned(), "Short title".to_owned(), "Body.".to_owned()),
+        (long.clone(), cut.clone(), long.clone()),
+        (format!("{long}\nBody."), cut, format!("{long}\nBody.")),
+        ("Short title".to_owned(), "Short title".to_owned(), String::new()),
+    ] {
+        let mut page = batch_proposal();
+        let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { panic!("batch") };
+        tasks.get_mut(0).unwrap().spec.specification.words = fixtures::needs::words(&written);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            crate::cards::proposal(&mut builder, &page, &words, 4);
+            let tree = builder.finish();
+            let at = tree.nodes().iter().position(|n| n.role == (Role::Heading { level: 2 })).unwrap();
+            assert_eq!(tree.nodes()[at].name.as_deref(), Some(heading.as_bytes()));
+            assert_eq!(fixtures::node_text(&tree, at).as_ref(), heading.as_bytes());
+            let facts =
+                tree.nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::PROPOSAL_FACTS)).unwrap();
+            let start = at + usize::try_from(tree.nodes()[at].size).unwrap();
+            let drawn: Vec<_> = tree.nodes()[start..facts]
+                .iter()
+                .flat_map(|n| n.text.iter().flat_map(|run| run.text.iter().copied()))
+                .collect();
+            assert_eq!(drawn, body.as_bytes(), "{written}");
+        }
+    }
+}
+
 pub(crate) fn document_proposal() -> c::ReadValue {
     let key = fixtures::chat::PROPOSAL;
     c::ReadValue::Proposal(Box::new({

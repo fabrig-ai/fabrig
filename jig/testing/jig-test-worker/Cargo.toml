@@ -14,6 +14,7 @@ jig-domain-link.workspace = true
 smith-host-domain.workspace = true
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 jig-protocol-config.workspace = true
 smith-protocol-channel.workspace = true
 smith-domain.workspace = true

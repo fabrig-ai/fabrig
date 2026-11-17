@@ -39,6 +39,18 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
+    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
+    value["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .entry("tasks.result_bytes")
+        .or_insert(512.into());
     for worker in value["workers"].as_array_mut().expect("workers") {
         let worker = worker.as_object_mut().expect("worker");
         worker.remove("graces");
@@ -75,6 +87,12 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
+    for name in ["clients.streams", "clients_http.streams"] {
+        value["engine"]["limits"]["overrides"][name] = 2.into();
+    }
+    for name in ["clients.streams", "clients_http.streams"] {
+        value["engine"]["limits"]["overrides"][name] = 2.into();
+    }
     for name in ["clients.exchanges", "clients_http.calls"] {
         value["engine"]["limits"]["overrides"][name] = NATIVE_HTTP_CALLS.into();
     }
@@ -87,7 +105,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     (serde_json::to_vec(&agent).expect("agent JSON"), serde_json::to_vec(&value).expect("deployment JSON"))

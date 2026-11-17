@@ -190,6 +190,46 @@ fn the_turn_landing_settings_select_turn_two_and_its_blocking_gate() {
 }
 
 #[test]
+fn the_turn_landing_engine_documents_pass_startup_root_checks() {
+    use skein_lib::{List, Secret};
+    use temper_service::settings::{Files, Seeds};
+
+    // The landing's settings reach the engine through ctl (files/landing.json), never by patching its document.
+    let bytes = rendered("engine.json");
+    let directories = jig_protocol_config::Directories::working();
+    let seeds = Seeds {
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+        link_secret: None,
+        local_secret: None,
+    };
+    // Engine-alone startup ignores the local agent argument: its agent runs on the worker.
+    let agent = temper_playground::documents::agent();
+    let engine = engine(&bytes);
+    let mut entries = List::with_capacity(u32::try_from(engine.hosts.workers.len()).expect("worker count"));
+    for worker in &engine.hosts.workers {
+        entries.push((worker.digest.clone(), Secret::new(Box::new([b'0'; 64])))).expect("one digest per worker");
+    }
+    let problems = match startup::check(
+        &bytes,
+        &directories,
+        &Files { entries },
+        &agent,
+        &seeds,
+        None,
+        List::with_capacity(0),
+        None,
+    ) {
+        Ok(()) => startup::Problems::empty(),
+        Err(problems) => problems,
+    };
+    let lines = startup::lines(&problems);
+    assert!(lines.is_empty(), "{}", String::from_utf8_lossy(&lines));
+}
+
+#[test]
 fn the_turn_landing_scripts_are_the_real_loops_bytes_in_scripts_form() {
     let scripts = std::fs::read(root().join("scripts.json")).expect("setup scripts");
     let fixture = std::fs::read(

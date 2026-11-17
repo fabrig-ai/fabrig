@@ -494,8 +494,8 @@ pub static MEMBERS: [Member; 276] = [
         name: "profile",
         kind: "text",
         bound: "small or standard",
-        required: true,
-        line: "Selects the profile whose values the overrides amend.",
+        required: false,
+        line: "Reads the base when absent or standard, or selects small's limits.",
         gone: None,
     },
     Member {

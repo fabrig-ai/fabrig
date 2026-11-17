@@ -297,6 +297,7 @@ pub fn golden(directory: &Path) {
     document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
     document["workers"][0]["name"] = "local".into();
     document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
+    crate::golden::bridge_kept_profiles(&mut document);
     let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
     *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
     let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {

@@ -1,11 +1,11 @@
 //! GitHub CI polling with the shipped paces, without delivery hints.
 use super::*;
 use skein_lib::Duration;
-use temper_engine_service_vocabulary::limits::{Profile, profile};
+use temper_limits_fixtures::small;
 
 /// Open a change whose first CI verdict arrives ninety seconds after production.
 pub(super) fn pending_github_change(passes: u32) -> (Protocol, Wall, Wall, u64) {
-    let shipped = profile(Profile::Small).forge;
+    let shipped = small().forge;
     assert_eq!(shipped.change_policy.stall, Duration::from_secs(30 * 60));
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.client = shipped.client;
@@ -114,9 +114,7 @@ fn advance(world: &mut Protocol, schedule: &mut Schedule) {
 fn a_github_ninety_second_ci_failure_wakes_a_repair_at_the_same_head() {
     let (mut world, _, verdict, head) = pending_github_change(0);
     let deadline = Wall::from_nanos(
-        verdict.as_nanos()
-            + profile(Profile::Small).forge.client.poll_max.as_nanos()
-            + Duration::from_secs(1).as_nanos(),
+        verdict.as_nanos() + small().forge.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos(),
     );
     let mut schedule = Schedule { due: true, until: None, repaired: false, entry: 4 };
     let (mut named, mut before) = (false, None);

@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-protocol-config-fixtures.workspace = true
 jig-protocol-accounts-kit.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true

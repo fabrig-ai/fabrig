@@ -369,10 +369,10 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
                 None => Box::default(),
             };
             let age = times.say(w, TimeForm::Span, line.ended_at.unwrap_or(line.last_activity));
-            let title = line.chip.title.bytes();
+            let title = crate::common::chat::row_title(line.chip.title.bytes());
             let name = w.say(
                 Word::HomeChatName,
-                &[Hole::Name(title.into()), Hole::Name(status.clone()), Hole::Name(age.clone())],
+                &[Hole::Name(title.clone()), Hole::Name(status.clone()), Hole::Name(age.clone())],
             );
             crate::bindings::link(
                 b,
@@ -380,7 +380,7 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
                 bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }),
             );
             let when = crate::accounts::words::join(&[&status, &w.say(Word::ToolSeparator, &[]), &age]);
-            row_words(b, w, title, &when);
+            row_words(b, w, &title, &when);
             b.close();
             b.close();
         }

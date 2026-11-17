@@ -1,14 +1,8 @@
-//! Named consistent limits, in each owner's types (protocol/limits.md).
-mod small;
+//! Consistent stock limits, in each owner's types (protocol/limits.md).
 mod standard;
 use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use skein_lib::Duration;
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Profile {
-    Small,
-    Standard,
-}
 /// The channel components' own numbers (protocol/channel/README.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Link {
@@ -54,12 +48,10 @@ pub struct Limits {
     pub clients: jig_protocol_engine_clients::Limits,
     pub clients_http: jig_protocol_engine_clients_http::Limits,
 }
+/// Jig's one stock of consistent limits (protocol/limits.md, the stock).
 #[must_use]
-pub fn profile(profile: Profile) -> Limits {
-    match profile {
-        Profile::Small => small::LIMITS,
-        Profile::Standard => standard::limits(),
-    }
+pub fn stock() -> Limits {
+    standard::limits()
 }
 
 /// A document retains every name the engine can admit.

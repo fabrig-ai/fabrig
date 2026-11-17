@@ -117,6 +117,19 @@ fn the_meta_says_title_state_count_spend_and_since() {
 }
 
 #[test]
+fn a_goals_own_long_title_stays_whole() {
+    let (title, _) = row_titles().into_iter().next().unwrap();
+    let mut task = document();
+    task.chip.title = text(title.as_bytes());
+    let root = root(task, DONE, TOTAL, None, false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let meta = styled_text(&tree, look::GOAL_META);
+        assert!(meta.starts_with(title.as_bytes()));
+    }
+}
+
+#[test]
 fn no_count_with_no_tasks() {
     let root = root(document(), 0, 0, None, false);
     for words in [fixtures::browser_words(), fixtures::words()] {
@@ -414,6 +427,51 @@ fn acts_name_a_milestone_but_only_a_read_chat_is_a_chat_link() {
     }
 }
 
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests construct the long and boundary title cases"
+)]
+fn row_titles() -> [(String, String); 2] {
+    [
+        ("abcd ".repeat(20).trim_end().to_owned(), format!("{}…", ["abcd"; 16].join(" "))),
+        ("x".repeat(80), "x".repeat(80)),
+    ]
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary tests format link names and locate semantic nodes"
+)]
+fn a_milestones_link_cuts_its_title_past_eighty_characters() {
+    for (title, cut) in row_titles() {
+        let mut task = document();
+        task.requester = c::Requester::Task(2);
+        task.spec.specification.words = text(b"Build it.");
+        let mut milestone = task.chip.clone();
+        milestone.task = 2;
+        milestone.title = text(title.as_bytes());
+        milestone.details.details.executor =
+            c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+        task.lineage_chips = List::from_boxed(Box::new([milestone]));
+        let root = root(task, DONE, TOTAL, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings, _) = draw(&root, &words);
+            let name = format!("in {cut}");
+            let link = tree.nodes().iter().position(|node| node.role == Role::Link).unwrap();
+            assert_eq!(tree.nodes()[link].name.as_deref(), Some(name.as_bytes()));
+            assert_eq!(fixtures::node_text(&tree, link).as_ref(), name.as_bytes());
+            assert_eq!(
+                bindings.decode(tree.nodes()[link].binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task: 2 } }))
+            );
+        }
+    }
+}
+
 #[test]
 fn a_cut_goal_keeps_its_draft_return_link() {
     let mut task = document();
@@ -686,6 +744,41 @@ fn tasks_merge_the_trees_rows_and_the_ended_page_by_number() {
         assert_eq!(children.len(), expected.len());
         for (node, landed) in children.iter().zip(expected) {
             assert_eq!(node.styles.as_slice().contains(&look::GOAL_BAR_LANDED), landed);
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary tests format wait names and locate the landed fold"
+)]
+fn task_rows_and_waits_on_names_cut_titles_past_eighty_characters() {
+    for (title, cut) in row_titles() {
+        let mut done = delegate(13, title.as_bytes(), c::ChipPhase::Ended);
+        done.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+        let root = side_root(with_rows(
+            &[
+                waiting(&[12], false),
+                delegate(12, title.as_bytes(), c::ChipPhase::Active(c::RunStage::Running { attempt: 1 })),
+            ],
+            &[ended_line(done), ended_line(landed(14, title.as_bytes()))],
+        ));
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(task_links(&tree), row_words(&[b"The task", cut.as_bytes(), cut.as_bytes(), cut.as_bytes()]));
+            let rows = lines(&tree);
+            assert_eq!(rows.len(), 4);
+            for row in &rows[1..] {
+                assert_eq!(row[0].as_ref(), cut.as_bytes());
+            }
+            assert_eq!(rows[0].last().unwrap().as_ref(), format!("waits on {cut}").as_bytes());
+            assert_eq!(rows[1].last().unwrap().as_ref(), b"running");
+            assert!(rows[2].last().unwrap().starts_with(b"done"));
+            let fold = tree.nodes().iter().position(|node| node.role == Role::Disclosure).unwrap();
+            assert_eq!(tree.nodes()[fold].name.as_deref(), Some(b"1 landed".as_slice()));
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, fold), cut.as_bytes()).is_some());
         }
     }
 }

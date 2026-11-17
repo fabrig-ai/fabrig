@@ -153,6 +153,6 @@ fn the_small_profile_file_bound_covers_the_envelope_allowance() {
     // protocol/llm.md, 5.6: 30 fixed bytes, outer caps totaling 2,686,
     // and the small profile's 65,536-byte record allowance.
     const FILE_BYTES: u64 = 68_252;
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let profile = jig_protocol_config_fixtures::small();
     assert_eq!(jig_protocol_accounts::moved::bound(&profile.driver.client.document), FILE_BYTES);
 }

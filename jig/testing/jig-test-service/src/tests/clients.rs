@@ -399,7 +399,7 @@ fn prepared(clients: bool) -> crate::Service {
     core.documents.rows = 2;
     config.limits.journal = jig_protocol_config::JournalSizes { commits: 3, writes: 2000, door: 32, release: 32 };
     config.limits.routes = 16;
-    let mut limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits);
+    let mut limits = crate::limits::small(&config.limits);
     limits.root.journal = f::journal(&limits.root);
     limits.root.watermark = root::default_watermark(&limits.root.journal);
     config.limits.journal = jig_protocol_config::JournalSizes {
@@ -417,7 +417,7 @@ fn prepared(clients: bool) -> crate::Service {
                 &config,
                 address(),
                 &seeds,
-                &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+                &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
             )
             .expect("clients fixture"),
         )
@@ -535,7 +535,7 @@ fn waiting_workers(engine: &mut crate::Engine) {
         crate::workers::Workers::new(
             &config,
             f::seeds().deployment,
-            &crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers,
+            &crate::limits::small(&config.limits).workers,
         )
         .expect("workers fixture"),
     );
@@ -729,7 +729,7 @@ fn the_printed_url_carries_the_secret_the_component_gave() {
 fn a_call_past_the_mounts_room_is_answered_busy() {
     use skein_lib::Queue;
     let mut clients = f::server::retained_clients();
-    let capacity = crate::limits::profile_limits(jig_protocol_config::Profile::Small).clients_http.calls;
+    let capacity = crate::limits::small(&jig_protocol_config_fixtures::small()).clients_http.calls;
     let mut peers = skein_lib::List::with_capacity(capacity.checked_add(1).expect("first refused call"));
     // The existing Small server has eight connections for four mounted calls.
     // The first socket is the server fixture's existing socket.
@@ -761,7 +761,7 @@ fn a_call_past_the_mounts_room_is_answered_busy() {
     let env = skein_lib::Env {
         now: Time::ZERO,
         wall: Wall::EPOCH,
-        limits: crate::limits::profile_limits(jig_protocol_config::Profile::Small).clients_http,
+        limits: crate::limits::small(&jig_protocol_config_fixtures::small()).clients_http,
     };
     let mut out = Queue::with_capacity(capacity.checked_mul(2).expect("retirement output"));
     while clients.mount.up(&env, &mut out) {}
@@ -776,7 +776,7 @@ fn a_moved_record_bound_past_the_wire_value_bound_refuses_start() {
         &config,
         address(),
         &f::seeds(),
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+        &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
     ) else {
         panic!("moved file does not fit the wire")
     };
@@ -791,7 +791,7 @@ fn debug_of_the_clients_shows_the_links_count_never_a_link() {
         &config,
         address(),
         &f::seeds(),
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).server,
+        &crate::limits::small(&jig_protocol_config_fixtures::small()).server,
     )
     .expect("clients fixture");
     clients.links.push(Box::from(CANARY.as_bytes()));

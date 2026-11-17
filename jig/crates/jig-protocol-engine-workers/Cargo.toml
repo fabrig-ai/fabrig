@@ -23,3 +23,6 @@ skein-fake-channel.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+jig-protocol-config-fixtures.workspace = true

@@ -2544,7 +2544,6 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::TextArea, name: "Reason" },
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
-            Part::Text { text: "Both halves of the store task run. The Ready page waits for this decision." },
         ],
     },
     Holds {

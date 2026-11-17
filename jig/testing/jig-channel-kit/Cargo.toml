@@ -11,6 +11,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+jig-protocol-config-fixtures.workspace = true
 serde_json.workspace = true
 smith-transcript.workspace = true
 smith-charter.workspace = true

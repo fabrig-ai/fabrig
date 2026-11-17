@@ -18,7 +18,7 @@ fn read_owned(owned: &str) -> Result<Owned, Box<[u8]>> {
     let mut ps = problem::Problems::empty();
     let dirs = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     let machine =
-        crate::tests::machine_config::read(&fixtures::document(source.as_bytes()), 0, &limits::small(), &dirs, &mut ps);
+        crate::tests::machine_config::read(&fixtures::document(source.as_bytes()), 0, &limits::stock(), &dirs, &mut ps);
     if !ps.is_empty() {
         return Err(problem::lines(&ps));
     }

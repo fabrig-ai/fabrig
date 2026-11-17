@@ -16,7 +16,7 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         items,
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -43,7 +43,7 @@ fn front_harness_buffer(steps: &[Step], parent: Option<u32>, buffer: u32) -> Har
         &[],
         true,
         buffer,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent,
@@ -65,7 +65,7 @@ fn group_front_harness(steps: temper_forge_setup::Steps, items: &[skein_fake_mac
         items,
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -779,7 +779,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
         &[Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/3", b"").mode(0)],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -816,7 +816,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
         &[],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent: None,
@@ -852,7 +852,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
 #[test]
 fn the_terminal_keeps_errors_alone_and_box_log_the_rest() {
     for echo in [crate::host::Echo::None, crate::host::Echo::Steps] {
-        let mut h = Harness::configured_echo(grouped_steps(), &[], true, 16_384, &crate::limits::small(), echo);
+        let mut h = Harness::configured_echo(grouped_steps(), &[], true, 16_384, &crate::limits::stock(), echo);
         h.wall = skein_lib::Wall::from_nanos(3_723_000_000_000);
         h.run_until_idle();
         h.ask(b"start 3\n");
@@ -1040,7 +1040,7 @@ fn parent_harness(parent: Option<u32>) -> Harness {
         &[],
         true,
         16_384,
-        &crate::limits::small(),
+        &crate::limits::stock(),
         crate::host::Echo::None,
         super::fixtures::Opening {
             parent,
@@ -1567,7 +1567,7 @@ fn a_link_receives_only_the_first_line_and_its_end() {
             always: Box::new([long(b"serve", &[b"never"]), link(b"seed", seed_args)]),
             asked: Box::new([]),
         };
-        let limits = crate::limits::Limits { backoff, ..crate::limits::small() };
+        let limits = crate::limits::Limits { backoff, ..crate::limits::stock() };
         let mut harness = Harness::configured(steps, &[], true, skein_sim::Config::calm().buffer, &limits);
         harness.run_until_idle();
         for action in actions {
@@ -2081,7 +2081,7 @@ fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
 fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
     use skein_lib::Wall;
     use skein_shell::Host;
-    let mut limits = crate::limits::small();
+    let mut limits = crate::limits::stock();
     limits.restarts = 1;
     let mut harness = Harness::configured(
         temper_forge_setup::Steps {
@@ -2157,7 +2157,7 @@ fn long_labels_pass_actual_output_admission_with_tiny_control_and_write_caps() {
         let mut steps = grouped_steps();
         steps.asked[0].label = label.clone();
         steps.asked[0].steps[0].1 = once(&name, &[b"exit", b"255"]);
-        let limits = crate::limits::Limits { line_bytes: 64, ..crate::limits::small() };
+        let limits = crate::limits::Limits { line_bytes: 64, ..crate::limits::stock() };
         let mut harness = Harness::configured(steps, &[], true, buffer, &limits);
         harness.run_until_idle();
         harness.write_child(harness.serve_index(), 1, b"link\n");
@@ -2698,7 +2698,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         ));
         let settings_debug = alloc::fmt::format(format_args!("{settings:?}"));
         let service = Service::new(
-            &crate::limits::small(),
+            &crate::limits::stock(),
             temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
             settings,
         )
@@ -2725,7 +2725,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
 const FETCH_LINE: &[u8] = b"fetched forgejo 1 of 2 bytes\n";
 const FETCH_STDERR: &[u8] = b"download refused\n";
 fn fetch_harness(echo: crate::host::Echo, buffer: u32, items: &[skein_fake_machine::Item]) -> Harness {
-    Harness::configured_echo(super::fixtures::fetching_steps(), items, true, buffer, &crate::limits::small(), echo)
+    Harness::configured_echo(super::fixtures::fetching_steps(), items, true, buffer, &crate::limits::stock(), echo)
 }
 fn asked_fetch() -> Harness {
     let mut h = fetch_harness(crate::host::Echo::None, skein_sim::Config::calm().buffer, &[]);
@@ -2845,7 +2845,7 @@ fn a_started_group_s_fetch_line_is_named_and_dropped() {
     let mut h = asked_fetch();
     finish_child(&mut h, b"fetch 3", 0);
     finish_child(&mut h, b"forgejo 3", 1);
-    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff));
     h.run_until_idle();
     let child = h.child_index(b"fetch 3");
     h.write_stdout(child, FETCH_LINE);
@@ -2896,7 +2896,7 @@ fn owned_hands_wait_for_the_log_slot_keep_their_time_and_never_echo() {
         steps.asked[0].steps[0]
             .1
             .set_started_notice(b"Forgejo: api http://127.0.0.1:3000/api/v1\nForgejo: person ada\n".as_slice().into());
-        let mut h = Harness::configured_echo(steps, &[], true, 16, &crate::limits::small(), echo);
+        let mut h = Harness::configured_echo(steps, &[], true, 16, &crate::limits::stock(), echo);
         h.run_until_idle();
         h.write_child(h.serve_index(), 1, b"http://first\n");
         h.run_until_idle();
@@ -2999,7 +2999,7 @@ fn each_link_reads_on_stdout_as_its_form_has_it() {
             &[],
             true,
             16_384,
-            &crate::limits::small(),
+            &crate::limits::stock(),
             crate::host::Echo::None,
             super::fixtures::Opening {
                 parent: None,
@@ -3038,7 +3038,7 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
             &[],
             true,
             16_384,
-            &crate::limits::small(),
+            &crate::limits::stock(),
             crate::host::Echo::None,
             super::fixtures::Opening {
                 parent: None,
@@ -3113,7 +3113,7 @@ fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
         assert_eq!(count, u32::from(line.starts_with(b"source failed")));
         assert_eq!(h.spawn_times(b"source 3").len(), 1, "another start does not bypass the retry wait");
         if line.starts_with(b"source failed") {
-            h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+            h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff));
             h.run_until_idle();
             let child = h.child_index(b"source 3");
             h.write_stdout(child, b"source added\n");
@@ -3141,7 +3141,7 @@ fn a_failed_source_retries_with_doubling_waits_and_says_only_changed_endings() {
         }
         if attempt < 2 {
             let before = h.sim.now();
-            let delay = crate::limits::small().backoff.saturating_mul(if attempt == 0 { 1 } else { 2 });
+            let delay = crate::limits::stock().backoff.saturating_mul(if attempt == 0 { 1 } else { 2 });
             assert_eq!(h.service.next_policy_deadline(), Some(before.saturating_add(delay)));
             h.sim.advance_to(skein_lib::Time::from_nanos(
                 before.saturating_add(delay).as_nanos().checked_sub(1).unwrap(),
@@ -3159,7 +3159,7 @@ fn a_failed_source_retries_with_doubling_waits_and_says_only_changed_endings() {
     assert_eq!(bytes::count(&replies, b"started 3\n", u32::MAX), 1, "only first ending completes start");
     assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
     assert!(h.service.next_policy_deadline().is_none(), "added disarms retries");
-    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff_max));
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::stock().backoff_max));
     h.ask(b"start 3\n");
     h.run_until_idle();
     assert!(h.reply_bytes().ends_with(b"source 3 added\nstarted 3\n"));

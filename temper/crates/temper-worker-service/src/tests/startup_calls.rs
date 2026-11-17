@@ -10,7 +10,7 @@ use skein_lib::List;
 #[test]
 fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
     let directories = config::Directories::working();
-    for (bound, expected) in [(None, 69_632), (Some(40_960), 40_960)] {
+    for (bound, expected) in [(None, 135_168), (Some(40_960), 40_960)] {
         let input = worker_document(bound);
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = 40_960;

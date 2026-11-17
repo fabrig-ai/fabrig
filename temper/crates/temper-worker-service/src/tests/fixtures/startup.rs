@@ -10,9 +10,9 @@ pub fn worker_alone_document() -> Box<[u8]> {
     let document = br#"{"workers":[{
 "engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":{"limits":{"profile":"small","overrides":{}}}}"#;
-    with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"memory_bytes":1152921504606846976}],"application":{"limits":{"overrides":{}}}}"#;
+    with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     let json = turn_limits(path, json);
@@ -94,6 +94,9 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     }
     let turn = super::agent().limits.bodies.turn_body;
     let keys = &[
+        ("hub.accounts", 8),
+        ("hub.inbox", 8),
+        ("hub.held", 8),
         ("hub.turn_bytes", u64::from(turn)),
         ("hub.transcript_bytes", u64::from(turn.checked_add(4).unwrap()) * 4),
         ("hub.turn_queue_bytes", u64::from(turn) * 8),
@@ -255,7 +258,7 @@ pub fn owned_worker_agent() -> settings::Agent {
 
 pub fn startup_agent() -> settings::Agent {
     let mut agent = super::agent();
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config_fixtures::small().hub;
     agent.host_limits.directories = 4;
     agent.host_limits.conflicts = 1024;
     agent.host_limits.name_bytes = 600;

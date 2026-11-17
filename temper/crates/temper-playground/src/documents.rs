@@ -175,7 +175,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
         "demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":2,"forge.resources_per_task":3,"git_component.stdout_bytes":131_072}}});
     settings::stage_policies(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
@@ -266,7 +266,7 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
     profile.policy.max_turns = 800;
     profile.policy.max_time = Duration::from_secs(28_800);
     profile.policy.check_timeout = Duration::from_secs(5);
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
+    let hub = jig_protocol_config::stock().hub;
     profile.policy.inbox = hub.held.max(hub.inbox);
     profile.policy.sections = 8;
     profile
@@ -501,11 +501,8 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     let forge = if document["application"]["demo"].is_null() {
         settings::forge(&document)
     } else {
-        let limits = temper_service::limits::engine(
-            &engine.limits,
-            &temper_service::limits::profile(temper_service::limits::Profile::Small),
-        )
-        .expect("playground engine limits");
+        let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
+            .expect("playground engine limits");
         temper_service::stock::forge(&limits)
     };
     temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }

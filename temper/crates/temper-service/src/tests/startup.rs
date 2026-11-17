@@ -40,38 +40,6 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 }
 
 #[test]
-fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_862);
-    fixtures::start(
-        &document,
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    )
-    .expect("a whole frame exactly at Small's page ceiling starts");
-    let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .unwrap();
-    assert_eq!(opened.store.store.page.bytes, 4_582_931);
-}
-
-#[test]
-fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(4_582_863);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4582932 bytes, needs a store page past the profile's ceiling of 4582931 bytes\n";
-    let named = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(lines(&named).as_ref(), expected);
-    let opened =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .unwrap_err();
-    assert_eq!(lines(&opened).as_ref(), expected);
-}
-
-#[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
     let document = transcript_document(33_554_433);
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
@@ -116,7 +84,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
-    const TRANSCRIPT: u32 = 3_000_000;
+    const TRANSCRIPT: u32 = 10_000_000;
     // With a smaller agent turn the page drives the requirement; with a turn
     // as large as the transcript the decoded row drives it instead.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
@@ -232,8 +200,8 @@ fn startup_names_a_whole_file_bound_below_the_manifest() {
 
 #[test]
 fn startup_checks_the_effective_codec_envelope_before_generic_sizing() {
-    let jig = config::profile(config::Profile::Small);
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let mut own = temper_limits_fixtures::small();
     // Parsed core limits remain valid. Deliberately corrupt the effective root
     // answer bound to exercise this check independently of parsed admission;
     // journal capacity no longer widens the configured answer bound (R3-114).
@@ -255,8 +223,8 @@ fn startup_checks_the_effective_codec_envelope_before_generic_sizing() {
 
 #[test]
 fn startup_checks_a_single_policy_row_at_its_bound_and_one_byte_past_it() {
-    let jig = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let mut root = crate::limits::engine_candidate(&jig, &own);
     let bound = temper_engine_domain::policy_row_bound(&root).expect("policy row bound");
     for (capacity, expected) in [
@@ -275,8 +243,8 @@ fn startup_checks_a_single_policy_row_at_its_bound_and_one_byte_past_it() {
 
 #[test]
 fn startup_refuses_policy_row_arithmetic_overflow_by_name() {
-    let jig = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let mut root = crate::limits::engine_candidate(&jig, &own);
     root.policy_bytes = u64::MAX;
     assert_eq!(temper_engine_domain::policy_row_bound(&root), None);
@@ -443,8 +411,8 @@ fn refused(input: &[u8]) -> Box<[u8]> {
 }
 #[test]
 fn an_unknown_profile_is_refused_naming_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"small\"", "\"large\"");
-    assert_eq!(&*refused(input.as_bytes()), b"application.limits.profile: the only profile is \"small\"\n");
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"standard\"", "\"large\"");
+    assert_eq!(&*refused(input.as_bytes()), b"application.limits.profile: the only profile is \"standard\"\n");
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests format input and diagnostics")]
@@ -720,7 +688,7 @@ fn a_missing_demo_is_refused_naming_its_path() {
 
 #[test]
 fn a_setup_or_box_override_is_handed_on_with_its_value() {
-    for (override_value, repositories) in [("", 2_u64), (",\"forge.client.repositories\":3", 3)] {
+    for (override_value, repositories) in [("", 6_u64), (",\"forge.client.repositories\":3", 3)] {
         let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
             "\"overrides\":{}",
             &["\"overrides\":{\"setup.backoff_ms\":2,\"box.steps\":3", override_value, "}"].concat(),
@@ -1132,7 +1100,8 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 129, &["tasks.tasks", "129", "people.inbox_tasks", "258"][..]),
+        (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
+        (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
         (
             b"tasks.batch",

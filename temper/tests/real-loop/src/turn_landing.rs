@@ -83,6 +83,8 @@ fn fixture() -> forge::Fixture {
             }
             limits["forge.landing_members"] = 2.into();
             limits["forge.resources_per_task"] = 3.into();
+            // Sixteen holds cover eight two-member batches.
+            limits["forge.landings"] = 8.into();
             limits["forge.holds"] = 16.into();
 
             limits["root.loads.loads"] = 3.into();

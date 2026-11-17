@@ -11,11 +11,16 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-json.workspace = true
+skein-forge.workspace = true
+skein-forge-connection.workspace = true
+jig-protocol-worker-wire.workspace = true
+temper-protocol-worker-wire.workspace = true
 smith-domain-run.workspace = true
 jig-domain-link.workspace = true
 jig-protocol-config.workspace = true
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 skein-world.workspace = true
 [lints]
 workspace = true

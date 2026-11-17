@@ -312,7 +312,7 @@ fn a_closing_root_request_receives_the_robots_file() {
 #[test]
 fn a_bundle_file_larger_than_one_send_is_delivered_in_full() {
     let mut bundle = f::bundle();
-    let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let limits = crate::limits::small(&jig_protocol_config_fixtures::small()).server;
     let length = skein_lib::length::usize_of(limits.http.send).checked_add(1).expect("larger file");
     bundle.files.get_mut(&Box::from(b"boot.js".as_slice())).expect("boot file").bytes =
         skein_lib::bytes::zeroed(length);
@@ -401,7 +401,7 @@ fn a_native_http_client_accepts_the_mount_s_answer_with_the_policy() {
 fn a_peers_end_during_a_call_follows_its_value() {
     use crate::server::{PeerEnd, Server};
     for peer_end in [PeerEnd::Call, PeerEnd::Connection] {
-        let mut limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+        let mut limits = crate::limits::small(&jig_protocol_config_fixtures::small()).server;
         limits.peer_end = peer_end;
         let mut server = Server::new(skein_io::Addr::Ip("127.0.0.1:7100".parse().expect("listener")), &limits);
         let mut out = Queue::uncapped();

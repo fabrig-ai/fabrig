@@ -54,6 +54,21 @@ pub const FORGE: u16 = temper_client_protocol_wire::number(temper_client_protoco
 pub const PROJECT: u32 = 1;
 pub const SECOND_PROJECT: u32 = 2;
 pub const SEED: u64 = 11;
+
+/// The line-title rule at 99 characters and at its unchanged 80-character bound.
+#[must_use]
+pub fn row_titles() -> [(&'static [u8], &'static [u8]); 2] {
+    [
+        (
+            b"abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd",
+            "abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd…".as_bytes(),
+        ),
+        (
+            b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        ),
+    ]
+}
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
 #[must_use]
 pub fn limits() -> Limits {
