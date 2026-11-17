@@ -43,23 +43,17 @@ pub fn again(
     let prepared = prepared(journeys, name)?;
     let downloads = paths.scratch.join("downloads");
     fs::create_dir(&downloads).map_err(|_| crate::io_refusal(&downloads))?;
-    // The harness gives its server an empty environment. Forward PATH alone
-    // through env so a fresh fake box can find the worker's git at init.
-    let path = std::ffi::OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default());
-    let launcher = std::env::split_paths(&path)
-        .filter(|directory| directory.is_absolute())
-        .map(|directory| directory.join("env"))
-        .find(|program| program.is_file())
-        .ok_or_else(|| Refusal::Harness { name: name.to_owned(), step: 1, report: "cannot find env on PATH".into() })?;
-    let mut path_argument = std::ffi::OsString::from("PATH=");
-    path_argument.push(path);
-    let mut args = vec![
-        path_argument,
+    let fail = |report| Refusal::Harness { name: name.to_owned(), step: 1, report };
+    let isolated = crate::isolation::environment(environment, &paths.scratch).map_err(fail)?;
+    let launcher =
+        crate::isolation::program("env", environment).ok_or_else(|| fail("cannot find env on PATH".into()))?;
+    let mut args = crate::isolation::server_arguments(&isolated, &paths.scratch);
+    args.extend([
         paths.temper.clone().into_os_string(),
         "--fake-backends".into(),
         "--bundle".into(),
         paths.bundle.clone().into_os_string(),
-    ];
+    ]);
     for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
         args.push(flag.into());
         let path = if directory == "cache" {

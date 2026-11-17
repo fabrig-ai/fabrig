@@ -13,7 +13,7 @@ use skein_lib::{Duration, Time};
 use skein_ui::{Act, Role};
 use skein_ui_screen_terminal::Key;
 use std::{
-    ffi::{OsStr, OsString},
+    ffi::OsString,
     fs::{self, File},
     os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
     path::{Path, PathBuf},
@@ -21,7 +21,7 @@ use std::{
 use temper_client_shell_tui::journey::{self, WalkStep};
 use temper_client_shell_web::journey::SetupStep;
 
-use crate::tui_driver::{environment, key_bytes, optional_file, replaced, terminal::Terminal};
+use crate::tui_driver::{key_bytes, optional_file, replaced, terminal::Terminal};
 #[cfg(test)]
 mod tests;
 
@@ -142,47 +142,9 @@ fn record(
     given: &[crate::EnvironmentEntry],
 ) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
-    let environment =
-        environment(given, &paths.scratch).map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
-    for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime", "tui-runtime"] {
-        let path = paths.scratch.join(directory);
-        fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;
-    }
-    let true_program = program("true", given).ok_or_else(|| fail("cannot find true on PATH".into()))?;
-    for opener in ["xdg-open", "open"] {
-        let path = paths.scratch.join("bin").join(opener);
-        std::os::unix::fs::symlink(&true_program, &path).map_err(|_| crate::io_refusal(&path))?;
-    }
-    // Like browser again, env gives the harness's empty server environment
-    // a PATH. HOME and temporary files also stay within this fresh run.
-    let launcher = program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
-    let mut args: Vec<OsString> = environment
-        .iter()
-        .filter(|(name, _)| {
-            [
-                "PATH",
-                "HOME",
-                "TMPDIR",
-                "XDG_STATE_HOME",
-                "XDG_CONFIG_HOME",
-                "XDG_DATA_HOME",
-                "XDG_CACHE_HOME",
-                "XDG_RUNTIME_DIR",
-            ]
-            .iter()
-            .any(|forward| name == forward)
-        })
-        .map(|(name, value)| {
-            let mut entry = name.clone();
-            entry.push("=");
-            if name == "XDG_RUNTIME_DIR" {
-                entry.push(paths.scratch.join("runtime"));
-            } else {
-                entry.push(value);
-            }
-            entry
-        })
-        .collect();
+    let environment = crate::isolation::environment(given, &paths.scratch).map_err(fail)?;
+    let launcher = crate::isolation::program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
+    let mut args = crate::isolation::server_arguments(&environment, &paths.scratch);
     args.extend([
         paths.temper.clone().into_os_string(),
         "--fake-backends".into(),
@@ -227,14 +189,6 @@ fn record(
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
     crate::add_to(journeys, tui_journeys, name, &recording, &crate::again::private_paths(paths)).map(|_| ())
-}
-
-fn program(name: &str, given: &[crate::EnvironmentEntry]) -> Option<std::path::PathBuf> {
-    let path = OsStr::from_bytes(crate::table::PATH.value(given).unwrap_or_default());
-    std::env::split_paths(path)
-        .filter(|path| path.is_absolute())
-        .map(|path| path.join(name))
-        .find(|path| path.is_file())
 }
 
 enum Phase {
