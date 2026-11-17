@@ -2,8 +2,8 @@ journey 2
 seed 710111704049509229
 clocks 137200000 1794931602614000128
 primary control
-ways "" "http://127.0.0.1:37177"
-forge "1 forgejo http://127.0.0.1:41329 owned"
+ways "" "http://127.0.0.1:10001"
+forge "1 forgejo http://127.0.0.1:10002 owned"
 path "/projects/1"
 stored "sign-in" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 stored "stream" "\x00\x1e\x00\x02\x00\x00\x00\x10xxxxxxxxxxxxxxxx"
@@ -131,7 +131,7 @@ heard answered 21 200 "\x01"
 exchange 25 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x1e\x00\x00\x00,\x00\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x02\x00\x00\x00\"\x00\x00" "Content-Type" "application/octet-stream"
 deadline 17523200000
 turn 312399999 1794931602790000128
-heard piece "data: AQAAAAAAAAAgAQABAAAAIgAAAAYAIgAAAAA=\x0a\x0adata: AQAAAAAAAAAeAQABAAAAIgAAAI8AIgAAAAEAAQAAAA8xMjcuMC4wLjE6NDEzMjkAAgUAAAAAAAAAAwAAAAZ0ZW1wZXIAAQAAAAR3b3JrAAAABWhlbGxvAQAAAAAAAAABAAAAC3RlbXBlci1ob3N0AAAAAAAAAAAAAAAAAQAAAAR3b3JrAAAABWhlbGxvAAAAAQEAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
+heard piece "data: AQAAAAAAAAAgAQABAAAAIgAAAAYAIgAAAAA=\x0a\x0adata: AQAAAAAAAAAeAQABAAAAIgAAAI8AIgAAAAEAAQAAAA8xMjcuMC4wLjE6MTAwMDIAAgUAAAAAAAAAAwAAAAZ0ZW1wZXIAAQAAAAR3b3JrAAAABWhlbGxvAQAAAAAAAAABAAAAC3RlbXBlci1ob3N0AAAAAAAAAAAAAAAAAQAAAAR3b3JrAAAABWhlbGxvAAAAAQEAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
 deadline 17522399871
 turn 315600000 1794931602792999936
 heard answered 20 200 "\x01"

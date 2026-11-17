@@ -125,14 +125,8 @@ fn decimal_ports_require_whole_byte_elements_and_honor_stood() {
 fn committed_sign_in_approved_normalises_and_replays_to_the_end() {
     let file = include_bytes!("../../../../../docs/design/client/tui/journeys/sign-in-approved/recording");
     let result = normalise(file).expect("committed recording");
-    eprintln!(
-        "sign-in-approved: build={} port={} code={} places={} stood={}",
-        result.build, result.port, result.code, result.places, result.stood
-    );
-    assert_eq!((result.build, result.port, result.code, result.places, result.stood), (1, 1, 1, 6, 0));
-    let again = normalise(&result.recording).expect("idempotent committed recording");
-    assert!(again.recording == result.recording, "normalisation is idempotent");
-    assert_eq!((again.build, again.port, again.code, again.places, again.stood), (0, 0, 0, 0, 0));
+    assert_eq!(result.recording.as_ref(), file, "committed recording is its own normalisation");
+    assert_eq!((result.build, result.port, result.code, result.places, result.stood), (0, 0, 0, 0, 0));
     let recorded = lines(&result.recording).expect("normalised lines");
     let mut replay = Replay::new(&result.recording).expect("normalised replay");
     let mut marks = 0;
