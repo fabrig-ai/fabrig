@@ -1018,7 +1018,6 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
 }
 
 #[test]
-<<<<<<< HEAD
 #[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
 fn agents_form_round_trips_named_maps_and_reports_duplicates() {
     let setting = br#"{"kind":"agents"}"#;
@@ -1051,7 +1050,9 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
             .unwrap()
             .contains("The agents' profile figures and each endpoint's limits, taken at each worker's next start.")
     );
-=======
+}
+
+#[test]
 fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
     const SETTING: &[u8] = br#"{"kind":"worker","number":2}"#;
     const DIGEST: &[u8] = b"abababababababababababababababababababababababababababababababab";
@@ -1105,5 +1106,4 @@ fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
         )
         .expect_err("malformed digest");
     }
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 }

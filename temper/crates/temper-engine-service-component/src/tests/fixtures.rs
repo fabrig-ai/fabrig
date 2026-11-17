@@ -1007,19 +1007,14 @@ pub fn workers() -> crate::workers::Workers {
     let settings = engine();
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-<<<<<<< HEAD
     crate::workers::Workers::new(
         &settings.jig,
-        &worker_digests(&settings),
         encoding,
         forges(),
         &settings.limits,
         &limits,
     )
     .unwrap()
-=======
-    crate::workers::Workers::new(&settings.jig, encoding, forges(), settings.limits.forge.forges, &limits).unwrap()
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 }
 
 pub fn settle_root(
@@ -1874,11 +1869,7 @@ pub fn forge_connecting(
     request: temper_client_protocol_wire::v1::Request,
     bundle: Secret,
 ) {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as j;
-=======
     use jig_client_protocol_wire as j;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());

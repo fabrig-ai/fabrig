@@ -118,12 +118,9 @@ impl Component {
         Ok(Self {
             limits: *limits,
             workers,
-<<<<<<< HEAD
             figures: None,
-=======
             workers_ready,
             names,
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             wires,
             codec,
             connections,
@@ -155,10 +152,7 @@ impl Component {
 
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
-<<<<<<< HEAD
             Event::Figures { figures } => self.give_figures(now, figures, out),
-            Event::Accepted { connection } => self.accepted(now, connection, out),
-=======
             Event::Workers(workers) => {
                 for worker in &workers {
                     self.names
@@ -169,7 +163,7 @@ impl Component {
                 self.workers_ready = true;
                 let mut waiting = List::uncapped();
                 for (connection, state) in &self.connections {
-                    if state.opening.is_some() {
+                    if state.pending_opening.is_some() {
                         waiting.push(*connection).expect("uncapped waiting openings");
                     }
                 }
@@ -180,7 +174,6 @@ impl Component {
                 }
             }
             Event::Accepted { connection, in_process } => self.accepted(now, connection, in_process, out),
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
@@ -457,7 +450,6 @@ impl Component {
         }
         self.keep(connection, state);
     }
-<<<<<<< HEAD
     /// Whole owner input and each post-Agreed channel (protocol/channel/figures.md, 3).
     fn give_figures(&mut self, now: Time, figures: wire::Figures, out: &mut Queue<Request>) {
         self.figures = Some(figures);
@@ -477,7 +469,11 @@ impl Component {
     fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
         let Some(figures) = &self.figures else { return true };
         let mut parts = figures.clone().into_parts();
-        parts.places = self.limits.sizes.slots;
+        let Some(worker) = self.workers.iter().find(|worker| worker.number.checked_sub(1) == state.worker) else {
+            self.refuse(now, connection, state, Reason::NotAdmitted.code(), Box::new([]), out);
+            return false;
+        };
+        parts.places = worker.places;
         let figures = wire::Figures::new(&wire::CEILINGS, parts).expect("only places changed");
         let mut body = skein_lib::Writer::new(skein_lib::usize_of(figures.measure()));
         figures.encode(&mut body).expect("measured figures");
@@ -511,10 +507,7 @@ impl Component {
         }
         assert!(self.sending.is_none(), "send answered within its entrance");
     }
-    fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
-=======
     fn accepted(&mut self, now: Time, connection: Token, in_process: bool, out: &mut Queue<Request>) {
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         if self.life == Life::Closed
             || self.connections.len() == self.connections.capacity()
             || self.connections.contains_key(&connection)
@@ -541,7 +534,7 @@ impl Component {
         if self.workers_ready
             && state.phase == Phase::Opening
             && !expired(state.deadline, now)
-            && let Some(opening) = state.opening.take()
+            && let Some(opening) = state.pending_opening.take()
         {
             self.heard(now, connection, state, opening, out);
         }
@@ -594,7 +587,7 @@ impl Component {
                     return;
                 }
                 if !self.workers_ready {
-                    state.opening = Some(ChannelEvent::Opening { credential, lowest, highest });
+                    state.pending_opening = Some(ChannelEvent::Opening { credential, lowest, highest });
                     return;
                 }
                 let verdict = self.judge(&credential, state.in_process);

@@ -831,7 +831,6 @@ impl Judge {
             return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
-<<<<<<< HEAD
         // Open initial links in the fixture's order, independently of fetch timing.
         let mut preceding_linked = true;
         for proc in workers.iter_mut() {
@@ -844,17 +843,7 @@ impl Judge {
                     *engine = service.workers_address;
                 }
                 preceding_linked &= !*started || linked;
-=======
-        let mut prior_linked = true;
-        for proc in workers.iter_mut() {
-            let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
-            worker.address = peer.address();
-            if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
-                // Give the nominal workers their fleet order even when an opening redials before settings.
-                *engine = if prior_linked { service.workers_address } else { None };
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             }
-            prior_linked &= !worker_started(worker) || worker.linked() > 0;
         }
         if caller.stopping_engine() {
             if !service.stopping() {

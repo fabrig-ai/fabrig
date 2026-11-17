@@ -70,11 +70,7 @@ pub fn limits() -> Limits {
         exchanges: 4,
         exchanges_per_client: 2,
         message_bytes: MESSAGE_BYTES,
-<<<<<<< HEAD
-        wire: jig_client_protocol_wire::v28::CEILINGS,
-=======
         wire: jig_client_protocol_wire::CEILINGS,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         link_span: Duration::from_secs(300),
     }
 }
@@ -88,13 +84,8 @@ pub fn expires() -> skein_lib::Wall {
 }
 
 #[must_use]
-<<<<<<< HEAD
-pub fn me_subject() -> jig_client_protocol_wire::v28::Subject {
-    jig_client_protocol_wire::v28::Subject::Me
-=======
 pub fn me_subject() -> jig_client_protocol_wire::Subject {
     jig_client_protocol_wire::Subject::Me
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 }
 #[must_use]
 pub fn me_document(needs: u32) -> jig_domain_core::documents::Document {
@@ -138,18 +129,6 @@ pub fn signed_in(peer: &mut Peer) -> Box<[u8]> {
     out.finish()
 }
 #[must_use]
-<<<<<<< HEAD
-pub fn window(rows: u32) -> jig_client_protocol_wire::v28::Window {
-    use jig_client_protocol_wire::v28 as w;
-    w::Window::new(&limits().wire, w::WindowParts { rows, after: None }).expect("bounded window")
-}
-#[must_use]
-pub fn family_read(
-    scope: jig_client_protocol_wire::v28::Scope,
-    window: jig_client_protocol_wire::v28::Window,
-) -> Box<[u8]> {
-    use jig_client_protocol_wire::v28 as w;
-=======
 pub fn window(rows: u32) -> jig_client_protocol_wire::Window {
     use jig_client_protocol_wire as w;
     w::Window::new(&limits().wire, w::WindowParts { rows, after: None }).expect("bounded window")
@@ -157,7 +136,6 @@ pub fn window(rows: u32) -> jig_client_protocol_wire::Window {
 #[must_use]
 pub fn family_read(scope: jig_client_protocol_wire::Scope, window: jig_client_protocol_wire::Window) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let record = w::FamilyRecord::new(&limits().wire, w::FamilyRecordParts { scope, window, record: Box::new([255]) })
         .expect("family record");
     let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));

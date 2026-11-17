@@ -271,11 +271,7 @@ fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
 // jig/docs/design/protocol/limits.md: first deliveries and the HTTP frame carrying each.
 #[test]
 fn standard_stream_edges_hold_every_first_delivery() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let limits = crate::stock();
     let clients = limits.clients;
     let delivery = w::Delivery::encoded_bound(&clients.wire).expect("delivery bound") + 1;
@@ -300,12 +296,7 @@ fn standard_sse_edge_accepts_the_largest_stream_frame() {
     use skein_http::sse::writer as sse;
     use skein_lib::{Env, Queue, Time, Wall};
     let limits = crate::stock();
-<<<<<<< HEAD
-    let record =
-        jig_client_protocol_wire::v28::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
-=======
     let record = jig_client_protocol_wire::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let data_bytes = skein_lib::base64::encoded_len(
         skein_lib::base64::Alphabet::Standard,
         u32::try_from(record).expect("u32 stream record"),

@@ -38,17 +38,10 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-<<<<<<< HEAD
         "`CONFIG/temper.json`",
         "preserve the rest of the document",
         "exactly the configured environment",
         "deployment-specific absolute paths",
-=======
-        "`CONFIG/agent.json`",
-        "edit only `CONFIG/agent.json`'s `environment`",
-        "exactly that environment",
-        "Paths are deployment-specific and absolute",
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         "Install",
         "`cargo`",
         "`.cargo/bin`",

@@ -287,11 +287,7 @@ impl Front<Test> for Protocol {
             request: jig_client::Request::Exchange { message: jig_client::Message::Read(bytes), .. },
         } = &request
         {
-<<<<<<< HEAD
-            use jig_client_protocol_wire::v28 as w;
-=======
             use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
             let owned = w::Owned::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("read envelope");
             if *owned.owner() == w::Owner::Jig
                 && matches!(

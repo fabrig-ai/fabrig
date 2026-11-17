@@ -76,17 +76,10 @@ Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
 
-<<<<<<< HEAD
 **Coding runs:** edit `application.workers[0].environment` in `CONFIG/temper.json` before step 2;
 preserve the rest of the document. Absent, the array is empty. Commands and
 checks get exactly the configured environment, independent of unit and
 runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
-=======
-**Coding runs:** init's array is empty; edit only `CONFIG/agent.json`'s
-`environment` before step 2. Commands and checks get exactly that environment,
-independent of unit and runner PATHs. Paths are deployment-specific and absolute;
-neither `~` nor `$HOME` expands:
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```json
 {"environment": [

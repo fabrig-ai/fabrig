@@ -1,11 +1,7 @@
 //! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
 use super::fixtures;
 use jig_client_domain::contract as c;
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{List, Reader};
 
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {

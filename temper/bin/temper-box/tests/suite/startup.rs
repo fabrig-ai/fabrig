@@ -1595,15 +1595,9 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-<<<<<<< HEAD
-            vec!["worker.secret", "worker.digest", "demo/llm.key", "demo/bin/git", "temper.json"]
+            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "temper.json"]
         } else {
-            vec!["worker.secret", "worker.digest", "temper.json"]
-=======
-            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "agent.json", "temper.json"]
-        } else {
-            vec!["worker.secret", "agent.json", "temper.json"]
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+            vec!["worker.secret", "temper.json"]
         };
         for name in names {
             writeln!(expected, "init: wrote {}", scratch.path().join(name).display()).expect("string");

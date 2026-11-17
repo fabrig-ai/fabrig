@@ -1,11 +1,7 @@
 //! Settings proposal documents cross the client wire contract.
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings_proposals as values;
 use skein_lib::{Reader, Writer};

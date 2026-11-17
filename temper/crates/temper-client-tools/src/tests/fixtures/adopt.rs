@@ -197,11 +197,7 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
     let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
-<<<<<<< HEAD
-    let refusal = jig_client_protocol_wire::v28::Refusal::KeyConflict;
-=======
     let refusal = jig_client_protocol_wire::Refusal::KeyConflict;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
     refusal.encode(&mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(

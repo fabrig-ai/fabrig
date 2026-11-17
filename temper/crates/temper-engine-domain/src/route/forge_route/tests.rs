@@ -1,11 +1,8 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
-<<<<<<< HEAD
 mod flake;
-=======
 mod call_room;
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
 mod reds;
 mod room;
 mod settling;

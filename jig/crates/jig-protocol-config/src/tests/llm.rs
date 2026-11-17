@@ -465,11 +465,7 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         let wire = jig_protocol_engine_clients::translate::llm::models(
             &[jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
             &models,
-<<<<<<< HEAD
-            &jig_client_protocol_wire::v28::CEILINGS,
-=======
             &jig_client_protocol_wire::CEILINGS,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         )
         .unwrap();
         let model = wire.get(0).unwrap();

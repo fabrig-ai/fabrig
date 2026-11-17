@@ -10,11 +10,7 @@ const ONE: u32 = 1;
 const OUTPUTS: u32 = 64;
 const EXCHANGES: u32 = 8;
 pub fn task() -> c::Task {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut record = jig_client_test_records::task_record().into_parts();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = w::Task::new(&w::CEILINGS, record).expect("checked task fixture");

@@ -97,11 +97,8 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
-<<<<<<< HEAD
                 flake_reruns: Box::new([]),
-=======
                 room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                 job: None,
                 landing: policy::Landing {
                     last_left: None,

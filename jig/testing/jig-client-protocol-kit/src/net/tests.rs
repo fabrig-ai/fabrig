@@ -21,11 +21,7 @@ fn exchange(probe_quiet: bool) -> Net {
     const REQUEST: &[u8] = b"POST /jig/v1/sign-out HTTP/1.1\r\nContent-Length: 0\r\n\r\n";
     // Enough attempts for this seeded exchange's fragments and delayed room.
     const ATTEMPTS: usize = 512;
-<<<<<<< HEAD
-    let answer = jig_client_protocol_wire::v28::SignOutAnswer::SignedOut;
-=======
     let answer = jig_client_protocol_wire::SignOutAnswer::SignedOut;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured answer");
     let body = writer.finish();

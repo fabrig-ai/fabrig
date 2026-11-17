@@ -349,14 +349,6 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
     write(&mut writer).expect("measured fixture");
     writer.finish()
 }
-<<<<<<< HEAD
-fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v28::Owned {
-    use jig_client_protocol_wire::{VERSION, v28 as w};
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
-        .expect("fixture envelope")
-}
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v28::StreamEvent) {
-=======
 fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
@@ -364,7 +356,6 @@ fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
         .expect("fixture envelope")
 }
 fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::base64::{self, Alphabet};
     let bytes = encoded(event.measure(), |writer| event.encode(writer));
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -379,12 +370,8 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::{VERSION, v28 as w};
-=======
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{Duration, Reader};
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";

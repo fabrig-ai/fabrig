@@ -186,15 +186,10 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     has a channel always has room, since it replaces that channel (4.2).
 - **jig's reasons,** from 256 as skein's channel reserves them:
   *unauthorized*, *wires*, *busy*, *replaced* (4.2), *not admitted*
-<<<<<<< HEAD
-  (the fleet refused the worker's hello, 4.3), *stopping* (the engine
+  (no worker setting takes the credential, above, or the fleet refused
+  the worker's hello, 4.3), *stopping* (the engine
   is shutting down) and *starting* (the engine has no figures to send
   yet, `figures.md`, 3). Their numbers are the schema's.
-=======
-  (no worker setting takes the credential, above, or the fleet refused
-  the worker's hello, 4.3) and *stopping* (the engine
-  is shutting down). Their numbers are the schema's.
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 - **Terms.** Each side states the largest body it takes of each kind,
   from its own limits, as the agreed version encodes it (`wires.md`, 5);
   each checks the other's against the largest it may

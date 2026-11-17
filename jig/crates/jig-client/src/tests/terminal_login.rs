@@ -1,11 +1,7 @@
 //! A terminal watch uses the same opaque document lifecycle as other jig watches.
 use super::fixtures::{self, Client, TASK};
 use crate::{Event, Latest, Message, Request, State, Watchable, contract as c};
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Reader, Writer};
 #[test]
 fn a_terminal_watch_opens_delivers_and_closes() {

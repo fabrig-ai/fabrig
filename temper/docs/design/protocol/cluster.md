@@ -22,15 +22,9 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 
 | Shape | `engine` | `workers` | `application` |
 |---|---|---|---|
-<<<<<<< HEAD
-| standalone | jig's engine part; `hosts.listener` `[{"in_process": "workers"}]` | one, whose `engine` is `{"in_process": "workers"}` | every member; `workers`, one entry |
-| engine alone | jig's engine part; `hosts.listener` one socket address on loopback, in plaintext, its port 0 or fixed; `hosts.workers` the cluster's workers, each with its digest | `[]` | every member; `workers` `[]` |
-| worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext, with no `limits` and no `agent` | `workers`, one entry, alone |
-=======
 | standalone | jig's engine part; `hosts.listener` `[{"in_process": "workers"}]` | one, named `local`, whose `engine` is `{"in_process": "workers"}` | every member; `workers`, one entry |
 | engine alone | jig's engine part; `hosts.listener` one socket address on loopback, in plaintext, its port 0 or fixed | `[]` | every member; `workers` `[]` |
-| worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext | `workers`, one entry, and `limits`, alone |
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+| worker alone | absent | one, whose `engine` is a socket address on loopback, in plaintext, with no `limits` and no `agent` | `workers`, one entry, alone |
 
 - **Workers are settings** (jig's `domain/engine/workers.md`): no shape's
   document lists one, and `engine.hosts.workers` is refused by name,

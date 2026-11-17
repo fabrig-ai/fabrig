@@ -1,10 +1,6 @@
 //! Run failure causes through server bytes and the client link (protocol/client/wire.md, 1).
 use jig_client::contract as c;
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_tasks as t;
 use jig_tasks_kit::{LIMITS, World, task};
 use skein_lib::{Reader, Writer};

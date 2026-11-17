@@ -1447,11 +1447,8 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
-<<<<<<< HEAD
                     flake_reruns: Box::new([]),
-=======
                     room: Some(11),
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                     job: Some(forge::history::JobRecord {
                         step: forge::history::JobStep {
                             task: 71,
@@ -1647,11 +1644,8 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             let row = v25::LandingRow::new(
                 &v25::CEILINGS,
                 v25::LandingRowParts {
-<<<<<<< HEAD
                     flake_reruns: List::with_capacity(0),
-=======
                     room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                     landing,
                     asks: List::with_capacity(0),
                     entries: List::with_capacity(0),
@@ -3393,7 +3387,6 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
 }
 
 #[test]
-<<<<<<< HEAD
 fn a_stale_updates_first_refusal_survives_the_store() {
     use temper_engine_domain_forge_change::{EffectResult, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -3407,7 +3400,10 @@ fn a_stale_updates_first_refusal_survives_the_store() {
         row.change.stale = stale;
         let stored = fixtures::change_hot(row);
         assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
-=======
+    }
+}
+
+#[test]
 fn a_flake_terminal_and_hold_round_trip_in_the_hot_part() {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
@@ -3442,6 +3438,5 @@ fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
         let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
         assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
         assert_eq!(hot.regate, row.regate);
->>>>>>> 8599bda064065a5dcc76c481cdbd8c5338b78aaf
     }
 }

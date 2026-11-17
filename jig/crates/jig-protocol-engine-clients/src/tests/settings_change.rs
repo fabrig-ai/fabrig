@@ -1,11 +1,7 @@
 //! Settings cross the clients' component as one value and one keyed digest.
 use super::fixtures::{self as f, Exchange};
 use crate::{Request, translate};
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_people as p;
 use skein_lib::List;

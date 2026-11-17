@@ -2,17 +2,13 @@
 use super::{service, visitor::Visitor};
 use crate::fixtures;
 use jig_client::contract as c;
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Reader, Writer};
 
 pub(super) fn owned(read: &w::Read) -> w::Owned {
     let mut writer = Writer::new(usize::try_from(read.measure()).expect("read size"));
     read.encode(&mut writer).expect("read encoding");
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 28, record: writer.finish() })
+    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() })
         .expect("read envelope")
 }
 pub(super) fn read_body(read: &w::Read) -> Box<[u8]> {
@@ -27,7 +23,7 @@ pub(super) fn keyed(ask: &c::Ask, key: u8) -> Box<[u8]> {
     ask.encode(&mut writer).expect("ask encoding");
     let record = w::Keyed::new(
         &w::CEILINGS,
-        w::KeyedParts { owner: w::Owner::Jig, version: 28, request: writer.finish(), key: [key; 16], value: None },
+        w::KeyedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, request: writer.finish(), key: [key; 16], value: None },
     )
     .expect("request envelope");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("request size"));

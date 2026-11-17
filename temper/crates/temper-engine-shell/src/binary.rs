@@ -226,13 +226,8 @@ mod tests {
             ("smith-pieces", 1, 1),
             ("smith-charter", 4, 5),
             ("smith-transcript", 7, 7),
-<<<<<<< HEAD
             ("temper-worker-wire", 5, 10),
-            ("temper-host-tools", 1, 5),
-=======
-            ("temper-worker-wire", 5, 9),
-            ("temper-host-tools", 1, 6),
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+            ("temper-host-tools", 1, 8),
         ]) {
             assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));
             assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));

@@ -4,11 +4,7 @@ use super::classify;
 use super::documents::{current_call_fields, live_call_fields, run_state_fields, run_text_fields};
 use crate::Limits;
 use jig_client_domain::contract as c;
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 pub fn run_state(record: w::RunState, limits: &Limits) -> Result<c::RunState, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);

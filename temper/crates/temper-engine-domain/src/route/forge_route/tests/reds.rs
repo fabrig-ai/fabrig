@@ -489,11 +489,8 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         &mut domain,
         &env,
         forge::Stored::Landing(forge::LandingRow {
-<<<<<<< HEAD
             flake_reruns: Box::new([]),
-=======
             room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
             job: None,
             landing: landing::Landing {
                 task: 61,

@@ -21,7 +21,7 @@ pub(crate) enum Ending {
 pub(crate) struct Connection {
     pub machine: Machine,
     pub in_process: bool,
-    pub opening: Option<Event>,
+    pub pending_opening: Option<Event>,
     pub phase: Phase,
     pub opening: jig_protocol_worker_wire::Opening,
     pub worker: Option<u32>,
@@ -51,7 +51,7 @@ impl Connection {
         Self {
             machine,
             in_process,
-            opening: None,
+            pending_opening: None,
             phase: Phase::Opening,
             opening: jig_protocol_worker_wire::Opening::Link,
             worker: None,

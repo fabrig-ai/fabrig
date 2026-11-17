@@ -14,13 +14,9 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
 - **Google client:** OAuth consent in Testing, members its test users,
   scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
   `https://temper.example.com/sign-in/google/return`.
-<<<<<<< HEAD
-- `COMMIT`: same build's 12 hex digits on both Linux x86-64 hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
-=======
 - `HEX`: `w1.digest`'s hex, not its path.
 - `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
   hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
   ctl's client); on `worker`, `binaries='temper-worker temper-agent'`.
   On each:
 
@@ -41,11 +37,7 @@ Binaries are suffixless gzip; keep the checksum layout. Strip
 
 ## 1. Write the engine's configuration
 
-<<<<<<< HEAD
 Copy `owned.json` to `CONFIG/temper.json`; change:
-=======
-Copy `owned.json` to `CONFIG/temper.json`, `owned/` files to `CONFIG/`; edit:
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 - `engine.hosts`: `{"listener":[{"socket":"127.0.0.1:8369"}]}`;
   `workers` and `application.workers`: `[]`, an engine alone;
@@ -77,15 +69,11 @@ temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 saves, even after restart. `0` alone refuses start:
 `engine.memory_bytes: past its bound` (temper help configuration).
 
-<<<<<<< HEAD
-For more runs, raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
-`checkout.workspaces` and `git_component.operations`. A start names short
+For more runs, change the worker's places with `temper ctl DIR worker
+places w1 PLACES --key KEY`, and keep its document's `workers[0].slots`
+at least that large. New places apply when the worker next starts and
+takes its engine's figures. Set limits on the engine; a start names short
 limits. A slot is an agent process, up to the `agents` setting's `declared.memory`.
-=======
-More runs: raise `workers[0].slots`, `hub.slots`, `fleet.slots`,
-`checkout.workspaces` and `git_component.operations`. Starts name short limits.
-Each slot: an agent process, at most `agent.json`'s `declared.memory`.
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 Expect: valid JSON; nothing runs yet.
 
@@ -93,22 +81,14 @@ If not: step 3 names refused members.
 
 ## 2. Keep the secrets
 
-<<<<<<< HEAD
-As `temper`, type Google's secret without echo, chat or copying:
-=======
 As `temper`, enter Google's client secret without echo, chat or copying:
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
 ```
 
 On `worker`, make data's `secrets/w1.secret`; copy SHA-256 of its digits
-<<<<<<< HEAD
-(no line end) to `engine`'s `DATA/secrets/w1.digest`:
-=======
 without the line end for the engine's worker setting:
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/w1.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
@@ -197,7 +177,6 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-<<<<<<< HEAD
 - `temper-worker serve`: three dirs. Use example's
   `workers[0]` with `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`; top-level only `workers` and
@@ -215,36 +194,13 @@ If not: 502: engine down or listening elsewhere; read its journal.
   `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
-=======
-- Worker: three directories for `temper-worker serve`. Keep only top-level
-  `workers` and `application`'s `workers` and `limits`; omit top-level `engine`.
-  From the example's `workers[0]`, set `engine`: `{"socket":"127.0.0.1:8369"}`,
-  `name`: `"w1"`, `secret`: `"secrets/w1.secret"`,
-  `agent.program`: `"/usr/local/bin/temper-agent"`, `agent.configuration`: absolute
-  `agent.json` path, `agent.arguments`: `[that path]`.
-  Use step 3's unit with `KillMode=control-group` (no surviving agent/command)
-  and `TimeoutStopSec=360s` (326-second stop bound plus 34 seconds).
-  Raise this timeout with the bound. `ReadWritePaths`: its own home.
-  Without `PrivateTmp=yes`, Claude Code fails
-  `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-  `agent.json`'s `environment` is a list, not a map:
-  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
-- The runner, Forgejo runner 13.2.1 under a user of its own, its
-  `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
-  `DATA/forge-1/runner/`; its jobs in rootless podman.
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 ```
 temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
-<<<<<<< HEAD
 Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
 then `linked w1` and engine address; Forgejo site administration: runner online.
-=======
-Expect: `worker` stderr: `linked w1` and the engine address;
-runner online in Forgejo site administration.
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 If not: limits below stock refuse before listening, naming limit,
 setting and required size: `engine.limits.overrides.core.policy_bytes:
@@ -268,6 +224,10 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in
 ```
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
+
+Add the worker with step 2's `worker add` command after signing in,
+including after a store reset. Until its setting exists, the worker
+redials with `not-admitted`; adding it needs no engine restart.
 
 Connect Forgejo: without a record, `forge list` is empty; `forge setup`
 refuses. A new store's forge is 1:

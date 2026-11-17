@@ -2525,11 +2525,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if unprepared {
         row.landing.round.upstream = p.upstream;
     }
-<<<<<<< HEAD
-    if continue_flake_rerun(d, &mut row, p.entry, out) || continue_retry(d, &mut row, p.entry, out) {
-=======
-    if continue_retry(d, env, &mut row, p.entry, out) {
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
+    if continue_flake_rerun(d, env, &mut row, p.entry, out) || continue_retry(d, env, &mut row, p.entry, out) {
         return;
     }
     // A hearing with none decides nothing about the prepare (landing-preparing.md, 3).
@@ -4331,7 +4327,6 @@ fn reset_results(d: &mut Domain, row: &LandingRow, prior: &LandingRow) {
         }
     }
 }
-<<<<<<< HEAD
 /// Keep the spent key before any write, including when another landing observed the red
 /// (domain/landing-regate.md, 2, 4, 5).
 fn start_flake_rerun(
@@ -4419,7 +4414,7 @@ fn count_gate_flakes(d: &mut Domain, env: &Env<Limits>, task: u64, key: &Receipt
 
 /// The root supplies one entry per decision. Persist the remaining jobs beside that
 /// entry, draining them without spending `gate_retries` (domain/landing-regate.md, 2).
-fn continue_flake_rerun(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Queue<Request>) -> bool {
+fn continue_flake_rerun(d: &mut Domain, env: &Env<Limits>, row: &mut LandingRow, entry: u64, out: &mut Queue<Request>) -> bool {
     let mut pending = None;
     for rerun in &row.flake_reruns {
         if !rerun.ended && (!rerun.pending.is_empty() || rerun.redispatch) && d.landing.flights.contains_key(&rerun.key)
@@ -4441,7 +4436,9 @@ fn continue_flake_rerun(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &
             base = kept.base;
         }
     }
-    if flight.waiting || entry == 0 || d.entries.contains_key(&entry) || d.entries.len() == d.landing.limits.entries {
+    if flight.waiting || entry == 0 {
+        leave_room(d, row);
+        save(d, row.clone(), out);
         emit(
             out,
             Request::LandingDecision {
@@ -4451,6 +4448,9 @@ fn continue_flake_rerun(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &
                 evidence: None,
             },
         );
+        return true;
+    }
+    if !admit_entry(d, env, row.landing.task, entry, row, member, out) {
         return true;
     }
     let flight = d.landing.flights.get_mut(&key).expect("pending flake rerun");
@@ -4493,8 +4493,6 @@ fn continue_flake_rerun(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &
     true
 }
 
-fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Queue<Request>) -> bool {
-=======
 fn continue_retry(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4502,7 +4500,6 @@ fn continue_retry(
     entry: u64,
     out: &mut Queue<Request>,
 ) -> bool {
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
     let mut pending = None;
     for (key, flight) in &d.landing.flights {
         if flight.task == row.landing.task && !flight.writes.is_empty() {

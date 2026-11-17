@@ -21,11 +21,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -294,11 +290,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -392,11 +384,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -468,11 +456,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));

@@ -426,16 +426,11 @@ impl Store {
                     }
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-<<<<<<< HEAD
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
                     | engine::StoreInput::Switched
-                    | engine::StoreInput::ReadLoaded { .. }) => {
-=======
-                    reply @ (engine::StoreInput::Switched
                     | engine::StoreInput::ReadLoaded { .. }
                     | engine::StoreInput::PartLoaded { .. }) => {
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }

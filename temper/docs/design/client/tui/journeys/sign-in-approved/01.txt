@@ -1,51 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-│ Sign in this terminal to 127.0.0.1:43675                                     │
+│ Sign in this terminal to 127.0.0.1:42513                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ VQVX-TDSX, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:43675/terminal?code=VQVX-TDSX                  │
+│ VPBH-NMZM, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42513/terminal?code=VPBH-NMZM                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:43675/jig/v1/sign-in/link?secret=… (enter sends)    │
-=======
-│ Sign in this terminal to 127.0.0.1:44715                                     │
-│ A tab opened in your browser. Check it shows                                 │
-│ JGKG-TZTK, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:44715/terminal?code=JGKG-TZTK                  │
-│ The code expires in 9 min.                                                   │
-│ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:44715/jig/v1/sign-in/link?secret=… (enter sends)    │
->>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
-=======
-│ Sign in this terminal to 127.0.0.1:45531                                     │
-│ A tab opened in your browser. Check it shows                                 │
-│ CSWV-CTGW, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:45531/terminal?code=CSWV-CTGW                  │
-│ The code expires in 9 min.                                                   │
-│ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:45531/jig/v1/sign-in/link?secret=… (enter sends)    │
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
-=======
-│ Sign in this terminal to 127.0.0.1:38761                                     │
-│ A tab opened in your browser. Check it shows                                 │
-│ BCWZ-KGDK, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:38761/terminal?code=BCWZ-KGDK                  │
-│ The code expires in 9 min.                                                   │
-│ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:38761/jig/v1/sign-in/link?secret=… (enter sends)    │
->>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
-=======
-│ Sign in this terminal to 127.0.0.1:34745                                     │
-│ A tab opened in your browser. Check it shows                                 │
-│ XJPR-TJTB, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:34745/terminal?code=XJPR-TJTB                  │
-│ The code expires in 9 min.                                                   │
-│ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:34745/jig/v1/sign-in/link?secret=… (enter sends)    │
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
+│ ❯ Link: http://127.0.0.1:42513/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

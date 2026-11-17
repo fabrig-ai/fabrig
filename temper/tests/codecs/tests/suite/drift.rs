@@ -1,3 +1,5 @@
+/home/free/src/fabrig/temper-worker/byhand-1117/stack/temper/tests/codecs/tests/suite/drift.rs:
+
 //! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
 use skein_codegen::{generate, parse, tests_main};
 use std::fs;
@@ -103,29 +105,60 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
     );
 }
 
-// Client layouts have no bridge; preserve every older line and append the current
-// fingerprint through the same generator as the records (protocol/wires.md, 9).
+// Client layouts have no bridge; preserve every older line and append kept
+// cumulative versions before the current fingerprint (protocol/wires.md, 9).
 fn client_layout(source: &str, family: &str) {
-    use std::fmt::Write;
+    use std::{collections::BTreeMap, fmt::Write};
     let root = skein_scratch::paths::tree().join("crates/temper-client-protocol-wire/schema");
     let source = fs::read(root.join(source)).expect("client schema");
     let schema = skein_codec::schema::parse(&source).expect("client schema valid");
-    let mut line = format!("{} ", schema.version());
-    for byte in schema.fingerprints().family().digest() {
-        write!(&mut line, "{byte:02x}").expect("fingerprint text");
+    let current = schema.version();
+    let mut texts = BTreeMap::new();
+    let kept = root.join("kept");
+    if kept.exists() {
+        for entry in fs::read_dir(kept).expect("kept client schemas") {
+            let path = entry.expect("kept client schema").path();
+            if path.extension().is_some_and(|extension| extension == "schema") {
+                let text = fs::read(&path).expect("kept client schema text");
+                let held = skein_codec::schema::parse(&text).expect("kept client schema valid");
+                if held.spelled(held.family()) == family.as_bytes() && held.version() <= current {
+                    texts.insert(held.version(), text);
+                }
+            }
+        }
     }
-    line.push('\n');
+    texts.insert(current, source);
     let path = root.join(format!("{family}.layouts"));
     let mut layouts = fs::read_to_string(&path).expect("client layouts");
-    if temper_test_env::rewrite() && !layouts.ends_with(&line) {
-        assert!(
-            !layouts.lines().any(|held| held.starts_with(&format!("{} ", schema.version()))),
-            "a committed layout is immutable"
-        );
-        layouts.push_str(&line);
-        fs::write(&path, &layouts).expect("append current layout");
+    let write = temper_test_env::rewrite();
+    for (version, text) in texts {
+        let schema = skein_codec::schema::parse(&text).expect("client schema valid");
+        let mut line = format!("{version} ");
+        for byte in schema.fingerprints().family().digest() {
+            write!(&mut line, "{byte:02x}").expect("fingerprint text");
+        }
+        line.push('\n');
+        let prefix = format!("{version} ");
+        if let Some(held) = layouts.lines().find(|held| held.starts_with(&prefix)) {
+            assert_eq!(held, line.trim_end(), "a committed layout is immutable");
+        } else if write {
+            let previous = layouts
+                .lines()
+                .last()
+                .and_then(|held| held.split_once(' '))
+                .map(|(version, _)| version.parse::<u16>().expect("layout version"));
+            assert_eq!(previous.and_then(|version| version.checked_add(1)), Some(version), "contiguous client layouts");
+            layouts.push_str(&line);
+        } else {
+            panic!("missing client layout {version}: {AGAIN}");
+        }
+        if version == current {
+            assert!(layouts.ends_with(&line), "current client layout: {AGAIN}");
+        }
     }
-    assert!(layouts.ends_with(&line), "current client layout: {AGAIN}");
+    if write {
+        fs::write(&path, layouts).expect("append client layouts");
+    }
 }
 
 #[test]

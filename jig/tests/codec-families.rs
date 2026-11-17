@@ -34,13 +34,9 @@ pub const FAMILIES: &[Family] = &[
         name: "client",
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v28.schema", "schema/client-v28-part1.schema"],
-<<<<<<< HEAD
-        records: "jig_client_protocol_wire::v28",
-=======
+        schemas: &["schema/client-v30.schema", "schema/client-v30-part1.schema"],
         records: "jig_client_protocol_wire",
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
-        generated: &["src/generated/v28.rs"],
+        generated: &["src/generated/v30.rs"],
         golden: "golden",
         fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },

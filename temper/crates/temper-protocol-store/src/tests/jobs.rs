@@ -201,11 +201,8 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
         (
             "Landing",
             Stored::Landing(d::LandingRow {
-<<<<<<< HEAD
                 flake_reruns: Box::new([]),
-=======
                 room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                 job: None,
                 asks: Box::new([None, None]),
                 entries: Box::new([]),

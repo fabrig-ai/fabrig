@@ -242,14 +242,11 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
-<<<<<<< HEAD
         if let Some(claude) = facts.claude {
             expected["application"]["workers"][0]["claude"] = json!(text(claude));
         }
-=======
         assert_eq!(actual["workers"][0]["name"], "local", "{row}");
         assert!(actual["engine"]["hosts"].get("workers").is_none(), "{row}");
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         assert_eq!(actual, expected, "{row}");
     }
 }
@@ -540,13 +537,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         for member in ["providers", "endpoints"] {
             expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
         }
-<<<<<<< HEAD
         let names = [b"worker.secret".as_slice(), b"worker.digest", b"temper.json"];
-=======
-        let mut agent = parse(content(&boxed, b"agent.json"));
-        agent["endpoints"].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
-        let names = [b"worker.secret".as_slice(), b"agent.json", b"temper.json"];
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
         assert_eq!(bare.len(), names.len(), "{row}");
         for (file, name) in bare.iter().zip(names) {
             assert_eq!(file.name, name, "{row}");
@@ -559,15 +550,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
                     assert_eq!(parse(bytes), expected, "{row}");
                     assert!(!private);
                 }
-<<<<<<< HEAD
                 _ => assert_eq!(file, source, "{row}: shared secret and digest"),
-=======
-                b"agent.json" => {
-                    assert_eq!(parse(bytes), agent, "{row}");
-                    assert!(!private);
-                }
-                _ => assert_eq!(file, source, "{row}: shared secret"),
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             }
         }
     }

@@ -1,47 +1,11 @@
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  ▄█▀▀   temper 0.0.0 (2217e002c077-dirty)
- ▄█▄█▄█  127.0.0.1:41237
-=======
-  ▄█▀▀   temper 0.0.0 (2dd6dc855782-dirty)
- ▄█▄█▄█  127.0.0.1:41911
->>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
-=======
-  ▄█▀▀   temper 0.0.0 (ad478168f43f-dirty)
- ▄█▄█▄█  127.0.0.1:40783
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
-=======
-  ▄█▀▀   temper 0.0.0 (8784374d5bef-dirty)
- ▄█▄█▄█  127.0.0.1:33461
->>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
-=======
-  ▄█▀▀   temper 0.0.0 (dd7a1b3ac4e2-dirty)
- ▄█▄█▄█  127.0.0.1:34389
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
+  ▄█▀▀   temper 0.0.0 (9f1f489c4f23-dirty)
+ ▄█▄█▄█  127.0.0.1:39313
 
  Nothing needs you.
 
  Where you left off
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-   Hello   Add a CSV export to the report, a chat · today 12:26 ·…     /chats 1
-=======
-   Hello   Add a CSV export to the report, a chat · today 12:32 ·…     /chats 1
->>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
-=======
-   Hello   Add a CSV export to the report, a chat · today 12:40 ·…     /chats 1
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
-=======
-   Hello   Add a CSV export to the report, a chat · today 12:38 ·…     /chats 1
->>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
-=======
-   Hello   Add a CSV export to the report, a chat · today 13:18 ·…     /chats 1
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
+   Hello   Add a CSV export to the report, a chat · today 09:17 ·…     /chats 1
 
  Start
    /draft    a design session that ends in a draft and a goal

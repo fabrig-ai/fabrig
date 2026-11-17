@@ -222,11 +222,7 @@ fn ready_client(service: &mut crate::Service) -> &mut crate::Engine {
     engine
 }
 fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -451,11 +447,7 @@ fn prepared(clients: bool) -> crate::Service {
 }
 
 fn before_restart_is_not_ready(engine: &mut crate::Engine) {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     engine.clients.as_mut().expect("clients").starting = Some(());
     let body = link_body(engine);
     let mut peer = Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
@@ -492,15 +484,9 @@ fn withhold_store(engine: &mut crate::Engine, held: &mut skein_lib::Queue<jig_pr
     }
 }
 
-<<<<<<< HEAD
-fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::v28::SignInAnswer {
-    assert!(peer.wire.received.starts_with(b"HTTP/1.1 200 "), "HTTP answer: {:?}", peer.wire.received);
-    jig_client_protocol_wire::v28::SignInAnswer::decode(
-=======
 fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wire::SignInAnswer {
     assert!(peer.wire.received.starts_with(b"HTTP/1.1 200 "), "HTTP answer: {:?}", peer.wire.received);
     jig_client_protocol_wire::SignInAnswer::decode(
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         &engine.clients.as_ref().expect("clients").env.limits.wire,
         &mut skein_lib::Reader::new(response_body(peer)),
     )
@@ -509,11 +495,7 @@ fn sign_in_answer(engine: &crate::Engine, peer: &Peer) -> jig_client_protocol_wi
 
 #[test]
 fn sign_in_is_not_ready_until_restart_decisions_open() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut service = started(true);
     let engine = ready_client(&mut service);
     let body = link_body(engine);
@@ -597,11 +579,7 @@ fn response_body(peer: &Peer) -> &[u8] {
     peer.wire.received.get(at..).expect("response body")
 }
 fn application_read(engine: &crate::Engine) -> Box<[u8]> {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let limits = &engine.clients.as_ref().expect("clients").env.limits.wire;
     let owner = w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: 1 }).expect("test family"));
     let window = w::Window::new(limits, w::WindowParts { rows: 2, after: None }).expect("window");
@@ -627,11 +605,7 @@ fn application_read(engine: &crate::Engine) -> Box<[u8]> {
 }
 #[test]
 fn a_core_refusal_finishes_an_application_read() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut service = started(true);
     let engine = ready_client(&mut service);
     let body = application_read(engine);

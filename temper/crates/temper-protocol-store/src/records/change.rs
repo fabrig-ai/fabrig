@@ -868,11 +868,8 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
-<<<<<<< HEAD
         regate,
-=======
         room,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         kept,
         task_release,
         job,
@@ -907,7 +904,6 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
-<<<<<<< HEAD
             regate: match regate {
                 Some(value) => Some(
                     w::Regate::new(
@@ -918,9 +914,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
                 ),
                 None => None,
             },
-=======
             room: *room,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
             kept: *kept,
             task_release: match task_release {
                 Some(release) => Some(
@@ -1002,11 +996,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
-<<<<<<< HEAD
         regate,
-=======
         room,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         kept,
         task_release,
         job,
@@ -1039,11 +1030,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         delegate_head,
     } = value.into_parts();
     Ok(top::ChangeHot {
-<<<<<<< HEAD
         regate: decode_regate(regate),
-=======
         room,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         kept,
         task_release: match task_release {
             Some(release) => {

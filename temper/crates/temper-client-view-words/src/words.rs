@@ -2250,11 +2250,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-<<<<<<< HEAD
-const PHRASES: u32 = 2776;
-=======
-const PHRASES: u32 = 2797;
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+const PHRASES: u32 = 2799;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2281,21 +2277,10 @@ const PHRASES: u32 = 2797;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-<<<<<<< HEAD
-const SEGMENTS: u32 = 5154;
+const SEGMENTS: u32 = 5193;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-<<<<<<< HEAD
-const ENGLISH_BYTES: u32 = 65535;
-=======
-const ENGLISH_BYTES: u32 = 65544;
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
-const ALL: [Word; 2054] = [
-=======
-const SEGMENTS: u32 = 5191;
-// Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65910;
+const ENGLISH_BYTES: u32 = 65975;
 const ALL: [Word; 2076] = [
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,

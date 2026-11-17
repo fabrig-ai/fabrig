@@ -162,11 +162,7 @@ mod tests {
         }
     }
     fn signed_in() -> Domain {
-<<<<<<< HEAD
-        use jig_client_protocol_wire::v28 as w;
-=======
         use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         let limits = fixtures::limits();
         let mut root = crate::new(&limits, 11);
         let mut out = Queue::uncapped();
@@ -288,11 +284,7 @@ mod tests {
     }
     #[test]
     fn authorization_waits_for_exchange_credit_and_sends_once() {
-<<<<<<< HEAD
-        use jig_client_protocol_wire::v28 as w;
-=======
         use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         let limits = fixtures::limits();
         let env = fixtures::env(&limits);
         let mut root = signed_in();
@@ -345,11 +337,7 @@ mod tests {
     }
     #[test]
     fn signed_in_sends_long_queries_byte_for_byte_once() {
-<<<<<<< HEAD
-        use jig_client_protocol_wire::v28 as w;
-=======
         use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         for bytes in [1025 - b"/oauth/authorize?".len(), usize::try_from(QUERY_BYTES).unwrap()] {
             let mut root = signed_in();
             let query = query(bytes);

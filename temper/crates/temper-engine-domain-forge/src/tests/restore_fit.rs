@@ -59,11 +59,8 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
         }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
-<<<<<<< HEAD
             flake_reruns: Box::new([]),
-=======
             room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
             job: None,
             landing: policy::Landing {
                 last_left: None,
@@ -754,11 +751,8 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         landed: None,
     };
     LandingRow {
-<<<<<<< HEAD
         flake_reruns: Box::new([]),
-=======
         room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         job: None,
         landing: policy::Landing {
             last_left: None,

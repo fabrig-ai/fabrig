@@ -2,12 +2,8 @@
 use super::Undecodable;
 use crate::Limits;
 use jig_client_domain::contract as c;
-<<<<<<< HEAD
-use jig_client_protocol_wire::{VERSION, v28 as w};
-=======
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Reader, Wall, length::len_u64};
 
 // Schema client-v28: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,

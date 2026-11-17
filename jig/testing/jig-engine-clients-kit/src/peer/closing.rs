@@ -100,11 +100,7 @@ impl Peer {
         self.post(target, body, Some(&bearer))
     }
     pub fn accepted_link(&mut self, link: &[u8]) -> Token {
-<<<<<<< HEAD
-        use jig_client_protocol_wire::v28 as w;
-=======
         use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         use skein_lib::{
             Writer,
             base64::{self, Alphabet},

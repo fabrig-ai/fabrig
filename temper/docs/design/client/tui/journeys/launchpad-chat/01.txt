@@ -1,33 +1,13 @@
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  ▄█▀▀   temper 0.0.0 (2217e002c077-dirty)
- ▄█▄█▄█  127.0.0.1:34487
-=======
-  ▄█▀▀   temper 0.0.0 (2dd6dc855782-dirty)
- ▄█▄█▄█  127.0.0.1:42403
->>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
-=======
-  ▄█▀▀   temper 0.0.0 (ad478168f43f-dirty)
- ▄█▄█▄█  127.0.0.1:33521
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
-=======
-  ▄█▀▀   temper 0.0.0 (8784374d5bef-dirty)
- ▄█▄█▄█  127.0.0.1:37383
->>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
-=======
-  ▄█▀▀   temper 0.0.0 (dd7a1b3ac4e2-dirty)
- ▄█▄█▄█  127.0.0.1:41709
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
+  ▄█▀▀   temper 0.0.0 (9f1f489c4f23-dirty)
+ ▄█▄█▄█  127.0.0.1:38785
 
  Nothing needs you.
 
  Start
+   /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
-
 
 
 

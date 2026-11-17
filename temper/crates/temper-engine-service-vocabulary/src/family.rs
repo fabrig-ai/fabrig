@@ -1069,11 +1069,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-<<<<<<< HEAD
-    jig: &jig_client_protocol_wire::v28::Limits,
-=======
     jig: &jig_client_protocol_wire::Limits,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Checkpoint(value)) => checkpoints::answer(value, limits)?,

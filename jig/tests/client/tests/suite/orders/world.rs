@@ -2,11 +2,7 @@
 //! completions. The loop observes only requests; no client state is inspected
 //! (jig/docs/design/client/domain/testing.md, 4).
 use jig_client::{self as client, Down, Event, Message, Told, Up, contract as c};
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use jig_client_test_domain::{self as root, first};
 pub use jig_client_world::PARTY;
 use jig_client_world::test;

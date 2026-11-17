@@ -178,18 +178,15 @@ document says what temper adds. What is open is listed in `README.md`, section 9
     `{"in_process": "workers"}`: the box's worker, the setting `local`
     the box passes as its default (`../cluster.md`, 1);
   - `engine.hosts.listener` is `[{"in_process": "workers"}]`, and
-<<<<<<< HEAD
-    `engine.hosts.workers` names that one worker;
-  - `engine.connectors` is exactly `[1]`: the forge connector, temper's
-    one connector, whose number both ends of the client's wire fix as
-    `temper-client-protocol-wire`'s `FORGE` (`../../client/forge/records.md`);
-  - the worker part names no `agent` and no `limits` (`figures.md`,
-    section 7).
-=======
     `engine.hosts.workers` is refused by name: workers are settings
     (jig's `domain/engine/workers.md`);
-  - the worker's `agent` paths are absolute (section 4).
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+  - the worker part names no `agent` and no `limits` (`figures.md`,
+    section 7).
+
+  `engine.connectors` is temper's constant `[1]` (`moved.md`, section
+  2): the forge connector, temper's one connector, whose number both
+  ends of the client's wire fix as `temper-client-protocol-wire`'s
+  `FORGE` (`../../client/forge/records.md`).
 
   The worker's agent is temper's own binary, derived (`figures.md`,
   section 6).
@@ -199,28 +196,15 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   | Shape | `engine` | `workers` | `application` |
   |---|---|---|---|
   | standalone | present, `hosts.listener` `[{"in_process": "workers"}]` | one, its `engine` `{"in_process": "workers"}` | every member, `workers` one entry |
-<<<<<<< HEAD
-  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; `hosts.workers` one or more | `[]` | every member, `workers` `[]` |
+  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member, `workers` `[]` |
   | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `workers`, one entry; no other member |
 
-  - an engine alone is checked as standalone is, but for its listener
-    and its workers, by the table, each worker's `digest` a data path
-    of its own;
+  - an engine alone is checked as standalone is, but for its listener,
+    by the table, and its workers, which it has none of by default;
   - a worker alone is checked for its worker part and its entry of
     `application.workers` (section 3), then for the figures its engine
     sends and the agent configuration written from them (`figures.md`,
     section 3), and for nothing of an engine's;
-=======
-  | engine alone | present, `hosts.listener` one socket address on loopback (in `127.0.0.0/8`, or `::1`), plaintext, its port fixed or 0; its workers settings an owner adds (`../cluster.md`, 2) | `[]` | every member, `workers` `[]` |
-  | worker alone | absent | one, its `engine` a socket address on loopback, plaintext | `workers`, one entry, and `limits`; no other member |
-
-  - an engine alone is checked as standalone is, but for its listener,
-    by the table, and its workers, which it has none of by default;
-  - a worker alone is checked for its worker part, its entry of
-    `application.workers` (section 3), its agent's configuration
-    (section 4) and the limits its side takes (`limits.md`), and for
-    nothing of an engine's;
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
   - any other document is refused, naming the member that departs from
     the nearest shape: an in-process listener beside a socket, an
     engine with both a worker and a socket listener, a worker alone
@@ -439,7 +423,7 @@ stop timeout are unchanged.
 - **The same names as the engine's** hold by construction: the agent's
   endpoints are `engine.llm`'s, under the same names (`figures.md`,
   section 2), so no start compares them.
-- **The worker must fit the configured charters.** After those name checks,
+- **The worker must fit the configured charters.** After the figures checks,
   startup builds jig's core configuration once, expands its instruction files,
   and projects its fleet needs with jig's `fleet_needs::configured`. The
   worker's bounds are its agent configuration's `bounds`, which its
@@ -749,20 +733,15 @@ not itself valid JSON):
     "secret": "worker.secret",
     "slots": ..., "graces": ...,
     "programs": {"check_interval_ms": ...},
-    "agent": {
-      "program": "/usr/local/bin/temper",
-      "configuration": "/home/me/.config/temper/agent.json",
-      "arguments": ["internal", "agent", "/home/me/.config/temper/agent.json"]
-    },
-    "limits": {"profile": "small", "overrides": {"hub.event_bytes": ..., ...}},
     "memory_bytes": ...
   }],
   "application": { ... as above ... }
 }
 ```
 
-Its `engine.limits` names the overrides `limits.md` asks, and its worker's
-`limits` those the worker's check against the agent asks (`limits.md`).
+Its `engine.limits` names the overrides `limits.md` asks. The worker
+takes its limits and agent configuration from the engine's figures
+(`figures.md`), so its part names neither `limits` nor `agent`.
 The owned example, `docs/examples/owned.json`, is a whole document for
 one owned Forgejo's place, with its own values (../setup/init.md, 1).
 

@@ -25,12 +25,8 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
-<<<<<<< HEAD
     figures: temper_engine_service_vocabulary::figures::Composer,
-    worker_names: List<Box<[u8]>>,
     copy: Option<AgentsCopy>,
-=======
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
 /// The box's shell keeps this copy after restore and each committed change.
@@ -54,13 +50,8 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
-<<<<<<< HEAD
-        let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
-        let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
-=======
         let host = kit::host::Workers::new(config, tokens, application, limits)?;
-        let mut table = crate::forges::Forges::with_capacity(forge_limit);
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+        let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
@@ -73,11 +64,7 @@ impl Workers {
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
-<<<<<<< HEAD
-            worker_names,
             copy: None,
-=======
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
             opening_ends: Map::with_capacity(opening_names),
         })
     }

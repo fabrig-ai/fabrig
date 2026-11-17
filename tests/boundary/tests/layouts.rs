@@ -21,7 +21,7 @@ const WIRES: &[Wire] = &[
     Wire {
         name: "jig-client-wire",
         owner: "jig/crates/jig-client-protocol-wire",
-        schemas: &["client-v28.schema", "client-v28-part1.schema"],
+        schemas: &["client-v30.schema", "client-v30-part1.schema"],
     },
     Wire { name: "jig-public-wire", owner: "jig/crates/jig-client-protocol-wire", schemas: &["public-v1.schema"] },
     Wire {
@@ -181,10 +181,7 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
-<<<<<<< HEAD
-=======
     // During a landing merge, the incoming target already owns its landed layouts.
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
         vec!["rev-parse", "MERGE_HEAD"]
     } else if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {

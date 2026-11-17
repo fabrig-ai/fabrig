@@ -913,11 +913,7 @@ fn pump_move_events(accounts: &mut Accounts, engine: &mut crate::engine::Engine)
 
 fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) -> Secret {
     use crate::tests::fixtures::http as peer;
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use skein_lib::{Reader, Writer};
     let limits = engine.clients.env.limits.wire;
     let change = w::AccountChange::MoveOut(
@@ -968,11 +964,7 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
 #[test]
 fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
     use crate::tests::fixtures::http as peer;
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 
     let mut service = fixtures::ready();
     let link = service.links().pop().expect("sign-in link");

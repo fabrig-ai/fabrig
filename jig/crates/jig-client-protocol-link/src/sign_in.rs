@@ -3,11 +3,7 @@ use crate::{
     Link, Message, Request, Signing, With,
     component::{Attempt, ExchangeKind},
 };
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Queue, Reader, Secret, Token, Wall, Writer};
 impl Link {
     #[must_use]

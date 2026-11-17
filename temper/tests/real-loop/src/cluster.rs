@@ -146,7 +146,7 @@ impl Shape {
         let silence_ms = 3 * ping_ms;
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
-        let mut agent: serde_json::Value = serde_json::from_slice(
+        let agent: serde_json::Value = serde_json::from_slice(
             &std::fs::read(if data.join("agent.json").exists() {
                 data.join("agent.json")
             } else {
@@ -155,25 +155,6 @@ impl Shape {
             .expect("agent document"),
         )
         .expect("agent JSON");
-        // Preserve the story's supervision policy; its stop bound is derived below.
-        // Cancellation must leave the held peer time to release its response.
-        let [delivery_ms, save_ms] = [5_u64, 5];
-        let graces = jig_protocol_config::Graces {
-            grace: *grace,
-            // A held model call is cancelled promptly even in a long engine-away story.
-            drain: skein_lib::Duration::from_millis(10),
-            agent_stop: agent_stop_bound(&agent),
-            delivery: skein_lib::Duration::from_millis(delivery_ms),
-            save: skein_lib::Duration::from_millis(save_ms),
-        };
-        let agent_stop_ms = graces.agent_stop.as_millis();
-        let stop_bound_ms = jig_protocol_config::stop_bound(
-            &graces,
-            skein_lib::Duration::from_millis(ping_ms),
-            skein_lib::Duration::from_millis(silence_ms),
-        )
-        .expect("cluster stop bound fits a duration")
-        .as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["engine"]["llm"]["providers"][0]["name"] = "openai".into();
@@ -188,16 +169,12 @@ impl Shape {
                 document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
                 document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
-<<<<<<< HEAD
                 document["engine"]["limits"]["overrides"]["hub.held"] = 1.into();
                 document["engine"]["limits"]["overrides"]["hub.program_sources"] = 0.into();
                 if grace_ms >= 1_000 {
                     document["engine"]["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
                 }
-                for name in workers {
-=======
                 let items: Vec<_> = workers.iter().enumerate().map(|(index, name)| {
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();
                     for byte in skein_lib::sha256::digest(secret.as_bytes()) {

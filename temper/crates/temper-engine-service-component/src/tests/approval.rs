@@ -1,11 +1,7 @@
 //! The service passes on the approval setting (temper/docs/design/protocol/configuration/engine.md).
 use super::fixtures;
-<<<<<<< HEAD
-use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, v28 as w};
-=======
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS};
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
 use skein_lib::{Reader, Time, Wall, Writer, bytes};
 
 // jig/docs/design/protocol/client/sign-in.md: 32 secret bytes, valid for ten minutes.

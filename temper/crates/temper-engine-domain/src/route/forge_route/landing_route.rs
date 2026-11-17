@@ -292,11 +292,8 @@ fn create_landing(
     }
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {
-<<<<<<< HEAD
             flake_reruns: Box::new([]),
-=======
             room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
             job: None,
             landing: landing::Landing {
                 last_left: None,

@@ -293,15 +293,10 @@ fn apply_shape(
     clients.listener = socket.clone();
     engine.connectors = Box::new([1]);
     for worker in workers.iter_mut() {
+        worker.name = b"local".as_slice().into();
         worker.engine = local.clone();
-<<<<<<< HEAD
         worker.agent.as_mut().expect("checked worker agent").program = b"/opt/temper".as_slice().into();
         worker.agent.as_mut().expect("checked worker agent").configuration = b"/opt/agent.json".as_slice().into();
-=======
-        worker.name = b"local".as_slice().into();
-        worker.agent.program = b"/opt/temper".as_slice().into();
-        worker.agent.configuration = b"/opt/agent.json".as_slice().into();
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     }
     match shape {
         Shape::TwoWorkers => return 2,

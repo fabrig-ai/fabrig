@@ -63,11 +63,7 @@ impl Composition {
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-<<<<<<< HEAD
-                wire: jig_client_protocol_wire::v28::CEILINGS,
-=======
                 wire: jig_client_protocol_wire::CEILINGS,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };

@@ -566,11 +566,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
             forge_references(row, application.record())?;
         }
         6 | 7 => {
-<<<<<<< HEAD
-            use jig_client_protocol_wire::v28 as w;
-=======
             use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
             let versions =
                 w::NotServed::decode(&w::CEILINGS, &mut reader).map_err(|why| format!("not-served record: {why:?}"))?;
             match (&(versions.served().len()), &(1)) {

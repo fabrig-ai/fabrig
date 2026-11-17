@@ -14,12 +14,10 @@ use skein_json::writer::{Encoder, Limits};
 use skein_lib::{Decimal, List, Writer, bytes};
 
 pub(crate) const TEMPER: &[u8] = include_bytes!("../template/temper.json");
-pub(crate) const AGENT: &[u8] = include_bytes!("../template/agent.json");
 
 pub(crate) const BARE: &[u8] = include_bytes!("../template/bare.json");
-pub(crate) const BARE_AGENT: &[u8] = include_bytes!("../template/bare-agent.json");
 
-pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
+pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> Box<[u8]> {
     let common = common_values(
         &Bare {
             binary: facts.binary,
@@ -43,12 +41,12 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
         (b"llm".as_slice(), json(Value::Text(Some(&llm)))),
     ];
-    (fill(TEMPER, &values, &common), fill(AGENT, &values, &common))
+    fill(TEMPER, &values, &common)
 }
 
-pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> (Box<[u8]>, Box<[u8]>) {
+pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> Box<[u8]> {
     let values = common_values(facts, directories);
-    (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
+    fill(BARE, &values, &[])
 }
 
 fn common_values(facts: &Bare<'_>, _directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 2] {

@@ -798,12 +798,8 @@ impl Referee {
                 .find_map(|proc| if let Proc::Probe(peer) = proc { Some(peer) } else { None })
                 .ok_or("probe")?;
             let expected = match case {
-<<<<<<< HEAD
                 crate::stories::Opening::Figures => None,
-                crate::stories::Opening::Secret => Some(256),
-=======
                 crate::stories::Opening::Secret => Some(260),
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
                 crate::stories::Opening::Wires => Some(257),
                 crate::stories::Opening::Version => Some(1),
                 crate::stories::Opening::Terms => Some(2),

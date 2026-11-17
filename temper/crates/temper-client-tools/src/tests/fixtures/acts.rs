@@ -234,13 +234,8 @@ pub(crate) fn act_text(bytes: &[u8]) -> c::Text {
 }
 pub(crate) fn encoded(ask: &client::Ask) -> Box<[u8]> {
     let client::Ask::Jig(ask) = ask else { panic!("jig ask") };
-<<<<<<< HEAD
-    let wire = jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::v28::CEILINGS)
+    let wire = jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::CEILINGS)
         .expect("wire ask");
-=======
-    let wire =
-        jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::CEILINGS).expect("wire ask");
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     let mut out = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("wire bytes fit"));
     wire.encode(&mut out).expect("measured ask");
     out.finish()

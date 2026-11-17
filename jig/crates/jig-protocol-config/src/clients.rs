@@ -373,39 +373,23 @@ mod proposal_settings_tests {
     fn proposal_heads_and_review_fit_their_wire_ceilings() {
         // settings-v1's proposal holds 128 heads; the review shares Owned.record's document ceiling.
         for (proposal, retained, review, expected) in [
-<<<<<<< HEAD
-            (128, 128, jig_client_protocol_wire::v28::CEILINGS.owned_record, None),
-            (
-                127,
-                128,
-                jig_client_protocol_wire::v28::CEILINGS.owned_record,
-=======
             (128, 128, jig_client_protocol_wire::CEILINGS.owned_record, None),
             (
                 127,
                 128,
                 jig_client_protocol_wire::CEILINGS.owned_record,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 127,
-<<<<<<< HEAD
-                jig_client_protocol_wire::v28::CEILINGS.owned_record,
-=======
                 jig_client_protocol_wire::CEILINGS.owned_record,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 128,
-<<<<<<< HEAD
-                jig_client_protocol_wire::v28::CEILINGS.owned_record - 1,
-=======
                 jig_client_protocol_wire::CEILINGS.owned_record - 1,
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {

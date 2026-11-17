@@ -5860,7 +5860,6 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             return;
         }
         row.change = stepped.change;
-<<<<<<< HEAD
         if row.change.last_head != effect_prior.last_head {
             row.regate = None;
             if row.delegate_flake {
@@ -5871,10 +5870,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
             row.regate = None;
         }
-        crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
-=======
         pending.progress.push((effect_prior.clone(), row.change.clone())).expect("bounded policy transitions");
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
         let decision = stepped.decision;
         if matches_updating(&effect_prior.state) && !matches_updating(&row.change.state) && row.pending.is_none() {
             admission::change_writer(d, env, &row, false);

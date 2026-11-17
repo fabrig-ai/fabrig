@@ -150,23 +150,12 @@ effective limits must still fit its codecs.
 webhooks, one worker and two LLM providers, with no
 LLM account: a person adds one from the client once the deployment has
 started (../credentials.md, section 3). Beside it are the files it names
-<<<<<<< HEAD
 that hold no secret: the charters, `charters/`, short texts a person
-edits. The files that hold a secret, the worker's secret and its
-digest, are data paths and never shipped: the walk `box` (`temper help
-box`) says how each is made in the data directory. A person, a test or
+edits. The worker's secret is a data path and never shipped: the walk
+`box` (`temper help box`) says how it is made in the data directory. A person, a test or
 QA's host starts from a copy and `temper box --config COPY` runs it
 (`box.md`). The agent's configuration is temper's to write
 (`../configuration/figures.md`, section 6).
-=======
-that hold no secret: the agent's configuration, `agent.json`, and the
-charters, `charters/`, short texts a person edits. The files that hold
-a secret, the worker's secret, is a data path and never
-shipped: the walk `box` (`temper help box`) says how each is made in the data
-directory. A person, a test or QA's host starts from a copy, edits the
-agent's absolute paths to the copy's, and `temper box --config COPY`
-runs it (`box.md`).
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 
 - **Its owned Forgejo,** the machine's `owned` (above), with a runner
   whose label is `temper-host:host`, at `127.0.0.1:3000`, and the person
@@ -485,7 +474,7 @@ playground and no Forgejo on this machine.
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
   passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
-  the agent's configuration it writes, at the fixed ports and at kernel's
+  the agent's configuration generated at start, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
   Anthropic provider, its sources, its program, both its endpoints and
   its model in both documents either way, the program's `path` the

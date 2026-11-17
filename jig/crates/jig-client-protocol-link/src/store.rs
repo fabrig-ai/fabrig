@@ -1,16 +1,8 @@
 //! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
-<<<<<<< HEAD
-use jig_client_protocol_wire::v28 as w;
-<<<<<<< HEAD
-use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
-=======
-=======
 use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
-use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
     exchange: Token,

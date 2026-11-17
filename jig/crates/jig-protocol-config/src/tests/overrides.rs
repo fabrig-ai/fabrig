@@ -857,7 +857,6 @@ fn client_queue_and_sign_in_exchange_overrides_are_checked() {
 }
 
 #[test]
-<<<<<<< HEAD
 fn named_limits_round_trip_between_both_profiles() {
     for (from, to) in [(jig_protocol_config_fixtures::small(), crate::stock()), (crate::stock(), jig_protocol_config_fixtures::small())] {
         let wanted = from;
@@ -873,23 +872,25 @@ fn named_limits_round_trip_between_both_profiles() {
         for name in &crate::names::NAMES {
             assert_eq!((name.value)(&got), (name.value)(&wanted), "{}", name.name);
         }
-=======
+    }
+}
+
+#[test]
 fn checkpoints_keep_defaults_to_two_and_accepts_only_one_through_sixty_four() {
-    for selected in [Profile::Small, Profile::Standard] {
-        assert_eq!(profile(selected).store.checkpoints.keep, 2);
+    for limits in [jig_protocol_config_fixtures::small(), crate::stock()] {
+        assert_eq!(limits.store.checkpoints.keep, 2);
     }
     for (json, keep) in [
-        (br#"{"profile":"small","overrides":{"store.checkpoints.keep":1}}"#.as_slice(), 1),
-        (br#"{"profile":"small","overrides":{"store.checkpoints.keep":3}}"#, 3),
-        (br#"{"profile":"standard","overrides":{"store.checkpoints.keep":64}}"#, 64),
+        (br#"{"overrides":{"store.checkpoints.keep":1}}"#.as_slice(), 1),
+        (br#"{"overrides":{"store.checkpoints.keep":3}}"#, 3),
+        (br#"{"overrides":{"store.checkpoints.keep":64}}"#, 64),
     ] {
         assert_eq!(parse(json).unwrap().store.checkpoints.keep, keep);
     }
     for json in [
-        br#"{"profile":"small","overrides":{"store.checkpoints.keep":0}}"#.as_slice(),
-        br#"{"profile":"standard","overrides":{"store.checkpoints.keep":65}}"#,
+        br#"{"overrides":{"store.checkpoints.keep":0}}"#.as_slice(),
+        br#"{"overrides":{"store.checkpoints.keep":65}}"#,
     ] {
         problem(json, &[b"limits", b"overrides", b"store.checkpoints.keep"], What::Override);
->>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
     }
 }

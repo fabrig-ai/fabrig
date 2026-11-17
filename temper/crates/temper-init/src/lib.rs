@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::num::NonZeroU16;
-use skein_lib::{Writer, bytes};
+use skein_lib::{Writer, bytes, sha256};
 
 mod hex;
 mod path;
@@ -126,13 +126,8 @@ pub enum Reason {
 }
 
 /// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
-<<<<<<< HEAD
 /// `worker.digest`, `demo/llm.key` (data, private), `demo/bin/git`
 /// (data, a link), `temper.json` (config), the
-=======
-/// `demo/llm.key` (data, private), `demo/bin/git`
-/// (data, a link), `agent.json`, `temper.json` (config), the
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 /// document last.
 pub fn files(
     facts: &Facts<'_>,
@@ -143,6 +138,7 @@ pub fn files(
     check(facts.binary, facts.git, facts.claude, directories)?;
 
     let digits = hex::digits(secret);
+    let digest = hex::digits(&sha256::digest(&digits));
     let (login, person) = person::login(facts.login);
     let document = template::documents(facts, directories, login);
     Ok(Answer {
@@ -152,6 +148,11 @@ pub fn files(
                 directory: Directory::Data,
                 name: b"worker.secret",
                 content: Content::Bytes { bytes: line(&digits), private: true },
+            },
+            File {
+                directory: Directory::Data,
+                name: b"worker.digest",
+                content: Content::Bytes { bytes: line(&digest), private: true },
             },
             File {
                 directory: Directory::Data,
@@ -172,25 +173,22 @@ pub fn files(
     })
 }
 
-<<<<<<< HEAD
 /// `worker.secret`, `worker.digest`, `temper.json`, in that order.
 pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
     let digits = hex::digits(secret);
     let digest = hex::digits(&sha256::digest(&digits));
     let document = template::bare_documents(facts, directories);
-=======
-/// `worker.secret`, `agent.json`, `temper.json`, in that order.
-pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
-    check(facts.binary, facts.git, facts.claude, directories)?;
-    let digits = hex::digits(secret);
-    let (document, agent) = template::bare_documents(facts, directories);
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
     Ok(Box::new([
         File {
             directory: Directory::Data,
             name: b"worker.secret",
             content: Content::Bytes { bytes: line(&digits), private: true },
+        },
+        File {
+            directory: Directory::Data,
+            name: b"worker.digest",
+            content: Content::Bytes { bytes: line(&digest), private: true },
         },
         File {
             directory: Directory::Config,

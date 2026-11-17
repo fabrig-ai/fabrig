@@ -34,11 +34,7 @@ impl Engine {
         self.workers.host.opened()
     }
     #[must_use]
-<<<<<<< HEAD
-    pub fn client_wire(&self) -> &jig_client_protocol_wire::v28::Limits {
-=======
     pub fn client_wire(&self) -> &jig_client_protocol_wire::Limits {
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
         &self.clients.env.limits.wire
     }
     pub fn client_event(&mut self, event: skein_io::Event) -> bool {

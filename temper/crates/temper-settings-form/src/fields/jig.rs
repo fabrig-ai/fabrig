@@ -1,9 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-<<<<<<< HEAD
-pub static FORMS: [Form; 88] = [
-=======
-pub static FORMS: [Form; 85] = [
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+pub static FORMS: [Form; 89] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -127,11 +123,7 @@ pub static FORMS: [Form; 85] = [
     Form { shape: Shape::AgentEndpoints, name: b"agent-endpoints", choice: Choice::Every, line: b"An object of at most 64 endpoint names (64 UTF-8 bytes each) to agent-limits, each name once." },
     Form { shape: Shape::AgentLimits, name: b"agent-limits", choice: Choice::Every, line: b"An endpoint's limits; every integer is positive." },
 ];
-<<<<<<< HEAD
-pub static FIELDS: [Field; 306] = [
-=======
-pub static FIELDS: [Field; 302] = [
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+pub static FIELDS: [Field; 311] = [
     Field {
         shape: Shape::File,
         name: b"items",

@@ -139,7 +139,6 @@ fn versions_outside_the_answered_range_are_error_answers() {
 }
 
 #[test]
-<<<<<<< HEAD
 fn contract_selection_keeps_exact_escaped_names_and_all_their_forms() {
     const READ: &str = r#"{"name":"read_docs","effect":"read","input":"{}"}"#;
     const WRITE: &str = r#"{"name":"read_docs","effect":"write","input":"{}"}"#;
@@ -151,7 +150,9 @@ fn contract_selection_keeps_exact_escaped_names_and_all_their_forms() {
     let selected = super::tool_lines(&text, b"read\"docs");
     assert_eq!(selected.as_ref(), [Box::<[u8]>::from(ESCAPED.as_bytes())]);
     assert!(super::tool_lines(&text, b"read").is_empty());
-=======
+}
+
+#[test]
 fn kept_settings_calls_preserve_the_current_input() {
     let input =
         run::HostInput::attested(br#"{"setting":{"kind":"model","number":1},"from":12}"#.as_slice().into()).unwrap();
@@ -160,7 +161,7 @@ fn kept_settings_calls_preserve_the_current_input() {
     else {
         panic!("current call decodes")
     };
-    for version in [1, 2, 3] {
+    for version in wire::FLOOR..wire::VERSION {
         let Decoded::Call(kept) = crate::call_for_contract(version, NAME, b"settings", &input, &[], &[], &[]).unwrap()
         else {
             panic!("kept call decodes")
@@ -177,7 +178,7 @@ fn kept_propose_settings_calls_preserve_the_current_input() {
     else {
         panic!("current call decodes")
     };
-    for version in [1, 2, 3] {
+    for version in wire::FLOOR..wire::VERSION {
         let Decoded::Call(kept) =
             crate::call_for_contract(version, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
         else {
@@ -185,7 +186,6 @@ fn kept_propose_settings_calls_preserve_the_current_input() {
         };
         assert_eq!(kept, current, "version {version}: input unchanged");
     }
->>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
 }
 
 #[test]

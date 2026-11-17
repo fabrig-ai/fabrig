@@ -986,11 +986,7 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-<<<<<<< HEAD
-    use jig_client_protocol_wire::v28 as w;
-=======
     use jig_client_protocol_wire as w;
->>>>>>> 1ec4d558d2251b97ed59056727b4b65e5fbbf56b
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;

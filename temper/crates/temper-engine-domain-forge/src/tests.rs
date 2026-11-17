@@ -249,11 +249,8 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
-<<<<<<< HEAD
                 flake_reruns: Box::new([]),
-=======
                 room: None,
->>>>>>> b8446ac2651a3173b1018dea8a2c5a9d50d622ee
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
