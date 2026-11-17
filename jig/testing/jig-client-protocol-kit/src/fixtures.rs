@@ -164,7 +164,7 @@ pub fn sign_in_then(
 }
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Protocol> {
-    World::new(Settings { seed, ..Settings::default() }, Protocol::new(seed))
+    World::new(Settings { seed, ..Settings::default() }, Protocol::unseeded(seed))
 }
 
 #[must_use]

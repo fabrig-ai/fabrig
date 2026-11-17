@@ -1,6 +1,7 @@
 //! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
 use jig_client_protocol_wire::v27 as wire;
 use skein_lib::{Reader, Writer};
+use std::fmt::Write;
 
 macro_rules! same {
     ($kind:ident, $encoded:expr, $crossed:expr) => {{
@@ -27,7 +28,8 @@ pub enum Broken {
 }
 #[derive(Default)]
 pub struct Rules {
-    secrets: Vec<Vec<u8>>,
+    secrets: Vec<(Vec<u8>, String)>,
+    observed: String,
     pub records: u64,
     pub domains: u64,
     pub cuts: u64,
@@ -35,17 +37,20 @@ pub struct Rules {
 }
 impl Rules {
     pub fn secret(&mut self, bytes: &[u8]) {
-        if !self.secrets.iter().any(|value| value == bytes) {
-            self.secrets.push(bytes.to_vec());
+        if !self.secrets.iter().any(|(value, _)| value == bytes) {
+            self.secrets.push((bytes.to_vec(), format!("{bytes:?}")));
         }
     }
     /// Domain inputs are inspected as whole public values, never root state.
     /// # Errors
     /// Reports an authentication secret carried in that input.
     pub fn domain(&mut self, event: &impl std::fmt::Debug) -> Result<(), Broken> {
-        let observed = format!("{event:?}");
-        if self.secrets.iter().any(|bytes| observed.contains(&format!("{bytes:?}"))) {
-            return Err(Broken::Secret);
+        if !self.secrets.is_empty() {
+            self.observed.clear();
+            write!(&mut self.observed, "{event:?}").expect("format a domain input");
+            if self.secrets.iter().any(|(_, form)| self.observed.contains(form)) {
+                return Err(Broken::Secret);
+            }
         }
         self.domains += 1;
         Ok(())
