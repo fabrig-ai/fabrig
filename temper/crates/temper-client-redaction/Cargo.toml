@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
+jig-client-protocol-wire.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
