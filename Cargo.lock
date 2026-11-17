@@ -5855,6 +5855,9 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-wire",
+ "jig-client-shell-web",
+ "jig-client-test-records",
  "serde_json",
  "sha2",
  "skein-browser",

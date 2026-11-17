@@ -51,7 +51,7 @@ struct Hit {
 }
 
 /// A recording's two passes: collect every field, then replace every field.
-/// The TUI enables decimal byte elements; browser fields never use that form.
+/// Both shells enable decimal byte elements for addresses in their events' Debug prints.
 pub struct Varied {
     originals: Vec<Original>,
     ports: Vec<Port>,

@@ -77,6 +77,53 @@ fn piece(bytes: &[u8]) -> Line {
 }
 
 #[test]
+fn decimal_ports_require_whole_byte_elements_and_honor_stood() {
+    let decimal = |bytes: &[u8]| bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ");
+    for (prefix, suffix, replace) in
+        [("[", "]", true), ("[1, ", ", 2]", true), ("1", "]", false), ("[", "0]", false), ("", "", false)]
+    {
+        let text = format!("{prefix}{}{suffix}", decimal(ADDRESS.as_bytes()));
+        let input = written(&[Line::Act {
+            act: skein_ui::Act::Press,
+            event: text.clone().into_bytes().into(),
+            name: Box::default(),
+        }]);
+        let result = normalise(&input).expect("decimal event");
+        let expected = if replace { format!("{prefix}{}{suffix}", decimal(FIXED.as_bytes())) } else { text };
+        assert_eq!(
+            result.recording,
+            written(&[Line::Act {
+                act: skein_ui::Act::Press,
+                event: expected.into_bytes().into(),
+                name: Box::default()
+            }])
+        );
+        assert_eq!(result.port, u32::from(replace));
+    }
+    let input = format!(
+        "act press \"Copy {{ words: [{}] }}\" \"\"\nexchange 1 64 POST \"/\" \"localhost:8080\"\n",
+        decimal(b"http://localhost:8080/x")
+    );
+    let result = normalise(input.as_bytes()).expect("stood decimal port");
+    assert_eq!(result.recording.as_ref(), input.as_bytes());
+    assert_eq!((result.port, result.places, result.stood), (0, 0, 1));
+
+    let input = format!(
+        "act press \"[{}] [{}]\" \"\"\npath \"127.0.0.1:34073 localhost:41234\"\n",
+        decimal(b"http://localhost:41234/x"),
+        decimal(b"34073")
+    );
+    let result = normalise(input.as_bytes()).expect("ports numbered across forms");
+    let expected = format!(
+        "act press \"[{}] [{}]\" \"\"\npath \"127.0.0.1:10002 localhost:10001\"\n",
+        decimal(b"http://localhost:10001/x"),
+        decimal(b"34073")
+    );
+    assert_eq!(result.recording.as_ref(), expected.as_bytes());
+    assert_eq!((result.port, result.places, result.stood), (2, 3, 0));
+}
+
+#[test]
 fn joined_streams_number_records_and_plain_runs_at_their_first_piece() {
     let bytes = [b": localhost:42000\n".as_slice(), &event(b"localhost:41000")].concat();
     let expected = [b": localhost:10001\n".as_slice(), &event(b"localhost:10002")].concat();

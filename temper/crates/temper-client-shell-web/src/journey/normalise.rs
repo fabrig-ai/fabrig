@@ -7,6 +7,7 @@ pub fn normalise(recording: &[u8]) -> Result<Normalised, Unredacted> {
     let mut lines = lines(recording).map_err(Unredacted::Unreadable)?;
     let mut streams = Streams::read(&lines).map_err(Unredacted::Undecoded)?;
     let mut varied = Varied::new();
+    varied.decimal_ports();
     let mut stream_fields = streams.fields().into_iter().peekable();
     for (index, line) in lines.iter_mut().enumerate() {
         for (field, framing) in fields_mut(line) {
