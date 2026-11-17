@@ -384,7 +384,7 @@ fn a_projectless_query_without_a_requester_keeps_the_asking_partys_tasks_alone()
 }
 
 #[test]
-fn a_query_without_parts_reads_and_watches_empty_parts_and_zero_ended_mark() {
+fn a_query_without_parts_reads_and_watches_empty_parts_and_the_ended_mark() {
     let mut world = world(1213);
     let ended = world.assigned.as_ref().expect("first chat").task;
     jig_core_world::fixtures::finish_chat(&mut world, 0, b"ended chat");
@@ -395,7 +395,8 @@ fn a_query_without_parts_reads_and_watches_empty_parts_and_zero_ended_mark() {
     assert!(query.parts.is_empty());
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query: query.clone(), live: None, ended: None });
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("task page") };
-    assert_eq!(page.ended_mark, 0);
+    assert!(page.ended_mark > 0);
+    let ended_mark = page.ended_mark;
     assert_eq!(page.live.len(), 1);
     let line = page.live.get(0).expect("live row");
     assert_eq!(line.chip.number, live_task);
@@ -416,7 +417,7 @@ fn a_query_without_parts_reads_and_watches_empty_parts_and_zero_ended_mark() {
     let documents::Document::Lines(lines) = jig_core_world::watches::latest(&world, QUERY_FENCE_WATCHER) else {
         panic!("query delivery")
     };
-    assert_eq!(lines.ended_mark, 0);
+    assert_eq!(lines.ended_mark, ended_mark);
     assert_eq!(lines.lines.len(), 1);
     assert!(lines.lines.get(0).expect("delivered live row").parts.is_empty());
 }

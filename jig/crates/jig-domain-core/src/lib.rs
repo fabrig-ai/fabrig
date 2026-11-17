@@ -13,6 +13,7 @@ pub mod acts;
 mod admission;
 pub mod documents;
 pub mod effects;
+mod ended_groups;
 mod funding;
 mod inbox;
 mod limits;
@@ -133,6 +134,8 @@ pub use jig_domain_core_vocabulary::{
     reason = "pending generation, worker placement, settling, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    pub(crate) part_kinds: Box<[jig_domain_core_vocabulary::PartKind]>,
+    pub(crate) ended_groups: ended_groups::Marks,
     erasures: erase::Erasures,
     deletions: deletion::Deletions,
     pub(crate) start: start::Script,
@@ -322,6 +325,7 @@ impl Core {
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
+        reads::parts::assert_kinds(&config.parts, &config.connectors);
         let mut previous = None;
         for job in &config.jobs {
             if let Some(kind) = previous {
@@ -432,6 +436,8 @@ impl Core {
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots.saturating_add(2)),
+            part_kinds: config.parts,
+            ended_groups: ended_groups::Marks::new(limits.tasks.tasks),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             flight_people_capacity: limits.people.pending,

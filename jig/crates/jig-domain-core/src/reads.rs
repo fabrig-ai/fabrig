@@ -21,6 +21,7 @@ mod answers;
 pub mod ended;
 pub mod forget;
 pub(crate) mod indexes;
+pub(crate) mod parts;
 pub(crate) mod party;
 pub(crate) mod person;
 pub mod rows;
@@ -50,6 +51,7 @@ pub(crate) struct Pending {
     party: u64,
     range: Range,
     tasks: Option<Box<TaskPage>>,
+    parts: Option<parts::Making>,
 }
 
 #[derive(Hash, Debug)]
@@ -504,7 +506,17 @@ fn start_jig(
     if let Some(page) = &tasks
         && page.ended == EndedGroup::None
     {
-        return answer(destination, Answer::Tasks(tasks.take().expect("task page")));
+        let Read::Tasks { query, .. } = &read else { unreachable!("task page") };
+        return parts::read(
+            core,
+            env,
+            destination,
+            sign_in,
+            party,
+            query.clone(),
+            tasks.take().expect("task page"),
+            continuing,
+        );
     }
     let ReadStart { after_live, after_store, stored } = start;
     if let Some(position) = &after_store
@@ -585,7 +597,7 @@ fn start_jig(
         bytes: env.limits.load_bytes,
     };
     let emitted = range.clone();
-    let pending = Pending { destination, sign_in, party, range, tasks };
+    let pending = Pending { destination, sign_in, party, range, tasks, parts: None };
     let load = match core.reads.insert(pending) {
         Ok(load) => load.token(),
         Err(mut pending) => {
@@ -608,6 +620,9 @@ pub(crate) fn loaded(
     let Some(pending) = core.reads.get(name) else {
         return Queue::uncapped();
     };
+    if pending.parts.is_some() {
+        return Queue::uncapped();
+    }
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Proposal { .. } => return settings::proposal_loaded(core, env, name, result),
@@ -675,6 +690,9 @@ pub(crate) fn loaded(
         }
         (_, answer) => answer,
     };
+    if let Answer::Tasks(page) = answer {
+        return parts::loaded(core, env, name, page);
+    }
     let destination =
         core::mem::replace(&mut core.reads.get_mut(name).expect("live read").destination, Destination::Done);
     core.reads.retire(name);
@@ -718,7 +736,7 @@ fn task_live(
             EndedGroup::Rows { rows: List::with_capacity(0), next: None, cut: false }
         }
     };
-    Ok(TaskPage { ended_mark: 0, live: lines.lines, live_next, ended })
+    Ok(TaskPage { ended_mark: lines.ended_mark, live: lines.lines, live_next, ended })
 }
 
 pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending) -> Queue<Request> {
@@ -737,8 +755,14 @@ pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending
 
 /// Internal erasure loads are independent of client authentication and admission.
 pub(crate) fn erase_load(core: &mut Core, range: Range, out: &mut Queue<Request>) {
-    let pending =
-        Pending { destination: Destination::Erase, sign_in: 0, party: range.party, range: range.clone(), tasks: None };
+    let pending = Pending {
+        destination: Destination::Erase,
+        sign_in: 0,
+        party: range.party,
+        range: range.clone(),
+        tasks: None,
+        parts: None,
+    };
     let load = core.reads.insert(pending).expect("reserved erasure read slots").token();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(range) })));
 }

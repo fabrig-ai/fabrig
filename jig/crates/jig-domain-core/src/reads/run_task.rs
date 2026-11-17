@@ -213,6 +213,7 @@ fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Rea
         party: 0,
         range: range.clone(),
         tasks: None,
+        parts: None,
     };
     let load = core.reads.insert(pending).expect("read room checked").token();
     let mut out = Queue::uncapped();

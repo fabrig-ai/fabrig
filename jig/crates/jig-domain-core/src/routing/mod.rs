@@ -521,7 +521,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             stopping::empty()
         }
         Event::Stopping => stopping::start(core, env),
-        Event::Parts { .. } | Event::PartsMarked { .. } => stopping::empty(),
+        Event::Parts { connector, token, parts } => crate::reads::parts::answered(core, env, connector, token, parts),
+        Event::PartsMarked { connector, tasks } => {
+            view::part_marks::records(core, connector, &tasks);
+            stopping::empty()
+        }
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
             party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
