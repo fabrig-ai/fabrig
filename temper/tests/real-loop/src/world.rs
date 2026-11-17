@@ -476,7 +476,8 @@ fn host<R: Referee<Proc>>(
 }
 fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Path, agents: u32) {
     use std::os::unix::ffi::OsStrExt;
-    let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
+    let agent = if path.join("agent.json").exists() { path.join("agent.json") } else { path.join("world-agent.json") };
+    let configuration = smith_agent_shell::config::read(&agent).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
         world.host_startup(
             crate::claude::program(program.path.as_os_str().as_bytes()),

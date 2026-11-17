@@ -105,7 +105,7 @@ pub fn turns<E>(workers: &[config::Worker], agent: &settings::Agent, problems: &
             problems,
             path.member(b"hub.outcome_bytes"),
             worker.limits.as_ref().expect("checked worker limits").hub.outcome_bytes,
-            b"the agent's outcome (agent.json profile.declared.tool_payload)",
+            b"the agent's outcome (agents setting declared.tool_payload)",
             Some(agent.outcome_bytes()),
         );
         short(

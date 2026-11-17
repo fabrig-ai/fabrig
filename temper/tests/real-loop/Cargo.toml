@@ -8,6 +8,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-worker-service.workspace = true
+temper-worker-shell.workspace = true
+temper-service-core.workspace = true
+temper-client-protocol-wire.workspace = true
 temper-test-env.workspace = true
 temper-service-shell.workspace = true
 temper-client-domain.workspace = true

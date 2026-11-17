@@ -18,7 +18,8 @@ pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32
 }
 
 /// Operations reserved by the process for the configured git component.
-pub(crate) fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
+#[must_use]
+pub fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
     operations(&git_component(*git))
 }
 
@@ -134,7 +135,14 @@ pub fn payload_limits(own: &Limits) -> Option<v1::Limits> {
 /// Jig's link profile, with every temper part priced by the generated codec.
 #[must_use]
 pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -> Option<link::Limits> {
-    let jig = worker.limits.as_ref()?;
+    link_limits_from(worker, worker.limits.as_ref()?, payload, forges)
+}
+pub(crate) fn link_limits_from(
+    worker: &config::Worker,
+    jig: &config::Limits,
+    payload: &v1::Limits,
+    forges: u32,
+) -> Option<link::Limits> {
     let core = jig.core;
     let hub = jig.hub;
     let profile = jig.link;

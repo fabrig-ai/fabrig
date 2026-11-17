@@ -1885,8 +1885,34 @@ fn the_live_github_configuration_passes_startup_admission() {
         .collect();
         let (directories, _) = temper_box_shell::directories::resolve(&args, &[], b"/").expect("member directories");
         let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-        let operations = temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
-            .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
+        let operations = if member == "w1" {
+            let mut part = temper_worker_service::startup::worker_part(
+                &bytes,
+                &temper_box_shell::directories::jig_directories(&directories),
+            )
+            .expect("worker part");
+            part.named.program = skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into();
+            part.named.arguments = Box::new([part.named.agent.clone()]);
+            let files =
+                temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
+                    .expect("worker files");
+            let mut descriptors = Vec::new();
+            let service = temper_worker_shell::worker::from_figures(
+                part,
+                support::cluster::figures(&engine),
+                &files,
+                &directories,
+                &mut descriptors,
+                &[],
+            )
+            .expect("worker figures admission");
+            let operations = service.operations();
+            temper_service_shell::close(descriptors);
+            operations
+        } else {
+            temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
+                .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"))
+        };
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
     scratch.remove();
@@ -1953,22 +1979,34 @@ fn turn_bounds() {
         eprintln!("{deployment}: T={turn}");
     }
     let directory = root.join("bin/temper-box/tests/fixtures/cluster");
-    let agent = fs::read_to_string(directory.join("agent.json")).expect("cluster agent");
-    let agent: serde_json::Value =
-        serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("cluster agent JSON");
+    let scratch = support::Scratch::startup("cluster-turn-bounds");
+    let cluster = support::cluster::Cluster::documents(
+        scratch.path(),
+        &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
+    );
+    let engine: serde_json::Value =
+        serde_json::from_slice(&fs::read(cluster.dir("engine").join("config/temper.json")).expect("engine document"))
+            .expect("JSON");
+    let agent = support::cluster::agent_configuration(&engine, scratch.path());
     let turn = support::configuration::turn_bounds::turn_body(&agent);
-    for name in ["engine.json", "w1.json", "w2.json"] {
-        turn_bound_document(&directory.join(name), turn, true);
-    }
+    turn_bound_document(&directory.join("engine.json"), turn, true);
+    scratch.remove();
     eprintln!("cluster fixture: T={turn}");
     let github = root.join("bin/temper-box/tests/fixtures/github");
-    let agent = fs::read_to_string(github.join("agent.json")).expect("GitHub agent");
-    let agent: serde_json::Value =
-        serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("GitHub agent JSON");
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    for name in ["engine.json", "w1.json"] {
-        turn_bound_document(&github.join(name), turn, true);
+    let source = fs::read_to_string(github.join("engine.json")).expect("GitHub engine");
+    let mut source = source.replace("{{", "{").replace("}}", "}");
+    for (name, value) in [
+        ("{proc.llm.ready.address}", "127.0.0.1:1"),
+        ("{proc.forge.ready.address}", "127.0.0.1:2"),
+        ("{story.clients}", "127.0.0.1:3"),
+        ("{proc.llm.dir}", "/fixture"),
+    ] {
+        source = source.replace(name, value);
     }
+    let engine: serde_json::Value = serde_json::from_str(&source).expect("engine JSON");
+    let agent = support::cluster::agent_configuration(&engine, std::path::Path::new("/fixture"));
+    let turn = support::configuration::turn_bounds::turn_body(&agent);
+    turn_bound_document(&github.join("engine.json"), turn, true);
 }
 
 #[test]
@@ -2453,45 +2491,35 @@ fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
 
 #[test]
 fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
-    for worker in [false, true] {
-        for fetched in [false, true] {
-            let scratch = support::Scratch::startup(&format!("serve-launcher-{worker}-{fetched}"));
-            let directory = scratch.path();
-            support::program_login::configuration(
-                directory,
-                Some(&directory.join("programs")),
-                if fetched { Path::new("fetched") } else { Path::new("/found/claude") },
-            );
-            for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-                if !name.starts_with(b"charters/") {
-                    let path = directory.join(std::str::from_utf8(&name).unwrap());
-                    fs::create_dir_all(path.parent().unwrap()).unwrap();
-                    support::write_private(&path, bytes.expose());
-                }
+    for fetched in [false, true] {
+        let scratch = support::Scratch::startup(&format!("serve-launcher-{fetched}"));
+        let directory = scratch.path();
+        support::program_login::configuration(
+            directory,
+            Some(&directory.join("programs")),
+            if fetched { Path::new("fetched") } else { Path::new("/found/claude") },
+        );
+        for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
+            if !name.starts_with(b"charters/") {
+                let path = directory.join(std::str::from_utf8(&name).unwrap());
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                support::write_private(&path, bytes.expose());
             }
-            support::write_private(&directory.join("worker.secret"), b"worker-secret");
-            if worker {
-                let document = directory.join("temper.json");
-                let mut input: serde_json::Value = serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
-                input.as_object_mut().unwrap().remove("engine");
-                input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-                input["application"] = serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
-                fs::write(&document, serde_json::to_vec(&input).unwrap()).unwrap();
-            }
-            let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
-            assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
-            let launcher = directory.join("claude-code/claude");
-            let cache = directory.join("claude-code/cache");
-            if fetched {
-                assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper-box"));
-                assert_eq!(fs::read_link(&cache).unwrap(), directory);
-            } else {
-                assert!(fs::symlink_metadata(launcher).is_err());
-                assert!(fs::symlink_metadata(cache).is_err());
-            }
-            assert!(!directory.join("claude-code/2.1.311").exists(), "startup fetches nothing");
-            scratch.remove();
         }
+        support::write_private(&directory.join("worker.secret"), b"worker-secret");
+        let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));
+        assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+        let launcher = directory.join("claude-code/claude");
+        let cache = directory.join("claude-code/cache");
+        if fetched {
+            assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper-box"));
+            assert_eq!(fs::read_link(&cache).unwrap(), directory);
+        } else {
+            assert!(fs::symlink_metadata(launcher).is_err());
+            assert!(fs::symlink_metadata(cache).is_err());
+        }
+        assert!(!directory.join("claude-code/2.1.311").exists(), "startup fetches nothing");
+        scratch.remove();
     }
 }
 

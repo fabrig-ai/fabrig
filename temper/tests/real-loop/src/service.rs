@@ -59,6 +59,9 @@ pub struct ServiceHost {
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
     started_at: Option<Time>,
     pub(crate) service: Option<Driven>,
+    fetch: Option<temper_worker_service::fetch::Fetch>,
+    figures: Option<jig_protocol_worker_wire::Figures>,
+    figures_lines: Vec<String>,
     pub(crate) address: Option<SocketAddr>,
     pub(crate) link: Vec<u8>,
     watch: watch::Watch,
@@ -141,12 +144,24 @@ impl ServiceHost {
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations = temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
-            .expect("standalone operation count");
+        let operations = if matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) {
+            let part =
+                temper_worker_service::startup::worker_part(&config, &temper_service_shell::jig_directories(&roots))
+                    .expect("worker part");
+            temper_service_core::process::Process::operations_for(
+                &part.worker.jig.limits.as_ref().expect("stock limits").io,
+                temper_worker_service::worker_settings::configured_operations(&part.limits.git_component)
+                    .expect("worker operations"),
+            )
+            .expect("worker reservation")
+        } else {
+            temper_box_shell::operations_in_with(&[], b"/", &roots, &config, &fixtures::given(&path))
+                .expect("standalone operation count")
+        };
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
-        let records_seeded =
-            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
+        let records_seeded = matches!(cluster, Some(crate::cluster::Shape::Worker { .. }))
+            || cluster.is_none() && fixture.is_none() && github.is_none();
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
@@ -168,6 +183,9 @@ impl ServiceHost {
             tries: std::collections::BTreeMap::new(),
             started_at: None,
             service: None,
+            fetch: None,
+            figures: None,
+            figures_lines: Vec::new(),
             address: None,
             link: Vec::new(),
             watch: watch::Watch::default(),
@@ -305,6 +323,7 @@ impl ServiceHost {
         self.life_tasks = self.runs.tasks.len();
         self.life_links = self.linked();
         self.service = None;
+        self.figures = None;
         self.state = LifeState::Second;
     }
     fn record_life(&mut self) {
@@ -327,6 +346,12 @@ impl ServiceHost {
     fn forward_submissions(&mut self) {
         if !self.restartable {
             return;
+        }
+        if let Some(fetch) = &mut self.fetch {
+            while let Some(submit) = fetch.submissions().pop() {
+                self.in_flight += 1;
+                self.submissions.push(submit);
+            }
         }
         if let Some(service) = &mut self.service {
             while let Some(submit) = service.submissions().pop() {
@@ -381,7 +406,16 @@ impl ServiceHost {
             )
         {
             self.service = None;
-            fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
+            if self.fixture.is_some() || self.github.is_some() {
+                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
+            }
+            if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
+                let mut agent: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(self.path.join("agent.json")).expect("world agent fixture"))
+                        .expect("agent JSON");
+                agent["profile"]["policy"]["unacknowledged"] = 1.into();
+                crate::cluster::seed_agents(&self.path, &agent);
+            }
             self.records_seeded = true;
         }
     }
@@ -391,14 +425,42 @@ impl ServiceHost {
             && (self.github.is_none() || self.blob_address.is_some())
     }
     fn prepare_service(&self) -> Driven {
-        use std::os::fd::{AsRawFd, IntoRawFd};
-        let prepared = temper_box_shell::prepare_in_with(
-            &[],
-            b"/",
-            &Self::directories(&self.path, self.cluster.is_some()),
-            &fixtures::given(&self.path),
-        )
-        .expect("standalone preparation");
+        use std::{
+            os::fd::{AsRawFd, IntoRawFd},
+            os::unix::ffi::OsStrExt,
+        };
+        let prepared = if let Some(figures) = &self.figures {
+            let directories = Self::directories(&self.path, true);
+            let mut part = temper_worker_service::startup::worker_part(
+                &directories.read().expect("worker document"),
+                &temper_service_shell::jig_directories(&directories),
+            )
+            .expect("worker part");
+            part.named.program = self.path.join("temper-agent").as_os_str().as_bytes().into();
+            part.named.arguments = Box::new([part.named.agent.clone()]);
+            let files =
+                temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
+                    .expect("worker files");
+            temper_box_shell::Service::Worker(
+                temper_worker_shell::worker::from_figures(
+                    part,
+                    figures.clone(),
+                    &files,
+                    &directories,
+                    &mut Vec::new(),
+                    &[],
+                )
+                .expect("worker built from figures"),
+            )
+        } else {
+            temper_box_shell::prepare_in_with(
+                &[],
+                b"/",
+                &Self::directories(&self.path, self.cluster.is_some()),
+                &fixtures::given(&self.path),
+            )
+            .expect("standalone preparation")
+        };
         let mut service = Driven::new(prepared);
         if let Some(blob) = self.blob_address
             && let temper_box_shell::Service::Joined(joined) = &mut service.service
@@ -457,6 +519,10 @@ impl ServiceHost {
         &self.runs.assignments
     }
     /// Worker openings retained from the shipped service's diagnostics.
+    #[must_use]
+    pub fn figures_lines(&self) -> &[String] {
+        &self.figures_lines
+    }
     #[must_use]
     pub fn linked(&self) -> usize {
         self.linked
@@ -574,6 +640,7 @@ impl Host for ServiceHost {
             self.begin_next_life();
         }
         if self.service.is_none()
+            && self.fetch.is_none()
             && self.ready()
             && let Some(address) = self.address
         {
@@ -589,18 +656,56 @@ impl Host for ServiceHost {
                     );
                 }
             }
-            let mut service = self.prepare_service();
-            if self.cluster.is_some() {
-                assert!(service.operations() <= self.operations, "cluster operations fit admission");
+            if matches!(self.cluster, Some(crate::cluster::Shape::Worker { .. })) && self.figures.is_none() {
+                let directories = Self::directories(&self.path, true);
+                let mut part = temper_worker_service::startup::worker_part(
+                    &directories.read().expect("worker document"),
+                    &temper_service_shell::jig_directories(&directories),
+                )
+                .expect("worker part");
+                let files =
+                    temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
+                        .expect("worker files");
+                self.fetch = Some(
+                    temper_worker_service::fetch::Fetch::new(&part.worker, &files, fixtures::SEED)
+                        .expect("figures fetch"),
+                );
             } else {
-                assert_eq!(service.operations(), self.operations, "preparation preserves operations");
+                let mut service = self.prepare_service();
+                if self.cluster.is_some() {
+                    assert!(service.operations() <= self.operations, "cluster operations fit admission");
+                } else {
+                    assert_eq!(service.operations(), self.operations, "preparation preserves operations");
+                }
+                if self.records_seeded {
+                    service.adopt_signals(self.signals).expect("service signal pipe");
+                    self.signals_adopted = true;
+                    self.started_at.get_or_insert(now);
+                }
+                self.service = Some(service);
             }
-            if self.records_seeded {
-                service.adopt_signals(self.signals).expect("service signal pipe");
-                self.signals_adopted = true;
-                self.started_at.get_or_insert(now);
+        }
+        if let Some(fetch) = &mut self.fetch {
+            while let Some(complete) = self.completions.pop() {
+                self.in_flight = self.in_flight.checked_sub(1).expect("fetch operation completed");
+                fetch.completions().push(complete);
             }
-            self.service = Some(service);
+            temper_worker_service::fetch::iterate(fetch, now, wall);
+            while let Some(note) = fetch.notes().pop() {
+                self.notes.push(note.into());
+            }
+            if fetch.is_empty() {
+                let figures = fetch.take().expect("fetch took figures");
+                let Some(crate::cluster::Shape::Worker { engine: Some(engine), .. }) = self.cluster else {
+                    panic!("worker engine")
+                };
+                self.figures_lines.push(temper_worker_shell::worker::figures_line(
+                    &jig_protocol_config::Address::Addr(skein_io::Addr::Ip(engine)),
+                    &figures,
+                ));
+                self.figures = Some(figures);
+                self.fetch = None;
+            }
         }
         if let Some(service) = &mut self.service {
             self.local_completion = false;
@@ -698,12 +803,18 @@ impl Host for ServiceHost {
         &mut self.submissions
     }
     fn work_pending(&self, now: Time) -> bool {
+        if let Some(fetch) = &self.fetch {
+            return fetch.work_pending(now) || !self.completions.is_empty();
+        }
         (self.restartable
             && (self.state == LifeState::Restarting || self.local_completion || !self.completions.is_empty()))
             || self.service.as_ref().map_or(self.address.is_some() && self.ready(), |service| service.work_pending(now))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.service.as_ref().and_then(Driven::next_deadline)
+        self.fetch
+            .as_ref()
+            .and_then(temper_worker_service::fetch::Fetch::next_deadline)
+            .or_else(|| self.service.as_ref().and_then(Driven::next_deadline))
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.service.as_ref().and_then(Driven::next_policy_deadline)

@@ -119,12 +119,10 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
 
 #[test]
 fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
-    let document = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"forges.installations":3,"forge_component.token_bytes":64}"#,
-    );
-    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
+    let mut part =
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+    part.limits.peer.installations = 3;
+    part.limits.peer.token_bytes = 64;
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);

@@ -634,6 +634,7 @@ use temper_worker_shell::agent;
 
 /// The strings the service counts, at checked bounds; these paths are never opened.
 pub struct Bounded {
+    figures: Option<jig_protocol_worker_wire::Figures>,
     pub document: Vec<u8>,
     pub files: temper_service::settings::Files,
     pub agent: temper_service::settings::Agent,
@@ -705,6 +706,24 @@ impl Bounded {
     /// Admission without constructing a service, for both split and standalone profiles.
     pub fn admission(&self) -> Result<(), temper_service::startup::Problems> {
         let value: serde_json::Value = serde_json::from_slice(&self.document).expect("profile JSON");
+        if let Some(figures) = &self.figures {
+            let mut part = temper_worker_service::startup::worker_part(
+                &self.document,
+                &jig_protocol_config::Directories::working(),
+            )
+            .expect("worker fixture");
+            let checked = temper_worker_service::figures::apply(&mut part, figures.clone()).and_then(|_| {
+                temper_worker_service::startup::worker::check_worker_part(&mut part, &self.files, &self.agent)
+            });
+            return checked.map_err(|found| {
+                let mut result = temper_service::startup::Problems::empty();
+                for problem in found.problems.into_boxed() {
+                    result.push_file(problem.path, problem.what.extend(), problem.file);
+                }
+                result.past = found.past;
+                result
+            });
+        }
         let accounts = value.get("engine").map(|_| self.accounts());
         temper_service::startup::check(
             &self.document,
@@ -888,8 +907,7 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
 /// Numeric allowances and policies are left exactly as shipped.
 #[must_use]
 pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
-    let root = skein_scratch::paths::tree();
-    let source = root.join(relative);
+    let source = skein_scratch::paths::tree().join(relative);
     let render = |path: &Path| {
         let text = fs::read_to_string(path).expect("profile source");
         let text = text.replace("{{", "{").replace("}}", "}");
@@ -912,7 +930,13 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         serde_json::from_str::<serde_json::Value>(&text).expect("rendered profile JSON")
     };
     let value = render(&source);
-    let mut agent = render(&source.parent().expect("profile family").join("agent.json"));
+    let engine = if value.get("engine").is_some() {
+        value.clone()
+    } else {
+        render(&source.parent().expect("profile family").join("engine.json"))
+    };
+    let figures = if value.get("engine").is_none() { Some(super::cluster::figures(&engine)) } else { None };
+    let mut agent = super::cluster::agent_configuration(&engine, directory);
     // Keep every Smith profile/model declaration; only destinations are local.
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["address"] = "127.0.0.1:9000".into();
@@ -920,8 +944,9 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         let endpoint = endpoint.as_object_mut().expect("endpoint");
         endpoint.remove("server_name");
         endpoint.remove("trust_der");
+        endpoint.remove("trust");
     }
-    let agent_path = directory.join("agent.json");
+    let agent_path = directory.join("agent-metadata.json");
     fs::write(&agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("local agent");
     let agent = agent::read(&agent_path).expect("actual Smith metadata");
     let document = serde_json::to_vec(&value).expect("profile JSON");
@@ -968,6 +993,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         entries.push((file.path, skein_lib::Secret::new(bytes.into()))).expect("named file count");
     }
     Bounded {
+        figures,
         document,
         agent,
         setup,
@@ -1040,6 +1066,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
     Bounded {
+        figures: None,
         document,
         setup,
         files: Files { entries },

@@ -31,8 +31,8 @@ fn worker_limits() -> temper_worker_domain::Limits {
 #[test]
 fn payload_event_refusals_name_the_configured_and_required_bytes() {
     for (configured, expected) in [
-        (4096, "4096 bytes, short of agent.json profile.declared.tool_payload less the 2-byte separator, 8192 bytes"),
-        (8193, "8193 bytes, past agent.json profile.declared.tool_payload less the 2-byte separator of 8192"),
+        (4096, "4096 bytes, short of agents setting declared.tool_payload less the 2-byte separator, 8192 bytes"),
+        (8193, "8193 bytes, past agents setting declared.tool_payload less the 2-byte separator of 8192"),
     ] {
         let mut limits = worker_limits();
         limits.agent.message_bytes = 8194;
@@ -52,7 +52,7 @@ fn payload_checkout_refusals_name_the_configured_and_required_bytes() {
     limits.checkout.message_bytes = 4098;
     let mut found = Problems::empty();
     check_worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agent.json profile.declared.tool_payload), 8194 bytes\n");
+    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agents setting declared.tool_payload), 8194 bytes\n");
 }
 
 #[test]

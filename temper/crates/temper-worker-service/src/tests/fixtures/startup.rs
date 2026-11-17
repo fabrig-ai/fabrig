@@ -11,10 +11,8 @@ pub fn worker_alone_document() -> Box<[u8]> {
 "engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "programs":{"check_interval_ms":60000},
-"agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
-"memory_bytes":1152921504606846976}],"application":{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}}"#;
-    with(document, b"workers[0].limits.overrides", br#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#)
+"memory_bytes":1152921504606846976}],"application":{"workers":[{"root":"worker-root","git":"/usr/bin/git"}]}}"#;
+    document.as_slice().into()
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     let json = turn_limits(path, json);
@@ -32,8 +30,13 @@ pub fn without(input: &[u8], path: &[u8]) -> Box<[u8]> {
     let start = input[..span.start].windows(key.len()).rposition(|part| part == key).unwrap();
     let comma =
         input[span.end..].iter().position(|byte| !byte.is_ascii_whitespace()).unwrap().checked_add(span.end).unwrap();
-    assert_eq!(input[comma], b',', "the removed fixture member has a following member");
-    [input[..start].to_vec(), input[comma.checked_add(1).unwrap()..].to_vec()].concat().into_boxed_slice()
+    if input[comma] == b',' {
+        [input[..start].to_vec(), input[comma.checked_add(1).unwrap()..].to_vec()].concat().into_boxed_slice()
+    } else {
+        let previous = input[..start].iter().rposition(|byte| !byte.is_ascii_whitespace()).unwrap();
+        assert_eq!(input[previous], b',', "the last fixture member follows another");
+        [input[..previous].to_vec(), input[span.end..].to_vec()].concat().into_boxed_slice()
+    }
 }
 
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
@@ -136,9 +139,10 @@ pub fn owned_worker_alone_document() -> Box<[u8]> {
     input.extend_from_slice(&owned[member_span(owned, b"workers")]);
     input.extend_from_slice(b",\"application\":{\"workers\":");
     input.extend_from_slice(&owned[member_span(owned, b"application.workers")]);
-    input.extend_from_slice(b",\"limits\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.limits")]);
+
     input.extend_from_slice(b"}}");
+    let input = without(&input, b"workers[0].agent");
+    let input = without(&input, b"workers[0].limits");
     let input = with(&input, b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
     let input = with(&input, b"workers[0].name", br#""w1""#);
     with(&input, b"workers[0].secret", br#""secrets/w1.secret""#)
@@ -297,4 +301,26 @@ pub fn files() -> settings::Files {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
     }
     settings::Files { entries }
+}
+
+/// Small settings supplied in code, independent of the worker document.
+pub fn part(input: &[u8]) -> crate::startup::WorkerPart {
+    let mut part = crate::startup::worker_part(input, &jig_protocol_config::Directories::working()).unwrap();
+    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    for (name, value) in [
+        ("hub.slots", 1),
+        ("hub.run_calls", 1),
+        ("tasks.run_inbox", 2),
+        ("hub.turns", 1),
+        ("tasks.message_bytes", 512),
+        ("people.words", 512),
+        ("core.call_answer_bytes", 2048),
+    ] {
+        jig_protocol_config::overrides::apply(&mut limits, name.as_bytes(), value).unwrap();
+    }
+    part.worker.jig.limits = Some(limits);
+    part.limits = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
+        temper_service_core::limits::Profile::Small,
+    ));
+    part
 }

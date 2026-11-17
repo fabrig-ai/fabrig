@@ -18,3 +18,5 @@ mod root_checks;
 mod startup;
 mod startup_calls;
 mod worker_declaration;
+
+mod figures;

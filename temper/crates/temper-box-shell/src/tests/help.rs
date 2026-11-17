@@ -71,7 +71,7 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in ["`agent.json`'s `environment` is a list, not a map", "temper help box"] {
+    for required in ["Entry `environment`: optional list, not a map; unique names:", "temper help box"] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
     let (_, recipe) = step.split_once("`environment`").expect("agent environment");

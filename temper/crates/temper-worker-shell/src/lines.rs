@@ -22,6 +22,9 @@ pub fn worker_service_ending(
 #[must_use]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
+        service::Note::FiguresChanged => {
+            "the engine's figures changed; they apply at this worker's next start\n".into()
+        }
         service::Note::ResultsIgnored { owner, tag, reason } => {
             run_detail_line(format!("{binary} worker: owner {owner} repository {tag} check results ignored: "), &reason)
         }

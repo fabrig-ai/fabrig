@@ -930,9 +930,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
 }
 
 pub(super) fn alone_service() -> crate::worker_alone::Service {
-    let part =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &jig_protocol_config::Directories::working())
-            .unwrap();
+    let part = fixtures::part(&fixtures::worker_alone_document());
     crate::startup::worker_alone(part, &fixtures::files(), &fixtures::startup_agent(), fixtures::worker_runtime(), 7)
         .expect("worker alone prepared")
 }

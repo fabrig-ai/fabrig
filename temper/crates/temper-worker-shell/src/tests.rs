@@ -5,8 +5,9 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({"workers":input["application"]["workers"]});
+    input["workers"][0].as_object_mut().expect("worker").remove("limits");
+    input["workers"][0].as_object_mut().expect("worker").remove("agent");
     (agent, input)
 }
 
@@ -54,3 +55,5 @@ fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
 }
 
 mod pin;
+
+mod figures;

@@ -149,6 +149,9 @@ impl Service {
             Err(fd) => Err(fd),
         }
     }
+    pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.worker.built_from(figures);
+    }
     pub fn reuse_workspaces(&mut self) {
         self.worker.reuse_workspaces();
     }

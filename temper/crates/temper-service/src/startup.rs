@@ -65,17 +65,6 @@ pub fn shape_with(
 pub fn shape(input: &[u8], directories: &config::Directories) -> Result<Shape, Problems> {
     shape_with(input, directories, &crate::stock::Given::Stock)
 }
-fn finish_shape(document: &skein_json::Document, object: members::Object, path: &Path, problems: &mut Problems) {
-    let mut found = config::Problems::empty();
-    object.finish(document, path, &mut found);
-    for found in &found.problems {
-        problems.push(
-            found.path.clone(),
-            if found.what == config::What::Unknown { What::WorkerAlone } else { What::Jig(found.what) },
-        );
-    }
-    problems.past = problems.past.saturating_add(found.past);
-}
 /// A forge API token's bound, until the forge component supplies it.
 pub const API_TOKEN_BYTES: u32 = 4096;
 fn redirects(engine: &config::Engine) -> Box<[RedirectPort]> {
@@ -310,6 +299,12 @@ fn load_document(
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
+    if shape == Shape::WorkerAlone && document.len() != 2 {
+        return match worker::shape_document(document, directories) {
+            Ok(shape) => Ok((shape, None)),
+            Err(found) => Err(problems::from_worker(found)),
+        };
+    }
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
     let root = Path::root();
@@ -321,11 +316,7 @@ fn load_document(
     };
     let worker_at = whole.required(document, b"workers", &root, &mut found);
     let application_at = whole.required(document, b"application", &root, &mut found);
-    if shape == Shape::WorkerAlone {
-        finish_shape(document, whole, &root, &mut problems);
-    } else {
-        whole.finish(document, &root, &mut found);
-    }
+    whole.finish(document, &root, &mut found);
     problems.append(found, &root);
     if let Some(at) = engine_at {
         let before = problems.problems.len();
@@ -386,27 +377,6 @@ fn load_document(
             }
             Err(found) => problems.append(found, &indexed(index)),
         }
-    }
-    if shape == Shape::WorkerAlone {
-        if worker_at.is_some() && ats.len() != 1 {
-            problems.push(root.member(b"workers"), What::WorkerAlone);
-        }
-        for (index, worker) in workers.iter().enumerate() {
-            if !checks::loopback(&worker.engine) {
-                problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
-            }
-        }
-
-        if let Some(at) = application_at
-            && let Err(found) = worker::application(document, at, directories)
-        {
-            let found = problems::from_worker(found);
-            for found in found.problems.into_boxed() {
-                problems.push_file(found.path, found.what, found.file);
-            }
-            problems.past = problems.past.saturating_add(found.past);
-        }
-        return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
     if check_start && let Some(engine) = &engine {
         match given {

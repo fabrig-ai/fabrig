@@ -51,6 +51,8 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     link: link::Component,
+    figures: Option<jig_protocol_worker_wire::Figures>,
+    last_figures: Option<jig_protocol_worker_wire::Figures>,
     link_out: Queue<link::Request>,
     out: Queue<root::Request>,
     pub(crate) events: Queue<root::Event>,
@@ -183,6 +185,8 @@ impl Worker {
             },
             source_files: crate::program_sources::FileStage::new(crate::tokens::worker(0).expect("worker prefix")),
             link,
+            figures: None,
+            last_figures: None,
             link_out: Queue::uncapped(),
             out: Queue::uncapped(),
             events: Queue::uncapped(),
@@ -236,6 +240,9 @@ impl Worker {
             stopping: false,
             aborted: None,
         })
+    }
+    pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
+        self.figures = Some(figures);
     }
     pub fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
@@ -533,7 +540,15 @@ impl Worker {
             link::Request::Untranslated { kind, halt } => {
                 self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
             }
-            link::Request::Figures { .. } => {}
+            link::Request::Figures { figures } => {
+                if let Some(built) = &self.figures {
+                    let previous = self.last_figures.as_ref().unwrap_or(built);
+                    if figures != *previous && figures != *built {
+                        self.notes.push(crate::worker_alone::Note::FiguresChanged);
+                    }
+                    self.last_figures = Some(figures);
+                }
+            }
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;

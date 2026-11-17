@@ -97,16 +97,23 @@ impl<E> Problems<What<E>> {
 }
 fn words<E>(what: &What<E>) -> &'static [u8] {
     match what {
- What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
- What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
- What::Absolute => b"must be an absolute path",
- What::Profile => b"the only profile is \"small\"",
- What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
- What::Override(limits::Refused::Range) => b"outside its type",
- What::Against { .. } => b"must agree with ",
- What::Jig(what) => jig_words(*what),
- What::Checkout { .. } | What::Past { .. } | What::Within { .. } | What::Short { .. } | What::CallInput { .. } | What::Half(_) => b"",
- }
+        What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
+        What::WorkerAlone => {
+            b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers"
+        }
+        What::Absolute => b"must be an absolute path",
+        What::Profile => b"the only profile is \"small\"",
+        What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
+        What::Override(limits::Refused::Range) => b"outside its type",
+        What::Against { .. } => b"must agree with ",
+        What::Jig(what) => jig_words(*what),
+        What::Checkout { .. }
+        | What::Past { .. }
+        | What::Within { .. }
+        | What::Short { .. }
+        | What::CallInput { .. }
+        | What::Half(_) => b"",
+    }
 }
 pub fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8]) {
     *length = length.checked_add(bytes.len()).expect("bounded diagnostic fits usize");

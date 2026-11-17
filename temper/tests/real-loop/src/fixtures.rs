@@ -142,11 +142,16 @@ fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &m
 }
 /// Keep the configured documents and their derived bounds; only assigned endpoints change.
 pub(crate) fn bind(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::Result<()> {
-    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("agent.json"))?)?;
+    let agent_path = if directory.join("agent.json").exists() {
+        directory.join("agent.json")
+    } else {
+        directory.join("world-agent.json")
+    };
+    let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(&agent_path)?)?;
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("temper.json"))?)?;
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, &mut config, llm, forge);
-    private(&directory.join("agent.json"), &serde_json::to_vec(&agent)?)?;
+    private(&agent_path, &serde_json::to_vec(&agent)?)?;
     finish_configuration(directory, &mut config)
 }
 

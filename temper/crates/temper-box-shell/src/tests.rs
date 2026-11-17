@@ -353,39 +353,25 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({"workers":input["application"]["workers"]});
+    input["workers"][0].as_object_mut().expect("worker").remove("agent");
+    input["workers"][0].as_object_mut().expect("worker").remove("limits");
     (agent, input)
 }
 #[test]
 fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    let directory = std::env::temp_dir().join(format!("temper-worker-alone-{}", std::process::id()));
-    fs::create_dir(&directory).expect("worker-alone fixture");
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (agent, mut input) = worker_document(&directory);
-    fs::write(directory.join("temper"), b"worker program").expect("program fixture");
-    input["workers"][0]["agent"]["program"] = serde_json::json!(directory.join("temper"));
-    fs::write(directory.join("agent.json"), agent).expect("worker-alone fixture");
-    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
-    let secret = directory.join("worker.secret");
-    fs::write(&secret, b"worker-secret").expect("worker-alone fixture");
-    fs::set_permissions(secret, fs::Permissions::from_mode(0o600)).expect("worker-alone fixture");
-    let mut owned = Vec::new();
-    let (service, store) = super::prepare_with_store(
-        &[],
-        b"/",
-        &configuration::directories(&directory),
-        &serde_json::to_vec(&input).expect("worker-alone fixture"),
-        &mut owned,
+    let scratch = skein_scratch::Scratch::new("worker-alone-preflight");
+    let directory = scratch.path();
+    let (_, input) = worker_document(directory);
+    let directories = configuration::directories(directory);
+    let part = temper_service::startup::worker_part(
+        &serde_json::to_vec(&input).expect("worker document"),
+        &temper_service_shell::jig_directories(&directories),
     )
-    .expect("worker-alone fixture");
-    assert!(store.is_empty(), "no deployment root");
-    assert_eq!(owned.len(), 1, "only the worker root");
-    let super::Service::Worker(_) = service else { panic!("worker service has no engine or setup host") };
-    assert!(!directory.join("state").exists(), "no store directory created");
-    super::close(owned);
-    fs::remove_dir_all(directory).expect("worker-alone fixture");
+    .expect("worker-alone preflight");
+    assert_eq!(part.files.len(), 1, "only its link secret is read before figures");
+    assert!(part.named.program.is_empty(), "no worker is built before figures");
+    assert!(!directory.join("state").exists(), "no deployment store");
 }
 
 #[test]

@@ -14,6 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    FiguresChanged,
     /// A failed preparation, once when its answer first goes up (domain/worker/checkouts.md, 1.3).
     Unprepared {
         run: u64,

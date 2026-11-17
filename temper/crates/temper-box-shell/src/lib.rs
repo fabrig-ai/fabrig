@@ -411,16 +411,6 @@ fn prepare(
 ) -> Result<Service, String> {
     serve::prepare("temper", environment, working, directories, bytes, owned)
 }
-#[cfg(test)]
-fn prepare_with_store(
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    bytes: &[u8],
-    owned: &mut Vec<Fd>,
-) -> Result<(Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", environment, working, directories, bytes, owned)
-}
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(

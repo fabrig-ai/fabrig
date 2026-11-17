@@ -112,6 +112,7 @@ impl Shape {
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
+    #[expect(clippy::too_many_lines, reason = "both cluster shapes share the supervision and link timing inputs")]
     pub(crate) fn write(&self, path: &Path, standing: bool) {
         use serde_json::json;
         let config = path.join("config");
@@ -136,9 +137,15 @@ impl Shape {
         let silence_ms = 3 * ping_ms;
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
-        let mut agent: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
-                .expect("agent JSON");
+        let agent: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(if data.join("agent.json").exists() {
+                data.join("agent.json")
+            } else {
+                data.join("world-agent.json")
+            })
+            .expect("agent document"),
+        )
+        .expect("agent JSON");
         // Preserve the story's supervision policy; its stop bound is derived below.
         // Cancellation must leave the held peer time to release its response.
         let [delivery_ms, save_ms] = [5_u64, 5];
@@ -160,6 +167,15 @@ impl Shape {
         .as_millis();
         match self {
             Self::Engine { workers, .. } => {
+                document["engine"]["llm"]["providers"][0]["name"] = "openai".into();
+                document["engine"]["llm"]["endpoints"][0]["provider"] = "openai".into();
+                let worker_limits =
+                    document["workers"][0]["limits"]["overrides"].as_object().expect("worker limits").clone();
+                for (name, value) in worker_limits {
+                    if name.starts_with("hub.") || name == "io.output" {
+                        document["engine"]["limits"]["overrides"][name] = value;
+                    }
+                }
                 document["workers"] = json!([]);
                 document["application"]["workers"] = json!([]);
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
@@ -173,6 +189,11 @@ impl Shape {
                 document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
                 document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
+                document["engine"]["limits"]["overrides"]["hub.held"] = 1.into();
+                document["engine"]["limits"]["overrides"]["hub.program_sources"] = 0.into();
+                if grace_ms >= 1_000 {
+                    document["engine"]["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
+                }
                 for name in workers {
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();
@@ -185,24 +206,19 @@ impl Shape {
             }
             Self::Worker { name, engine, .. } => {
                 let worker = document["workers"].as_array_mut().expect("workers").first_mut().expect("one worker");
-                // One retained turn, one held event, and no program-backed LLM source.
-                for (limit, size) in [("hub.turns", 1), ("hub.held", 1), ("hub.program_sources", 0)] {
-                    worker["limits"]["overrides"][limit] = size.into();
+                fixtures::private(&data.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
+                    .expect("world agent fixture");
+                if data.join("agent.json").exists() {
+                    std::fs::remove_file(data.join("agent.json")).expect("no worker agent document");
                 }
-                agent["profile"]["policy"]["unacknowledged"] = 1.into();
-                fixtures::private(&data.join("agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
-                    .expect("cluster agent");
+                worker.as_object_mut().expect("worker").remove("limits");
+                worker.as_object_mut().expect("worker").remove("agent");
                 worker["name"] = (*name).into();
                 worker["secret"] = format!("secrets/{name}.secret").into();
                 worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
                 worker["graces"] = json!({"grace_ms":grace_ms,"drain_ms":graces.drain.as_millis(),"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
-                worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
-                worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
-                if grace_ms >= 1_000 {
-                    // Redial promptly after the grace too; waiting out backoff is not this story's rule.
-                    worker["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
-                }
-                document = json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"],"limits":document["application"]["limits"]}});
+                document =
+                    json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"]}});
                 fixtures::private(
                     &data.join(format!("secrets/{name}.secret")),
                     format!("{name}-fixture-secret").as_bytes(),
@@ -295,6 +311,71 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
     temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
 }
 
+/// Keep test-sized kind 20 after the engine's first durable initialization.
+pub(crate) fn seed_agents(data: &Path, agent: &serde_json::Value) {
+    use temper_client_protocol_wire::v1 as w;
+    use temper_engine_domain_forge::{self as forge, settings as s};
+    let mut profile = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_profile);
+    for group in ["declared", "policy"] {
+        for (name, value) in agent["profile"][group].as_object().expect("profile") {
+            profile
+                .push(
+                    w::AgentFigure::new(
+                        &w::CEILINGS,
+                        w::AgentFigureParts {
+                            name: format!("{group}.{name}").into_bytes().into(),
+                            value: value.as_u64().expect("scalar"),
+                        },
+                    )
+                    .expect("profile figure"),
+                )
+                .expect("profile room");
+        }
+    }
+    let mut endpoints = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_endpoints);
+    for endpoint in agent["endpoints"].as_array().expect("endpoints") {
+        let limits = &endpoint["limits"];
+        let limits = w::AgentLimits::new(
+            &w::CEILINGS,
+            w::AgentLimitsParts {
+                window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
+                output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
+                reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
+                head_ms: limits["head"].as_u64().expect("head"),
+                idle_ms: limits["idle"].as_u64().expect("idle"),
+                oversized: w::Oversized::Fail,
+            },
+        )
+        .expect("endpoint limits");
+        endpoints
+            .push(
+                w::AgentEndpointLimits::new(
+                    &w::CEILINGS,
+                    w::AgentEndpointLimitsParts {
+                        endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
+                        limits,
+                    },
+                )
+                .expect("endpoint figures"),
+            )
+            .expect("endpoint room");
+    }
+    let fallback = endpoints.get(0).expect("one endpoint").limits().clone();
+    let value =
+        w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
+    let size = value.measure();
+    let key = s::SettingKey { kind: 20, scope: 0, number: 1, slot: s::SettingSlot::Change };
+    let row = forge::Stored::Setting(s::SettingRow {
+        key,
+        edit: s::Edit::Set(s::SizedValue { value: s::Value::AgentFigures(value), size }),
+    });
+    let writes = vec![jig_protocol_store::Write::Put {
+        key: temper_protocol_store::keys::encode(&forge::Key::Setting(key), 256).expect("key"),
+        value: temper_protocol_store::records::encode(&row),
+    }];
+    temper_github_app::seed_with(&data.join("state"), &[], writes).expect("durable agent figures");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,15 +387,15 @@ mod tests {
         let address = ([127, 0, 0, 1], 0).into();
         fixtures::write(&data, address, address).expect("fixture documents");
         let path = data.join("agent.json");
-        let mut expected: serde_json::Value =
+        let expected: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
-        expected["profile"]["policy"]["unacknowledged"] = 1.into();
 
         Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }
             .write(scratch.path(), false);
 
         let prepared: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&path).expect("prepared agent")).expect("prepared JSON");
+            serde_json::from_slice(&std::fs::read(data.join("world-agent.json")).expect("prepared fixture"))
+                .expect("prepared JSON");
         assert_eq!(prepared, expected);
     }
 }

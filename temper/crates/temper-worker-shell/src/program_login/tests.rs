@@ -48,18 +48,13 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
     let directory = std::env::temp_dir().join(format!("temper-worker-login-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("worker-alone fixture");
     std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (agent, input) = crate::tests::worker_document(&directory);
-    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("worker-alone fixture");
-    agent["programs"] =
-        serde_json::json!({"claude_code":{"path":"/missing/claude","directory":directory.join("programs")}});
-    std::fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("worker-alone fixture"))
-        .expect("worker-alone fixture");
-    std::fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
+    let (_, mut input) = crate::tests::worker_document(&directory);
+    input["application"]["workers"][0]["claude"] = "/bin/sh".into();
     std::fs::write(directory.join("temper.json"), serde_json::to_vec(&input).expect("worker-alone fixture"))
         .expect("worker-alone fixture");
     let command = command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), [], None)
         .expect("worker-alone fixture");
-    assert_eq!(command.get_program(), OsStr::new("/missing/claude"));
+    assert_eq!(command.get_program(), OsStr::new("/bin/sh"));
     assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
     assert!(!directory.join("state").exists());
     assert!(!directory.join("worker.secret").exists(), "no link secret needed for program login");

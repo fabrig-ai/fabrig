@@ -73,7 +73,7 @@ fn charter() -> smith_domain_run::Charter {
 
 mod startup;
 pub use startup::{
-    files, owned_worker_agent, owned_worker_alone_document, startup_agent, with, without, worker_alone_document,
+    files, owned_worker_agent, owned_worker_alone_document, part, startup_agent, with, worker_alone_document,
 };
 pub use worker::assignment as worker_assignment;
 /// Parse the shipped agent with inert destinations and selected payload/output quantities.

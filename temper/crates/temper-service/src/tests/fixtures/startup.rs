@@ -296,15 +296,15 @@ pub fn engine_alone_document() -> Box<[u8]> {
 
 /// A worker's document has no engine or engine application members.
 pub fn worker_alone_document() -> Box<[u8]> {
-    let input = with(&document(), b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
-    let input = with(
-        &input,
-        b"application",
-        br#"{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}"#,
-    );
-    let text = core::str::from_utf8(&input).unwrap();
-    let (_, workers) = text.split_once(", \"workers\":").unwrap();
-    [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()
+    let mut input: serde_json::Value = serde_json::from_slice(&document()).unwrap();
+    input.as_object_mut().unwrap().remove("engine");
+    input["workers"][0]["engine"] = serde_json::from_str(r#"{"socket":"127.0.0.1:7100"}"#).unwrap();
+    input["workers"][0].as_object_mut().unwrap().remove("agent");
+    input["workers"][0].as_object_mut().unwrap().remove("limits");
+    let workers = input["application"]["workers"].clone();
+    input["application"] = serde_json::from_str(r#"{"workers":[]}"#).unwrap();
+    input["application"]["workers"] = workers;
+    serde_json::to_vec(&input).unwrap().into_boxed_slice()
 }
 
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]

@@ -5,10 +5,13 @@ use jig_protocol_config::{self as config, Path, read};
 use skein_json::{Document, document::Kind};
 use temper_service_core::startup::at;
 
+pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 #[derive(Debug)]
 pub struct Worker {
     pub root: Box<[u8]>,
     pub git: Option<Box<[u8]>>,
+    pub claude: Option<Box<[u8]>>,
+    pub environment: Box<[EnvironmentEntry]>,
 }
 pub(super) fn object(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
     match read::Object::new(document, at) {
@@ -89,6 +92,22 @@ pub fn member(
             }
         }
     }
+    let claude = match object.member(document, b"claude") {
+        Some(at) => match read::text(document, at, 4096) {
+            Ok(value) => {
+                if !value.starts_with(b"/") {
+                    problems.push(path.member(b"claude"), What::Absolute);
+                }
+                Some(value)
+            }
+            Err(what) => {
+                problems.push(path.member(b"claude"), What::Jig(what));
+                None
+            }
+        },
+        None => None,
+    };
+    let environment = environment(&mut object, document, &path, problems);
     finish(object, document, &path, problems);
     let root = root?;
     if let Some(git) = &git
@@ -103,7 +122,7 @@ pub fn member(
             return None;
         }
     };
-    Some(Worker { root, git })
+    Some(Worker { root, git, claude, environment })
 }
 pub(super) fn read(
     document: &Document,
@@ -135,18 +154,45 @@ pub(super) fn read(
             }
         }
     }
-    let limits = match required(&mut object, document, b"limits", &path, problems) {
-        Some(at) => temper_service_core::startup::configured_limits(document, at, &path.member(b"limits"), problems),
-        None => None,
-    };
-    let limits = match limits {
-        Some(limits) => Some(Limits::shared(limits)),
-        None => None,
-    };
-    if let Some(limits) = &limits {
-        super::git_limits(limits, &limits.git_component, problems);
-        super::checks::channel(&limits.bounds(), problems);
+    if object.member(document, b"limits").is_some() {
+        problems.push(path.member(b"limits"), What::Jig(config::What::Because(super::MOVED_LIMITS)));
     }
+    let limits = Limits::shared(temper_service_core::limits::profile(temper_service_core::limits::Profile::Standard));
     finish_shape(document, object, &path, problems);
-    Some((own?, limits?))
+    Some((own?, limits))
+}
+
+fn environment(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Box<[EnvironmentEntry]> {
+    let mut entries = skein_lib::List::uncapped();
+    if let Some(at) = object.member(document, b"environment") {
+        let path = path.member(b"environment");
+        match read::list(document, at, document.len()) {
+            Ok(ats) => {
+                for (index, at) in ats.iter().enumerate() {
+                    let path = temper_service_core::startup::at(index, path.clone());
+                    if let Some(mut object) = self::object(document, *at, &path, problems) {
+                        let name = text(&mut object, document, b"name", &path, problems);
+                        let value = text(&mut object, document, b"value", &path, problems);
+                        finish(object, document, &path, problems);
+                        if let (Some(name), Some(value)) = (name, value) {
+                            for (previous, _) in &entries {
+                                if previous == &name {
+                                    problems.push(path.member(b"name"), What::Jig(config::What::Unique));
+                                    break;
+                                }
+                            }
+                            entries.push((name, value)).expect("uncapped environment");
+                        }
+                    }
+                }
+            }
+            Err(what) => problems.push(path, What::Jig(what)),
+        }
+    }
+    entries.into_boxed()
 }

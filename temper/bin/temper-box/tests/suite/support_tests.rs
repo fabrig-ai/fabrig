@@ -38,7 +38,10 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         "the worker's merge train must be declared"
     );
     support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
-    let agent = temper_worker_shell::agent::read(&cluster.dir("w1").join("config/agent.json")).expect("agent profile");
+    let document = cluster_turn_setup::read(&cluster.dir("engine").join("config/temper.json"));
+    let bytes = serde_json::to_vec(&support::cluster::agent_configuration(&document, &cluster.dir("w1").join("data")))
+        .expect("agent JSON");
+    let agent = temper_worker_shell::agent::prepare_bytes(bytes.into()).expect("agent profile").agent;
     for process in ["engine", "w1"] {
         let root = cluster.dir(process);
         let directories = temper_real_loop_world::cluster::directories_in([

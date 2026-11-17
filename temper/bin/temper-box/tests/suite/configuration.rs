@@ -238,7 +238,10 @@ fn the_clusters_documents_check_as_their_shapes() {
                 startup::named(&bytes, &jig_directories(&directories)).expect("checked engine alone");
             }
             Shape::WorkerAlone => {
-                let part = startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
+                let mut part =
+                    startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
+                temper_worker_service::figures::apply(&mut part, support::cluster::figures(&engine))
+                    .expect("applied engine figures");
                 let worker = &part.worker.jig;
                 let stop = jig_protocol_config::stop_bound(
                     &worker.graces,
@@ -254,13 +257,6 @@ fn the_clusters_documents_check_as_their_shapes() {
                     stop < skein_lib::Duration::from_millis(support::cluster::FLEET_GRACE_MS),
                     "bin/temper-box/tests/fixtures/cluster/{process}.json: workers[0].graces stop_bound must be below engine.json: engine.limits.overrides.fleet.grace_ms"
                 );
-                let value: serde_json::Value = serde_json::from_slice(&bytes).expect("worker JSON");
-                for key in ["link.ping_ms", "link.silence_ms"] {
-                    assert_eq!(
-                        value["workers"][0]["limits"]["overrides"][key], engine_limits[key],
-                        "bin/temper-box/tests/fixtures/cluster/{process}.json: workers[0].limits.overrides.{key} must equal engine.json: engine.limits.overrides.{key}"
-                    );
-                }
             }
             Shape::Standalone => panic!("cluster members are separate"),
         }
