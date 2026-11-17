@@ -19,6 +19,62 @@ fn call(front: &mut Joint, root: &mut Root, number: u32, words: &[&[u8]]) -> tem
     }
 }
 #[test]
+fn a_second_as_allowed_goal_names_its_milestones_empty_budget() {
+    let (mut front, mut root) = accounts::goal_choice_fixture(fixtures::SEED);
+    let made = call(
+        &mut front,
+        &mut root,
+        1,
+        &[b"milestone", b"new", b"--project", b"1", b"--as-allowed", b"Store shape", b"--key", b"store-shape"],
+    );
+    let milestone = fixtures::done_task(&made);
+    let milestone_arg = milestone.to_string();
+    let first = call(
+        &mut front,
+        &mut root,
+        2,
+        &[
+            b"goal",
+            b"start",
+            b"--project",
+            b"1",
+            b"--milestone",
+            milestone_arg.as_bytes(),
+            b"--as-allowed",
+            "T1 · first\n\nThe first.".as_bytes(),
+            b"--key",
+            b"first",
+        ],
+    );
+    let goal = fixtures::done_task(&first);
+    assert_eq!(first.stdout.as_ref(), format!("done: task {goal}, goal\n").as_bytes());
+    let Event::Call { call, json, .. } = fixtures::call(&[
+        b"goal",
+        b"start",
+        b"--project",
+        b"1",
+        b"--milestone",
+        milestone_arg.as_bytes(),
+        b"--as-allowed",
+        "T2 · second\n\nThe second, no wait.".as_bytes(),
+        b"--key",
+        b"second",
+    ]) else {
+        unreachable!()
+    };
+    accounts::event(&mut front, &mut root, Event::Call { number: 3, call, json, value: None });
+    let refused = root.agent().printed(3).expect("second goal answered");
+    assert_eq!(refused.status, 2, "{refused:?}");
+    assert!(refused.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8_lossy(&refused.stderr),
+        format!(
+            "goal start: refused: milestone {milestone} had 0 left, 1 needed; give each goal in it --budget AMOUNT\n"
+        )
+    );
+}
+
+#[test]
 fn a_person_fills_and_concludes_a_milestone_with_a_waiting_goal() {
     let (mut front, mut root) = accounts::goal_choice_fixture(fixtures::SEED);
     let made = call(

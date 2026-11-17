@@ -290,6 +290,53 @@ fn milestone_delegate_keeps_funding_and_admission_refusals() {
 }
 
 #[test]
+fn milestone_budget_refusals_name_the_funder_and_keep_json_and_pool_words() {
+    for (in_milestone, needed, left, expected) in [
+        (true, 1, 0, b"goal start: refused: milestone 812 had 0 left, 1 needed; give each goal in it --budget AMOUNT\n".as_slice()),
+        (true, 12, 9, b"goal start: refused: milestone 812 had 9 left, 12 needed; give each goal in it --budget AMOUNT\n".as_slice()),
+        (false, 1, 0, concat!(
+            "goal start: refused: your pool in project 1 had 0 left, 1 needed\n",
+            "read it: project show 1\n",
+            "raise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+        ).as_bytes()),
+    ] {
+        for json in [false, true] {
+            let mut root = f::choice_root(me());
+            let mut argv = if in_milestone { beneath() } else { f::extended(START, &[]) };
+            if json {
+                argv.push("--json").unwrap();
+            }
+            let call = if in_milestone {
+                submit(&mut root, argv.as_slice(), milestone())
+            } else {
+                root.submit(argv.as_slice())
+            };
+            root.answered(call, c::Answer::Refused {
+                refusal: c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, proposable: None },
+                at: None,
+            });
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 2);
+            assert!(answer.stdout.is_empty());
+            if json {
+                let record: serde_json::Value = serde_json::from_slice(&answer.stderr).expect("refusal record");
+                assert_eq!(record, serde_json::json!({
+                    "operation": "goal",
+                    "outcome": { "refused": {
+                        "refusal": { "authority": { "lacking": { "budget": { "needed": needed, "left": left } }, "proposable": null } },
+                        "at": null
+                    } },
+                    "task": null,
+                    "to": null
+                }));
+            } else {
+                assert_eq!(answer.stderr.as_ref(), expected);
+            }
+        }
+    }
+}
+
+#[test]
 fn milestone_goal_replays_the_same_keyed_delegate() {
     let mut root = f::choice_root(me());
     let call = submit(&mut root, beneath().as_slice(), milestone());
