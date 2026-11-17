@@ -295,10 +295,19 @@
   What it reads: the query `TaskQuery { project, label: the template's,
   tracked, by priority }`, the label template `shapes::GOAL`'s, its live group
   watched and its ended group read by when each ended, as `Chats`; `listed`
-  puts goals in the project's index. One read per row, one at a time, as the
+  puts goals in the project's index. The rail's facts that the project
+  has goals or milestones take this watch and read, and the milestones'
+  list's, while the page holds them, with no narrower twin beside them
+  (`milestone.md`, 1, *`Domain::has_goals`*). One read per row, one at a time, as the
   inbox's cards: its report (`goal.md`, 1, *A goal's report*). The needs are `inbox`'s
-  group for the project, read again as the watch or `me`'s `needs_total`
-  moves, each row's `selection` naming its goals.
+  group for the project, each row's `selection` naming its goals, read
+  once as the page opens and again only as their marks move: `me`'s
+  `needs_total` moving, or the inbox's mark, the rail's standing watch of
+  `inbox` (`needs-you.md`) delivering again, which the engine does only
+  once it has marked the party's inbox changed (jig's
+  `client/domain/contract/README.md`, 5.2). That watch's first delivery
+  is no move; each after it is, the first once it opens again after a
+  drop among them; and no delivery of the goals' is one.
 
   **A row** is one link to the goal's `Task`, public as `goals::row`, since
   Home's area will reuse it: its top line the chip's title (its spec's first

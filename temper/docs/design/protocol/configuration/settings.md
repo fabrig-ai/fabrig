@@ -244,7 +244,13 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   with a role in the deployment, for any kind; or a project's, by a party
   with a role in that project, for a kind of each project's scope (2, 6,
   7, 8, 10, 12 and 13) in that scope alone. How work runs reads a project's words in
-  its `ways` read (8), which any party of the project reads.
+  its `ways` read (8), which any party of the project reads. A
+  `Setting` read's answer, `SettingAnswer { value, revision }`, names
+  the revision its value was set or removed at, read from the same
+  state as the value, as jig's `settings` document names it in that
+  setting's line (`last`), and none where it stands at its default; so
+  a client reads it again only for a newer one
+  (`../../client/pages/settings.md`, 1, *What the client holds*).
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
   revision its change was made in: what work may do is always current,

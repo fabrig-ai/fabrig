@@ -541,8 +541,11 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   kinds 7 and 8 of the open project as the project opens, kind 8 also of the
   card *Needs you* shows where that card's project is another, and kind 6 on
   the tab, through the forge's reads in that project's scope (`../forge/served.md`
-  ), and again whenever the document's line for that setting says it
-  changed and when the link comes back. Kind 8 decodes to the kit's table
+  ). Each read answers with the revision it read, none at the default
+  (`../../protocol/configuration/settings.md`, 2, *Read from the
+  forge*), and the setting is read again only when the document's line
+  names a newer one (`last`), or none where the read named one, whichever
+  of the two came first; and when the link comes back from offline. Kind 8 decodes to the kit's table
   (`temper-protocol-reaches`, `classes_from`); one `Classes::check` refuses
   reads as a lasting refusal. A transient read failure (busy, unreachable, local
   read capacity, or sign-in still settling) retries after one second, doubling
