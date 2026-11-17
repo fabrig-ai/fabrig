@@ -537,6 +537,7 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
+        self.component.as_mut().expect("component").prepared_schemas(binary_schemas());
         let root = match &self.disk {
             Some(disk) => disk.root(),
             None => self.files.root(),
@@ -749,6 +750,32 @@ const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
         ..protocol::JIG_STORE_SET
     }],
 };
+// Only immutable schemas from the fixture's constant texts outlive a test.
+fn binary_schemas() -> &'static [skein_codec::schema::Schema] {
+    static SCHEMAS: std::sync::OnceLock<Vec<skein_codec::schema::Schema>> = std::sync::OnceLock::new();
+    SCHEMAS.get_or_init(|| {
+        let mut schemas = Vec::new();
+        for set in [protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] {
+            for family in set.families {
+                if !schemas
+                    .iter()
+                    .any(|schema: &skein_codec::schema::Schema| schema.text() == family.current.as_bytes())
+                {
+                    schemas.push(skein_codec::schema::parse(family.current.as_bytes()).expect("fixture schema"));
+                }
+                if let Some(frames) = &family.frames {
+                    for text in frames.texts {
+                        if !schemas.iter().any(|schema| schema.text() == text.as_bytes()) {
+                            schemas.push(skein_codec::schema::parse(text.as_bytes()).expect("fixture frame schema"));
+                        }
+                    }
+                }
+            }
+        }
+        schemas
+    })
+}
+
 fn component_sets(sets: protocol::OwnerSets) -> protocol::OwnerSets {
     // Domain worlds exercise log storage without pricing layout planning;
     // explicit upgrade fixtures supply registered families themselves.

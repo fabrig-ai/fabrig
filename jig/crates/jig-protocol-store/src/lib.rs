@@ -118,6 +118,7 @@ pub struct Store {
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     owner_sets: OwnerSets,
+    prepared_schemas: &'static [skein_codec::schema::Schema],
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
     wires: &'static [Wire],
@@ -253,6 +254,7 @@ impl Store {
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
             owner_sets: OwnerSets::NONE,
+            prepared_schemas: &[],
             build_name: "",
             wires: &[],
             mark: Mark::Waiting,
@@ -306,6 +308,13 @@ impl Store {
     pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.directory.checked = None;
         self.owner_sets = sets;
+    }
+
+    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Only an exact text match is used; other texts are parsed by this open.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.directory.checked = None;
+        self.prepared_schemas = schemas;
     }
 
     /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).

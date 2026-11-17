@@ -2570,6 +2570,7 @@ dependencies = [
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
+ "skein-codec",
  "skein-fake-machine",
  "skein-fork",
  "skein-io",
