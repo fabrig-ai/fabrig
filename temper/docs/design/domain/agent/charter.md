@@ -130,7 +130,7 @@ smith's (smith's `domain/run.md`, 7.1):
 |---|---|
 | a report: words, bounded | a report, and a failure, within the same bound |
 | a verdict from a closed list, each with the fields it requires and the follow-up tasks it may propose | a verdict for each choice, named by its number, with its fields and its words' bound; follow-ups as items, of the kinds of task the verdict may propose; a failure of at most 1,024 bytes |
-| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
+| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a verdict for each of its choices, named by its number (a landing repair's flake, `../forge/change/repairs.md`); a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
 A change's `body` holds the producer's report, what its brief asks it to
@@ -155,6 +155,9 @@ card shows what `documents.text_bytes` holds, marked as cut.
 The `no_change` verdict becomes jig's successful `NoChange` result. It
 retains the explanation, supplies no resource or landing, and ends the
 change without a hold or escalation. The requester receives that result.
+A change contract's choice becomes jig's successful `Verdict` result with
+its code, and, like `no_change`, is refused where the run settled a
+change.
 
 A change's result names the resource the worker's push and the forge
 settled, never one from the LLM's fields. Its explicit `title` and `body`

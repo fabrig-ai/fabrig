@@ -87,7 +87,13 @@
 - **A landing's repair** (`../../landing.md`, 7.3; `../../landing-search.md`,
   7) names what failed in its words, as a CI repair's name its failed
   check, so that its agent finds the failure without its brief. After its
-  opening and instruction come, each on a line of its own:
+  opening and instruction come, each on a line of its own: where its
+  contract offers the flake verdict (*A landing repair that finds only
+  flakes*, below), `Flake: if every failed test below is a flake (an open
+  flake finding names it, or it passes when run again at this head) and
+  nothing needs changing, finish with verdict 1, naming each test and how
+  you saw it pass; a person then releases the change to run its gate once
+  more.`; then
   `Gate run: RUN at PREFIX, base BASE: LINK`, RUN the run's id as the
   forge's API gives it, the one `read_job` takes, PREFIX the commit the
   gate ran at (the candidate, or the red prefix) and BASE the round's
@@ -192,7 +198,41 @@
   gate's, a review's or a check's repair, a person's request for changes,
   a landing's, a resolution and a queue's ejection that change nothing
   hold the change as before (1, *A repair of another reason that changes
-  nothing*).
+  nothing*), but for a landing repair's flake verdict (below).
+- **A landing repair that finds only flakes** (`../../landing-regate.md`,
+  3) says so with a verdict, rather than a no-change taken as a failure:
+  - **Offered** where the repair's reason is a landing's gate
+    (`Landing` or `LandingAt`) and the failed receipt it resolves to (*A
+    landing's repair*, above) names its failed tests (`Failed test:`
+    lines, not `not known` nor `more than N`) when the repair is asked:
+    its change contract lists one choice (jig's `domain/tasks/README.md`,
+    section 3), code 1, `flake`, its words within the contract's words,
+    no fields and no follow-ups, and its words carry the `Flake:` line.
+    Any other repair's contract lists none, and a mixed or unknown
+    failure keeps the repairs it has today.
+  - **Its result:** the repair's task ends done with verdict 1 and its
+    words. Read with the change's branch after its end (as a CI repair's
+    no-change is), still at the head it was asked to repair, it holds the
+    change, its cause `Flake`, its account `its repair, task N, found only
+    flakes: WORDS; release this change to run its gate once more, or
+    cancel it`, WORDS the verdict's words cut to the account's bytes and
+    marked; it is not a failure, and the hold "failed for good" stays a
+    repair's that failed or was cancelled. A branch moved by then is the
+    repair's push, taken as any repair's, the verdict's words its account.
+    The repair stays counted as asked.
+  - **Its release** (*A release*, below, steps 1 to 4) asks no repair:
+    the change names, as its regate, the failed receipt its repair's
+    reason resolves to, by its key and its run (`../../landing-regate.md`,
+    3 and 5), none where none resolves, in the step that decides; and goes
+    on at the head it read as a repair that left that head unchanged
+    would, checked again (`README.md`, 2, step 3), ready and formed into
+    a landing, with no new commit. A restart after the release finds the
+    regate on the row and asks nothing again. The regate is cleared when
+    the change's head moves or a repair is asked for it.
+  - **Bounded as before:** a red from the run its regate gives is a
+    landing's failure, its repair counted against the allowance the
+    release reset; a flake verdict holds every time, so only a person's
+    release runs a gate once more.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
@@ -697,7 +737,9 @@
   exhaustion. Released at a head CI has not passed at (a green head ends
   its CI repair, above), it asks for a fresh repair with the same reason
   and current forge facts, under its current authority, counted against
-  the reset repair allowance. The
+  the reset repair allowance; held on its repair's flake verdict, it asks
+  none and names its regate instead (*A landing repair that finds only
+  flakes*, above). The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   Released from a resolution or a merge job that failed or was
@@ -839,7 +881,10 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   head again would only ask the next repair, and a landing's, a
   resolution's and an ejection's red is not CI's at the change's head.
   Default: such a repair finding nothing to do holds the change, as a
-  failed one does, until a person decides (2026-11-14).
+  failed one does, until a person decides (2026-11-14). A landing repair
+  that finds only flakes says so with its verdict instead, and its
+  release runs the gate once more (*A landing repair that finds only
+  flakes*; 2026-11-17).
 
 - **Every failed job at once** (`repairs.md`, *A CI repair that changes
   nothing checks its head again*): one job runs again for each repair that
