@@ -34,6 +34,9 @@ independent of readable turns.
 - **Not yet:** 9: no story relays a person's decision with their own credential.
   14, 16: the one-shot mode and its story, and a service in a host or world
   (the client takes `With::Service`).
+- **Not yet:** 8, *A record that can't be written is not kept*: such a
+  request is answered lost and retried under its key, and the held
+  requests whose records were encoded are retired with it. [in flight: change 6274]
 - **Departs:** 13: a turn answer that `translate::turn::inspect` cannot decode
   ends malformed before the link emits `Fact::UndecodableDocument`
   (`jig-client-protocol-link/src/component.rs`, `read_answer`). Other read
