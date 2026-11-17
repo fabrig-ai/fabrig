@@ -359,5 +359,14 @@ fn deleted_repository_job_refuses_unreadable_rows_and_keys() {
 #[test]
 fn declared_job_names_are_pinned() {
     let names: Vec<_> = crate::OWNER_SET.jobs.iter().map(|job| job.name).collect();
-    assert_eq!(names, ["deleted-repository-forge-rows"]);
+    assert_eq!(
+        names,
+        [
+            "test-ids-landing",
+            "test-ids-receipt",
+            "test-ids-tier",
+            "test-ids-verification",
+            "deleted-repository-forge-rows"
+        ]
+    );
 }

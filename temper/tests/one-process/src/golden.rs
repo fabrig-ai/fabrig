@@ -626,7 +626,8 @@ pub fn read(directory: &Path) {
         "the current layouts register in one new generation"
     );
     let upgraded = std::fs::read_to_string(directory.join("upgraded.txt")).expect("kept upgrade events");
-    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), upgraded);
+    let id_jobs = "temper test-ids-landing 0 1\ntemper test-ids-receipt 0 1 many=0\ntemper test-ids-tier 0 1 many=0 flakes=0 posted=0\ntemper test-ids-verification 0 1 many=0\n";
+    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), format!("{id_jobs}{upgraded}"));
     world::lower_store(None);
 }
 

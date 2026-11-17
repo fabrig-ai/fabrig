@@ -163,7 +163,7 @@ fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the test formats override documents and their expected diagnostics")]
 fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
-    for changes in [1024_u32, 1025] {
+    for changes in [769_u32, 1024] {
         let member = format!(r#"{{"profile":"standard","overrides":{{"forge.changes":{changes}}}}}"#);
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
@@ -174,7 +174,7 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
-                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 379, the most the store's tier rows hold (2 * forge.changes + 1 within 759)\n").as_bytes(),
+                format!("application.limits.overrides.forge.changes: {changes}, past its bound of 768, the most the store's tier rows hold (2 * forge.changes + 1 within 1537)\n").as_bytes(),
             );
         }
     }
