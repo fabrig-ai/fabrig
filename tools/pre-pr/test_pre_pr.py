@@ -26,7 +26,7 @@ class DeliverySelection(unittest.TestCase):
         self.addCleanup(self.scratch.cleanup)
         self.root = Path(self.scratch.name)
         self.env = os.environ.copy()
-        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR', 'TIERS_HOLD'):
+        for name in ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'CARGO_TARGET_DIR', 'TIERS_HOLD', 'TIERS_LEDGER'):
             self.env.pop(name, None)
         self.command('git', 'init', '-q')
         self.command('git', 'config', 'user.name', 'Fixture')
@@ -89,12 +89,13 @@ sys.exit(int(count > 0))
 
         def run(arguments, cwd, env, output=None, stdout=False):
             calls.append((arguments, cwd))
+            self.assertNotIn('TIERS_LEDGER', env)
             if arguments[:2] == ['cargo', 'build']:
                 events.append(arguments)
                 self.assertEqual(env['TEMPER_INTERNAL_BUNDLE'], 'none')
                 self.assertNotIn('TIERS_HOLD', env)
                 return build_answer
-            if process_answer is not None and arguments[:4] == ['python3', '-I', '-B', 'tools/tiers/one-process']:
+            if process_answer is not None and arguments[3:4] in (['tools/tiers/one-process'], ['tools/tiers/cpu-summary']):
                 return process_answer(arguments, cwd, env, output, stdout)
             result = subprocess.run(arguments, cwd=cwd, env=env, capture_output=True)
             log = PRE_PR.Tail()
@@ -597,7 +598,7 @@ sys.exit(int(count > 0))
             result, log, _, _ = self.deliver()
         self.assertEqual(result, 0, log)
         passed = json.loads(path.read_text())
-        tree, base, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        tree, base, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
         self.assertEqual(passed, {'form': 'pre-pr-failures 1', 'tree': tree, 'base': base,
                                  'cached': False, 'verdict': 'passed',
                                  'counts': {'new': 0, 'flake': 0, 'inherited': 0}, 'failures': []})
@@ -888,9 +889,10 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 0, log)
         self.assertTrue(all(code))
         cache = self.root / '.git/pre-pr-passed'
-        tree, base, digest = cache.read_text().split()
+        tree, base, digest, ledgers = cache.read_text().split()
+        self.assertEqual(ledgers, '-')
         self.assertEqual(digest, hashlib.sha256(content).hexdigest())
-        hit = f'pre-pr: passed before (tree {tree}, base {base}, reds {digest})'
+        hit = f'pre-pr: passed before (tree {tree}, base {base}, reds {digest}, ledgers -)'
         fault = [PRE_PR.failure('format', 'format fault')]
         result, log, _, code = self.deliver(one_process_answer=answer, formatting_answer=fault)
         self.assertEqual(result, 0, log)
@@ -924,6 +926,267 @@ sys.exit(int(count > 0))
                 self.assertNotIn('passed before', log)
                 self.assertEqual(cache.read_text().split()[2],
                                  '-' if changed is None else hashlib.sha256(changed).hexdigest())
+
+    def main_ledger(self, profile):
+        content = json.dumps(dict(ledger=2, profile=profile, binaries={}, budgets={}, moves=[])).encode()
+        path = self.root / '.git/main-ledgers' / (profile + '.json')
+        path.parent.mkdir(exist_ok=True)
+        path.write_bytes(content)
+        self.env['TIERS_LEDGER'] = '.git/main-ledgers'
+        return path, content
+
+    def budget_run(self, taken, exits=None, summary=(1, None), tests=(), starved=False):
+        """Run main in its repository, faking only the one-process and summary commands."""
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.write('client/src/lib.rs', 'pub fn changed() {}\n')
+        exits = {} if exits is None else exits
+        directories, copies = {}, {}
+        self.budget_commands, self.budget_again = [], []
+
+        def fake(arguments, cwd, env, output, stdout):
+            self.assertEqual(cwd, self.root)
+            self.assertNotIn('TIERS_LEDGER', env)
+            self.assertNotIn('GIT_INDEX_FILE', env)
+            self.budget_commands.append(arguments)
+            if arguments[3] == 'tools/tiers/cpu-summary':
+                profile = 'default' if Path(arguments[4]).name == 'tests' else 'fuzzy'
+                expected = ['python3', '-I', '-B', 'tools/tiers/cpu-summary', str(directories[profile])]
+                if (self.root / 'tools/tiers/budgets.toml').exists():
+                    expected += ['--budgets', 'tools/tiers/budgets.toml']
+                self.assertEqual(arguments, expected + ['--ledger', str(copies[profile]), '--gate', '--json'])
+                self.assertEqual(copies[profile].read_bytes(), taken[profile])
+                self.assertFalse(stdout)
+                code, text = summary
+                output(text.encode(), PRE_PR.Tail())
+                return code, PRE_PR.tail(text)
+            self.assertTrue(stdout)
+            self.assertIsNone(output)
+            directory = Path(arguments[arguments.index('--out') + 1])
+            self.assertFalse(directory.exists())
+            directory.mkdir()
+            if '--again' in arguments:
+                self.assertNotIn('--ledger', arguments)
+                self.assertNotIn('--gate', arguments)
+                self.budget_again.append(arguments)
+                self.assertEqual(arguments[-2:], ['api::rules', 'replay'])
+                (directory / 'results.json').write_text(json.dumps({'tests': [
+                    dict(binary_id='api::rules', test_name='replay', outcome='passed')]}))
+                return 0, 'passed again\n'
+            profile = 'default' if directory.name == 'tests' else 'fuzzy'
+            directories[profile] = directory
+            expected = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
+            if profile in taken:
+                self.assertIn('--ledger', arguments)
+                copy = Path(arguments[arguments.index('--ledger') + 1])
+                copies[profile] = copy
+                self.assertEqual(copy.name, profile + '-ledger.json')
+                self.assertNotEqual(copy, self.root / '.git/main-ledgers' / (profile + '.json'))
+                self.assertEqual(copy.parent.stat().st_mode & 0o777, 0o700)
+                self.assertEqual(copy.read_bytes(), taken[profile])
+                expected += ['--ledger', str(copy), '--gate']
+            self.assertEqual(arguments, expected + [profile, '-p', 'api', '-p', 'client', '--no-tests=warn'])
+            selected = tests if profile in exits else []
+            (directory / 'run.json').write_text(json.dumps({'starved': starved}))
+            (directory / 'results.json').write_text(json.dumps({'tests': selected, 'unobserved': []}))
+            document = PRE_PR.ET.Element('testsuites')
+            for test in selected:
+                suite = PRE_PR.ET.SubElement(document, 'testsuite', name=test['binary_id'])
+                case = PRE_PR.ET.SubElement(suite, 'testcase', name=test['test_name'])
+                if test['outcome'] in ('failed', 'cancelled'):
+                    PRE_PR.ET.SubElement(case, 'failure').text = 'test failure output'
+            (directory / 'junit.xml').write_bytes(PRE_PR.ET.tostring(document))
+            return exits.get(profile, 0), 'one-process output\n'
+
+        return self.deliver(('api', 'client'), one_process_answer=None, process_answer=fake)
+
+    def test_unset_or_empty_ledgers_warn_and_keep_commands(self):
+        for setting in (None, ''):
+            with self.subTest(setting=setting):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                if setting is not None:
+                    self.env['TIERS_LEDGER'] = setting
+                result, log, _, _ = self.budget_run({})
+                self.assertEqual(result, 0, log)
+                self.assertEqual(log.count('pre-pr: budgets:'), 1)
+                self.assertIn('pre-pr: budgets: warnings only (TIERS_LEDGER unset)\n', log)
+                self.assertEqual(len(self.budget_commands), 2)
+                self.assertEqual((self.root / '.git/pre-pr-passed').read_text().split()[3], '-')
+
+    def test_ledgers_read_each_profile_from_root(self):
+        for bad_profile in ('default', 'fuzzy'):
+            for state in ('missing', 'directory', 'refused', 'other', 'taken'):
+                with self.subTest(profile=bad_profile, state=state):
+                    self.setUp()
+                    paths, taken = {}, {}
+                    for profile in ('default', 'fuzzy'):
+                        paths[profile], taken[profile] = self.main_ledger(profile)
+                    path = paths[bad_profile]
+                    if state == 'missing':
+                        path.unlink()
+                        why = f'no {bad_profile}.json in TIERS_LEDGER'
+                    elif state == 'directory':
+                        path.unlink()
+                        path.mkdir()
+                        why = f'{bad_profile}.json unreadable: '
+                    elif state == 'refused':
+                        path.write_text('{}')
+                        why = f'{bad_profile}.json refused: invalid ledger keys for ledger'
+                    elif state == 'other':
+                        other = 'fuzzy' if bad_profile == 'default' else 'default'
+                        path.write_bytes(taken[other])
+                        why = f'{bad_profile}.json holds the {other} ledger'
+                    if state != 'taken':
+                        taken.pop(bad_profile)
+                    result, log, _, _ = self.budget_run(taken)
+                    self.assertEqual(result, 0, log)
+                    self.assertEqual(log.count('pre-pr: budgets:'), 2)
+                    self.assertLess(log.index('pre-pr: budgets: default'), log.index('pre-pr: budgets: fuzzy'))
+                    if state != 'taken':
+                        self.assertIn(f'pre-pr: budgets: {bad_profile} warnings only ({why}', log)
+                    for profile in taken:
+                        self.assertIn(f"pre-pr: budgets: {profile} judged with main's ledger "
+                                      f'(TIERS_LEDGER/{profile}.json)\n', log)
+                    self.assertEqual(len(self.budget_commands), 2)
+                    self.assertFalse(any('--again' in args for args in self.budget_commands))
+
+    def test_ledger_loading_and_copy_errors_are_bounded_warnings(self):
+        for cause in ('loader', 'copy', 'copy missing'):
+            with self.subTest(cause=cause):
+                self.setUp()
+                self.main_ledger('default')
+                self.main_ledger('fuzzy')
+                message = 'a' + 'é' * 400 + '\nsecond line'
+                load = PRE_PR.runpy.run_path
+                write = Path.write_bytes
+
+                def load_cpu(path):
+                    if path.endswith('/cpu.py'):
+                        raise RuntimeError(message)
+                    return load(path)
+
+                def write_copy(path, content):
+                    if path.name.endswith('-ledger.json'):
+                        raise (FileNotFoundError if cause == 'copy missing' else OSError)(message)
+                    return write(path, content)
+
+                patch = (mock.patch.object(PRE_PR.runpy, 'run_path', side_effect=load_cpu) if cause == 'loader'
+                         else mock.patch.object(Path, 'write_bytes', write_copy))
+                with patch:
+                    result, log, _, _ = self.budget_run({})
+                self.assertEqual(result, 0, log)
+                kind = 'refused' if cause == 'loader' else 'unreadable'
+                for profile in ('default', 'fuzzy'):
+                    line = f'pre-pr: budgets: {profile} warnings only ({profile}.json {kind}: a' + 'é' * 255 + ')\n'
+                    self.assertIn(line, log)
+                self.assertNotIn('second line', log)
+
+    def test_gate_verdict_names_and_invalid_summaries(self):
+        layer = 'layer over budget: temper default domain: 12.00 CPU s, budget 10.0 s, at main 9.00 CPU s'
+        reference = 'test over its reference: temper-engine::domain forge::opens: 0.300 CPU s alone, limit 0.200 s'
+        entries = [layer + '\nbinary growth details', reference, 'another over line',
+                   'layer over budget: no separator', 'test over its reference: no separator']
+        names = ['budget temper default domain', 'reference temper-engine::domain forge::opens', 'budget PROFILE',
+                 'budget no separator', 'reference no separator']
+        rows = [(1, json.dumps({'over_budget': entries}), names)]
+        rows += [(code, json.dumps({'over_budget': [layer]}), None) for code in (0, 2)]
+        rows += [(1, text, None) for text in ('{"over_budget": []}', '{}', '[]', 'null',
+                                            '{"over_budget": [1]}', '{"over_budget": "line"}',
+                                            '{"over_budget": ["x"]}\n{}', 'not JSON')]
+        for profile in ('default', 'fuzzy'):
+            for code, text, expected in rows:
+                with self.subTest(profile=profile, code=code, text=text):
+                    self.setUp()
+                    _, content = self.main_ledger(profile)
+                    self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+                    self.goal_file('reds', b'temper-reds 1\n- test temper-engine::domain forge::opens\n')
+                    self.goal_file('rerun', b'temper-rerun 1 4\n')
+                    if profile == 'default':
+                        self.write('tools/tiers/budgets.toml', '# present\n')
+                    result, log, _, _ = self.budget_run({profile: content}, {profile: 1}, (code, text))
+                    self.assertEqual(result, 1, log)
+                    self.assertFalse((self.root / '.git/pre-pr-passed').exists())
+                    self.assertFalse(self.budget_again)
+                    failures = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                    wanted = ([name.replace('PROFILE', profile) for name in expected] if expected else
+                              ['check one-process' + ('' if profile == 'default' else ' fuzzy')])
+                    self.assertEqual(failures['failures'], [dict(name=name, key=None, **{'class': 'new'}) for name in wanted])
+                    for name in wanted:
+                        self.assertIn('\n' + name + '\n', log)
+                    for entry in entries if expected else [text]:
+                        self.assertIn(entry, log)
+                    self.assertIn(' refused\n', (self.root / '.git/temper/check-results').read_text())
+                    self.assertEqual(len(self.budget_commands), 3)
+        self.setUp()
+        result, log, _, _ = self.budget_run({}, {'default': 1, 'fuzzy': 1})
+        self.assertEqual(result, 1, log)
+        self.assertIn('\ncheck one-process\nexit 1\n', log)
+        self.assertIn('\ncheck one-process fuzzy\nexit 1\n', log)
+        self.assertEqual(len(self.budget_commands), 2, 'no summary without --gate')
+
+    def test_gate_failures_keep_junit_judgement_and_replay(self):
+        _, content = self.main_ledger('default')
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules red\n- test api::rules passed\n')
+        self.goal_file('rerun', b'temper-rerun 1 4\n')
+        tests = [dict(binary_id='api::rules', test_name=name, outcome=outcome) for name, outcome in
+                 (('red', 'failed'), ('replay', 'failed'), ('passed', 'passed'), ('stop', 'cancelled'))]
+        # Longer than run()'s tail: entries and the first entry's details must be read whole.
+        entries = ['layer over budget: temper default domain: over\n' + 'growth\n' * 300,
+                   'test over its reference: api::rules red: over']
+        result, log, _, _ = self.budget_run({'default': content}, {'default': 1},
+                                          (1, json.dumps({'over_budget': entries})), tests, starved=True)
+        self.assertEqual(result, 1, log)
+        self.assertEqual(len(self.budget_again), 1)
+        self.assertIn('inherited: test api::rules red (red, temper/reds)', log)
+        self.assertIn('flake: test api::rules replay', log)
+        self.assertIn('pre-pr: tests starved: 1 starved or cancelled', log)
+        failures = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(failures['counts'], dict(new=2, flake=1, inherited=1))
+        self.assertEqual(failures['failures'][:2], [dict(name=name, key=None, **{'class': 'new'}) for name in
+                                                 ('budget temper default domain', 'reference api::rules red')])
+        check = (self.root / '.git/temper/check-results').read_text()
+        self.assertIn(' refused\n', check)
+        self.assertIn('passed test api::rules passed\n', check)
+        self.assertIn('failed test api::rules red\n', check)
+        self.assertIn('flake test api::rules replay\n', check)
+
+    def test_ledger_bytes_key_the_cache(self):
+        paths, taken = {}, {}
+        for profile in ('default', 'fuzzy'):
+            paths[profile], taken[profile] = self.main_ledger(profile)
+        cache = self.root / '.git/pre-pr-passed'
+        for action in ('initial', 'change default', 'change fuzzy', 'remove default', 'remove fuzzy',
+                       'add default', 'add fuzzy'):
+            with self.subTest(action=action):
+                if action != 'initial':
+                    operation, profile = action.split()
+                    if operation == 'remove':
+                        paths[profile].unlink()
+                        taken.pop(profile)
+                    else:
+                        taken[profile] = taken.get(profile, json.dumps(dict(
+                            ledger=2, profile=profile, binaries={}, budgets={}, moves=[])).encode()) + b'\n'
+                        paths[profile].write_bytes(taken[profile])
+                result, log, _, code = self.budget_run(taken)
+                self.assertEqual(result, 0, log)
+                self.assertTrue(all(code), 'changed ledgers must judge again')
+                digests = ''.join(f'{profile} {hashlib.sha256(taken[profile]).hexdigest() if profile in taken else "-"}\n'
+                                  for profile in ('default', 'fuzzy'))
+                expected = hashlib.sha256(digests.encode()).hexdigest() if taken else '-'
+                tree, base, reds, digest = cache.read_text().split()
+                self.assertEqual(digest, expected)
+                self.assertEqual(reds, '-')
+                result, log, _, code = self.budget_run(taken)
+                self.assertEqual(result, 0, log)
+                self.assertFalse(any(code))
+                self.assertIn(f'pre-pr: passed before (tree {tree}, base {base}, reds -, ledgers {digest})', log)
+                self.assertFalse(self.budget_commands)
+        for fields in (2, 3):
+            with self.subTest(old_fields=fields):
+                cache.write_text(' '.join(cache.read_text().split()[:fields]) + '\n')
+                result, log, _, code = self.budget_run(taken)
+                self.assertEqual(result, 0, log)
+                self.assertTrue(all(code), 'old records match nothing')
 
     def test_one_process_reads_the_run_directory(self):
         self.write('client/Cargo.toml', '[package]\nname = "client"\n')
@@ -1374,7 +1637,7 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 0, log)
         path = self.root / '.git/temper/check-results'
         lines = path.read_text().splitlines()
-        tree, base, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        tree, base, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
         self.assertEqual(lines[:2], ['temper-check 1', f'check {tree} {base} passed'])
         self.assertEqual(lines[2:7], ['failed ' + lint_keys[0], 'passed ' + lint_keys[1],
                                      'failed test api::rules crashed', 'failed test api::rules failed',
