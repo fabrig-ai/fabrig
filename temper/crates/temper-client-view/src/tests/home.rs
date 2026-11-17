@@ -1146,6 +1146,31 @@ fn home_chats(chats: ChatFixture) -> d::Domain {
     .0
 }
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the view scenario constructs long titles and inspects semantic nodes"
+)]
+fn home_chat_rows_cut_titles_in_the_text_and_link_name() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut chats = chat_fixture(1, 0, false, false);
+    chats.live.rows.get_mut(0).unwrap().chip.title = f::needs::words(&long);
+    let root = home_chats(chats);
+    for browser in [false, true] {
+        let mut view = timed_view(&root, browser);
+        let name = format!("{cut}, waiting on you, 4 min");
+        let link = main_find(view.tree(), Role::Link, name.as_bytes());
+        assert!(f::nodes_text(subtree(view.tree(), link)).starts_with(cut.as_bytes()));
+        absent(&f::main_text(view.tree()), &long);
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task: 9 } }))
+        );
+    }
+}
+
+#[test]
 fn chats_keep_live_then_ended_status_age_names_and_events() {
     for (more, after, name, label) in [
         (false, false, "All 3 chats", "All 3"),

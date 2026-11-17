@@ -126,10 +126,7 @@ fn a_file_longer_than_one_send_arrives_whole() {
     let (_, peer, status, headers) = get(b"/bundle/0123456789abcdef/module.wasm", b"");
     assert_eq!(status, 200);
     assert_eq!(fixtures::header(&headers, b"content-type"), Some(b"application/wasm".as_slice()));
-    assert!(
-        fixtures::bundle::WASM_BYTES
-            > crate::limits::server(&jig_protocol_config::profile(jig_protocol_config::Profile::Small)).http.send
-    );
+    assert!(fixtures::bundle::WASM_BYTES > crate::limits::server(&jig_protocol_config_fixtures::small()).http.send);
     assert_eq!(fixtures::bundle::body(&peer), &*fixtures::bundle::wasm());
 }
 #[test]

@@ -52,7 +52,7 @@ fn expected_given() -> skein_forge_setup::given::Given {
             files: 2,
             file_bytes: 4096,
             reachable: 8,
-            repositories: crate::limits::small().repositories,
+            repositories: crate::limits::stock().repositories,
             deadline: Duration::from_secs(120),
             copy_deadline: Duration::from_secs(1800),
             backoff: Duration::from_millis(100),
@@ -64,7 +64,7 @@ fn expected_given() -> skein_forge_setup::given::Given {
 #[test]
 fn a_managed_setup_maps_every_given_value() {
     let setup = super::fixtures::setup();
-    let given = crate::given::values(setup.entry(1).unwrap(), None, &crate::limits::small());
+    let given = crate::given::values(setup.entry(1).unwrap(), None, &crate::limits::stock());
     assert_eq!(given, expected_given());
     assert_eq!(skein_forge_setup::given::check(&given), Ok(()));
 }
@@ -72,7 +72,7 @@ fn a_managed_setup_maps_every_given_value() {
 #[test]
 fn a_fake_setup_maps_every_given_value() {
     let setup = super::fixtures::fake_setup();
-    let given = crate::given::values(setup.entry(3).unwrap(), None, &crate::limits::small());
+    let given = crate::given::values(setup.entry(3).unwrap(), None, &crate::limits::stock());
     assert_eq!(given, skein_forge_setup::given::Given { forge: 3, ..expected_given() });
     assert_eq!(skein_forge_setup::given::check(&given), Ok(()));
 }
@@ -81,7 +81,7 @@ fn a_fake_setup_maps_every_given_value() {
 fn an_owned_setup_maps_every_given_value() {
     let setup = super::fixtures::setup();
     let listener = super::fixtures::listener();
-    let given = crate::given::values(setup.entry(2).unwrap(), Some(listener), &crate::limits::small());
+    let given = crate::given::values(setup.entry(2).unwrap(), Some(listener), &crate::limits::stock());
     let expected = skein_forge_setup::given::Given {
         forge: 2,
         orgs: Box::new([]),

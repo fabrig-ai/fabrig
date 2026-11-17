@@ -1365,7 +1365,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::RedsAsk { owner, check, bytes });
             }
             worker::Request::RedsAnswer { owner, check, bytes } => {
-                let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+                let own = temper_service_core::limits::stock();
                 let limits = temper_worker_service::worker_settings::payload_limits(
                     &temper_worker_service::worker_settings::Limits::shared(own),
                 )

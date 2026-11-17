@@ -14,6 +14,7 @@ mod worker_parts;
 mod worker_slots;
 
 mod checks;
+mod derived;
 mod root_checks;
 mod startup;
 mod startup_calls;

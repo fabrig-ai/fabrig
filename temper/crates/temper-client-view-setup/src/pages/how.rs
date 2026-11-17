@@ -171,7 +171,7 @@ pub(crate) fn draw_budgets(b: &mut Builder, w: &Words, parts: &how::Parts) {
     for row in &parts.standing {
         b.open(Role::Slot);
         b.style(look::HOW_ROW);
-        crate::cards::text(b, Role::Text, &row.title);
+        crate::cards::text(b, Role::Text, &crate::common::chat::row_title(&row.title));
         text(b, Role::Text, &w.say(Word::HowStanding, &[Hole::Number(row.left)]), look::SETTINGS_DETAIL);
         crate::cards::text(b, Role::Text, &w.say(Word::HowAmount, &[Hole::Number(row.budget)]));
         b.close();

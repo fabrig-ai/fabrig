@@ -732,7 +732,7 @@ fn every_row_of_b2s_tree_reads_whole_on_standard() {
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
     let joins = temper_engine_domain_world::forge_routes::box_joins();
-    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).store.joins;
+    let standard = jig_protocol_config::stock().store.joins;
     assert_eq!(joins, standard);
     assert_eq!(standard, 16, "Standard's stock join bound");
     assert_eq!(world.store.read_joins(), joins, "the real store uses the box allowance");

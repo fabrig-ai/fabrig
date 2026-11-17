@@ -72,7 +72,7 @@ impl Io {
     /// listened first between this one's bind and listen spends a try; a
     /// replacement asks the kernel for another port, as a taken port does.
     fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
-        let backlog = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog;
+        let backlog = jig_protocol_config::stock().io.backlog;
         for attempt in 1..=crate::fake_backends::PORT_ATTEMPTS {
             match self.perform(Op::Listen { fd, backlog }) {
                 Ok(_) => return Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),

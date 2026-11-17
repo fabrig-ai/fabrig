@@ -26,6 +26,9 @@ temper-engine-smith.workspace = true
 temper-protocol-reaches.workspace = true
 
 [dev-dependencies]
+temper-service-core.workspace = true
+jig-protocol-config-fixtures.workspace = true
+temper-limits-fixtures.workspace = true
 jig-client.workspace = true
 temper-client-view-parts.workspace = true
 temper-client-view-kit.workspace = true

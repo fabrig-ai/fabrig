@@ -528,7 +528,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
         };
         boxed(
             Service::new(
-                &temper_box_machine::limits::small(),
+                &temper_box_machine::limits::stock(),
                 steps,
                 Settings {
                     word: b"temper".as_slice().into(),
@@ -685,7 +685,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
                 remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
             }]),
         };
-        boxed(Service::new(&temper_box_machine::limits::small(), steps, Settings {
+        boxed(Service::new(&temper_box_machine::limits::stock(), steps, Settings {
                     word: b"temper".as_slice().into(),
             parent: None,
             link_form: temper_box_machine::terminal::LinkForm::Bare,
@@ -737,7 +737,7 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
         };
         boxed(
             Service::new(
-                &temper_box_machine::limits::small(),
+                &temper_box_machine::limits::stock(),
                 steps,
                 Settings {
                     word: b"temper".as_slice().into(),

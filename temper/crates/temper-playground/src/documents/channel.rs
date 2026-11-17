@@ -2,8 +2,8 @@
 use skein_lib::{List, Secret};
 const DIGEST: &[u8] = b"6fb46f7a92742970166379ed5195e79c4493a7cc5664280c039cfd4095ba5faf";
 const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {
-"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1,
+"limits": {"overrides": {
+"tasks.inbox_bytes":4096,"tasks.run_inbox":8,"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1,
 "people.operations":2,"tasks.tasks":2,"tasks.exemptions":2,"tasks.funders":2,"tasks.project_tasks":1,"tasks.tree_tasks":1,"tasks.project_goals":1,
 "tasks.batch":1,"tasks.dependencies":1,"tasks.delegates":1,"tasks.charters":1,
 "people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
@@ -68,7 +68,7 @@ pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
 "workers":[{
 "engine":{"socket":"127.0.0.1:7200"},"name":"worker-a","secret":"worker.secret","slots":1,
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"hub.inbox":8,"hub.held":8,"tasks.run_inbox":8,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976
 }],"application":{}}
 "#;

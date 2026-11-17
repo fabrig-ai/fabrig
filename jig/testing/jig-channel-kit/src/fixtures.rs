@@ -31,7 +31,7 @@ pub fn one_chat(words: &[u8]) -> Script {
 
 // People's projects includes the configured project and the deployment's roles.
 const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {
+"limits": {"profile": "standard", "overrides": {
 "tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1,
 "people.operations":2,"tasks.tasks":2,"tasks.exemptions":2,"tasks.funders":2,"tasks.project_tasks":1,"tasks.tree_tasks":1,"tasks.project_goals":1,
 "tasks.batch":1,"tasks.dependencies":1,"tasks.delegates":1,"tasks.charters":1,
@@ -114,7 +114,7 @@ pub const WORKER_DOCUMENT: &[u8] = br#"{
 "programs":{"check_interval_ms":60000},
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"limits":{"profile":"standard","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976
 }],"application":{"workers":[{"root":"agent-root"}]}}
 "#;
@@ -574,12 +574,13 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
         depth: 32,
     };
     let document = jig_protocol_config::document(text, &bounds).expect("fixture document");
-    jig_protocol_config::engine(
+    jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
         &jig_protocol_config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("fixture engine")
 }
@@ -594,7 +595,7 @@ fn admitted() -> &'static Admitted {
     ADMITTED.get_or_init(|| {
         let engine = configuration(ENGINE);
         Admitted {
-            limits: jig_test_service::limits::for_profile(jig_protocol_config::Profile::Small, &engine.limits),
+            limits: jig_test_service::limits::small(&engine.limits),
             names: jig_protocol_store::codec::names(&engine.llm.models()),
         }
     })
@@ -709,11 +710,12 @@ pub(crate) fn worker_redial_ceiling() -> Duration {
         .expect("worker document");
         let array = document.member(0, b"workers").expect("worker array");
         let at = array.checked_add(1).expect("first worker");
-        jig_protocol_config::worker(
+        jig_protocol_config::worker_over(
             &document,
             at,
             &jig_protocol_config::Directories::working(),
             &jig_protocol_config::FixedWorker::NONE,
+            &jig_protocol_config_fixtures::small(),
         )
         .expect("fixture worker")
         .limits
