@@ -616,6 +616,6 @@ mod tests {
     #[test]
     fn the_tiers_paths_are_absolute() {
         let value = tier_configuration().1;
-        assert_eq!(value["application"]["workers"][0]["root"], "/private/test/worker-root");
+        assert!(value["application"].get("workers").is_none());
     }
 }

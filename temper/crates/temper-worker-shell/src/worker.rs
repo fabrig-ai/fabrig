@@ -19,8 +19,22 @@ pub fn alone(
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
-    let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
+    let git = temper_shell::lookup::find(environment, b"git");
+    let part = service::startup::worker_part(
+        bytes,
+        &jig_directories(directories),
+        git.as_ref().map(|path| path.as_os_str().as_bytes()),
+    )
+    .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
+    alone_part(directories, part, owned, environment)
+}
+/// Prepare a world's typed worker after its document's constants have been checked.
+pub fn alone_part(
+    directories: &Directories,
+    mut part: service::startup::WorkerPart,
+    owned: &mut Vec<skein_io::kernel::Fd>,
+    environment: &[EnvironmentEntry],
+) -> Result<service::worker_alone::Service, String> {
     let agent::Prepared { agent, bytes, environment: command_environment } = agent::prepare_worker(&part.named)?;
     let user = skein_shell::effective_user();
     let files = temper_service_shell::read_files(

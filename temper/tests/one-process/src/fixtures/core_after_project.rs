@@ -129,6 +129,7 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         temper_playground::documents::forges(),
         None,
         &given,
+        Some(b"/usr/bin/git"),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     temper_playground::documents::settings::seed_projects(&mut checked.engine_mut().jig, parsed.projects);

@@ -287,6 +287,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         documents::forges(),
         None,
         &given,
+        Some(b"/usr/bin/git"),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     H::configure_engine(&mut checked.engine_mut().jig, &typed_document);

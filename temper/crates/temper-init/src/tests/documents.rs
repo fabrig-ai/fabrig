@@ -29,10 +29,8 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
         assert_eq!(engine["hub.transcript_bytes"], window);
         assert_eq!(document["application"]["limits"]["overrides"]["root.journal.transcript_bytes"], resume);
         for worker in document["workers"].as_array().unwrap() {
-            assert_eq!(
-                worker["graces"],
-                json!({"grace_ms":300_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
-            );
+            assert!(worker.get("graces").is_none());
+            assert!(worker.get("programs").is_none());
             assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
             let bytes = serde_json::to_vec(worker).unwrap();
             let document = jig_protocol_config::document(
@@ -40,8 +38,13 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
             )
             .unwrap();
-            let worker =
-                jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+            let worker = jig_protocol_config::worker(
+                &document,
+                0,
+                &jig_protocol_config::Directories::working(),
+                &temper_service_core::startup::fixed_worker(),
+            )
+            .unwrap();
             let stop =
                 jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                     .unwrap()
@@ -197,7 +200,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "{row}"
         );
         let mut expected = owned.clone();
-        expected["workers"][0]["graces"]["grace_ms"] = json!(300_000_u64);
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
@@ -270,13 +272,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             ("/application/webhooks", json!({"listener": {"socket": format!("127.0.0.1:{}", facts.ports.webhooks)}})),
             ("/application/clients/listener/socket", json!(format!("127.0.0.1:{}", facts.ports.clients))),
             ("/application/clients/bundle", Value::Null),
-            (
-                "/application/workers/0/git",
-                match facts.git {
-                    Some(git) => json!(text(git)),
-                    None => Value::Null,
-                },
-            ),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/workers/0/secret", json!("worker.secret")),
             ("/workers/0/agent/program", json!(text(facts.binary))),
@@ -564,7 +559,6 @@ fn no_placeholder_is_left() {
             [
                 (b"\"$binary\"".as_slice(), 1_u32),
                 (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
                 (b"\"$listener\"".as_slice(), 1),
                 (b"\"$forge\"".as_slice(), 1),
                 (b"\"$forge_git\"".as_slice(), 1),
@@ -586,7 +580,6 @@ fn no_placeholder_is_left() {
             [
                 (b"\"$binary\"".as_slice(), 1_u32),
                 (b"\"$agent\"".as_slice(), 2),
-                (b"\"$git\"".as_slice(), 1),
                 (b"\"$listener\"".as_slice(), 1),
                 (b"\"$webhooks\"".as_slice(), 1),
             ]

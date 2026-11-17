@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 36] = [
+pub static SHAPES: [Shape; 35] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -20,11 +20,6 @@ pub static SHAPES: [Shape; 36] = [
         name: "application-limits",
         paths: &["application.limits"],
         line: "The application’s limits profile and named overrides.",
-    },
-    Shape {
-        name: "application-worker",
-        paths: &["application.workers[]"],
-        line: "One worker’s workspace and git program.",
     },
     Shape {
         name: "application-clients",
@@ -129,7 +124,7 @@ pub static SHAPES: [Shape; 36] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 129] = [
+pub static MEMBERS: [Member; 127] = [
     Member {
         shape: "document",
         name: "engine",
@@ -205,9 +200,9 @@ pub static MEMBERS: [Member; 129] = [
     Member {
         shape: "application",
         name: "workers",
-        kind: "list of application-worker",
-        bound: "one entry per top-level worker, in the same order",
-        required: true,
+        kind: "refused",
+        bound: "",
+        required: false,
         line: "The workers’ workspace directories and git programs.",
         gone: None,
     },
@@ -308,24 +303,6 @@ pub static MEMBERS: [Member; 129] = [
         bound: "see temper help limits",
         required: true,
         line: "The dotted limit names whose values replace the profile’s.",
-        gone: None,
-    },
-    Member {
-        shape: "application-worker",
-        name: "root",
-        kind: "text",
-        bound: "data path; at most 1,048,576 bytes",
-        required: true,
-        line: "The private directory holding the worker’s checkouts.",
-        gone: None,
-    },
-    Member {
-        shape: "application-worker",
-        name: "git",
-        kind: "text or null",
-        bound: "absolute executable path; at most 1,048,576 bytes",
-        required: true,
-        line: "The git program used when a repository names none, or null for none.",
         gone: None,
     },
     Member {

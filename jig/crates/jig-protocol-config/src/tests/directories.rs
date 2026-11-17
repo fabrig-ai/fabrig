@@ -121,7 +121,7 @@ fn engine(bytes: &[u8]) -> Result<Engine, Problems> {
     crate::engine(&document(bytes), 0, &given(), crate::Defaults::Document, &crate::Fixed::NONE)
 }
 fn worker(bytes: &[u8]) -> Result<Worker, Problems> {
-    crate::worker(&document(bytes), 0, &given())
+    crate::worker(&document(bytes), 0, &given(), &crate::FixedWorker::NONE)
 }
 fn item(names: &[&[u8]], index: u32) -> Path {
     fixtures::path(names).child(Segment::Index(index))

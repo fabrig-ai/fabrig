@@ -430,7 +430,7 @@ fn the_standalone_example_reads_into_its_members() {
     let (members, problems) = application(fixtures::APPLICATION, &jig);
     assert_eq!(&*lines(&problems), b"", "example accepted");
     let members = members.unwrap();
-    assert_eq!(members.workers[0].git.as_deref(), Some(b"/usr/bin/git".as_slice()));
+    assert_eq!(members.workers.len(), 0, "an application part carries no worker configuration");
     assert_eq!(application::files(&members).len(), 0, "all private files");
     let resolved = application::resolve(&members, &fixtures::files(), &mut Problems::empty()).unwrap();
     assert!(resolved.webhooks.is_none());
@@ -590,22 +590,6 @@ fn jig_refusals_print_words() {
     }
 }
 #[test]
-fn members_and_references_are_checked() {
-    let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
-    for (from, to, expected) in [
-        ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
-        ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
-    ] {
-        let (members, problems) = application(input.replace(from, to).as_bytes(), &jig);
-        assert_eq!(members.is_some(), expected.is_empty(), "row {from}: {to}");
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "row {from}");
-        if expected.is_empty() {
-            assert_eq!(members.unwrap().workers[0].git, None);
-        }
-    }
-}
-#[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.files.len(), 3, "all files listed");
@@ -627,7 +611,7 @@ fn named_lists_each_file_with_its_bound_and_privacy() {
 fn named_returns_the_worker_root_and_the_agent_configuration() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"worker-root");
+    assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
     assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), fixtures::AGENT_JSON);
 }
 #[test]
@@ -857,13 +841,10 @@ fn an_old_agent_command_is_refused_with_its_fix() {
 fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values() {
     let directories = config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
     for (member, input, expected, refused) in [
-        (b"application.workers[0].root".as_slice(), br#""root""#.as_slice(), b"/data/root".as_slice(), false),
-        (b"application.workers[0].root", br#""/kept/root""#, b"/kept/root", false),
-        (b"workers[0].secret", br#""secret""#, b"/data/secret", false),
+        (b"workers[0].secret".as_slice(), br#""secret""#.as_slice(), b"/data/secret".as_slice(), false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
         (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
         (b"engine.hosts.workers[0].digest", br#""/kept/digest""#, b"/kept/digest", false),
-        (b"application.workers[0].git", br#""git""#, b"", true),
         (b"application.clients.bundle", br#""bundle""#, b"", true),
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
         (b"workers[0].agent.program", br#""temper""#, b"", true),
@@ -879,7 +860,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         } else {
             let named = result.unwrap();
             let value = match member {
-                b"application.workers[0].root" => &*named.worker.as_ref().expect("standalone worker").root,
                 b"application.clients.bundle" => named.bundle.as_deref().unwrap(),
                 _ => &*named.files.iter().find(|file| file.path.as_ref() == expected).expect("resolved file key").path,
             };

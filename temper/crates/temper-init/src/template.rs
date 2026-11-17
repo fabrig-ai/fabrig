@@ -71,7 +71,7 @@ pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) ->
     (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
 }
 
-fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 6] {
+fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 5] {
     let agent = path::join(directories.config, b"agent.json");
     let programs = path::join(directories.data, b"programs");
     let clients = listener(facts.clients);
@@ -79,7 +79,6 @@ fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static 
     [
         (b"binary", json(Value::Text(Some(facts.binary)))),
         (b"agent", json(Value::Text(Some(&agent)))),
-        (b"git", json(Value::Text(facts.git))),
         (b"listener", json(Value::Text(Some(&clients)))),
         (b"webhooks", json(Value::Text(Some(&webhooks)))),
         (b"programs", json(Value::Programs { claude: facts.claude, directory: &programs })),

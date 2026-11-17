@@ -23,7 +23,7 @@ pub use domain::{
 pub use projects::{Policy, Project, policies};
 mod check;
 mod worker;
-pub use worker::{Agent, Graces, Worker, stop_bound, worker};
+pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker};
 pub mod clients;
 mod files;
 pub mod hosts;

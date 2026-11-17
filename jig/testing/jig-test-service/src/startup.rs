@@ -588,7 +588,12 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
     let mut specs = List::with_capacity(workers.len());
     for (index, at) in workers.iter().enumerate() {
         let here = indexed(&path.member(b"workers"), index);
-        let worker = match config::worker(document, *at, &config::Directories::working()) {
+        let worker = match config::worker(
+            document,
+            *at,
+            &config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
+        ) {
             Ok(worker) => worker,
             Err(found) => {
                 for found in &found.problems {

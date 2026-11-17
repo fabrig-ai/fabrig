@@ -305,6 +305,7 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
             fixtures::forge_runtime(),
             None,
             &given,
+            None,
         )
         .unwrap();
         assert_eq!(start.engine.ways_stock, expected);

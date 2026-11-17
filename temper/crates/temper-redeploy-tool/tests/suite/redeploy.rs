@@ -35,16 +35,6 @@ pub(super) fn run(
     assert!(journal.record.lines.iter().all(|line| line.line.starts_with("temper-redeploy run: ")));
     (outcome, journal.record)
 }
-pub(super) fn grace(hosts: &mut Deployment, index: usize, ms: u64) {
-    hosts.documents[index] = output(
-        0,
-        &serde_json::json!({"workers": [
-            {"name": "not-this-worker", "graces": {"grace_ms": 1}},
-            {"name": hosts.description.workers[index].name, "graces": {"grace_ms": ms}}
-        ]})
-        .to_string(),
-    );
-}
 fn staged(count: usize) -> Deployment {
     let mut hosts = Deployment::new(description(count));
     hosts.stage_all(NEW);
@@ -68,11 +58,18 @@ fn last(record: &Record) -> &str {
 }
 
 #[test]
+fn the_worker_grace_journal_needs_no_document_read() {
+    let mut hosts = staged(2);
+    hosts.documents.fill(output(1, "not a readable worker document"));
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.graces.iter().map(|grace| grace.grace_ms).collect::<Vec<_>>(), [300_000, 300_000]);
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("document ")));
+}
+
+#[test]
 fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
     let mut hosts = staged(2);
-    for index in 0..2 {
-        grace(&mut hosts, index, 300_000);
-    }
     hosts.opening(0, Opening::After { nanoseconds: 3 * SECOND, wires: WIRES.into() });
     hosts.opening(1, Opening::After { nanoseconds: 5 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
@@ -257,15 +254,14 @@ fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
 }
 
 #[test]
-fn an_unopened_worker_waits_for_the_largest_not_smallest_grace() {
+fn an_unopened_worker_waits_for_the_constant_grace() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 1000);
-    grace(&mut hosts, 1, 4000);
+
     hosts.opening(0, Opening::Never);
     hosts.opening(1, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 5 * SECOND);
+    assert_eq!(hosts.at, 301 * SECOND);
     assert_eq!(record.openings.len(), 1);
     assert!(last(&record).contains("w1"));
 }
@@ -317,8 +313,8 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
 }
 
 #[test]
-fn unreadable_versions_or_graces_refuse_before_stopping() {
-    for failure in ["version", "inconsistent", "document", "grace"] {
+fn unreadable_versions_refuse_before_stopping() {
+    for failure in ["version", "inconsistent"] {
         let mut hosts = staged(2);
         match failure {
             "version" => {
@@ -329,8 +325,6 @@ fn unreadable_versions_or_graces_refuse_before_stopping() {
                     .versions
                     .insert((Part::Engine, "/bin/temper".into()), output(0, &format!("temper 0.1.0 ({NEW})")));
             }
-            "document" => hosts.documents[1] = output(1, ""),
-            "grace" => hosts.documents[1] = output(0, "{\"workers\": []}"),
             _ => unreachable!(),
         }
         let (outcome, record) = execute(&mut hosts, Mode::Together);
@@ -384,11 +378,11 @@ fn preserving_previous_binaries_skips_only_a_matching_build_and_swaps_even_at_co
 #[test]
 fn an_old_identical_opening_in_the_overlap_does_not_open_a_restarted_worker() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 2000);
+
     hosts.opening_rounds.insert(0, [Opening::default(), Opening::Never].into());
     let (outcome, record) = execute(&mut hosts, Mode::Workers);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 3 * SECOND);
+    assert_eq!(hosts.at, 301 * SECOND);
     assert!(record.openings.iter().all(|opening| opening.worker != "w1"));
     assert!(hosts.lines.iter().all(|call| call.line != "stop w2"));
     assert!(last(&record).contains("w1"));
@@ -397,12 +391,12 @@ fn an_old_identical_opening_in_the_overlap_does_not_open_a_restarted_worker() {
 #[test]
 fn logins_share_the_opening_deadline_and_fail_before_the_next_worker() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 3000);
+
     hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
     accounts(&mut hosts, false, false);
     let (outcome, record) = execute(&mut hosts, Mode::Workers);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 6 * SECOND, "opening and logins share w1's three seconds from its start at 3 s");
+    assert_eq!(hosts.at, 303 * SECOND, "opening and logins share the constant grace from w1's start at 3 s");
     assert!(hosts.lines.iter().all(|call| call.line != "stop w2"));
     assert!(last(&record).contains("failed at w1 logins"));
 }
@@ -440,13 +434,16 @@ fn a_second_binary_swap_failure_is_failed_not_rolled_back() {
 fn openings_and_logins_cannot_succeed_at_a_poll_past_the_bound() {
     for mode in [Mode::Engine, Mode::Workers] {
         let mut hosts = staged(1);
-        grace(&mut hosts, 0, 1500);
+        hosts.sleep_lag = 1_001_000_000;
+
         match mode {
-            Mode::Engine => hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() }),
+            Mode::Engine => {
+                hosts.opening(0, Opening::After { nanoseconds: 300 * SECOND + 100_000_000, wires: WIRES.into() });
+            }
             Mode::Workers => {
                 hosts.opening_rounds.insert(
                     0,
-                    [Opening::default(), Opening::After { nanoseconds: SECOND, wires: WIRES.into() }].into(),
+                    [Opening::default(), Opening::After { nanoseconds: 298 * SECOND, wires: WIRES.into() }].into(),
                 );
                 accounts(&mut hosts, false, false);
                 accounts(&mut hosts, true, false);
@@ -455,7 +452,7 @@ fn openings_and_logins_cannot_succeed_at_a_poll_past_the_bound() {
         }
         let (outcome, record) = execute(&mut hosts, mode);
         assert_eq!(outcome, Outcome::Failed, "{mode:?}: an answer after the grace cannot succeed");
-        assert_eq!(hosts.at, 3 * SECOND);
+        assert_eq!(hosts.at, 301 * SECOND + 150_000_000);
         match mode {
             Mode::Engine => {
                 assert_eq!(record.openings, []);

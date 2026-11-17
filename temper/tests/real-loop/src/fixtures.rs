@@ -13,10 +13,10 @@ pub use temper_playground::documents::turn_bounds;
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
 pub const TOKEN: &[u8] = jig_channel_kit::fixtures::TOKEN;
 pub const SEED: u64 = jig_channel_kit::fixtures::SEED;
-pub const PINNED_AGENT_SUFFIX: &[u8] = b"/worker-root/agent/temper-agent";
+pub const PINNED_AGENT_SUFFIX: &[u8] = b"/workspaces/agent/temper-agent";
 #[must_use]
 pub fn pinned_agent_program(directory: &Path) -> std::path::PathBuf {
-    directory.join("worker-root/agent/temper-agent")
+    directory.join("workspaces/agent/temper-agent")
 }
 #[must_use]
 pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
@@ -44,6 +44,11 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        let worker = worker.as_object_mut().expect("worker");
+        worker.remove("graces");
+        worker.remove("programs");
+    }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = serde_json::json!(program);
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
@@ -65,8 +70,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "machine":{},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32768,"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
-        "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     value["world_settings"]["forge"] = forge.to_string().into();
     crate::settings::stage_policies(&mut value);
     stock_document(&mut value);

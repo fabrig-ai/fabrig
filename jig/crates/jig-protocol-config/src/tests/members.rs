@@ -89,7 +89,7 @@ fn engine(document: &Document, defaults: Defaults) -> Problems {
 }
 
 fn worker(document: &Document) -> Problems {
-    match crate::worker(document, 0, &Directories::working()) {
+    match crate::worker(document, 0, &Directories::working(), &crate::FixedWorker::NONE) {
         Ok(_) => Problems::empty(),
         Err(problems) => problems,
     }

@@ -172,27 +172,11 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `name`: text, link.name; at most 4096 bytes; required; init writes "worker". Gives the worker's configured name.
 - `secret`: text, 4096 bytes; data path; required; init writes "worker.secret". Names the private file holding the worker's secret.
 - `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
-- `graces`: graces; required; init writes object. Gives the graces used to compute the worker's stop bound.
-- `programs`: programs; required; init writes object. Configures the host's local source-login checks.
+- `graces`: refused: moved: temper fixes a worker's graces (temper help server)
+- `programs`: refused: moved: temper fixes the login checks' interval
 - `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
 - `limits`: limits; required; init writes object. Selects the worker's limits profile and overrides.
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
-
-## workers[].programs
-
-Shape: `programs`. Paths: `workers[].programs`. The worker's local source-login observations.
-
-- `check_interval_ms`: integer, 1 to 18446744073709 milliseconds; required; init writes 60000. Sets the positive interval between local source-login checks.
-
-## workers[].graces
-
-Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its engine.
-
-- `grace_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 300000. Gives the grace after losing the engine.
-- `drain_ms`: integer, 0 to 18446744073709 milliseconds; 180000 when absent; optional; init leaves it out. Bounds the drain before cancelling runs on shutdown.
-- `agent_stop_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 5000. Gives the stop grace of an agent's process tree.
-- `delivery_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the deadline for a delivery.
-- `save_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the grace for saving the worker's state.
 
 ## workers[].agent
 

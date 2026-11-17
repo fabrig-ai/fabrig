@@ -39,6 +39,11 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        let worker = worker.as_object_mut().expect("worker");
+        worker.remove("graces");
+        worker.remove("programs");
+    }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
@@ -81,8 +86,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "machine":{},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}},
-        "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.landing_members":3,"forge.resources_per_task":4,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     (serde_json::to_vec(&agent).expect("agent JSON"), serde_json::to_vec(&value).expect("deployment JSON"))
 }

@@ -302,10 +302,7 @@ impl Judge<'_> {
             self.stage = Stage::Engine;
         } else if self.stage == Stage::Engine && self.members.is_up() {
             self.members.prepare("w1");
-            let path = self.members.dir("w1").join("config/temper.json");
-            let mut value = read_document(&path)?;
-            value["application"]["workers"][0]["git"] = json!(self.inputs.git);
-            save(&path, &value)?;
+            self.members.git_on_path("w1", self.inputs.git.parent().ok_or("git directory")?);
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
         } else if self.stage == Stage::Worker && self.members.is_up() {

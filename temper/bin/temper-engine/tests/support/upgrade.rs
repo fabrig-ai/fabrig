@@ -16,7 +16,7 @@ pub fn empty_directory(binary: &str) {
     document["engine"]["llm"]["endpoints"][0]["transport"] = "plaintext".into();
     document["engine"]["llm"]["providers"][0]["signed_in_plan"] = false.into();
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
+
     std::fs::create_dir(config.join("secrets")).expect("fixture secrets directory");
     let digest = config.join("secrets/worker.digest");
     document["engine"]["hosts"]["workers"][0]["digest"] = digest.to_str().expect("fixture path").into();

@@ -139,7 +139,6 @@ fn assert_rebased_box_paths(temper: &Json, agent: &[u8], effective: &Directories
         ("workers/0/secret", "worker.secret"),
         ("application/machine/fake/git", "demo/bin/git"),
         ("application/demo/llm/key", "demo/llm.key"),
-        ("application/workers/0/root", "workspaces"),
     ] {
         assert_eq!(
             resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
@@ -652,7 +651,7 @@ fn preparation_does_not_discover_optional_programs_outside_its_environment() {
     let bundle = provision_bundle(&scratch.0.join("bundle"));
     let prepared = start(&source, Some(&bundle)).expect("prepare without optional executables");
     let document = read_json(&prepared.directories.document());
-    assert!(document["application"]["workers"][0]["git"].is_null());
+    assert!(document["application"].get("workers").is_none());
     assert!(document["engine"]["clients"]["provider"].is_null());
     assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
     assert!(!crate::path(&prepared.directories.data).join("provider.key").exists());
@@ -1099,7 +1098,7 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
     let prepared = start(&source, None).expect("import optional choices independently of today's PATH");
     let temper = read_json(&prepared.directories.document());
     let agent = read_json(&crate::path(&prepared.directories.config).join("agent.json"));
-    assert!(temper["application"]["workers"][0]["git"].is_null());
+    assert!(temper["application"].get("workers").is_none());
     assert_eq!(agent["programs"]["claude_code"]["path"], scratch.0.join("fake-claude").to_str().expect("path"));
 }
 

@@ -441,7 +441,13 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let jig = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+    let jig = jig_protocol_config::worker(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service_core::startup::fixed_worker(),
+    )
+    .unwrap();
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
     let agent = worker_agent(configured());

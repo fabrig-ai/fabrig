@@ -1,6 +1,10 @@
 use super::*;
 use crate::directories::jig_directories;
-use std::{fs, net::TcpListener, os::unix::fs::PermissionsExt};
+use std::{
+    fs,
+    net::TcpListener,
+    os::unix::fs::{MetadataExt, PermissionsExt},
+};
 
 fn scratch(row: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("temper-init-{}-{row}", std::process::id()));
@@ -43,10 +47,10 @@ fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
         ("no hit", "/one", vec![false], None),
     ] {
         let env = vec![(Box::from(b"PATH".as_slice()), Box::from(entries.as_bytes()))];
-        let candidates = candidates(&env, b"git");
+        let candidates = temper_shell::lookup::candidates(&env, b"git");
         assert_eq!(candidates.len(), executable.len(), "{row}");
         let facts: Vec<_> = candidates.into_iter().zip(executable).collect();
-        assert_eq!(lookup(&env, b"git", &facts).as_deref(), expected.map(Path::new), "{row}");
+        assert_eq!(temper_shell::lookup::lookup(&env, b"git", &facts).as_deref(), expected.map(Path::new), "{row}");
     }
 }
 #[test]
@@ -184,7 +188,7 @@ fn check_deployment(
         if claude { serde_json::json!(binary.parent().unwrap().join("claude")) } else { serde_json::json!("fetched") }
     );
     assert_eq!(written.missing_git, !git);
-    assert_eq!(document["application"]["workers"][0]["git"].is_null(), !git);
+    assert!(document["application"].get("workers").is_none());
     let ports = check_listeners(&document, &agent, written, row);
     check_agent(dirs, agent);
     ports

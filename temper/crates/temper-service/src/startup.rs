@@ -1,5 +1,6 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
+pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 mod reference;
 pub use crate::limits::{engine_reference, reference};
@@ -315,6 +316,7 @@ fn load_document(
     let engine = match engine_at {
         Some(at) => match engine_with(document, at, directories, given) {
             Ok(mut engine) => {
+                temper_engine_service::startup::check_fleet_grace(&engine, &mut problems);
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
             }
@@ -344,7 +346,7 @@ fn load_document(
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories) {
+        match config::worker(document, *at, directories, &fixed_worker()) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
                 worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
@@ -414,11 +416,6 @@ fn load_document(
         &workers,
         &mut problems,
     );
-    if shape == Shape::EngineAlone && !application.workers.is_empty() {
-        problems.push(root.member(b"application").member(b"workers"), What::Half(EngineWhat::EngineAlone));
-    } else if workers.len() != application.workers.len() {
-        problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
-    }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
@@ -580,7 +577,7 @@ pub fn check(
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
     if shape(document, directories)? == Shape::WorkerAlone {
-        let mut part = worker_part(document, directories)?;
+        let mut part = worker_part(document, directories, None)?;
         if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
             return Err(problems::from_worker(found));
         }
@@ -603,8 +600,17 @@ pub fn checked_start_with(
     forges: List<crate::ForgeRuntime>,
     _setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
+    git: Option<&[u8]>,
 ) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
+    if !parsed.workers.is_empty() {
+        let mut problems = temper_worker_service::startup::Problems::empty();
+        let own = worker::application::fixed(directories, git, &mut problems);
+        if !problems.is_empty() {
+            return Err(problems::from_worker(problems));
+        }
+        parsed.application.workers = Box::new([own.expect("constant worker paths checked")]);
+    }
     let agent = match parsed.workers.first() {
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,
@@ -755,7 +761,7 @@ fn checked_start(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock)
+    checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock, None)
 }
 /// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
 pub fn restoring_with(
@@ -768,7 +774,7 @@ pub fn restoring_with(
     given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, io, forges, .. } =
-        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
+        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given, None)?;
     match Service::prepared(engine, seeds, accounts, forges, None, io, None, None) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
@@ -786,7 +792,7 @@ pub fn restoring_engine_with(
     given: &crate::stock::Given,
 ) -> Result<temper_engine_service::Service, Problems> {
     let CheckedStart { engine, io, forges, .. } =
-        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
+        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given, None)?;
     temper_engine_service::startup::restoring_prepared(engine, seeds, accounts, forges, io)
 }
 
@@ -849,7 +855,7 @@ pub fn with_setup_given(
     given: &crate::stock::Given,
     program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
-    let checked = checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
+    let checked = checked_start_with(document, directories, files, agent, seeds, forges, setup, given, None)?;
     from_checked(checked, files, agent, seeds, accounts, runtime, box_line_bytes, program_login, program_environment)
 }
 /// Construct from typed startup configuration (protocol/configuration/moved.md, 2).
@@ -953,8 +959,12 @@ fn checked_worker(
     }
 }
 
-pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
-    match worker::worker_part(input, directories) {
+pub fn worker_part(
+    input: &[u8],
+    directories: &config::Directories,
+    git: Option<&[u8]>,
+) -> Result<WorkerPart, Problems> {
+    match worker::worker_part(input, directories, git) {
         Ok(part) => Ok(part),
         Err(found) => Err(problems::from_worker(found)),
     }

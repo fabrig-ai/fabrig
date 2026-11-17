@@ -944,7 +944,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         }
         (named.files, setup, forges.into_boxed())
     } else {
-        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working())
+        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working(), None)
             .unwrap_or_else(|why| {
                 panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
             });

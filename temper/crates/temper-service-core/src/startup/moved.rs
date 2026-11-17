@@ -8,6 +8,12 @@ pub struct Member {
     pub words: &'static str,
 }
 pub const MEMBERS: &[Member] = &[
+    Member { path: "workers[].graces", words: "moved: temper fixes a worker's graces (temper help server)" },
+    Member { path: "workers[].programs", words: "moved: temper fixes the login checks' interval" },
+    Member {
+        path: "application.workers",
+        words: "moved: a worker's workspaces are the data directory's; its git is found on PATH",
+    },
     Member { path: "engine.deployment", words: "moved: temper keeps the store in the data directory's state" },
     Member {
         path: "engine.providers",
@@ -34,10 +40,23 @@ pub const MEMBERS: &[Member] = &[
 ];
 
 #[must_use]
-#[expect(clippy::manual_find, reason = "step code uses no closures")]
 pub fn at(path: &[u8]) -> Option<&'static Member> {
+    let mut worker_member = None;
+    if path.starts_with(b"workers[") {
+        for (index, byte) in path.iter().enumerate() {
+            if *byte == b']' {
+                worker_member = path.get(index.saturating_add(1)..);
+                break;
+            }
+        }
+    }
     for member in MEMBERS {
         if member.path.as_bytes() == path {
+            return Some(member);
+        }
+        if let Some(worker) = member.path.strip_prefix("workers[]")
+            && Some(worker.as_bytes()) == worker_member
+        {
             return Some(member);
         }
     }

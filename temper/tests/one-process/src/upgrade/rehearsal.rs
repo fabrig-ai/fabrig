@@ -195,7 +195,7 @@ fn deployment_document(directory: &Path) -> serde_json::Value {
     let mut document: serde_json::Value =
         serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
+
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
     document["engine"]["hosts"]["workers"] = serde_json::json!([
         {"name":"worker-a", "digest":"secrets/worker-a.digest"},

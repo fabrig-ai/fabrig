@@ -36,7 +36,7 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned example");
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
+
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
     let mut workers = Vec::new();
     for (name, digit) in [("worker-a", '0'), ("worker-b", '1'), ("worker-c", '2')] {

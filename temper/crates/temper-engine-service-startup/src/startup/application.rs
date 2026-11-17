@@ -196,46 +196,19 @@ fn configured_limits(
         .expect("bounded setup inputs");
     Some(limits)
 }
-fn workers(
-    document: &Document,
-    ats: Option<List<u32>>,
-    count: u32,
-    directories: &config::Directories,
-    path: &Path,
-    problems: &mut Problems,
-) -> List<Worker> {
+fn workers(document: &Document, directories: &config::Directories, problems: &mut Problems) -> List<Worker> {
+    let count = match super::member(document, 0, b"workers") {
+        Some(at) => match config::read::list(document, at, document.len()) {
+            Ok(ats) => ats.len(),
+            Err(_) => 0,
+        },
+        None => 0,
+    };
     let mut workers = List::with_capacity(count);
-    if let Some(ats) = ats {
-        for (index, at) in ats.iter().enumerate() {
-            let path = read::index(&path.member(b"workers"), index);
-            let Some(mut object) = read::object(document, *at, "application-worker", &path, problems) else { continue };
-            let root = read::text(&mut object, document, b"root", &path, problems);
-            let at = read::required(&mut object, document, b"git", &path, problems);
-            let mut git = None;
-            if let Some(at) = at {
-                let null = match document.token(at) {
-                    Some(token) => token.kind == Kind::Null,
-                    None => false,
-                };
-                if !null {
-                    match config::read::text(document, at, 1_048_576) {
-                        Ok(value) => git = Some(value),
-                        Err(what) => problems.push(path.member(b"git"), What::Jig(what)),
-                    }
-                }
-            }
-            read::finish(object, document, &path, problems);
-            if let Some(root) = root {
-                if let Some(git) = &git
-                    && !git.starts_with(b"/")
-                {
-                    problems.push(path.member(b"git"), What::Absolute);
-                }
-                if let Some(root) = joined(directories, config::Directory::Data, &root, &path.member(b"root"), problems)
-                {
-                    workers.push(Worker { root }).expect("bounded workers");
-                }
-            }
+    for _ in 0..count {
+        match directories.join(config::Directory::Data, b"workspaces") {
+            Ok(root) => workers.push(Worker { root }).expect("bounded workers"),
+            Err(what) => problems.push(Path::root().member(b"application").member(b"workers"), What::Jig(what)),
         }
     }
     workers
@@ -268,7 +241,9 @@ pub fn parse(
         None => None,
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
-    let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
+    if object.member(document, b"workers").is_some() {
+        problems.push(path.member(b"workers"), What::Jig(config::What::Fixed));
+    }
     if object.member(document, b"charter").is_some() {
         problems.push(path.member(b"charter"), What::Half(crate::startup::EngineWhat::CharterStored));
     }
@@ -335,7 +310,7 @@ pub fn parse(
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }
     let demo = demo::parse(document, demo_at, directories, problems);
-    let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
+    let workers = workers(document, directories, problems);
     let landing = match landing_at {
         Some(at) => landing::parse(document, at, jig, &bounds, problems),
         None => Some((skein_lib::Map::with_capacity(0), Box::default())),

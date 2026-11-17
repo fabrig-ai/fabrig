@@ -159,23 +159,9 @@ impl Run<'_> {
             self.journal.record.previous.push(Previous { part: name.into(), commit: commit.clone() });
             self.note(&format!("{name} before {commit}"))?;
         }
-        for (index, worker) in self.description.workers.iter().enumerate() {
-            let step = format!("{} document", worker.name);
-            let output = self.hosts.run(Part::Worker(index), &worker.document);
-            success(&step, &output)?;
-            let document: serde_json::Value =
-                serde_json::from_str(&output.stdout).map_err(|why| Failure::at(&step, why.to_string()))?;
-            let grace = document
-                .get("workers")
-                .and_then(serde_json::Value::as_array)
-                .and_then(|workers| {
-                    workers
-                        .iter()
-                        .find(|entry| entry.get("name").and_then(serde_json::Value::as_str) == Some(&worker.name))
-                })
-                .and_then(|worker| worker.pointer("/graces/grace_ms"))
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| Failure::at(&step, format!("workers entry {}: missing graces.grace_ms", worker.name)))?;
+        let grace =
+            temper_service_core::startup::fixed_worker().graces.expect("temper fixes worker graces").grace.as_millis();
+        for worker in &self.description.workers {
             self.journal.record.graces.push(Grace { worker: worker.name.clone(), grace_ms: grace });
             self.note(&format!("worker {} grace {grace} ms", worker.name))?;
         }

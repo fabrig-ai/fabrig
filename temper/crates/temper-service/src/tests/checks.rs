@@ -112,7 +112,7 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     }
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
     assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
     assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
@@ -124,7 +124,7 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
         b"application.limits.overrides",
         br#"{"forges.installations":3,"forge_component.token_bytes":64}"#,
     );
-    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
+    let part = crate::startup::worker_part(&document, &config::Directories::working(), None).unwrap();
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
@@ -842,11 +842,6 @@ fn an_engine_alone_names_each_shape_departure() {
     let rows: &[ShapeRow] = &[
         (b"workers", b"[{}]", vec![(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
-            b"application.workers",
-            br#"[{"root":"worker-root","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
-        ),
-        (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
             vec![
@@ -890,17 +885,11 @@ fn an_engine_alone_names_each_shape_departure() {
 }
 
 #[test]
-fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_lists() {
+fn the_socket_listener_in_the_old_hostsocket_case_names_the_local_worker_list() {
     let input = fixtures::with(&fixtures::document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7100"}]"#);
     assert_eq!(
         shape_problems(&input),
-        vec![
-            (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
-            (
-                Path::root().member(b"application").member(b"workers"),
-                What::Half(crate::startup::EngineWhat::EngineAlone)
-            ),
-        ]
+        vec![(Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),]
     );
 }
 

@@ -313,7 +313,7 @@ fn a_worker_root_reached_through_a_link_is_refused() {
     let directory = scratch.path();
     support::configuration(directory, &support::Forge::Unreached);
     fs::create_dir(directory.join("real-root")).expect("root directory");
-    symlink(directory.join("real-root"), directory.join("worker-root")).expect("linked root");
+    symlink(directory.join("real-root"), directory.join("workspaces")).expect("linked root");
     assert_eq!(
         temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
             .err()
@@ -910,8 +910,13 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     assert!(agent.host_limits.message_bytes >= payload);
     let named = service::named(&bounded.document, &config::Directories::working()).expect("owned configuration");
     let worker = &service::settings::Worker {
-        jig: config::worker(&configuration_document(&value["workers"][0]), 0, &config::Directories::working())
-            .expect("worker configuration"),
+        jig: config::worker(
+            &configuration_document(&value["workers"][0]),
+            0,
+            &config::Directories::working(),
+            &temper_service::startup::fixed_worker(),
+        )
+        .expect("worker configuration"),
         root: named.worker.expect("standalone worker").root,
         git: Some(b"/usr/bin/git".as_slice().into()),
     };
@@ -1420,7 +1425,7 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
                 )
             );
         }
-        assert!(!directory.join("worker-root").exists(), "{row}: no worker root");
+        assert!(!directory.join("workspaces").exists(), "{row}: no worker root");
         assert!(!target.exists() || row != "missing", "missing programs stay missing");
         scratch.remove();
     }
@@ -1585,7 +1590,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let document: serde_json::Value =
             serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
                 .expect("JSON");
-        assert_eq!(document["application"]["workers"][0]["git"].is_null(), !has_git);
+        assert!(document["application"].get("workers").is_none());
         assert_eq!(document["application"]["welcome"].as_bool(), if boxed { Some(true) } else { None });
         assert_eq!(scratch.path().join("demo").exists(), boxed);
         if !boxed {
@@ -1859,10 +1864,6 @@ fn the_live_github_configuration_passes_startup_admission() {
     let mut engine = document(&engine_path);
     configure_engine(&mut engine, owner, api, git, workers);
     support::write_private(&engine_path, &serde_json::to_vec(&engine).expect("live-shaped engine JSON"));
-    let worker_path = cluster.dir("w1").join("config/temper.json");
-    let mut worker = document(&worker_path);
-    worker["application"]["workers"][0]["git"] = "/usr/bin/git".into();
-    support::write_private(&worker_path, &serde_json::to_vec(&worker).expect("worker JSON"));
     for member in ["engine", "w1"] {
         let directory = cluster.dir(member);
         let config = directory.join("config");
@@ -2471,7 +2472,7 @@ fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
                 let mut input: serde_json::Value = serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
                 input.as_object_mut().unwrap().remove("engine");
                 input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-                input["application"] = serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+                input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
                 fs::write(&document, serde_json::to_vec(&input).unwrap()).unwrap();
             }
             let prepared = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory));

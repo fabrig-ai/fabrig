@@ -1058,7 +1058,9 @@ mod admission_tests {
                 &config::DocumentLimits { bytes: WIRE_BYTES, tokens: WIRE_BYTES, depth: 32 },
             )
             .expect("worker document");
-            let worker = config::worker(&document, 0, &config::Directories::working()).expect("worker config");
+            let worker =
+                config::worker(&document, 0, &config::Directories::working(), &jig_protocol_config::FixedWorker::NONE)
+                    .expect("worker config");
             let limits = crate::limits::worker_link(&worker);
             let codec = wire::sizes::limits(&limits.sizes).expect("codec");
             let mut channel_limits = link::channel_limits(&limits).expect("channel limits");

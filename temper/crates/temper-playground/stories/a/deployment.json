@@ -62,13 +62,7 @@
       "listener": {
         "socket": "127.0.0.1:0"
       }
-    },
-    "workers": [
-      {
-        "git": "/usr/bin/git",
-        "root": "worker"
-      }
-    ]
+    }
   },
   "engine": {
     "clients": {
@@ -199,12 +193,6 @@
       "engine": {
         "in_process": "workers"
       },
-      "graces": {
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "grace_ms": 300000,
-        "save_ms": 1000
-      },
       "limits": {
         "overrides": {
           "core.call_answer_bytes": 2048,
@@ -222,9 +210,6 @@
       },
       "memory_bytes": 1152921504606846976,
       "name": "worker-a",
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "secret": "worker.secret",
       "slots": 1
     }

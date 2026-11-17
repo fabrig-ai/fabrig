@@ -104,15 +104,6 @@
       "name": "worker",
       "secret": "secrets/worker.secret",
       "slots": 4,
-      "graces": {
-        "grace_ms": 10000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "agent": {
         "program": "/usr/local/bin/temper",
         "configuration": "/home/me/temper/owned/agent.json",
@@ -189,12 +180,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }
-    },
-    "workers": [
-      {
-        "root": "workspaces",
-        "git": "/usr/bin/git"
-      }
-    ]
+    }
   }
 }

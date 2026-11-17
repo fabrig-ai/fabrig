@@ -39,6 +39,8 @@ pub struct Deployment {
     pub engine: Machine,
     pub workers: Vec<Machine>,
     pub at: u64,
+    /// Extra virtual time each sleep takes, for a poll returning after its deadline.
+    pub sleep_lag: u64,
     pub lines: Vec<Call>,
     /// Commands submitted together, separately from the ordered line log.
     pub batches: Vec<Vec<(Part, String)>>,
@@ -120,6 +122,7 @@ impl Deployment {
             workers,
             documents,
             at: 1_000_000_000,
+            sleep_lag: 0,
             lines: Vec::new(),
             batches: Vec::new(),
             log: Vec::new(),
@@ -346,7 +349,7 @@ impl Hosts for Deployment {
         self.at
     }
     fn sleep(&mut self, nanoseconds: u64) {
-        self.at += nanoseconds;
+        self.at += nanoseconds + self.sleep_lag;
         self.flush();
     }
 }

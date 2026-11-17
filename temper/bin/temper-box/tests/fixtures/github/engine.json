@@ -24,7 +24,7 @@
         "documents.text_bytes": 128,
         "fleet.attempts": 2,
         "fleet.calls": 1,
-        "fleet.grace_ms": 3000,
+        "fleet.grace_ms": 360000,
         "fleet.turns": 8,
         "hub.transcript_bytes": 16777216,
         "hub.turn_bytes": 1327470,
@@ -150,7 +150,6 @@
         "root.loads.reply_bytes": 1327718,
         "root.loads.transcript_bytes": 1327470
       }}
-    }},
-    "workers": []
-  }}
+    }}
+}}
 }}

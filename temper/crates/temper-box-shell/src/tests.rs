@@ -162,8 +162,8 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
-    assert_eq!(fs::read(directory.join("worker-root/agent/temper")).expect("pinned program"), b"program at start");
-    assert_eq!(fs::read(directory.join("worker-root/agent/agent.json")).expect("pinned configuration"), agent);
+    assert_eq!(fs::read(directory.join("workspaces/agent/temper")).expect("pinned program"), b"program at start");
+    assert_eq!(fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"), agent);
     fs::remove_file(&program).expect("remove configured program");
     let why =
         super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
@@ -353,8 +353,7 @@ pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_js
     let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
     input.as_object_mut().expect("document object").remove("engine");
     input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] =
-        serde_json::json!({"workers":input["application"]["workers"],"limits":input["application"]["limits"]});
+    input["application"] = serde_json::json!({"limits":input["application"]["limits"]});
     (agent, input)
 }
 #[test]

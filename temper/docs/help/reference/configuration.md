@@ -25,7 +25,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
 - `welcome`: boolean; optional; init writes true. Whether the document shows the welcome and offers the playground.
 - `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
-- `workers`: list of application-worker, one entry per top-level worker, in the same order; required; init writes list (1 entry). The workers’ workspace directories and git programs.
+- `workers`: refused: moved: a worker's workspaces are the data directory's; its git is found on PATH
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.
 - `sign_in`: sign-in or null, engine shapes only; required; init writes null. The people’s sign-in registration, or null for none.
 - `push`: push or null, absent or null for none; engine shapes only; optional; init leaves it out. The deployment’s push key, contact and services.
@@ -39,13 +39,6 @@ Shape: `application-limits`. Paths: `application.limits`. The application’s li
 
 - `profile`: text, small or standard; required; init writes "standard". The limits profile used before applying overrides.
 - `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":10662,"checkout.workspaces":4,"forge.client.op_bytes":10660,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":21341,"git_component.operations":4,"root.journal.transcript_bytes":16803814,"root.loads.bytes":16804058,"root.loads.read_bytes":33607620,"root.loads.reply_bytes":16804058,"root.loads.transcript_bytes":16803810}. The dotted limit names whose values replace the profile’s.
-
-## application.workers[]
-
-Shape: `application-worker`. Paths: `application.workers[]`. One worker’s workspace and git program.
-
-- `root`: text, data path; at most 1,048,576 bytes; required; init writes "workspaces". The private directory holding the worker’s checkouts.
-- `git`: text or null, absolute executable path; at most 1,048,576 bytes; required; init writes "/usr/bin/git". The git program used when a repository names none, or null for none.
 
 ## application.clients
 

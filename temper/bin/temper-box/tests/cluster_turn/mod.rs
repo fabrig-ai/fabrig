@@ -56,13 +56,12 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
     cluster.deployment_binaries();
     setup::prepare(&mut cluster, root, &support::free_addresses(&[]));
     if cut == Cut::Worker {
-        let wrapper = root.join("held-git");
+        let directory = root.join("held-git");
+        fs::create_dir(&directory).expect("held git directory");
+        let wrapper = directory.join("git");
         support::write_private(&wrapper, setup::wrapper(root, &root.join("git")).as_bytes());
         fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700)).expect("executable wrapper");
-        let path = cluster.dir("w1").join("config/temper.json");
-        let mut worker = setup::read(&path);
-        worker["application"]["workers"][0]["git"] = wrapper.display().to_string().into();
-        setup::write(&path, &worker);
+        cluster.git_on_path("w1", &directory);
         support::write_private(&root.join("delivery.hold"), b"");
     }
     let key = cluster.dir("llm").join("llm.key");

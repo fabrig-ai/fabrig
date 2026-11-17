@@ -709,10 +709,15 @@ pub(crate) fn worker_redial_ceiling() -> Duration {
         .expect("worker document");
         let array = document.member(0, b"workers").expect("worker array");
         let at = array.checked_add(1).expect("first worker");
-        jig_protocol_config::worker(&document, at, &jig_protocol_config::Directories::working())
-            .expect("fixture worker")
-            .limits
-            .link
-            .ceiling
+        jig_protocol_config::worker(
+            &document,
+            at,
+            &jig_protocol_config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
+        )
+        .expect("fixture worker")
+        .limits
+        .link
+        .ceiling
     })
 }

@@ -7015,6 +7015,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "temper-fetch",
+ "temper-service-core",
 ]
 
 [[package]]
@@ -7435,6 +7436,7 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-protocol-git",
+ "temper-worker-shell",
 ]
 
 [[package]]
@@ -7461,6 +7463,7 @@ dependencies = [
  "skein-shell",
  "temper-engine-service",
  "temper-engine-shell",
+ "temper-service-core",
  "temper-test-env",
  "time",
 ]

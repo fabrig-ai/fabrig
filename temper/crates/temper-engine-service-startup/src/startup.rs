@@ -1,5 +1,6 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
+pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 mod reference;
 pub use crate::limits::{engine_reference, reference};
@@ -232,6 +233,37 @@ fn problem(path: Path, what: What) -> Problems {
     problems.push(path, what);
     problems
 }
+/// Worker stop bound plus a margin, rounded up to a minute (moved.md, 2).
+#[must_use]
+pub fn fleet_grace(stop_bound: skein_lib::Duration) -> skein_lib::Duration {
+    use skein_lib::Duration;
+    let minute = Duration::from_secs(60).as_nanos();
+    let nanos = stop_bound.as_nanos().saturating_add(Duration::from_secs(30).as_nanos());
+    let minutes = nanos.div_ceil(minute);
+    Duration::from_nanos(minutes.saturating_mul(minute))
+}
+fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
+    let graces = fixed_worker().graces.expect("temper fixes worker graces");
+    fleet_grace(
+        config::stop_bound(&graces, limits.link.ping, limits.link.silence)
+            .unwrap_or(skein_lib::Duration::from_nanos(u64::MAX)),
+    )
+}
+fn fleet_override(document: &skein_json::Document, at: u32) -> bool {
+    let Some(limits) = member(document, at, b"limits") else { return false };
+    let Some(overrides) = member(document, limits, b"overrides") else { return false };
+    member(document, overrides, b"fleet.grace_ms").is_some()
+}
+/// Check the override against the derived minimum in every engine shape.
+pub fn check_fleet_grace(engine: &config::Engine, problems: &mut Problems) {
+    let derived = worker_fleet_grace(&engine.limits);
+    if engine.limits.core.fleet.grace < derived {
+        problems.push(
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"fleet.grace_ms"),
+            What::Half(EngineWhat::FleetGrace { offered: engine.limits.core.fleet.grace, derived }),
+        );
+    }
+}
 /// temper's engine constants (protocol/configuration/moved.md, 2).
 /// # Errors
 /// A data directory whose joined store path exceeds the path bound.
@@ -296,6 +328,9 @@ pub fn engine_with(
         );
         return Err(problems);
     };
+    if !fleet_override(document, at) {
+        engine.limits.core.fleet.grace = worker_fleet_grace(&engine.limits);
+    }
     config::pass(&mut engine, defaults)?;
     Ok(engine)
 }
@@ -394,6 +429,7 @@ fn load_document(
     let engine = match engine_at {
         Some(at) => match engine_with(document, at, directories, given) {
             Ok(mut engine) => {
+                check_fleet_grace(&engine, &mut problems);
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
             }
@@ -423,7 +459,7 @@ fn load_document(
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories) {
+        match config::worker(document, *at, directories, &fixed_worker()) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
                 worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
@@ -484,11 +520,6 @@ fn load_document(
         &workers,
         &mut problems,
     );
-    if shape == Shape::EngineAlone && !application.workers.is_empty() {
-        problems.push(root.member(b"application").member(b"workers"), What::Half(EngineWhat::EngineAlone));
-    } else if workers.len() != application.workers.len() {
-        problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
-    }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);

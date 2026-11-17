@@ -552,7 +552,6 @@ impl Judge {
         value["engine"]["llm"]["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
-        value["application"]["workers"] = ws["application"]["workers"].clone();
         base(&mut value);
         let forge = self
             .members
@@ -618,12 +617,12 @@ impl Judge {
             shaped["agent"] = worker["workers"][0]["agent"].clone();
             worker["workers"] = json!([shaped]);
             worker["application"]["limits"] = value["application"]["limits"].clone();
-            worker["application"]["workers"][0]["git"] = self.git.to_str().ok_or("git path")?.into();
+            self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
             write(&dir.join("config/temper.json"), &worker);
             write(&dir.join("config/agent.json"), &agent);
         }
         value["workers"] = json!([]);
-        value["application"]["workers"] = json!([]);
+
         write(&engine_dir.join("config/temper.json"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
@@ -1336,8 +1335,7 @@ impl Judge {
         use temper_real_loop_world::case;
         let workspaces = |worker| -> Result<PathBuf, String> {
             let directory = self.members.dir(worker);
-            let document = read_document(&directory.join("config/temper.json"))?;
-            let root = document["application"]["workers"][0]["root"].as_str().ok_or("worker root")?;
+            let root = "workspaces";
             Ok(directory.join("data").join(root).join("workspaces"))
         };
         if fs::read_dir(workspaces("ws")?).map_err(|why| format!("ws workspaces: {why:?}"))?.next().is_some() {

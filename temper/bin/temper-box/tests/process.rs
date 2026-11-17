@@ -1007,7 +1007,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         .map_err(|why| format!("owned example: {why:?}"))?;
     let mut document = serde_json::json!({
         "workers": example["workers"],
-        "application": {"workers": example["application"]["workers"], "limits": example["application"]["limits"]}
+        "application": {"limits": example["application"]["limits"]}
     });
     let worker = &mut document["workers"][0];
     worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});

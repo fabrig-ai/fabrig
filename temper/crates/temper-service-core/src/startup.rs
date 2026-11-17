@@ -33,6 +33,21 @@ pub fn nearest(input: &[u8]) -> Option<Shape> {
     Some(nearest_document(&document))
 }
 
+/// temper's worker constants (protocol/configuration/moved.md, 2).
+#[must_use]
+pub fn fixed_worker() -> config::FixedWorker {
+    use skein_lib::Duration;
+    config::FixedWorker {
+        graces: Some(config::Graces {
+            grace: Duration::from_millis(300_000),
+            drain: Duration::from_millis(180_000),
+            agent_stop: Duration::from_millis(5_000),
+            delivery: Duration::from_millis(1_000),
+            save: Duration::from_millis(1_000),
+        }),
+        check_interval: Some(Duration::from_millis(60_000)),
+    }
+}
 pub mod moved;
 pub mod problems;
 /// Paths shared by the halves' starts (protocol/services.md, 3).

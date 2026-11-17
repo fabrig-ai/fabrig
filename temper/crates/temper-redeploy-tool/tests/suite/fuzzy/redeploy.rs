@@ -1,5 +1,5 @@
 //! A line-log referee independent of the redeploy's bookkeeping (redeploy.md, 8).
-use super::super::redeploy::{SECOND, accounts, grace, run};
+use super::super::redeploy::{SECOND, accounts, run};
 use std::collections::BTreeSet;
 use temper_redeploy_tool::{
     fake::{Deployment, NEW, OLD, Opening, WIRES, description, output},
@@ -85,7 +85,6 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 let mut deployment = Deployment::new(d.clone());
                 deployment.stage_all(NEW);
                 for index in 0..count {
-                    grace(&mut deployment, index, (next(&mut random) % 4 + 2) * 1000);
                     let opening = match next(&mut random) % 12 {
                         0 => Opening::Never,
                         1 => Opening::Refused { nanoseconds: SECOND, text: "wire version cannot agree".into() },

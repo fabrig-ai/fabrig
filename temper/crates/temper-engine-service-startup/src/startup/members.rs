@@ -5,7 +5,7 @@ use temper_forge_setup::machine;
 pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub(super) static SHAPES: [Shape; 36] = [
+pub(super) static SHAPES: [Shape; 35] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -16,11 +16,6 @@ pub(super) static SHAPES: [Shape; 36] = [
         name: "application-limits",
         paths: &["application.limits"],
         line: "The application’s limits profile and named overrides.",
-    },
-    Shape {
-        name: "application-worker",
-        paths: &["application.workers[]"],
-        line: "One worker’s workspace and git program.",
     },
     Shape {
         name: "application-clients",
@@ -125,7 +120,7 @@ pub(super) static SHAPES: [Shape; 36] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub(super) static MEMBERS: [Member; 129] = [
+pub(super) static MEMBERS: [Member; 127] = [
     Member {
         shape: "document",
         name: "engine",
@@ -201,9 +196,9 @@ pub(super) static MEMBERS: [Member; 129] = [
     Member {
         shape: "application",
         name: "workers",
-        kind: "list of application-worker",
-        bound: "one entry per top-level worker, in the same order",
-        required: true,
+        kind: "refused",
+        bound: "",
+        required: false,
         line: "The workers’ workspace directories and git programs.",
         gone: None,
     },
@@ -304,24 +299,6 @@ pub(super) static MEMBERS: [Member; 129] = [
         bound: "see temper help limits",
         required: true,
         line: "The dotted limit names whose values replace the profile’s.",
-        gone: None,
-    },
-    Member {
-        shape: "application-worker",
-        name: "root",
-        kind: "text",
-        bound: "data path; at most 1,048,576 bytes",
-        required: true,
-        line: "The private directory holding the worker’s checkouts.",
-        gone: None,
-    },
-    Member {
-        shape: "application-worker",
-        name: "git",
-        kind: "text or null",
-        bound: "absolute executable path; at most 1,048,576 bytes",
-        required: true,
-        line: "The git program used when a repository names none, or null for none.",
         gone: None,
     },
     Member {
@@ -1082,9 +1059,7 @@ pub const ADDRESS_PATHS: &[&str] = &[
 pub fn shapes() -> List<Shape> {
     let mut shapes = List::with_capacity(u32::try_from(SHAPES.len()).expect("bounded shapes"));
     for shape in &SHAPES {
-        if shape.name != "application-worker" {
-            shapes.push(*shape).expect("engine shapes");
-        }
+        shapes.push(*shape).expect("engine shapes");
     }
     shapes
 }
@@ -1092,11 +1067,8 @@ pub fn shapes() -> List<Shape> {
 pub fn members() -> List<Member> {
     let mut members = List::with_capacity(u32::try_from(MEMBERS.len()).expect("bounded members"));
     for row in &MEMBERS {
-        if row.shape == "application-worker" {
-            continue;
-        }
         let mut row = *row;
-        if row.name == "workers" && (row.shape == "document" || row.shape == "application") {
+        if row.name == "workers" && row.shape == "document" {
             row.kind = "empty list";
             row.bound = "";
             row.line = "An engine alone runs no local worker.";

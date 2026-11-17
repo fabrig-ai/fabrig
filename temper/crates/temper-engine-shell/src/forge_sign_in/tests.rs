@@ -52,7 +52,7 @@ fn a_public_client_refuses_before_creating_any_file() {
         "members":[{"address":"sam@example.com","login":"sam"}],"forges":[{"forge":1,"client":"forgejo"}]
     });
     value["workers"] = json!([]);
-    value["application"]["workers"] = json!([]);
+
     value["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:7200"}]);
     let bytes = serde_json::to_vec(&value).expect("configuration");
     let directories = configuration::directories(&directory);

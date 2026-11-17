@@ -19,6 +19,15 @@ pub struct Worker {
     pub limits: Limits,
     pub memory: Option<u64>,
 }
+/// Members an application fixes (protocol/configuration.md, 3.4).
+#[derive(Clone, Copy, Debug)]
+pub struct FixedWorker {
+    pub graces: Option<Graces>,
+    pub check_interval: Option<Duration>,
+}
+impl FixedWorker {
+    pub const NONE: Self = Self { graces: None, check_interval: None };
+}
 const DEFAULT_DRAIN: Duration = Duration::from_millis(180_000);
 
 /// Worker stop deadlines (jig/docs/design/domain/hosts/hub.md, 6 and 7).
@@ -48,7 +57,12 @@ pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<
         .checked_add(graces.save)
 }
 /// Parse jig's worker member before startup constructs any component.
-pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result<Worker, Problems> {
+pub fn worker(
+    document: &Document,
+    at: u32,
+    directories: &Directories,
+    fixed: &FixedWorker,
+) -> Result<Worker, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems, "worker") else {
@@ -80,20 +94,24 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     {
         problems.push(path.member(b"slots"), What::SlotsPastHub);
     }
-    let mut graces = None;
-    if let Some(at) = object.required(document, b"graces", &path, &mut problems) {
+    let mut graces = fixed.graces;
+    if let Some(at) =
+        crate::fixed::member(&mut object, document, b"graces", fixed.graces.is_some(), &path, &mut problems)
+    {
         graces = parse_graces(document, at, &path.member(b"graces"), &mut problems);
     }
-    let mut check_interval = None;
-    if let Some(at) = object.required(document, b"programs", &path, &mut problems) {
+    let mut check_interval = fixed.check_interval;
+    if let Some(at) =
+        crate::fixed::member(&mut object, document, b"programs", fixed.check_interval.is_some(), &path, &mut problems)
+    {
         let path = path.member(b"programs");
         if let Some(mut programs) = check::object(document, at, &path, &mut problems, "programs") {
             check_interval = check::duration(&mut programs, document, b"check_interval_ms", &path, &mut problems);
-            if check_interval == Some(Duration::ZERO) {
-                problems.push(path.member(b"check_interval_ms"), What::Bound);
-            }
             programs.finish(document, &path, &mut problems);
         }
+    }
+    if check_interval == Some(Duration::ZERO) {
+        problems.push(path.member(b"programs").member(b"check_interval_ms"), What::Bound);
     }
     if let Some(interval) = check_interval {
         limits.hub.source_interval = interval;

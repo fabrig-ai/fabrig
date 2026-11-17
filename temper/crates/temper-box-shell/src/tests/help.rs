@@ -113,8 +113,13 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
         )
         .expect("worker document");
-        let worker = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("init worker");
+        let worker = jig_protocol_config::worker(
+            &document,
+            0,
+            &jig_protocol_config::Directories::working(),
+            &temper_service::startup::fixed_worker(),
+        )
+        .expect("init worker");
         let bound =
             jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                 .expect("stop bound");

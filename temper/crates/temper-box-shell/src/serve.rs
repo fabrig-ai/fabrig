@@ -2,6 +2,7 @@
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::FileTypeExt;
 use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
@@ -107,6 +108,7 @@ fn prepare_with_limits(
     };
     let accounts = engine::accounts(&engine)?;
     let seeds = engine::seeds(link_secret, local_secret)?;
+    let git = temper_shell::lookup::find(environment, b"git");
     let mut start = service::startup::checked_start_with(
         bytes,
         &jig_directories(directories),
@@ -116,6 +118,7 @@ fn prepare_with_limits(
         List::with_capacity(0),
         Some(&checked),
         given,
+        git.as_ref().map(|path| path.as_os_str().as_bytes()),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if !projects.is_empty() {
