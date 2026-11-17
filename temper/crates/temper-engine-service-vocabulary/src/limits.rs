@@ -155,8 +155,8 @@ const FORGE: forge::Limits = forge::Limits {
     entries: 8,
     // Named calls retained by jig’s stock core.call_records.
     named_calls: 128,
-    // The store’s tier-row cap, (759 - 1) / 2 (temper/docs/design/protocol/configuration/limits.md, forge.changes).
-    changes: 379,
+    // Fabrig’s development of 2026-11-16: twice dev’s 379 rounded up.
+    changes: 768,
     // Eight active issue projections beside the project’s changes.
     issues: 8,
     // Fabrig’s development of 2026-11-16: twice dev’s 5.
@@ -194,7 +194,12 @@ const FORGE: forge::Limits = forge::Limits {
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
-    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
+    tiers: temper_engine_domain_forge::TierLimits {
+        tiers: 2,
+        failing_tests: 16,
+        // Twice the longest failing test’s id today, about 221 bytes, rounded up.
+        test_id_bytes: 512,
+    },
     // Fabrig’s development of 2026-11-16: twice dev’s 8.
     judge_projects: 16,
     decided_per_project: 1024,

@@ -213,6 +213,13 @@ fn configured_limits(
             }),
         );
     }
+    let bound = temper_protocol_store::test_id_ceiling();
+    if limits.forge.tiers.test_id_bytes > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.test_id_bytes"),
+            What::Half(crate::startup::EngineWhat::TestIdBytes { bytes: limits.forge.tiers.test_id_bytes, bound }),
+        );
+    }
     // Pass the resolved client capacity once, including the profile default.
     handed
         .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))

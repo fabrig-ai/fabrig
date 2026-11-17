@@ -186,12 +186,57 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
-        br#"{"profile":"standard","overrides":{"forge.changes":379,"forge.client.op_bytes":262144}}"#,
+        br#"{"profile":"standard","overrides":{"forge.changes":768,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
     crate::startup::named(&document, &directories).expect("the stock map admits the tier cap");
     crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .expect("the stock reader admits the tier cap");
+}
+
+#[test]
+fn test_id_bytes_past_the_store_ceiling_refuses_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1025}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    let starting = crate::startup::named(&document, &directories).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .unwrap_err();
+    for problems in [starting, reading] {
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            b"application.limits.overrides.forge.tiers.test_id_bytes: 1025, past its bound of 1024, the most the store holds of a failing test's id\n",
+        );
+    }
+}
+
+#[test]
+fn test_id_bytes_at_the_store_ceiling_passes_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1024}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    crate::startup::named(&document, &directories).expect("the store's test id ceiling passes startup");
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the store's test id ceiling passes its reader");
+    assert_eq!(reading.forge.tiers.test_id_bytes, 1024);
+}
+
+#[test]
+fn the_stock_without_overrides_passes_both_startup_routes() {
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits", br#"{"profile":"standard","overrides":{}}"#);
+    let directories = jig_protocol_config::Directories::working();
+    crate::startup::named(&document, &directories).expect("the stock passes startup");
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the stock passes its reader");
+    assert_eq!(reading.forge.changes, 768);
+    assert_eq!(reading.forge.tiers.test_id_bytes, 512);
 }
 
 #[test]
