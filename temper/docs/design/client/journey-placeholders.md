@@ -119,9 +119,13 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   where they hold one.
 - **Every form** redaction seeks (`web/journeys.md`, 3.6, *Where*): the
   bytes, percent-encoded in either hex case, `dom::print`'s escapes and
-  Rust's Debug escapes; and the TUI's own, a pasted address's decimal
-  byte elements in a `Typed` event's print (`tui/journeys.md`, 5, *A
-  pasted link's encoding*). A port's forms are those of its whole
+  Rust's Debug escapes; and decimal byte elements (`[104, 116, ...]`),
+  the Debug print of a byte field: the TUI's pasted address in a `Typed`
+  event (`tui/journeys.md`, 5, *A pasted link's encoding*), and in the
+  browser a domain `Event`'s byte field holding an address, such as a
+  copied link's words (`web/journeys.md`, 3.3, the event's Debug print).
+  A port is sought there so that `again` finds a control across
+  placeholders (4.2). A port's forms are those of its whole
   address, its host and colon with it, and only the port's digits are
   replaced. No digest is sought: nothing carries one of these values'.
 - **Each form becomes the same form of its placeholder.** All forms of
@@ -302,8 +306,8 @@ no fuzzy test, no browser, terminal or box.
 - **Each shell, beside `redact.rs`:** every field of its lines reached; a
   framed field keeping its length, with a same-width placeholder in it,
   and with an original of another width that stands; a browser stream's
-  record replaced through its pieces; the TUI's decimal elements of a
-  pasted address.
+  record replaced through its pieces; the decimal elements of a TUI's
+  pasted address and of a browser event's byte field.
 - **The tool:** a recording given two builds and two sets of ports
   normalises to the same bytes; each placeholder found in the
   recording's fields, its marks and its prints; a secret still `x`s; the
