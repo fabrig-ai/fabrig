@@ -57,6 +57,7 @@ fn a_cross_site_authorization_returns_a_code_and_the_links_state() {
     // The live page can reconnect while its scratch server restarts.
     setup.expected = vec![
         Box::from(b"net::ERR_CONNECTION_REFUSED".as_slice()),
+        Box::from(b"net::ERR_CONNECTION_RESET".as_slice()),
         Box::from(b"net::ERR_INCOMPLETE_CHUNKED_ENCODING".as_slice()),
     ];
     let start = format!(

@@ -79,6 +79,8 @@ pub fn prepare(cluster: &mut Cluster, root: &Path, addresses: &[std::net::Socket
     for name in ["forge", "llm"] {
         cluster.prepare(name);
     }
+    // The operator installs the LLM's trust root before the engine's first start.
+    support::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
     // The person uses the fake's fixed fixture identity, through a private
     // header file rather than a credential in curl's argument vector.
     let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);

@@ -1074,8 +1074,6 @@ impl OwnedWorkerJudge {
                             .map_err(|why| format!("owned example: {why:?}"))?;
                     engine["engine"]["limits"] = example["engine"]["limits"].clone();
                     engine["application"]["limits"] = example["application"]["limits"].clone();
-                    // The example's 186 s worker stop bound must fit the engine's 240 s grace.
-                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 240_000.into();
                     support::write_private(
                         &path,
                         &serde_json::to_vec(&engine).map_err(|why| format!("engine JSON: {why:?}"))?,

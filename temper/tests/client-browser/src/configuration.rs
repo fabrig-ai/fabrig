@@ -38,7 +38,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for name in ["views.watchers", "views.watchers_per_party"] {
         value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
-    for member in ["charters", "templates", "policies", "rules"] {
+    for member in ["charters", "templates", "policies", "rules", "projects"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
     temper_playground::documents::settings::strip_models(&mut value);
