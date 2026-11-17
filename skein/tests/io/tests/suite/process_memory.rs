@@ -349,7 +349,12 @@ fn children_pipes_and_signals_fill_the_slab_under_the_ceiling() {
         skein_io::down(
             &mut io,
             &env,
-            Request::Signal { child, signal: Signal::Terminate, to: Target::Group },
+            Request::Signal {
+                child,
+                signal: Signal::Terminate,
+                to: Target::Group,
+                reason: skein_io::kernel::Reason::Unknown,
+            },
             &mut submissions,
         );
         most = most.max(meter.check(meter.end(), CEILING, &"signal"));

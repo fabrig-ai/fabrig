@@ -316,7 +316,7 @@ impl Parent {
             | Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),
             Request::Save { owner, workspace } => self.save(owner, workspace),
             Request::Release { workspace } => self.release(workspace),
-            Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
+            Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => Vec::new(),
             Request::Up(
                 LinkUp::ListRead { .. }
                 | LinkUp::Draining

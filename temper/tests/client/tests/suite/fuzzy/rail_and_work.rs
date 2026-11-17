@@ -9,7 +9,7 @@ use temper_client_domain::{
     forge::ways::Ways,
     pages::{rail, work},
 };
-use work::{Belongs, Card, Change, Chat, Goal, Item, LandedDraft, Where};
+use work::{Belongs, Card, Change, Chat, Goal, Item, LandedDraft, Milestone, Where};
 
 // The sibling public-address sweep uses 2,000 independently replayable seeds.
 const SEEDS: u64 = 2_000;
@@ -111,8 +111,19 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
     let mut facts = work::Facts::default();
     for _ in 0..rng.between(0, ROWS) {
         facts
+            .milestones
+            .push(Milestone { task: rng.between(100, 102), live: rng.chance(500), activity: activity(rng, now) })
+            .expect("uncapped milestones");
+    }
+    for _ in 0..rng.between(0, ROWS) {
+        facts
             .goals
-            .push(Goal { task: rng.between(1, TASKS), live: rng.chance(500), activity: activity(rng, now) })
+            .push(Goal {
+                task: rng.between(1, TASKS),
+                live: rng.chance(500),
+                activity: activity(rng, now),
+                milestone: rng.chance(700).then(|| rng.between(100, 103)),
+            })
             .expect("uncapped goals");
     }
     for _ in 0..rng.between(0, ROWS) {
@@ -168,6 +179,7 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
             facts
                 .landed_default
                 .push(work::Landing {
+                    milestone: None,
                     signed: change.signed.clone(),
                     task: change.task,
                     at,
@@ -188,6 +200,7 @@ fn draft_key(row: &LandedDraft) -> DraftKey {
 // The oracle uses first-row maps and standard sorting, independent of place's
 // traversal and insertion order. No production placement helper is its oracle.
 struct Oracle {
+    milestones: BTreeMap<u64, Milestone>,
     goals: BTreeMap<u64, Goal>,
     changes: BTreeMap<u64, Change>,
     chats: BTreeMap<u64, Chat>,
@@ -196,8 +209,16 @@ struct Oracle {
 
 impl Oracle {
     fn new(facts: &work::Facts) -> Self {
-        let mut oracle =
-            Self { goals: BTreeMap::new(), changes: BTreeMap::new(), chats: BTreeMap::new(), landed: BTreeMap::new() };
+        let mut oracle = Self {
+            milestones: BTreeMap::new(),
+            goals: BTreeMap::new(),
+            changes: BTreeMap::new(),
+            chats: BTreeMap::new(),
+            landed: BTreeMap::new(),
+        };
+        for row in &facts.milestones {
+            oracle.milestones.entry(row.task).or_insert(*row);
+        }
         for row in &facts.goals {
             oracle.goals.entry(row.task).or_insert(*row);
         }
@@ -237,6 +258,17 @@ impl Oracle {
 
     fn activity(&self, item: Item) -> Activity {
         let (at, task) = match item {
+            Item::Milestone(task) => {
+                let at = self
+                    .goals
+                    .values()
+                    .filter(|goal| goal.milestone == Some(task))
+                    .map(|goal| goal.activity)
+                    .chain([self.milestones[&task].activity])
+                    .max()
+                    .expect("own activity");
+                (at, task)
+            }
             Item::Goal(task) => (self.goals.get(&task).expect("listed goal").activity, task),
             Item::Chat(task) | Item::Draft(task) => (self.chats.get(&task).expect("listed chat").activity, task),
             Item::Landed(index) => {
@@ -253,28 +285,49 @@ impl Oracle {
         (Reverse(at), 0, task, (0, Vec::new(), Vec::new(), Vec::new()))
     }
 
+    #[expect(clippy::too_many_lines, reason = "one oracle checks all placements, ordering, provenance and counts")]
     fn check(&self, placed: &work::Work, now: Wall, seed: u64) {
         let mut flight = Vec::new();
         let mut drafts = Vec::new();
+        for milestone in self.milestones.values().filter(|milestone| milestone.live) {
+            let lines = self
+                .goals
+                .values()
+                .filter(|goal| goal.live && goal.milestone == Some(milestone.task))
+                .map(|goal| {
+                    (
+                        goal.task,
+                        self.held(Belongs::Goal(goal.task))
+                            .into_iter()
+                            .filter(|task| queued(&self.changes[task]))
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            flight.push((item_key(Item::Milestone(milestone.task)), Vec::new(), lines));
+        }
         for goal in self.goals.values().filter(|goal| goal.live) {
-            flight.push((item_key(Item::Goal(goal.task)), self.held(Belongs::Goal(goal.task))));
+            if goal.milestone.is_some_and(|task| self.milestones.get(&task).is_some_and(|milestone| milestone.live)) {
+                continue;
+            }
+            flight.push((item_key(Item::Goal(goal.task)), self.held(Belongs::Goal(goal.task)), Vec::new()));
         }
         for chat in self.chats.values() {
             if self.changes.values().any(|row| row.belongs == Belongs::Chat(chat.task) && queued(row)) {
-                flight.push((item_key(Item::Chat(chat.task)), self.held(Belongs::Chat(chat.task))));
+                flight.push((item_key(Item::Chat(chat.task)), self.held(Belongs::Chat(chat.task)), Vec::new()));
             }
             if chat.draft {
-                drafts.push((item_key(Item::Draft(chat.task)), Vec::new()));
+                drafts.push((item_key(Item::Draft(chat.task)), Vec::new(), Vec::new()));
             }
         }
         for change in self.changes.values().filter(|row| queued(row)) {
             if let Item::Change(task) = self.owner(change) {
-                flight.push((item_key(Item::Change(task)), Vec::new()));
+                flight.push((item_key(Item::Change(task)), Vec::new(), Vec::new()));
             }
         }
         for (index, row) in self.landed.values() {
             if row.listed {
-                drafts.push((item_key(Item::Landed(*index)), Vec::new()));
+                drafts.push((item_key(Item::Landed(*index)), Vec::new(), Vec::new()));
             }
         }
         flight.sort_unstable();
@@ -314,7 +367,7 @@ impl Oracle {
             "seed {seed}: Landed groups goals in the inclusive week, newest first, ties by change task"
         );
         for card in &placed.in_flight {
-            for row in &card.changes {
+            for row in card.changes.iter().chain(card.goals.iter().flat_map(|goal| goal.changes.iter())) {
                 assert_eq!(
                     row.signed,
                     self.changes.get(&row.task).expect("listed change").signed,
@@ -354,6 +407,7 @@ fn queued(change: &Change) -> bool {
 
 fn item_key(item: Item) -> (u8, u64) {
     match item {
+        Item::Milestone(task) => (5, task),
         Item::Goal(task) => (0, task),
         Item::Chat(task) => (1, task),
         Item::Change(task) => (2, task),
@@ -362,9 +416,18 @@ fn item_key(item: Item) -> (u8, u64) {
     }
 }
 
-fn cards(section: &List<Card>) -> Vec<((u8, u64), Vec<u64>)> {
-    let mut cards: Vec<_> =
-        section.iter().map(|card| (item_key(card.item), card.changes.iter().map(|row| row.task).collect())).collect();
+type PlacedCard = ((u8, u64), Vec<u64>, Vec<(u64, Vec<u64>)>);
+fn cards(section: &List<Card>) -> Vec<PlacedCard> {
+    let mut cards: Vec<_> = section
+        .iter()
+        .map(|card| {
+            (
+                item_key(card.item),
+                card.changes.iter().map(|row| row.task).collect(),
+                card.goals.iter().map(|goal| (goal.task, goal.changes.iter().map(|row| row.task).collect())).collect(),
+            )
+        })
+        .collect();
     cards.sort_unstable();
     cards
 }

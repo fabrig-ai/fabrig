@@ -35,7 +35,11 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
     document["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 65_536_u32.into();
     let document = serde_json::to_vec(&document).expect("room fixture JSON");
     let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
-    let host = temper_engine_smith::room::host_part(&agent.run_limits);
+    let host = temper_engine_smith::room::host_part(
+        Some(&agent.run_limits),
+        65_536,
+        &crate::settings::charter_endpoints(&engine),
+    );
     let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &mut defaults.charters {
         if charter.number == 5 {
@@ -111,11 +115,15 @@ fn default_parts_are_counted_before_start() {
     reason = "the check reports each stock charter's room for the implementation report"
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
-    let host = temper_engine_smith::room::host_part(&agent().run_limits);
     let generated = super::stock::generated();
     for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
         let document = fixtures::with(&generated, b"engine.limits.profile", profile);
         let engine = super::stock::engine(&document);
+        let host = temper_engine_smith::room::host_part(
+            Some(&agent().run_limits),
+            65_536,
+            &crate::settings::charter_endpoints(&engine),
+        );
         let mut problems = startup::Problems::empty();
         startup::checks::room(&engine, host, &mut problems);
         assert!(problems.is_empty(), "{:?}", startup::lines(&problems));
@@ -124,7 +132,11 @@ fn stock_charters_leave_at_least_2048_bytes() {
                 jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
                     .unwrap();
             let room = host.room(&resolved);
-            std::eprintln!("stock charter {}: profile {name}, room {room}, bound {}", charter.number, host.bound);
+            std::eprintln!(
+                "stock charter {}: profile {name}, room {room}, bound {}",
+                charter.number,
+                host.bound.unwrap()
+            );
             assert!(room >= ENOUGH);
             if charter.number == 5 {
                 let mut without = resolved.clone();
@@ -134,4 +146,150 @@ fn stock_charters_leave_at_least_2048_bytes() {
             }
         }
     }
+}
+
+#[test]
+#[expect(
+    clippy::print_stderr,
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "report the known wake names and each stock charter's margins"
+)]
+fn stock_charters_pass_the_fixed_check_on_every_wake() {
+    use jig_domain_tasks::{REASON_NAMES, Reasons};
+    let engine = super::stock::engine(&super::stock::generated());
+    let host = temper_engine_smith::room::host_part(
+        Some(&agent().run_limits),
+        65_536,
+        &crate::settings::charter_endpoints(&engine),
+    );
+    for (name, cost) in [
+        ("fixed", host.fixed),
+        ("model", host.model),
+        ("always", host.always),
+        ("asking", host.asking),
+        ("asking_settings", host.asking_settings),
+    ] {
+        std::eprintln!("stock slot {name}: rendered {}, owned {}, encoded {}", cost.rendered, cost.owned, cost.encoded);
+    }
+    for (index, cost) in host.families.iter().enumerate() {
+        std::eprintln!(
+            "stock family {index}: rendered {}, owned {}, encoded {}",
+            cost.rendered,
+            cost.owned,
+            cost.encoded
+        );
+    }
+    for charter in &engine.charters {
+        let mut owned = (REASON_NAMES[0], 0);
+        let mut encoded = owned;
+        for name in REASON_NAMES {
+            let cost = host.on_wake(charter, Reasons::named(name).unwrap());
+            if cost.owned > owned.1 {
+                owned = (name, cost.owned);
+            }
+            if cost.encoded > encoded.1 {
+                encoded = (name, cost.encoded);
+            }
+        }
+        let mut optional = 0_u64;
+        let mut models = 0_u64;
+        for model in core::iter::once(&charter.policy.model).chain(&charter.policy.alternatives) {
+            models += 1;
+            if model.cache_write_price.is_none() {
+                optional += 8;
+            }
+            if model.effort.is_none() {
+                optional += 4;
+            }
+        }
+        std::eprintln!(
+            "stock charter {}: largest owned {}={} margin {}; encoded {}={} margin {}; optional overstatement {} with accounts, {} without accounts",
+            charter.number,
+            core::str::from_utf8(owned.0).unwrap(),
+            owned.1,
+            host.allowance.saturating_sub(owned.1),
+            core::str::from_utf8(encoded.0).unwrap(),
+            encoded.1,
+            host.allowance.saturating_sub(encoded.1),
+            optional,
+            optional + models * 4
+        );
+        assert_eq!(
+            host.check_fixed(charter),
+            Ok(()),
+            "charter {} largest owned {owned:?}, encoded {encoded:?}",
+            charter.number
+        );
+    }
+}
+
+fn alone_start(
+    document: &[u8],
+    defaults: jig_domain_core::settings::Defaults,
+) -> Result<startup::CheckedStart, startup::Problems> {
+    startup::checked_start_with(
+        document,
+        &config::Directories::working(),
+        &fixtures::files(),
+        None,
+        &fixtures::seeds(),
+        fixtures::forge_runtime(),
+        None,
+        &stock::Given::Own { jig: defaults, forge: Box::new([]), ways: stock::ways() },
+        Some(b"/usr/bin/git"),
+    )
+}
+
+#[test]
+fn a_start_without_an_agent_measures_and_refuses_an_unfit_default() {
+    let document = fixtures::engine_alone_document();
+    let document = super::stock::limited(&document, b"core.run_bytes", 65_536);
+    let document = fixtures::with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":65536}"#);
+    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let start =
+        alone_start(&document, stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes))
+            .expect("fitting defaults start without an agent");
+    let measured = start.engine.host_part;
+    assert_eq!(measured.bound, None);
+    assert_eq!(measured.allowance, crate::assignment::charter_bound(engine.limits.hub.charter_bytes, None));
+    assert!(measured.fixed.owned > 0);
+    assert!(measured.always.encoded > 0);
+    let mut defaults = defaults;
+    let mut expected = None;
+    for charter in &mut defaults.charters {
+        if charter.number == 4 {
+            let mut instructions = skein_lib::bytes::zeroed(40_000);
+            instructions.fill(b'x');
+            charter.policy.instructions = instructions;
+            expected = Some(measured.check_fixed(charter).unwrap_err().words());
+        }
+    }
+    let expected = expected.unwrap();
+    let mut line = skein_lib::Writer::new(b"charter 4: ".len() + expected.len() + 1);
+    for text in [b"charter 4: ".as_slice(), &expected, b"\n"] {
+        line.put(text).unwrap();
+    }
+    let Err(problems) = alone_start(&document, defaults) else { panic!("unfit default must stop startup") };
+    assert_eq!(startup::lines(&problems).as_ref(), line.finish().as_ref());
+}
+
+#[test]
+fn a_configured_hub_allowance_below_a_default_stops_startup() {
+    let document = fixtures::engine_alone_document();
+    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let host = temper_engine_smith::room::host_part(None, 65_536, &crate::settings::charter_endpoints(&engine));
+    let charter = defaults.charters.first().unwrap();
+    let cost = host.on_wake(charter, jig_domain_tasks::Reasons::FIRST).owned;
+    let document = super::stock::limited(&document, b"hub.charter_bytes", cost - 1);
+    let Err(problems) = alone_start(&document, defaults) else { panic!("hub allowance is checked before startup") };
+    let text = startup::lines(&problems);
+    assert!(text.starts_with(b"charter 1: charter 1 on a first wake is "), "{text:?}");
+    let mut names_allowance = false;
+    for part in text.windows(b"past its allowance".len()) {
+        names_allowance |= part == b"past its allowance";
+    }
+    assert!(names_allowance);
 }

@@ -852,7 +852,15 @@ const WORDS: &[u8] = b"Keep the public interface";
 fn task_pages(task: c::Task) -> (Pages, jig_client::Client) {
     task_pages_with(task, fixtures::chats::me(), &fixtures::limits())
 }
-fn task_pages_with(mut task: c::Task, reader: c::Me, limits: &crate::Limits) -> (Pages, jig_client::Client) {
+fn task_pages_with(task: c::Task, reader: c::Me, limits: &crate::Limits) -> (Pages, jig_client::Client) {
+    let (pages, client, _) = task_pages_reading(task, reader, limits);
+    (pages, client)
+}
+fn task_pages_reading(
+    mut task: c::Task,
+    reader: c::Me,
+    limits: &crate::Limits,
+) -> (Pages, jig_client::Client, Queue<Request>) {
     task.label = 1234; // A task page, distinct from the chat template.
     let mut fixture = f::with_delegate();
     fixture.client.step_unlinked(
@@ -890,7 +898,7 @@ fn task_pages_with(mut task: c::Task, reader: c::Me, limits: &crate::Limits) -> 
         },
         &mut out,
     );
-    (pages, fixture.client)
+    (pages, fixture.client, out)
 }
 fn page_act(pages: &mut Pages, client: &jig_client::Client, act: Act) -> Queue<Request> {
     let mut out = Queue::with_capacity(OUTPUTS);
@@ -1487,6 +1495,9 @@ fn goal() -> (Task, f::Fixture) {
     (page, fixture)
 }
 fn opening_goal_reads(out: &mut Queue<Request>) {
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Task { .. }), .. })) = out.pop() else {
+        panic!("the goal's requester read");
+    };
     let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Notes { .. }), .. })) = out.pop() else {
         panic!("the goal's report read");
     };
@@ -1499,8 +1510,8 @@ fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     let (page, mut fixture) = goal();
     let ended = page.ended.as_ref().unwrap();
     assert_eq!(page.shape, Shape::Tracked);
-    // The ended page is followed by the report and own-line handles.
-    assert_eq!(page.next, ended.handle.number + 3);
+    // The ended page is followed by the report, own-line and requester handles.
+    assert_eq!(page.next, ended.handle.number + 4);
     assert_ne!(ended.handle, page.document);
     assert_ne!(ended.handle, page.tree);
     assert_ne!(ended.handle, page.activity);
@@ -1896,4 +1907,186 @@ fn the_header_names_its_own_question() {
     let mut task = f::task();
     task.waits_on = c::WaitsOn::Question { number: 7 };
     assert_eq!(header_state(&task, None), State::WaitingForQuestion(7));
+}
+
+fn gathering(task: &mut c::Task) {
+    task.chip.executor =
+        c::ChipExecutor::Procedure { connector: jig_client::shapes::RECURRING, kind: jig_client::shapes::GATHERING };
+    task.chip.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+}
+
+#[test]
+fn a_gathering_has_the_milestone_shape_before_the_other_shapes() {
+    for priority in [None, Some(PRIORITY)] {
+        let (mut page, mut fixture) = opened();
+        let mut task = f::task();
+        task.priority = priority;
+        gathering(&mut task);
+        f::deliver(&mut fixture.client, fixture.watch, task.clone());
+        page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
+        assert_eq!(page.shape, Shape::Milestone);
+        assert!(page.milestone.is_some());
+        assert!(page.goal.is_none());
+        assert!(page.ended.is_none());
+        task.chip.details.details.executor = c::Executor::Procedure {
+            connector: jig_client::shapes::RECURRING,
+            code: jig_client::shapes::GATHERING + 1,
+        };
+        f::deliver(&mut fixture.client, fixture.watch, task);
+        page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
+        assert_eq!(page.shape, Shape::HeaderAndPlan);
+        assert!(page.milestone.is_none());
+    }
+}
+
+fn milestone_told(pages: &mut Pages, client: &jig_client::Client, told: Told) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    pages::step(pages, &fixtures::env(&fixtures::limits()), client, pages::Event::Told { told }, &mut out);
+    out
+}
+fn task_rows(rows: &[c::TaskLine]) -> jig_client::Readout {
+    jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        live: List::from_boxed(rows.into()),
+        live_after: None,
+        ended: c::EndedGroup::Rows { rows: List::from_boxed(rows.into()), after: None, cut: false },
+    }))))
+}
+fn read_handle(out: &Queue<Request>, parent: Option<u64>) -> jig_client::Handle {
+    for request in out {
+        if let Request::Client(Event::Read { handle, read: Readable::Jig(c::Read::Tasks { query, .. }) }) = request
+            && query.parent == parent
+            && (parent.is_some() || query.requester.is_some())
+        {
+            return *handle;
+        }
+    }
+    panic!("task query parent {parent:?}")
+}
+fn report_request(out: &Queue<Request>) -> Option<(jig_client::Handle, u64)> {
+    let mut found = None;
+    for request in out {
+        if let Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { task, .. }, .. }),
+        }) = request
+        {
+            assert!(found.is_none(), "only one goal report at a time");
+            found = Some((*handle, *task));
+        }
+    }
+    found
+}
+
+#[test]
+fn a_milestones_own_reads_serialize_reports_and_leave_with_its_inbox() {
+    let mut task = f::task();
+    gathering(&mut task);
+    task.priority = Some(PRIORITY);
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    let (mut pages, client, opened) = task_pages_reading(task.clone(), fixtures::chats::me(), &fixtures::limits());
+    let page = pages.task().unwrap();
+    assert!(page.milestone.is_some());
+    assert_eq!(
+        pages.inbox().unwrap().filter,
+        crate::address::Filter { project: Some(task.project), goal: Some(task.chip.task), kind: None }
+    );
+    let own_line = read_handle(&opened, None);
+    let mut line = super::chats::chat_line();
+    line.chip = task.chip.clone();
+    line.changed = task.changed;
+    line.last_activity = task.last_activity;
+    let out = milestone_told(&mut pages, &client, Told::Page { handle: own_line, page: task_rows(&[line]) });
+    assert!(out.is_empty(), "its milestone reads opened with the document");
+    let ended = read_handle(&opened, Some(task.chip.task));
+    let mut held = List::uncapped();
+    for request in &opened {
+        if let Request::Client(Event::Read { handle, .. } | Event::Watch { handle, .. }) = request {
+            held.push(*handle).unwrap();
+        }
+    }
+    let mut totals = false;
+    let mut own_document = false;
+    for request in &opened {
+        if let Request::Client(Event::Read { read: Readable::Family { .. }, .. }) = request {
+            totals = true;
+        }
+        if let Request::Client(Event::Read { read: Readable::Jig(c::Read::Task { task: number }), .. }) = request {
+            own_document |= *number == f::TASK;
+        }
+    }
+    assert!(totals && own_document);
+    let mut one = super::chats::chat_line();
+    one.chip.task = 30;
+    let mut two = one.clone();
+    two.chip.task = 31;
+    let out = milestone_told(&mut pages, &client, Told::Page { handle: ended, page: task_rows(&[one, two]) });
+    let (report, number) = report_request(&out).unwrap();
+    assert_eq!(number, 30);
+    assert_eq!(pages.task().unwrap().milestone.as_ref().unwrap().milestone.goals.len(), 2);
+    let empty = jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+        rows: List::uncapped(),
+        before: None,
+        after: None,
+        cut: false,
+    }))));
+    let out = milestone_told(&mut pages, &client, Told::Page { handle: report, page: empty.clone() });
+    assert_eq!(report_request(&out), Some((report, 31)));
+    let out = milestone_told(&mut pages, &client, Told::Page { handle: report, page: empty });
+    assert!(report_request(&out).is_none());
+    held.push(own_line).unwrap();
+    held.push(report).unwrap();
+    let inbox = pages.inbox().unwrap();
+    held.push(inbox.entries).unwrap();
+    for handle in inbox.queries {
+        held.push(handle).unwrap();
+    }
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut pages,
+        &fixtures::env(&fixtures::limits()),
+        &client,
+        pages::Event::Went { address: crate::Address::Members },
+        &mut out,
+    );
+    let released = f::handles(&mut out);
+    for handle in &held {
+        assert!(released.contains(handle), "{handle:?} released");
+    }
+    assert!(pages.task().is_none());
+    assert!(pages.inbox().is_none());
+}
+
+#[test]
+fn a_milestone_pauses_resumes_and_confirms_close_like_a_task() {
+    for (mut task, act, expected) in [
+        (
+            offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)),
+            Act::Pause,
+            c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK },
+        ),
+        (
+            paused_agent(),
+            Act::Resume,
+            c::Ask::Release {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                revision: c::Revision { value: 17 },
+                again: None,
+            },
+        ),
+    ] {
+        gathering(&mut task);
+        let (mut pages, client) = task_pages(task);
+        assert_eq!(fixtures::acts::sent(&mut page_act(&mut pages, &client, act.clone())).as_ref(), [expected]);
+        assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, act)).is_empty());
+    }
+    let mut task = offered_task(c::ActKind::Cancel, Some(c::Admission::Allowed));
+    gathering(&mut task);
+    let (mut pages, client) = task_pages(task);
+    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Close)).is_empty());
+    assert!(pages.confirmation().is_some());
+    let sent = fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm));
+    let [c::Ask::Cancel { reason, .. }] = sent.as_ref() else { panic!("one cancellation") };
+    assert_eq!(reason.bytes(), b"Closed from its page");
 }

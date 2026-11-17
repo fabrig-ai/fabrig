@@ -2,6 +2,8 @@ use crate::support;
 use temper_box_shell::directories::jig_directories;
 #[path = "creating.rs"]
 mod creating;
+#[path = "configuration/turn_landing.rs"]
+mod turn_landing;
 
 // The process configuration reader admits a MiB, 64K tokens and 32 levels.
 const DOCUMENT: jig_protocol_config::DocumentLimits =

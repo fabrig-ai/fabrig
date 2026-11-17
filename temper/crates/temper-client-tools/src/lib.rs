@@ -17,6 +17,7 @@ pub mod key;
 pub mod landing;
 pub mod limits;
 mod making;
+mod milestone;
 pub mod recovery;
 pub mod root;
 mod settings;

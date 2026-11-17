@@ -17,6 +17,7 @@ pub(crate) fn step<P: Processes>(
     now: u64,
 ) -> Result<(), Refusal> {
     let environment = environment(home, captured);
+    let mut failures = Vec::new();
     let mut unfiled: Vec<_> = ledger
         .passes
         .iter()
@@ -29,59 +30,83 @@ pub(crate) fn step<P: Processes>(
         .collect();
     unfiled.sort_unstable();
     for (_, pass, request) in unfiled {
-        let record = ledger.passes.iter().find(|record| record.number == pass).expect("unfiled pass");
-        let ask = record.requests.iter().find(|record| record.number == request).expect("unfiled request");
-        let directory = directory(home, pass, request);
-        prepare(home, ledger, record, ask, &directory)?;
-        let answer = processes
-            .run(&command(home.configuration.request.command.clone(), &directory, "output", &environment), 600)?;
-        if answer.exit != Exit::Code(0) {
-            return Err(refused(format!("pass {pass}, request {request}: command exited {:?}", answer.exit)));
-        }
-        let goal = if ask.findings.is_empty() {
-            None
-        } else {
-            Some(
-                answer
-                    .last_stdout
-                    .as_deref()
-                    .and_then(goal_number)
-                    .ok_or_else(|| refused(format!("pass {pass}, request {request}: expected goal N on stdout")))?,
-            )
-        };
-        ledger.file_request(pass, request, goal, now)?;
-    }
-    let Some(arguments) = &home.configuration.request.state else { return Ok(()) };
-    let waiting: Vec<_> = ledger
-        .passes
-        .iter()
-        .filter(|pass| pass.state == PassState::Waiting)
-        .filter_map(|pass| {
-            let request = pass.requests.last()?;
-            let goal = request.goal?;
-            (request.ended.is_none() && !ledger.landings.iter().any(|landing| landing.goal == goal)).then_some((
-                pass.number,
-                request.number,
-                goal,
-            ))
-        })
-        .collect();
-    for (pass, request, goal) in waiting {
-        let directory = directory(home, pass, request);
-        fs::create_dir_all(&directory).map_err(io)?;
-        let mut arguments = arguments.clone();
-        arguments.push(goal.to_string());
-        let answer = processes.run(&command(arguments, &directory, "state-output", &environment), 60)?;
-        if answer.exit != Exit::Code(0) {
-            return Err(refused(format!("goal {goal}: state command exited {:?}", answer.exit)));
-        }
-        match answer.last_stdout.as_deref() {
-            Some("live") => (),
-            Some("ended") => ledger.end_goal(goal, now)?,
-            other => return Err(refused(format!("goal {goal}: expected live or ended on stdout, got {other:?}"))),
+        if let Err(why) = file_request(home, ledger, processes, &environment, pass, request, now) {
+            failures.push(format!("pass {pass}, request {request}: {why}"));
         }
     }
-    Ok(())
+    if let Err(why) = file_gaps(home, ledger, processes, &environment, now) {
+        failures.push(why.to_string());
+    }
+    if let Some(arguments) = &home.configuration.request.state {
+        let waiting: Vec<_> =
+            ledger
+                .passes
+                .iter()
+                .filter(|pass| pass.state == PassState::Waiting)
+                .filter_map(|pass| {
+                    let request = pass.requests.last()?;
+                    let goal = request.goal?;
+                    (request.ended.is_none() && !ledger.landings.iter().any(|landing| landing.goal == goal))
+                        .then_some((pass.number, request.number, goal))
+                })
+                .collect();
+        for (pass, request, goal) in waiting {
+            let directory = directory(home, pass, request);
+            if let Err(why) = check_goal(ledger, processes, arguments, &directory, &environment, goal, now) {
+                failures.push(format!("goal {goal}: {why}"));
+            }
+        }
+    }
+    if failures.is_empty() { Ok(()) } else { Err(refused(failures.join("; "))) }
+}
+
+fn file_request(
+    home: &Home,
+    ledger: &mut Ledger,
+    processes: &mut impl Processes,
+    environment: &Environment,
+    pass: u64,
+    request: u64,
+    now: u64,
+) -> Result<(), Refusal> {
+    let record = ledger.passes.iter().find(|record| record.number == pass).expect("unfiled pass");
+    let ask = record.requests.iter().find(|record| record.number == request).expect("unfiled request");
+    let directory = directory(home, pass, request);
+    prepare(home, ledger, record, ask, &directory)?;
+    let answer =
+        processes.run(&command(home.configuration.request.command.clone(), &directory, "output", environment), 600)?;
+    if answer.exit != Exit::Code(0) {
+        return Err(refused(format!("command exited {:?}", answer.exit)));
+    }
+    let goal = if ask.findings.is_empty() {
+        None
+    } else {
+        Some(answer.last_stdout.as_deref().and_then(goal_number).ok_or_else(|| refused("expected goal N on stdout"))?)
+    };
+    ledger.file_request(pass, request, goal, now)
+}
+
+fn check_goal(
+    ledger: &mut Ledger,
+    processes: &mut impl Processes,
+    arguments: &[String],
+    directory: &Path,
+    environment: &Environment,
+    goal: u64,
+    now: u64,
+) -> Result<(), Refusal> {
+    fs::create_dir_all(directory).map_err(io)?;
+    let mut arguments = arguments.to_vec();
+    arguments.push(goal.to_string());
+    let answer = processes.run(&command(arguments, directory, "state-output", environment), 60)?;
+    if answer.exit != Exit::Code(0) {
+        return Err(refused(format!("state command exited {:?}", answer.exit)));
+    }
+    match answer.last_stdout.as_deref() {
+        Some("live") => Ok(()),
+        Some("ended") => ledger.end_goal(goal, now),
+        other => Err(refused(format!("expected live or ended on stdout, got {other:?}"))),
+    }
 }
 
 fn environment(home: &Home, captured: &Environment) -> Environment {
@@ -228,4 +253,73 @@ fn copy_recipe(source: &Path, destination: &Path) -> Result<(), Refusal> {
 #[expect(clippy::needless_pass_by_value, reason = "map_err passes its owned I/O error to this adapter")]
 fn io(why: std::io::Error) -> Refusal {
     refused(format!("request files: {why}"))
+}
+
+// A gap request has only documents and a message; it never has a goal (qa/gaps.md, 6).
+fn file_gaps(
+    home: &Home,
+    ledger: &mut Ledger,
+    processes: &mut impl Processes,
+    environment: &Environment,
+    now: u64,
+) -> Result<(), Refusal> {
+    let gaps: Vec<_> = ledger.gaps.iter().filter(|gap| gap.state == crate::GapState::Open).collect();
+    if gaps.is_empty() {
+        return Ok(());
+    }
+    let numbers = gaps.iter().map(|gap| gap.number).collect::<Vec<_>>();
+    let directory =
+        home.directory.join("gaps").join("requests").join(numbers.first().expect("unfiled gaps").to_string());
+    match fs::remove_dir_all(&directory) {
+        Ok(()) => (),
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
+        Err(why) => return Err(io(why)),
+    }
+    let tree = directory.join("tree").join(QA).join("gaps");
+    fs::create_dir_all(&tree).map_err(io)?;
+    for gap in gaps {
+        let landing = ledger.landings.iter().find(|landing| landing.number == gap.landing).expect("gap landing");
+        let mut document = format!(
+            "# QA gap {}: {}\n\nKind: {}\n\nOwner: {}\n\nLanding {}: goal {}, {}\n\nCommit: {}\n\nSession: {}\n\nWhy: {}\n",
+            gap.number,
+            gap.kind,
+            gap.kind,
+            gap.owner,
+            landing.number,
+            landing.goal,
+            landing.title,
+            landing.commit,
+            gap.session,
+            gap.why
+        );
+        if let Some(case) = gap.case {
+            let case = ledger.cases.iter().find(|record| record.number == case).expect("gap case");
+            writeln!(document, "\nCase {}: {} / {}", case.number, case.surface, case.page).expect("string");
+            for ask in &case.asks {
+                writeln!(document, "\nLanding {}; setup {}; adds: {}", ask.landing, ask.setup, ask.adds)
+                    .expect("string");
+                for step in &ask.steps {
+                    writeln!(document, "- do: {}\n  expect: {}", step.act, step.expect).expect("string");
+                    if let Some(see) = &step.see {
+                        writeln!(document, "  see: {see}").expect("string");
+                    }
+                }
+            }
+        }
+        writeln!(document, "\nA landing closes this gap with the trailer `QA-gap: {}`.\n", gap.number).expect("string");
+        fs::write(tree.join(format!("gap-{}.md", gap.number)), document).map_err(io)?;
+    }
+    let list = crate::ledger::numbers(&numbers);
+    fs::write(directory.join("message"), format!("QA gaps {list}: {} open\n\nQA-gaps: {list}\n", numbers.len()))
+        .map_err(io)?;
+    let answer =
+        processes.run(&command(home.configuration.request.command.clone(), &directory, "output", environment), 600)?;
+    if answer.exit != Exit::Code(0) {
+        return Err(refused(format!("gaps {list}: command exited {:?}", answer.exit)));
+    }
+    for gap in ledger.gaps.iter_mut().filter(|gap| numbers.contains(&gap.number)) {
+        gap.state = crate::GapState::Filed;
+        gap.filed = Some(now);
+    }
+    Ok(())
 }

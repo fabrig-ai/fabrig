@@ -25,7 +25,7 @@ fn run(seed: u64) -> (Ledger, usize) {
             }
             1 => {
                 if let Some(next) = ledger.next_landing().map(|landing| landing.number) {
-                    let _ = ledger.start_session(next, "low", super::pages(), vec!["fresh".into()], now);
+                    let _ = ledger.start_session(next, "low", super::pages(), vec!["fresh".into()], Vec::new(), now);
                 }
             }
             2..=4 => {
@@ -178,9 +178,9 @@ fn pass_sequence(seed: u64) -> (Ledger, [u64; 9]) {
             }
             2 | 7 => {
                 let started = if event == 2 {
-                    ledger.start_pass(place, &["web".into(), "tui".into()], "high", step)
+                    ledger.start_pass(place, temper_qa_tool::Kind::Box, &["web".into(), "tui".into()], "high", step)
                 } else {
-                    ledger.resume_pass(place, &["web".into(), "tui".into()], "high", step)
+                    ledger.resume_pass(place, temper_qa_tool::Kind::Box, &["web".into(), "tui".into()], "high", step)
                 };
                 if let Some(started) = started {
                     covered[usize::try_from(event).expect("event")] += 1;

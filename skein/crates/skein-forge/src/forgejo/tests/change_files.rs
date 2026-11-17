@@ -10,6 +10,7 @@ fn change_files_encodes_one_person_commit_and_decodes_its_id() {
     let request = Request::ChangeFiles {
         at: fixtures::repository(),
         branch: Box::from(*b"main"),
+        new_branch: None,
         message: Box::from(*b"msg"),
         files: Box::from([
             FileChange { path: Box::from(*b"a.txt"), content: Box::from(*b"x\n"), sha: None },
@@ -93,4 +94,22 @@ fn server_routes_named_contents_and_status_refs_for_resolution() {
         assert_eq!(reference.resolve(commit), expected);
         assert_eq!(server::route(Method::Delete, target, &limits).unwrap_err(), server::Unrouted::Method);
     }
+}
+
+#[test]
+fn change_files_round_trips_new_branch_in_the_contents_batch() {
+    let request = Request::ChangeFiles {
+        at: fixtures::repository(),
+        branch: Box::from(*b"main"),
+        new_branch: Some(Box::from(*b"work/topic")),
+        message: Box::from(*b"push"),
+        files: Box::from([FileChange { path: Box::from(*b"a"), content: Box::from(*b"x"), sha: None }]),
+    };
+    let limits = fixtures::limits();
+    let encoded = client::encode(&request, &limits).unwrap();
+    assert_eq!(encoded.body.as_deref().unwrap(), br#"{"branch":"main","new_branch":"work/topic","message":"push","files":[{"operation":"create","path":"a","content":"eA=="}]}"#);
+    assert_eq!(
+        fixtures::request(encoded.method, &encoded.target, encoded.body.as_deref().unwrap(), &limits),
+        Ok(request)
+    );
 }

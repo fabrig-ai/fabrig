@@ -302,6 +302,7 @@ struct Judge {
     rows: BTreeMap<root::Key, root::Record>,
     seen: Rc<RefCell<Outcome>>,
     handed: bool,
+    answers: usize,
     browsing: bool,
     stopped: bool,
     checking: Option<()>,
@@ -426,7 +427,7 @@ impl Judge {
             caller.commands.push_back(Command::new(&[b"account", b"list", b"--until", b"usable"]));
             self.handed = true;
         }
-        for answer in &caller.answers {
+        for answer in &caller.answers[self.answers..] {
             match (&(answer.exit), &(Exit::Code(0))) {
                 (left, right) if left != right => {
                     let finding = format!("ctl: {}", String::from_utf8_lossy(&answer.error));
@@ -435,6 +436,7 @@ impl Judge {
                 _ => {}
             }
         }
+        self.answers = caller.answers.len();
         if self.handed && caller.answers.len() == 3 && !self.browsing {
             for proc in procs.iter_mut() {
                 if let Proc::Other(Native::Person(HarnessProcess::Client(person))) = proc {
@@ -672,6 +674,7 @@ pub fn run() -> Outcome {
                 rows: BTreeMap::new(),
                 seen: seen.clone(),
                 handed: false,
+                answers: 0,
                 browsing: false,
                 stopped: false,
                 checking: None,

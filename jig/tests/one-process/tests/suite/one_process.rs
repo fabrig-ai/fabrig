@@ -40,8 +40,8 @@ fn a_kill_before_a_commit_loses_nothing_a_person_saw() {
 }
 #[test]
 fn a_power_loss_mid_run_restarts_and_adopts_nothing_from_the_dead_worker() {
-    // Cut at engine submission 210 from spawn, while its first claim is live.
-    const BEFORE_AGENT_OUTPUT_CLOSE: u32 = 210;
+    // Submission 284 closes the agent output after the first turn has synced (278).
+    const BEFORE_AGENT_OUTPUT_CLOSE: u32 = 284;
     let outcome = crash(skein_world::Cut::PowerLoss, BEFORE_AGENT_OUTPUT_CLOSE);
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert_eq!(outcome.restarts, 1);

@@ -148,6 +148,7 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
     bytes.extend_from_slice(&deployment);
     let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(jig_domain_core::Deployment {
         id: deployment,
+        restart_wait_ms: None,
         projects: 0,
         tasks: 0,
         people: 0,

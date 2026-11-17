@@ -51,7 +51,7 @@ pair = "default"
 package = "jig-protocol-engine-clients"
 filter = "kind(lib)"
 
-# jig/crates/jig-protocol-store/src/tests.rs and its fixture helper modules; all unit callers.
+# Component fixtures; all unit callers.
 [[fixture]]
 paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.rs"]
 [[fixture.reader]]
@@ -59,7 +59,28 @@ pair = "default"
 package = "jig-protocol-store"
 filter = "kind(lib)"
 
+# Translation fixtures; all unit callers.
+[[fixture]]
+paths = ["jig/crates/jig-protocol-store-records/src/tests/fixtures.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
+filter = "kind(lib)"
+
+# Shared domain fixtures; both pieces' unit callers.
+[[fixture]]
+paths = ["jig/testing/jig-protocol-store-kit/src/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "jig-protocol-store-records"
+filter = "kind(lib)"
+
 # src/tests/{format,frame_memory}.rs; jig/tests/store-codecs/tests/suite/drift.rs: layouts().
+# Store unit and drift tests; one-process rehearsal corrupts the captured deployment header.
 [[fixture]]
 paths = ["jig/crates/jig-protocol-store/src/tests/fixtures/*.schema"]
 [[fixture.reader]]
@@ -70,6 +91,10 @@ filter = "kind(lib)"
 pair = "default"
 package = "jig-store-codecs-world"
 filter = "binary(=suite) & test(/the_stores_layouts_have_no_drift/)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::broken_golden_rehearsal_names_temper_record_and_leaves_source_unchanged)"
 
 # src/tests.rs declares the private fixture module.
 [[fixture]]
@@ -840,30 +865,101 @@ pair = "default"
 package = "temper-one-process-world"
 filter = "kind(lib)"
 
-# Baseline's whole deployment, kept once; the focused reader starts this build on it.
+# Floor's whole deployment, kept once; the focused reader starts this build on it.
 [[fixture]]
 paths = [
-    "temper/tests/one-process/golden/baseline/state/**",
-    "temper/tests/one-process/golden/baseline/worker/**",
-    "temper/tests/one-process/golden/baseline/client/**",
-    "temper/tests/one-process/golden/baseline/setup/**",
-    "temper/tests/one-process/golden/baseline/configuration.json",
-    "temper/tests/one-process/golden/baseline/modes.txt",
-    "temper/tests/one-process/golden/baseline/patched.txt",
+    "temper/tests/one-process/golden/floor/state/**",
+    "temper/tests/one-process/golden/floor/worker/**",
+    "temper/tests/one-process/golden/floor/client/**",
+    "temper/tests/one-process/golden/floor/setup/**",
+    "temper/tests/one-process/golden/floor/configuration.json",
+    "temper/tests/one-process/golden/floor/modes.txt",
+    "temper/tests/one-process/golden/floor/upgraded.txt",
 ]
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & test(=golden::baseline_golden_store_refuses_retired_milestones)"
+filter = "binary(=suite) & test(=golden::floor_golden_store_opens_and_serves_the_kept_person)"
 [[fixture.reader]]
 pair = "default"
-package = "temper-protocol-store"
-filter = "kind(lib) & test(=tests::baseline::baseline_store_refuses_retired_milestones_without_switching_active)"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=golden::floorless_golden_store_is_refused_without_writing)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::golden_rehearsal_decodes_every_record_and_restores_without_pending_work)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::golden_rehearsal_names_the_broken_record)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::floorless_golden_rehearsal_refuses_before_decoding)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=upgrade::configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-shell"
+filter = "kind(lib) & test(=upgrade::tests::deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-shell"
+filter = "kind(lib) & test(=upgrade::tests::deployment_back_with_accounts_workers_and_forge_reports_no_previous_generation)"
 
 [[fixture]]
-paths = ["temper/tests/one-process/golden/baseline/README.md"]
+paths = ["temper/tests/one-process/golden/floor/README.md"]
 disposition = "provenance"
-reason = "Baseline commit, making story and once-only export provenance."
+reason = "Floor commit, making story and once-only export provenance."
+
+# The current build's settled upgrade stop and every case that loads it.
+[[fixture]]
+paths = [
+    "temper/tests/one-process/golden/settled/state/**",
+    "temper/tests/one-process/golden/settled/worker/**",
+    "temper/tests/one-process/golden/settled/client/**",
+    "temper/tests/one-process/golden/settled/setup/**",
+    "temper/tests/one-process/golden/settled/configuration.json",
+    "temper/tests/one-process/golden/settled/modes.txt",
+    "temper/tests/one-process/golden/settled/forge.image",
+    "temper/tests/one-process/golden/settled/outside.json",
+    "temper/tests/one-process/golden/settled/ledger.jsonl",
+]
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & (test(=upgrade::the_settled_image_matches_the_story) | test(=upgrade::a_story_keeps_its_history_through_a_settled_upgrade) | test(=upgrade::power_lost_at_a_drawn_moment_keeps_a_whole_generation))"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(/^fuzzy::upgrade::/)"
+
+[[fixture]]
+paths = ["temper/tests/one-process/golden/settled/README.md"]
+disposition = "provenance"
+reason = "Settled story, rewrite command and image file descriptions."
+
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/scripts.json"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-real-loop-world"
+filter = "binary(=suite) & test(/^turn_landing::/)"
+
+[[fixture]]
+paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/README.md"]
+disposition = "provenance"
+reason = "Cue words and ctl latch acts for the turn-landing script fixture."
 
 # Recording provenance for the B0 and B1 replay fixtures.
 [[fixture]]
@@ -1029,11 +1125,3 @@ filter = "binary(=suite)"
 [[fixture]]
 paths = ["tools/tiers/fixtures/one-process/*"]
 reader = [{ suite = "tools/tiers/test_one_process.py" }]
-
-# Dev's registered temper text before F0 drops the whole change variant.
-[[fixture]]
-paths = ["temper/crates/temper-protocol-store/src/tests/cb429613c6-store-v25.schema"]
-[[fixture.reader]]
-pair = "default"
-package = "temper-protocol-store"
-filter = "kind(lib) & test(/tests::store_floor::/)"

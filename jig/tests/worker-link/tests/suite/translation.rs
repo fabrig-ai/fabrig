@@ -321,8 +321,8 @@ fn application_parts_and_grant_renewals_cross_components_and_unheld_jobs_send_no
 }
 
 #[test]
-fn a_worker_with_ask_closes_at_an_engines_previous_version_statement() {
-    let previous = wire::VERSION.checked_sub(1).expect("previous version");
+fn a_worker_with_ask_closes_at_an_engines_version_without_asks() {
+    let previous = 13; // Ask first appears at fourteen.
     let mut world = Joined::with_wires(&limits(), 3, capped(previous, 5), wire::spoken());
     world.run();
     assert!(world.worker_root.iter().any(

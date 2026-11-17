@@ -56,6 +56,15 @@ impl CaseInput {
                 return Err(refused("no surface"));
             }
             check_surface(&self.surface)?;
+            if !session.pages.contains_key(&self.surface) {
+                let surfaces: Vec<_> =
+                    ["ctl", "web", "tui"].into_iter().filter(|surface| session.pages.contains_key(*surface)).collect();
+                return Err(refused(format!(
+                    "surface {} is not configured; triage takes surfaces: {}",
+                    self.surface,
+                    surfaces.join(", ")
+                )));
+            }
             if self.page.trim().is_empty() {
                 return Err(refused("no page"));
             }
@@ -67,8 +76,13 @@ impl CaseInput {
                 return Err(refused("no setup"));
             }
             if !session.setups.contains(&self.setup) {
+                let why = if !session.pages.contains_key("web") && !session.pages.contains_key("tui") {
+                    "; ctl-only triage takes fresh and recipe chains with no web or tui lines"
+                } else {
+                    ""
+                };
                 return Err(refused(format!(
-                    "setup {} is not in the catalogue; setups: {}",
+                    "setup {} is not in the catalogue{why}; setups: {}",
                     self.setup,
                     session.setups.join(", ")
                 )));

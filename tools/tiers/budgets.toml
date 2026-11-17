@@ -1,46 +1,279 @@
 # The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/testing/process-tier.md), red until its repair; re-measure after a week. Changing a figure is the user's. browser-skein's 217.5, browser-temper's 127.5 and process-temper's 540 CPU seconds are 145, 85 and 360 raised by half by the user's word of 11-08, for now, to be revisited.
-# Live pairs and other default/fuzzy suites have no entry yet: the user has not set their CPU budgets here.
-# Hearth's focused suite: the user's 11-04 ruling (hearth/docs/design/testing/README.md, 4.1).
-# Hearth's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
-# Smith's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
-# Skein's focused suite: 40 CPU seconds, by the user's word of 11-08; its fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
-# Jig's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
-# Jig's and Temper's focused suites: 215 and 1250 CPU seconds, set by temper/tiers on the user's word of 11-14 ("CPU figures you can take them yourself"), at 1.5 times the development machine's focused run of main at 11-14 11:42Z (jig 143 CPU s, temper 832), the rule the other figures in this file came from (director/decisions/0028).
-# Temper's fuzzy suite: 180 CPU seconds, raised by half from the strategy's 120 by the user's word of 11-08, to be revisited.
+# Live pairs have no entry yet: the user has not set their CPU budgets here.
+# Gate tables: tools/tiers/budgets.md, 6; the CI builder's 11-16 gate runs' median by tree, suite and layer, plus the larger of a tenth and a second, rounded up, by the user's word of 11-16; references and ideals from temper/docs/design/draft/test-budgets.md, 6 and 9.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
 
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
 [tools]
 
-[gate.hearth.default]
-cpu_suite_s = 30
+[gate.default]
+references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
-[gate.hearth.fuzzy]
-cpu_suite_s = 120
+[gate.default.skein]
+ideal_s = 40
 
-[gate.smith.default]
-cpu_suite_s = 30
+[gate.default.skein.step]
+cpu_s = 7
 
-[gate.smith.fuzzy]
-cpu_suite_s = 120
+[gate.default.skein.domain]
+cpu_s = 2
 
-[gate.skein.default]
-cpu_suite_s = 40
+[gate.default.skein.machine]
+cpu_s = 5
 
-[gate.skein.fuzzy]
-cpu_suite_s = 120
+[gate.default.skein.protocol]
+cpu_s = 7
 
-[gate.jig.default]
-cpu_suite_s = 215
+[gate.default.skein.io]
+cpu_s = 2
 
-[gate.jig.fuzzy]
-cpu_suite_s = 120
+[gate.default.skein.simulated]
+cpu_s = 3
 
-[gate.temper.default]
-cpu_suite_s = 1250
+[gate.default.skein.real-loop]
+cpu_s = 7
 
-[gate.temper.fuzzy]
-cpu_suite_s = 180
+[gate.default.skein.end-to-end]
+cpu_s = 4
+
+[gate.default.smith]
+ideal_s = 30
+
+[gate.default.smith.step]
+cpu_s = 7
+
+[gate.default.smith.domain]
+cpu_s = 3
+
+[gate.default.smith.system]
+cpu_s = 2
+
+[gate.default.smith.protocol]
+cpu_s = 3
+
+[gate.default.smith.simulated]
+cpu_s = 11
+
+[gate.default.smith.real-loop]
+cpu_s = 2
+
+[gate.default.smith.end-to-end]
+cpu_s = 21
+
+[gate.default.jig]
+ideal_s = 30
+
+[gate.default.jig.step]
+cpu_s = 47
+ideal_s = 1
+
+[gate.default.jig.domain]
+cpu_s = 4
+ideal_s = 17
+
+[gate.default.jig.machine]
+cpu_s = 2
+ideal_s = 1
+
+[gate.default.jig.protocol]
+cpu_s = 13
+ideal_s = 8
+
+[gate.default.jig.simulated]
+cpu_s = 110
+ideal_s = 3
+
+[gate.default.jig.real-loop]
+cpu_s = 2
+
+[gate.default.jig.end-to-end]
+cpu_s = 2
+
+[gate.default.temper]
+ideal_s = 100
+
+[gate.default.temper.step]
+cpu_s = 253
+ideal_s = 25
+
+[gate.default.temper.domain]
+cpu_s = 136
+ideal_s = 20
+
+[gate.default.temper.system]
+cpu_s = 111
+ideal_s = 25
+
+[gate.default.temper.machine]
+cpu_s = 4
+ideal_s = 1
+
+[gate.default.temper.protocol]
+cpu_s = 9
+ideal_s = 1
+reference_s = 1
+
+[gate.default.temper.simulated]
+cpu_s = 470
+ideal_s = 15
+reference_s = 2
+
+[gate.default.temper.real-loop]
+cpu_s = 83
+ideal_s = 10
+reference_s = 2
+
+[gate.default.temper.end-to-end]
+cpu_s = 39
+ideal_s = 3
+reference_s = 2
+
+[gate.default.hearth]
+ideal_s = 30
+
+[gate.default.hearth.step]
+cpu_s = 2
+
+[gate.default.hearth.domain]
+cpu_s = 4
+
+[gate.default.hearth.machine]
+cpu_s = 13
+
+[gate.default.hearth.real-loop]
+cpu_s = 11
+
+[gate.default.hearth.end-to-end]
+cpu_s = 2
+
+[gate.default.repository]
+ideal_s = 30
+
+[gate.default.repository.checks]
+cpu_s = 72
+
+[gate.fuzzy]
+references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
+
+[gate.fuzzy.skein]
+ideal_s = 120
+
+[gate.fuzzy.skein.step]
+cpu_s = 32
+
+[gate.fuzzy.skein.domain]
+cpu_s = 2
+
+[gate.fuzzy.skein.machine]
+cpu_s = 43
+
+[gate.fuzzy.skein.protocol]
+cpu_s = 23
+
+[gate.fuzzy.skein.io]
+cpu_s = 21
+
+[gate.fuzzy.skein.simulated]
+cpu_s = 2
+
+[gate.fuzzy.skein.real-loop]
+cpu_s = 20
+
+[gate.fuzzy.skein.end-to-end]
+cpu_s = 1
+
+[gate.fuzzy.smith]
+ideal_s = 120
+
+[gate.fuzzy.smith.step]
+cpu_s = 3
+
+[gate.fuzzy.smith.domain]
+cpu_s = 16
+
+[gate.fuzzy.smith.system]
+cpu_s = 2
+
+[gate.fuzzy.smith.protocol]
+cpu_s = 3
+
+[gate.fuzzy.smith.simulated]
+cpu_s = 13
+
+[gate.fuzzy.smith.real-loop]
+cpu_s = 2
+
+[gate.fuzzy.smith.end-to-end]
+cpu_s = 3
+
+[gate.fuzzy.jig]
+ideal_s = 120
+
+[gate.fuzzy.jig.step]
+cpu_s = 4
+
+[gate.fuzzy.jig.domain]
+cpu_s = 9
+
+[gate.fuzzy.jig.machine]
+cpu_s = 2
+
+[gate.fuzzy.jig.protocol]
+cpu_s = 55
+
+[gate.fuzzy.jig.simulated]
+cpu_s = 72
+
+[gate.fuzzy.jig.real-loop]
+cpu_s = 2
+
+[gate.fuzzy.jig.end-to-end]
+cpu_s = 1
+
+[gate.fuzzy.temper]
+ideal_s = 180
+
+[gate.fuzzy.temper.step]
+cpu_s = 13
+
+[gate.fuzzy.temper.domain]
+cpu_s = 78
+
+[gate.fuzzy.temper.system]
+cpu_s = 13
+
+[gate.fuzzy.temper.machine]
+cpu_s = 2
+
+[gate.fuzzy.temper.protocol]
+cpu_s = 2
+
+[gate.fuzzy.temper.simulated]
+cpu_s = 196
+
+[gate.fuzzy.temper.real-loop]
+cpu_s = 198
+
+[gate.fuzzy.temper.end-to-end]
+cpu_s = 1
+
+[gate.fuzzy.hearth]
+ideal_s = 120
+
+[gate.fuzzy.hearth.step]
+cpu_s = 1
+
+[gate.fuzzy.hearth.domain]
+cpu_s = 32
+
+[gate.fuzzy.hearth.machine]
+cpu_s = 50
+
+[gate.fuzzy.hearth.real-loop]
+cpu_s = 9
+
+[gate.fuzzy.hearth.end-to-end]
+cpu_s = 1
 
 [browser-skein]
 cpu_suite_s = 217.5

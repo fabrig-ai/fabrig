@@ -20,6 +20,7 @@ pub(super) fn fields(kind: WriteKind) -> &'static [Field] {
             const {
                 &[
                     Field { key: b"branch", read: Read::Text, required: true },
+                    Field { key: b"new_branch", read: Read::Text, required: false },
                     Field { key: b"message", read: Read::Body, required: true },
                     Field { key: b"files", read: Read::Array(Kind::Write(WriteKind::Changes)), required: true },
                 ]
@@ -87,9 +88,13 @@ impl Changes {
         limits: &Limits,
     ) -> Result<(), Malformed> {
         if kind == Kind::Write(WriteKind::ChangeFiles) {
-            let Request::ChangeFiles { branch, message, .. } = request else { unreachable!("contents body") };
+            let Request::ChangeFiles { branch, new_branch, message, .. } = request else {
+                unreachable!("contents body")
+            };
             if key == b"branch" {
                 *branch = text;
+            } else if key == b"new_branch" {
+                *new_branch = Some(text);
             } else {
                 *message = text;
             }

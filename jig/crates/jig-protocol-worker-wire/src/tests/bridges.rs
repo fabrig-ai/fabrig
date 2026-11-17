@@ -107,7 +107,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
             for tag in 0..count {
                 let variant = text.variant(VariantIx::new(first.index() + tag));
                 let bound = text
-                    .most_bytes_within(variant.record.expect("record"), &crate::v14::LIMIT_NAMES, &limits.values())
+                    .most_bytes_within(variant.record.expect("record"), &crate::v15::LIMIT_NAMES, &limits.values())
                     .expect("bound");
                 let kind = version.kind(base + u16::try_from(tag).expect("tag fits")).expect("kind");
                 assert_eq!(kind.direction, direction);

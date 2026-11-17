@@ -23,6 +23,7 @@ fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
             Where::Landed { at, default_branch: true } => {
                 landed_default
                     .push(Landing {
+                        milestone: None,
                         signed: change.signed.clone(),
                         task: change.task,
                         commit: [0xab; 32],
@@ -38,7 +39,7 @@ fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
 }
 
 fn goal(task: u64, live: bool, activity: u64) -> Goal {
-    Goal { task, live, activity: wall(activity) }
+    Goal { task, live, activity: wall(activity), milestone: None }
 }
 
 fn chat(task: u64, activity: u64, draft: bool) -> Chat {
@@ -58,7 +59,7 @@ fn card(item: Item, changes: &[u64]) -> Card {
     for task in changes {
         rows.push(work::Row { task: *task, signed: None }).unwrap();
     }
-    Card { item, changes: rows }
+    Card { item, changes: rows, goals: List::uncapped() }
 }
 
 struct Expected {
@@ -294,6 +295,7 @@ fn each_item_is_placed_by_its_own_facts() {
             facts: Facts {
                 landed_default: list(&[
                     Landing {
+                        milestone: None,
                         signed: None,
                         task: 1,
                         commit: [0xab; 32],
@@ -301,6 +303,7 @@ fn each_item_is_placed_by_its_own_facts() {
                         belongs: Belongs::Nothing,
                     },
                     Landing {
+                        milestone: None,
                         signed: None,
                         task: 2,
                         commit: [0xab; 32],
@@ -385,6 +388,14 @@ fn each_item_is_placed_by_its_own_facts() {
                 Filters { drafts: 1, goals: 1, changes: 1, chats: 1 },
             ),
         },
+        milestone_project(true),
+        milestone_project(false),
+        Case {
+            name: "an undrawn milestone leaves its live goal a card",
+            facts: facts(&[Goal { milestone: Some(100), ..goal(3, true, 10) }], &[], &[]),
+            wall: wall(NOW),
+            want: work(&[card(Item::Goal(3), &[])], &[], &[], Filters { goals: 1, ..Filters::default() }),
+        },
         whole_project(),
     ];
     for case in cases {
@@ -399,6 +410,53 @@ fn each_item_is_placed_by_its_own_facts() {
         }
         assert_eq!(tasks.as_slice(), case.want.landed.as_slice(), "{}", case.name);
         assert_eq!(case.facts, before, "{} leaves its facts alone", case.name);
+    }
+}
+
+// A milestone's newest goal activity moves its single card, including an ended goal's activity.
+fn milestone_project(live: bool) -> Case {
+    let mut facts = facts(
+        &[
+            Goal { milestone: Some(100), ..goal(5, true, 40) },
+            Goal { milestone: Some(100), ..goal(3, true, 20) },
+            Goal { milestone: Some(100), ..goal(4, false, 80) },
+            goal(99, true, 80),
+            goal(101, true, 80),
+        ],
+        &[queued(1, 1, 100, Belongs::Goal(3)), landed(2, NOW, Belongs::Goal(3))],
+        &[],
+    );
+    facts.milestones = list(&[work::Milestone { task: 100, live, activity: wall(10) }]);
+    let mut milestone = card(Item::Milestone(100), &[]);
+    milestone.goals = list(&[
+        work::GoalLine { task: 3, changes: card(Item::Goal(3), &[1]).changes },
+        work::GoalLine { task: 5, changes: List::uncapped() },
+    ]);
+    Case {
+        name: if live {
+            "live milestone holds its goals and only their queued changes, ties by task"
+        } else {
+            "ended milestone leaves live goals their own cards"
+        },
+        facts,
+        wall: wall(NOW),
+        want: work(
+            if live {
+                list(&[card(Item::Goal(99), &[]), milestone, card(Item::Goal(101), &[])]).into_boxed()
+            } else {
+                list(&[
+                    card(Item::Goal(99), &[]),
+                    card(Item::Goal(101), &[]),
+                    card(Item::Goal(5), &[]),
+                    card(Item::Goal(3), &[1, 2]),
+                ])
+                .into_boxed()
+            }
+            .as_ref(),
+            &[],
+            &[2],
+            Filters { goals: 5, changes: 2, ..Filters::default() },
+        ),
     }
 }
 
@@ -955,7 +1013,14 @@ fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_bra
     ] {
         facts
             .landed_default
-            .push(Landing { signed: None, task, at: wall(at), commit: [u8::try_from(task).unwrap(); 32], belongs })
+            .push(Landing {
+                milestone: None,
+                signed: None,
+                task,
+                at: wall(at),
+                commit: [u8::try_from(task).unwrap(); 32],
+                belongs,
+            })
             .unwrap();
     }
     for (task, at, belongs, default_branch) in [
@@ -977,10 +1042,38 @@ fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_bra
     assert_eq!(
         got.landed.as_slice(),
         &[
-            work::Landed { signed: None, item: Item::Goal(7), change: 21, at: wall(NOW - 3_600), commit: [21; 32] },
-            work::Landed { signed: None, item: Item::Change(30), change: 30, at: wall(NOW - 7_200), commit: [30; 32] },
-            work::Landed { signed: None, item: Item::Change(40), change: 40, at: wall(NOW - 7_200), commit: [40; 32] },
-            work::Landed { signed: None, item: Item::Change(50), change: 50, at: wall(WEEK_AGO), commit: [50; 32] },
+            work::Landed {
+                milestone: None,
+                signed: None,
+                item: Item::Goal(7),
+                change: 21,
+                at: wall(NOW - 3_600),
+                commit: [21; 32]
+            },
+            work::Landed {
+                milestone: None,
+                signed: None,
+                item: Item::Change(30),
+                change: 30,
+                at: wall(NOW - 7_200),
+                commit: [30; 32]
+            },
+            work::Landed {
+                milestone: None,
+                signed: None,
+                item: Item::Change(40),
+                change: 40,
+                at: wall(NOW - 7_200),
+                commit: [40; 32]
+            },
+            work::Landed {
+                milestone: None,
+                signed: None,
+                item: Item::Change(50),
+                change: 50,
+                at: wall(WEEK_AGO),
+                commit: [50; 32]
+            },
         ]
     );
     assert_eq!(got.goal_branches, 2, "each goal-branch task once, only in the window");

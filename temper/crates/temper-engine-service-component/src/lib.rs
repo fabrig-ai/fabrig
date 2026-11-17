@@ -246,11 +246,6 @@ pub enum Note {
         commits: u64,
         counts: Box<[jig_protocol_store::JobCount]>,
     },
-    Patched {
-        of: jig_protocol_store::Owner,
-        patch: u32,
-        counts: jig_protocol_store::Counts,
-    },
     /// A bounded reset diagnostic (temper/docs/design/protocol/setup/playground.md).
     Playground {
         line: Box<[u8]>,
@@ -261,6 +256,11 @@ pub enum Note {
         addr: core::net::SocketAddr,
     },
     /// An accepted opening's agreed versions (protocol/wires.md, 4).
+    WorkerTold {
+        worker: Box<[u8]>,
+        version: u16,
+        wait: Option<skein_lib::Duration>,
+    },
     WorkerOpened {
         worker: Box<[u8]>,
         wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,

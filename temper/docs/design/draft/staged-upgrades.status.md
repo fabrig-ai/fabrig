@@ -1,12 +1,10 @@
 # staged-upgrades: status
 
-2026-11-11. Where the design lags or departs from [staged-upgrades.md](staged-upgrades.md).
-
-Nothing of this draft is designed or built yet. Its mechanism is `upgrades.md`'s, which goal 648 builds.
+2026-11-16. Where the design lags or departs from [staged-upgrades.md](staged-upgrades.md).
 
 - **Design lags:**
-  - 3: the design of goal 648's baseline brings in-place changes as patches only as an open question's default, and names none.
-  - 5: `../protocol/binaries.md` and jig's `protocol/store/opening.md` say nothing of `upgrade --check` decoding the families no pending patch changes.
-  - 1, 8: `first-release.md`, 5.4 and 12 still have dev.fabrig.ai start afresh until the first release.
-- **Design departs:** none yet.
+  - 5, 7: `../protocol/binaries.md` still speaks of patch lines, decoding by version's kept text and a pending fresh patch in the worker verdict. Jig's `protocol/store/opening.md`, 5 decodes registered values from the registry's layout texts and other records from their current formats; starts and rehearsals report jobs and their counts.
+  - 5 to 7: `../redeploy.md`, 4.2 takes a backup only when a check prints a patched line, not for a registry change or job. Sections 4 and 6 design the redeploy script and worker/task referee, but not staging's whole workload, its identity/sign-in/account/history assertions, comparison of job counts, and restore drill.
+  - 1, 2, 8: `first-release.md`, 5.4 still has dev.fabrig.ai start afresh when a stored format changes until the baseline. Dev's store is kept at the floor; staging alone is made again at dev's build for each drill.
+- **Design departs:** none.
 - **Open:** none.

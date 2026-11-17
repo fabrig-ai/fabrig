@@ -401,6 +401,7 @@ impl Protocol {
             | engine::Request::ToChild(_)
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
+            | engine::Request::Restarting { .. }
             | engine::Request::Drained
             | engine::Request::Stop) => Err(Box::new(other)),
         }

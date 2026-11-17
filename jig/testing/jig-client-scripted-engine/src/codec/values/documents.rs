@@ -217,6 +217,7 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
     w::Task::new(
         limits,
         w::TaskParts {
+            tasks_left: value.tasks_left,
             concluded: value
                 .concluded
                 .map(|v| w::Concluded::new(limits, w::ConcludedParts { by: v.by, at: v.at.as_nanos() }))

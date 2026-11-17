@@ -53,6 +53,7 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) 
         }
         host::CallAnswer::Unavailable => smith::Reply::Unavailable,
         host::CallAnswer::Withdrawn => smith::Reply::Withdrawn,
+        host::CallAnswer::Unsent => smith::Reply::Unsent,
         host::CallAnswer::Busy => smith::Reply::Busy,
     }
 }

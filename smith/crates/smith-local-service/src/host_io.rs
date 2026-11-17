@@ -719,6 +719,9 @@ impl HostIo {
                             &mut self.io_requests,
                         )
                     }
+                    host::Down::Renewals { held } => {
+                        process.send_renewals(held, send_token, &mut self.process_events, &mut self.io_requests)
+                    }
                     host::Down::Cancel => {
                         process.send_cancel(send_token, &mut self.process_events, &mut self.io_requests)
                     }
@@ -732,11 +735,11 @@ impl HostIo {
                 }
             }
             host::process::Request::Signal { owner, signal, .. } => {
-                let signal = match signal {
-                    host::Signal::Terminate => kernel::Signal::Terminate,
-                    host::Signal::Kill => kernel::Signal::Kill,
+                let (signal, reason) = match signal {
+                    host::Signal::Terminate => (kernel::Signal::Terminate, kernel::Reason::Unknown),
+                    host::Signal::Kill => (kernel::Signal::Kill, kernel::Reason::Grace),
                 };
-                self.child.process_mut().signal(signal, &mut self.io_requests);
+                self.child.process_mut().signal(signal, reason, &mut self.io_requests);
                 host_events.push(host::Input::Process(host::process::Event::Signalled { owner }));
             }
             host::process::Request::Read { .. } => {

@@ -16,6 +16,25 @@ fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
 }
 
 #[test]
+fn restart_wait_defaults_and_overrides_are_bounded_by_name() {
+    for selected in [Profile::Small, Profile::Standard] {
+        assert_eq!(profile(selected).core.fleet.restart_wait.as_millis(), 1_200_000);
+    }
+    for (value, json) in [
+        (0, br#"{"profile":"small","overrides":{"fleet.restart_wait_ms":0}}"#.as_slice()),
+        (1_200_000, br#"{"profile":"small","overrides":{"fleet.restart_wait_ms":1200000}}"#),
+        (86_400_000, br#"{"profile":"small","overrides":{"fleet.restart_wait_ms":86400000}}"#),
+    ] {
+        assert_eq!(parse(json).unwrap().core.fleet.restart_wait.as_millis(), value);
+    }
+    problem(
+        br#"{"profile":"small","overrides":{"fleet.restart_wait_ms":86400001}}"#,
+        &[b"limits", b"overrides", b"fleet.restart_wait_ms"],
+        What::Override,
+    );
+}
+
+#[test]
 fn retention_horizons_default_in_every_profile() {
     for selected in [Profile::Small, Profile::Standard] {
         let r = profile(selected).core.retention;

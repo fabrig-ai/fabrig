@@ -377,6 +377,7 @@ impl Worker {
                 link::Request::Closed => self.closed = true,
                 link::Request::Refused { .. }
                 | link::Request::Fact { .. }
+                | link::Request::Restarting { .. }
                 | link::Request::CannotSendWhole { .. }
                 | link::Request::Untranslated { .. } => {}
             }
@@ -502,6 +503,7 @@ impl Worker {
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
+            | smith::Down::Renewals { .. }
             | smith::Down::Cancel
             | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
@@ -534,6 +536,9 @@ impl Worker {
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
+            smith::Down::Renewals { held } => {
+                process.send_renewals(held, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
             smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
         };
@@ -542,11 +547,11 @@ impl Worker {
         }
     }
     fn process_signal(&mut self, owner: Token, signal: smith::Signal) {
-        let signal = match signal {
-            smith::Signal::Terminate => io::kernel::Signal::Terminate,
-            smith::Signal::Kill => io::kernel::Signal::Kill,
+        let (signal, reason) = match signal {
+            smith::Signal::Terminate => (io::kernel::Signal::Terminate, io::kernel::Reason::Unknown),
+            smith::Signal::Kill => (io::kernel::Signal::Kill, io::kernel::Reason::Grace),
         };
-        self.processes.get(&owner).expect("root owns process").signal(signal, &mut self.io);
+        self.processes.get(&owner).expect("root owns process").signal(signal, reason, &mut self.io);
         self.events.push(root::Event::Process(Box::new(smith::process::Event::Signalled { owner })));
     }
     fn process_read(&mut self, owner: Token) {
@@ -1091,7 +1096,7 @@ mod admission_tests {
                     )
                     .expect("four wires");
             }
-            let record = wire::v14::Agreed::new(&codec, wire::v14::AgreedParts { wires }).expect("statement");
+            let record = wire::v15::Agreed::new(&codec, wire::v15::AgreedParts { wires }).expect("statement");
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut body).expect("statement body");
             let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");

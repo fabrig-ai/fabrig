@@ -33,6 +33,8 @@ pub mod landing;
 pub mod landing_log;
 pub mod limits;
 pub mod make;
+pub mod milestones;
+pub use milestones::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow, MilestoneTotals};
 pub mod making;
 pub mod panel;
 pub mod preparation;
@@ -322,6 +324,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
+        Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
@@ -596,6 +599,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Milestone(row) => Some(skein_lib::len_u64(row.name.len())),
         Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
         Stored::Red(row) => skein_lib::len_u64(row.key.len())
             .checked_add(skein_lib::len_u64(row.head.len()))?

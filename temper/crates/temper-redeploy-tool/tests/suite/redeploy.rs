@@ -103,6 +103,118 @@ fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
 }
 
 #[test]
+fn settled_stop_keeps_who_was_told_and_waits_the_largest_wait_given() {
+    let mut d = description(3);
+    for (worker, name) in d.workers.iter_mut().zip(["a", "b", "c"]) {
+        worker.name = name.into();
+    }
+    let mut hosts = Deployment::new(d);
+    hosts.stage_all(NEW);
+    for index in 0..3 {
+        hosts.opening(index, Opening::After { nanoseconds: 900 * SECOND, wires: WIRES.into() });
+    }
+    hosts.stop_logs.push_back(vec![
+        "Nov 16 host temper-engine serve: worker a told the engine restarts: wait 1200000 ms".into(),
+        "temper-engine serve: worker b not told the engine restarts: jig-worker-wire 13; it keeps its grace".into(),
+        "temper-engine serve: worker outside told the engine restarts: wait 9999999 ms".into(),
+    ]);
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(hosts.at, 901 * SECOND);
+    assert_eq!(
+        serde_json::to_value(&record.told).unwrap(),
+        serde_json::json!([
+            {"worker": "a", "wait_ms": 1_200_000},
+            {"worker": "b", "wait_ms": null},
+            {"worker": "c", "wait_ms": null}
+        ])
+    );
+    for line in [
+        "worker a told: restart wait 1200.0 s",
+        "worker b keeps its grace: not told",
+        "worker c keeps its grace: not told",
+    ] {
+        assert!(record.lines.iter().any(|kept| kept.line == format!("temper-redeploy run: {line}")), "{line}");
+    }
+    assert!(record.openings.iter().all(|opening| opening.at == 901 * SECOND));
+    let stop = position(&hosts, "stop engine");
+    assert_eq!(hosts.lines[stop + 1].line, "log engine '0'");
+    assert!(hosts.lines[stop + 2].line.starts_with("check "));
+}
+
+struct SlowStop(Deployment);
+impl Hosts for SlowStop {
+    fn run(&mut self, part: Part, line: &str) -> Output {
+        let answer = self.0.run(part, line);
+        if part == Part::Engine && line == "stop engine" {
+            self.0.sleep(4 * SECOND);
+        }
+        answer
+    }
+    fn run_each(&mut self, lines: &[(Part, String)]) -> Vec<Output> {
+        self.0.run_each(lines)
+    }
+    fn now(&mut self) -> u64 {
+        self.0.now()
+    }
+    fn sleep(&mut self, ns: u64) {
+        self.0.sleep(ns);
+    }
+}
+
+#[test]
+fn only_the_windows_stop_reads_told_since_before_the_stop_began() {
+    let mut hosts = staged(2);
+    hosts.at = 10 * SECOND;
+    hosts.log.push((8 * SECOND, "temper-engine serve: worker w2 told the engine restarts: wait 99999 ms".into()));
+    hosts.stop_logs.push_back(vec!["temper-engine serve: worker w1 told the engine restarts: wait 1200000 ms".into()]);
+    hosts.stop_logs.push_back(vec!["temper-engine serve: worker w2 told the engine restarts: wait 77777 ms".into()]);
+    hosts.check_answer(0, "workers may stay: no");
+    let d = hosts.description.clone();
+    let mut hosts = SlowStop(hosts);
+    let (outcome, record) = run(&d, &mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.told_wait_ms("w1"), Some(1_200_000));
+    assert_eq!(record.told_wait_ms("w2"), None);
+    let first = position(&hosts.0, "stop engine");
+    assert_eq!((hosts.0.lines[first + 1].at, hosts.0.lines[first + 1].line.as_str()), (14 * SECOND, "log engine '9'"));
+    let second = hosts.0.lines.iter().rposition(|call| call.line == "stop engine").unwrap();
+    assert!(!hosts.0.lines[second + 1].line.starts_with("log "));
+    assert_eq!(record.lines.iter().filter(|line| line.line.contains("keeps its grace: not told")).count(), 1);
+}
+
+#[test]
+fn unreadable_stop_log_refuses_and_restores_before_any_check_or_swap() {
+    let mut hosts = staged(2);
+    hosts.fail_line(Part::Engine, "log engine '0'", 1);
+    let d = hosts.description.clone();
+    let mut hosts = SlowStop(hosts);
+    let (outcome, record) = run(&d, &mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Refused);
+    all_old(&hosts.0);
+    assert_eq!(record.told, None);
+    assert!(hosts.0.lines.iter().all(|call| !call.line.starts_with("check ")));
+    assert!(last(&record).contains("refused: who was told: engine log"));
+    assert_eq!(record.openings.len(), 2);
+}
+
+#[test]
+fn openings_stop_at_the_longer_of_told_wait_and_grace() {
+    for (wait, bound) in [(100_000, 300), (400_000, 400)] {
+        let mut hosts = staged(1);
+        hosts
+            .stop_logs
+            .push_back(vec![format!("temper-engine serve: worker w1 told the engine restarts: wait {wait} ms")]);
+        hosts.opening(0, Opening::After { nanoseconds: (bound + 1) * SECOND, wires: WIRES.into() });
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Failed);
+        assert_eq!(hosts.at, (bound + 1) * SECOND);
+        assert_eq!(record.openings, []);
+        assert!(last(&record).contains("workers did not open within the largest wait given: w1"));
+    }
+}
+
+#[test]
 fn a_refusing_check_restarts_the_old_engine_and_waits_without_a_swap() {
     let mut hosts = staged(2);
     hosts.check_answer(1, "temper-engine upgrade: cannot start\n");
@@ -222,11 +334,11 @@ fn together_drains_in_one_batch_before_the_engine_and_starts_engine_first() {
 }
 
 #[test]
-fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
+fn job_checks_back_up_at_the_seam_clock_before_any_swap() {
     let mut hosts = staged(1);
     hosts.at = 1_700_000_000 * SECOND;
     hosts
-        .check_answer(0, "temper-engine upgrade: patched generation 3\ntemper-engine upgrade: workers may stay: yes\n");
+        .check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\ntemper-engine upgrade: workers may stay: yes\n");
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
     let backup = format!("{NEW}-20231114T221320Z");
@@ -234,12 +346,36 @@ fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
     let backup_at = position(&hosts, &format!("backup '{backup}'"));
     let swap_at = hosts.lines.iter().position(|call| call.line.starts_with("swap ")).unwrap();
     assert!(backup_at < swap_at);
+    assert!(hosts.lines.iter().filter(|call| call.line.starts_with("swap ")).all(|call| call.part == Part::Engine));
+    assert!(hosts.workers.iter().all(|worker| worker.running && worker.installed.values().all(|build| build == OLD)));
+}
+
+#[test]
+fn checks_without_jobs_take_no_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: workers may stay: yes\n");
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.backup, None);
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
+}
+
+#[test]
+fn job_checks_keep_the_journals_existing_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
+    let mut journal = super::journal();
+    journal.record.backup = Some("existing-backup".into());
+    let outcome = redeploy(&hosts.description.clone(), NEW, Mode::Engine, &mut journal, &mut hosts);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(journal.record.backup.as_deref(), Some("existing-backup"));
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
 }
 
 #[test]
 fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
     let mut hosts = staged(2);
-    hosts.check_answer(0, "temper-engine upgrade: patched generation 3\nworkers may stay: yes");
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
     hosts.opening(1, Opening::Refused { nanoseconds: SECOND, text: "temper-worker-wire too old".into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Failed);
@@ -284,7 +420,7 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
                 Mode::Together
             }
             "backup" => {
-                hosts.check_answer(0, "upgrade: patched store\nworkers may stay: yes");
+                hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
                 hosts.fail_line(Part::Engine, &format!("backup '{NEW}-19700101T000001Z'"), 1);
                 Mode::Engine
             }

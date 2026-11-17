@@ -185,6 +185,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::JobHistory { .. }
             | forge::Event::SetupPerson { .. }
             | forge::Event::PlaceChosen { .. }
+            | forge::Event::Milestone { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

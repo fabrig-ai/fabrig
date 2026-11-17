@@ -71,6 +71,29 @@ pub enum Path {
     MarkerTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::FieldName => "Field.name",
+            Self::FieldValue => "Field.value",
+            Self::FieldTail => "Field (tail)",
+            Self::EffectTag => "Effect (tag)",
+            Self::ReportTitle => "Report.title",
+            Self::ReportFields => "Report.fields",
+            Self::ReportEffect => "Report.effect",
+            Self::ReportPresent => "Report.present",
+            Self::ReportNonce => "Report.nonce",
+            Self::ReportAge => "Report.age",
+            Self::ReportVersion => "Report (version)",
+            Self::ReportTail => "Report (tail)",
+            Self::ChoiceTag => "Choice (tag)",
+            Self::MarkerTail => "Marker (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

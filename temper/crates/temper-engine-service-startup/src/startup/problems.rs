@@ -5,7 +5,7 @@ use skein_lib::{Decimal, Writer};
 use temper_service_core::startup::problems::{put, render_past, render_path, render_problem};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EngineWhat {
-    Room(temper_engine_domain::room::Short),
+    Room(temper_engine_domain::room::Refusal),
     FleetGrace { offered: skein_lib::Duration, derived: skein_lib::Duration },
     Stock(crate::stock::Floor),
     EngineAlone,

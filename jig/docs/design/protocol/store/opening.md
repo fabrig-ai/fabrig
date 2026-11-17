@@ -4,8 +4,8 @@
    finds the active generation (1) and opens both its stores;
    skein-kv recovers each: the snapshot, then the log's longest valid
    prefix (skein's `data/kv.md`, section 3). A store the open must write
-   before serving (`layouts.md`, 5.5: a patch pending, its registry to
-   seed or a binary layout to register, a job pending) is upgraded in a
+   before serving (`layouts.md`, 5.5: a binary layout to register, a job
+   pending) is upgraded in a
    new generation, and the open goes on over it, pending, which becomes
    the active generation once the root has restored from it (2).
 2. **The component reads its own rows,** and the core's that it checks:
@@ -66,9 +66,9 @@ Its `store/` and `secrets/` must stand, or the start refuses,
 
 ### 1.4 The stores open
 
-The stores open (step 1), and the format row, the layouts and the
+The stores open (step 1), and the format row, the floor, the layouts and the
 deployment's header are read and checked (step 2, `records.md`, 3). Every refusal of
-the levels, versions, layouts and deployment comes here, and nothing has
+the levels, the floor, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
 (its next segment, a leftover snapshot's removal, and the snapshot a torn
 tail or a replay past its bound starts; skein's `data/kv.md`, sections 3 and
@@ -97,8 +97,10 @@ are those its levels want (`records.md`, 3): a store at another version
 is refused first. With nothing to write (`layouts.md`, 5.5), it goes
 on with the rest of step 2 (the run proofs' cuts, the installation's
 identifier), its read edge converting each value (`layouts.md`, 4).
-Behind them, or with something to write, it upgrades in a new
-generation (2).
+With something to write, it upgrades in a new generation (2). A store
+behind them, or holding values and no registry, is refused (1.8): the
+refusals name `FLOOR_BRIDGE`, the build that brings it to them
+(`records.md`, 3).
 
 ### 1.8 Its refusals
 
@@ -126,33 +128,37 @@ one that stands; an older build's is moved aside (`README.md`, section 2). Each
 
 - `OlderBuild { why: Unleveled }`: "`<deployment>` holds a store from before
   the baseline, the first build whose stores later builds upgrade, and this
-  start has changed nothing in it. A store from before the baseline is not
-  translated, so every start refuses this one until it is moved. To start
+  start has changed nothing in it. No build translates a store from before
+  the baseline, build `<bridge>` included, so every start refuses this one
+  until it is moved. To start
   afresh, stop the service, move `active`, `generations/` and `transcripts/`
   out of `<deployment>` together, and start again: nothing is deleted, and
   the next start makes a new, empty store. The new store has no tasks,
   sign-ins, accounts or keys, and every client signs in again."
+- `OlderBuild { why: Behind }`: "`<deployment>` holds a store from an
+  older build, at patch levels behind this build's, and this start has
+  changed nothing in it. This build keeps no patch: start build
+  `<bridge>` on it and let it open, which brings it to this
+  build's levels, then start this build."
+- `OlderBuild { why: Floor }` (`records.md`, 3): "`<deployment>` holds a
+  store older than this build opens: it has no floor, or one below this
+  build's, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+- `OlderBuild { why: Unregistered }` (`layouts.md`, 5.1): "`<deployment>`
+  holds a store older than this build opens: it has no registry of its
+  layouts, and this start has changed nothing in it. Start build
+  `<bridge>` on it and let it open, then this build."
+
+`<bridge>` is `FLOOR_BRIDGE` (`records.md`, 3) in every refusal of a store
+older than the build, and only there.
+
 - `Ahead`: "`<deployment>` holds a store from a later build, at patch levels
   past this build's, and this start has changed nothing in it. No patch runs
   backwards: start the later build again, or restore `<deployment>` from a
   backup this build made."
-- `Patch`: "A patch refused a record while this start patched a copy of the
-  store in `<deployment>`, and the generation it patched from stays active,
-  unchanged. Every start of this build refuses the same record: start the
-  build before it again, which opens that generation as it was."
-- `Set`: "This build's patches do not plan, and this start has changed
-  nothing in `<deployment>`. The build is wrong: start the build before it
-  again."
-- `InFlight`: "`<deployment>` holds effects its last run sent and did not
-  settle, in records this build's patches change, and this start has
-  changed nothing in it. Start the build before it again, let it settle
-  them, and stop it: a stop settles what it sent first. Then start this
-  build." The shell names each effect after it, from its key (3).
-- `Check { why: Large }`: "The check before the switch found a patched record
-  too large for a commit alone in the copy of the store this start patched in
-  `<deployment>`, and the generation it patched from stays active, unchanged.
-  Every start of this build checks a fresh copy the same way: start the build
-  before it again, which opens that generation as it was."
+- `Set`: "This build's owner sets do not check, and this start has
+  changed nothing in `<deployment>`. The build is wrong: start the build
+  before it again."
 - `Check { why: Load }`: "The check before the switch found a record the
   restart could not load within the deployment's limits in the copy of the
   store this start patched in `<deployment>`, and the generation it patched
@@ -188,48 +194,51 @@ pub enum OpenRefusal {
     Deployment,
     Numbers { store: u64, header: u64 },
     Failed,
-    OlderBuild { why: Older },                                 // nothing translated before the baseline
-    Ahead { owner: Owner, found: Option<u32>, wanted: Option<u32> }, // no patch runs backwards
+    OlderBuild { why: Older },                                 // a store this build does not translate
+    Ahead { owner: Owner, found: Option<u32>, wanted: Option<u32> }, // no level runs backwards
     Generations { why: Generations },
-    Patch { owner: Owner, patch: u32, key: Box<[u8]>, halt: Halt }, // a record the patch refused (10.2)
-    Set { owner: Owner, patch: u32 },                          // a patch set that does not plan (10.3)
-    Check { why: Check },                                      // the check before the switch (10.2, step 5)
-    InFlight { owner: Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> }, // effects a pending patch reshapes (10.3)
+    Set { owner: Owner },                                      // an owner set that does not check (3)
+    Check { why: Check },                                      // the check before the switch (2, step 5)
     Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3; the family as its row's key names it, which may be one the binary lacks
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
 pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared, Retired } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not; a retired value type's keys holding a value (layouts.md, 2)
-pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
+pub enum Older { Layout(Family), Directory, Unleveled, Floor, Behind, Unregistered }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
-pub enum Check { Large { key }, Load { key }, Private { name } }
+pub enum Check { Load { key }, Private { name } }
 ```
 
-`Older`'s first two compare the layouts' row (`records.md`, 3); `Check` names what
-failed: a record too large for a commit alone, or a row that does not
-load, by its key; a secrets' file
-that is not private, by its name.
+`Older::Layout` is the component's own row at the binary's version that
+does not decode (`records.md`, 3), the only family it names now;
+`Unleveled` a level none where the binary's is set, the baseline's
+among them; `Floor` a missing floor row or one below `FLOOR`, before a plan or
+rehearsal decoding; `Behind` a level behind the binary's; `Unregistered`
+a store holding values and no registry (`layouts.md`, 5.1). These three
+name `FLOOR_BRIDGE`, the build that brings such a store to this one
+(temper's `draft/store-floor.md`, section 3); `Check` names what
+failed: a row that does not load, by its key; a secrets' file
+that is not private, by its name. A job's write too large for a commit
+alone is the job's refusal (`jobs.md`, 3). There is no eager map patch
+whose output needs a separate size check.
 
-## 2. Patching a copy
+## 2. Upgrading a copy
 
 The component's own phase, before the root starts, when the open must
-write before serving (`layouts.md`, 5.5): the format row names an
-owner's level behind the binary's (`records.md`, 3), the registry is
-not seeded, a binary layout is not registered, or a job is pending
-(`jobs.md`, 2). The steps below name the patches; with none pending,
-their walks have nothing to do, and the copy is upgraded by the
-registry's commit and the jobs alone. From the active generation `A` to
+write before serving (`layouts.md`, 5.5): a binary layout is not
+registered, or a job is pending (`jobs.md`, 2). The store is at the
+binary's levels, or 1 has refused it (`records.md`, 3). No record is
+rewritten but by a job or the seal: the copy is
+upgraded by the registry's commit and the jobs alone (temper's
+`draft/store-floor.md`, 4.2). From the active generation `A` to
 `A + 1`:
 
 1. **Plan,** over `A` as 1 opened it: the layouts planned, each held
-   layout's or each the seed will make, refused before anything is
-   written where one has no plan (`layouts.md`, 5.3); the levels, the patches
-   between them and their order across owners (3), a set that does
-   not plan refused; the header decoded by the kept text of its own
-   level and checked, as is the deployment; one machine per kept family
-   made (3); whether a pending patch is marked fresh (3); the room
+   layout's, refused before anything is written where one has no plan
+   (`layouts.md`, 5.3); the owner sets checked (3); the header decoded
+   through its registry plan, then by the binary's codec and checked,
+   as is the deployment; the room
    (below) against the limits. Every refusal of
-   `records.md`, 3, and an effect in flight that a pending patch changes (temper's
-   `draft/upgrades.md`, section 8), comes here. Then `A`'s stores
+   `records.md`, 3 comes here. Then `A`'s stores
    close: no transcript has been cut, which the open over the copy
    does (step 7). Then `A - 1`, where one stands, is dropped, since once `A + 1`
    exists going back is to `A`, which nothing here changes: renamed out
@@ -280,61 +289,23 @@ registry's commit and the jobs alone. From the active generation `A` to
 3. **Open the copy:** both its stores recovered, and its format row,
    layouts and header read and checked at the copy's own levels, as
    1 (step 4) reads `A`'s; no transcript is cut.
-4. **Patch,** one walk per patch, in the plan's order (3): its
-   families' keys (`KeptFamily::keys`) walked in key order by pages;
-   each record, at its block's `from`, decoded by that version's kept
-   text, run through the patch, encoded by its `to`'s and put back at
-   its key; a record at another version refuses, `Patch` with its key.
-   **Heads alone:** each record is first offered to its family's
-   machine's `rehead` (skein's `data/codec/patches.md`, 3.1), with the
-   plan its walk would start (its block's, or its identity at the
-   version it has reached) and its range's root. Where it answers true,
-   the record, its head rewritten in place, is put back at its key as
-   it is, with no machine run, no site and no held record; where false,
-   it runs through the patch as above. A record put by its head alone
-   is one of the patch's records, in the same pages, commits and
-   counts. So a patch that moves the tasks family walks its milestones
-   at a put each.
-   Each page is one commit through the component's own path, within
-   skein-kv's bounds (`records.md`, 4); a record a page cannot hold alone refuses,
-   `Check { why: Large }` with its key. The secrets' store is patched the
-   same way, in its own commits, within its own limits (`secrets.md`).
-   **Windows closed:** where a pending patch is marked fresh, a walk of
-   its own after the plan's last patch, over the core's run proofs (`README.md`, 4.4),
-   one for each live task ever claimed, by pages, each page a commit as
-   a patch's are: each proof is decoded by the binary's codec, since
-   every core record is at the binary's version by then, and each is
-   put back at its key marked crossed (core-v6's `RunProof.crossed`),
-   with its window closed where it has one not yet closed
-   (`Window.closed`), every other field as it was, so that the restart
-   settles its claim (`../../domain/engine/executors.md`, 2). A proof already
-   crossed, with no window open, is not written, and a page with none to
-   write makes no commit; a proof that does not decode, or
-   decodes as another key's record, refuses `Check { why: Load }` with
-   its key, as step 5 would. Nothing else is written, and no transcript:
-   the frames are read patched (`transcripts.md`, 6), and the closed window is the
-   core's to act on (`../../domain/engine/executors.md`, 2). The walk answers no
-   `Patched`, since it is no patch, and adds or removes no record.
-   **The registry and the jobs:** after the last patch's walk, the
-   registry's commit (`layouts.md`, 5.5: the seed, the binary's new
-   layouts, the retirements), from which the edges map heads
-   (`layouts.md`, 4); then each pending job, in order, its pages
-   committed through the same path (`jobs.md`, 3). A store with no
-   patch pending, upgraded for these alone, writes them over the copy as
-   `A`'s levels left it.
+4. **The registry and the jobs:** the registry's commit (`layouts.md`,
+   5.5: the binary's new layouts, the retirements), from which the
+   edges map heads (`layouts.md`, 4); then each pending job, in order,
+   its pages committed through the component's own path, within
+   skein-kv's bounds (`records.md`, 4; `jobs.md`, 3). Nothing else is
+   written, and no transcript.
    The store's
    last commit, one of its own after the last page's and the last job's, writes the format
-   row's levels and versions and the layouts, the binary's (`records.md`, 3), the
-   floor row where the store has none or one below the binary's floor (`records.md`, 3), and
-   the deployment's header as patched, naming that commit's number
+   row's levels and versions and the layouts, the binary's (`records.md`, 3), and
+   the deployment's header as upgraded, naming that commit's number
    (`README.md`, section 5). The commits before it leave the header naming `A`'s
    last, which nothing reads: a cut removes `A + 1` (4), and the
    check runs after the last. The numbering carries on from `A`'s, and
-   the journal's next commit follows patching's last. As each patch
-   ends, the component answers `Patched` with its owner, number and
-   counts, for the shell's line (temper's `draft/upgrades.md`, 3.1).
+   the journal's next commit follows the upgrade's last. Each job
+   answers its counts as `jobs.md`, 3 says, for the shell's line.
 5. **Open,** before anything switches (temper's `draft/upgrades.md`,
-   6.4), over the copy as patched and still open (skein-kv has no
+   6.4), over the copy as upgraded and still open (skein-kv has no
    read-only open), writing nothing; the first failure refuses, `Check`:
    every row of the core's live ranges and of the census's ended read
    positions (`loads.md`, 2), which the restart reads whole, decodes by the
@@ -347,19 +318,18 @@ registry's commit and the jobs alone. From the active generation `A` to
    the restart over the copy (step 7; `../../domain/engine/restart.md`).
 6. **The manifest,** written into `A + 1` (`README.md`, section 2) by io's durable
    replace expecting no file there, once the root asks for the switch
-   (step 7): each kept family's counts before and after the patches and
-   the jobs, taken as the copy opened and as step 5 read it, and the commit
-   position then,
-   which commits of the restore's may have moved past patching's last.
+   (step 7): each kept family's counts before and after the registry's
+   commit and the jobs, taken as the copy opened and as step 5 read it,
+   and the commit position then,
+   which commits of the restore's may have moved past the upgrade's last.
 7. **Switch, once the root has restored from the copy.** The open
    goes on over the copy, still open, as 1's step 7 goes on over an
    active generation (the run proofs' cuts, which cut the shared
-   transcripts to the copy's committed lengths, `A`'s, since patching
+   transcripts to the copy's committed lengths, `A`'s, since the upgrade
    writes no frame; the installation's identifier). The model catalogue
    overlay (`records.md`) is read by the binary's serving codec here,
-   after all pending patches; the initial open that plans those patches
-   does not decode model settings through that codec. The open answers
-   `Opened` with `pending`: a patched generation awaits its switch. The
+   after the registry's commit and the jobs. The open answers
+   `Opened` with `pending`: an upgraded generation awaits its switch. The
    root's restart restores from it as from any store, and asks for the
    switch (`Request::Switch`) once its restores are whole
    (`../../domain/engine/restart.md`). Until then what it commits lands
@@ -389,9 +359,9 @@ Request::Switch { owner: Token }   // once, and only when `pending`
 Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the rename's fault
 ```
 
-- **A refusal or a failure** at any step (a patch's `Halt`, a check
+- **A refusal or a failure** at any step (a job's refusal, a check
   failed, a file's fault) stops the start, answering `OpenRefused`
-  with why: the record's key and the patch, or the check and what
+  with why: the job and its key, or the check and what
   failed; so does a restore the root refuses before it asks for the
   switch, which the root names as any restart's refusal. Before the
   switch's rename, `A` stays active and unchanged,
@@ -402,243 +372,177 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
 - **Room.** On disk, what the two generations do not share, never the
   transcripts (temper's `draft/store-shape.md`, section 5): at the
   switch, `A + 1`'s newest segment and secrets' store, copied, and the
-  log of the patch commits, each record a walk rewrites once. As
+  log of the registry's and the jobs' commits, each record a job puts
+  once. As
   `A + 1` moves on, what it writes is its own: once its snapshot has
   replaced the linked one and dropped the linked segments, the maps
   are on disk twice, `A`'s as they were and `A + 1`'s, until the next
-  upgrade drops `A`, as they were before generations shared files
-  (temper's `draft/upgrades.md`, 6.1). A file system that refuses
+  upgrade drops `A` (temper's `draft/upgrades.md`, 6.1). A file system that refuses
   links copies, and needs the maps twice from the start. A disk that
   cannot hold them fails the copy with a file's fault, and every start
   fails again until there is room: checking the free space before the
   copy is open (`README.md`, section 11). In memory: one map at a time (`A`'s closed before the
-  copy's opens) and one machine per kept family (3), each
-  `Patcher::workspace_bound` of its capacity. `README.md`, section 8's worst case
-  counts the larger of patching's peak and serving's, never both. A
+  copy's opens) and a job's page and room (`jobs.md`, 3). `README.md`, section 8's worst case
+  counts the larger of the upgrade's peak and serving's, never both. A
   cold restart's page workspace (`loads.md`, 1) is held the same way: only before
   the engine serves, so the restart's peak counts it, never a message's
   or a retained answer's bound, since no message carries it.
 - **The domain sees** the copy as any restart's store, pending until it
-  asks for the switch (step 7), with the windows a fresh mark closed and
-  the claims it crossed (step 4).
+  asks for the switch (step 7).
 
-## 3. Patch sets, the plan and written sites
+## 3. Owner sets and frames' sites
 
-- **Patch sets are data,** handed to the component's open by its shell
+- **Owner sets are data,** handed to the component's open by its shell
   beside the limits and its build's name, a `&'static str` the floor row
-  records (`records.md`, 3): for each owner whose records it keeps, the
-  generated module's constants (skein's `data/codec/command.md`, 3), no function:
+  records (`records.md`, 3): for each owner whose records it keeps, its
+  families, their value types, its jobs and its level, and for a
+  frames' family its frames' texts and patches, the generated modules'
+  constants (skein's `data/codec/command.md`, 3), no function. A set
+  carries no map patch, no older text of a map family, no fresh mark
+  and no effects in flight (temper's `draft/store-floor.md`, 4.1 and
+  4.2): no map record is rewritten but by a job or the seal, and a
+  format outside the registry is fixed (temper's `draft/store-floor.md`, section 5).
 
 ```rust
 // jig_protocol_store
 pub enum Owner { Skein, Smith, Jig, Application }   // upstream first
-pub struct PatchSet {
+pub struct OwnerSet {
     pub owner: Owner,
-    pub name: &'static str,               // the owner as its patches' headers spell it
+    pub name: &'static str,               // the owner, as its frames' patches' headers spell it
     pub families: &'static [KeptFamily],
-    pub patches: &'static [&'static str], // `patches::PATCHES`, in number order
-    pub fresh: Option<&'static str>,      // the mark across which windows start fresh, as its owner spells it
     pub jobs: &'static [Job],             // its jobs at open, in the order they run (`jobs.md`, 1)
-    pub level: Option<u32>,               // its level (`records.md`, 3): none for an owner before its baseline
+    pub level: Option<u32>,               // its level (`records.md`, 3): none for an owner the row records no level of
 }
-pub enum KeptMap { Store, Secrets }       // the map its records live in (section 9)
+pub enum KeptMap { Store, Secrets }       // the map its records live in (`secrets.md`)
 pub struct KeptFamily {
     pub name: &'static str,               // the family, as its texts spell it
-    pub texts: &'static [&'static str],   // `patches::kept::<family>::TEXTS`, in version order
     pub map: KeptMap,
     pub keys: &'static [Keys],            // its records' keys, and no other's
-    pub frames: Option<&'static str>,     // the declaration it is in transcripts' frames, where their machine starts
-    pub flights: &'static [Keys],         // ranges whose every record is an effect in flight, its key naming it
-    pub current: &'static str,            // the binary's text; a patched family's latest kept text (`layouts.md`, 2)
+    pub frames: Option<Frames>,           // the frames' family's (`transcripts.md`, 6); none for every other
+    pub current: &'static str,            // the binary's text of the family (`layouts.md`, 2)
     pub types: &'static [ValueType],      // a registered family's value types; empty otherwise (`layouts.md`, 2)
+    pub retired: &'static [Retired],      // its retired value types (`layouts.md`, 2)
+}
+pub struct Frames {
+    pub root: &'static str,               // the declaration it is in transcripts' frames, where their machine starts
+    pub texts: &'static [&'static str],   // its frames' kept texts, in version order, the last at `current`'s version
+    pub patches: &'static [&'static str], // the patches the frames' machine plans, its owner's, in number order
 }
 pub struct Keys {
     pub from: &'static [u8],              // inclusive
     pub to: &'static [u8],                // exclusive
-    pub root: &'static str,               // the declaration its records are, where its machine starts
+    pub root: &'static str,               // the declaration its records are
 }
-pub struct PatchSets {
-    pub sets: &'static [PatchSet],        // at most one per owner
+pub struct OwnerSets {
+    pub sets: &'static [OwnerSet],        // at most one per owner
 }
-impl PatchSets {
-    pub const NONE: PatchSets = PatchSets { sets: &[] };
+impl OwnerSets {
+    pub const NONE: OwnerSets = OwnerSets { sets: &[] };
 }
 ```
 
-  A family's records are its `map`'s, walked and committed there
-  (`secrets.md`). A family's ranges hold records of different declarations (the
-  core's tasks beside their turns), and a machine starts each record at a
-  declaration (skein's `data/codec/patches.md`, 4: `start(plan, root, record)`), so
-  each range names its records' own. Keys' bytes: the application's are
-  its own keys, relative to its tag, as its rows are (`README.md`, 4.2: the component
-  adds the tag), and in the secrets' map relative to its secrets' prefix
-  `[2, 0]` (`secrets.md`); every other owner's are the map's whole keys.
-
-  **The frames' families** (`transcripts.md`, 6) are the two whose `frames` names a
-  root: in jig's set, the core's, whose `TurnRecord` is a frame's body;
-  in smith's, smith-transcript, whose `Turn` the body's `transcript`
-  holds, with no `keys`, since none of its records is a map's. Every
-  other family's is `None`. A set with a frames' family in another slot,
-  or two in one, is refused, `Set` with patch 0; so is a body whose held
-  turn names a family other than smith's frames' one, judged from the
-  kept texts, at the plan and at every open that serves, before its
-  machines are made (`transcripts.md`, 6). Smith's set is smith-transcript's constants
-  in the `Smith` slot (smith's `protocol/transcript.md`, section 12),
-  its `map` `Store` and unused, its `keys` empty.
-
-  A family's `keys` hold its own records and leave out what lies among
-  them but is another's (the installation's identifier at `01 04 03`
-  among the accounts', the settings' records among the core's): jig's
-  from the component's own table (`README.md`, 4.4), the application's from its
-  keys' encoders (`README.md`, section 7). A set with no kept text is an owner
-  before its baseline, level none; otherwise its level is its `level`,
-  held explicitly: today its patches' count, which admission checks
-  while its patch array is not empty, and kept once the array empties
-  (temper's `draft/store-floor.md`, section 3). Every writer and reader of a
-  level (the first commit, the seal, the comparison at open, the
-  manifest, the rehearsal and the shell's versions line) reads `level`,
-  never the array's length. From the baseline, temper's store shell hands the four real
-  sets, `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` of this crate,
-  `JIG_PATCH_SET` of `jig-protocol-accounts` and temper's own
-  (temper's `protocol/baseline.md`, 4), each kept
-  at level 0 with no patch until a landing brings one. This crate owns
-  `STORE_FAMILIES` and `JIG_STORE_PATCH_SET`: its families' metadata,
-  registered value types and written jobs. Accounts builds `JIG_PATCH_SET`
-  from that set, appending its own `jig-accounts` kept family; the store
-  names no accounts consumer. The store's real-family layout and job tests
-  use its own set, with no accounts family needed. The component's other
-  tests hand it fixture owners' sets:
-  `jig-test-patches` in the application's slot and `jig-test-patches-jig`
-  in jig's, so that the order across owners is shown, and
-  `jig-test-patches-smith` in smith's, a fixture turn family whose frames
-  are patched as read, with a patch marked fresh. No test owner names a
-  production family. A fixture body family's last text is the core's
-  `TurnRecord` at the binary's version under its own name, its
-  `transcript` holding the fixture turn, since a patched body is decoded
-  by the binary's codec; the fixture turn's last is its own, since the
-  component hands a turn's bytes on undecoded. The names, texts and keys are `&'static`, the binary's own constants,
-  never state: the only references in fields the component holds
-  (skein/docs/foundation/programming-model.md, 10.3), read by its plan and by each serving
-  open, which makes the frames' machines from them (`transcripts.md`, 6), since `keep`
-  and `plan` copy what they need into each machine's tables.
+- **Handed in by the shell:** `Store::owner_sets` takes `OwnerSets`.
+  This crate's `owners` module declares `SKEIN_SET` and `SMITH_SET`;
+  `JIG_STORE_SET` is its store-owned part of jig's set.
+  `jig-protocol-accounts` appends its family to make `JIG_SET`.
+  temper's `temper_protocol_store::OWNER_SET` and the shell's
+  `OWNER_SETS` (`temper-engine-service-vocabulary`) complete the
+  hand-over. `jig-test-store-files` takes fixture sets through
+  `Store::with_owner_sets`. The `upgrade` module runs the copy (2).
+- **Keys.** A family's records are its `map`'s, committed there
+  (`secrets.md`). A family's ranges hold records of different
+  declarations (the core's tasks beside their turns), so each range
+  names its records' own root. Keys' bytes: the application's are its
+  own keys, relative to its tag, as its rows are (`README.md`, 4.2: the
+  component adds the tag), and in the secrets' map relative to its
+  secrets' prefix `[2, 0]` (`secrets.md`); every other owner's are the
+  map's whole keys. A family's `keys` hold its own records and leave
+  out what lies among them but is another's (the installation's
+  identifier at `01 04 03` among the accounts', the settings' records
+  among the core's): jig's from the component's own table (`README.md`,
+  4.4), the application's from its keys' encoders (`README.md`,
+  section 7).
+- **The frames' families** (`transcripts.md`, 6) are the two whose
+  `frames` is set: in jig's set, the core's, whose `TurnRecord` is a
+  frame's body, its `texts` the core's `current` alone and its
+  `patches` none; in smith's, smith-transcript, whose `Turn` the body's
+  `transcript` holds, with no `keys`, since none of its records is a
+  map's, its `texts` and `patches` smith-transcript's generated
+  module's (smith's `protocol/transcript.md`, section 12). Every other
+  family's is `None`. A set with a frames' family in another slot, or
+  two in one, is refused, `Set`; so is a body whose held turn names a
+  family other than smith's frames' one, judged from the frames'
+  texts, at every open before its machines are made (`transcripts.md`,
+  6). A frames' family's `texts` must keep one version after another,
+  each spelling the family's name, its last at `current`'s version.
+- **Levels.** A set's level is its `level`, held explicitly: jig's 6,
+  temper's 14, skein's and smith's 0, which no binary moves
+  (`records.md`, 3). Every writer and reader of a level (the first
+  commit, the seal, the comparison at open, the manifest, the rehearsal
+  and the shell's versions line) reads `level`. temper's store shell
+  hands the four real sets, `SKEIN_SET` and `SMITH_SET` of this crate,
+  `JIG_SET` of `jig-protocol-accounts` and temper's `OWNER_SET`
+  (temper's `protocol/floor.md`, 3). This crate owns
+  `STORE_FAMILIES` and `JIG_STORE_SET`: its families' metadata,
+  registered value types and written jobs. Accounts builds `JIG_SET`
+  from that set, appending its own `jig-accounts` family; the store
+  names no accounts consumer. The store's real-family layout and job
+  tests use its own set. The component's other tests hand it fixture
+  owners' sets: `jig-test-layouts`' fixture families for the registry's
+  tests, and `jig-test-patches-jig` in jig's slot and
+  `jig-test-patches-smith` in smith's, fixture frames' families whose
+  frames are patched as read. No test owner names a production family.
+  A fixture body family's last text is the core's `TurnRecord` at the
+  binary's version under its own name, its `transcript` holding the
+  fixture turn, since a patched body is decoded by the binary's codec;
+  the fixture turn's last is its own, since the component hands a
+  turn's bytes on undecoded. The names, texts and keys are `&'static`,
+  the binary's own constants, never state: the only references in
+  fields the component holds (skein/docs/foundation/programming-model.md,
+  10.3), read by each open's check and by each serving open, which makes
+  the frames' machines from them (`transcripts.md`, 6).
 - **A set is checked where it is admitted,** at every open, before the
   levels are compared, so a start at equal levels proves its sets too:
-  each family's key ranges ordered and non-empty, disjoint from every
-  other family's in the same map (and from the installation's identifier
-  and the other rows the component keeps), within its owner's tag (the
-  application's relative to it), and each range's root a declaration of
-  the family's last kept text; a set that fails is refused, `Set` with
-  patch 0. That each record of the map lies in one family's range takes
-  a walk, which the baseline's rehearsal makes (temper's
-  `protocol/README.md`, section 7), not every open. Its value types
-  (`layouts.md`, 2) and its jobs (`jobs.md`, 1) are checked there too.
-  A store whose registry is seeded (`layouts.md`, 5.1) with a patch
-  pending whose block names a registered family is refused `Set`,
-  naming the patch: its values' heads are layout ids, which no patch
-  reads (skein's `data/codec/command.md`, 2).
-- **One check per open.** An open checks its sets once. The check is
-  this section's whole judgement of the sets as data: one set per
-  owner, the manifest's bounds, the families' value types
-  (`layouts.md`, 2), the jobs (`jobs.md`, 1), the frames' families and
-  the holds, each kept text it reads parsed for it alone. Whichever step
-  of the open needs it first runs it: a first start before anything is
-  written (1.2), the rehearsal's plan (5), the plan of the open's
-  patches, the registry's (`layouts.md`, 5) or readiness before the
-  open serves. Its verdict, passed or the `Set` it refuses with its
-  owner and patch, is that open's: kept through the copy, its check and
-  the reopen at the binary's levels (2), and read by each later step in
-  place of a fresh check. Each step therefore refuses where it did,
-  with the same `Set`, and no kept text is parsed again for the check.
-  The verdict is a few bytes beside the open's state, not a parsed
-  text: dropped when the open settles, served (`Opened`) or refused,
-  and whenever the shell hands new sets (`Store::patch_sets`), so an
-  open's start finds none and no verdict outlives the open it was made
-  in. A plan is made only with the open's passed verdict, never from
-  sets no check has passed. The jobs' check the open makes alone at its
-  first step (`jobs.md`, 1), before reading the format row, is cheap
-  and stays where it is.
-- **One sequence per owner,** numbered in one crate, its store crate
-  (jig's `jig-protocol-store`, temper's `temper-protocol-store`): an
-  owner whose families another crate of its keeps (jig's `jig-accounts`
-  in `jig-protocol-accounts`, temper's `temper-secrets` in
-  `temper-protocol-records`) names them in the same set, their kept
-  texts in the crate that keeps their current schema, and every patch
-  of any of them in the store crate's sequence, so the owner has one
-  level. The other crates' `patches/` stay empty.
-- **The plan** reads each patch's header (skein's `data/codec/patches.md`, 6:
-  `header`, `level`, `after`): a patch's owner must be its set's `name`
-  and its number its place there, or the set is refused, naming it.
-  The manifest counts every kept family by its name (`README.md`, section 2), so the
-  sets fit its bounds, at most 64 families in all and each name at most
-  64 bytes, or the set where they pass them is refused, `Set` with
-  patch 0, as two sets for one owner are: judged before the plan, and
-  at a first start before anything is written.
-  The order across owners follows the pins (temper's
-  `draft/upgrades.md`, 4.4), downstream first. From the most
-  downstream owner with patches pending, its patches run in number
-  order; before a patch that names `after U L`, `U`'s pending patches
-  up to level `L` run, each planned the same way, and none past it;
-  after an owner's last, its nearest upstream's remaining ones, then
-  that one's upstream's. A patch whose `after` names a level its
-  upstream has already passed in the store, or one past the binary's,
-  refuses the set: under the pins that is a binary built wrongly
-  (`README.md`, section 11). The plan is a list of (owner, patch), its length the
-  patches' count, made by a loop bounded by it.
-- **The fresh mark** is a set's word (`PatchSet::fresh`), its owner's to
-  spell and to mean: smith's `fresh-windows` (skein's `data/codec/patches.md`, 1;
-  smith's `protocol/transcript.md`, section 12), handed in by the shell
-  as data, so the component names no owner's constant. The plan reads
-  it with each pending patch's header (`Header::marked`): a set's
-  patches past its level in the store and up to the binary's, one marked
-  by its set's word enough. Then the copy's windows are closed (2,
-  step 4); a set whose `fresh` is `None` marks nothing, and a patch's
-  other marks are its owner's alone. A patch may carry a mark and change
-  no family.
-- **Effects in flight** (temper's `draft/upgrades.md`, section 8) are
-  the application's to show and the plan's to refuse. A connector that
-  keeps an effect's sent attempt keeps, beside its outbox entry, a
-  record of its own in a range that holds nothing else, its key naming
-  the effect and its task: written in the commit that records the
-  attempt, kept while the effect is unresolved (uncertain, retried,
-  settled at a restart), and erased in the one that settles it for good
-  or holds it for a person (`../../domain/connectors.md`, 4.2 and 4.3);
-  its set names those ranges (`KeptFamily::flights`). The plan reads
-  them in `A`, for each family a pending patch changes (its blocks name
-  it), in the plan's order, before anything is written: the first
-  family with a record there refuses the start, `InFlight` with the
-  family, how many it holds and their first keys, at most 64, since the
-  patch would reshape what the next start must recover in its old
-  shape. The shell names each key it was given (temper's: the entry and
-  its task) and how many more there are. A family is the patch's unit,
-  so an application whose records are one family refuses any patch of
-  its own while one effect is in flight.
-  A family no pending patch changes keeps its effects, which the new
-  version recovers as after any stop (`../../domain/engine/restart.md`,
-  step 5). Every stop settles first, so the ranges are empty after one
-  that settled, and the refusal meets a crash or a stop past its bound.
-  A set with no such range never refuses.
-- **One machine per kept family,** a `Patcher` (skein's `data/codec/patches.md`,
-  4 and 6), made at the plan, on the patch path alone, with its
-  capacity from the family's limits and texts, each kept text kept and
-  each of its owner's patches planned. In a patch's walk a record is
-  one block behind; a held value `k` versions behind runs `k` plans
-  to the version its family has after the patch, `next_pass` after the
-  first. In a patch's walk, its families' records run its plan,
-  and a family the patch leaves alone whose records hold one it moves runs
-  its identity plan (skein/docs/design/data/codec/patches.md 3), which reaches the held fields alone.
-  The frames' machines are others, made at each open that serves
-  (`transcripts.md`, 6).
-- **A written site goes up.** Step code holds no function (skein/docs/design/data/codec/patches.md,
-  4; skein/docs/foundation/programming-model.md, 10.3), so at `Step::Written` the
-  component answers `Site` with the owner, the record's key, the site,
-  the node and the family's `Patcher` itself, moved, never shared. The
-  shell sets the key in that owner's `Context` (skein/docs/design/data/codec/patches.md, 5), which
-  it keeps for the whole patching (`Default` at its start), runs the
-  owner's generated `written` over `parts()`, and hands the `Patcher`
-  back in a `Site` request with the result; the component then calls
-  `next()`. One record's walk waits on at most one site at a time. A
-  frame read while serving sends its sites up the same way, to the
-  read's token, with a `Default` `Context` for each frame (`transcripts.md`, 6).
+  one set per owner; the manifest's bounds, at most 64 families in all
+  and each name at most 64 bytes, since the manifest counts every kept
+  family by its name (`README.md`, section 2); each family's key ranges
+  ordered and non-empty, disjoint from every other family's in the same
+  map (and from the installation's identifier and the other rows the
+  component keeps), within its owner's tag (the application's relative
+  to it), and each range's root a declaration of the family's
+  `current`; its value types (`layouts.md`, 2) and its jobs (`jobs.md`,
+  1); the frames' families (above); and the holds: the plan refuses
+  sets whose texts' held families (each family's `current` and each
+  frames' family's `texts`) close a cycle. A set that fails is refused,
+  `Set` with its owner, before anything is written. That each record of
+  the map lies in one family's range takes a walk, which a rehearsal
+  makes (5), not every open.
+- **One check per open.** An open checks its sets once, each text it
+  reads parsed for it alone. Whichever step of the open needs it first
+  runs it: a first start before anything is written (1.2), the
+  rehearsal (5), the registry's (`layouts.md`, 5) or readiness before
+  the open serves. Its verdict, passed or the `Set` it refuses with its
+  owner, is that open's: kept through the copy, its check and the
+  reopen (2), and read by each later step in place of a fresh check, so
+  each step refuses where it did, with the same `Set`. The verdict is a
+  few bytes beside the open's state, not a parsed text: dropped when the
+  open settles, served (`Opened`) or refused, and whenever the shell
+  hands new sets (`Store::owner_sets`), so an open's start finds none
+  and no verdict outlives the open it was made in. The jobs' check the
+  open makes alone at its first step (`jobs.md`, 1), before reading the
+  format row, is cheap and stays where it is.
+- **A frame's written site goes up.** Step code holds no function
+  (skein's `data/codec/patches.md`, 4; skein/docs/foundation/programming-model.md,
+  10.3), so where a frame read while serving meets `Step::Written`
+  (`transcripts.md`, 6), the component answers `Site` to the read's
+  token with the owner, the frame's key, the site, the node and the
+  frames' `Patcher` itself, moved, never shared. The shell sets the key
+  in a `Default` `Context` of that owner's for each frame
+  (skein's `data/codec/patches.md`, 5), runs the owner's generated
+  `written` over `parts()`, and hands the `Patcher` back in a `Site`
+  request with the result; the component then calls `next()`. One
+  frame waits on at most one site at a time. No map record goes up: the
+  open runs jobs and seals, with no eager map patching walk.
 
 ```rust
 // up                                      // down
@@ -650,55 +554,33 @@ Event::Site {                              Request::Site {
     at: Node,
     patcher: Box<Patcher>,
 }
-Event::Patched { owner: Token, of: Owner, patch: u32, counts: Counts }
-pub struct Counts { pub records: u64, pub commits: u64 }
 ```
 
-- **A site's other stored inputs:** while a written site is outstanding,
-  `Store::patch_page` reads a bounded page of public application rows from
-  the copy's map, with relative keys and an exclusive cursor. Its bytes
-  have the levels reached by the walk: a range preceding the site's
-  range has already passed this patch. The caller uses that kept layout,
-  checks the row's identity, and replaces its context before answering the
-  site. No secrets are read, no serving codec is selected by the component,
-  and no input is retained for a later record. Outside a written stop the
-  method refuses. It reads at most the store's admitted operations per
-  page and reports the same data failure as the patch's walk.
-
+- **A job's other stored inputs:** while a job's page is outstanding
+  (`jobs.md`, 3), `Store::patch_page` reads a bounded page of public
+  application rows from the copy's map, with relative keys and an
+  exclusive cursor, for the shell answering the page. No secrets are
+  read, no serving codec is selected by the component, and no input is
+  retained for a later page. Outside a job's page the method refuses. It
+  reads at most the store's admitted operations per page and reports the
+  same data failure as the job's page.
 - **The shell that answers** is the store's shell, the one that names
   the owners' crates and drives the store's open: the application's
-  (temper's `temper-service`, its `Store`); jig has no production
-  shell of its own. In jig's tests the store world's (`tests/store`) answers
-  the fixture owners', while patching and while serving. `jig-test-service`'s
-  hands no sets. `jig-test-store-files`' hands none either, unless a core
-  world gives it fixture sets (`Store::with_patch_sets`, and `patch_sets`
-  for the next open): then it opens over a fake machine's directory,
-  so that the copy, the walk and the switch run, and it reads the
-  patched proofs back through the component. Its fixture sets write no
-  site, and both shells would answer one `Halt::NoSite` (skein's
-  `data/codec/patches.md`, 4: a site its caller has no function for), as their
-  routes already do for any token.
-- **A shell with no sets.** The component holds `PatchSets::NONE`
+  (temper's `temper-service`, its `Store`); jig has no production shell
+  of its own. In jig's tests the store world's (`tests/store`) answers
+  the fixture owners' frames' sites and jobs. `jig-test-service`'s
+  hands no sets. `jig-test-store-files`' hands none either, unless a
+  core world gives it fixture sets (`Store::with_owner_sets`, and
+  `owner_sets` for the next open): then it opens over a fake machine's
+  directory, so that the copy, the jobs and the switch run. A site its
+  shell has no function for is answered `Halt::NoSite` (skein's
+  `data/codec/patches.md`, 4), as their routes already do for any token.
+- **A shell with no sets.** The component holds `OwnerSets::NONE`
   until a shell hands it sets, by a setter beside the constructors
-  (`Store::patch_sets`); with none it never answers `Site` or
-  `Patched`, never wants `Request::Site`, and `Opened`'s `pending` is
-  false. A root that sees `pending` true asks for `Request::Switch`
-  before its runs are adopted (2, step 7).
-- **Held fields** are the component's: at `Step::Held`, the held
-  family's own machine patches the held bytes, its own sites going up
-  as above, and its bytes are put into the holder's (`put_content`),
-  or carried where that family does not move; the holder's machine
-  waits meanwhile. No family holds itself through another, so one machine
-  per family suffices: the plan refuses sets whose kept texts' holds
-  close a cycle, `Set` with patch 0, before anything is written, and a
-  walk that meets one still halts `Order`, refused as a patch's halt
-  (2).
-- **Keys do not move** by patch: a key is its owner's code (`README.md`, 4.1), and a
-  patch's text has no line that moves one (skein's `data/codec/patches.md`, 1). A
-  moved key would need its function's answer up and back, and a check
-  that it lands on no record its walk has yet to meet. A family whose
-  keys change waits for that (`README.md`, section 11); before the baseline none
-  does.
+  (`Store::owner_sets`); with none it never answers `Site`, never wants
+  `Request::Site`, and `Opened`'s `pending` is false. A root that sees
+  `pending` true asks for `Request::Switch` before its runs are adopted
+  (2, step 7).
 
 ## 4. Power loss
 
@@ -711,9 +593,9 @@ partial one removed, or the new.
 | a first start, before `active`'s rename | no `active`; at most `generations/1/` and a temporary | removes both; a first start |
 | a first start, after `active`'s rename | `active` lost with its directory's sync, or `1` | as above, or opens 1 and makes `transcripts/` |
 | removing strays | part of a stray | removes the rest |
-| the drop of `A - 1`, before its rename | `active` is `A`; `A - 1` whole | patches again, its plan dropping `A - 1` |
-| the drop, after its rename | `active` is `A`; part of `generations/dropped` | removes the rest as a stray; patches again |
-| a link or a file copied, a patch commit, a closing commit, the check, the manifest, the restore before the switch | `active` is `A`; `A + 1` partial or whole | removes `A + 1`, whose names alone go, every file it shares staying `A`'s as `A` left it; patches again from a fresh copy |
+| the drop of `A - 1`, before its rename | `active` is `A`; `A - 1` whole | upgrades again, its plan dropping `A - 1` |
+| the drop, after its rename | `active` is `A`; part of `generations/dropped` | removes the rest as a stray; upgrades again |
+| a link or a file copied, the registry's commit, a job's commit, the last commit, the check, the manifest, the restore before the switch | `active` is `A`; `A + 1` partial or whole | removes `A + 1`, whose names alone go, every file it shares staying `A`'s as `A` left it; upgrades again from a fresh copy |
 | the switch, before its rename | `active` is `A` | as above |
 | the switch, after its rename | `active` is `A`, or `A + 1` whole | as above, or opens `A + 1` |
 
@@ -725,11 +607,6 @@ partial one removed, or the new.
   their directories and its manifest are synced before the rename that
   names it, and nothing writes a generation once a later one is
   active.
-- **Windows closed with the copy:** the closing commits are `A + 1`'s,
-  cut as a patch commit is, so the generation that the switch makes
-  active holds every live window closed, and a crash after it keeps
-  them so; `A`, which going back opens (temper's `draft/upgrades.md`,
-  3.2), holds them as they were.
 - **A read writes nothing,** patched or not (`transcripts.md`, 6): a cut anywhere in a
   read leaves every file as it was, and the next read patches the same
   frame the same way.
@@ -748,45 +625,41 @@ deployment's lock as a start does (1, step 1).
   given may be a backup on another file system, and a link would
   change its files' links), its task logs among them (`logs.md`, 7),
   and opens the
-  scratch as any start does (1 and 2), with its patch sets, the
+  scratch as any start does (1 and 2), with its owner sets, the
   transcripts read where they are and never cut, and no generation
-  dropped. The plan, the copy, the patches, the registry's commit and
+  dropped. The plan, the copy, the registry's commit and
   the jobs (`layouts.md`, 5.5; `jobs.md`, 2), and the restores (loaded and
   linked, `../../domain/engine/restart.md`)
-  run (over `A + 1` where patches are pending, over the scratch's `A`
+  run (over `A + 1` where the open writes, over the scratch's `A`
   otherwise); then the rehearsing root ends where it would take the
   switch step, at which every start's first act beyond the process
   waits (`../../domain/engine/restart.md`), so a rehearsal makes no
   effect, serves no secret and adopts no run. It answers what it ran:
-  the patches with their counts and times (`Event::Patched`), the
+  the jobs with their counts (`jobs.md`, 3), the
   refusal a start would meet, or the restores whole; the wires `A`'s
-  last start spoke (`records.md`, 3), with whether a pending patch is marked fresh
-  (3), and the workers' openings `A` keeps since that start
+  last start spoke (`records.md`, 3), and the workers' openings `A` keeps since that start
   (`records.md`, 3, *The workers' openings*), from which the application
   says whether each of its workers may
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
 - **Every record decoded** in a rehearsal, after the copy and before
-  the plan, whether or not a pending patch changes its family (the
-  user's words of 2026-11-11): each family of each set, at the version `A`
-  holds it (its owner's level in `A`'s row, 0 by `BASELINE` (`records.md`,
-  3), and the family's kept version at that level, from its first kept
-  version through the set's patches' blocks), is walked over its
-  ranges of `A`'s maps (3, `Keys`), each record decoded as a generic
-  value of that version's kept text from its range's root, or, for a
-  registered family in a seeded store, of its layout's text from its
-  value type's root (`layouts.md`, 4); a family of
+  the plan, whether or not a job changes its family (the
+  user's words of 2026-11-11): each family of each set is walked over its
+  ranges of `A`'s maps (3, `Keys`), each record of a registered family
+  decoded as a generic value of its layout's text from its value type's
+  root (`layouts.md`, 4), and each other record as a generic value of
+  its family's `current` from its range's root; a family of
   frames, each frame of each transcript from its frames' root. A start
-  never does it: its patches decode what they change, and its codecs
-  the rest as read. The first record that does not decode ends the
+  never does it: its codecs decode each record as read. The first
+  record that does not decode ends the
   rehearsal there, with `Event::Undecodable` naming its family, version
   and place, and the plan does not run; all decoding, `Event::Decoded`
-  with the count, and the plan runs. An owner whose level the binary
-  does not know (ahead, unleveled) is not walked: the plan's refusal
-  says why.
+  with the count, and the plan runs. A store 1 refuses (ahead, behind,
+  unleveled, below the floor, unregistered: `records.md`, 3; `layouts.md`, 5.1) is not
+  walked: the refusal, the same as a start's, says why.
 - **Going back** (`Store::back`, over the deployment's directory): once
-  a patched generation is active, its previous one, `A`, stays on disk
+  an upgraded generation is active, its previous one, `A`, stays on disk
   (`README.md`, section 2), and `active` may name it again until `A + 1`'s first
   commit of its own, the first past the position its manifest names
   (2, steps 6 and 8). It takes the lock, reads `active` and `A + 1`'s
@@ -797,16 +670,16 @@ deployment's lock as a start does (1, step 1).
   is then a stray the next start removes, and that start opens `A` as it
   was, cutting the transcripts to `A`'s lengths (`transcripts.md`, 4):
   `A`'s files are as `A` left them, those it shares with `A + 1`
-  included, since nothing `A + 1` did (patching, snapshotting, this
+  included, since nothing `A + 1` did (upgrading, snapshotting, this
   recovery, the stray's removal) writes a shared file (2, step 2). Past it, or with
   no previous generation or no manifest, it refuses, `Back { why }`,
-  changing nothing: the patched generation has made commits of its own,
+  changing nothing: the upgraded generation has made commits of its own,
   which may have acted beyond the store, and going back is restoring a
   backup.
 
 ```rust
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub lowest: u16, pub layouts: Box<[[u8; 32]]> }
@@ -819,7 +692,7 @@ Request::Back { owner: Token, root: Root }
 pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 }, Unreadable }
 Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`
 Event::BackRefused { owner: Token, why: BackRefusal }
-pub fn levels(sets: &PatchSets) -> Levels             // the binary's levels, for its versions' lines
+pub fn levels(sets: &OwnerSets) -> Levels             // the binary's levels, for its versions' lines
 Request::Close { owner: Token }                       // a rehearsal's end, in any state; refused for any other store
 Event::Closed { owner: Token, removed: bool }         // `scratch` emptied; false on a file's fault: the next rehearsal removes the rest
 ```
@@ -833,4 +706,4 @@ itself are the application's. A rehearsal's store refuses
 (`Request::Close`; an engine's store ends with its process and has
 none) empties the scratch, `removed` saying it is empty; a rehearsal
 that crashed leaves entries there, which the next rehearsal removes
-before it copies. Its patches answer `Patched` as a start's do.
+before it copies. Its jobs answer their counts as a start's do.

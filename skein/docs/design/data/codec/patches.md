@@ -1,19 +1,20 @@
 # Patches
 
-- **From the baseline on,** a landing that changes the layout of a
-  stored family brings a patch beside it, and a store behind its
-  binary applies the patches between, in order. Until the baseline,
-  nothing asks for one. A registered family (`README.md`, section 5)
-  brings none from its registration on: its store converts each value
-  as it is read (`layouts.md`), and its patches landed before keep
-  running for the stores behind them.
+- **Patches translate versions** for wires and transcripts' frames
+  (`README.md`, section 5). From a patched family's baseline on, a
+  landing that moves its version brings its patch, and a reader applies
+  the patches between, in order. Registered store families keep no
+  patches or older texts in code: the store converts values at read
+  through the layouts its registry holds (`layouts.md`; jig's
+  `protocol/store/layouts.md`). A store below its floor is refused,
+  not brought forward by a patch walk.
 - **Files, in the owner's crate beside its schemas:**
   - `schema/kept/<family>-v<N>.schema`: every version's text from the
     baseline on, never edited once landed but by the command's refresh
     of names, while no landed patch names it (`command.md`); the latest
     has the current layout;
   - `patches/NNNN.patch`: the patch's text (1), numbered per owner
-    from the baseline, its number the owner's level once it applies;
+    from the baseline, its number the level in its header;
   - `patches/pNNNN.rs`: its author's written functions, if any (5);
   - `patches/context.rs`: the owner's `Context`, what its driver passes
     each written function (5), written once by the command, empty,
@@ -26,8 +27,8 @@
     author's `pNNNN.rs` and `context.rs` are outside it;
   - `patches/golden/NNNN/`: the old version's goldens through the patch,
     reviewed once and kept.
-- **The text is data,** read at run time as step code, so jig runs
-  temper's derived patches from temper's texts without naming temper:
+- **The text is data,** read at run time as step code, so a caller runs
+  another owner's derived patches without depending on that owner's code:
   its language's version; the owner's level and its upstreams' levels
   when written; marks for the caller; then for each family it changes,
   its versions, `diff.md`, section 2's lines as the diff prints them, the
@@ -42,8 +43,8 @@
   a generic value, and walks it, building the new value in preorder in
   lib's reusable `Buffer` (../../runtime/lib.md, section 6). It stops where its caller
   must act, at a written site or a held field, and resumes on the
-  caller's answer: no function pointers, and jig runs temper's patches
-  without naming temper (4).
+  caller's answer: no function pointers or dependency on the owner's
+  written functions (4).
 - **Written sites are types,** not only roots, so a patch of a type
   reaches it in lists, variants and options; or one field of a record.
   A written function reads the old value by `README.md`, section 8.1's accessors and
@@ -75,10 +76,10 @@
 0041.patch:
 
 patch 1                                   # the language's version
-owner jig 41 after smith 7 skein 3        # the owner's level, its upstreams'
-mark fresh-windows                        # for the caller
+owner example 41 after upstream 7          # illustrative owner and levels
+mark refresh-cache                        # for the caller
 
-family jig-store-tasks 9 to 10
+family example-tasks 9 to 10
 rename Task.owner assignee
 widen Task.attempts u8 u32
 add Task.priority u8 0
@@ -124,10 +125,9 @@ value     = "?" | "written" | "none" | "some" value | "[]"
   of its token, and a change a block lacks (3) names the block's
   `family` line.
 - **The header:** the owner's level is the patch's number; `after`
-  lists each upstream's level when the patch was written (temper's
-  `draft/upgrades.md`, 4.4), none for an owner without upstreams. A
-  mark is a word the language gives no meaning: its caller's, such as
-  smith's `fresh-windows` (temper's `draft/upgrades.md`, 7.2).
+  lists each upstream's level when the patch was written, none for an
+  owner without upstreams. A mark is a word the language gives no
+  meaning: its caller's, such as `refresh-cache` in the example.
   `header` reads it alone (6), so that a caller reads the levels and
   marks of a patch that changes none of its families.
 - **A block per family the patch changes,** once each, its versions
@@ -146,8 +146,8 @@ value     = "?" | "written" | "none" | "some" value | "[]"
   family's machine plans its own block (3).
 - **A wire's block may also carry its reverse:** `down` lines and down
   sites, or `breaking` (`bridges.md`, 3). The grammar above takes them
-  as lines; a store plans its blocks forward alone and never asks for a
-  reverse.
+  as lines; a frame reader plans its blocks forward alone and never
+  asks for a reverse.
 
 ## 2. Values
 
@@ -276,8 +276,9 @@ version, and reads at most its head and one tag:
 - **R's leading enumeration:** `R` itself where `R` is an enumeration,
   or `R`'s first field where `R` is a record and that field's type is an
   enumeration, with no `list` or `option` level. Its tag is the first
-  byte after the head, and names the record's kind: the tasks family's
-  `Row` holds a milestone as its `value`'s `milestone` variant.
+  byte after the head, and names the record's kind: for example,
+  `record Envelope { value: Entry }` with `enum Entry { book: Book,
+  note: Note }` holds a book when its leading tag names `book`.
 - **The record keeps** when either holds:
   - `R` keeps, its own version aside: a versioned root's head is the
     one part that moves;
@@ -376,7 +377,7 @@ next_pass(plan, root)           the next plan, over those bytes
 ```rust
 // patches/p0041.rs: the command writes the skeleton, the author the body
 use super::Context;
-use super::kept::jig_store_tasks::p0041::{new, old};
+use super::kept::example_tasks::p0041::{new, old};
 use super::refusal::p0041::UNSCORED;
 use skein_codec::patch::{Build, Halt, Old};
 use skein_codec::value::Node;
@@ -466,8 +467,8 @@ pub fn shape(old: &Old, new: &mut Build, at: Node, _cx: &mut Context) -> Result<
 - **Names by constants,** never by text: `patches/mod.rs` (`command.md`)
   generates, per family and kept version, a module per declaration of
   its `FieldIx` and `VariantIx` constants, its parts' names in upper
-  case (`kept::jig_store_tasks::v9::task::ATTEMPTS`), per block its
-  versions' aliases (`kept::jig_store_tasks::p0041::{old, new}`, so
+  case (`kept::example_tasks::v9::task::ATTEMPTS`), per block its
+  versions' aliases (`kept::example_tasks::p0041::{old, new}`, so
   written code names no version), and per patch its refusals'
   (`refusal::p0041::UNSCORED`), so a misspelt name fails to
   build; the generator refuses two names that spell one constant. The
@@ -700,9 +701,9 @@ impl Build {                         // the new value, in preorder
   patches of plans, each at the capacity's `text`, parsing's and
   planning's scratch included, and what growth holds while it moves,
   at most a sixteenth of the run's tables, rounded up, in checked
-  arithmetic. jig's budget for patching is its map's twice plus the
-  machine of each family it keeps: a held field runs its family's
-  machine while its holder's waits.
+  arithmetic. A caller counts each machine it holds: a held field
+  runs its family's machine while its holder's waits. This is a bound
+  on codec machines, not a map patching budget.
 - **Bounded walks:** each `next` turns at most a bound the capacity's
   nodes give, and no step recurses: the walk and the build, `carry`'s
   among them, are stacks bounded by the record's nodes. A record past

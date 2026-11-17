@@ -1063,6 +1063,7 @@ impl Service {
                 | host::Down::Acknowledge { .. }
                 | host::Down::Answer { .. }
                 | host::Down::Grant { .. }
+                | host::Down::Renewals { .. }
                 | host::Down::Cancel
                 | host::Down::Drain => {}
             },

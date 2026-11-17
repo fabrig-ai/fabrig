@@ -196,6 +196,7 @@ impl Backend {
                     child,
                     to: kernel::Target::Group,
                     signal: kernel::Signal::Interrupt,
+                    reason: kernel::Reason::Unknown,
                 }));
             }
         } else if !waiting {

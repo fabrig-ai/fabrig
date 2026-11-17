@@ -357,7 +357,7 @@ impl World {
             }
             agent::Down::Cancel => self.report.cancellations += 1,
             agent::Down::Drain => self.report.drains += 1,
-            agent::Down::Acknowledge { turn: 1 } => {}
+            agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
             agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
                 panic!("unscripted process record")
             }
@@ -667,6 +667,7 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
         other @ (agent::Reply::Busy
         | agent::Reply::Unavailable
         | agent::Reply::Withdrawn
+        | agent::Reply::Unsent
         | agent::Reply::Delivery(_)) => {
             panic!("unscripted reply: {other:?}")
         }

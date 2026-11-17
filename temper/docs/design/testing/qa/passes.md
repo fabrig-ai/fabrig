@@ -1,6 +1,6 @@
 # Passes
 
-Provisional, 2026-11-12, revised 2026-11-14, from
+Provisional, 2026-11-12, revised 2026-11-16, from
 `../../draft/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
 Q6 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
@@ -64,14 +64,21 @@ The loop's third step (`README.md`, 4), for each free place
    which takes the cases queued at that moment.
 4. **Started:** its session (section 4). A start that fails before the
    agent runs ends the session `unstarted`, which undoes the pass's
-   start (`ledger.md`, 4.12), its tree removed; the failure is the
+   start (`ledger.md`, 4.12), its kept tree retained; the failure is the
    step's.
 
 ## 4. A pass session
 
-- **Its directory,** `sessions/N/` as triage's (`triage.md`, 2):
-  `brief`, `output`, and `tree/`, a worktree of the pass's build's
-  commit, for the agent to read the landings' drafts and the design.
+- **Its directory,** `sessions/N/`: `brief` and `output`. Its kept
+  tree is `trees/PLACE` under the home's private `trees/`, PLACE the
+  place's one-based position in the configuration's `places`. A place
+  has its own tree, separate from triage's and every other place's.
+  Made once with `git worktree add --detach`, then before each session
+  moved to the pass's build's commit with `git checkout --force
+  --detach COMMIT` followed by `git clean -ffdxq`, as triage's
+  (`triage.md`, 2), and removed and made again if moving fails. It
+  starts with exactly that commit's files for the agent to read the
+  landings' drafts and the design; the brief names the kept tree.
 - **Its command** as triage's (`triage.md`, 5), each `{effort}`
   replaced by `agent.pass`, its working directory the tree, its stdin
   the brief, with `TEMPER_INTERNAL_QA_HOME` and
@@ -90,9 +97,12 @@ The loop's third step (`README.md`, 4), for each free place
     `web` or `tui` one, each in a ctl session, `temper-qa pass open
     --ctl`, which starts no browser and no terminal
     (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, a
-    `see` compared with what ctl printed; at a deployment's place every
-    case is a ctl case and every session one (`deployment.md`), its
-    owner's changes `deployment patch` lines; a `tui` case's steps are `tui`
+    `see` compared with what ctl printed; at a deployment's place the
+    same, its ctl cases first in a ctl session and then its web and tui
+    cases in a full one, `temper-qa pass open`, the browser and the TUI
+    on the deployment's engine (`deployment.md`, 5 and 6), its owner's
+    changes `deployment patch` lines, which end the TUI and load the
+    page again; a `tui` case's steps are `tui`
     lines, the TUI started at the first and signed in by the session
     (`../../client/drive.md`, 3.3), and its finding's evidence the
     screen's rows, `pass line "tui look"`'s answer saved to a file;
@@ -103,8 +113,8 @@ The loop's third step (`README.md`, 4), for each free place
     is a security hole or lost data; a fault beside a case on the
     landing's surface a finding (`../../draft/landed-qa.md`, 13); the
     fakes alone: the person's forge is the box's fake Forgejo, and a
-    case that would set up the box's own Forgejo or reach any real
-    backend is blocked, naming it (`../../draft/landed-qa.md`, 6 and
+    case no line or setup can bring to its state is a gap, not blocked:
+    `temper-qa pass gap CASE KIND WHY` (`../../draft/landed-qa.md`, 6 and
     12).
   - **The pass:** its number; its place and the place's kind; its
     build's commit; for a resume, the goal it waited on and whether it
@@ -122,13 +132,20 @@ The loop's third step (`README.md`, 4), for each free place
   - **The setups:** `fresh` at a box's place, and each recipe of
     `passes/P/setups/` of the place's kind, its
     name and its README's first sentence, as `recipe list` gives them
-    (`../../client/recipe.md`, 5.2); a case whose state no setup reaches
-    is brought there from the nearest, and once it has run its lines
-    become a recipe (`places.md`, 6).
+    (`../../client/recipe.md`, 5.2). When neither `web` nor `tui` is
+    configured, offer `fresh` and only recipes whose whole chain has no
+    web or tui line, as triage does (`triage.md`, 3); a case whose state
+    no setup reaches is brought there from the nearest where its lines
+    can reach it, then becomes a recipe (`places.md`, 6). When no line
+    or setup can reach it, record a gap (`gaps.md`, 3).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
     lines in brief (`../../client/drive.md`, 3), among them ctl's box
-    values and the `forge` lines on the fake Forgejo, each file a
-    `forge commit` names written under `passes/P/files/` first
+    values and the `forge commit`, `forge push` and `forge checks` lines
+    on the fake Forgejo. One line says quoted bytes take printable ASCII
+    alone, other bytes as `\xHH`, with `\"` and `\\` for quote and
+    backslash (`../../client/drive.md`, 3.1). Each file a
+    `forge commit` or `forge push` names is written under
+    `passes/P/files/` first
     (`../../client/drive.md`, 3.4 and 3.5; section 2), and the recording
     commands (section 5; `findings.md`, 2), each with its form; that
     `pass setup`, `pass recipe` and `pass open` may take minutes, each
@@ -144,6 +161,11 @@ Each refused as `ledger.md`, 5 words it, otherwise recorded at once:
   case's outcome (`ledger.md`, 4.10), printed `case N RESULT`. A later
   outcome for the same case in the same session is the one its end
   reads.
+- **`temper-qa pass gap CASE KIND WHY`:** CASE assigned to this pass;
+  KIND `ctl`, `fake` or `qa`; WHY one nonempty argument saying what is
+  missing. Records outcome `gap` with its number, out of the queue at
+  once, counted neither failed nor blocked (`gaps.md`, 3). Prints
+  `gap N`.
 - **`temper-qa pass finding FILE`:** a finding (`findings.md`, 2).
 - **`temper-qa pass note WORDS`:** a note, WORDS one nonempty argument,
   printed `note N`.
@@ -153,8 +175,8 @@ Each refused as `ledger.md`, 5 words it, otherwise recorded at once:
 The loop's third step, for a pass session whose process has exited, or
 whose bound has passed:
 
-- **Ended** in the ledger with its exit, tokens and time, and its tree
-  removed (`git worktree remove --force`); `brief` and `output` stay.
+- **Ended** in the ledger with its exit, tokens and time; the kept
+  tree, `brief` and `output` stay.
 - **Lost:** a pass session still running when the loop starts is ended
   `lost` (`README.md`, 4) and counts as any end does.
 - **Its holder** sees the session ended and stops the drive session
@@ -207,12 +229,16 @@ where that contract has its mark:
       "expected": "...", "seen": "...", "evidence": ["0004-1280.png"],
       "state": "open", "goals": [] }
   ],
+  "gaps": [],
   "notes": ["..."]
 }
 ```
 
 - **A case** has its last outcome, or `outcome` absent while it has
   none; `expected` is each step's `expect` across its asks, in order.
+- **A gap** appears in `gaps` beside findings, with its ledger fields
+  (`ledger.md`, 2.11); a case's `gap` outcome also carries `gap`, its
+  number. Gaps count neither failed nor blocked.
 - **A finding's** `reproduction` is its lines from its setup; a linked
   one carries `linked`, the finding it matched.
 

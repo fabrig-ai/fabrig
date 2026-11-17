@@ -776,7 +776,7 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
     use smith_host_domain as smith;
     let mut settings = fixtures::worker_settings();
     settings.jig.limits.token = 1;
-    let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v26::CEILINGS.keyed_value_some);
+    let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v27::CEILINGS.keyed_value_some);
     let agent = fixtures::worker_agent();
     let limits = fixtures::worker_limits();
     let files = fixtures::worker_files();
@@ -1144,5 +1144,17 @@ fn worker_preparation_refuses_unusable_io_and_overflowing_operation_counts() {
                 .child(jig_protocol_config::Segment::Index(0))
                 .member(b"limits")
         );
+    }
+}
+
+#[test]
+fn restart_notes_keep_the_longer_of_the_word_and_the_configured_grace() {
+    use skein_lib::Duration;
+    let mut stand = socket_stand();
+    let grace = fixtures::worker_settings().jig.graces.grace;
+    for wait in [Duration::ZERO, grace.saturating_mul(4)] {
+        stand.worker.link(fixtures::NOW, link::Request::Restarting { wait });
+        assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Restarting { keep: wait.max(grace) }));
+        assert!(stand.worker.notes().is_empty(), "once per word");
     }
 }

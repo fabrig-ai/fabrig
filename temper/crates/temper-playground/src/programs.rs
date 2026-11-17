@@ -38,7 +38,7 @@ pub trait Harness: 'static {
     }
     /// Override sets for a test phase's open; the playground keeps production's sets.
     #[must_use]
-    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
+    fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         None
     }
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
@@ -311,8 +311,8 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
-    if let Some(sets) = H::patch_sets() {
-        service.patch_sets(sets);
+    if let Some(sets) = H::owner_sets() {
+        service.owner_sets(sets);
     }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");

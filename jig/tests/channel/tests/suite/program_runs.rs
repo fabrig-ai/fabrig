@@ -71,8 +71,9 @@ fn a_program_finish_with_live_delegates_parks_without_a_try() {
         "delegation succeeds: {:?}",
         run.seen
     );
-    assert_eq!(run.terminals.len(), 1);
-    assert_eq!(run.terminals[0].end, jig_domain_tasks::End::Parked);
+    let parent_terminals: Vec<_> = run.terminals.iter().filter(|answer| answer.task == 1).collect();
+    assert_eq!(parent_terminals.len(), 1);
+    assert_eq!(parent_terminals[0].end, jig_domain_tasks::End::Parked);
     let task = run.task.as_ref().expect("parent remains live");
     assert_eq!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle));
     assert_eq!(task.tries, jig_domain_tasks::Tries::NONE);

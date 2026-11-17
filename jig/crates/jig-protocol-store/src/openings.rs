@@ -1,5 +1,5 @@
 //! Openings are read only for rehearsal and erased by Wires (protocol/store/records.md 3).
-use crate::{CommitCheck, Store, WorkerOpening, codec, keys, pages};
+use crate::{CommitCheck, Store, WorkerOpening, keys, pages};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -45,7 +45,7 @@ pub(crate) fn kept(store: &mut Store) -> Option<Box<[WorkerOpening]>> {
     for _ in 0..=store.stores.store.len() {
         let page = pages::load(store, range(start)).ok()?;
         for row in page.rows {
-            let opening = codec::openings::decode(&row.value)?;
+            let opening = crate::rows::openings::decode(&row.value)?;
             if keys::decode_own(&row.key)? != keys::Own::Opening(opening.worker.clone()) {
                 return None;
             }

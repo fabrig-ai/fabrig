@@ -5,15 +5,17 @@ use std::collections::BTreeMap;
 #[derive(Default, Debug)]
 pub(super) struct Points {
     pub copy: Option<u32>,
-    pub patch: Option<u32>,
+    pub job: Option<u32>,
+    pub seal: Option<u32>,
     pub switch: Option<u32>,
     pub wires: Option<u32>,
 }
 impl Points {
     pub fn fixed(&self) -> [u32; 4] {
+        assert!(self.job.expect("job end committed") < self.seal.expect("seal"), "seal follows the job end");
         [
             self.copy.expect("copy first write"),
-            self.patch.expect("patch commit"),
+            self.seal.expect("seal commit"),
             self.switch.expect("switch rename"),
             self.wires.expect("wires commit"),
         ]
@@ -56,24 +58,34 @@ impl Capture {
                             .expect("format key");
                         for (_, ops) in durable::frames(bytes, 0).0 {
                             for op in ops {
-                                if let skein_kv::Op::Put { key, value } = op
-                                    && key == format
-                                    && jig_protocol_store::codec::component::Format::decode(&value)
-                                        .expect("format")
-                                        .levels
-                                        .application
-                                        == jig_protocol_store::levels(&crate::upgrade::FIXTURE_SETS).application
-                                {
-                                    self.seals.insert(fd.raw(), true);
+                                if let skein_kv::Op::Put { key, value } = op {
+                                    if matches!(jig_protocol_store::keys::decode_own(&key), Some(jig_protocol_store::keys::Own::Job { owner: jig_protocol_store::Owner::Application, ref name }) if name.as_ref() == crate::upgrade::JOB)
+                                    {
+                                        self.seals.insert(fd.raw(), false);
+                                    } else if key == format && points.job.is_some() {
+                                        assert_eq!(
+                                            jig_protocol_store::codec::component::Format::decode(&value)
+                                                .expect("format")
+                                                .levels,
+                                            jig_protocol_store::levels(&crate::upgrade::CURRENT_SETS)
+                                        );
+                                        self.seals.insert(fd.raw(), true);
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            (Op::Sync { fd }, Ok(Done::Nothing)) if self.seals.remove(&fd.raw()).is_some() => {
-                points.patch.get_or_insert(next);
-            }
+            (Op::Sync { fd }, Ok(Done::Nothing)) => match self.seals.remove(&fd.raw()) {
+                Some(true) => {
+                    points.seal.get_or_insert(next);
+                }
+                Some(false) => {
+                    points.job.get_or_insert(next);
+                }
+                None => {}
+            },
             (Op::Rename { to, .. }, Ok(Done::Nothing)) if to.as_ref() == b"active" => {
                 points.switch.get_or_insert(next);
             }

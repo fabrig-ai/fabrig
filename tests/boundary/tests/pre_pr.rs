@@ -10,20 +10,27 @@ use serde_json::{Value, json};
 
 const TREES: [&str; 5] = ["skein", "smith", "jig", "temper", "hearth"];
 
+// Unobserved git commands use git directly, without a Python fixture launch.
+const GIT: &str = r#"#!/bin/sh
+case "$1" in
+    merge-base|worktree|checkout|clean) exec "$(dirname "$0")/record/git" "$@" ;;
+    *) exec /usr/bin/git "$@" ;;
+esac
+"#;
+
 // Twelve formatter launches cost 69,758 ms; the baselines cost 17,000 ms.
 // Each launch pays 5,500 ms plus its share of source work. No real time passes.
 const PROGRAM: &str = r"#!/usr/bin/python3
 import json
 import os
 from pathlib import Path
-import signal
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
 assert 'TIERS_HOLD' not in os.environ, 'hold setting leaked to child'
+assert 'TIERS_LEDGER' not in os.environ, 'ledger setting leaked to child'
 common = subprocess.check_output(['/usr/bin/git', 'rev-parse', '--git-common-dir'], text=True).strip()
 git_dir = Path(common).resolve()
 root = git_dir.parent
@@ -31,9 +38,8 @@ state_path = git_dir / 'budget.json'
 if name == 'git':
     if state_path.exists():
         state = json.loads(state_path.read_text())
-        if args[0] in ('merge-base', 'worktree', 'checkout', 'clean'):
-            state['events'].append(['git', args])
-            state_path.write_text(json.dumps(state))
+        state['events'].append(['git', args])
+        state_path.write_text(json.dumps(state))
     os.execv('/usr/bin/git', ['git'] + args)
 state = json.loads(state_path.read_text())
 side = 'base' if 'temper-pre-pr/base' in str(Path.cwd()) else 'head'
@@ -55,6 +61,7 @@ def format_files(paths):
         print('format fault', file=sys.stderr)
         sys.exit(1)
     if fail == 'interrupt':
+        import signal
         os.kill(os.getpid(), signal.SIGTERM)
 if name == 'hold':
     assert Path.cwd() == root
@@ -128,11 +135,22 @@ elif name == 'one-process':
         sys.exit(0 if outcome == 'passed' else 100)
     assert args[:1] == ['--out']
     directory = Path(args[1])
-    profile = args[2]
+    offset = 2
+    if state.get('main_ledgers'):
+        assert args[2] == '--ledger' and args[4] == '--gate'
+        copy = Path(args[3])
+        profile = args[5]
+        original = root / '.git/main-ledgers' / (profile + '.json')
+        assert copy != original and copy.name == profile + '-ledger.json'
+        assert copy.parent.stat().st_mode & 0o777 == 0o700
+        assert copy.read_bytes() == original.read_bytes()
+        state.setdefault('ledger_copies', {})[profile] = str(copy)
+        offset = 5
+    profile = args[offset]
     assert profile in ('default', 'fuzzy')
     assert directory.name == ('tests' if profile == 'default' else 'fuzzy') and not directory.exists()
     packages = [args[i + 1] for i, arg in enumerate(args) if arg == '-p']
-    assert args[2:] == [profile] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
+    assert args[offset:] == [profile] + [arg for p in packages for arg in ('-p', p)] + ['--no-tests=warn']
     spend(100, ['one-process', side, packages, args])
     ledger = state.get('head', {})
     directory.mkdir(mode=0o700)
@@ -140,6 +158,7 @@ elif name == 'one-process':
              and t.get('profile', 'default') == profile]
     if profile == 'fuzzy':
         ledger = ledger.get('fuzzy', {})
+    import xml.etree.ElementTree as ET
     document = ET.Element('testsuites')
     for test in tests:
         suite = ET.SubElement(document, 'testsuite', name=test['binary'])
@@ -158,6 +177,16 @@ elif name == 'one-process':
         print(ledger['output'], flush=True)
     spend(0, ['one-process-end'])
     sys.exit(ledger.get('one_process_exit', 100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0))
+elif name == 'cpu-summary':
+    assert Path.cwd() == root
+    directory = Path(args[0])
+    copy = Path(state['ledger_copies']['default'])
+    assert args == [str(directory), '--ledger', str(copy), '--gate', '--json']
+    assert copy.read_bytes() == (root / '.git/main-ledgers/default.json').read_bytes()
+    assert directory.name == 'tests' and (directory / 'results.json').is_file()
+    spend(0, ['cpu-summary', args])
+    print(json.dumps({'over_budget': [state['over_budget']]}))
+    sys.exit(1)
 else:
     tree = Path.cwd().name
     if Path('delivery.rs').exists():
@@ -176,10 +205,16 @@ fn write(root: &Path, path: &str, text: &str) {
 }
 
 fn command(root: &Path, program: &str, args: &[&str]) -> Output {
-    command_with_hold(root, program, args, None)
+    command_with_settings(root, program, args, None, None)
 }
 
-fn command_with_hold(root: &Path, program: &str, args: &[&str], hold: Option<&str>) -> Output {
+fn command_with_settings(
+    root: &Path,
+    program: &str,
+    args: &[&str],
+    hold: Option<&str>,
+    ledgers: Option<&str>,
+) -> Output {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -196,6 +231,9 @@ fn command_with_hold(root: &Path, program: &str, args: &[&str], hold: Option<&st
     if let Some(prefix) = hold {
         command.env("TIERS_HOLD", prefix);
     }
+    if let Some(directory) = ledgers {
+        command.env("TIERS_LEDGER", directory);
+    }
     command.output().expect("start fixture command")
 }
 
@@ -210,11 +248,13 @@ fn fixture() -> skein_scratch::Scratch {
     let root = scratch.path();
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
+    write(root, ".gitignore", "/target/\n");
     let workspace = skein_scratch::paths::workspace();
     for path in [
         ".temper/pre-pr",
         "tools/pre-pr/pre_pr.py",
         "tools/tiers/run",
+        "tools/tiers/cpu.py",
         "tools/citations/citations.py",
         "tools/citations/sized.txt",
     ] {
@@ -222,8 +262,10 @@ fn fixture() -> skein_scratch::Scratch {
             write(root, path, &source);
         }
     }
-    for name in ["cargo", "rustfmt", "git", "hold"] {
-        write(root, &format!(".git/bin/{name}"), PROGRAM);
+    for (name, program) in
+        [("cargo", PROGRAM), ("rustfmt", PROGRAM), ("git", GIT), ("record/git", PROGRAM), ("hold", PROGRAM)]
+    {
+        write(root, &format!(".git/bin/{name}"), program);
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
     }
@@ -491,7 +533,7 @@ fn the_base_is_the_pins_merge_base() {
     git(root, &["update-ref", "refs/temper/landing", &other]);
     git(root, &["commit", "--allow-empty", "-qm", "head"]);
     write(root, ".git/MERGE_HEAD", &other);
-    write(root, "temper/docs/addition.md", "# Delivery\n");
+    write(root, "temper/addition.md", "# Delivery\n");
     let output = deliver(root);
     let log = text(&output);
     assert!(output.status.success(), "{log}");
@@ -581,7 +623,7 @@ fn one_hold_spans_the_check_but_not_a_cache_hit() {
     let root = scratch.path();
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"));
+    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"), None);
     assert!(output.status.success(), "{}", text(&output));
     let state = budget(root);
     let events: Vec<_> =
@@ -594,7 +636,7 @@ fn one_hold_spans_the_check_but_not_a_cache_hit() {
     );
     assert_eq!(events.iter().filter(|e| e[0] == "hold-start").count(), 1);
     reset(root, "format");
-    let cached = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"));
+    let cached = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold"), None);
     assert!(cached.status.success(), "{}", text(&cached));
     assert!(budget(root)["events"].as_array().expect("cached events").iter().all(|e| e[0] == "git"));
 }
@@ -605,7 +647,7 @@ fn an_early_hold_exit_warns_without_changing_the_verdict() {
     let root = scratch.path();
     pin(root);
     write(root, "a/src/lib.rs", "fn changed() {}\n");
-    let output = command_with_hold(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"));
+    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], Some(".git/bin/hold fail"), None);
     assert!(output.status.success(), "{}", text(&output));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(stdout.matches("pre-pr: hold:").count(), 1, "{stdout}");
@@ -615,4 +657,40 @@ fn an_early_hold_exit_warns_without_changing_the_verdict() {
         state["events"].as_array().expect("events").iter().filter(|e| e[0] != "git").cloned().collect();
     assert_eq!(events.first(), Some(&json!(["hold-start", ["fail"]])));
     assert_eq!(events.get(1).expect("cargo after failed hold")[0], "metadata");
+}
+
+#[test]
+fn mains_ledgers_refuse_a_delivery_over_budget() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    for profile in ["default", "fuzzy"] {
+        write(
+            root,
+            &format!(".git/main-ledgers/{profile}.json"),
+            &json!({"ledger": 2, "profile": profile, "binaries": {}, "budgets": {}, "moves": []}).to_string(),
+        );
+    }
+    write(root, "tools/tiers/cpu-summary", PROGRAM);
+    let over = "layer over budget: temper default domain: 12.00 CPU s, budget 10.0 s, at main 9.00 CPU s";
+    let mut state = budget(root);
+    state["main_ledgers"] = json!(true);
+    state["over_budget"] = json!(over);
+    state["head"] = json!({"one_process_exit": 1});
+    write(root, ".git/budget.json", &state.to_string());
+    let output = command_with_settings(root, "sh", &[".temper/pre-pr"], None, Some(".git/main-ledgers"));
+    assert!(!output.status.success(), "{}", text(&output));
+    assert!(!passed(root));
+    let log = text(&output);
+    assert!(log.contains(&format!("\nbudget temper default domain\n{over}\n")), "{log}");
+    let failures: Value =
+        serde_json::from_slice(&fs::read(root.join("target/temper/pre-pr-failures.json")).expect("failures file"))
+            .expect("JSON failures");
+    assert_eq!(failures["verdict"], "refused");
+    assert_eq!(failures["failures"], json!([{"class": "new", "name": "budget temper default domain", "key": null}]));
+    let state = budget(root);
+    let events = state["events"].as_array().expect("events");
+    assert_eq!(events.iter().filter(|e| e[0] == "one-process").count(), 2);
+    assert_eq!(events.iter().filter(|e| e[0] == "cpu-summary").count(), 1);
 }

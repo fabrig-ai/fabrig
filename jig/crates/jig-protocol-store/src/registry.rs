@@ -127,6 +127,9 @@ impl Layouts {
         if !self.active {
             return value;
         }
+        self.read_layout(key, value, out, work)
+    }
+    fn read_layout<'a>(&self, key: &[u8], value: &'a mut [u8], out: &'a mut Buffer, work: &mut Workspace) -> &'a [u8] {
         let Some(ty) = self.resolve(key) else {
             return value;
         };
@@ -188,9 +191,6 @@ impl Layouts {
         }
         Some(())
     }
-    pub(crate) fn has_writes(&self) -> bool {
-        !self.pending.is_empty()
-    }
     pub(crate) fn batch(&mut self, limits: &crate::Limits) -> Option<Box<[skein_kv::Op]>> {
         let mut ops = List::with_capacity(limits.store.ops.min(limits.commits.writes));
         let mut bytes = u64::from(skein_kv::FRAME_BYTES);
@@ -208,103 +208,6 @@ impl Layouts {
             return None;
         }
         Some(ops.into_boxed())
-    }
-    /// Settling reads as stored, refusing rather than handing malformed bytes on (jobs.md, 5.1).
-    pub(crate) fn put_again(
-        &self,
-        key: &[u8],
-        value: &[u8],
-        work: &mut ReadWork,
-    ) -> Result<Option<Box<[u8]>>, Box<str>> {
-        let index = self.resolve_index(key).expect("settling ranges resolve to value types");
-        let ty = self.types.get(index).expect("admitted value type");
-        let Some(id) = head(value) else {
-            return Err(reason(&[b"is at layout `0`, which the registry does not hold"]));
-        };
-        if id == ty.binary {
-            return Ok(None);
-        }
-        if let Some(name) = self.written.get(&(index, id)) {
-            return Err(reason(&[
-                b"is at layout `",
-                skein_lib::Decimal::of(u64::from(id)).as_bytes(),
-                b"`, which the written job `",
-                name.as_bytes(),
-                b"` converts",
-            ]));
-        }
-        if ty.keeping.as_slice().contains(&id) {
-            let mut value = Box::from(value);
-            rehead(&mut value, ty.version);
-            return Ok(Some(value));
-        }
-        let Some(plan) = ty.plans.get(&id) else {
-            return Err(reason(&[
-                b"is at layout `",
-                skein_lib::Decimal::of(u64::from(id)).as_bytes(),
-                b"`, which the registry does not hold",
-            ]));
-        };
-        match plan.convert(value, &mut work.buffer, &mut work.workspace) {
-            Ok(()) => Ok(Some(Box::from(work.buffer.as_slice()))),
-            Err(skein_codec::layout::Misconverted::Dropped(index)) => {
-                let (enumeration, variant) = plan.dropped(index).expect("plan's dropped name");
-                Err(reason(&[
-                    b"holds the variant `",
-                    variant.as_bytes(),
-                    b"` of `",
-                    enumeration.as_bytes(),
-                    b"`, which this build no longer has",
-                ]))
-            }
-            Err(why) => {
-                use skein_codec::layout::Misconverted;
-                let why = match why {
-                    Misconverted::Short => b"Short".as_slice(),
-                    Misconverted::Tag => b"Tag",
-                    Misconverted::Bool => b"Bool",
-                    Misconverted::Bound => b"Bound",
-                    Misconverted::Trailing => b"Trailing",
-                    Misconverted::Room => b"Room",
-                    Misconverted::Dropped(_) => unreachable!("dropped variants name their enumeration"),
-                };
-                Err(reason(&[
-                    b"does not convert from layout `",
-                    skein_lib::Decimal::of(u64::from(id)).as_bytes(),
-                    b"`: `",
-                    why,
-                    b"`",
-                ]))
-            }
-        }
-    }
-    pub(crate) fn retire_set(&mut self, set: &crate::PatchSet, logs_pending: bool, bound: u32) -> Option<u64> {
-        let mut retired = 0_u64;
-        for family in set.families {
-            for ty in family.types {
-                if check::history_type(family.name, ty.number) && !logs_pending {
-                    continue;
-                }
-                let from = whole(set.owner, ty.keys.first()?.from, bound)?;
-                let index = self.ranges.get(&from)?.ty;
-                let binary = self.types.get(index)?.binary;
-                let mut keys = List::uncapped();
-                for (key, row) in &self.rows {
-                    if key.0.as_ref() == family.name && key.1 == ty.number && key.2 != binary && !row.retire {
-                        keys.push(key.clone()).expect("uncapped retired rows");
-                    }
-                }
-                for key in &keys {
-                    self.rows.get_mut(key)?.retire = true;
-                    retired = retired.checked_add(1)?;
-                }
-                let planned = self.types.get_mut(index)?;
-                planned.keeping = List::uncapped();
-                planned.plans = Map::uncapped();
-            }
-        }
-        rows::operations(bound, self).ok()?;
-        Some(retired)
     }
     pub(crate) fn written(&self, job: &Job) -> Option<(u16, JobLayout)> {
         let converts = job.converts.as_ref()?;
@@ -338,9 +241,23 @@ impl Layouts {
 /// Keep an owned row in place when only its head moves. A converted row owns
 /// the conversion buffer's result before the next read reuses it.
 pub(crate) fn read(store: &mut Store, key: &[u8], value: &mut Box<[u8]>) {
+    owned(store, key, value, false);
+}
+
+/// The deployment header is read after plans are checked but before the
+/// registry's writes, to establish the open's numbers (protocol/store/layouts.md, 5).
+pub(crate) fn header(store: &mut Store, key: &[u8], value: &mut Box<[u8]>) {
+    owned(store, key, value, true);
+}
+
+fn owned(store: &mut Store, key: &[u8], value: &mut Box<[u8]>, before_active: bool) {
     let original = value.as_ptr();
     let work = &mut store.layout_work;
-    let mapped = store.registry.read(key, value, &mut work.buffer, &mut work.workspace);
+    let mapped = if before_active {
+        store.registry.read_layout(key, value, &mut work.buffer, &mut work.workspace)
+    } else {
+        store.registry.read(key, value, &mut work.buffer, &mut work.workspace)
+    };
     if mapped.as_ptr() != original {
         *value = Box::from(mapped);
     }
@@ -370,30 +287,18 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     #[cfg(test)]
     counting::reset();
     let mut layouts = Layouts::new();
-    rows::load(store, &mut layouts)?;
+    let registered = rows::open(store, &mut layouts, empty)?;
     let seeded = !layouts.rows.is_empty();
-    let mut registered = false;
-    for set in store.patch_sets.sets {
-        for family in set.families {
-            registered |= !family.types.is_empty() || !family.retired.is_empty();
-        }
-    }
     if !seeded && !registered {
         *store.registry = Layouts::new();
         *store.layout_work = ReadWork::new();
         return Ok(false);
     }
-    if let Err(why) = crate::patching::plan::checked(store) {
-        return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch });
-    }
-    if seeded {
-        check::patches(store)?;
+    if let Err(why) = crate::upgrade::admission::checked(store) {
+        return Err(OpenRefusal::Set { owner: why });
     }
     check::retired(store, &mut layouts)?;
-    let mut binary = texts::Binary::new(&store.patch_sets, &mut layouts)?;
-    if !seeded && !empty {
-        rows::seed(store, &mut layouts, &mut binary)?;
-    }
+    let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
     check::plans(store, &mut layouts, &mut binary, &mut work)?;
@@ -407,18 +312,4 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     *store.layout_work = ReadWork::fit(&layouts, work, store.limits.store.value);
     *store.registry = layouts;
     Ok(writing)
-}
-
-/// Refusal parts are checked names, decimal numbers and literal UTF-8 (jobs.md, 5.1).
-#[expect(clippy::disallowed_methods, reason = "refusal parts are valid UTF-8")]
-pub(crate) fn reason(parts: &[&[u8]]) -> Box<str> {
-    let mut bytes = 0_usize;
-    for part in parts {
-        bytes = bytes.checked_add(part.len()).expect("bounded refusal");
-    }
-    let mut writer = skein_lib::Writer::new(bytes);
-    for part in parts {
-        writer.put(part).expect("measured refusal");
-    }
-    Box::from(core::str::from_utf8(&writer.finish()).expect("UTF-8 refusal parts"))
 }

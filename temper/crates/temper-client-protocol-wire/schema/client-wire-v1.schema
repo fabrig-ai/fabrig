@@ -1,4 +1,4 @@
-family temper-client-wire 30
+family temper-client-wire 31
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -320,7 +320,14 @@ record HistoryGone { from: u64 first: option u64 }
 enum HistoryReply { page: HistoryPage, gone: HistoryGone, busy }
 versioned record HistoryAnswer { result: HistoryReply }
 
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead, history: HistoryRead }
+# A milestone's totals (temper/docs/design/domain/milestones.md, 7).
+record MilestoneRead { project: u32 task: u64 }
+record MilestoneLanding { at: u64 goal: u64 change: u64 }
+record MilestoneTotals { task: u64 done: u32 failed: u32 closed: u32 live: u32 ended: option u64 last_landing: option MilestoneLanding spent: u64 }
+enum MilestoneResult { totals: MilestoneTotals, not_milestone }
+versioned record MilestoneAnswer { result: MilestoneResult }
+
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead, history: HistoryRead, milestone: MilestoneRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/forge/records.md: no playground is no record.

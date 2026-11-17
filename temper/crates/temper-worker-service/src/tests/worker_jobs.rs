@@ -117,7 +117,12 @@ fn a_jobs_command_gets_exactly_four_environment_variables_and_its_own_group() {
     worker.job_request(JOB, Request::Kill { owner: JOB });
     assert_eq!(
         worker.io().pop(),
-        Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, to: kernel::Target::Group })
+        Some(io::Request::Signal {
+            child: CHILD,
+            signal: kernel::Signal::Kill,
+            to: kernel::Target::Group,
+            reason: kernel::Reason::Cancelled
+        })
     );
     worker.up(Time::ZERO, io::Event::Exited { owner, exit: kernel::Exit::Signal(9) });
     eof(worker);
@@ -139,7 +144,12 @@ fn a_job_past_its_deadline_has_its_group_killed_and_exits_deadline() {
         worker.jobs_fire(DEADLINE, false);
         assert_eq!(
             worker.io().pop(),
-            Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, to: kernel::Target::Group })
+            Some(io::Request::Signal {
+                child: CHILD,
+                signal: kernel::Signal::Kill,
+                to: kernel::Target::Group,
+                reason: kernel::Reason::Deadline
+            })
         );
         worker.jobs_fire(DEADLINE, false);
         assert!(worker.io().is_empty(), "the alarm fires once");
@@ -162,7 +172,12 @@ fn a_kill_ends_the_group_and_gone_follows_the_release() {
     worker.job_request(JOB, Request::Kill { owner: JOB });
     assert_eq!(
         worker.io().pop(),
-        Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, to: kernel::Target::Group })
+        Some(io::Request::Signal {
+            child: CHILD,
+            signal: kernel::Signal::Kill,
+            to: kernel::Target::Group,
+            reason: kernel::Reason::Cancelled
+        })
     );
     assert!(worker.events.is_empty(), "a kill request alone proves no process gone");
     worker.up(Time::ZERO, io::Event::Exited { owner, exit: kernel::Exit::Signal(9) });
@@ -366,7 +381,12 @@ fn a_stop_before_spawn_waits_for_the_spawn_and_release() {
         assert_eq!(event(worker), Event::Spawned { owner: JOB });
         assert_eq!(
             worker.io().pop(),
-            Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, to: kernel::Target::Group })
+            Some(io::Request::Signal {
+                child: CHILD,
+                signal: kernel::Signal::Kill,
+                to: kernel::Target::Group,
+                reason: if deadline { kernel::Reason::Deadline } else { kernel::Reason::Cancelled }
+            })
         );
         for pipe in [STDOUT, STDERR] {
             assert_eq!(worker.io().pop(), Some(demand(pipe)));
@@ -578,28 +598,43 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
     }
 }
 
-/// temper/docs/design/protocol/tooling.md, 2: abort closes a late-spawned job's child and pipes before Gone.
+/// temper/docs/design/protocol/tooling.md, 2: abort closes a running or late-spawned job's child and pipes before Gone.
 #[test]
 fn an_aborted_spawn_waits_for_its_child_and_pipes_to_close() {
-    let mut stand = fixtures::started_worker();
-    let worker = &mut stand.worker;
-    let (owner, _) = launch(worker);
-    worker.jobs_fire(Time::ZERO, true);
-    worker.up(Time::ZERO, io::Event::Spawned { owner, child: CHILD, pipes: Box::new([STDOUT, STDERR]) });
-    assert_eq!(event(worker), Event::Spawned { owner: JOB });
-    assert_eq!(
-        worker.io().pop(),
-        Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, to: kernel::Target::Group })
-    );
-    for entity in [CHILD, STDOUT, STDERR] {
-        assert_eq!(worker.io().pop(), Some(io::Request::Abort { entity }));
+    for before_spawn in [false, true] {
+        let mut stand = fixtures::started_worker();
+        let worker = &mut stand.worker;
+        let (owner, _) = launch(worker);
+        if before_spawn {
+            worker.jobs_fire(Time::ZERO, true);
+        }
+        worker.up(Time::ZERO, io::Event::Spawned { owner, child: CHILD, pipes: Box::new([STDOUT, STDERR]) });
+        assert_eq!(event(worker), Event::Spawned { owner: JOB });
+        if !before_spawn {
+            for pipe in [STDOUT, STDERR] {
+                assert_eq!(worker.io().pop(), Some(demand(pipe)));
+            }
+            worker.jobs_fire(Time::ZERO, true);
+        }
+        assert_eq!(
+            worker.io().pop(),
+            Some(io::Request::Signal {
+                child: CHILD,
+                signal: kernel::Signal::Kill,
+                to: kernel::Target::Group,
+                reason: kernel::Reason::Closed
+            })
+        );
+        for entity in [CHILD, STDOUT, STDERR] {
+            assert_eq!(worker.io().pop(), Some(io::Request::Abort { entity }));
+        }
+        assert!(worker.events.is_empty());
+        worker.up(Time::ZERO, io::Event::Exited { owner, exit: kernel::Exit::Signal(9) });
+        worker.up(Time::ZERO, io::Event::Closed { owner });
+        assert_eq!(event(worker), Event::Exited { owner: JOB, exit: Exit::Signal, tail: Box::new([]) });
+        assert_eq!(event(worker), Event::Gone { owner: JOB });
+        assert!(worker.jobs.empty());
     }
-    assert!(worker.events.is_empty());
-    worker.up(Time::ZERO, io::Event::Exited { owner, exit: kernel::Exit::Signal(9) });
-    worker.up(Time::ZERO, io::Event::Closed { owner });
-    assert_eq!(event(worker), Event::Exited { owner: JOB, exit: Exit::Signal, tail: Box::new([]) });
-    assert_eq!(event(worker), Event::Gone { owner: JOB });
-    assert!(worker.jobs.empty());
 }
 
 /// temper/docs/design/protocol/tooling.md, 2 and 6: a zero-byte bound admits only an empty file without reading it.

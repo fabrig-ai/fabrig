@@ -42,6 +42,8 @@ fn engine_document() -> String {
         .replace(r#""components":["accounts","workers"]"#, r#""components":["accounts","workers","clients"]"#)
         .replace(r#""credential":"app.secret""#, r#""workers":[{"root":"agent-root"}],"credential":"app.secret""#)
         .replace(r#""people.sign_ins":1"#, r#""people.sign_ins":2"#)
+        // The native client's watches and reads can await history fetches together.
+        .replace(r#""core.load_slots":1"#, r#""core.load_slots":4"#)
         // Keep channel's room for the deployment's roles beside its configured project.
         .replace(r#""people.projects":2"#, r#""people.projects":2,"authority.projects":1"#)
 }

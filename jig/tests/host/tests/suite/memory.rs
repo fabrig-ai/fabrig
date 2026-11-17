@@ -143,6 +143,7 @@ impl Measured {
                     | ToAgent::Answer { .. }
                     | ToAgent::Drain { .. }
                     | ToAgent::Cancel { .. }
+                    | ToAgent::Renewals { .. }
                     | ToAgent::Grant { .. }
                     | ToAgent::Acknowledge { .. },
                 )
@@ -518,6 +519,7 @@ fn source_replacement_at_capacity_completes_every_check() {
                     | ToAgent::Acknowledge { .. }
                     | ToAgent::Drain { .. }
                     | ToAgent::Cancel { .. }
+                    | ToAgent::Renewals { .. }
                     | ToAgent::Grant { .. },
                 )
                 | Request::DeliverUnchecked { .. }

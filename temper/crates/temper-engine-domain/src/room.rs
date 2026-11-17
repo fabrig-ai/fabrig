@@ -1,33 +1,95 @@
 //! A charter's brief room, by its host part's costs
-//! (temper/docs/design/domain/agent/tools.md).
+//! (temper/docs/design/domain/agent/room.md, 4).
 
 use alloc::boxed::Box;
 use jig_domain_core::{Charter, ToolFamilies};
+use jig_domain_tasks::{REASON_NAMES, Reasons};
 use skein_lib::{Decimal, Writer};
 
 /// A run's least brief room (temper/docs/design/domain/agent/tools.md).
 pub const BRIEF_ROOM: u64 = 2_048;
 
-/// A charter's non-brief host part in smith's bytes, built by temper-engine-smith.
+/// One cost in smith's three measures (domain/agent/room.md, 4.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Cost {
+    /// Rendered host bytes, against the local agent's host bound.
+    pub rendered: u64,
+    /// Decoded charter ownership, against its allowance.
+    pub owned: u64,
+    /// Encoded charter bytes, against its allowance.
+    pub encoded: u64,
+}
+
+impl Cost {
+    pub const ZERO: Self = Self { rendered: 0, owned: 0, encoded: 0 };
+    #[must_use]
+    pub const fn plus(self, other: Self) -> Self {
+        Self {
+            rendered: self.rendered.saturating_add(other.rendered),
+            owned: self.owned.saturating_add(other.owned),
+            encoded: self.encoded.saturating_add(other.encoded),
+        }
+    }
+}
+
+/// Measured declarations and frame, and their receiving bounds (domain/agent/room.md, 4.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HostPart {
-    /// Smith's host part in the receiving profile.
-    pub bound: u64,
-    /// Smith's own text and the largest finish and deliver schemas.
-    pub fixed: u64,
-    /// Host tools declared whatever the charter's tools, at the largest offer.
-    pub declared: u64,
-    /// Settings tools, paid where the charter names their family.
-    pub settings: u64,
-    /// The asking family's see and document declarations.
-    pub asking: u64,
-    /// The asking form of `propose_settings`, paid with the settings family.
-    pub asking_settings: u64,
-    /// Smith's families, paid where the policy turns them on.
+    /// Smith's host part in the receiving profile; none without a local agent.
+    pub bound: Option<u64>,
+    /// The smaller of the hub's and the receiving worker's charter allowance.
+    pub allowance: u64,
+    /// Rendered mechanics; owned and encoded frame with the main name and effort empty.
+    pub fixed: Cost,
+    /// One alternative model beyond its name and effort payloads.
+    pub model: Cost,
+    /// Non-asking declarations offered whatever the charter's families.
+    pub always: Cost,
+    /// `ToolFamilies::JIG`'s bit order, delegate first, ask last.
+    pub families: [Cost; 12],
+    /// An asking charter's own declarations.
+    pub asking: Cost,
+    /// The asking form of `propose_settings`.
+    pub asking_settings: Cost,
+    /// Smith's rendered families, paid where the policy turns them on.
     pub inspect: u64,
     pub modify: u64,
     pub shell: u64,
     pub agents: u64,
+}
+
+/// The fixed part's first failing measure (domain/agent/room.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Measure {
+    Owned,
+    Encoded,
+}
+
+/// A fixed part past its allowance, before any brief.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Unfit {
+    pub charter: u32,
+    pub wake: Reasons,
+    pub measure: Measure,
+    pub bytes: u64,
+    pub allowance: u64,
+}
+
+/// Fixed-part admission precedes rendered-room admission.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Refusal {
+    Fixed(Unfit),
+    Rendered(Short),
+}
+
+impl Refusal {
+    #[must_use]
+    pub fn words(&self) -> Box<[u8]> {
+        match self {
+            Self::Fixed(unfit) => unfit.words(),
+            Self::Rendered(short) => short.words(),
+        }
+    }
 }
 
 /// A charter that leaves its brief less than [`BRIEF_ROOM`].
@@ -40,13 +102,28 @@ pub struct Short {
 }
 
 impl HostPart {
+    /// An empty measurement table, before the service fills it and sets its allowance.
+    pub const EMPTY: Self = Self {
+        bound: None,
+        allowance: 0,
+        fixed: Cost::ZERO,
+        model: Cost::ZERO,
+        always: Cost::ZERO,
+        families: [Cost::ZERO; 12],
+        asking: Cost::ZERO,
+        asking_settings: Cost::ZERO,
+        inspect: 0,
+        modify: 0,
+        shell: 0,
+        agents: 0,
+    };
+
     /// Fixed parts, declarations and the instructions with every charter part joined,
     /// with each enabled family.
     #[must_use]
     pub fn non_brief(&self, charter: &Charter) -> u64 {
         let policy = &charter.policy;
-        let asking = crate::asking(policy.tools);
-        let mut bytes = self.fixed.saturating_add(if asking { self.asking } else { self.declared });
+        let mut bytes = self.fixed.rendered.saturating_add(self.declarations(charter).rendered);
         let mut instructions = skein_lib::len_u64(policy.instructions.len());
         let mut newline = policy.instructions.ends_with(b"\n");
         for part in &charter.parts {
@@ -59,10 +136,6 @@ impl HostPart {
             bytes = bytes.saturating_add(if newline { 1 } else { 2 });
         }
         for (enabled, cost) in [
-            (
-                policy.tools.0 & ToolFamilies::JIG.settings != 0,
-                if asking { self.asking_settings } else { self.settings },
-            ),
             (policy.inspect, self.inspect),
             (policy.modify, self.modify),
             (policy.shell, self.shell),
@@ -93,13 +166,93 @@ impl HostPart {
     /// The host bound less the non-brief part, zero at or past the bound.
     #[must_use]
     pub fn room(&self, charter: &Charter) -> u64 {
-        self.bound.saturating_sub(self.non_brief(charter))
+        self.bound.unwrap_or(u64::MAX).saturating_sub(self.non_brief(charter))
     }
 
-    /// Refuse a charter whose brief has less than its least room.
-    pub fn check(&self, charter: &Charter) -> Result<(), Short> {
+    /// Costs offered at the widest authority, without instructions or models.
+    fn declarations(&self, charter: &Charter) -> Cost {
+        if crate::asking(charter.policy.tools) {
+            return if charter.policy.tools.0 & ToolFamilies::JIG.settings != 0 {
+                self.asking.plus(self.asking_settings)
+            } else {
+                self.asking
+            };
+        }
+        let mut cost = self.always;
+        let mut bit = 1_u64;
+        for family in self.families {
+            if charter.policy.tools.0 & bit != 0 {
+                cost = cost.plus(family);
+            }
+            bit = bit.checked_shl(1).expect("twelve family bits");
+        }
+        cost
+    }
+
+    /// Owned and encoded costs on one wake, including resumable parts as standing sessions read them.
+    /// The rendered cost retains its separate all-parts admission rules.
+    #[must_use]
+    pub fn on_wake(&self, charter: &Charter, wake: Reasons) -> Cost {
+        let policy = &charter.policy;
+        let mut bytes = skein_lib::len_u64(policy.instructions.len());
+        for part in &charter.parts {
+            if part.on.meets(wake) {
+                bytes = bytes.saturating_add(2).saturating_add(skein_lib::len_u64(part.instructions.len()));
+            }
+        }
+        let mut cost = self.fixed.plus(self.declarations(charter));
+        for model in core::iter::once(&policy.model).chain(policy.alternatives.iter()) {
+            bytes = bytes.saturating_add(skein_lib::len_u64(model.name.len()));
+            if let Some(effort) = &model.effort {
+                bytes = bytes.saturating_add(skein_lib::len_u64(effort.len()));
+            }
+        }
+        for _ in &policy.alternatives {
+            cost = cost.plus(self.model);
+        }
+        cost = cost.plus(Cost { rendered: 0, owned: bytes, encoded: bytes });
+        cost.rendered = self.non_brief(charter);
+        cost
+    }
+
+    /// Refuse the largest wake in the first failing measure, with ties in Reasons' order.
+    pub fn check_fixed(&self, charter: &Charter) -> Result<(), Unfit> {
+        let mut owned = (Reasons::FIRST, 0);
+        let mut encoded = (Reasons::FIRST, 0);
+        for name in REASON_NAMES {
+            let wake = Reasons::named(name).expect("known reason name");
+            let cost = self.on_wake(charter, wake);
+            if cost.owned > owned.1 {
+                owned = (wake, cost.owned);
+            }
+            if cost.encoded > encoded.1 {
+                encoded = (wake, cost.encoded);
+            }
+        }
+        for (measure, (wake, bytes)) in [(Measure::Owned, owned), (Measure::Encoded, encoded)] {
+            if bytes > self.allowance {
+                return Err(Unfit { charter: charter.number, wake, measure, bytes, allowance: self.allowance });
+            }
+        }
+        Ok(())
+    }
+
+    /// Restore checks rendered room alone; no local agent skips it.
+    pub fn check_rendered(&self, charter: &Charter) -> Result<(), Short> {
+        let Some(bound) = self.bound else { return Ok(()) };
         let room = self.room(charter);
-        if room < BRIEF_ROOM { Err(Short { charter: charter.number, room, bound: self.bound }) } else { Ok(()) }
+        if room < BRIEF_ROOM { Err(Short { charter: charter.number, room, bound }) } else { Ok(()) }
+    }
+
+    /// Both checks at settings entrances and over startup defaults.
+    pub fn check(&self, charter: &Charter) -> Result<(), Refusal> {
+        if let Err(unfit) = self.check_fixed(charter) {
+            return Err(Refusal::Fixed(unfit));
+        }
+        match self.check_rendered(charter) {
+            Ok(()) => Ok(()),
+            Err(short) => Err(Refusal::Rendered(short)),
+        }
     }
 }
 
@@ -119,30 +272,70 @@ impl Short {
             bound.as_bytes(),
             b"; it needs at least 2,048",
         ];
-        let mut length = 0_usize;
-        for part in parts {
-            length = length.checked_add(part.len()).expect("bounded refusal text");
-        }
-        for digits in [charter.as_bytes(), room.as_bytes(), bound.as_bytes()] {
-            length = length
-                .checked_add(digits.len().saturating_sub(1).checked_div(3).expect("nonzero divisor"))
-                .expect("bounded comma count");
-        }
-        let mut out = Writer::new(length);
-        for (index, part) in parts.into_iter().enumerate() {
-            if index == 1 || index == 3 || index == 5 {
-                for (offset, digit) in part.iter().enumerate() {
-                    if offset != 0 && part.len().saturating_sub(offset).is_multiple_of(3) {
-                        out.put(b",").expect("measured comma");
-                    }
-                    out.put(core::slice::from_ref(digit)).expect("measured digit");
-                }
-            } else {
-                out.put(part).expect("measured words");
+        words(&parts, &[1, 3, 5])
+    }
+}
+
+impl Unfit {
+    /// The fixed-part diagnostic (domain/agent/room.md, 4.5).
+    #[must_use]
+    pub fn words(&self) -> Box<[u8]> {
+        let charter = Decimal::of(u64::from(self.charter));
+        let bytes = Decimal::of(self.bytes);
+        let allowance = Decimal::of(self.allowance);
+        let mut wake = b"first".as_slice();
+        for name in REASON_NAMES {
+            if Reasons::named(name) == Some(self.wake) {
+                wake = name;
             }
         }
-        out.finish()
+        let measure: &[u8] = match self.measure {
+            Measure::Owned => b"owned",
+            Measure::Encoded => b"encoded",
+        };
+        words(
+            &[
+                b"charter ",
+                charter.as_bytes(),
+                b" on a ",
+                wake,
+                b" wake is ",
+                bytes.as_bytes(),
+                b" bytes ",
+                measure,
+                b" before its brief, past its allowance of ",
+                allowance.as_bytes(),
+                b"; trim its text, parts or tool families",
+            ],
+            &[1, 5, 9],
+        )
     }
+}
+
+fn words(parts: &[&[u8]], figures: &[usize]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for (index, part) in parts.iter().enumerate() {
+        length = length.checked_add(part.len()).expect("bounded refusal text");
+        if figures.contains(&index) {
+            length = length
+                .checked_add(part.len().saturating_sub(1).checked_div(3).expect("nonzero divisor"))
+                .expect("bounded comma count");
+        }
+    }
+    let mut out = Writer::new(length);
+    for (index, part) in parts.iter().enumerate() {
+        if figures.contains(&index) {
+            for (offset, digit) in part.iter().enumerate() {
+                if offset != 0 && part.len().saturating_sub(offset).is_multiple_of(3) {
+                    out.put(b",").expect("measured comma");
+                }
+                out.put(core::slice::from_ref(digit)).expect("measured digit");
+            }
+        } else {
+            out.put(part).expect("measured words");
+        }
+    }
+    out.finish()
 }
 
 /// Trials fit their accounts, the family wire and one whole delivery (domain/trial.md, 3.1 and 6).

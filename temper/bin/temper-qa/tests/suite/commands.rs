@@ -18,7 +18,7 @@ pub(super) fn home() -> (Scratch, Home) {
     home.transact(|ledger| {
         ledger.record_landing("0123456789abcdef0123456789abcdef01234567", 10, Some(20), "Work drafts", 0);
         let pages = [("web".into(), vec!["work".into(), "home".into()]), ("tui".into(), vec!["chat".into()])].into();
-        ledger.start_session(1, "low", pages, vec!["fresh".into()], 0)?;
+        ledger.start_session(1, "low", pages, vec!["fresh".into()], Vec::new(), 0)?;
         Ok(())
     })
     .expect("session");
@@ -99,13 +99,13 @@ fn none_show_and_lines_print_the_persons_forms() {
         ledger.add_line("qa", "watcher needs attention", 1_794_477_840);
         ledger.record_landing("1123456789abcdef0123456789abcdef01234567", 11, None, "More work", 120);
         let pages = [("web".into(), vec!["work".into()])].into();
-        let session = ledger.start_session(2, "low", pages, vec!["fresh".into()], 120)?;
+        let session = ledger.start_session(2, "low", pages, vec!["fresh".into()], Vec::new(), 120)?;
         let input = temper_qa_tool::CaseInput::decode(CASE, "-")?;
         ledger.add_case(session, &input, 120)?;
         Ok(())
     })
     .expect("person's records");
-    success(&run(&home, &["show"], None, None), b"landings:\n  1 0123456789ab goal 10 Work drafts: triaged 1970-01-01T00:01Z; no QA: no client change\n  2 1123456789ab goal 11 More work: untriaged; cases\n\ncases:\n  1 web work queued; pass none; landings 2\n\nbuilds:\n  0123456789ab kept; landings 1; held none\n\nsessions:\n  1 triage landing 1 low 1970-01-01T00:00Z - 1970-01-01T00:01Z; code 0\n  2 triage landing 2 low 1970-01-01T00:02Z - running; running\n\npasses:\n\nfindings:\n\nnotes:\n");
+    success(&run(&home, &["show"], None, None), b"landings:\n  1 0123456789ab goal 10 Work drafts: triaged 1970-01-01T00:01Z; no QA: no client change\n  2 1123456789ab goal 11 More work: untriaged; cases\n\ncases:\n  1 web work queued; pass none; landings 2\n\nbuilds:\n  0123456789ab kept; landings 1; held none\n\nsessions:\n  1 triage landing 1 low 1970-01-01T00:00Z - 1970-01-01T00:01Z; code 0\n  2 triage landing 2 low 1970-01-01T00:02Z - running; running\n\npasses:\n\nfindings:\n\nnotes:\n\ngaps: 0 open; 0 filed; 0 closed\n");
     success(&run(&home, &["lines"], None, None), b"1 2026-11-12T10:04Z qa: watcher needs attention\n");
 }
 
@@ -123,7 +123,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         ledger.end_session(1, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build("build", 3)?;
         ledger.set_build_holds("build", vec![1], 5)?;
-        let pass = ledger.start_pass("places/1", &["web".into()], "high", 4).expect("pass");
+        let pass = ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("pass");
         let input = FindingInput {
             case: 1,
             title: "Start does nothing".into(),
@@ -151,7 +151,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
     let expected = json!({"pass":1,"place":"places/1","build":"build","state":"waiting",
         "cases":[{"case":1,"surface":"web","page":"work","landings":[1],"expected":["Drafts lists the draft"],"outcome":"failed","notes":"no goal","findings":[1]}],
         "findings":[{"finding":1,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"open","goals":[]},
-            {"finding":2,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"linked","goals":[],"linked":1}],"notes":["off-path"]});
+            {"finding":2,"title":"Start does nothing","severity":"medium","area":"frontend","landings":[1],"case":1,"setup":"fresh","reproduction":["web press button Start"],"expected":"a goal starts","seen":"no goal","evidence":["look.png"],"state":"linked","goals":[],"linked":1}],"notes":["off-path"],"gaps":[]});
     let report = run(&home, &["report", "1"], None, None);
     assert_eq!(report.status.code(), Some(0), "{:?}", report.stderr);
     assert_eq!(serde_json::from_slice::<serde_json::Value>(&report.stdout).expect("report"), expected);
@@ -182,4 +182,28 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         assert_eq!(output.stdout.len(), 0);
         assert_eq!(std::fs::read(&home.ledger).expect("unchanged"), before);
     }
+}
+
+#[test]
+fn wake_pokes_without_a_session_or_ledger_write_and_saves_poke_too() {
+    use std::{fs, io::Read};
+    let (_scratch, home) = home();
+    let before = fs::read(&home.ledger).expect("ledger");
+    success(&run(&home, &["wake"], None, None), b"");
+    let listener = temper_qa_tool::events::bind(&home.directory).expect("fake loop socket");
+    success(&run(&home, &["wake"], None, None), b"");
+    let (mut stream, _) = listener.accept().expect("wake connection");
+    assert_eq!(stream.read(&mut [0]).expect("closed"), 0);
+    assert_eq!(fs::read(&home.ledger).expect("unchanged ledger"), before);
+    success(&run(&home, &["triage", "none", "internal change"], Some("1"), None), b"landing 1: no QA\n");
+    let (mut stream, _) = listener.accept().expect("saved command connection");
+    assert_eq!(stream.read(&mut [0]).expect("closed"), 0);
+    drop(listener);
+    success(&run(&home, &["wake"], None, None), b"");
+    fs::remove_file(home.directory.join("run.sock")).expect("remove stale socket");
+    success(&run(&home, &["wake"], None, None), b"");
+    fs::write(home.directory.join("qa.json"), "unread configuration").expect("wake reads no configuration");
+    success(&run(&home, &["wake"], None, None), b"");
+    let output = run(&home, &["wake", "extra"], None, None);
+    assert_eq!(output.status.code(), Some(2));
 }

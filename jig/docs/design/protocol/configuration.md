@@ -279,6 +279,14 @@ and `core.policy_bytes` limit. Unknown references name their member.
     (`{"main": ..., "sub_agents": [...], "later": {"main": ...,
     "sub_agents": [...]}}`). It names no account.
 
+  Its flags are checked against the executor it admits: a named
+  charter's, as that charter's agent; a chosen executor's ended by
+  `Standing`, or by `Requester` as a conversation, as an agent's; a
+  chosen executor's ended by `Requester` and no conversation, as jig's
+  gathering's, the only task of that shape, which its creator fills as
+  the gathering's executor (`../domain/tasks/gatherings.md`, section 2);
+  any other chosen executor's, as a person task's.
+
   It names no wake policy, parameters, inputs or dependencies, and
   resources only by its connectors' symbols (3.3): a task filled from it wakes by its charter's default wake
   policy, as the settings hold it when the task is made, and parks as

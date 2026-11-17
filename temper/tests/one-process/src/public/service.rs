@@ -151,11 +151,7 @@ pub(super) fn phase(
 ) -> skein_fake_machine::Machine {
     super::ACTIVE.with(|active| active.set(true));
     BEARER.with(|held| *held.borrow_mut() = None);
-    let advanced = matches!(
-        name,
-        "every_owner_version_and_kind_answers_as_declared"
-            | "every_inaccessible_identifier_is_one_unknown_byte_for_byte"
-    );
+    let advanced = name == "every_owner_version_and_kind_answers_as_declared";
     let story = if advanced { Story::Merge } else { Story::Chat { words: b"Hello" } };
     stories::set(story);
     stories::setup_settings(if advanced { world::Phase::Story } else { world::Phase::Restart });

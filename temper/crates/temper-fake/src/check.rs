@@ -188,6 +188,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Decided(_)
             | d::Stored::Finding(_)
             | d::Stored::Looked(_)
+            | d::Stored::Milestone(_)
             | d::Stored::LandingLog(_)
             | d::Stored::Closer(_)
             | d::Stored::Verification(_) => {}

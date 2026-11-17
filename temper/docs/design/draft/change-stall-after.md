@@ -71,5 +71,5 @@ Cheap, focused and fuzzy suites only; walk = false.
 ## 5. Formats
 
 If when the stall counts from must be stored where nothing stores it
-today, the store's version moves and its patch comes with it:
-upgrades are supported (`redeploys.md`).
+today, the registered change record gains a field with a default;
+its version stays and no patch is needed (jig's `protocol/store/layouts.md`).

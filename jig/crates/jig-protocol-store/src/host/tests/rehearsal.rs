@@ -1,41 +1,32 @@
 //! A rehearsal stays runnable across job commits and KV snapshots (protocol/store/jobs.md, 2–3).
 use super::*;
-use crate::{Job, JobAnswer, JobWrite, KeyRange, Keys, Owner, PatchSet, PatchSets, Write};
+use crate::{Job, JobAnswer, JobWrite, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Write};
 use jig_domain_core_vocabulary as core;
 use jig_domain_tasks as tasks;
 use skein_io::file;
 
-const BASE: PatchSet = PatchSet {
+const BASE: OwnerSet = OwnerSet {
     owner: Owner::Application,
     name: "fixture",
     families: &[crate::KeptFamily {
         retired: &[],
-        current: jig_test_patches::patches::kept::fixture_label::TEXTS[0],
+        current: jig_test_layouts::records::LABEL,
         types: &[],
         name: "fixture-label",
-        texts: &[jig_test_patches::patches::kept::fixture_label::TEXTS[0]],
         map: crate::KeptMap::Store,
         keys: &[Keys { from: b"l", to: b"m", root: "Label" }],
         frames: None,
-        flights: &[],
     }],
     level: Some(0),
-    patches: &[],
-    fresh: None,
     jobs: &[],
 };
-const JOB: Job = Job {
-    name: "rewrite-labels",
-    keys: &[KeyRange { from: b"l", to: b"m" }],
-    converts: None,
-    settles: false,
-    counts: &[],
-};
+const JOB: Job =
+    Job { name: "rewrite-labels", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None, counts: &[] };
 const ROWS: u64 = 9;
 
 fn source() -> World {
     let mut world = World::new();
-    world.store.patch_sets(PatchSets { sets: &[BASE] });
+    world.store.owner_sets(OwnerSets { sets: &[BASE] });
     world.open();
     // Three rows and a header per source commit, within the fixture's four-write edge.
     for number in 1_u8..=3 {
@@ -62,7 +53,6 @@ fn source() -> World {
         assert!(world.above.is_empty());
     }
     // The fixture keeps task history in payload logs.
-    world.store.history_routing = true;
     world.host.down(
         &mut world.store,
         &fixtures::env(),
@@ -124,7 +114,7 @@ fn opened_rehearsal() -> World {
     limits.store.snapshot_after = 1;
     world.host = Drivers::new(&limits, 2);
     world.store = Store::on_directory(&limits, fixtures::APPLICATION, &[], world.host.seeded());
-    world.store.patch_sets(PatchSets { sets: &[PatchSet { jobs: &[JOB], ..BASE }] });
+    world.store.owner_sets(OwnerSets { sets: &[OwnerSet { jobs: &[JOB], ..BASE }] });
     world
         .host
         .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::super::Adoption::Rehearse { scratch })
@@ -192,10 +182,10 @@ fn opened_rehearsal() -> World {
                 hosted.wait_state()
             );
             if skein_kv::is_ready(&hosted.component.stores.store, &limits.store)
-                && !crate::patching::phase::ready(&hosted.component)
+                && !crate::upgrade::phase::ready(&hosted.component)
             {
                 snapshot_yields = snapshot_yields.checked_add(1).unwrap();
-                if let Some(crate::patching::phase::Patching::Jobs(_)) = crate::directory::patching(&hosted.component) {
+                if let Some(crate::upgrade::phase::Patching::Jobs(_)) = crate::directory::patching(&hosted.component) {
                     job_snapshot_yields = job_snapshot_yields.checked_add(1).unwrap();
                 }
             }

@@ -19,9 +19,16 @@ fn a_drain_asks_active_and_waiting_runs_once_and_announces_before_their_outputs(
     assert!(h.step(Event::Drain).is_empty());
     for _ in 0_u32..2 {
         let requests = h.step(jobs::opened());
-        let [Request::Hello { .. }, Request::Up(LinkUp::Draining)] = requests.as_ref() else {
+        let [
+            Request::Agent(ToAgent::Renewals { agent: first, held: false }),
+            Request::Agent(ToAgent::Renewals { agent: second, held: false }),
+            Request::Hello { .. },
+            Request::Up(LinkUp::Draining),
+        ] = requests.as_ref()
+        else {
             panic!("hello while draining: {requests:?}");
         };
+        assert_eq!((*first, *second), (active, waiting));
     }
 }
 

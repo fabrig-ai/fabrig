@@ -41,7 +41,6 @@ pub enum Story {
 #[derive(Debug)]
 pub struct Outcome {
     pub stopped: Option<Stopped>,
-    pub patched: Vec<(jig_protocol_store::Owner, u32, jig_protocol_store::Counts)>,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
     /// Names in the same process-index order as `peaks`.
@@ -133,7 +132,7 @@ fn process_name(process: &Proc) -> &'static str {
 const REFUSED_POLICY_BYTES: u32 = 512;
 thread_local! {
     static REFUSE_START: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-    static PATCH_SETS: std::cell::Cell<Option<jig_protocol_store::PatchSets>> = const { std::cell::Cell::new(None) };
+    static OWNER_SETS: std::cell::Cell<Option<jig_protocol_store::OwnerSets>> = const { std::cell::Cell::new(None) };
     static STORE: RefCell<Option<Rc<RefCell<Store>>>> = const { RefCell::new(None) };
     static PROGRESS: RefCell<Progress> = RefCell::new(Progress::default());
 }
@@ -163,8 +162,8 @@ impl Harness for OneProcess {
     fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
         crate::across_versions::worker_wires()
     }
-    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
-        PATCH_SETS.with(std::cell::Cell::get)
+    fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
+        OWNER_SETS.with(std::cell::Cell::get)
     }
     fn github() -> bool {
         crate::lower::github::active()
@@ -255,7 +254,6 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
 /// Captures, faults and assertions beside the composition's service.
 pub(crate) struct ServiceObserver {
     pub(crate) hooks: Option<SocketAddr>,
-    patched: Vec<(jig_protocol_store::Owner, u32, jig_protocol_store::Counts)>,
     bound_hooks: Option<(Fd, SocketAddr)>,
     capture: Capture,
     store: Rc<RefCell<Store>>,
@@ -276,11 +274,10 @@ impl Observe for ServiceObserver {
         let mut capture = Capture::default();
         capture.root(root);
         let store = STORE.with(|store| store.borrow().as_ref().expect("world store").clone());
-        let sets = PATCH_SETS.with(std::cell::Cell::get).unwrap_or(temper_engine_service::store::PATCH_SETS);
-        store.borrow_mut().levels = Some(jig_protocol_store::levels(&sets));
+        let sets = OWNER_SETS.with(std::cell::Cell::get).unwrap_or(temper_engine_service::store::OWNER_SETS);
+        store.borrow_mut().sets = Some(sets);
         Self {
             hooks: None,
-            patched: Vec::new(),
             bound_hooks: None,
             capture,
             store: store.clone(),
@@ -328,9 +325,6 @@ impl Observe for ServiceObserver {
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
             crate::across_versions::note(&note);
-            if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = &note {
-                self.patched.push((*of, *patch, *counts));
-            }
             if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
             }
@@ -774,7 +768,7 @@ impl Host for Person {
         client.iterate(now, wall);
         no_welcome_drawn(client.tree(), self.story);
         if crate::m15::observer::enabled() {
-            crate::m15::observer::page(format!("{:?}", client.tree().nodes()).as_bytes());
+            crate::m15::observer::page(client.tree().nodes());
         }
         while let Some(signing) = client.signing() {
             if matches!(signing, Signing::Again) {
@@ -1332,19 +1326,8 @@ pub(crate) fn run_phase(
         *cell.borrow_mut() = None;
     });
     let records = std::mem::take(&mut *store.borrow_mut());
-    let patched = outcome
-        .procs
-        .iter()
-        .filter_map(|proc| match proc {
-            Proc::Service(service) => Some(service.observer.patched.as_slice()),
-            _ => None,
-        })
-        .flatten()
-        .copied()
-        .collect();
     let result = Outcome {
         stopped: None,
-        patched,
         peaks: outcome.peaks(),
         process_names: outcome.procs.iter().map(process_name).collect(),
         verdict: skein_world::domain::Verdict::Passed,
@@ -1371,14 +1354,14 @@ pub(crate) fn run_phase(
 mod tests;
 
 /// Scope an override to this world's phase, including on an assertion's unwind.
-pub(crate) fn with_patch_sets<R>(sets: jig_protocol_store::PatchSets, run: impl FnOnce() -> R) -> R {
-    struct Reset(Option<jig_protocol_store::PatchSets>);
+pub(crate) fn with_owner_sets<R>(sets: jig_protocol_store::OwnerSets, run: impl FnOnce() -> R) -> R {
+    struct Reset(Option<jig_protocol_store::OwnerSets>);
     impl Drop for Reset {
         fn drop(&mut self) {
-            PATCH_SETS.with(|at| at.set(self.0));
+            OWNER_SETS.with(|at| at.set(self.0));
         }
     }
-    let _reset = Reset(PATCH_SETS.with(|at| at.replace(Some(sets))));
+    let _reset = Reset(OWNER_SETS.with(|at| at.replace(Some(sets))));
     run()
 }
 

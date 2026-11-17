@@ -452,6 +452,9 @@ struct Cut {
     digest: Option<crate::jig::digest::Digest>,
 }
 impl Cut {
+    fn whole() -> Self {
+        Self { room: usize::MAX, left: 0, turn: None, subject: false, digest: None }
+    }
     fn words(&mut self, bytes: &[u8], out: &mut Encoder) {
         let end = super::text_end(bytes, self.room);
         self.room = self.room.checked_sub(end).expect("within text budget");
@@ -788,4 +791,20 @@ fn encode_person_task(person: &jig_client::contract::PersonTask, out: &mut Encod
     out.key(b"cut");
     out.boolean(person.cut);
     out.object_end();
+}
+
+/// Encode a whole task line for a host's joined record.
+pub fn task_line(value: &jig_client::contract::TaskLine, out: &mut Encoder) {
+    let mut cut = Cut::whole();
+    encode_task_line(value, out, &mut cut);
+}
+/// Encode fields inside a host's task-line object, so it may add its own facts.
+pub fn task_line_fields(value: &jig_client::contract::TaskLine, out: &mut Encoder) {
+    let mut cut = Cut::whole();
+    read_queries::encode_task_line_fields(value, out, &mut cut);
+}
+/// Encode the supplied requester using jig's integer JSON form.
+pub fn requester_json(value: &Requester, out: &mut Encoder) {
+    let mut cut = Cut::whole();
+    encode_owner_requester(value, out, &mut cut);
 }

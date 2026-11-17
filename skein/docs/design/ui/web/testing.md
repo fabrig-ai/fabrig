@@ -124,7 +124,12 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 - **An incremental harness session** pumps the browser and caller-owned
   process pipes on one ring, with the caller's profile and environment;
   it allocates no scratch directory and imposes no whole-run horizon.
-  Its caller owns the step deadlines and explicit close and drain.
+  Its caller owns the step deadlines and explicit close and drain. It
+  reports each trouble the kit sees in the page as the kit gives it,
+  its kind, its text and its resource's URL, apart from its own
+  trouble (Chromium's exit or failure, a page it could not open), and
+  judges none: which trouble is expected is its caller's, as a story's
+  expected troubles are the harness's (below).
 - **A date or a time is typed as a person types it,** into its native
   field's parts, since that field takes no inserted text (../../testing/browser.md,
   section 6). The face knows the field by the role Chromium computes

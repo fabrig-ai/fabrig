@@ -72,14 +72,14 @@ pub fn words(name: &[u8], path: &[u8], chat: Option<u64>, always: bool) -> Box<[
     words.finish()
 }
 
-/// The first tracked way in template-number order when no project setting is supplied.
+/// The first tracked template not ended by its requester (client/pages/work.md, 1, Ways).
 #[must_use]
 pub fn default_way(me: &c::Me, project: u32) -> Option<u32> {
     let mut first = None;
     for member in &me.projects {
         if member.project == project {
             for template in &member.templates {
-                if template.tracked.is_some() {
+                if template.tracked.is_some() && template.flags.ended_by != c::EndedBy::Requester {
                     first = Some(match first {
                         Some(number) => template.number.min(number),
                         None => template.number,
@@ -131,6 +131,7 @@ pub fn preferred_way(me: &c::Me, project: u32, configured: Option<u32>) -> Optio
     if let Some(number) = configured
         && let Some(template) = shapes::template(me, project, number)
         && template.tracked.is_some()
+        && template.flags.ended_by != c::EndedBy::Requester
     {
         return Some(number);
     }
@@ -264,6 +265,7 @@ impl StartGoal {
             && let Some(me) = me
             && let Some(template) = shapes::template(me, self.project, number)
             && template.tracked.is_some()
+            && template.flags.ended_by != c::EndedBy::Requester
         {
             self.way = Some(number);
             self.error = None;

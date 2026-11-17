@@ -233,6 +233,7 @@ impl World {
             config,
             None,
             4,
+            None,
         )
     }
     /// Three simultaneous trains, with one spare branch per prepared member.
@@ -254,6 +255,7 @@ impl World {
             config,
             None,
             4,
+            None,
         );
         world.env.limits.landings = 3;
         world.restart();
@@ -282,6 +284,7 @@ impl World {
             config,
             None,
             5,
+            None,
         )
     }
     /// Enable the owned repository's manual-merge detection for a turn.
@@ -487,6 +490,7 @@ impl World {
             fake_config(),
             Some(passes),
             LIMITS.landing_members,
+            None,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -547,6 +551,27 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
+        )
+    }
+
+    /// Judge head checks by a cue in the repository's checked tree.
+    #[must_use]
+    pub fn with_check_cue(seed: u64, cue: raw::Cue) -> World {
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            false,
+            None,
+            fake_config(),
+            None,
+            LIMITS.landing_members,
+            Some(cue),
         )
     }
 
@@ -570,6 +595,7 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
         )
     }
 
@@ -663,6 +689,7 @@ impl World {
             fake_config(),
             None,
             LIMITS.landing_members,
+            None,
         )
     }
     #[expect(
@@ -683,6 +710,7 @@ impl World {
         config: forge::Config,
         passes: Option<u32>,
         members: u32,
+        cue: Option<raw::Cue>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -719,7 +747,7 @@ impl World {
                     silent: 0,
                     passes: passes.unwrap_or(1000),
                     reruns: 0,
-                    cue: None,
+                    cue,
                 },
                 protection,
                 hooked,
@@ -944,6 +972,7 @@ impl World {
             repository_config(2),
             None,
             LIMITS.landing_members,
+            None,
         );
         forge::repository(
             &mut world.forge,
@@ -2060,6 +2089,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Finding(row) => top::Key::Finding { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
+        top::Stored::Milestone(row) => top::Key::Milestone(row.task),
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

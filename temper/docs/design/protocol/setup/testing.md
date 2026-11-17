@@ -234,7 +234,7 @@ routing of the setup host, checked in `temper-service`'s own tests
 ## 3. What the setup relies on
 
 Forgejo's and the runner's behaviours at the pinned versions (`owned.md`, 1), each
-recorded by skein's conformance (`skein/docs/design/testing/fakes/forge.md`, section 7) on the
+recorded by skein's conformance (`skein/docs/design/testing/fakes/throwaway.md`, section 2) on the
 throwaway Forgejo and runner, and named here by its fact in the
 conformance's `facts.txt`. What reconcile relies on, and the deliveries,
 are skein's: `skein/docs/design/forge/setup/forgejo.md`, section 2 and `../forge/README.md`, section 8. What

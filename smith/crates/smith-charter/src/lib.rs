@@ -64,6 +64,12 @@ pub mod wire {
         use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
 
         #[test]
+        fn host_tool_input_path_names_the_schema_field() {
+            const NAME: &str = crate::v5::Path::HostToolInput.name();
+            assert_eq!(NAME, "HostTool.input");
+        }
+
+        #[test]
         #[expect(clippy::disallowed_macros, reason = "the patch test embeds the kept version-four golden")]
         fn a_version_four_charter_takes_up_contract_one() {
             use skein_codec::patch::Capacity;

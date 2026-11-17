@@ -21,16 +21,16 @@ const LIVE: &str = "new-build-live";
 const MARK: &str = "new-build-page-mark";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Identity {
+pub(super) struct Identity {
     device: u64,
     inode: u64,
 }
 impl Identity {
-    fn of(path: &Path) -> Self {
+    pub(super) fn of(path: &Path) -> Self {
         Self::metadata(&fs::metadata(path).expect("file identity"))
     }
 
-    fn metadata(metadata: &fs::Metadata) -> Self {
+    pub(super) fn metadata(metadata: &fs::Metadata) -> Self {
         Self { device: metadata.dev(), inode: metadata.ino() }
     }
 }
@@ -200,7 +200,7 @@ impl Probe {
 }
 
 /// Compare executable bytes without retaining whole binaries in memory.
-fn same_bytes(left: File, right: File) -> bool {
+pub(super) fn same_bytes(left: File, right: File) -> bool {
     let mut left = BufReader::new(left);
     let mut right = BufReader::new(right);
     loop {

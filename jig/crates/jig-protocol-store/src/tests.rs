@@ -1,6 +1,6 @@
 //! Store key, interval and codec properties (protocol/store/README.md, section 9).
+mod admission;
 mod census;
-mod codec;
 mod commits;
 mod directory;
 mod erase_reads;
@@ -13,10 +13,11 @@ mod history_logs;
 mod history_writes;
 mod intervals;
 mod keys;
+mod lifecycle;
 mod live_parts;
 mod open;
+mod owners;
 mod pages;
-mod patching;
 mod preopen;
 mod readers;
 mod reads;
@@ -28,17 +29,13 @@ mod turns_logs;
 
 mod settings;
 
-pub(crate) mod charter_versions;
-mod ended_talk;
 mod operations;
 mod phase;
-mod registered_layouts;
 mod retention;
 mod words;
 
 mod frame_memory;
 mod frame_patches;
-mod settings_layout;
 mod settings_patch;
 
 #[test]
@@ -118,7 +115,3 @@ fn valid_requires_room_for_transcript_work() {
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }
-
-mod catch_up;
-
-mod policy_patch;

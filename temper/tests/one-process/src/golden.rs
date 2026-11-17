@@ -1,7 +1,7 @@
-//! The once-made baseline deployment (temper/docs/design/protocol/baseline.md, 6).
+//! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
 pub(crate) mod files;
 use crate::{
-    fixtures,
+    ctl, fixtures,
     referee::{self, Store},
     stories,
     world::{self, HarnessProcess, Person, ServiceObserver, Story},
@@ -12,7 +12,7 @@ use skein_fake_person::{Find, Step};
 use skein_io::kernel::{Fd, ServiceSignal};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, fmt::Write as _, path::Path, rc::Rc};
 use temper_client_domain::Address;
 use temper_engine_domain::Record as Row;
 use temper_playground::{
@@ -22,8 +22,10 @@ use temper_playground::{
     service::Observe,
 };
 
-// The start's copy uses this build's brief floor; kept bytes stay unchanged (baseline.md, 6).
-const BRIEF_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS;
+thread_local! { static UPGRADED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) }; }
+
+const CHAT_REPLY: &str =
+    "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.";
 
 struct Golden;
 type Proc = programs::Process<Golden>;
@@ -40,7 +42,6 @@ impl Harness for Golden {
         fixtures::files()
     }
 }
-thread_local! { static PATCHED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) }; }
 struct Observer {
     inner: ServiceObserver,
 }
@@ -57,17 +58,23 @@ impl Observe for Observer {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: skein_lib::Wall) -> bool {
         while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = note {
-                let owner = match of {
-                    jig_protocol_store::Owner::Skein => "skein",
-                    jig_protocol_store::Owner::Smith => "smith",
-                    jig_protocol_store::Owner::Jig => "jig",
-                    jig_protocol_store::Owner::Application => "temper",
-                };
-                PATCHED.with(|lines| {
-                    lines.borrow_mut().push(format!("{owner} {patch} {} {}\n", counts.records, counts.commits));
-                });
-            }
+            let (of, line) = match note {
+                temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, rows, commits, counts }) => {
+                    let mut text = String::new();
+                    for count in &counts {
+                        write!(text, " {}={}", count.name, count.count).expect("string write");
+                    }
+                    (of, format!("{job} {rows} {commits}{text}\n"))
+                }
+                _ => continue,
+            };
+            let owner = match of {
+                jig_protocol_store::Owner::Skein => "skein",
+                jig_protocol_store::Owner::Smith => "smith",
+                jig_protocol_store::Owner::Jig => "jig",
+                jig_protocol_store::Owner::Application => "temper",
+            };
+            UPGRADED.with(|lines| lines.borrow_mut().push(format!("{owner} {line}")));
         }
         self.inner.before_iterate(service, now, wall)
     }
@@ -155,6 +162,11 @@ pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
             && matches!(task.phase, tasks::Phase::Active(tasks::Active::Running { .. }))
     })
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Opening {
+    Make,
+    Read,
+}
 struct Judge {
     finding: Option<String>,
     controls: skein_world::Controls,
@@ -162,7 +174,8 @@ struct Judge {
     forge: referee::forge::Forge,
     stopped: bool,
     released: bool,
-    upgrade: bool,
+    opening: Opening,
+    checked: bool,
     ticks: u32,
 }
 impl Judge {
@@ -193,7 +206,7 @@ impl Judge {
         if self.ticks >= 100_000 {
             return Err(String::from("golden story's bounded turns"));
         }
-        if !self.upgrade
+        if self.opening == Opening::Make
             && let Some(link) = service.service.links().pop()
         {
             for proc in others.iter_mut() {
@@ -202,10 +215,34 @@ impl Judge {
                 }
             }
         }
-        let complete = if self.upgrade {
-            service.service.end().is_some()
-        } else {
-            self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some()
+        if self.opening == Opening::Read
+            && !self.checked
+            && service.service.wait_state().engine.is_some_and(|state| state.mark_durable)
+        {
+            assert_history(&self.store.borrow())?;
+            restart_history(&self.store.borrow())?;
+            for proc in others.iter_mut() {
+                if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
+                    caller.commands.push_back(ctl::Command::new(&[b"me", b"--json"]));
+                    caller.commands.push_back(ctl::Command::new(&[b"chat", b"show", b"1", b"--json"]));
+                    caller.commands.push_back(ctl::Command::new(&[b"task", b"show", b"2", b"--json"]));
+                    caller.closed = true;
+                }
+            }
+            self.checked = true;
+        }
+        let complete = match self.opening {
+            Opening::Make => self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some(),
+            Opening::Read => {
+                if !self.stopped
+                    && let Some(end) = service.service.end()
+                {
+                    return Err(format!("floor start refused: {end:?}"));
+                }
+                others
+                    .iter()
+                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Calls(caller)) if caller.answers.len() == 3))
+            }
         };
         if !self.stopped && complete {
             for proc in others.iter_mut() {
@@ -213,9 +250,7 @@ impl Judge {
                     person.finish();
                 }
             }
-            if !self.upgrade {
-                self.controls.signal(0, ServiceSignal::Terminate);
-            }
+            self.controls.signal(0, ServiceSignal::Terminate);
             self.stopped = true;
         }
         if self.stopped {
@@ -243,7 +278,7 @@ impl skein_world::Referee<Proc> for Judge {
             }
         }
 
-        if !self.upgrade {
+        if self.opening == Opening::Make {
             self.forge.observe(procs)?;
         }
 
@@ -268,7 +303,7 @@ impl skein_world::Referee<Proc> for Judge {
 fn assert_history(store: &Store) -> Result<(), String> {
     match (&(store.installation), &(Some([9; 16]))) {
         (left, right) if left != right => {
-            let finding = String::from("baseline installation id");
+            let finding = String::from("floor installation id");
             return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
         }
         _ => {}
@@ -278,10 +313,10 @@ fn assert_history(store: &Store) -> Result<(), String> {
         .values()
         .any(|row| matches!(row, Row::Core(Record::Core(CoreRecord::Deployment(id))) if id.id == [7; 16])))
     {
-        return Err(String::from("baseline deployment id"));
+        return Err(String::from("floor deployment id"));
     }
-    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Person { number: 1, identity })) if identity.login.as_ref() == b"owner" && identity.key.subject.as_ref() == b"owner-a"))) { return Err(String::from("baseline person")); }
-    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Policy { project: 1, name, .. })) if name.as_ref() == "Demo"))) { return Err(String::from("baseline project")); }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Person { number: 1, identity })) if identity.login.as_ref() == b"owner" && identity.key.subject.as_ref() == b"owner-a"))) { return Err(String::from("floor person")); }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Policy { project: 1, name, .. })) if name.as_ref() == "Demo"))) { return Err(String::from("floor project")); }
     if !(rows.values().any(|row| {
         matches!(
             row,
@@ -391,7 +426,6 @@ pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
 
 /// An ordinary world story; the caller supplies only its test's temporary directory.
 pub fn make(directory: &Path) {
-    PATCHED.with(|lines| lines.borrow_mut().clear());
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let mut start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
@@ -423,7 +457,8 @@ pub fn make(directory: &Path) {
                 forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA),
                 stopped: false,
                 released: false,
-                upgrade: false,
+                opening: Opening::Make,
+                checked: false,
                 ticks: 0,
             },
         )
@@ -450,16 +485,65 @@ pub fn make(directory: &Path) {
     world::lower_store(None);
 }
 
-/// The permanent baseline is refused for its retired milestones, without switching generations.
+// A refused open has no commits or running neighbours to observe.
+struct Refusal {
+    stopped: bool,
+    ticks: u32,
+}
+thread_local! {
+    static READ_DEFAULTS: RefCell<Option<temper_service::stock::Given>> = const { RefCell::new(None) };
+}
+impl Harness for Refusal {
+    type Service = ();
+    type Process = programs::Never;
+    fn seeds(seed: u64) -> temper_service::settings::Seeds {
+        Golden::seeds(seed)
+    }
+    fn files() -> temper_service::settings::Files {
+        Golden::files()
+    }
+    fn given(_: &serde_json::Value) -> temper_service::stock::Given {
+        READ_DEFAULTS.with(|defaults| defaults.borrow_mut().take().expect("one floorless open"))
+    }
+}
+impl skein_world::Referee<programs::Process<Refusal>> for Refusal {
+    fn watch(&mut self, _: Time, procs: &[programs::Process<Self>]) -> Result<(), String> {
+        self.ticks += 1;
+        if self.ticks >= 100_000 {
+            return Err(String::from("golden open's bounded turns"));
+        }
+        for proc in procs {
+            if let programs::Process::Service(service) = proc
+                && service.service.wait_state().engine.is_some_and(|state| state.mark_durable)
+            {
+                return Err(String::from("floorless start passed the floor"));
+            }
+        }
+        self.stopped = procs.iter().all(Host::is_empty);
+        Ok(())
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        (!self.stopped).then_some(Time::from_nanos(60_000_000_000))
+    }
+    fn overdue(&self, now: Time) -> Option<String> {
+        (!self.stopped && now >= Time::from_nanos(60_000_000_000)).then(|| String::from("golden open did not settle"))
+    }
+    fn passed(&self) -> bool {
+        self.stopped
+    }
+}
+
+/// The permanent floor registers later layouts and serves the kept person.
 pub fn read(directory: &Path) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
-    PATCHED.with(|lines| lines.borrow_mut().clear());
+    UPGRADED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = read_configuration(directory);
     let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let mut disk = files::load(directory);
     let active = files::active(&mut disk);
+    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);
     let store = Rc::new(RefCell::new(Store::new()));
     store.borrow_mut().recovering();
@@ -485,7 +569,8 @@ pub fn read(directory: &Path) {
                 forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA),
                 stopped: false,
                 released: false,
-                upgrade: true,
+                opening: Opening::Read,
+                checked: false,
                 ticks: 0,
             },
         )
@@ -494,36 +579,134 @@ pub fn read(directory: &Path) {
             world.host_roots(program, roots);
         }
         world.spawn_restartable(programs::service_roots(), programs::service::<Golden>);
+        world.host_roots(
+            ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn, inherited))))),
+            ctl::roots,
+        );
+        world.spawn_restartable(
+            vec![skein_world::StartupRoot { name: b"private".as_slice().into(), path: b"client".as_slice().into() }],
+            |inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))),
+        );
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm_peer(), None))));
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
         world.run()
     });
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
-    assert!(
-        matches!(service.service.end(), Some(temper_service::End::Engine(temper_service::EngineEnd::Stopped(
-        temper_service::EngineStop::StoreOpen { why: jig_protocol_store::OpenRefusal::Layout { family, value_type: 10, why: jig_protocol_store::Unplanned::Retired, .. } }
-    ))) if family.as_ref() == "jig-store-tasks"),
-        "{:?}",
-        service.service.end()
+    assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_engine_service::End::Drained)));
+    let caller = outcome
+        .procs
+        .iter()
+        .find_map(|proc| if let Proc::Other(HarnessProcess::Calls(caller)) = proc { Some(caller) } else { None })
+        .expect("kept-token caller");
+    assert_served(caller);
+    assert_eq!(active, b"1\n", "the kept floor's generation");
+    assert_eq!(
+        files::active(&mut outcome.machine.0.borrow_mut()),
+        b"2\n",
+        "the current layouts register in one new generation"
     );
+    let upgraded = std::fs::read_to_string(directory.join("upgraded.txt")).expect("kept upgrade events");
+    assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), upgraded);
+    world::lower_store(None);
+}
+
+/// The floorless copy refuses before decoding, without switching generations.
+pub fn refuse(directory: &Path) {
+    stories::set(Story::PlaygroundA);
+    stories::setup_settings(world::Phase::Story);
+    let (configuration, defaults) = startup_configuration(directory);
+    READ_DEFAULTS.with(|at| *at.borrow_mut() = Some(defaults));
+    let mut disk = files::load(directory);
+    files::change_record(&mut disk, &[0, 13], None);
+    let before = files::image(&mut disk);
+    let active = files::active(&mut disk);
+    let machine = Machine::new(disk);
+    // Parameters carries a git transport even though no program can run before this refusal.
+    let config = temper_playground::documents::hosted_git::config();
+    let forge =
+        skein_fake_peers::forge::Forge::new(skein_fake_forge_domain::Domain::new(&config, fixtures::SEED), config);
+    let params = programs::Parameters {
+        deployment: configuration.into(),
+        seed: fixtures::SEED,
+        links: Links::Keep,
+        forge: temper_fake_git_hosted::Typed::new(Rc::new(RefCell::new(forge)), &stories::forge_table()),
+        route: None,
+        disk: machine.0.clone(),
+    };
+    let outcome = programs::with(params, || {
+        let mut world = skein_world::World::new(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            Refusal { stopped: false, ticks: 0 },
+            skein_world::Memory::Unchecked,
+        )
+        .with_machine(machine);
+        world.spawn_restartable(programs::service_roots(), programs::service::<Refusal>);
+        world.run()
+    });
+    let programs::Process::Service(service) = &outcome.procs[0] else { panic!("service first") };
+    assert!(service.service.is_empty());
+    let why = jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Floor };
+    assert_eq!(
+        service.service.end(),
+        Some(&temper_service::End::Engine(temper_service::EngineEnd::Stopped(temper_service::EngineStop::StoreOpen {
+            why: why.clone()
+        })))
+    );
+    assert!(why.words().join("").contains(jig_protocol_store::FLOOR_BRIDGE));
+    files::refused(&before, &mut outcome.machine.0.borrow_mut());
+    assert_eq!(active, b"1\n", "the kept floor's generation");
     assert_eq!(
         files::active(&mut outcome.machine.0.borrow_mut()),
         active,
         "refusal never switches the active generation"
     );
-    world::lower_store(None);
+}
+
+fn assert_served(caller: &ctl::Caller) {
+    assert_eq!(caller.answers.len(), 3);
+    for answer in &caller.answers {
+        assert_eq!(answer.exit, skein_io::kernel::Exit::Code(0), "{}", String::from_utf8_lossy(&answer.error));
+    }
+    let identity: serde_json::Value = serde_json::from_slice(&caller.answers[0].output).expect("me JSON");
+    assert_eq!(identity["party"]["number"], 1);
+    assert_eq!(identity["party"]["login"]["bytes"], "owner");
+    let chat: serde_json::Value = serde_json::from_slice(&caller.answers[1].output).expect("chat JSON");
+    assert_eq!(chat["activity"]["cut"], false);
+    assert!(chat["activity"]["before"].is_null());
+    assert!(chat["activity"]["after"].is_null());
+    let turns: Vec<_> = chat["activity"]["rows"]
+        .as_array()
+        .expect("chat activity")
+        .iter()
+        .filter_map(|row| {
+            let name = row.pointer("/event/owner/decoded/name")?;
+            Some((name["attempt"].as_u64().expect("attempt"), name["number"].as_u64().expect("turn")))
+        })
+        .collect();
+    assert_eq!(turns, [(1, 1), (1, 2), (4, 1)], "kept chat turns served");
+    assert!(std::str::from_utf8(&caller.answers[1].output).expect("chat UTF-8").contains(CHAT_REPLY));
+    let task: serde_json::Value = serde_json::from_slice(&caller.answers[2].output).expect("task JSON");
+    assert_eq!(task["chip"]["task"], 2);
+    assert_eq!(task["chip"]["phase"], "ended");
+    assert_eq!(task["chip"]["title"]["bytes"], "Export widget's table as CSV");
 }
 
 /// The kept world configuration with current admission bounds for its defaults.
 pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
+    startup_configuration(directory).0
+}
+
+fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
     temper_playground::documents::settings::strip_fixed(&mut document);
     let sections =
         document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
-    *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
-    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
-        panic!("golden world defaults")
-    };
+    *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
+    let given = temper_playground::documents::given(&document);
+    let temper_service::stock::Given::Own { jig, .. } = &given else { panic!("golden world defaults") };
     for (name, count) in [
         ("tasks.charters", jig.charters.len()),
         ("core.templates", jig.templates.len()),
@@ -533,5 +716,49 @@ pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
         let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
         *bound = bound.as_u64().expect("count override").max(count).into();
     }
-    serde_json::to_vec(&document).expect("startup configuration")
+    (serde_json::to_vec(&document).expect("startup configuration"), given)
+}
+
+fn restart_history(store: &Store) -> Result<(), String> {
+    let header =
+        store
+            .rows
+            .values()
+            .find_map(|row| {
+                if let Row::Core(Record::Core(CoreRecord::Deployment(header))) = row { Some(header) } else { None }
+            })
+            .ok_or("kept header")?;
+    if header.tasks != 7 || header.tasks + 1 != 8 || store.rows.values().any(|row| {
+        matches!(row, Row::Core(Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) if task.number >= 8)
+    }) { return Err(String::from("next task number 8 is above every kept task")); }
+    let turns: Vec<_> = store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let Row::Core(Record::Core(CoreRecord::Turn(turn))) = row
+                && turn.task == 1
+            {
+                Some(turn)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let places: Vec<_> = turns.iter().map(|turn| (turn.attempt, turn.turn, turn.spent, turn.read)).collect();
+    if places != [(1, 1, 13, None), (1, 2, 26, None), (4, 1, 14, Some(3))] {
+        return Err(format!("paused chat's kept turns: {places:?}"));
+    }
+    if !turns.iter().any(|turn| skein_lib::bytes::find(&turn.transcript, CHAT_REPLY.as_bytes()).is_some()) {
+        return Err(String::from("paused chat's reply read"));
+    }
+    if !live(store).any(|task| {
+        task.number == 7
+            && task.attempt == 6
+            && task.turn == 1
+            && task.phase == tasks::Phase::Active(tasks::Active::Due)
+            && task.session.is_none()
+    }) {
+        return Err(String::from("signal-stopped coding task due at the same attempt on a plain reopen"));
+    }
+    Ok(())
 }

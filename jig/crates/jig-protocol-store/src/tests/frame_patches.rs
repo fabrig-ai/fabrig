@@ -5,7 +5,7 @@
     reason = "test cases use ordinary Rust collections (programming-model.md 10.2)"
 )]
 use super::fixtures::{self, ALICE, disk::Disk};
-use crate::{Event, KeptFamily, KeptMap, Owner, PatchSet, PatchSets, Request, Store, TranscriptRead, codec, keys};
+use crate::{Event, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, Request, Store, TranscriptRead, codec, keys};
 use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
 use jig_test_patches_jig::{frames, patches as jig};
@@ -13,44 +13,44 @@ use jig_test_patches_smith::patches as smith;
 use skein_fake_machine::Item;
 use skein_lib::{Token, Wall, length::len_u64};
 
-pub(super) const SETS: PatchSets = PatchSets {
+pub(super) const SETS: OwnerSets = OwnerSets {
     sets: &[
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             level: Some(2),
-            patches: jig::PATCHES,
-            fresh: None,
             families: &[KeptFamily {
                 retired: &[],
                 current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-frame",
-                texts: jig::kept::fixture_frame::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_jig::FRAME_ROOT),
+                frames: Some(crate::Frames {
+                    root: jig_test_patches_jig::FRAME_ROOT,
+                    texts: jig::kept::fixture_frame::TEXTS,
+                    patches: jig::PATCHES,
+                }),
             }],
         },
-        PatchSet {
+        OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             level: Some(1),
-            patches: smith::PATCHES,
-            fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
                 retired: &[],
                 current: smith::kept::fixture_turn::TEXTS.last().expect("kept text"),
                 types: &[],
-                flights: &[],
                 name: "fixture-turn",
-                texts: smith::kept::fixture_turn::TEXTS,
                 map: KeptMap::Store,
                 keys: &[],
-                frames: Some(jig_test_patches_smith::ROOT),
+                frames: Some(crate::Frames {
+                    root: jig_test_patches_smith::ROOT,
+                    texts: smith::kept::fixture_turn::TEXTS,
+                    patches: smith::PATCHES,
+                }),
             }],
         },
     ],
@@ -112,10 +112,10 @@ fn put(record: &domain::Record) -> skein_kv::Op {
         value: codec::encode(record, &fixtures::codec_limits(), &[]).expect("record"),
     }
 }
-fn scene(bytes: &[u8], sets: PatchSets) -> (Disk, Store) {
+fn scene(bytes: &[u8], sets: OwnerSets) -> (Disk, Store) {
     let disk = Disk::new(&[Item::directory(b"0000000000000000"), Item::file(PATH, bytes)]);
     let mut store = fixtures::over(fixtures::stores());
-    store.patch_sets(sets);
+    store.owner_sets(sets);
     let opened = fixtures::run(
         &mut store,
         Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
@@ -228,8 +228,7 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             | Event::BackRefused { .. }
             | Event::Closed { .. }
             | Event::Job { .. }
-            | Event::Ran { .. }
-            | Event::Patched { .. }) => result.push(other),
+            | Event::Ran { .. }) => result.push(other),
         }
     }
     result.into_boxed_slice()
@@ -417,37 +416,42 @@ fn patched_frame_sizes_bound_resumes_turns_pages_and_tails() {
 
 #[test]
 fn serving_opens_refuse_bad_frames_sets_without_io() {
-    const WRONG: PatchSets =
-        PatchSets { sets: &[PatchSet { owner: Owner::Application, ..SETS.sets[0] }, SETS.sets[1]] };
-    const TWO: PatchSets = PatchSets {
+    const WRONG: OwnerSets =
+        OwnerSets { sets: &[OwnerSet { owner: Owner::Application, ..SETS.sets[0] }, SETS.sets[1]] };
+    const TWO: OwnerSets = OwnerSets {
         sets: &[
-            PatchSet { families: &[SETS.sets[0].families[0], SETS.sets[0].families[0]], ..SETS.sets[0] },
+            OwnerSet { families: &[SETS.sets[0].families[0], SETS.sets[0].families[0]], ..SETS.sets[0] },
             SETS.sets[1],
         ],
     };
     const OTHER: &str = "family other-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds other Turn }\n";
-    const MISMATCH: PatchSets = PatchSets {
+    const MISMATCH: OwnerSets = OwnerSets {
         sets: &[
-            PatchSet {
+            OwnerSet {
                 families: &[KeptFamily {
                     current: OTHER,
+                    frames: Some(crate::Frames { texts: &[OTHER], patches: &[], root: "TurnRecord" }),
                     name: "other-frame",
-                    texts: &[OTHER],
                     ..SETS.sets[0].families[0]
                 }],
                 level: Some(0),
-                patches: &[],
                 ..SETS.sets[0]
             },
             SETS.sets[1],
         ],
     };
-    const MISSING: PatchSets = PatchSets { sets: &[SETS.sets[0]] };
-    const BAD_ROOT: PatchSets = PatchSets {
+    const MISSING: OwnerSets = OwnerSets { sets: &[SETS.sets[0]] };
+    const BAD_ROOT: OwnerSets = OwnerSets {
         sets: &[
             SETS.sets[0],
-            PatchSet {
-                families: &[KeptFamily { frames: Some("Missing"), ..SETS.sets[1].families[0] }],
+            OwnerSet {
+                families: &[KeptFamily {
+                    frames: Some(crate::Frames {
+                        root: "Missing",
+                        ..SETS.sets[1].families[0].frames.expect("frames family")
+                    }),
+                    ..SETS.sets[1].families[0]
+                }],
                 ..SETS.sets[1]
             },
         ],
@@ -460,12 +464,12 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
         (BAD_ROOT, Owner::Smith),
     ] {
         let mut store = fixtures::over(fixtures::stores());
-        store.patch_sets(sets);
+        store.owner_sets(sets);
         let events = fixtures::run(
             &mut store,
             Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
         );
-        let [Event::OpenRefused { why: crate::OpenRefusal::Set { owner: found, patch: 0 }, .. }] = &*events else {
+        let [Event::OpenRefused { why: crate::OpenRefusal::Set { owner: found }, .. }] = &*events else {
             panic!("set refusal {events:?}")
         };
         assert_eq!(*found, owner);
@@ -475,25 +479,37 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
 
 #[test]
 fn empty_kept_sets_make_no_machine_and_the_same_requests() {
-    const EMPTY: PatchSets = PatchSets {
+    const EMPTY: OwnerSets = OwnerSets {
         sets: &[
-            PatchSet {
-                families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[0].families[0] }],
+            OwnerSet {
+                families: &[KeptFamily {
+                    frames: Some(crate::Frames {
+                        texts: &[],
+                        patches: &[],
+                        ..SETS.sets[0].families[0].frames.expect("frames family")
+                    }),
+                    ..SETS.sets[0].families[0]
+                }],
                 level: None,
-                patches: &[],
                 ..SETS.sets[0]
             },
-            PatchSet {
-                families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[1].families[0] }],
+            OwnerSet {
+                families: &[KeptFamily {
+                    frames: Some(crate::Frames {
+                        texts: &[],
+                        patches: &[],
+                        ..SETS.sets[1].families[0].frames.expect("frames family")
+                    }),
+                    ..SETS.sets[1].families[0]
+                }],
                 level: None,
-                patches: &[],
                 ..SETS.sets[1]
             },
         ],
     };
     let bytes = frames::frame(6, &turn(2, REPLAY));
     for kind in 0..6 {
-        let (mut disk, mut store) = scene(&bytes, PatchSets::NONE);
+        let (mut disk, mut store) = scene(&bytes, OwnerSets::NONE);
         let events = disk.request(&mut store, request(kind, BUDGET));
         let requests = disk.requests();
         let (mut empty_disk, mut empty) = scene(&bytes, EMPTY);
@@ -523,7 +539,7 @@ fn a_written_read_holds_commits_until_its_answer() {
 }
 
 #[test]
-fn stray_serving_sites_follow_the_existing_fail_stop_refusal() {
+fn stray_serving_sites_are_unread_without_stopping_the_store() {
     let mut store = fixtures::opened();
     let patcher = Box::new(skein_codec::patch::Patcher::new(skein_codec::patch::Capacity {
         versions: 0,
@@ -533,8 +549,8 @@ fn stray_serving_sites_follow_the_existing_fail_stop_refusal() {
         nodes: 0,
     }));
     let events = fixtures::run(&mut store, Request::Site { owner: OWNER, patcher, result: Ok(()) });
-    failed_open(&events, Token::new(1));
-    assert_eq!(store.phase, crate::Phase::Stopped);
+    let [Event::Unread { owner: OWNER }] = &*events else { panic!("{events:?}") };
+    let crate::Phase::Ready { .. } = store.phase else { panic!("store remains ready") };
 }
 
 #[test]
@@ -553,10 +569,10 @@ fn machine_byte_and_node_room_halt_as_unread() {
             skein_codec::patch::Capacity { nodes: 2, ..machine.capacity } // the fixture needs three nodes
         };
         let mut patcher = Box::new(skein_codec::patch::Patcher::new(capacity));
-        for text in set.families[0].texts {
+        for text in set.families[0].frames.expect("frames family").texts {
             patcher.keep(text.as_bytes()).expect("kept");
         }
-        for text in set.patches {
+        for text in set.families[0].frames.expect("frames family").patches {
             patcher.plan(text.as_bytes()).expect("plan");
         }
         machine.patcher = Some(patcher);
@@ -615,25 +631,26 @@ fn party_and_activity_bounds_charge_the_patched_frame() {
 }
 
 #[test]
-fn a_site_with_another_reads_token_refuses_the_serving_open() {
+fn a_site_with_another_reads_token_is_unread_without_stopping_the_store() {
     let bytes = frames::frame(5, &turn(1, REPLAY));
     let (mut disk, mut store) = scene(&bytes, SETS);
     let events = disk.request(&mut store, request(0, BUDGET));
     let mut events = events.into_iter();
     let Some(Event::Site { patcher, .. }) = events.next() else { panic!("site") };
     let events = disk.request(&mut store, Request::Site { owner: Token::new(72), patcher, result: Ok(()) });
-    failed_open(&events, Token::new(1));
-    assert_eq!(store.phase, crate::Phase::Stopped);
+    let [Event::Unread { owner }] = &*events else { panic!("{events:?}") };
+    assert_eq!(*owner, Token::new(72));
+    let crate::Phase::Ready { .. } = store.phase else { panic!("store remains ready") };
 }
 
 #[test]
-fn a_site_before_any_open_follows_the_existing_refusal() {
+fn a_site_before_any_open_is_unread_without_opening_the_store() {
     let mut store = fixtures::over(fixtures::stores());
     let capacity = skein_codec::patch::Capacity { versions: 0, patches: 0, text: 0, bytes: 0, nodes: 0 };
     let patcher = Box::new(skein_codec::patch::Patcher::new(capacity));
     let events = fixtures::run(&mut store, Request::Site { owner: OWNER, patcher, result: Ok(()) });
-    failed_open(&events, crate::directory::OWNER);
-    assert_eq!(store.phase, crate::Phase::Stopped);
+    let [Event::Unread { owner: OWNER }] = &*events else { panic!("{events:?}") };
+    assert_eq!(store.phase, crate::Phase::Closed);
 }
 
 #[test]
@@ -645,13 +662,16 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
     // prices smith's real schema the same way.
     const ITEMS: u32 = 64;
     const OVERHEAD: u32 = 2;
-    const PATCH: &str = "patch 1\nowner fixture-smith 1\nfamily fixture-turn 1 to 2\n";
     const FIRST: &str = "family fixture-turn 1\nrecord Empty {}\nversioned record Turn { nodes: list 64 Empty }\n";
     const LAST: &str = "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { nodes: list 64 Empty }\n";
-    const SMITH: PatchSet = PatchSet {
-        families: &[KeptFamily { current: LAST, texts: &[FIRST, LAST], ..SETS.sets[1].families[0] }],
+    const PATCH: &str = "patch 1\nowner fixture-smith 1\nfamily fixture-turn 1 to 2\n";
+    const SMITH: OwnerSet = OwnerSet {
+        families: &[KeptFamily {
+            current: LAST,
+            frames: Some(crate::Frames { texts: &[FIRST, LAST], patches: &[PATCH], root: "Turn" }),
+            ..SETS.sets[1].families[0]
+        }],
         level: Some(1),
-        patches: &[PATCH],
         ..SETS.sets[1]
     };
     const HEADER_BYTES: u32 = 6; // u16 version and u32 list count.
@@ -663,7 +683,7 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
     };
     let skein_codec::schema::Type::List { bound, .. } = schema.ty(schema.field(first).ty) else { panic!("node list") };
     assert_eq!(bound, ITEMS);
-    let sets = PatchSets { sets: &[SMITH] };
+    let sets = OwnerSets { sets: &[SMITH] };
     for (count, accepted) in [(ITEMS, true), (ITEMS.checked_add(1).expect("one past"), false)] {
         let transcript = node_turn(1, count);
         let bytes = frames::frame(6, &transcript);
@@ -724,33 +744,18 @@ fn patched_pages_keep_the_files_offsets_and_site_names() {
 fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     // Disk::request's finite settling bound, with an observer at every I/O.
     const SETTLE: u32 = 10_000;
-    const BASE: PatchSets = PatchSets {
-        sets: &[
-            PatchSet {
-                level: Some(0),
-                patches: &[],
-                families: &[KeptFamily {
-                    current: jig::kept::fixture_frame::TEXTS[0],
-                    texts: &[jig::kept::fixture_frame::TEXTS[0]],
-                    ..SETS.sets[0].families[0]
-                }],
-                ..SETS.sets[0]
-            },
-            PatchSet {
-                level: Some(0),
-                patches: &[],
-                families: &[KeptFamily {
-                    current: smith::kept::fixture_turn::TEXTS[0],
-                    texts: &[smith::kept::fixture_turn::TEXTS[0]],
-                    ..SETS.sets[1].families[0]
-                }],
-                ..SETS.sets[1]
-            },
-        ],
+    const BASE: OwnerSets = OwnerSets { sets: &[SETS.sets[0], SETS.sets[1], super::owners::REGISTERED.sets[0]] };
+    const JOB: crate::Job = crate::Job {
+        name: "frame-upgrade",
+        keys: &[crate::KeyRange { from: b"l", to: b"m" }],
+        converts: None,
+        counts: &[],
     };
+    const UPGRADE: OwnerSets =
+        OwnerSets { sets: &[BASE.sets[0], BASE.sets[1], OwnerSet { jobs: &[JOB], ..BASE.sets[2] }] };
     let mut disk = Disk::new(&[]);
     let mut store = disk.store();
-    store.patch_sets(BASE);
+    store.owner_sets(BASE);
     drop(disk.open(&mut store));
     drop(disk.request(&mut store, fixtures::commit(1, Box::new([fixtures::header(1)]))));
     let items = disk.items();
@@ -758,7 +763,7 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     drop(disk);
     let mut disk = Disk::new(&items);
     let mut store = disk.store();
-    store.patch_sets(SETS);
+    store.owner_sets(UPGRADE);
     let mut above = skein_lib::Queue::uncapped();
     let mut below = fixtures::below();
     let env = fixtures::env();
@@ -777,31 +782,40 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
             if crate::directory::patching(&store).is_some() {
                 assert!(
                     store.transcripts.machines.body.is_none() && store.transcripts.machines.turn.is_none(),
-                    "the copy holds only its own machines"
+                    "serving frame machines wait until the copy is checked"
                 );
                 patch_steps = patch_steps.checked_add(1).expect("finite open");
             }
             crate::up(&mut store, &env, io, &mut above, below);
         });
-        events.extend(fixtures::events(&mut above));
+        for event in fixtures::events(&mut above) {
+            if let Event::Job { owner, .. } = event {
+                crate::down(
+                    &mut store,
+                    &env,
+                    Request::Job {
+                        owner,
+                        answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None, counts: Box::new([]) }),
+                    },
+                    &mut above,
+                    &mut below,
+                );
+            } else {
+                events.push(event);
+            }
+        }
         if let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_slice() {
             break;
         }
     }
-    assert!(patch_steps > 0, "the open patched a copy");
-    let [.., Event::Opened { last: 2, .. }, Event::Census { .. }] = events.as_slice() else {
+    assert!(patch_steps > 0, "the open upgraded a copy");
+    let [.., Event::Opened { last: 3, .. }, Event::Census { .. }] = events.as_slice() else {
         panic!("switched open: {events:?}")
     };
     assert_eq!(store.transcripts.machines.body.as_ref().expect("serving body").last, 6);
     assert_eq!(store.transcripts.machines.turn.as_ref().expect("serving turn").last, 2);
 }
 
-fn failed_open(events: &[Event], owner: Token) {
-    let [Event::OpenRefused { owner: found, why: crate::OpenRefusal::Failed }] = events else {
-        panic!("failed open {events:?}")
-    };
-    assert_eq!(*found, owner);
-}
 fn carries_turn(row: &reads::Row) -> bool {
     if let Some(domain::Record::Core(domain::CoreRecord::Turn(turn))) = &row.related {
         return !turn.transcript.is_empty();

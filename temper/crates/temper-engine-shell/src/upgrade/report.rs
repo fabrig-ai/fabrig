@@ -32,23 +32,17 @@ pub(crate) fn job_counts(counts: &[jig_protocol_store::JobCount]) -> String {
 
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the ordered upgrade report includes job progress (jig protocol/store/jobs.md, 3)"
-)]
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
     let mut text = String::new();
     let mut kept = None;
     let mut openings = &[][..];
     let mut rehearsal = false;
-    let mut fresh = false;
     let mut passed = report.restored;
     for event in &report.events {
         match event {
-            Event::Rehearsing { wires, fresh: marked, openings: stated, .. } => {
+            Event::Rehearsing { wires, openings: stated, .. } => {
                 rehearsal = true;
                 kept = wires.as_deref();
-                fresh = *marked;
                 openings = stated;
             }
             Event::Decoded { records, .. } => {
@@ -65,16 +59,6 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                     "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits{}; time unavailable",
                     owner(*of),
                     job_counts(counts)
-                )
-                .expect("string write");
-            }
-            Event::Patched { of, patch, counts, .. } => {
-                writeln!(
-                    text,
-                    "{binary} upgrade: patched {} {patch}: {} records in {} commits; time unavailable",
-                    owner(*of),
-                    counts.records,
-                    counts.commits
                 )
                 .expect("string write");
             }
@@ -138,11 +122,14 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
         let (refusal, _) = crate::lines::ending_with_binary(binary, Some(end), false, directories, deployment, &[]);
         text.push_str(&refusal);
     } else if report.restored {
-        writeln!(text, "{binary} upgrade: patches and restores pass; what follows the switch is not rehearsed")
-            .expect("string write");
+        writeln!(
+            text,
+            "{binary} upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed"
+        )
+        .expect("string write");
     }
     if rehearsal || report.end.is_some() {
-        workers(&mut text, binary, kept, fresh, openings, &report.workers);
+        workers(&mut text, binary, kept, openings, &report.workers);
     }
     (text, u8::from(!passed || !report.done))
 }
@@ -176,16 +163,9 @@ fn workers(
     text: &mut String,
     binary: &str,
     kept: Option<&[KeptWire]>,
-    fresh: bool,
     openings: &[WorkerOpening],
     configured: &Workers,
 ) {
-    if fresh {
-        writeln!(text, "{binary} upgrade: a pending patch requires fresh workers; stop the workers")
-            .expect("string write");
-        writeln!(text, "{binary} upgrade: workers may stay: no").expect("string write");
-        return;
-    }
     let Some(kept) = kept else {
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
         return;
@@ -373,13 +353,15 @@ mod tests {
             assert_eq!(
                 crate::lines::note_line(
                     binary,
-                    temper_engine_service::Note::Patched {
+                    temper_engine_service::Note::Ran {
                         of: Owner::Application,
-                        patch: 7,
-                        counts: jig_protocol_store::Counts { records: 9, commits: 3 },
+                        job: "fixture-job".into(),
+                        rows: 9,
+                        commits: 3,
+                        counts: Box::new([]),
                     }
                 ),
-                format!("{shown} serve: patched temper 7: 9 records in 3 commits\n")
+                format!("{shown} serve: ran temper fixture-job: 9 rows in 3 commits\n")
             );
         }
     }

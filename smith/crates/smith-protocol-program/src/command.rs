@@ -56,7 +56,7 @@ pub struct Command {
     output_bytes: u32,
     deadline: Time,
     state: State,
-    timed_out: bool,
+    stopped: Option<kernel::Reason>,
     exit: Option<kernel::Exit>,
     stdout: List<u8>,
     stderr: List<u8>,
@@ -124,7 +124,7 @@ impl Command {
             output_bytes,
             deadline,
             state: State::Active,
-            timed_out: false,
+            stopped: None,
             exit: None,
             stdout: List::with_capacity(output_bytes.checked_add(1).expect("output sentinel")),
             stderr: List::with_capacity(detail_bytes),
@@ -150,9 +150,9 @@ impl Command {
                     Self::demand(*pipe, below);
                 }
                 self.input_pipe = pipes.get(2).copied();
-                if self.timed_out {
+                if let Some(reason) = self.stopped {
                     self.input = None;
-                    self.stop(below);
+                    self.stop(reason, below);
                 } else if let Some(pipe) = self.input_pipe {
                     let input = self.input.as_ref().expect("stdin ask");
                     if input.is_empty() {
@@ -180,7 +180,7 @@ impl Command {
                     } else {
                         self.keep_tail(&bytes);
                     }
-                    if !self.timed_out {
+                    if self.stopped.is_none() {
                         Self::demand(owner, below);
                     }
                 }
@@ -210,7 +210,7 @@ impl Command {
                 }
             }
             io::Event::Failed { .. } => {
-                self.stop(below);
+                self.stop(kernel::Reason::Closed, below);
                 if let Some(child) = self.child {
                     below.push(io::Request::Close { entity: child });
                 }
@@ -245,24 +245,24 @@ impl Command {
 
     /// Kill at the deadline, waiting for child and pipe closures before ending.
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
-        if self.state != State::Done && !self.timed_out && now >= self.deadline {
-            self.cancel(below);
+        if self.state != State::Done && self.stopped.is_none() && now >= self.deadline {
+            self.cancel(kernel::Reason::Deadline, below);
         }
     }
 
     /// Cancel once, retaining the child and pipes until their close reports.
-    pub fn cancel(&mut self, below: &mut Queue<io::Request>) {
-        if self.state != State::Done && !self.timed_out {
-            self.timed_out = true;
+    pub fn cancel(&mut self, reason: kernel::Reason, below: &mut Queue<io::Request>) {
+        if self.state != State::Done && self.stopped.is_none() {
+            self.stopped = Some(reason);
             self.input = None;
-            self.stop(below);
+            self.stop(reason, below);
         }
     }
 
     /// The host deadline while the command is active and has not timed out.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        if self.state == State::Done || self.timed_out { None } else { Some(self.deadline) }
+        if self.state == State::Done || self.stopped.is_some() { None } else { Some(self.deadline) }
     }
 
     /// The ending once the child and both output pipes have settled.
@@ -272,7 +272,7 @@ impl Command {
             return None;
         }
         let detail = self.stderr.as_slice();
-        if self.timed_out {
+        if self.stopped.is_some() {
             return Some(Ended::Deadline { detail });
         }
         match self.exit {
@@ -292,9 +292,9 @@ impl Command {
         });
     }
 
-    fn stop(&self, below: &mut Queue<io::Request>) {
+    fn stop(&self, reason: kernel::Reason, below: &mut Queue<io::Request>) {
         if let Some(child) = self.child {
-            below.push(io::Request::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill });
+            below.push(io::Request::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill, reason });
         }
         for pipe in self.pipes.into_iter().chain([self.input_pipe]).flatten() {
             below.push(io::Request::Abort { entity: pipe });

@@ -123,6 +123,7 @@ pub fn limits() -> engine::Limits {
         progress_bytes: 0,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };
@@ -305,7 +306,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        host_part: None,
+        host_part: crate::room::HostPart { allowance: u64::MAX, ..crate::room::HostPart::EMPTY },
         kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
@@ -848,6 +849,7 @@ impl StartStore {
                     | engine::Request::Forge { .. }
                     | engine::Request::Account(_)
                     | engine::Request::Busy(_)
+                    | engine::Request::Restarting { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
             } else if root.ready() {

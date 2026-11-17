@@ -8,29 +8,6 @@ use skein_codec::{
 };
 use skein_lib::List;
 
-pub(super) fn patches(store: &Store) -> Result<(), OpenRefusal> {
-    let Some(pending) = &store.directory.patch else { return Ok(()) };
-    for step in pending.plan.steps() {
-        for index in 0..pending.machines.len() {
-            let machine = pending.machines.get(crate::patching::machines::FamilyIx(index));
-            if machine.block(*step).is_none() {
-                continue;
-            }
-            let family = store
-                .patch_sets
-                .sets
-                .get(machine.set)
-                .expect("machine set")
-                .families
-                .get(machine.family)
-                .expect("machine family");
-            if !family.types.is_empty() {
-                return Err(OpenRefusal::Set { owner: step.owner, patch: step.patch });
-            }
-        }
-    }
-    Ok(())
-}
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
     let mut count = 0_u64;
     for space in store.stores.store.census().keyspaces() {
@@ -99,7 +76,6 @@ fn derive(
     new: &Schema,
     ty: &crate::ValueType,
     new_held: &[&Schema],
-    dropping: bool,
 ) -> Result<Plan, Unplanned> {
     let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
@@ -122,17 +98,11 @@ fn derive(
     }
     match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
         Ok(plan) => Ok(plan),
-        Err(why) if dropping && why.why == Why::VariantDropped => {
-            match Plan::derive_dropping(old, old_root, old_held.as_slice(), new, new_root, new_held) {
-                Ok(plan) => Ok(plan),
-                Err(why) => Err(Unplanned::Underived(why)),
-            }
-        }
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
 fn job(store: &Store, key: &RowKey, row: &Row) -> Option<&'static str> {
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for job in set.jobs {
             if let Some(converts) = &job.converts
                 && key.0.as_ref() == converts.family
@@ -159,7 +129,7 @@ pub(super) fn history_type(family: &str, number: u16) -> bool {
                 return true;
             }
             for range in ty.keys {
-                for logged in crate::jobs::task_logs::JOB.keys {
+                for logged in crate::keys::LOGGED {
                     if range.from < logged.to && logged.from < range.to {
                         return true;
                     }
@@ -171,7 +141,7 @@ pub(super) fn history_type(family: &str, number: u16) -> bool {
 }
 fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::ValueType)> {
     let mut index = 0_u32;
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             for ty in family.types {
                 if family.name == key.0.as_ref() && ty.number == key.1 {
@@ -195,7 +165,6 @@ pub(super) fn plans(
         keys.push(key.clone()).expect("uncapped row keys");
     }
     for key in &keys {
-        let dropping = settling(store, &key.0, key.1)?;
         let row = layouts.rows.get(key).expect("held row");
         if row.retire {
             continue;
@@ -211,12 +180,7 @@ pub(super) fn plans(
             }
             None => None,
         };
-        let patches = match &store.directory.patch {
-            Some(pending) => !pending.plan.steps().is_empty(),
-            None => false,
-        };
-        // A patch has not yet moved the active census's version heads to the seed's ids.
-        let values = if history_type(&key.0, key.1) || (!row.stored && patches) {
+        let values = if history_type(&key.0, key.1) {
             None
         } else {
             match found {
@@ -236,15 +200,15 @@ pub(super) fn plans(
                 continue;
             }
             let (_, declaration) = declared.expect("binary type declared");
-            let digest = binary.text(&key.0, true).expect("binary text");
-            let held = binary.held(layouts, digest, true).ok_or(OpenRefusal::Failed)?;
+            let digest = binary.text(&key.0).expect("binary text");
+            let held = binary.held(layouts, digest).ok_or(OpenRefusal::Failed)?;
             let readable = texts::row(layouts, key);
             let new =
                 layouts.texts.get(&digest).ok_or(OpenRefusal::Failed)?.schema.as_ref().ok_or(OpenRefusal::Failed)?;
             let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(binary, layouts, row, new, declaration, held.as_slice(), dropping)
+                derive(binary, layouts, row, new, declaration, held.as_slice())
             } else {
                 Err(Unplanned::Text)
             };
@@ -285,33 +249,8 @@ pub(super) fn plans(
     Ok(())
 }
 
-/// A log-held type can settle only before the store has task logs (jobs.md, 5.2).
-pub(super) fn settling(store: &mut Store, family: &str, number: u16) -> Result<bool, OpenRefusal> {
-    if history_type(family, number) && !logs_pending(store)? {
-        return Ok(false);
-    }
-    for set in store.patch_sets.sets {
-        for held in set.families {
-            if held.name != family {
-                continue;
-            }
-            for job in set.jobs {
-                if job.settles && !crate::jobs::kept::done(store, set.owner, job)? {
-                    return Ok(true);
-                }
-            }
-        }
-    }
-    Ok(false)
-}
-fn logs_pending(store: &mut Store) -> Result<bool, OpenRefusal> {
-    match crate::jobs::kept::done(store, crate::Owner::Jig, &crate::jobs::task_logs::JOB) {
-        Ok(done) => Ok(!done),
-        Err(why) => Err(why),
-    }
-}
 pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             for ty in family.retired {
                 for range in ty.keys {

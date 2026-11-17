@@ -111,6 +111,7 @@ Design documents:
 - [`forge/job-state.md`](forge/job-state.status.md)
 - [`forge/setup/README.md`](forge/setup/README.status.md)
 - [`testing/fakes/forge.md`](testing/fakes/forge.status.md)
+- [`testing/fakes/throwaway.md`](testing/fakes/throwaway.status.md)
 - [`testing/fakes/github.md`](testing/fakes/github.status.md)
 - [`testing/fakes/checkout.md`](testing/fakes/checkout.status.md)
 - [`ui/README.md`](ui/README.status.md)
