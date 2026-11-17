@@ -19,7 +19,13 @@ pub fn first_owner() -> Identity {
 #[must_use]
 pub fn settings() -> Settings {
     let mut served = List::with_capacity(1);
-    served.push(Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION }).expect("one range");
+    served
+        .push(Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
+        .expect("one range");
     let mut providers = List::with_capacity(1);
     providers.push(APPLICATION_PROVIDER).expect("application provider");
     Settings {

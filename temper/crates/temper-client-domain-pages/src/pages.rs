@@ -1640,7 +1640,10 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if pages.builders.told(client, &told, &mut pages.serial, out)
-        || pages.models.told(client, &told) || pages.choice.told(&told) || crate::acts::told(pages, &told) {
+        || pages.models.told(client, &told)
+        || pages.choice.told(&told)
+        || crate::acts::told(pages, &told)
+    {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }

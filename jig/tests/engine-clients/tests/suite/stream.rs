@@ -454,9 +454,11 @@ fn a_served_stream_takes_one_watch_of_the_small_stream_room() {
     let subject = w::Subject::Me;
     let mut record = Writer::new(subject.measure().try_into().expect("literal stream record"));
     subject.encode(&mut record).expect("literal stream record");
-    let subject =
-        w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() })
-            .expect("literal stream record");
+    let subject = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .expect("literal stream record");
     let open = w::Open::new(&w::CEILINGS, w::OpenParts { stream, watch: 99, subject }).expect("literal stream record");
     let mut bytes = Writer::new(open.measure().try_into().expect("literal stream record"));
     open.encode(&mut bytes).expect("literal stream record");

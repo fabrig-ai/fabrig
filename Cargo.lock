@@ -6376,6 +6376,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-room",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-protocol-brief",
@@ -6473,6 +6474,15 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-domain-room"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-tasks",
+ "skein-lib",
 ]
 
 [[package]]
