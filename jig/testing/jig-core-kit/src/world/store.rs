@@ -254,6 +254,9 @@ impl World {
         self.store
             .reconfigure(18, &config.core.settings.models)
             .map_err(|finding| format!("restart readback: {finding:?}"))?;
+        if !self.sweep.is_empty() {
+            self.collect_disk_forks();
+        }
         if self.store.reached_kill() {
             self.reached_cut = self.cut.take();
             return Ok(());

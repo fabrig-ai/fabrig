@@ -20,6 +20,7 @@ skein-io.workspace = true
 skein-kv.workspace = true
 skein-fake-machine.workspace = true
 skein-sim.workspace = true
+skein-fork.workspace = true
 
 [dev-dependencies]
 jig-domain-people.workspace = true

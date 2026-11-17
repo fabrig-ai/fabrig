@@ -291,6 +291,13 @@ impl Store {
         self.hold_next = self.hold_next.saturating_sub(1);
         self.inflight.insert(pending.number, pending.writes.clone());
         if let Some(disk) = &mut self.disk
+            && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Commit(pending.number))
+        {
+            disk.operations = 0;
+            disk.mutations.clear();
+            disk.sweeping = Some(KillFrom::Commit(pending.number));
+        }
+        if let Some(disk) = &mut self.disk
             && let Some((KillFrom::Commit(number), operation)) = self.kill
             && number == pending.number
         {
@@ -303,6 +310,11 @@ impl Store {
         self.request(StoreOut::Commit { number: pending.number, writes: pending.writes });
         if let Some(disk) = &self.disk {
             self.counts.insert(pending.number, disk.operations - before);
+        }
+        if let Some(disk) = &mut self.disk
+            && matches!(disk.sweeping, Some(KillFrom::Commit(_)))
+        {
+            disk.sweeping = None;
         }
         if self.reached_kill() {
             return Ok(None);
@@ -363,6 +375,11 @@ impl Store {
         {
             disk.cut = Some(operation);
         }
+        if let Some(disk) = &mut self.disk
+            && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Open)
+        {
+            disk.sweeping = Some(KillFrom::Open);
+        }
         self.open();
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
@@ -381,6 +398,26 @@ impl Store {
         }
         Ok(())
     }
+    /// Fork only the selected file-operation boundaries (domain/testing.md, 4).
+    /// Unarmed stores do not split or change their operation boundaries.
+    pub fn sweep_kills(&mut self, cuts: Vec<(KillFrom, u32)>) {
+        if let Some(disk) = &mut self.disk {
+            disk.sweep = cuts;
+        } else {
+            assert!(cuts.is_empty(), "operation sweeps require a directory store");
+        }
+    }
+
+    /// Take the cut selected by this child.
+    pub fn take_forked_kill(&mut self) -> Option<(KillFrom, u32)> {
+        self.disk.as_mut().and_then(|disk| disk.fork_child.take())
+    }
+
+    /// Drain the parent's completed cuts.
+    pub fn take_passed_kills(&mut self) -> Vec<(KillFrom, u32)> {
+        self.disk.as_mut().map_or_else(Vec::new, |disk| std::mem::take(&mut disk.forked))
+    }
+
     /// Whether the disk has stopped serving operations at the selected cut.
     #[must_use]
     pub fn reached_kill(&self) -> bool {

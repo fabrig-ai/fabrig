@@ -39,6 +39,7 @@ impl World {
             disk_store,
             mut peers,
             cut,
+            sweep,
             clock,
             boot,
             require_assignment,
@@ -54,9 +55,8 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let mut world = Self::empty(configuration, &limits, owner_sets);
+        let mut world = Self::empty(configuration, &limits, owner_sets, disk_store);
         world.seed = seed;
-        world.configure_disk(disk_store, owner_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -74,6 +74,7 @@ impl World {
         }
         world.peers = peers;
         world.cut = cut;
+        world.sweep(sweep);
         world.send(root::Event::StartBegin { pending: world.store.generation_pending });
         if world.reached_cut.is_some() {
             return world;
@@ -165,13 +166,23 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
-    fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::OwnerSets) -> World {
+    fn empty(
+        configuration: root::Config,
+        limits: &root::Limits,
+        sets: jig_protocol_store::OwnerSets,
+        disk: bool,
+    ) -> World {
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
         let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let initial_ask = initial_request(&configuration, &creating);
         let protocol = crate::protocol::Stand::with_models(limits.core, &configuration.core.settings.models);
-        let store = Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets);
+        let store = if disk {
+            assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
+            Store::on_disk(limits, &configuration.core.settings.models)
+        } else {
+            Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets)
+        };
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
             seed: 0,
@@ -277,6 +288,9 @@ impl World {
             limits: *limits,
             cut: None,
             reached_cut: None,
+            forked: Vec::new(),
+            sweep: Vec::new(),
+            fork_child: None,
             hold_kinds: Vec::new(),
             wall: 0,
             wall_lag: 0,
