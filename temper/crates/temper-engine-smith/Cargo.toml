@@ -44,6 +44,7 @@ smith-domain-session.workspace = true
 temper-engine-service-stock.workspace = true
 jig-protocol-config.workspace = true
 serde_json.workspace = true
+skein-codec.workspace = true
 skein-scratch.workspace = true
 smith-transcript.workspace = true
 temper-engine-domain-forge-landing.workspace = true

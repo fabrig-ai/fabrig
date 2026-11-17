@@ -32,8 +32,8 @@ listener's (`../../client/forge/README.md`, the browser's steps).
 - **Its records:** `AppId`, `AppSlug`, `AppKey` (DER; a PEM is never
   kept), `User` (the App's bot user), `Accepted` and `Origin`
   (../credentials.md, the records).
-- **Its addresses,** its record's place, are the machine's GitHub
-  place's, github.com's when the machine's `github` is null (`init.md`);
+- **Its addresses,** its record's place, are github.com's, or a test's
+  fake's when `application.test.github` names one (`place.md`, 7);
   the machine names a place only to point at a fake (`box.md`, 5).
 - **The clients' listener at a fixed address,** a loopback port the
   person's browser reaches, since GitHub's redirect and setup URLs name

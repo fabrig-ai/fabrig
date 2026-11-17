@@ -85,9 +85,7 @@ impl Installed {
     }
 
     fn probe(&self, old: Vec<Identity>) -> Probe {
-        let document: Value = serde_json::from_slice(&fs::read(self.config().join("temper.json")).expect("box config"))
-            .expect("box config JSON");
-        let worker = document["application"]["workers"][0]["root"].as_str().expect("worker root");
+        let worker = "workspaces";
         Probe {
             program: self.bin().join("temper-box"),
             adapter: self.bin().join("fake-claude"),

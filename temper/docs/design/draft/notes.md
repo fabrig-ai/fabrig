@@ -738,6 +738,7 @@ The reasons behind `config.md`, from the user, 2026-11-16.
   - workers as settings, each a name, places and a secret's digest, the secret made on the worker's host as today; the channel as today, on its own listener over a private network; a join by token and a channel over the public address left for later, changing two keys at most (4.3, 6.7);
   - the workers' wire declared breaking rather than bridged, dev's parts redeploying together (6.3);
   - the `toml` crate's parser alone, already in the workspace for smith's `config.toml`, so no crate is added; `toml_parser` alone is lighter but leaves tables, dotted keys and duplicates to temper, and `basic-toml` or `toml-span` would add a second parser (4.1).
+- **2026-11-17, the caps,** after N1 met three counts a format caps (`forge.changes`, `fleet.slots`, `forge.landing_members`). The user: "okay let's act only on forge.changes", then "yes, add N8 with the 512 and hand it over for execution". The draft's readings: a failing test's id held within 1 KiB in the store, a narrowed bound's written patch at one record, rather than blame by test index, a retype across the finding that a patch must convert by hand; 512, twice the longest id today; the other two at their caps, since dev's workers and landings sit below them (5.2, N8).
 
 ## 23. Pages in few round trips
 

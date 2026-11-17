@@ -217,6 +217,11 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
                         } else if tool == "delegate" && member == "input.batch[].contract" {
                             // The contract gives both its shapes and the person report floor.
                             169
+                        } else if (tool == "settings" && member == "input.setting.project")
+                            || (tool == "propose_settings" && member == "input.items[].setting.project")
+                        {
+                            // The setting's project description names every kind that takes no project.
+                            122
                         } else {
                             MEMBER_BYTES
                         };

@@ -1,26 +1,35 @@
 {
-  "application": {
-    "landing": {
-      "projects": [
-        {
-          "project": 1,
-          "by": "turn",
-          "batch": 2,
-          "gates": [
-            {
-              "forge": 1,
-              "repository": 1,
-              "gates": [
-                {
-                  "name": "gate",
-                  "workflow": "gate.yml",
-                  "blocking": true
-                }
-              ]
-            }
-          ]
-        }
-      ]
+  "items": [
+    {
+      "setting": {
+        "kind": "project-landing",
+        "project": 1
+      },
+      "set": {
+        "by": "turn",
+        "batch": 2
+      }
+    },
+    {
+      "setting": {
+        "kind": "project-gates",
+        "project": 1
+      },
+      "set": {
+        "repositories": [
+          {
+            "forge": 1,
+            "repository": 1,
+            "gates": [
+              {
+                "name": "gate",
+                "workflow": "gate.yml",
+                "blocking": true
+              }
+            ]
+          }
+        ]
+      }
     }
-  }
+  ]
 }

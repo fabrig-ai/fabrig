@@ -19,7 +19,19 @@ The table grows area by area, each with its stories (`testing.md`).
    characters, is its title") and in its notes, at most 60 characters
    naming the work for a person, with an example, the rest of TEXT on
    the lines below (`../../domain/agent/charter.md`, 4, *Words a person
-   reads first*). Nothing checks it.
+   reads first*). A longer first line is a warning, never a refusal:
+   where TEXT's first line, everything before its first line feed as
+   jig takes the title, runs past 60 characters, counted as Unicode
+   scalar values, `goal start` still sends the goal, and its answer,
+   when it prints with status 0 (done or proposed), adds one line on
+   stderr: `warning: TEXT's first line, the title the pages show, is N
+   characters, past 60; temper ctl help goal start`, N the line's
+   characters. Under `--json` the line is one JSON object, `{"warning":
+   WORDS}`, WORDS the text line's after `warning: `, as the `kept:`
+   lines are (`results.md`, 2). Its stdout and its exit status are the
+   answer's; an answer of another status, and a TEXT whose first line
+   is at most 60, print no warning. TEXT read from stdin (`-`) is
+   checked once read; `--call` alike.
 
    `goal start` defaults to stock template 2; `--template` names an
    offered template, including its charter, contract, tracking, label,

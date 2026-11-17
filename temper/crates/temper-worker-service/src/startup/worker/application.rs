@@ -2,8 +2,7 @@
 use super::{Limits, Problems, What};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, read};
-use skein_json::{Document, document::Kind};
-use temper_service_core::startup::at;
+use skein_json::Document;
 
 #[derive(Debug)]
 pub struct Worker {
@@ -32,27 +31,6 @@ pub(super) fn required(
     }
     at
 }
-fn text(
-    object: &mut read::Object,
-    document: &Document,
-    name: &[u8],
-    path: &Path,
-    problems: &mut Problems,
-) -> Option<Box<[u8]>> {
-    let at = required(object, document, name, path, problems)?;
-    match read::text(document, at, 1_048_576) {
-        Ok(value) => Some(value),
-        Err(what) => {
-            problems.push(path.member(name), What::Jig(what));
-            None
-        }
-    }
-}
-fn finish(object: read::Object, document: &Document, path: &Path, problems: &mut Problems) {
-    let mut found = config::Problems::empty();
-    object.finish(document, path, &mut found);
-    problems.append(found, &Path::root());
-}
 pub(super) fn finish_shape(document: &Document, object: read::Object, path: &Path, problems: &mut Problems) {
     let mut found = config::Problems::empty();
     object.finish(document, path, &mut found);
@@ -64,44 +42,24 @@ pub(super) fn finish_shape(document: &Document, object: read::Object, path: &Pat
     }
     problems.past = problems.past.saturating_add(found.past);
 }
-pub fn member(
-    document: &Document,
-    index: usize,
-    entry: u32,
-    directories: &config::Directories,
-    path: &Path,
-    problems: &mut Problems,
-) -> Option<Worker> {
-    let path = at(index, path.member(b"workers"));
-    let mut object = object(document, entry, &path, problems)?;
-    let root = text(&mut object, document, b"root", &path, problems);
-    let git_at = required(&mut object, document, b"git", &path, problems);
-    let mut git = None;
-    if let Some(at) = git_at {
-        let null = match document.token(at) {
-            Some(token) => token.kind == Kind::Null,
-            None => false,
-        };
-        if !null {
-            match read::text(document, at, 1_048_576) {
-                Ok(value) => git = Some(value),
-                Err(what) => problems.push(path.member(b"git"), What::Jig(what)),
-            }
-        }
-    }
-    finish(object, document, &path, problems);
-    let root = root?;
-    if let Some(git) = &git
+/// The shell supplies git; workspaces belong to the data directory (moved.md, 2).
+pub fn fixed(directories: &config::Directories, git: Option<&[u8]>, problems: &mut Problems) -> Option<Worker> {
+    let path = Path::root().member(b"application").member(b"workers").child(config::Segment::Index(0));
+    if let Some(git) = git
         && !git.starts_with(b"/")
     {
         problems.push(path.member(b"git"), What::Absolute);
     }
-    let root = match directories.join(config::Directory::Data, &root) {
+    let root = match directories.join(config::Directory::Data, b"workspaces") {
         Ok(root) => root,
         Err(what) => {
             problems.push(path.member(b"root"), What::Jig(what));
             return None;
         }
+    };
+    let git = match git {
+        Some(git) => Some(skein_lib::bytes::copy_of(git)),
+        None => None,
     };
     Some(Worker { root, git })
 }
@@ -113,28 +71,10 @@ pub(super) fn read(
 ) -> Option<(Worker, Limits)> {
     let path = Path::root().member(b"application");
     let mut object = object(document, entry, &path, problems)?;
-    let ats = match required(&mut object, document, b"workers", &path, problems) {
-        Some(at) => match read::list(document, at, document.len()) {
-            Ok(ats) => Some(ats),
-            Err(what) => {
-                problems.push(path.member(b"workers"), What::Jig(what));
-                None
-            }
-        },
-        None => None,
-    };
-    let mut own = None;
-    if let Some(ats) = ats {
-        if ats.len() != 1 {
-            problems.push(path.member(b"workers"), What::WorkerAlone);
-        }
-        for (index, at) in ats.iter().enumerate() {
-            let value = member(document, index, *at, directories, &path, problems);
-            if index == 0 {
-                own = value;
-            }
-        }
+    if object.member(document, b"workers").is_some() {
+        problems.push(path.member(b"workers"), What::Jig(config::What::Fixed));
     }
+    let own = fixed(directories, None, problems);
     let limits = match required(&mut object, document, b"limits", &path, problems) {
         Some(at) => temper_service_core::startup::configured_limits(document, at, &path.member(b"limits"), problems),
         None => None,

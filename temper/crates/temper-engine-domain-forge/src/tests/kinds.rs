@@ -13,6 +13,11 @@ use skein_lib::List;
 const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
 
 const BOUNDS: Bounds = Bounds {
+    landing_members: 4,
+    repositories: 2,
+    landing_gates: 2,
+    tiers: 2,
+    ignored_paths: 4,
     landing_rules: 4,
     gates: 2,
     roles: 2,
@@ -1072,5 +1077,47 @@ fn dependencies_ride_with_or_without_follows_and_erase_only_with_their_own_proje
     assert!(d.dependencies(1).is_empty());
     for (key, _) in &d.setting_rows {
         assert_ne!(key.kind, 13, "all slots erased: proposal, current and history");
+    }
+}
+
+#[test]
+fn landing_removals_and_resets_need_no_value_judgement() {
+    let repository = RepositoryGates {
+        repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+        gates: Box::new([]),
+        tiers: Box::new([]),
+    };
+    let bad_gates =
+        Value::Gates(crate::settings::ProjectGates { repositories: Box::new([repository.clone(), repository]) });
+    let bad_landing =
+        Value::Landing(crate::settings::ProjectLanding { batch: 0, ..crate::settings::ProjectLanding::default() });
+    for (kind, bad) in [(4, bad_landing), (5, bad_gates)] {
+        let mut d = domain();
+        d.give_settings_defaults(Box::new([Stock {
+            kind,
+            scope: 1,
+            number: 1,
+            value: SizedValue { value: bad.clone(), size: 32 },
+        }]));
+        let set = item(kind, 1, 1, Edit::Set(SizedValue { value: bad, size: 32 }));
+        let Judged::Refuse(_) = d.judge_settings(&BOUNDS, from_ref(&set))[0] else { panic!("invalid set is refused") };
+        for (edit, restored) in [(Edit::Remove, RestoredEdit::Remove), (Edit::Reset, RestoredEdit::Reset)] {
+            let asked = item(kind, 1, 1, edit);
+            let answers = [
+                d.judge_settings(&BOUNDS, from_ref(&asked)),
+                d.restore_settings(
+                    &BOUNDS,
+                    7,
+                    &[Restored { kind, scope: 1, number: 1, edit: restored }],
+                    &mut Queue::uncapped(),
+                ),
+            ];
+            for judged in answers {
+                match judged[0] {
+                    Judged::Accept { .. } | Judged::Same => {}
+                    Judged::Refuse(ref why) => panic!("clear is always good: {why:?}"),
+                }
+            }
+        }
     }
 }

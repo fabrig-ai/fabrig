@@ -341,7 +341,7 @@ impl Tier {
         let address = listener.local_addr().expect("GitHub address");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["machine"]["github"] = serde_json::json!({
+        value["application"]["test"]["github"] = serde_json::json!({
             "api":{"socket":address.to_string()}, "transport":"plaintext",
             "remote":format!("http://{address}"), "web":format!("http://{address}")
         });
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn the_tier_starts_without_a_kept_forge() {
         let value = tier_configuration().1;
-        assert!(value["application"]["machine"]["github"].is_null());
+        assert!(value["application"]["test"]["github"].is_null());
         assert!(value["application"].get("forges").is_none());
     }
     #[test]
@@ -616,6 +616,6 @@ mod tests {
     #[test]
     fn the_tiers_paths_are_absolute() {
         let value = tier_configuration().1;
-        assert_eq!(value["application"]["workers"][0]["root"], "/private/test/worker-root");
+        assert!(value["application"].get("workers").is_none());
     }
 }

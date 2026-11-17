@@ -272,7 +272,8 @@ impl Page<'_> {
             Some(_) | None => None,
         };
         if let Some(milestone) = milestone {
-            let label = words.say(Word::GoalIn, &[Hole::Name(milestone.title.bytes().into())]);
+            let title = crate::common::chat::row_title(milestone.title.bytes());
+            let label = words.say(Word::GoalIn, &[Hole::Name(title)]);
             crate::bindings::link(
                 b,
                 &label,
@@ -626,9 +627,9 @@ impl<'a> Delegates<'a> {
         if row.line == Some(goal::Line::Running) {
             b.style(look::GOAL_LINE_RUNNING);
         }
-        let title = row.chip.title.bytes();
-        crate::bindings::link(b, title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
-        b.text(Run::Plain, title);
+        let title = crate::common::chat::row_title(row.chip.title.bytes());
+        crate::bindings::link(b, &title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
+        b.text(Run::Plain, &title);
         b.close();
         let said = match row.line {
             Some(goal::Line::Landed) => match row.ended {
@@ -656,9 +657,8 @@ impl<'a> Delegates<'a> {
         match line {
             goal::Line::Running => words.say(Word::Running, &[]),
             goal::Line::WaitsOn(task) => match self.rows.get(&task) {
-                Some(row) if row.line.is_some() => {
-                    words.say(Word::GoalWaitsTitle, &[Hole::Name(copy_of(row.chip.title.bytes()))])
-                }
+                Some(row) if row.line.is_some() => words
+                    .say(Word::GoalWaitsTitle, &[Hole::Name(crate::common::chat::row_title(row.chip.title.bytes()))]),
                 Some(_) | None => words.say(Word::GoalWaitsTask, &[Hole::Number(task)]),
             },
             goal::Line::WaitsOnTasks(count) => words.say(Word::GoalWaitsTasks, &[Hole::Number(u64::from(count))]),

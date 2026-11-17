@@ -172,28 +172,19 @@ fn deployment_document(directory: &Path) -> serde_json::Value {
     let mut document: serde_json::Value =
         serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
     document["workers"] = serde_json::json!([]);
-    document["application"]["workers"] = serde_json::json!([]);
+
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
     document["engine"]["hosts"]["workers"] = serde_json::json!([
         {"name":"worker-a", "digest":"secrets/worker-a.digest"},
         {"name":"worker-b", "digest":"secrets/worker-b.digest"},
         {"name":"worker-c", "digest":"secrets/worker-c.digest"}
     ]);
-    document["application"]["machine"] = serde_json::json!({"owned": {
-        "listen":{"socket":"127.0.0.1:3000"}, "remote":"http://127.0.0.1:3000",
-        "forgejo":"/opt/forgejo/forgejo", "runner":null,
-        "person":{"login":"person", "email":"person@example.invalid"}, "sign_in":null
-    }});
     document
 }
 
 /// Configured sign-in sources must not keep the rehearsal waiting for its start mark.
 pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
-    document["engine"]["providers"] = serde_json::json!([
-        {"number":1,"kind":"link"}, {"number":2,"kind":"deployment"}, {"number":3,"kind":"application"}
-    ]);
-    document["engine"]["acts"] = serde_json::json!([{"connector":1,"may":["remove_account","adopt"]}]);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
     document["engine"]["limits"]["overrides"]["core.settings.versions"] = 12.into();
     let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();

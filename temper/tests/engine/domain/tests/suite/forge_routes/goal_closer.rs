@@ -1380,3 +1380,24 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     assert!(closer_row(&world, task).expect("closer stepped on restart").done);
     world.close();
 }
+
+pub(crate) fn the_operator_hold_stops_the_goal_closers_land_step() {
+    let (mut world, goal, branch) = goal_world(false, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    world.drain_cut();
+    let merged = world.merges;
+    world.restart_with_landing_held(true);
+    world.until(Until::Ready);
+    let closer = make_closer(&mut world, &goal, 94);
+    for _ in 0..300 {
+        world.tick();
+    }
+    let row = closer_row(&world, closer).expect("waiting closer");
+    assert!(row.landing_changes.is_empty(), "no land-step change is made under the operator hold");
+    assert_eq!(world.merges, merged);
+    world.drain_cut();
+    world.restart_with_landing_held(false);
+    wait_ended(&mut world, closer);
+    assert_eq!(closer_row(&world, closer).expect("closer").landing_changes.len(), 1);
+    world.close();
+}
