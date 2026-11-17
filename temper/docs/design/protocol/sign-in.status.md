@@ -2,7 +2,6 @@
 
 2026-11-17. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
-- **Not yet:** 2.3: a fresh link, asked by `temper ctl DIRECTORY link --out FILE` [in flight: change 6837].
 
 
 Section 4.3 has no known gap in the endings' header and column, linking

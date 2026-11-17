@@ -2,7 +2,6 @@
 
 2026-11-17. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.1, 4.4 and 9: `AskLink` and its answer, `AskedLink` [in flight: change 6835].
 
 Unlisted sections have no known gap, including `watches.md`, 2's `watches_full`
 fact for `me` and application watches through retries and recovery.

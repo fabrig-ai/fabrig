@@ -2,7 +2,6 @@
 
 2026-11-17. Remaining gaps between temper's code and [README.md](README.md).
 
-- **Not yet:** 6.1 and 7: `link --out FILE`, and the link refusals naming both ways to a fresh link [in flight: change 6837].
 
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
