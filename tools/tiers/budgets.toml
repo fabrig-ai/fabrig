@@ -182,6 +182,24 @@ to = "jig.step"
 cpu_s = 0.1
 why = "The conformance referee_controls drive the referee with supplied observations rather than a world."
 
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.domain"
+cpu_s = 50.0
+why = "The core suite's stories drive the core and its children over the store's in-memory mode, below simulated disk cuts."
+
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.2
+why = "The core step binary drives referee and store controls, direct Core steps and allocation and profile bounds without a world."
+
+[[gate.default.reasons]]
+binary = "jig-core-world::disk"
+test = "faults::a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one"
+cpu_s = 2.5
+why = "The story cuts each file operation of three whole decisions, chosen recovery operations and the following decision, checking independent whole-store readback after recovery."
+
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
 
@@ -322,6 +340,12 @@ from = "jig.protocol"
 to = "jig.domain"
 cpu_s = 23.2
 why = "The conformance suite's seeded crash and snapshot sweeps check the application's domain on jig's fakes."
+
+[[gate.fuzzy.moves]]
+from = "jig.simulated"
+to = "jig.domain"
+cpu_s = 34.4
+why = "The core suite's seeded stories and commit-cut sweeps drive the core and its children over the store's in-memory mode, below simulated disk operations."
 
 [browser-skein]
 cpu_suite_s = 217.5

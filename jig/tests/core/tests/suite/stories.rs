@@ -1264,28 +1264,6 @@ fn a_party_deciding_a_cancelled_task_hears_who_cancelled_it_and_when() {
     );
 }
 
-pub(crate) fn person_world_fixture(seed: u64) -> (root::Config, root::Limits) {
-    let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
-    limits.core.tasks.person_stall = skein_lib::Duration::from_secs(1);
-    let kinds: Box<[authority::Executor]> = Box::new([authority::Executor::Charter(1), authority::Executor::Role(0)]);
-
-    let mut rules = configuration.core.defaults.rules.clone();
-    rules.ceiling.delegation.kinds.clone_from(&kinds);
-    let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
-    policy.ceiling.delegation.kinds.clone_from(&kinds);
-    policy.roles[0].authority.delegation.kinds = kinds;
-    let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded person-task policy");
-    let mut out = Queue::uncapped();
-    authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
-    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-    configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
-    configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
-        .expect("checked rules"))
-    .rules()
-    .clone();
-    (configuration, limits)
-}
-
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -2171,3 +2149,5 @@ fn a_held_chats_delegate_waits_for_its_person_without_a_stall() {
 
 #[path = "../stories/brief_failure.rs"]
 mod brief_failure;
+
+pub(crate) use crate::person_support::person_world_fixture;

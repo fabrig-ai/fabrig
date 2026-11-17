@@ -6,10 +6,8 @@ use jig_core_world::store_peer::StorePeer;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
-use jig_domain_core as core;
-use jig_test_domain as root;
-use jig_test_domain::Write;
-use skein_lib::{Duration, Time, Token, Wall};
+use jig_test_domain::{self as root, Write};
+use skein_lib::{Duration, Time, Token};
 
 fn sign_in(number: u8) -> root::Event {
     signin(Token::new(7000 + u64::from(number)), 0, &[number, 255], &[number], b"snapshot party")
@@ -24,19 +22,6 @@ fn observed_world(seed: u64) -> World {
     world.store_peer = Some(peer);
     world.client_peer = Some(ClientPeer::default());
     world
-}
-
-fn opaque_turn(bytes: &[u8]) -> root::Record {
-    root::Record::Core(core::Record::Core(core::CoreRecord::Turn(core::TurnRecord {
-        opens_window: false,
-        task: (1_u64 << 63) - 2,
-        attempt: u64::MAX - 2,
-        turn: u32::MAX,
-        spent: u64::MAX - 3,
-        read: Some(u64::MAX - 4),
-        at: Wall::from_nanos(999_999),
-        transcript: bytes.into(),
-    })))
 }
 
 #[test]
@@ -98,66 +83,6 @@ fn a_single_drain_preserves_every_intermediate_applied_number_and_whole_snapshot
 }
 
 #[test]
-fn whole_opaque_rows_remain_immutable_after_later_save_erase_and_store_mutation() {
-    let mut store = Store::new(&jig_test_profile::limits(), &[]);
-    let mut peer = StorePeer::new();
-    let original = opaque_turn(&[0, 255, 128, 1, 0, 254]);
-    let key = original.key();
-    store.submit(1, writes(1, Write::Save(original.clone())), 0);
-    assert_eq!(store.tick(false), Ok(Some(1)));
-    peer.capture(Time::from_nanos(17), &store);
-    let first = peer.take().pop().expect("first durable snapshot");
-    assert_eq!(first.rows.get(&key), Some(&original));
-    let replacement = opaque_turn(b"replacement allocation");
-    store.submit(2, writes(2, Write::Save(replacement.clone())), 0);
-    assert_eq!(store.tick(false), Ok(Some(2)));
-    peer.capture(Time::from_nanos(18), &store);
-    store.submit(3, writes(3, Write::Erase(key.clone())), 0);
-    assert_eq!(store.tick(false), Ok(Some(3)));
-    peer.capture(Time::from_nanos(19), &store);
-    let later = peer.take();
-    assert_eq!(later[0].rows.get(&key), Some(&replacement));
-    assert_eq!(later[1].rows, header_rows(3));
-    store.submit(4, writes(4, Write::Save(opaque_turn(b"external mutation"))), 0);
-    assert_eq!(store.tick(false), Ok(Some(4)));
-    assert_eq!(first.rows.get(&key), Some(&original), "all allocated bytes and scalar facts survived");
-    assert_eq!(later[0].rows.get(&key), Some(&replacement));
-    assert_eq!(later[1].rows, header_rows(3));
-}
-
-#[test]
-fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_captured_rows() {
-    let mut store = Store::new(&jig_test_profile::limits(), &[]);
-    let mut peer = StorePeer::new();
-    let durable = opaque_turn(b"actually applied");
-    let key = durable.key();
-    store.submit(1, writes(1, Write::Save(durable.clone())), 0);
-    assert_eq!(store.tick(true), Ok(None));
-    peer.capture(Time::from_nanos(20), &store);
-    store.submit(2, writes(2, Write::Erase(key.clone())), 2);
-    assert_eq!(store.tick(false), Ok(None));
-    peer.capture(Time::from_nanos(21), &store);
-    store.crash(18).expect("crash readback");
-    peer.capture(Time::from_nanos(22), &store);
-    let captured = peer.take();
-    assert_eq!(captured.len(), 1);
-    assert_eq!(captured[0].rows.get(&key), Some(&durable));
-    store.fault(Fault::Fail { commit: 2 });
-    store.submit(2, writes(2, Write::Erase(key.clone())), 0);
-    store.submit(3, writes(3, Write::Save(opaque_turn(b"abandoned after failure"))), 0);
-    assert_eq!(store.tick(false), Err(2));
-    peer.capture(Time::from_nanos(23), &store);
-    assert_eq!(peer.take().len(), 0);
-    assert_eq!(store.applied, 1);
-    assert_eq!(store.rows.get(&key), Some(&durable));
-    assert!(store.pending.is_empty());
-    store.crash(18).expect("crash readback");
-    peer.capture(Time::from_nanos(24), &store);
-    assert_eq!(peer.take().len(), 0);
-    assert_eq!(captured[0].rows.get(&key), Some(&durable));
-}
-
-#[test]
 fn supplied_monotonic_time_is_exact_and_independent_of_wall_corrections() {
     let mut store = Store::new(&jig_test_profile::limits(), &[]);
     let mut peer = StorePeer::new();
@@ -179,29 +104,4 @@ fn supplied_monotonic_time_is_exact_and_independent_of_wall_corrections() {
     assert_eq!(first[0].commit, second[0].commit);
 }
 
-const HEADER: core::Deployment = core::Deployment {
-    id: [18; 16],
-    tasks: 0,
-    people: 0,
-    sign_ins: 0,
-    messages: 0,
-    runs: 0,
-    calls: 0,
-    connector_rows: 0,
-    projects: 0,
-    restart_wait_ms: None,
-    applications: 0,
-    commits: 0,
-};
-fn header(commits: u64) -> root::Record {
-    let mut header = HEADER;
-    header.commits = commits;
-    root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))
-}
-fn header_rows(commits: u64) -> std::collections::BTreeMap<root::Key, root::Record> {
-    let header = header(commits);
-    std::collections::BTreeMap::from([(root::Key::Core(core::Key::Core(core::CoreKey::Deployment)), header)])
-}
-fn writes(number: u64, write: Write) -> Box<[Write]> {
-    Box::new([Write::Save(header(number)), write])
-}
+use crate::store_peer_support::{opaque_turn, writes};
