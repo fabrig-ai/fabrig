@@ -56,7 +56,9 @@
     of the form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ (34 → 40, 768 → 768, 758 → 768).
     Elsewhere it stays at `standard`'s. A count a wire caps below that
     is the cap, never below dev's: `forge.landing_members` is 5, the
-    worker wire's, not twice dev's 4.
+    worker wire's, not twice dev's 4. A count a stored format caps is
+    likewise the cap: `forge.changes` is 379, the store's tier rows'
+    (below), not twice dev's 379.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
     example.
@@ -208,7 +210,10 @@
   holds up to `2 * forge.changes + 1` landings (its pending ones, a run's
   and a finding's blamed ones), within the store schema's ceiling for
   them, 759 (`../store.md`, 4), so `forge.changes` is at most 379,
-  which the start checks (below). The forge's landed commits, the
+  which the start checks (below), and the stock's is 379. Raising the
+  cap is the store's: a finding's blame recorded by test index, not by
+  copying each failing test's id, and the tier rows' ceilings raised
+  with it. The forge's landed commits, the
   merges temper made, number `max(forge.landings, forge.changes)` at
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
