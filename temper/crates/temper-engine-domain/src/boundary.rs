@@ -1001,7 +1001,7 @@ pub enum PartyInput {
     Read {
         reply_to: ReplyTo,
         sign_in: u64,
-        read: core::reads::Read,
+        read: Box<core::reads::Read>,
     },
     /// The forge's typed read, answered after preceding commits (client/forge/served.md).
     ForgeRead {

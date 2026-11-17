@@ -66,7 +66,7 @@ pub(super) fn read(world: &mut World, read: reads::Read) -> Option<reads::Answer
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: world.signed_in.expect("reader session"),
-        read,
+        read: Box::new(read),
     }));
     for _ in 0..40 {
         if let Some(index) = world.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(READ)) {

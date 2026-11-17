@@ -348,7 +348,7 @@ impl Driver {
         self.serial += 1;
         let token = Token::new(self.serial);
         let reply_to = ReplyTo::new(token);
-        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to, sign_in, read: read.clone() }));
+        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to, sign_in, read: Box::new(read.clone()) }));
         for _ in 0..200 {
             if let Some(index) = self
                 .delivered

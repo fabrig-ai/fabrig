@@ -34,7 +34,7 @@ pub(super) fn read(driver: &mut Driver, query: d::TaskQuery) -> Box<reads::TaskP
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(800)),
         sign_in: driver.session(),
-        read: reads::Read::Tasks { query, live: None, ended: None },
+        read: Box::new(reads::Read::Tasks { query, live: None, ended: None }),
     }));
     driver.settle();
     driver

@@ -466,7 +466,7 @@ fn read_rules(driver: &mut Driver, revision: u32) -> core::reads::SettingDocumen
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(990)),
         sign_in: driver.session(),
-        read: core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None },
+        read: Box::new(core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None }),
     }));
     driver.settle();
     driver
@@ -730,7 +730,7 @@ fn owner_reviews_run_proposal(driver: &mut Driver, task: u64, proposal: u64) {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(995)),
         sign_in: driver.session(),
-        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal },
+        read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal }),
     }));
     driver.settle();
     let mut reviewed = false;

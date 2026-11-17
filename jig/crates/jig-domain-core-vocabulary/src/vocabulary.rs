@@ -1160,7 +1160,7 @@ pub enum NamedAction {
     Settings(crate::reads::SettingsRead),
     /// A run reads as its task's requester, a person, of its task's project alone
     /// (domain/engine/executors.md, 3, *A run's read as its person*). Decides nothing, keeps no call record.
-    PersonRead(crate::reads::Read),
+    PersonRead(Box<crate::reads::Read>),
     /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors.md, 3).
     ReadProposal {
         proposer: jig_domain_people::Proposer,

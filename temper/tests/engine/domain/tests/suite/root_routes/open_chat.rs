@@ -131,7 +131,7 @@ fn read(driver: &mut Driver, read: reads::Read) -> reads::Answer {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
-        read,
+        read: Box::new(read),
     }));
     driver.pump();
     driver

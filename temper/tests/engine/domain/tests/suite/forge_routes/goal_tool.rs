@@ -550,11 +550,11 @@ fn a_goal_asks_its_requester_and_the_person_sees_the_question() {
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to,
         sign_in: world.signed_in.expect("owner session"),
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::Questions,
             filter: reads::Filter { project: Some(1), goal: None },
             from: None,
-        },
+        }),
     }));
     for _ in 0..200 {
         world.tick();

@@ -429,7 +429,7 @@ fn take_read(domain: &mut crate::Domain, key: crate::CallKey) -> Read {
     assert_eq!(actual, key);
     let jig_domain_core::NamedAction::PersonRead(read) = action else { panic!("read as the person") };
     assert!(domain.work.is_empty());
-    read
+    *read
 }
 
 fn person_now(

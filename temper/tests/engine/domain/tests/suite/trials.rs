@@ -800,7 +800,7 @@ fn read(driver: &mut Driver, read: core::reads::Read) -> core::reads::Answer {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(reply),
         sign_in: driver.session(),
-        read,
+        read: Box::new(read),
     }));
     driver.settle();
     driver

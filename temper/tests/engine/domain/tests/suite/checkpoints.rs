@@ -70,7 +70,7 @@ fn me(driver: &mut Driver, sign_in: u64) -> Box<c::Me> {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(500)),
         sign_in,
-        read: reads::Read::Frame,
+        read: Box::new(reads::Read::Frame),
     }));
     driver.settle();
     let answer = driver

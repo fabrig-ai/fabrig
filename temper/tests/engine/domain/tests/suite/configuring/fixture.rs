@@ -594,7 +594,7 @@ impl World {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(90)),
             sign_in: self.owner,
-            read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal },
+            read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal }),
         }));
         self.driver.settle();
         self.driver

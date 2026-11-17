@@ -232,7 +232,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::ForgeRead { reply, sign_in, scope, query });
         }
         Event::Party(crate::PartyInput::Read { reply_to, sign_in, read }) => {
-            domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read }));
+            domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read: *read }));
         }
         Event::Party(crate::PartyInput::Watch { watcher, sign_in, subject, window }) => {
             domain.work.push(Work::Core(core::Event::Watch { watcher, sign_in, subject, window }));

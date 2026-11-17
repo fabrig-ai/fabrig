@@ -417,7 +417,11 @@ pub(super) fn read(
 }
 
 fn ask(domain: &mut Domain, to: ReplyTo, key: crate::CallKey, read: Read) {
-    domain.work.push(Work::Core(core::Event::NamedAction { to, key, action: core::NamedAction::PersonRead(read) }));
+    domain.work.push(Work::Core(core::Event::NamedAction {
+        to,
+        key,
+        action: core::NamedAction::PersonRead(Box::new(read)),
+    }));
 }
 
 pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {

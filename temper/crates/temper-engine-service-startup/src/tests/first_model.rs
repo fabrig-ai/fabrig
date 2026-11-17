@@ -269,7 +269,7 @@ impl StockBox {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(801)),
             sign_in: self.driver.session(),
-            read: core::reads::Read::Frame,
+            read: Box::new(core::reads::Read::Frame),
         }));
         self.pump();
         self.driver
@@ -464,7 +464,7 @@ impl StockBox {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(800)),
             sign_in: self.driver.session(),
-            read: core::reads::Read::Task { task },
+            read: Box::new(core::reads::Read::Task { task }),
         }));
         self.pump();
         self.driver

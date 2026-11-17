@@ -446,11 +446,11 @@ fn a_person_answers_a_question_its_task_has_already_read() {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(2037)),
         sign_in: driver.session(),
-        read: reads::Read::Inbox {
+        read: Box::new(reads::Read::Inbox {
             group: reads::Group::Questions,
             filter: reads::Filter { project: Some(1), goal: None },
             from: None,
-        },
+        }),
     }));
     driver.settle();
     let waiting = driver
@@ -5257,7 +5257,7 @@ fn signing_out_routes_to_people_and_expires_the_session() {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(1104)),
         sign_in: session,
-        read: jig_domain_core::reads::Read::Frame,
+        read: Box::new(jig_domain_core::reads::Read::Frame),
     }));
     driver.settle();
     assert!(driver.delivered.iter().any(|delivery| matches!(

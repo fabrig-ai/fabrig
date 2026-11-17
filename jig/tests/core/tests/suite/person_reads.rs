@@ -329,12 +329,12 @@ fn person_application_reads_reach_the_connector_as_the_person() {
             core::Event::NamedAction {
                 to: ReplyTo::new(token),
                 key,
-                action: core::NamedAction::PersonRead(reads::Read::Application {
+                action: core::NamedAction::PersonRead(Box::new(reads::Read::Application {
                     scope: people::ApplicationScope::Project(project),
                     connector: CONNECTOR,
                     read: name,
                     window,
-                }),
+                })),
             },
         );
         let request = out.pop().expect("connector read or unknown");

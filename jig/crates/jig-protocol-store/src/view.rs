@@ -26,9 +26,12 @@ impl Ask {
     }
 }
 #[derive(Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "read scopes own task queries and their parts; the queue retains each admitted ask inline"
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "read scopes own task queries and their parts; the queue retains each admitted ask inline"
+    )
 )]
 enum Work {
     Checkpoint,

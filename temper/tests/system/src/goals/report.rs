@@ -123,11 +123,11 @@ fn a_stock_goal_revises_the_report_its_person_reads() {
         reply_to: ReplyTo::new(READ),
         sign_in: session,
         // The core form of the client's Read::Notes in NoteScope::Task.
-        read: reads::Read::ScopedNotes {
+        read: Box::new(reads::Read::ScopedNotes {
             scope: jig_domain_notes::Scope::Goal { project: PROJECT, goal: assignment.task },
             description: Some(b"report: ".as_slice().into()),
             from: None,
-        },
+        }),
     }));
     driver.settle();
     let page = driver

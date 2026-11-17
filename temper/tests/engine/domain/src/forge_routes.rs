@@ -3574,7 +3574,11 @@ impl World {
     fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
         const REPLY: Token = Token::new(0x4e32);
         self.reads.clear();
-        self.send(engine::Event::Party(engine::PartyInput::Read { reply_to: ReplyTo::new(REPLY), sign_in, read }));
+        self.send(engine::Event::Party(engine::PartyInput::Read {
+            reply_to: ReplyTo::new(REPLY),
+            sign_in,
+            read: Box::new(read),
+        }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {
                 return self.reads.remove(index).1;
@@ -3639,7 +3643,7 @@ impl World {
         self.send(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(REPLY),
             sign_in: self.signed_in.expect("reader session"),
-            read,
+            read: Box::new(read),
         }));
         for _ in 0..STEPS {
             if let Some(index) = self.reads.iter().position(|(reply, _)| *reply == ReplyTo::new(REPLY)) {

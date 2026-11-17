@@ -180,7 +180,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(EMPTY),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -200,7 +200,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.session(),
-        read: core::reads::Read::Frame,
+        read: Box::new(core::reads::Read::Frame),
     }));
     driver.settle();
     let document = driver
@@ -241,11 +241,11 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(token),
             sign_in: driver.session(),
-            read: core::reads::Read::Setting {
+            read: Box::new(core::reads::Read::Setting {
                 setting: core::settings::Setting::Charter(number),
                 revision: 1,
                 proposal: None,
-            },
+            }),
         }));
         driver.settle();
         let charter = driver

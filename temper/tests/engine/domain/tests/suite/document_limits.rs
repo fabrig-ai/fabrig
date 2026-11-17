@@ -31,7 +31,7 @@ fn configured_document_rows_reach_the_cores_limits() {
         driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(DOCUMENT_READ),
             sign_in: driver.session(),
-            read: Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: None },
+            read: Box::new(Read::Tasks { query: jig_test_profile::fixtures::own_tasks(), live: None, ended: None }),
         }));
         advance(&mut driver);
         let document = driver.delivered.iter().find_map(|delivery| {

@@ -990,11 +990,11 @@ fn a_members_proposal_waits_for_an_owner() {
     world.driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(91)),
         sign_in: world.owner,
-        read: core::reads::Read::Inbox {
+        read: Box::new(core::reads::Read::Inbox {
             group: core::reads::Group::Proposals,
             filter: core::reads::Filter { project: None, goal: None },
             from: None,
-        },
+        }),
     }));
     world.driver.settle();
     let inbox = world
@@ -1981,7 +1981,7 @@ fn a_chats_fresh_proposal_replaces_its_own_that_waits() {
     world.driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(90)),
         sign_in: world.owner,
-        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal: first },
+        read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal: first }),
     }));
     world.driver.settle();
     assert!(

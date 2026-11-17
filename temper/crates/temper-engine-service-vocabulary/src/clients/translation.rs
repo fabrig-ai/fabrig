@@ -51,7 +51,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
             root::PartyInput::Key { reply_to, sign_in, key, ask, carried }
         }
         core::Event::PublicRead { reply, read } => root::PartyInput::PublicRead { reply, read },
-        core::Event::Read { reply, sign_in, read } => root::PartyInput::Read { reply_to: reply, sign_in, read },
+        core::Event::Read { reply, sign_in, read } => {
+            root::PartyInput::Read { reply_to: reply, sign_in, read: Box::new(read) }
+        }
         core::Event::Watch { watcher, sign_in, subject, window } => {
             root::PartyInput::Watch { watcher, sign_in, subject, window }
         }
