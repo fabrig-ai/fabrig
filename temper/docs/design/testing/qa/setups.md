@@ -405,12 +405,7 @@ engine's `tasks.result_bytes`, 4,096, the bound the root holds it to,
 as init's document does (`../../protocol/setup/init.md`, 1); its
 forge document declares the gate and the manual merges; its patch file
 sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
-fake model's `--scripts` form and equals its real-loop fixture's. In
-the real loop's world, those scripts carry two goals' changes to ready
-together and land them in one landing of two, by `turn` at `batch` 2,
-the gate dispatched on the fake Forgejo and green, and a member holding
-`.fake-forge/gate` reading `fail` turns it red
-(`../../draft/landed-qa.md`, 11). `turn-landing-clients` reads and
+fake model's `--scripts` form and equals its real-loop fixture's. In the real loop's world, those scripts carry two goals' changes to ready together behind the person's latch, released by one answer, and a member holding `.fake-forge/gate` reading `fail` turns the dispatched top red (`../../draft/landed-qa.md`, 11); two goals' changes landing in one landing of two by `turn` at `batch` 2, the gate green at the top, are the engine's domain world's (`../../domain/landing.md`, 16), and the setup's green landing on these scripts is its walk's (`../real-loop.md`, *The turn-landing setup's stories*). `turn-landing-clients` reads and
 hashes as a deployment's chain after `turn-landing`, holding web and tui
 lines; its walk is planned as a deployment's full session given
 `turn-landing`'s `config/`, `--ports` and `--bundle`, with the walk's
