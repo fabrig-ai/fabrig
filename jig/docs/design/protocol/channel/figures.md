@@ -86,10 +86,13 @@ them picks each one, and the schema then fixes it.
 ## 3. The engine's side
 
 - **A figures opening** is checked as any opening, in order
-  (`README.md`, 4.1): the name and the secret, the wires, the worker's
-  `io.output`. It takes no channel's place, so it's never *busy* and
-  replaces nothing. Its terms are judged for `wires` and `figures`
-  alone, the only kinds it sends. The engine sends `Agreed`, then
+  (`README.md`, 4.1): the name and the secret, then the wires. Its
+  `io.output` isn't compared with the engine's stream room: a worker
+  that fetches its figures states its stock room, before it knows the
+  engine's limits, and what the engine sends it is bounded by the
+  schema's ceilings, not by `io.output`. It takes no channel's place,
+  so it's never *busy* and replaces nothing. Its terms are judged for
+  `wires` and `figures` alone, the only kinds it sends. The engine sends `Agreed`, then
   `figures` with that worker's places, then finishes the channel and
   closes it once drained. No hello is awaited, and the fleet hears
   nothing. The engine's log says `worker NAME took its figures`.

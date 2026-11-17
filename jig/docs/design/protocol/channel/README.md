@@ -170,10 +170,12 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     probed;
   - the wires, each the engine speaks stated alike, or *wires*, naming
     the first that is not (`wires.md`, 3);
-  - the worker's `io.output`, equal to the engine's stream room, or
-    skein's *limits*. The refusal and the engine's opening diagnostic
-    name both byte values and tell the operator to change `io.output`
-    to agree. This check precedes replacing an existing channel;
+  - for a link opening, the worker's `io.output`, equal to the engine's
+    stream room, or skein's *limits*. The refusal and the engine's
+    opening diagnostic name both byte values and tell the operator to
+    change `io.output` to agree. This check precedes replacing an
+    existing channel. A figures opening isn't held to it
+    (`figures.md`, 3);
   - room for one more channel: the fleet's limit on workers, less the
     channels open, or *busy*. An opening under the name of a worker that
     has a channel always has room, since it replaces that channel (4.2).
