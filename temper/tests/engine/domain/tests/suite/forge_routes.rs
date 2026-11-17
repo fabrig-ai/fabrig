@@ -62,6 +62,7 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+mod delegate_amendment;
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
 mod producer_words;

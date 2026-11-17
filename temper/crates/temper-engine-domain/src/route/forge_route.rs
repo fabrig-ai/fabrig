@@ -4253,6 +4253,20 @@ fn before_context(words: &[u8]) -> &[u8] {
     words.get(..end).expect("context starts within words")
 }
 
+/// questions.md, 1: a live repair or resolution keeps its opening and refreshes its context.
+fn amended_context_words(
+    task: u64,
+    change: &tasks::TaskRecord,
+    spec: &tasks::Spec,
+    questions: &forge_change::Questions,
+    bound: u32,
+) -> Option<Box<[u8]>> {
+    let kept = before_context(&spec.words);
+    let room = usize::try_from(parameter_word_room(&spec.parameters, bound)).ok()?.checked_sub(kept.len())?;
+    let block = change_context(task, change.revisions.spec, &change.spec.words, questions, false, room)?;
+    Some(skein_lib::bytes::concat(&[kept, &block]))
+}
+
 fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
     let mut room = bound;
     for parameter in parameters {
@@ -4574,6 +4588,20 @@ fn producer_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32)
     append(&mut words, b", your change, was amended to spec revision ");
     append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
     append(&mut words, b". Your spec now holds its amended words; work to them from here on. Its reason: ");
+    append(&mut words, reason);
+    forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
+}
+
+fn delegate_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut words, b", your change, was amended to spec revision ");
+    append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
+    append(
+        &mut words,
+        b". Your spec's context now holds its current spec and rulings; work to them from here on. Its reason: ",
+    );
     append(&mut words, reason);
     forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }

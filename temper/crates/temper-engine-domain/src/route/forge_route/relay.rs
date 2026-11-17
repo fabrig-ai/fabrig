@@ -92,7 +92,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         usize::try_from(messages.room()).expect("bounded batch"),
     );
     if let Some(reason) = amended.as_slice().last() {
-        amend_producer(domain, env, task, reason, &relayed.questions, &mut decision);
+        amend_delegate(domain, env, task, reason, &relayed.questions, &mut decision);
     }
     for act in &relayed.acts {
         match act {
@@ -234,7 +234,7 @@ fn word_message(act: &change::WordAct, requester: tasks::Party, route: change::R
     }
 }
 
-fn amend_producer(
+fn amend_delegate(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
@@ -243,17 +243,40 @@ fn amend_producer(
     decision: &mut ProcedureStep,
 ) {
     let Some(row) = domain.forge.change(task) else { return };
-    let Some((child, change::Delegate::Produce)) = row.delegate else { return };
+    let Some((child, kind)) = row.delegate else { return };
     let Some(record) = domain.core.tasks.task(child) else { return };
     match record.phase {
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
         tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => return,
     }
-    let Some(words) = super::production_words(domain, env, task, row, questions) else { return };
-    if super::before_context(&words) == super::before_context(&record.spec.words) {
-        return;
-    }
     let Some(change) = domain.core.tasks.task(task) else { return };
+    let (words, reason) = match kind {
+        change::Delegate::Produce => {
+            let Some(words) = super::production_words(domain, env, task, row, questions) else { return };
+            if super::before_context(&words) == super::before_context(&record.spec.words) {
+                return;
+            }
+            (
+                words,
+                super::producer_amendment_words(task, change.revisions.spec, reason, env.limits.tasks.message_bytes),
+            )
+        }
+        change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {
+            let Some(words) =
+                super::amended_context_words(task, change, &record.spec, questions, env.limits.tasks.spec_bytes)
+            else {
+                return;
+            };
+            if words == record.spec.words {
+                return;
+            }
+            (
+                words,
+                super::delegate_amendment_words(task, change.revisions.spec, reason, env.limits.tasks.message_bytes),
+            )
+        }
+        change::Delegate::Gate { .. } | change::Delegate::Merge { .. } | change::Delegate::Close => return,
+    };
     let mut spec = record.spec.clone();
     spec.words = words;
     let mut amendments = List::uncapped();
@@ -274,15 +297,10 @@ fn amend_producer(
                 dependencies: None,
                 authority: None,
                 llm: None,
-                reason: super::producer_amendment_words(
-                    task,
-                    change.revisions.spec,
-                    reason,
-                    env.limits.tasks.message_bytes,
-                ),
+                reason,
             },
         })
-        .expect("one producer amendment");
+        .expect("one live delegate amendment");
     decision.amendments = amendments.into_boxed();
 }
 

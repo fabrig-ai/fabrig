@@ -3749,6 +3749,259 @@ fn change_context_keeps_its_fixed_lines_whole_or_refuses() {
     }
 }
 
+const LIVE_DELEGATE: u64 = 71;
+
+#[expect(clippy::too_many_lines, reason = "one live change/delegate snapshot offers all amendments at the same step")]
+fn live_delegate_amendment(
+    kind: Option<super::forge_change::Delegate>,
+    phase: super::tasks::Phase,
+    words_changed: bool,
+    reasons: &[&[u8]],
+) -> (super::Domain, skein_lib::Env<super::Limits>, u64) {
+    use super::{forge, forge_change as change, tasks};
+    use skein_lib::Queue;
+    let (mut domain, mut env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    env.limits.tasks.parameters = 5;
+    env.limits.tasks.spec_bytes = 4096;
+    env.limits.tasks.contract_choices = 2;
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.change.last_head = Some(SHA1);
+    row.merge_result = Some(b"made merge result: left file".as_slice().into());
+    row.change.gates = Box::new([
+        change::Gate {
+            number: 1,
+            kind: change::GateKind::Agent,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+        change::Gate {
+            number: 2,
+            kind: change::GateKind::Person,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+        change::Gate {
+            number: 3,
+            kind: change::GateKind::Check,
+            blocking: true,
+            freshness: change::Freshness::Clean,
+            eager: true,
+        },
+    ]);
+    row.delegate = match kind {
+        Some(kind) => Some((LIVE_DELEGATE, kind)),
+        None => None,
+    };
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+    let delegate =
+        super::change_delegate(&domain, &env, task, kind.unwrap_or(change::Delegate::Repair(change::Repair::Ci)))
+            .unwrap();
+    let mut change = domain.core.tasks.task(task).unwrap().clone();
+    let mut child = change.clone();
+    child.number = LIVE_DELEGATE;
+    child.requester = tasks::Party::Task(task);
+    child.executor = delegate.executor;
+    child.spec = delegate.spec;
+    child.contract = delegate.contract;
+    child.phase = phase;
+    child.revisions.spec = 4;
+    change.phase = tasks::Phase::Active(tasks::Active::Idle);
+    if words_changed {
+        change.spec.words = b"Drop the originally requested file".as_slice().into();
+    } else {
+        change.dependencies = Box::new([72]);
+        change.waiting_on = Box::new([72]);
+    }
+    change.revisions.spec = skein_lib::len_u64(reasons.len());
+    let mut inbox = super::List::uncapped();
+    for (index, reason) in reasons.iter().enumerate() {
+        let revision = skein_lib::len_u64(index).checked_add(1).unwrap();
+        inbox
+            .push(tasks::Word {
+                number: revision,
+                from: change.requester,
+                kind: tasks::MessageKind::Amendment { revision },
+                words: (*reason).into(),
+                at: env.wall,
+                hits: 1,
+                eligible: true,
+            })
+            .unwrap();
+    }
+    change.inbox = inbox.into_boxed();
+    domain.core.tasks = tasks::Domain::new(
+        &env.limits.tasks,
+        tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+        7,
+        0,
+        Box::new([]),
+        Box::new([]),
+    );
+    for record in [change, child] {
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(record)) },
+            &mut Queue::uncapped(),
+        );
+    }
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::WakeProcedure { task },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(domain.core.tasks.restore_failure(), None);
+    assert!(domain.core.tasks.task(LIVE_DELEGATE).is_some());
+    assert!(domain.core.tasks.procedure_offered(task).unwrap() > 0);
+    (domain, env, task)
+}
+
+fn live_amendment_step(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    task: u64,
+) -> super::ProcedureStep {
+    super::relay::apply(domain, env, task, super::ProcedureStep::new(super::StepEnd::Wait))
+}
+
+#[test]
+fn a_live_resolution_keeps_its_words_and_takes_one_amendment_with_the_last_reason() {
+    use super::{forge_change as change, tasks};
+    for phase in [
+        tasks::Phase::Waiting,
+        tasks::Phase::Active(tasks::Active::Running { attempt: 1 }),
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Idle), why: tasks::Hold::Stopped, source: None },
+    ] {
+        let (mut domain, env, task) = live_delegate_amendment(
+            Some(change::Delegate::Resolve { base: SHA1 }),
+            phase,
+            true,
+            &[b"Keep both lines", b"Drop the file"],
+        );
+        let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+        let decision = live_amendment_step(&mut domain, &env, task);
+        let [amendment] = decision.amendments.as_ref() else { panic!("one amendment: {:?}", decision.amendments) };
+        assert_eq!(amendment.task, LIVE_DELEGATE);
+        assert_eq!(amendment.revision, 4);
+        let mut expected = original.clone();
+        let change = domain.core.tasks.task(task).unwrap();
+        let questions = domain
+            .forge_delegating
+            .get(&(task, domain.core.tasks.procedure_due(task).unwrap().2))
+            .unwrap()
+            .relayed
+            .as_ref()
+            .unwrap()
+            .questions
+            .clone();
+        let block = super::change_context(task, 2, &change.spec.words, &questions, false, 4096).unwrap();
+        let kept = super::before_context(&original.words);
+        assert!(kept.starts_with(b"Resolve the merge conflict."));
+        assert!(kept.ends_with(b"made merge result: left file"));
+        expected.words = word_parts(&[kept, &block]);
+        assert_eq!(amendment.amendment.spec.as_ref(), Some(&expected));
+        assert_eq!(
+            amendment.amendment.reason,
+            super::delegate_amendment_words(task, 2, b"Drop the file", env.limits.tasks.message_bytes)
+        );
+        assert_eq!(domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec, original, "admission has not happened yet");
+    }
+}
+
+#[test]
+fn dependencies_alone_still_amend_a_live_repairs_context() {
+    use super::{forge_change as change, tasks};
+    let (mut domain, env, task) = live_delegate_amendment(
+        Some(change::Delegate::Repair(change::Repair::Ci)),
+        tasks::Phase::Waiting,
+        false,
+        &[b"Wait for dependency"],
+    );
+    let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+    let decision = live_amendment_step(&mut domain, &env, task);
+    let [amendment] = decision.amendments.as_ref() else { panic!("one amendment: {:?}", decision.amendments) };
+    let spec = amendment.amendment.spec.as_ref().unwrap();
+    assert_eq!(super::before_context(&spec.words), super::before_context(&original.words));
+    assert_eq!(domain.core.tasks.task(task).unwrap().spec.words.as_ref(), b"live goal");
+    assert!(skein_lib::bytes::find(&spec.words, b"at spec revision 1.").is_some());
+    assert!(skein_lib::bytes::find(&spec.words, b"Amended to spec revision 1: Wait for dependency").is_some());
+    assert!(spec.words.ends_with(b"Its current spec, at revision 1:\nlive goal"));
+}
+
+#[test]
+fn an_amendment_leaves_gates_and_absent_delegates_alone() {
+    use super::{forge_change as change, tasks};
+    for kind in [
+        Some(change::Delegate::Gate { number: 1, head: SHA1 }),
+        Some(change::Delegate::Gate { number: 2, head: SHA1 }),
+        Some(change::Delegate::Gate { number: 3, head: SHA1 }),
+        None,
+    ] {
+        let (mut domain, env, task) =
+            live_delegate_amendment(kind, tasks::Phase::Active(tasks::Active::Idle), true, &[b"Drop the file"]);
+        assert!(live_amendment_step(&mut domain, &env, task).amendments.is_empty(), "{kind:?}");
+    }
+}
+
+#[test]
+fn a_live_delegates_context_without_fixed_line_room_is_left_unchanged() {
+    use super::{forge_change as change, tasks};
+    let (mut domain, mut env, task) = live_delegate_amendment(
+        Some(change::Delegate::Repair(change::Repair::Ci)),
+        tasks::Phase::Waiting,
+        true,
+        &[b"Drop the file"],
+    );
+    let original = domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec.clone();
+    let record = domain.core.tasks.task(task).unwrap();
+    let questions = change::Questions {
+        amended: Box::new([change::Amended { revision: 1, reason: b"Drop the file".as_slice().into() }]),
+        ..change::Questions::default()
+    };
+    let fixed = super::context_fixed(task, 1, &record.spec.words, &questions, false);
+    let mut pinned = 0_usize;
+    for parameter in &original.parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            pinned = pinned.checked_add(value.len()).unwrap();
+        }
+    }
+    assert!(pinned > 0);
+    env.limits.tasks.spec_bytes =
+        u32::try_from(pinned + super::before_context(&original.words).len() + fixed - 1).unwrap();
+    assert!(live_amendment_step(&mut domain, &env, task).amendments.is_empty());
+    assert_eq!(domain.core.tasks.task(LIVE_DELEGATE).unwrap().spec, original);
+    env.limits.tasks.spec_bytes += 1;
+    assert_eq!(live_amendment_step(&mut domain, &env, task).amendments.len(), 1, "the fixed lines fit exactly");
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "fixture independently spells exact UTF-8 bounded reason")]
+fn a_delegate_amendment_reason_is_exact_and_cuts_at_a_utf8_boundary() {
+    let prefix = "Task 41, your change, was amended to spec revision 3. Your spec's context now holds its current spec and rulings; work to them from here on. Its reason: ";
+    let reason = "Drop the file €€€";
+    assert_eq!(
+        super::delegate_amendment_words(41, 3, reason.as_bytes(), 512).as_ref(),
+        format!("{prefix}{reason}").as_bytes()
+    );
+    let bound = u32::try_from(prefix.len() + "Drop the file €".len() + 1 + "…".len()).unwrap();
+    assert_eq!(
+        super::delegate_amendment_words(41, 3, reason.as_bytes(), bound).as_ref(),
+        format!("{prefix}Drop the file €…").as_bytes()
+    );
+}
+
 /// repairs.md, A repair and A resolution: preservation yields to the ruling.
 #[test]
 fn preservation_words_yield_to_the_current_request_and_answers() {
