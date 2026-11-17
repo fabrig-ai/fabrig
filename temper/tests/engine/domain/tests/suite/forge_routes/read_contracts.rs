@@ -13,15 +13,22 @@ fn worker_forge_reads_keep_their_contract_and_renderer_across_restart() {
     let old_file = format!(r#"{{"head":"{digits}","path":"file"}}"#);
     let file = format!(r#"{{"what":"file","commit":"{digits}","path":"file"}}"#);
     let checks = format!(r#"{{"what":"checks","commit":"{digits}"}}"#);
+    let current = temper_engine_smith::wire::VERSION;
     let cases = [
         (1, "read_file", old_file.as_str(), "contents"),
         (2, "read_file", old_file.as_str(), "contents"),
         (3, "read_file", old_file.as_str(), "contents"),
-        (4, "read_forge", file.as_str(), "contents"),
-        (4, "read_issues", r#"{"what":"items"}"#, "Items:"),
-        (4, "read_ci", checks.as_str(), ""),
-        (4, "read_forge", r#"{"what":"branches","prefix":""}"#, "read_forge what=branches needs a nonempty prefix"),
-        (4, "read_branches", r#"{"prefix":""}"#, "read_forge what=branches needs a nonempty prefix"),
+        (4, "read_file", old_file.as_str(), "contents"),
+        (current, "read_forge", file.as_str(), "contents"),
+        (current, "read_issues", r#"{"what":"items"}"#, "Items:"),
+        (current, "read_ci", checks.as_str(), ""),
+        (
+            current,
+            "read_forge",
+            r#"{"what":"branches","prefix":""}"#,
+            "read_forge what=branches needs a nonempty prefix",
+        ),
+        (current, "read_branches", r#"{"prefix":""}"#, "read_forge what=branches needs a nonempty prefix"),
     ];
     let mut first = Vec::new();
     for pass in 0..2 {
