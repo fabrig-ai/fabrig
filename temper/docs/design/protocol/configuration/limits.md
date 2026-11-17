@@ -54,7 +54,9 @@
     slots, client streams) is twice dev.fabrig.ai's figure of 2026-11-16
     where that is above `standard`'s. It's rounded up to the least number
     of the form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ (34 → 40, 768 → 768, 758 → 768).
-    Elsewhere it stays at `standard`'s.
+    Elsewhere it stays at `standard`'s. A count a wire caps below that
+    is the cap, never below dev's: `forge.landing_members` is 5, the
+    worker wire's, not twice dev's 4.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
     example.
@@ -181,8 +183,8 @@
   watching more branches in a repository needs no more directories. Forge
   subscription admission and the connector both enforce the watched-name
   bound.
-- **`forge.landing_members` bounds a landing's changes,** 2 in both
-  profiles: at least the largest `batch` a project names, which the
+- **`forge.landing_members` bounds a landing's changes,** 5 in the
+  stock, its cap below: at least the largest `batch` a project names, which the
   start checks (`engine.md`, the batch), so a deployment whose project
   raises `batch` raises it with it. A landing holds a branch per member
   (`../../domain/landing.md`, 5.1), so `forge.resources_per_task` has
