@@ -118,14 +118,13 @@ fn admit_worker(
     hello: &Hello,
     out: &mut Queue<Request>,
 ) -> bool {
-    let configured = domain.worker_names.len();
     let mut occupied = false;
     for (_, id) in &domain.tokens {
         if let Some(host) = domain.channels.get(*id) {
             occupied |= host.worker == Some(worker);
         }
     }
-    if worker >= configured || occupied {
+    if domain.worker_names.worker(worker).is_none() || occupied {
         refuse(domain, env, channel, hello, crate::HelloRefusal::Position { worker }, None, out);
         return false;
     }
@@ -238,6 +237,7 @@ pub(crate) fn hello(
         return;
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
+    let places = domain.worker_names.places(worker).expect("admitted worker setting");
     let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
     let mut worker = Channel {
         jobs,
@@ -248,7 +248,7 @@ pub(crate) fn hello(
         eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
         kind: HostKind::Worker,
         token: channel,
-        slots: slots.min(limits.slots),
+        slots: slots.min(places).min(limits.slots),
         draining: false,
         shutting_down: false,
         mismatched: false,

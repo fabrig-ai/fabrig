@@ -54,7 +54,10 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
     assert_eq!(current.charter(2), Some(&added));
     current.changes.remove(&Setting::Charter(1));
     assert_eq!(current.charter(1), Some(&original));
-    assert_eq!(current.offered().as_slice(), &[Setting::Charter(1), Setting::Charter(2), Setting::Rules]);
+    assert_eq!(
+        current.offered().as_slice(),
+        &[Setting::Charter(1), Setting::Charter(2), Setting::Rules, Setting::Worker(1), Setting::Worker(2)]
+    );
 }
 fn fault_case(fault: Fault) {
     let mut config = config(1);
@@ -1111,7 +1114,8 @@ fn worker_item(value: WorkerSetting) -> Item {
 }
 #[test]
 fn worker_settings_check_shape_count_identity_and_digest() {
-    let configured = config(1);
+    let mut configured = config(1);
+    configured.defaults.workers = Box::new([]);
     let mut limits = limits();
     limits.fleet.slots = 4;
     limits.fleet.worker_name_bytes = 8;
@@ -1194,4 +1198,125 @@ fn worker_settings_check_shape_count_identity_and_digest() {
         workers::check_defaults(&current, false),
         Err(Failure { setting: Setting::Worker(1), fault: Fault::Shape, detail: None })
     );
+}
+
+fn decide_worker(
+    core: &mut Core,
+    env: &Env<Limits>,
+    items: Box<[Item]>,
+) -> (Result<u32, people::Refusal>, skein_lib::Queue<crate::Request>) {
+    let mut work = skein_lib::Queue::uncapped();
+    let mut routed = crate::routing::party::dispatch::Routed::new(&mut work);
+    let against = core.current.newest();
+    let result = crate::routing::settings::dispatch::decide(
+        core,
+        env,
+        &mut routed,
+        Decider::FirstStart,
+        None,
+        Change { against, items, running: Running::Stays },
+        crate::routing::settings::dispatch::route_writes(&env.limits).expect("decision room"),
+    );
+    (result, routed.finish(&mut work))
+}
+fn workers_told(out: &skein_lib::Queue<crate::Request>) -> Option<&[WorkerSetting]> {
+    for request in out {
+        if let crate::Request::Ask { ask: crate::Ask::Workers(workers), .. } = request {
+            return Some(workers);
+        }
+    }
+    None
+}
+#[test]
+fn workers_restore_replace_and_refuse_removing_a_linked_channel() {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut core = Core::new(config(1), &limits).expect("default workers");
+    assert_eq!(core.fleet.worker_name(0), Some(b"alpha".as_slice()));
+    let mut changed = worker_value(1, b"alpha");
+    changed.places = 1;
+    changed.digest = Some([8; 32]);
+    assert!(core.restore_setting(
+        Record::Changed {
+            setting: Setting::Worker(1),
+            changed: Changed { value: Some(Value::Worker(Box::new(changed.clone()))), revision: 2 }
+        },
+        &limits
+    ));
+    let mut restored = skein_lib::Queue::uncapped();
+    assert!(core.finish_restored_settings(&env, &mut restored));
+    let told = workers_told(&restored).expect("restore asks the admission component");
+    assert_eq!(told.first().expect("first worker"), &changed);
+    assert_eq!(core.fleet.configured_worker(0).expect("restored member").number(), 0);
+    let channel = skein_lib::Token::new(50);
+    let mut fleet_out = skein_lib::Queue::uncapped();
+    jig_domain_fleet::step(
+        &mut core.fleet,
+        &Env { now: env.now, wall: env.wall, limits: limits.fleet },
+        jig_domain_fleet::Event::Hello {
+            channel,
+            worker: 0,
+            hello: jig_domain_link::Hello {
+                jobs: Box::new([]),
+                bounds: crate::tests::fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+        &mut fleet_out,
+    );
+    assert!(core.fleet.worker_link_at(0).0, "the hello is admitted");
+    for draining in [false, true] {
+        if draining {
+            jig_domain_fleet::step(
+                &mut core.fleet,
+                &Env { now: env.now, wall: env.wall, limits: limits.fleet },
+                jig_domain_fleet::Event::Draining { channel },
+                &mut fleet_out,
+            );
+        }
+        let (result, _) = decide_worker(
+            &mut core,
+            &env,
+            Box::new([
+                worker_item(WorkerSetting {
+                    number: 2,
+                    name: b"beta".as_slice().into(),
+                    places: 1,
+                    digest: Some([9; 32]),
+                    withdrawn: false,
+                }),
+                Item { setting: Setting::Worker(1), edit: Edit::Removed },
+            ]),
+        );
+        assert_eq!(
+            result,
+            Err(people::Refusal::NotWellFormed {
+                at: 1,
+                why: people::Malformed::Settings { setting: Setting::Worker(1), fault: Fault::Linked, detail: None }
+            })
+        );
+    }
+    jig_domain_fleet::step(
+        &mut core.fleet,
+        &Env { now: env.now, wall: env.wall, limits: limits.fleet },
+        jig_domain_fleet::Event::Lost { channel },
+        &mut fleet_out,
+    );
+    let (result, out) =
+        decide_worker(&mut core, &env, Box::new([Item { setting: Setting::Worker(1), edit: Edit::Removed }]));
+    result.expect("worker decision accepted");
+    let told = workers_told(&out).expect("withdrawal replaces admission");
+    assert_eq!(told.len(), 1);
+    assert_eq!(told.first().expect("remaining worker").number, 2);
+    assert!(core.fleet.configured_worker(0).is_none());
+    let (result, out) = decide_worker(&mut core, &env, Box::new([worker_item(changed.clone())]));
+    result.expect("worker decision accepted");
+    assert_eq!(workers_told(&out).expect("resurrection replaces admission").first(), Some(&changed));
+    changed.digest = Some([10; 32]);
+    let (result, out) = decide_worker(&mut core, &env, Box::new([worker_item(changed.clone())]));
+    result.expect("worker decision accepted");
+    assert_eq!(workers_told(&out).expect("digest replaces admission").first(), Some(&changed));
 }

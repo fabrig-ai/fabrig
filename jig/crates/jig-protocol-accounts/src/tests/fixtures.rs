@@ -16,7 +16,7 @@ pub fn sign_in_engine() -> jig_protocol_config::Engine {
                 "authorization":"https://issuer.test/authorize","token":"https://issuer.test/token",
                 "keys":"https://issuer.test/keys","transport":"tls","server_name":"issuer.test",
                 "must_grant":["openid"],"redirect_path":"callback"
-            }}}]}, "hosts":{"workers":[],"listener":[]}, "clients":{"heartbeat_ms":1000,"link":false},
+            }}}]}, "hosts":{"listener":[]}, "clients":{"heartbeat_ms":1000,"link":false},
         "deployment":{"directory":"state"}, "owners":[], "providers":[{"number":1,"kind":"deployment"}],
         "projects":[], "connectors":[], "memory_bytes":1152921504606846976
     }"#;

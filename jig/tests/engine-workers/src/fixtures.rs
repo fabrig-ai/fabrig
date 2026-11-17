@@ -1,7 +1,7 @@
 //! Prepared constants and per-reader copies (protocol/channel/README.md, 11).
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
-use skein_io::digest::digest;
+use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
@@ -116,9 +116,9 @@ pub const LIMITS: Limits = Limits {
 #[must_use]
 pub fn workers() -> Box<[Worker]> {
     Box::new([
-        Worker { name: Box::from(WORKER_A), digest: digest(SECRET_A) },
-        Worker { name: Box::from(WORKER_B), digest: digest(SECRET_B) },
-        Worker { name: Box::from(WORKER_C), digest: digest(SECRET_C) },
+        Worker { number: 1, name: Box::from(WORKER_A), places: 4, digest: Some(digest(SECRET_A)), withdrawn: false },
+        Worker { number: 2, name: Box::from(WORKER_B), places: 4, digest: Some(digest(SECRET_B)), withdrawn: false },
+        Worker { number: 3, name: Box::from(WORKER_C), places: 4, digest: Some(digest(SECRET_C)), withdrawn: false },
     ])
 }
 

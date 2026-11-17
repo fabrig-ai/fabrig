@@ -38,6 +38,7 @@ struct Sending {
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
+    names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
     pub(crate) codec: wire::v14::Limits,
     pub(crate) connections: Map<Token, Connection>,
@@ -92,6 +93,15 @@ impl Component {
                 }
             }
         }
+        let mut names = Map::with_capacity(limits.names);
+        for worker in &workers {
+            if worker.number == 0 || worker.number > limits.names {
+                return Err(Unusable::Workers);
+            }
+            names
+                .insert(worker.number.checked_sub(1).expect("positive number"), worker.name.clone())
+                .or(Err(Unusable::Workers))?;
+        }
         let mut wires = List::uncapped();
         for wire in &jig {
             wires.push(wire.clone()).expect("uncapped wire list");
@@ -104,6 +114,7 @@ impl Component {
         Ok(Self {
             limits: *limits,
             workers,
+            names,
             wires,
             codec,
             connections,
@@ -117,6 +128,16 @@ impl Component {
             translation,
         })
     }
+    #[must_use]
+    pub fn workers(&self) -> &[Worker] {
+        &self.workers
+    }
+    /// Stable names survive withdrawal while an opening's diagnostics finish.
+    #[must_use]
+    pub fn worker_name(&self, position: u32) -> Option<&[u8]> {
+        Some(self.names.get(&position)?)
+    }
+
     /// The full opening table used by validation and upgrade judgements.
     #[must_use]
     pub fn full_schema(&self) -> &skein_channel::Schema {
@@ -125,7 +146,15 @@ impl Component {
 
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
-            Event::Accepted { connection } => self.accepted(now, connection, out),
+            Event::Workers(workers) => {
+                for worker in &workers {
+                    self.names
+                        .insert(worker.number.checked_sub(1).expect("checked worker number"), worker.name.clone())
+                        .expect("checked worker table");
+                }
+                self.workers = workers;
+            }
+            Event::Accepted { connection, in_process } => self.accepted(now, connection, in_process, out),
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
@@ -370,7 +399,7 @@ impl Component {
         }
         self.keep(connection, state);
     }
-    fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
+    fn accepted(&mut self, now: Time, connection: Token, in_process: bool, out: &mut Queue<Request>) {
         if self.life == Life::Closed
             || self.connections.len() == self.connections.capacity()
             || self.connections.contains_key(&connection)
@@ -382,7 +411,7 @@ impl Component {
             out.push(Request::TurnAway { connection });
             return;
         }
-        let mut state = Connection::new(self.schema.clone(), &self.limits, now);
+        let mut state = Connection::new(self.schema.clone(), &self.limits, now, in_process);
         out.push(Request::Take { connection });
         self.progress(now, connection, &mut state, out);
         self.keep(connection, state);
@@ -436,7 +465,7 @@ impl Component {
     ) {
         match event {
             ChannelEvent::Opening { credential, highest, .. } => {
-                let verdict = self.judge(&credential);
+                let verdict = self.judge(&credential, state.in_process);
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
@@ -930,7 +959,7 @@ mod bridge_tests {
     #[test]
     fn a_halted_running_message_is_discarded_with_its_channel_diagnostic() {
         let mut component = crate::tests::fixtures::component();
-        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO);
+        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO, false);
         state.worker = Some(0);
         state.channel = Token::new(17);
         state.version = 11;

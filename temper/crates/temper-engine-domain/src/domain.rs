@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
-use jig_domain_link::{Membership, Problem};
+use jig_domain_link::Problem;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -1458,9 +1458,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
-    if let Err(problem) =
-        Membership::check(&config.core.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
-    {
+    if let Err(problem) = jig_domain_core::worker_membership(&config.core.defaults.workers, &core_limits(limits)) {
         refused.push(Refused::Workers(problem)).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {

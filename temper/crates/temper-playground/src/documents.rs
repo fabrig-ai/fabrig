@@ -154,6 +154,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     let worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();

@@ -242,7 +242,7 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
             engine: config::Address::Addr(skein_io::Addr::InProcess(
                 skein_io::Name::new(b"workers").expect("worker fixture values fit their declared bounds"),
             )),
-            name: b"worker-a".as_slice().into(),
+            name: b"local".as_slice().into(),
             secret: b"worker-secret".as_slice().into(),
             slots: 1,
             graces: config::Graces {

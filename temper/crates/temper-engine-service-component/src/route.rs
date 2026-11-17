@@ -294,6 +294,13 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
 
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
+        root::WorkerRequest::Settings(workers) => {
+            engine.workers.down(
+                engine.env.now,
+                jig_protocol_engine_workers::Event::Workers(workers),
+                &mut engine.events,
+            );
+        }
         root::WorkerRequest::Host(request) => host_request(engine, *request),
         root::WorkerRequest::ReadResult { payload, outcome } => {
             let change = match engine.domain.change_resource(payload) {

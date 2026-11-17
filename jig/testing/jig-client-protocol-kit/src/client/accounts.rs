@@ -171,7 +171,17 @@ impl Story {
         for charter in &mut config.core.defaults.charters {
             charter.policy.model.provider = 3;
         }
-        config.core.worker_names = Box::new([b"unavailable".as_slice().into()]);
+        config.core.defaults.workers = [Box::<[u8]>::from(b"unavailable".as_slice())]
+            .into_iter()
+            .enumerate()
+            .map(|(index, name)| jig_domain_core::settings::WorkerSetting {
+                number: u32::try_from(index + 1).expect("fixture worker count"),
+                name,
+                places: 4,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            })
+            .collect();
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {
                 list: None,

@@ -307,8 +307,9 @@ impl Judge<'_> {
             value["application"]["workers"][0]["git"] = json!(self.inputs.git);
             save(&path, &value)?;
             self.members.up(&["w1"]);
+            cluster::admit_workers(&self.members, host, &self.inputs.scratch.join("client"))?;
             self.stage = Stage::Worker;
-        } else if self.stage == Stage::Worker && self.members.is_up() {
+        } else if self.stage == Stage::Worker && self.members.is_up() && host.is_empty() {
             if self.members.linked("w1") != 1 {
                 return Err(format!(
                     "assertion `left == right` failed\n  left: {:?}\n right: {:?}",

@@ -312,7 +312,12 @@ fn every_row_is_a_member_its_decoder_takes() {
         }
     }
     for row in &members::MEMBERS {
-        assert!(seen.contains(&(row.shape, row.name)), "row missing a decoder example: {}.{}", row.shape, row.name);
+        assert!(
+            row.gone.is_some() || seen.contains(&(row.shape, row.name)),
+            "row missing a decoder example: {}.{}",
+            row.shape,
+            row.name
+        );
     }
 }
 

@@ -207,11 +207,7 @@ pub(crate) fn write_bare(
     write_deployment(directories, environment, binary, &preferred, None, false)
 }
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
-    let mut destinations = vec![
-        directories.document(),
-        path(&directories.data).join("worker.secret"),
-        path(&directories.data).join("worker.digest"),
-    ];
+    let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
     if boxed {
         destinations
             .extend([path(&directories.data).join("demo/llm.key"), path(&directories.data).join("demo/bin/git")]);

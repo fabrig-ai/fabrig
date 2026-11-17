@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::num::NonZeroU16;
-use skein_lib::{Writer, bytes, sha256};
+use skein_lib::{Writer, bytes};
 
 mod hex;
 mod path;
@@ -128,7 +128,7 @@ pub enum Reason {
 }
 
 /// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
-/// `worker.digest`, `demo/llm.key` (data, private), `demo/bin/git`
+/// `demo/llm.key` (data, private), `demo/bin/git`
 /// (data, a link), `agent.json`, `temper.json` (config), the
 /// document last.
 pub fn files(
@@ -140,7 +140,6 @@ pub fn files(
     check(facts.binary, facts.git, facts.claude, directories)?;
 
     let digits = hex::digits(secret);
-    let digest = hex::digits(&sha256::digest(&digits));
     let (login, person) = person::login(facts.login);
     let (document, agent) = template::documents(facts, directories, login);
     Ok(Answer {
@@ -150,11 +149,6 @@ pub fn files(
                 directory: Directory::Data,
                 name: b"worker.secret",
                 content: Content::Bytes { bytes: line(&digits), private: true },
-            },
-            File {
-                directory: Directory::Data,
-                name: b"worker.digest",
-                content: Content::Bytes { bytes: line(&digest), private: true },
             },
             File {
                 directory: Directory::Data,
@@ -180,22 +174,16 @@ pub fn files(
     })
 }
 
-/// `worker.secret`, `worker.digest`, `agent.json`, `temper.json`, in that order.
+/// `worker.secret`, `agent.json`, `temper.json`, in that order.
 pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
     let digits = hex::digits(secret);
-    let digest = hex::digits(&sha256::digest(&digits));
     let (document, agent) = template::bare_documents(facts, directories);
     Ok(Box::new([
         File {
             directory: Directory::Data,
             name: b"worker.secret",
             content: Content::Bytes { bytes: line(&digits), private: true },
-        },
-        File {
-            directory: Directory::Data,
-            name: b"worker.digest",
-            content: Content::Bytes { bytes: line(&digest), private: true },
         },
         File {
             directory: Directory::Config,

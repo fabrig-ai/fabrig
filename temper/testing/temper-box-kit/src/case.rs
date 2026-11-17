@@ -577,23 +577,23 @@ impl Judge {
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
         // six lines also carry all stock charters in the creation offer.
         value["engine"]["limits"]["overrides"]["documents.lines"] = 7.into();
-        value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
-        value["engine"]["hosts"]["workers"].as_array_mut().ok_or("hosts")?.truncate(self.cast.len());
+        let described = super::cluster::worker_settings(&engine_dir.join("settings.json"));
         let secret = b"s2-case-fixture-secret";
-        if self.cast.len() > 1 {
-            value["engine"]["hosts"]["workers"][1]["name"] = "s1".into();
-            value["engine"]["hosts"]["workers"]
-                .as_array_mut()
-                .ok_or("hosts")?
-                .push(json!({"name":"s2","digest":"secrets/s2.digest"}));
-            let mut hash = skein_lib::sha256::Sha256::new();
-            hash.update(secret);
-            let mut digest = String::new();
-            for byte in hash.finish() {
-                use std::fmt::Write as _;
-                write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
-            }
-            super::write_private(&engine_dir.join("data/secrets/s2.digest"), digest.as_bytes());
+        for (index, name) in self.cast.iter().enumerate() {
+            let digest = if let Some(item) = described.get(index) {
+                item["set"]["digest"].clone()
+            } else {
+                let mut digest = String::new();
+                for byte in skein_lib::sha256::digest(secret) {
+                    use std::fmt::Write as _;
+                    write!(digest, "{byte:02x}").map_err(|why| format!("hex: {why:?}"))?;
+                }
+                digest.into()
+            };
+            self.settings.as_array_mut().ok_or("case setting items")?.push(json!({
+                "setting":{"kind":"worker","number":index + 1},
+                "set":{"name":name,"places":value["workers"][0]["slots"],"digest":digest}
+            }));
         }
         for &name in &self.cast {
             let dir = if name == "ws" { ws_dir.clone() } else { self.members.prepare(name) };

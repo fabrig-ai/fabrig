@@ -87,12 +87,6 @@
         {
           "in_process": "workers"
         }
-      ],
-      "workers": [
-        {
-          "digest": "secrets/worker-a.digest",
-          "name": "worker-a"
-        }
       ]
     },
     "limits": {
@@ -115,6 +109,7 @@
         "documents.rows": 2,
         "documents.text_bytes": 128,
         "fleet.attempts": 1,
+        "fleet.slots": 4,
         "fleet.calls": 1,
         "fleet.turns": 8,
         "hub.transcript_bytes": 3992192,
@@ -241,7 +236,7 @@
         "profile": "small"
       },
       "memory_bytes": 1152921504606846976,
-      "name": "worker-a",
+      "name": "local",
       "programs": {
         "check_interval_ms": 60000
       },

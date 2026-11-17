@@ -28,7 +28,6 @@ fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings
 fn standalone_shape_is_required_of_jigs_parts() {
     let mut engine = fixtures::engine().jig;
     let mut clients = fixtures::engine().clients;
-    engine.hosts.workers = Box::new([engine.hosts.workers.into_iter().next().unwrap()]);
     let mut workers = Box::new([fixtures::worker_settings().jig, fixtures::worker_settings().jig]);
     for (change, path, what) in standalone_shapes() {
         let count = apply_shape(change, &mut engine, &mut clients, &mut *workers);
@@ -293,6 +292,7 @@ fn one_ios_entities_hold_both_services_and_their_children() {
 enum Shape {
     TwoWorkers,
     WorkerSocket,
+    WorkerName,
     HostSocket,
     ClientProcess,
     ClientRemote,
@@ -316,12 +316,14 @@ fn apply_shape(
     engine.connectors = Box::new([1]);
     for worker in workers.iter_mut() {
         worker.engine = local.clone();
+        worker.name = b"local".as_slice().into();
         worker.agent.program = b"/opt/temper".as_slice().into();
         worker.agent.configuration = b"/opt/agent.json".as_slice().into();
     }
     match shape {
         Shape::TwoWorkers => return 2,
         Shape::WorkerSocket => workers[0].engine = socket,
+        Shape::WorkerName => workers[0].name = b"not-local".as_slice().into(),
         Shape::HostSocket => engine.hosts.listener = Box::new([socket]),
         Shape::ClientProcess => clients.listener = local,
         Shape::ClientRemote => {
@@ -341,9 +343,14 @@ fn apply_shape(
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 10] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
+        (
+            Shape::WorkerName,
+            Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"name"),
+            What::Standalone,
+        ),
         (
             Shape::WorkerSocket,
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"engine"),
@@ -866,17 +873,9 @@ fn an_engine_alone_names_each_shape_departure() {
             vec![(listener.child(Index(0)).member(b"transport"), What::Jig(config::What::Unknown))],
         ),
         (
-            b"engine.hosts.workers",
-            b"[]",
-            vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
-        ),
-        (
-            b"engine.hosts.workers",
-            br#"[{"name":"worker-a","digest":"same"},{"name":"worker-b","digest":"same"}]"#,
-            vec![(
-                hosts.member(b"workers").child(Index(1)).member(b"digest"),
-                What::Half(crate::startup::EngineWhat::EngineAlone),
-            )],
+            b"engine.hosts",
+            br#"{"listener":[{"socket":"127.0.0.1:0"}],"workers":[]}"#,
+            vec![(hosts.member(b"workers"), What::Jig(config::What::Because(b"workers are settings in the store")))],
         ),
     ];
     for (member, value, expected) in rows {

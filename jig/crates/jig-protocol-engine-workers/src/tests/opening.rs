@@ -2,7 +2,6 @@ use super::fixtures::{self, APPLICATION_VERSION, WORKER_A};
 use crate::opening::{Verdict, same};
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Reason;
-use skein_io::digest::Digest;
 use skein_lib::List;
 
 fn stated(name: &[u8], lowest: u16, layouts: &[[u8; 32]]) -> wire::Wire {
@@ -40,7 +39,7 @@ fn wire_refusals_name_the_first_failure_and_its_values() {
     ] {
         let credential = fixtures::credential_with(WORKER_A, fixtures::SECRET_A, statement);
         assert_eq!(
-            component.judge(&credential),
+            component.judge(&credential, false),
             Verdict::Refuse { worker: Some(0), reason: Reason::Wires, text: Box::from(text) }
         );
     }
@@ -54,12 +53,12 @@ fn agreement_checks_common_layouts_and_selects_the_highest_version() {
     let mut statement = fixtures::statement(APPLICATION_VERSION);
     *statement.get_mut(4).expect("application wire") = stated(b"test-worker-wire", 3, &[[3; 32], [4; 32]]);
     let credential = fixtures::credential_with(WORKER_A, fixtures::SECRET_A, statement.clone());
-    let Verdict::Accept { wires, .. } = component.judge(&credential) else { panic!("two layouts agree") };
+    let Verdict::Accept { wires, .. } = component.judge(&credential, false) else { panic!("two layouts agree") };
     assert_eq!(wires.get(4), Some(&wire::Agreed { name: "test-worker-wire", version: 4 }));
     *statement.get_mut(4).expect("application wire") = stated(b"test-worker-wire", 3, &[[9; 32], [4; 32]]);
     let credential = fixtures::credential_with(WORKER_A, fixtures::SECRET_A, statement);
     assert_eq!(
-        component.judge(&credential),
+        component.judge(&credential, false),
         Verdict::Refuse {
             worker: Some(0),
             reason: Reason::Wires,
@@ -79,7 +78,7 @@ fn agreement_keeps_statement_order_and_passes_over_unknown_wires() {
     statement.push(first).expect("uncapped");
     statement.push(stated(b"unknown-wire", 1, &[[7; 32]])).expect("uncapped");
     let credential = fixtures::credential_with(WORKER_A, fixtures::SECRET_A, statement.clone());
-    let Verdict::Accept { worker, wires, .. } = component.judge(&credential) else { panic!("accepted") };
+    let Verdict::Accept { worker, wires, .. } = component.judge(&credential, false) else { panic!("accepted") };
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(statement.iter()) {
@@ -93,31 +92,68 @@ fn a_wrong_secret_and_an_unknown_name_refuse_alike() {
     for name in [WORKER_A, b"unknown"] {
         let bytes = fixtures::credential(name, b"wrong", APPLICATION_VERSION);
         assert_eq!(
-            component.judge(&bytes),
-            Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) }
+            component.judge(&bytes, false),
+            Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) }
         );
     }
 }
 #[test]
-fn a_wrong_secret_with_other_wires_is_unauthorized() {
+fn a_wrong_secret_with_other_wires_is_not_admitted() {
     let component = fixtures::component();
     let bytes = fixtures::credential(WORKER_A, b"wrong", 4);
     assert_eq!(
-        component.judge(&bytes),
-        Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) }
+        component.judge(&bytes, false),
+        Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) }
     );
 }
 #[test]
 fn digests_differing_in_the_last_word_are_not_the_same() {
-    assert!(!same(&Digest([1, 2, 3, 4]), &Digest([1, 2, 3, 5])), "the last word participates");
+    let mut other = [1; 32];
+    other[31] = 2;
+    assert!(!same(&[1; 32], &other), "the last byte participates");
 }
 #[test]
 fn an_undecodable_credential_is_unauthorized() {
     let component = fixtures::component();
     assert_eq!(
-        component.judge(b"bad"),
+        component.judge(b"bad", false),
         Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) }
     );
+}
+
+#[test]
+fn the_current_table_admits_numbers_and_in_process_workers() {
+    use crate::{Component, Event};
+    use skein_lib::{Queue, Time};
+    let mut component = Component::new(
+        &fixtures::LIMITS,
+        Box::new([]),
+        wire::spoken(),
+        wire::Application::opaque(fixtures::application()),
+    )
+    .expect("empty admission table");
+    let first = fixtures::credential(WORKER_A, fixtures::SECRET_A, APPLICATION_VERSION);
+    let refused = Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) };
+    assert_eq!(component.judge(&first, false), refused, "no table yet: the worker redials");
+    component.down(Time::ZERO, Event::Workers(fixtures::workers()), &mut Queue::uncapped());
+    let Verdict::Accept { worker, .. } = component.judge(&first, false) else { panic!("table supplied") };
+    assert_eq!(worker, 0);
+    let mut workers = fixtures::workers();
+    workers[0].withdrawn = true;
+    workers[1].number = 3;
+    workers[1].digest = None;
+    component.down(Time::ZERO, Event::Workers(workers), &mut Queue::uncapped());
+    assert_eq!(component.judge(&first, false), refused, "withdrawn name");
+    let local = fixtures::credential(fixtures::WORKER_B, b"anything", APPLICATION_VERSION);
+    assert_eq!(component.judge(&local, false), refused, "no digest on a socket");
+    let Verdict::Accept { worker, .. } = component.judge(&local, true) else { panic!("in process") };
+    assert_eq!(worker, 2, "positions are numbers less one, not table offsets");
+    component.down(Time::ZERO, Event::Workers(Box::new([])), &mut Queue::uncapped());
+    assert_eq!(component.judge(&local, true), refused, "replacement is whole");
+    component.down(Time::ZERO, Event::Workers(fixtures::workers()), &mut Queue::uncapped());
+    let second = fixtures::credential(fixtures::WORKER_B, fixtures::SECRET_B, APPLICATION_VERSION);
+    let Verdict::Accept { worker, .. } = component.judge(&second, false) else { panic!("added worker") };
+    assert_eq!(worker, 1);
 }
 
 #[test]
@@ -136,7 +172,7 @@ fn worker_names_are_bounded_independently_of_channels() {
 fn a_configured_worker_authenticates_with_its_secret() {
     let component = fixtures::component();
     let bytes = fixtures::credential(WORKER_A, fixtures::SECRET_A, APPLICATION_VERSION);
-    let Verdict::Accept { worker, wires, .. } = component.judge(&bytes) else { panic!("accepted") };
+    let Verdict::Accept { worker, wires, .. } = component.judge(&bytes, false) else { panic!("accepted") };
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(fixtures::statement(APPLICATION_VERSION).iter()) {

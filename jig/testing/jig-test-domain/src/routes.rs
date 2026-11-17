@@ -327,6 +327,7 @@ fn route_ask(
         core::Ask::UnsubscriptionDone { request, key } => {
             crate::topics::unsubscribed(domain, number, request, key, work);
         }
+        core::Ask::Workers(workers) => domain.now.push(crate::Request::Workers(workers)),
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
             let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));

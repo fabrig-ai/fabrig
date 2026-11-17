@@ -164,8 +164,6 @@ fn engine_paths() {
     let rows: &[(&str, &[u8], &[u8])] = &[
         ("deployment", &engine.deployment.directory, b"/d/state"),
         ("instructions", &engine.charters.first().unwrap().policy.instructions, b"/c/charters/chat.txt"),
-        ("worker a digest", &engine.hosts.workers.first().unwrap().digest, b"/d/secrets/worker-a.digest"),
-        ("worker b digest", &engine.hosts.workers.get(1).unwrap().digest, b"/d/secrets/worker-b.digest"),
         ("endpoint trust", trust(&engine.llm.endpoints.first().unwrap().transport), b"/c/certs/endpoint"),
         ("registration trust", trust(&registration.endpoint_transport), b"/c/certs/registration"),
     ];
@@ -176,8 +174,6 @@ fn engine_paths() {
         &crate::files(&engine),
         &[
             (item(&[b"charters"], 0).member(b"instructions"), b"/c/charters/chat.txt"),
-            (item(&[b"hosts", b"workers"], 0).member(b"digest"), b"/d/secrets/worker-a.digest"),
-            (item(&[b"hosts", b"workers"], 1).member(b"digest"), b"/d/secrets/worker-b.digest"),
             (item(&[b"llm", b"endpoints"], 0).member(b"trust"), b"/c/certs/endpoint"),
             (
                 item(&[b"llm", b"providers"], 0).member(b"sources").member(b"sign_in").member(b"trust"),
@@ -216,7 +212,6 @@ fn engine_refusals() {
     let rows: &[(&str, &[u8], Path)] = &[
         ("deployment", b"state", fixtures::path(&[b"deployment", b"directory"])),
         ("instructions", b"charters/chat.txt", item(&[b"charters"], 0).member(b"instructions")),
-        ("digest", b"secrets/worker-a.digest", item(&[b"hosts", b"workers"], 0).member(b"digest")),
         ("endpoint trust", b"certs/endpoint", item(&[b"llm", b"endpoints"], 0).member(b"trust")),
         (
             "registration trust",

@@ -31,7 +31,7 @@ impl Core {
         }
         let next = match done {
             Phase::LoadCore => {
-                if let Some(failure) = self.start_settings_finish(env) {
+                if let Some(failure) = self.start_settings_finish(env, out) {
                     return Action::Refused(failure);
                 }
                 if !crate::admission::deletion::restored(self) {

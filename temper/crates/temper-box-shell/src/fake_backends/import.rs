@@ -17,7 +17,6 @@ pub(super) struct Source {
 }
 const RESOURCES: &[(&str, bool, &str)] = &[
     ("engine/deployment/directory", false, "deployment"),
-    ("engine/hosts/workers/0/digest", false, "worker.digest"),
     ("workers/0/secret", false, "worker.secret"),
     ("workers/0/agent/configuration", true, "agent.json"),
     ("workers/0/agent/arguments/2", true, "agent.json"),

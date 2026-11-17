@@ -534,7 +534,6 @@ fn waiting_workers(engine: &mut crate::Engine) {
     engine.workers = Some(
         crate::workers::Workers::new(
             &config,
-            &f::files(&f::engine_document()),
             f::seeds().deployment,
             &crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers,
         )

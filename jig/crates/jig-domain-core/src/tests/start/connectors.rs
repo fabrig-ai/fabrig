@@ -34,7 +34,9 @@ fn to_connectors(core: &mut Core, env: &Env<crate::Limits>) {
         let mut out = Queue::uncapped();
         step_phase(core.start_done(env, Phase::LoadCore, &mut out), Phase::LoadInbox);
         step_phase(core.start_done(env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector: 1 });
-        assert!(out.is_empty());
+        while let Some(request) = out.pop() {
+            crate::tests::start::worker_table(&request);
+        }
     }
 }
 

@@ -11,7 +11,6 @@ use temper_playground::documents::turn_bounds;
 pub(crate) const UNREACHED: &str = "127.0.0.1:9";
 /// The paths the deployment names, each relative to its directory.
 const RELATIVE: &[&str] = &[
-    "secrets/worker-a.digest",
     "app.secret",
     "worker.secret",
     "secrets/forge-1.user",
@@ -69,6 +68,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["workers"][0]["name"] = "local".into();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();

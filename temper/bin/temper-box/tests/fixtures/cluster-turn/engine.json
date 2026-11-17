@@ -106,12 +106,6 @@
         {{
           "socket": "{story.workers}"
         }}
-      ],
-      "workers": [
-        {{
-          "name": "w1",
-          "digest": "secrets/w1.digest"
-        }}
       ]
     }},
     "clients": {{

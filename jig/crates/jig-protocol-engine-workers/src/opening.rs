@@ -2,7 +2,7 @@
 use crate::{Component, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Agreed, Credential, Reason};
-use skein_io::digest::{Digest, digest};
+use skein_lib::sha256;
 use skein_lib::{List, Reader, Token};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum Verdict {
@@ -12,19 +12,23 @@ pub(crate) enum Verdict {
     Replace { worker: u32, older: Token, wires: List<Agreed>, statement: Statement },
 }
 impl Component {
-    pub(crate) fn judge(&self, credential: &[u8]) -> Verdict {
+    pub(crate) fn judge(&self, credential: &[u8], in_process: bool) -> Verdict {
         let Ok(credential) = Credential::decode(&self.codec, &mut Reader::new(credential)) else {
             return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
         };
-        let supplied = digest(credential.secret().expose());
+        let supplied = sha256::digest(credential.secret().expose());
         let mut found = None;
-        for (index, worker) in self.workers.iter().enumerate() {
-            if worker.name.as_ref() == credential.name() && same(&worker.digest, &supplied) {
-                found = Some(u32::try_from(index).expect("bounded workers"));
+        for worker in &self.workers {
+            let authorized = match &worker.digest {
+                Some(digest) => same(digest, &supplied),
+                None => in_process,
+            };
+            if !worker.withdrawn && worker.name.as_ref() == credential.name() && authorized {
+                found = worker.number.checked_sub(1);
             }
         }
         let Some(worker) = found else {
-            return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
+            return Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) };
         };
         let statement = Statement::credential(&credential);
         let wires = match crate::wires::agree(&self.wires, &statement.wires) {
@@ -72,11 +76,9 @@ pub(crate) fn output_room_words(engine: u32, worker: u32) -> Box<[u8]> {
     }
     words.finish()
 }
-pub(crate) fn same(left: &Digest, right: &Digest) -> bool {
-    let mut different = 0_u64;
-    for index in 0..4 {
-        let left = left.0.get(index).expect("four digest words");
-        let right = right.0.get(index).expect("four digest words");
+pub(crate) fn same(left: &[u8; 32], right: &[u8; 32]) -> bool {
+    let mut different = 0_u8;
+    for (left, right) in left.iter().zip(right) {
         different |= left ^ right;
     }
     different == 0

@@ -44,6 +44,8 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["workers"][0]["agent"]["program"] = program.into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);

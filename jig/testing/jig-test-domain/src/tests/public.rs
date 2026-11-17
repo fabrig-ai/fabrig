@@ -164,6 +164,7 @@ fn fixture() -> (Domain, Env<Limits>) {
                     }
                 }
                 Request::StoreCatalogue { .. }
+                | Request::Workers(_)
                 | Request::ClientsCatalogue { .. }
                 | Request::Deliver(_)
                 | Request::Now(_) => {}

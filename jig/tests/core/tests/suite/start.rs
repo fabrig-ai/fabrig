@@ -176,7 +176,7 @@ fn an_empty_start_store_seeds_before_opening() {
     for _ in 0..h.out.len() {
         let record = match h.out.pop().expect("seed output") {
             core::Request::Write(core::Write::Save(record)) => record,
-            core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => continue,
+            core::Request::Ask { ask: core::Ask::Catalogue { .. } | core::Ask::Workers(_), .. } => continue,
             other => panic!("unexpected seed output: {other:?}"),
         };
         match record {

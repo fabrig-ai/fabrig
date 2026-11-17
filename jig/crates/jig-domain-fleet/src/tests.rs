@@ -82,7 +82,14 @@ impl Harness {
         let mut names = List::with_capacity(limits.configured_workers);
         for index in 0..limits.configured_workers {
             let name = skein_lib::Decimal::of(u64::from(index));
-            names.push(skein_lib::bytes::copy_of(name.as_bytes())).expect("configured fixture worker count");
+            names
+                .push(jig_domain_link::Member {
+                    number: index.checked_add(1).expect("fixture worker number"),
+                    name: skein_lib::bytes::copy_of(name.as_bytes()),
+                    places: limits.slots,
+                    withdrawn: false,
+                })
+                .expect("configured fixture worker count");
         }
         let names = crate::Membership::new(names.into_boxed(), limits.configured_workers, limits.worker_name_bytes)
             .expect("fixture membership");
@@ -1651,3 +1658,60 @@ fn resume_without_placement_still_releases_a_held_turn() {
 }
 
 mod asks;
+
+fn settings_membership(places: u32) -> crate::Membership {
+    crate::Membership::new(
+        Box::new([
+            jig_domain_link::Member { number: 1, name: b"withdrawn".as_slice().into(), places: 2, withdrawn: true },
+            jig_domain_link::Member { number: 3, name: b"live".as_slice().into(), places, withdrawn: false },
+            jig_domain_link::Member { number: 4, name: b"offline".as_slice().into(), places, withdrawn: false },
+        ]),
+        LIMITS.configured_workers,
+        LIMITS.worker_name_bytes,
+    )
+    .expect("worker settings")
+}
+fn settings_hello(channel: Token, worker: u32) -> Event {
+    Event::Hello {
+        channel,
+        worker,
+        hello: Hello {
+            jobs: Box::new([]),
+            bounds: fixtures::bounds(),
+            stop_bound: Duration::ZERO,
+            slots: 4,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    }
+}
+#[test]
+fn settings_admit_sparse_positions_and_keep_places_until_the_next_channel() {
+    let mut h = Harness::new(Limits { slots: 4, ..LIMITS });
+    h.domain.configure_workers(settings_membership(2));
+    for position in [0, 1] {
+        let refused = h.step(settings_hello(C1, position));
+        let Request::Refuse { hello: Some(refusal), .. } = refused.first().expect("refusal") else {
+            panic!("position refusal")
+        };
+        assert_eq!(refusal.why, HelloRefusal::Position { worker: position });
+    }
+    h.step(settings_hello(C1, 2));
+    assert_eq!(h.domain.host_views().get(0).expect("host").slots, 2);
+    h.domain.configure_workers(settings_membership(1));
+    assert_eq!(h.domain.host_views().get(0).expect("host").slots, 2, "a live channel keeps its admission");
+    h.step(Event::Lost { channel: C1 });
+    h.step(settings_hello(C2, 2));
+    let mut slots = None;
+    for host in &h.domain.host_views() {
+        if host.channel == C2 {
+            slots = Some(host.slots);
+        }
+    }
+    assert_eq!(slots, Some(1), "next opening takes the new places");
+    let requests = h.step(Event::SignOutProgram { source: 1, name: crate::SourceName::new(b"claude").expect("name") });
+    let Request::ProgramTargets { workers, .. } = requests.first().expect("targets") else { panic!("targets first") };
+    assert_eq!(workers.len(), 2, "every worker not withdrawn, including one not in contact");
+    assert_eq!(workers.first().expect("live").number(), 2);
+    assert_eq!(workers.get(1).expect("offline").number(), 3);
+}

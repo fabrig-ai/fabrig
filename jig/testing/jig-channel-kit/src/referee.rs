@@ -798,7 +798,7 @@ impl Referee {
                 .find_map(|proc| if let Proc::Probe(peer) = proc { Some(peer) } else { None })
                 .ok_or("probe")?;
             let expected = match case {
-                crate::stories::Opening::Secret => Some(256),
+                crate::stories::Opening::Secret => Some(260),
                 crate::stories::Opening::Wires => Some(257),
                 crate::stories::Opening::Version => Some(1),
                 crate::stories::Opening::Terms => Some(2),
@@ -1164,7 +1164,7 @@ impl Referee {
                             ));
                         }
                     }
-                    host.service = jig_test_service::startup(
+                    host.service = jig_test_service::startup_with_workers(
                         &if matches!(self.story, crate::stories::Story::Providers) {
                             crate::fixtures::providers_document()
                         } else {
@@ -1175,6 +1175,7 @@ impl Referee {
                         &crate::fixtures::seeds(),
                         None,
                         None,
+                        crate::fixtures::workers(),
                     )
                     .map_err(|why| format!("restart after drained: {why:?}"))?;
                     let root = host.restart_root.take().ok_or("independent directory for the drained restart")?;

@@ -9,19 +9,15 @@ fn an_owner_reads_worker_settings_not_the_connected_hosts() {
     let mut world = f::accounts_world(f::SEED);
     world.front().engine.hello(skein_lib::Token::new(7));
     let client = open(&mut world, b"/projects/1/settings/builders");
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(Role::Heading { level: 2 }, "Workers · 0".as_bytes()),
-            see(Role::Paragraph, b"No worker is added yet."),
-        ],
-    );
+    follow(&mut world, client, vec![see(Role::Heading { level: 2 }, "Workers · 1".as_bytes())]);
     let root = world.root(client).person();
     let Read::Hosts(doc) = root.pages().builders().unwrap().read(root.client()) else {
         panic!("engine deployment read")
     };
-    assert!(doc.worker_settings.is_empty(), "this world has hosts but no worker defaults");
+    assert_eq!(doc.worker_settings.len(), 1);
+    let setting = doc.worker_settings.get(0).expect("default worker");
+    assert_eq!(setting.name.as_ref(), b"worker");
+    assert!(setting.linked);
     let worker = doc.hosts.get(0).expect("one worker");
     assert_eq!(doc.hosts.len(), 1);
     assert_eq!(worker.channel, 7);

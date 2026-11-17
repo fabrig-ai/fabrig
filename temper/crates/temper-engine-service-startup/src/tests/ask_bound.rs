@@ -53,7 +53,7 @@ fn stock_config() -> (engine::Config, engine::Limits, jig_protocol_config::Engin
     limits.memory_bytes = parsed.memory;
     let mut config = walking::config(7);
     let owner = config.core.owners.first().expect("fixture owner").clone();
-    config.core = jig_protocol_config::core(&parsed, [31; 16], 7);
+    config.core = crate::startup::core(&parsed, [31; 16], 7);
     let mut deployment_owner = owner.clone();
     deployment_owner.project = people::DEPLOYMENT;
     config.core.owners = Box::new([deployment_owner, owner]);

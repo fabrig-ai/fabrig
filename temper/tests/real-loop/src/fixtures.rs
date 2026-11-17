@@ -45,6 +45,8 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+    value["workers"][0]["name"] = "local".into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
     value["workers"][0]["agent"]["program"] = serde_json::json!(program);
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
@@ -334,6 +336,21 @@ pub fn change_settings(at: crate::calls::Dir, key: &'static str, items: serde_js
         at,
         crate::argv!["settings", "apply", crate::calls::file("settings.json"), "--against", "1", "--key", key],
     )]
+}
+/// Put cluster membership in the story's first settings transaction when it has one.
+pub(crate) fn extend_settings(key: &'static str, workers: &serde_json::Value) -> bool {
+    PENDING_SETTINGS.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let Some(files) = slot.as_mut() else { return false };
+        let Some(bytes) = files.get_mut(&key) else { return false };
+        let mut file: serde_json::Value = serde_json::from_slice(bytes).expect("fixture settings JSON");
+        file["items"]
+            .as_array_mut()
+            .expect("setting items")
+            .extend(workers["items"].as_array().expect("worker items").iter().cloned());
+        *bytes = serde_json::to_vec(&file).expect("fixture settings JSON").into_boxed_slice();
+        true
+    })
 }
 // A step factory runs immediately before Caller construction, under its heap meter.
 // Move its bounded FILE table into that Caller; no global file state is retained.

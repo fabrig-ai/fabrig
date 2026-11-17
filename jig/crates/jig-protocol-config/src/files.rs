@@ -17,8 +17,6 @@ pub fn files(engine: &Engine) -> Box<[File]> {
         .len()
         .checked_add(engine.llm.endpoints.len())
         .expect("bounded endpoints")
-        .checked_add(engine.hosts.workers.len())
-        .expect("bounded workers")
         .checked_add(engine.charters.len())
         .expect("bounded charters");
     for charter in &engine.charters {
@@ -44,14 +42,6 @@ pub fn files(engine: &Engine) -> Box<[File]> {
                 push(&mut files, at, secret, 256, true);
             }
         }
-    }
-    for (index, worker) in engine.hosts.workers.iter().enumerate() {
-        let at = Path::root()
-            .member(b"hosts")
-            .member(b"workers")
-            .child(Segment::Index(u32::try_from(index).expect("bounded workers")))
-            .member(b"digest");
-        push(&mut files, at, &worker.digest, 65, true);
     }
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
         let at = Path::root()

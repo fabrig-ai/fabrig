@@ -188,9 +188,6 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
     value["application"]["limits"]["overrides"]["forge.client.repositories"] = 3.into();
     value["engine"]["deployment"]["directory"] = json!(root.join("data"));
-    let digest = value["engine"]["hosts"]["workers"][0]["digest"].as_str().expect("worker digest");
-    write_private(&root.join("data/worker.digest"), &fs::read(config.join(digest)).expect("fixture digest"));
-    value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
     write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));

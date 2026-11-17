@@ -608,10 +608,9 @@ fn members_and_references_are_checked() {
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
-    assert_eq!(named.files.len(), 3, "all files listed");
+    assert_eq!(named.files.len(), 2, "all files listed");
     for (name, path, max, private) in [
-        (b"secrets/worker-a.digest".as_slice(), b"engine.hosts.workers[0].digest".as_slice(), 65, true),
-        (b"worker-secret", b"workers[0].secret", 257, true),
+        (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true),
         (fixtures::AGENT_JSON, b"workers[0].agent.configuration", 1_048_576, false),
     ] {
         let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
@@ -872,8 +871,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         (b"engine.deployment.directory", br#""/kept/state""#, b"/kept/state", false),
         (b"workers[0].secret", br#""secret""#, b"/data/secret", false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
-        (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
-        (b"engine.hosts.workers[0].digest", br#""/kept/digest""#, b"/kept/digest", false),
         (b"application.workers[0].git", br#""git""#, b"", true),
         (b"application.clients.bundle", br#""bundle""#, b"", true),
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),

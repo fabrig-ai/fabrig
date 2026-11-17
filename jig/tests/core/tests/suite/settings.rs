@@ -2465,7 +2465,7 @@ fn worker_defaults_revisions_withdrawal_return_and_release_route_as_settings() {
     let (mut config, mut limits) = configuration();
     limits.core.fleet.slots = 2;
     peers::journal(&mut limits);
-    let first = worker_value(1);
+    let first = settings::WorkerSetting { places: limits.core.fleet.slots, ..worker_value(1) };
     config.core.defaults.workers = Box::new([first.clone()]);
     let mut world = World::new(Setup {
         configuration: Some(config),
@@ -2507,7 +2507,7 @@ fn worker_defaults_revisions_withdrawal_return_and_release_route_as_settings() {
         world.domain.settings().value(setting).unwrap().as_worker().unwrap(),
         &settings::WorkerSetting { withdrawn: true, ..first.clone() }
     );
-    let returned = settings::WorkerSetting { places: 2, digest: Some([8; 32]), ..first.clone() };
+    let returned = settings::WorkerSetting { places: 1, digest: Some([8; 32]), ..first.clone() };
     changed(
         &change(
             &mut world,
@@ -2549,7 +2549,7 @@ fn stored_workers_past_a_lowered_bound_refuse_start_with_the_number() {
     );
     seed_restart_accounts(&mut world);
     let (mut config, mut limits) = configuration();
-    config.core.worker_names = Box::new([config.core.worker_names[0].clone()]);
+    config.core.defaults.workers = Box::new([config.core.defaults.workers[0].clone()]);
     limits.core.fleet.configured_workers = 1;
     peers::journal(&mut limits);
     world.restart_with_limits(config, limits);

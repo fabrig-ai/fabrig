@@ -71,6 +71,8 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Hash, Debug)]
 pub enum Ask {
+    /// Replace the admission table whole (domain/engine/workers.md, 4).
+    Workers(Box<[crate::settings::WorkerSetting]>),
     Catalogue {
         models: Box<[crate::settings::CatalogueModel]>,
     },

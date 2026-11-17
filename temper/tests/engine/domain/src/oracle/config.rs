@@ -23,7 +23,6 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         core: core::Config {
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),
-            worker_names: c.worker_names.clone(),
             deployment: c.deployment,
             seed: c.seed,
             workers_in_process: c.workers_in_process,

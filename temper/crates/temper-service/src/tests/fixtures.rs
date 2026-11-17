@@ -9,7 +9,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"fleet.slots":4,"core.run_bytes":32768,"tasks.charters":13,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -25,10 +25,6 @@ pub const ENGINE: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
@@ -336,9 +332,6 @@ pub fn seeds() -> settings::Seeds {
 
 pub fn fill_files(settings: &mut settings::Engine) {
     settings.files.entries = skein_lib::List::with_capacity(2);
-    for worker in &settings.jig.hosts.workers {
-        settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
 }
 
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
@@ -599,15 +592,10 @@ pub fn owned_setup(forge: u16) -> settings::Setup {
     }
 }
 
-pub fn worker_digests(settings: &settings::Engine) -> settings::Files {
-    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.hosts.workers.len()).unwrap());
-    for worker in &settings.jig.hosts.workers {
-        entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
-    }
-    settings::Files { entries }
+pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
+    settings::Files { entries: skein_lib::List::with_capacity(0) }
 }
 
-pub const WORKER_DIGEST: &[u8] = b"0000000000000000000000000000000000000000000000000000000000000000";
 mod worker;
 mod worker_git;
 pub mod worker_peers;
@@ -794,7 +782,7 @@ fn start_configured_worker(
     settings.jig.limits.core.fleet.workers = 2;
     settings.jig.limits.core.fleet.attempts = 2;
     settings.jig.limits.core.fleet.calls = 2;
-    settings.jig.limits.core.fleet.slots = 1;
+    settings.jig.limits.core.fleet.slots = 4;
     settings.limits.root.journal.deliveries = 128;
     settings.limits.root.journal.held = 384;
     settings.limits.root.journal.writes = 8192;
@@ -823,8 +811,6 @@ fn start_configured_worker(
     if worker.is_some() {
         settings.jig.limits.hub = worker_settings().jig.limits.hub;
         settings.limits.checkout = worker_limits().checkout;
-        settings.files.entries.get_mut(0).unwrap().1 =
-            Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
     }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let seed = ForgeSeed::new(&root, &settings.jig);

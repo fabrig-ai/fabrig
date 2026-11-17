@@ -556,6 +556,7 @@ impl World {
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     panic!("unexpected role-world delivery {delivery:?}")
                 }
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("role root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)

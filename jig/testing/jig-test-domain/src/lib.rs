@@ -125,20 +125,36 @@ pub use jig_domain_hub_link::Assignment;
 /// What the root asks its surrounding world to do.
 #[derive(Debug)]
 pub enum Request {
+    Workers(Box<[core::settings::WorkerSetting]>),
     /// The store's names, replaced before the catalogue decision commits (domain/engine/settings.md, 11).
-    StoreCatalogue { names: Box<[core::settings::ModelName]> },
+    StoreCatalogue {
+        names: Box<[core::settings::ModelName]>,
+    },
     /// The clients' catalogue, after the store's replacement (domain/engine/settings.md, 11).
-    ClientsCatalogue { models: Box<[core::settings::CatalogueModel]> },
+    ClientsCatalogue {
+        models: Box<[core::settings::CatalogueModel]>,
+    },
     /// Read a fenced opaque terminal in the protocol routing.
-    ReadResult { payload: Token, outcome: Box<[u8]> },
+    ReadResult {
+        payload: Token,
+        outcome: Box<[u8]>,
+    },
     /// Return a connector input to its owner during the drain.
-    Busy { event: Box<Event> },
+    Busy {
+        event: Box<Event>,
+    },
     /// First cold load, before the deployment counter is known.
     /// Load records for `LoadCore`, `LoadInbox` (with census),
     /// `RestoreConnector` or `Sweep`, or switch the store at `Switch`.
-    Start { phase: core::start::Phase, census: Option<core::Census> },
+    Start {
+        phase: core::start::Phase,
+        census: Option<core::Census>,
+    },
     /// Apply one numbered transaction as a whole.
-    Commit { number: u64, writes: Queue<Write> },
+    Commit {
+        number: u64,
+        writes: Queue<Write>,
+    },
     /// Release one output only after its prerequisite commit.
     Deliver(Delivery),
     /// An immediate observation with no durability dependency.

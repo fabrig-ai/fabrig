@@ -138,8 +138,8 @@ fn assert_owned_limits(limits: &serde_json::Value) {
 
 #[test]
 fn the_retained_cluster_overrides_name_no_charter_documents() {
-    // Two charters, the chat template and the deployment landing rule.
-    const ITEMS: usize = 4;
+    // Two charters, the chat template, the deployment landing rule and two workers.
+    const ITEMS: usize = 6;
     let bytes = std::fs::read(skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster/settings.json"))
         .expect("retained cluster overrides");
     // The process story fills whole settings from the owner's reads before decoding.

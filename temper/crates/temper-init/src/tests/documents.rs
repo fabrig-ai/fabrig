@@ -290,7 +290,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                 },
             ),
             ("/engine/projects", parse(b"[]")),
-            ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
             ("/workers/0/agent/program", json!(text(facts.binary))),
@@ -303,6 +302,8 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
+        assert_eq!(actual["workers"][0]["name"], "local", "{row}");
+        assert!(actual["engine"]["hosts"].get("workers").is_none(), "{row}");
         assert_eq!(actual, expected, "{row}");
     }
 }
@@ -685,7 +686,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         }
         let mut agent = parse(content(&boxed, b"agent.json"));
         agent["endpoints"].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
-        let names = [b"worker.secret".as_slice(), b"worker.digest", b"agent.json", b"temper.json"];
+        let names = [b"worker.secret".as_slice(), b"agent.json", b"temper.json"];
         assert_eq!(bare.len(), names.len(), "{row}");
         for (file, name) in bare.iter().zip(names) {
             assert_eq!(file.name, name, "{row}");
@@ -702,7 +703,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
                     assert_eq!(parse(bytes), agent, "{row}");
                     assert!(!private);
                 }
-                _ => assert_eq!(file, source, "{row}: shared secret and digest"),
+                _ => assert_eq!(file, source, "{row}: shared secret"),
             }
         }
     }

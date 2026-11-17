@@ -101,8 +101,6 @@ pub struct SeedProject {
 /// (`domain/engine/restart.md`; `configuration.md`, 3).
 #[derive(Debug)]
 pub struct Config {
-    /// Configured worker names in authenticated protocol position order.
-    pub worker_names: Box<[Box<[u8]>]>,
     /// Identity committed with the first decision.
     pub deployment: [u8; 16],
     /// Deterministic task scheduling seed.

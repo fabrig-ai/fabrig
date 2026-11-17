@@ -6,7 +6,7 @@ mod admission;
 mod documents;
 mod effects;
 mod fill;
-mod fixtures;
+pub(crate) mod fixtures;
 mod funding;
 mod holdings;
 mod inbox;
@@ -439,7 +439,7 @@ pub(crate) fn config(seed: u64) -> Config {
     Config {
         jobs: Box::new([]),
         kept_starts: Box::new([]),
-        worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
+
         deployment: [31; 16],
         seed,
         workers_in_process: false,
@@ -492,7 +492,22 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
-            workers: Box::new([]),
+            workers: Box::new([
+                crate::settings::WorkerSetting {
+                    number: 1,
+                    name: b"alpha".as_slice().into(),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                },
+                crate::settings::WorkerSetting {
+                    number: 2,
+                    name: b"beta".as_slice().into(),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                },
+            ]),
             models: Box::default(),
             charters: Box::new([Charter {
                 parts: Box::new([]),
@@ -3643,7 +3658,13 @@ fn startup_refuses_too_many_configured_workers() {
 fn startup_refuses_an_oversized_worker_name() {
     let mut config = config(41);
     let limits = limits();
-    config.worker_names = Box::new([configured_worker_name(limits.fleet.worker_name_bytes + 1)]);
+    config.defaults.workers = Box::new([crate::settings::WorkerSetting {
+        number: 1,
+        name: configured_worker_name(limits.fleet.worker_name_bytes + 1),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }]);
     assert_eq!(
         Core::new(config, &limits).err(),
         Some(Problem::WorkerName { worker: 0, limit: limits.fleet.worker_name_bytes })
@@ -3654,14 +3675,20 @@ fn startup_refuses_an_oversized_worker_name() {
 fn startup_accepts_the_configured_worker_count_bound() {
     let config = config(41);
     let mut limits = limits();
-    limits.fleet.configured_workers = u32::try_from(config.worker_names.len()).expect("fixture worker count");
+    limits.fleet.configured_workers = u32::try_from(config.defaults.workers.len()).expect("fixture worker count");
     let _core = Core::new(config, &limits).expect("configured membership at its bound");
 }
 #[test]
 fn startup_accepts_the_worker_name_byte_bound() {
     let mut config = config(41);
     let limits = limits();
-    config.worker_names = Box::new([configured_worker_name(limits.fleet.worker_name_bytes)]);
+    config.defaults.workers = Box::new([crate::settings::WorkerSetting {
+        number: 1,
+        name: configured_worker_name(limits.fleet.worker_name_bytes),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }]);
     let _core = Core::new(config, &limits).expect("configured membership at its bound");
 }
 

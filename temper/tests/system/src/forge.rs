@@ -247,6 +247,9 @@ impl World {
                 config.core.defaults.rules = domain.rules().clone();
             }
             limits.notes.scopes = 3 + limits.authority.grants;
+            for worker in &mut config.core.defaults.workers {
+                worker.places = limits.fleet.slots;
+            }
             (config, limits)
         });
         let mut fake_config = forge_world::fake_config();
@@ -461,6 +464,7 @@ impl World {
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
                 | engine::Request::Setup { .. }
+                | engine::Request::Worker(engine::WorkerRequest::Settings(_))
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Busy(_)

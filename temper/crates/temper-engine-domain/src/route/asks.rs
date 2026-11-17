@@ -126,6 +126,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
+        core::Ask::Workers(workers) => {
+            assert!(
+                super::now(domain, crate::Request::Worker(crate::WorkerRequest::Settings(workers))),
+                "worker table door reserved"
+            );
+            None
+        }
         core::Ask::Catalogue { models } => {
             domain.catalogue_pending = true;
             let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));

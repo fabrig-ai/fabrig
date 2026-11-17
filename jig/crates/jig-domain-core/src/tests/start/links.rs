@@ -286,7 +286,9 @@ fn missing_ended_read_owner_is_a_link_before_sweep() {
         Linked::Record(Key::Tasks(tasks::Key::Ended(7))),
     );
     assert_eq!(core.start_phase(), Some(Phase::Link));
-    assert!(out.is_empty());
+    while let Some(request) = out.pop() {
+        crate::tests::start::worker_table(&request);
+    }
 }
 
 fn period() -> tasks::Stored {

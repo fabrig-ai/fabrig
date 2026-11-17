@@ -16,7 +16,7 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 
 - `limits`: limits; required; init writes object. Selects a limits profile and its named overrides.
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
-- `hosts`: hosts; required; init writes object. Names the workers and their listener addresses.
+- `hosts`: hosts; required; init writes object. Names the workers' listener addresses.
 - `clients`: clients; required; init writes object. Configures client heartbeats and sign-in entrances.
 - `deployment`: deployment; required; init writes object. Names the deployment's data directory and optional test seed.
 - `owners`: list of owner, people.initial_owners; required; init writes list (1 entry). Seeds the deployment's first owners and their roles in every seeded project.
@@ -150,17 +150,10 @@ Shape: `registration`. Paths: `engine.llm.providers[].sources.sign_in`. A sign-i
 
 ## engine.hosts
 
-Shape: `hosts`. Paths: `engine.hosts`. Workers the engine accepts and their listener addresses.
+Shape: `hosts`. Paths: `engine.hosts`. The workers' listener addresses.
 
-- `workers`: list of worker-name, link.names and fleet.configured_workers; required; init writes list (1 entry). Names configured workers and their secret digests.
+- `workers`: refused: workers are settings in the store
 - `listener`: list of address, loopback or in-process; required; init writes list (1 entry). Gives the workers' plaintext listener addresses.
-
-## engine.hosts.workers[]
-
-Shape: `worker-name`. Paths: `engine.hosts.workers[]`. One worker accepted by the engine.
-
-- `name`: text, link.name and fleet.worker_name_bytes; at most 4096 bytes; required; init writes "worker". Gives the worker's unique name.
-- `digest`: text, 4096 bytes; data path; required; init writes "worker.digest". Names the file holding the worker secret's digest.
 
 ## engine.clients
 
@@ -209,7 +202,7 @@ Shape: `permission-role`. Paths: `engine.projects[].roles[]`. A connector permis
 Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop bounds.
 
 - `engine`: address, loopback or in-process; required; init writes {"in_process":"workers"}. Gives the engine address the worker dials.
-- `name`: text, link.name; at most 4096 bytes; required; init writes "worker". Gives the worker's configured name.
+- `name`: text, link.name; at most 4096 bytes; required; init writes "local". Gives the worker's configured name.
 - `secret`: text, 4096 bytes; data path; required; init writes "worker.secret". Names the private file holding the worker's secret.
 - `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
 - `graces`: graces; required; init writes object. Gives the graces used to compute the worker's stop bound.

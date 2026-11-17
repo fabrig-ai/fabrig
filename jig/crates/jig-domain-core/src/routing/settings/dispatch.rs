@@ -219,6 +219,28 @@ fn preflight(
     if let Err(failure) = s::application::check(core, &change.items) {
         return Err(malformed_refusal(&change.items, failure));
     }
+    for item in &change.items {
+        let number = match item.setting {
+            s::Setting::Worker(number) => number,
+            s::Setting::Rules
+            | s::Setting::Policy(_)
+            | s::Setting::Charter(_)
+            | s::Setting::Template(_)
+            | s::Setting::Model(_)
+            | s::Setting::ProjectPolicy { .. }
+            | s::Setting::Application { .. } => continue,
+        };
+        let removed = match item.edit {
+            s::Edit::Removed => true,
+            s::Edit::Reset | s::Edit::Set(_) => false,
+        };
+        if removed && core.fleet.worker_link_at(number.saturating_sub(1)).0 {
+            return Err(malformed_refusal(
+                &change.items,
+                s::Failure { setting: item.setting, fault: s::Fault::Linked, detail: None },
+            ));
+        }
+    }
     match s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
         Ok(()) => project_policy::check(core, &env.limits, &change.items),
         Err(failure) => Err(malformed_refusal(&change.items, failure)),
@@ -414,6 +436,9 @@ fn decide_with(
         routed.out.push(Request::Write(write));
     }
     withdraw_stale(core, env, &mut routed.out, proposal);
+    if workers {
+        core.tell_workers(&env.limits, &mut routed.out);
+    }
     core.tell_replaced_settings(env, rules, charters || models);
     project_policy::commit(core, env, routed, &change.items);
     if moves {

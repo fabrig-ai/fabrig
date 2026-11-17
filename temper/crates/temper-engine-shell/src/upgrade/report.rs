@@ -191,14 +191,8 @@ fn workers(
         return;
     };
     let (spoken, mut allowed) = engine_wires(text, binary, kept);
-    for name in &configured.names {
-        let name = String::from_utf8_lossy(name);
-        let Some(opening) = openings.iter().find(|opening| opening.worker.as_ref() == name) else {
-            allowed = false;
-            writeln!(text, "{binary} upgrade: worker {name} unknown: no opening kept since the engine's last start")
-                .expect("string write");
-            continue;
-        };
+    for opening in openings {
+        let name = &opening.worker;
         match judge(&spoken, configured.room, &configured.schema, &statement(opening)) {
             Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
                 .expect("string write"),
@@ -299,7 +293,7 @@ mod tests {
         let mut events = Queue::uncapped();
         events.push(event);
         Report {
-            workers: decode_tests::configured(&[]),
+            workers: decode_tests::configured(),
             events,
             elapsed: Duration::from_secs(1),
             end: None,

@@ -38,10 +38,6 @@ pub const ENGINE_SMALL: &[u8] = br#"{
 }]
 },
 "hosts": {
-"workers": [
-{"name": "worker-a", "digest": "secrets/worker-a.digest"},
-{"name": "worker-b", "digest": "secrets/worker-b.digest"}
-],
 "listener": [{"in_process": "workers"}]
 },
 "charters": [{

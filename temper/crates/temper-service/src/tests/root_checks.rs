@@ -45,7 +45,7 @@ fn root(limits: &temper_engine_domain::Limits) -> Box<[u8]> {
     let engine = fixtures::guard_engine();
     let mut found = Problems::empty();
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     checks::root(core, &engine, &seeds, &[], limits, &mut found);
     lines(&found)
 }
@@ -165,7 +165,7 @@ fn an_owners_project_without_an_escalation_role_refuses_the_start() {
     let mut engine = fixtures::guard_engine();
     engine.jig.projects[0].policy.escalation_role = None;
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let mut found = Problems::empty();
     checks::root(core, &engine, &seeds, &[], &limits, &mut found);
@@ -211,14 +211,14 @@ fn a_deployment_provider_0_refuses_the_start() {
 #[test]
 fn configured_worker_count_past_membership_refuses_startup() {
     let mut limits = root_limits();
-    limits.fleet.configured_workers = 1;
-    assert_eq!(&*root(&limits), b"engine.hosts.workers: past its bound\n");
+    limits.fleet.configured_workers = 0;
+    assert_eq!(&*root(&limits), b"engine.limits.overrides.fleet.configured_workers: past its bound\n");
 }
 #[test]
 fn configured_worker_name_past_membership_names_its_startup_path() {
     let mut limits = root_limits();
-    limits.fleet.worker_name_bytes = 1;
-    assert_eq!(&*root(&limits), b"engine.hosts.workers[0].name: past its bound\n");
+    limits.fleet.worker_name_bytes = 4;
+    assert_eq!(&*root(&limits), b"engine.limits.overrides.fleet.worker_name_bytes: past its bound\n");
 }
 
 #[test]
@@ -250,7 +250,7 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
     .unwrap();
     engine.landings = application.landings;
     let seeds = fixtures::seeds();
-    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
+    let core = temper_engine_service::startup::core(&engine.jig, seeds.deployment, seeds.seed);
     let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     limits.policy_bytes = 512;
     checks::root(core, &engine, &seeds, &application.landing_projects, &limits, &mut found);

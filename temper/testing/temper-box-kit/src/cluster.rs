@@ -49,6 +49,39 @@ pub fn settings_change(file: &Path) -> super::ctl::Call {
 fn private_directory(path: &Path) {
     fs::DirBuilder::new().recursive(true).mode(0o700).create(path).expect("private cluster directory");
 }
+/// Worker settings from a description, applied by its owner after sign-in.
+#[must_use]
+pub fn worker_settings(file: &Path) -> Vec<Value> {
+    let document: Value =
+        serde_json::from_slice(&fs::read(file).expect("description settings")).expect("settings JSON");
+    document["items"]
+        .as_array()
+        .expect("settings items")
+        .iter()
+        .filter(|item| item["setting"]["kind"] == "worker")
+        .cloned()
+        .collect()
+}
+/// Link-only process stories still establish membership through the client's settings door.
+pub fn admit_workers(members: &Members, host: &mut Root, directory: &Path) -> Result<(), String> {
+    let rows = worker_settings(&members.dir("engine").join("settings.json"));
+    let file = directory.join("workers.json");
+    let link = format!("http://{}", members.capture("engine", "link").ok_or("engine link")?);
+    let mut client = super::ctl::Calls::linked(&link, directory);
+    client.push(super::ctl::Step::Run(super::ctl::Call::sign_in()));
+    client.push(super::ctl::Step::Run(super::ctl::Call::new(&["settings", "show", "--json"])));
+    client.push(super::ctl::Step::Then(Box::new(move |calls| {
+        super::write_private(
+            &file,
+            &serde_json::to_vec(&serde_json::json!({"items":rows})).expect("worker settings JSON"),
+        );
+        super::ctl::settings_change(&calls[1], &file, "process-workers")
+    })));
+    let Root::Client { calls, .. } = host else { return Err("client root".into()) };
+    *calls = Some(Box::new(client));
+    Ok(())
+}
+
 fn contained(base: &Path, path: &str) -> PathBuf {
     assert!(
         !path.is_empty() && Path::new(path).components().all(|c| matches!(c, Component::Normal(_))),

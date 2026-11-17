@@ -316,7 +316,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             workers_in_process: false,
             jobs: Box::new([]),
             kept_starts: Box::new([]),
-            worker_names: Box::new([Box::from(b"worker".as_slice())]),
+
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
                 project: 1,
@@ -325,7 +325,13 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
-                workers: Box::new([]),
+                workers: Box::new([jig_domain_core::settings::WorkerSetting {
+                    number: 1,
+                    name: Box::from(b"worker".as_slice()),
+                    places: 1,
+                    digest: Some([7; 32]),
+                    withdrawn: false,
+                }]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
@@ -770,7 +776,8 @@ impl StartStore {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
                     engine::Request::Store(engine::StoreRequest::Catalogue { .. })
                     | engine::Request::ForgeKept(_)
-                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
+                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. })
+                    | engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
                     }

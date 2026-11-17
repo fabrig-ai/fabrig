@@ -1,5 +1,5 @@
 //! The reference's assignments and root events around the workers' host (service.md, 11.3).
-use crate::{Files, tools, values::Values};
+use crate::{tools, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_protocol_config::{self as config, Problems};
@@ -14,19 +14,13 @@ pub(super) struct Workers {
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
 impl Workers {
-    pub fn new(
-        config: &config::Engine,
-        files: &Files,
-        deployment: [u8; 16],
-        limits: &kit::Limits,
-    ) -> Result<Self, Problems> {
+    pub fn new(config: &config::Engine, deployment: [u8; 16], limits: &kit::Limits) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
         let host = kit::host::Workers::new(
             config,
-            files,
             tokens,
             jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
             limits,

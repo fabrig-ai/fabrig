@@ -1,8 +1,5 @@
 use super::fixtures;
 use crate::What;
-fn worker_path(index: u32, name: &[u8]) -> crate::Path {
-    fixtures::path(&[b"hosts", b"workers"]).child(crate::Segment::Index(index)).member(name)
-}
 fn files() -> Box<[crate::File]> {
     crate::files(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap())
 }
@@ -14,8 +11,27 @@ fn a_workers_listener_on_a_public_address_is_refused() {
         What::Plaintext,
     );
 }
-fn a_worker_named_twice_is_refused() {
-    fixtures::refuses(br#""name": "worker-b""#, br#""name": "worker-a""#, worker_path(1, b"name"), What::Unique);
+fn workers_in_the_document_are_refused_as_settings() {
+    fixtures::refuses(
+        br#""hosts": {"#,
+        br#""hosts": {"workers": [],"#,
+        fixtures::path(&[b"hosts", b"workers"]),
+        What::Because(b"workers are settings in the store"),
+    );
+}
+fn link_limits_hold_every_worker_setting() {
+    fixtures::refuses(
+        br#""profile": "small""#,
+        br#""profile": "small", "overrides": {"link.names": 7}"#,
+        fixtures::path(&[b"limits", b"overrides", b"link.names"]),
+        What::Capacity { member: b"fleet.configured_workers", configured: 8, requires: b"link.names", required: 8 },
+    );
+    fixtures::refuses(
+        br#""profile": "small""#,
+        br#""profile": "small", "overrides": {"link.name": 31}"#,
+        fixtures::path(&[b"limits", b"overrides", b"link.name"]),
+        What::Capacity { member: b"fleet.worker_name_bytes", configured: 32, requires: b"link.name", required: 32 },
+    );
 }
 fn an_engine_member_under_hosts_is_refused_as_unknown() {
     fixtures::refuses(
@@ -26,25 +42,17 @@ fn an_engine_member_under_hosts_is_refused_as_unknown() {
     );
 }
 #[test]
-fn files_list_each_digest_as_private() {
-    let files = files();
-    let mut digests = skein_lib::List::with_capacity(2);
-    for file in &files {
-        if file.path.ends_with(b".digest") {
-            digests.push(file).unwrap();
-        }
-    }
-    assert_eq!(digests.len(), 2);
-    for file in &digests {
-        assert!(file.private);
-        assert_eq!(file.max, 65);
+fn files_list_no_worker_digest() {
+    for file in files() {
+        assert!(!file.path.ends_with(b".digest"));
     }
 }
 #[test]
 fn hosts_configuration_problems_name_the_invalid_fields() {
     table([
         ("a_workers_listener_on_a_public_address_is_refused", a_workers_listener_on_a_public_address_is_refused),
-        ("a_worker_named_twice_is_refused", a_worker_named_twice_is_refused),
+        ("workers_in_the_document_are_refused_as_settings", workers_in_the_document_are_refused_as_settings),
+        ("link_limits_hold_every_worker_setting", link_limits_hold_every_worker_setting),
         ("an_engine_member_under_hosts_is_refused_as_unknown", an_engine_member_under_hosts_is_refused_as_unknown),
     ]);
 }
