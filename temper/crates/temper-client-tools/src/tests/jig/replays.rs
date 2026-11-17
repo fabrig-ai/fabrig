@@ -320,6 +320,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["playground", "start", "--key", "start"],
     &["playground", "end", "--key", "end"],
     &["forge", "remove", "3", "--key", "remove"],
+    &["deployment", "checkpoint", "--key", "checkpoint"],
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
     &["push", "add", "subscription.json", "--key", "push-add"],

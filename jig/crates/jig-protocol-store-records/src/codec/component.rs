@@ -2,7 +2,7 @@
 use crate::component_v3 as wire;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
-pub use wire::{Count, CountParts};
+pub use wire::{CheckpointFile, CheckpointFileParts, Count, CountParts};
 
 /// Each owner's applied patch level (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -146,6 +146,42 @@ impl Manifest {
             secrets,
             written,
         })
+    }
+}
+
+/// A checkpoint's immutable record (protocol/store/checkpoints.md, 2.3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Checkpoint {
+    pub store: u64,
+    pub secrets: u64,
+    pub made: u64,
+    pub build: Box<[u8]>,
+    pub deployment: [u8; 16],
+    pub levels: Levels,
+    pub files: List<CheckpointFile>,
+}
+impl Checkpoint {
+    pub fn encode(self) -> Result<Box<[u8]>, wire::Problem> {
+        let row = wire::Checkpoint::new(
+            &wire::CEILINGS,
+            wire::CheckpointParts {
+                store: self.store,
+                secrets: self.secrets,
+                made: self.made,
+                build: self.build,
+                deployment: self.deployment,
+                levels: self.levels.encoded(),
+                files: self.files,
+            },
+        )?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).expect("measured checkpoint room");
+        Ok(writer.finish())
+    }
+    pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
+        let wire::CheckpointParts { store, secrets, made, build, deployment, levels, files } =
+            wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        Ok(Self { store, secrets, made, build, deployment, levels: Levels::decoded(levels), files })
     }
 }
 

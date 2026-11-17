@@ -39,6 +39,10 @@
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
+- **`Checkpoint`,** with no field: a deployment owner's checkpoint of
+  the serving deployment, answered `Checkpointed` with its name and
+  figures or `CheckpointRefused` with why
+  (`../../protocol/checkpoints.md`, 3).
 - **`Adopt`:** the project (u32); the forge's number
   (u16); the owner, the name, the prefix and the landing branch (byte
   strings); the role (owned, fork or context); home and ci (booleans);

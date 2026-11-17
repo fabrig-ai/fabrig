@@ -898,6 +898,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
                 | engine::Request::Restarting { .. }
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),

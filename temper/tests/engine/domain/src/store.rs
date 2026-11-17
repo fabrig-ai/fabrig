@@ -426,7 +426,10 @@ impl Store {
                     }
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
+                    reply @ (engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::Switched
+                    | engine::StoreInput::ReadLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }
@@ -463,7 +466,9 @@ impl Store {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    engine::StoreInput::MissingLink { .. }
+                    engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::MissingLink { .. }
                     | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
@@ -499,6 +504,12 @@ impl Store {
         self.catalogue = Some(names.clone());
         self.component.as_mut().expect("live component").catalogue(names);
     }
+    /// Take the act over this world's memory store (temper/docs/design/protocol/checkpoints.md, 5).
+    pub fn checkpoint(&mut self, token: Token) -> engine::StoreInput {
+        self.request(engine::StoreRequest::Checkpoint { token });
+        self.replies.pop().expect("checkpoint terminal")
+    }
+    #[must_use]
     pub fn switch(&mut self) -> engine::StoreInput {
         self.request(engine::StoreRequest::Switch);
         let answer = self.replies.pop().expect("switch terminal");
@@ -516,7 +527,12 @@ impl Store {
     fn open(&mut self) {
         let root = self.files.root();
         self.drive(
-            VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
+            VecDeque::from([Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: Token::new(0),
+                root,
+                installation: INSTALLATION,
+            }]),
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen");
@@ -525,7 +541,12 @@ impl Store {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         loop {
             if let Some(event) = above.pop() {
                 self.event(event, &mut requests);
@@ -555,6 +576,7 @@ impl Store {
             protocol::up(self.component.as_mut().expect("component exists"), &env, io, &mut above, &mut below);
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the fixture forwards every checkpoint terminal without interpreting it")]
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
             Event::Opened { last, pending, .. } => {
@@ -625,7 +647,14 @@ impl Store {
             | Event::FrameTooLarge { .. }
             | Event::OpenRefused { .. }
             | Event::SecretsNotReady { .. } => self.failed = true,
-            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Turns { .. } | Event::Got { .. })
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Page { .. }
+            | Event::Loaded { .. }
+            | Event::Turns { .. }
+            | Event::Got { .. })
                 if self.page_delay != 0 =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -634,7 +663,11 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
-            event @ (Event::Page { .. }
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }
             | Event::Job { .. }
@@ -692,6 +725,7 @@ fn routes(limits: &engine::Limits) -> route::Routes {
         limits.loads.loads,
         limits,
         temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).expect("world cryptographic seed"),
     )
 }
 /// The largest journal, task and brief bounds used by the engine stories.

@@ -32,6 +32,7 @@ pub(crate) fn job_counts(counts: &[jig_protocol_store::JobCount]) -> String {
 
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "upgrade reporting exhaustively ignores checkpoint terminals")]
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
     let mut text = String::new();
     let mut kept = None;
@@ -86,7 +87,11 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                     .expect("string write");
             }
             // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
-            Event::Census { .. }
+            Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Census { .. }
             | Event::Closed { removed: true, .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }

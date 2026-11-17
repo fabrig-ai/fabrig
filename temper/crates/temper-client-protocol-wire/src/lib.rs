@@ -407,6 +407,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
+        | v1::Request::Checkpoint
         | v1::Request::EndPlayground => {}
     }
     Some(record)

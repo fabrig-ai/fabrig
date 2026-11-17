@@ -227,6 +227,7 @@ fn restored(request: &Ask) -> bool {
         | w::Request::OpenChange(_)
         | w::Request::TierAct(_)
         | w::Request::TriageFinding(_)
+        | w::Request::Checkpoint
         | w::Request::TryAccount(_) => false,
     }
 }

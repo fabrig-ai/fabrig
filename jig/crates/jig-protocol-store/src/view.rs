@@ -27,6 +27,7 @@ impl Ask {
 }
 #[derive(Debug)]
 enum Work {
+    Checkpoint,
     Read(Ask),
     Commit { number: u64, writes: Box<[Write]> },
 }
@@ -58,15 +59,16 @@ struct Fetch {
 pub(crate) struct State {
     active: Option<Active>,
     queue: Queue<Work>,
+    gets: Queue<Ask>,
     fetch: Option<Fetch>,
 }
 impl State {
     pub(crate) fn new() -> Self {
-        Self { active: None, queue: Queue::uncapped(), fetch: None }
+        Self { active: None, queue: Queue::uncapped(), gets: Queue::uncapped(), fetch: None }
     }
 }
 pub(crate) fn held(store: &Store) -> bool {
-    store.view.active.is_some()
+    store.view.active.is_some() || crate::checkpoints::taking::barrier(store)
 }
 pub(crate) fn missing(store: &Store) -> bool {
     if let Some(active) = &store.view.active {
@@ -95,7 +97,7 @@ fn covered(ranges: &List<Range>, range: &Range) -> bool {
     false
 }
 pub(crate) fn count(store: &Store) -> u32 {
-    let mut count = store.transcripts.reads.len();
+    let mut count = store.transcripts.reads.len().saturating_add(store.view.gets.len());
     if let Some(active) = &store.view.active
         && !store.transcripts.reads.contains_key(&active.ask.owner())
     {
@@ -104,7 +106,7 @@ pub(crate) fn count(store: &Store) -> u32 {
     for work in &store.view.queue {
         match work {
             Work::Read(_) => count = count.saturating_add(1),
-            Work::Commit { .. } => {}
+            Work::Commit { .. } | Work::Checkpoint => {}
         }
     }
     count
@@ -117,6 +119,7 @@ pub(crate) fn owner(store: &Store) -> Option<Token> {
 }
 pub(crate) fn ask(store: &mut Store, ask: Ask, above: &mut Queue<Event>) {
     match ask {
+        ask @ Ask::Get { .. } if crate::checkpoints::taking::busy(store) => store.view.gets.push(ask),
         Ask::Read { owner, .. } if count(store) >= store.limits.reads => {
             above.push(Event::Read { owner, result: reads::Loaded::Busy });
         }
@@ -125,6 +128,10 @@ pub(crate) fn ask(store: &mut Store, ask: Ask, above: &mut Queue<Event>) {
         }
     }
 }
+pub(crate) fn checkpoint(store: &mut Store) {
+    store.view.queue.push(Work::Checkpoint);
+}
+
 pub(crate) fn commit(
     store: &mut Store,
     env: &Env<Limits>,
@@ -153,7 +160,11 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
             | Event::Corrupt { owner }
             | Event::Turns { owner, .. }
             | Event::Unread { owner } => Some(*owner),
-            Event::Rehearsing { .. }
+            Event::CheckpointHeld { .. }
+            | Event::CheckpointRemoved { .. }
+            | Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Rehearsing { .. }
             | Event::Decoded { .. }
             | Event::Undecodable { .. }
             | Event::Back { .. }
@@ -197,6 +208,13 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
 }
 
 pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    if store.view.active.is_none()
+        && store.view.gets.is_empty()
+        && store.view.queue.is_empty()
+        && store.transcripts.reads.is_empty()
+    {
+        return;
+    }
     // Each fetch advances a frame, each rerun adds interval coverage. Extent
     // rows bound the tasks and joins/tree rows bound discovered intervals.
     // Memory logs finish here; file logs yield on their first pending page.
@@ -208,6 +226,20 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
         u64::from(store.view.queue.len()).saturating_add(u64::from(store.transcripts.reads.len())).saturating_add(1);
     let steps = frames.saturating_mul(intervals).saturating_mul(tasks).saturating_mul(work);
     for _ in 0..steps {
+        if store.view.active.is_none() {
+            if let Some(ask) = store.view.gets.pop() {
+                store.view.active = Some(Active {
+                    ask,
+                    phase: store.phase,
+                    running: false,
+                    tasks: Map::uncapped(),
+                    rows: Map::uncapped(),
+                    bytes: 0,
+                });
+            } else if crate::checkpoints::taking::barrier(store) {
+                return;
+            }
+        }
         if store.phase == Phase::Stopped {
             return;
         }
@@ -229,8 +261,17 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
             {
                 return;
             }
+            if let Some(Work::Checkpoint) = store.view.queue.iter().next()
+                && !crate::checkpoints::taking::prepared(store)
+            {
+                return;
+            }
             let Some(work) = store.view.queue.pop() else { return };
             match work {
+                Work::Checkpoint => {
+                    crate::checkpoints::taking::begin(store, env, above, below);
+                    return;
+                }
                 Work::Commit { number, writes } => {
                     crate::transcripts::write::begin(store, env, number, writes, above, below);
                     continue;

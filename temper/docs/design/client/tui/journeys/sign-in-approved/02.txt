@@ -1,6 +1,7 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   ▄█▀▀   temper 0.0.0 (2217e002c077-dirty)
  ▄█▄█▄█  127.0.0.1:43675
 
@@ -20,6 +21,13 @@
  No project yet
  Setting temper up makes your first project: open http://127.0.0.1:45531 in a
 >>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+=======
+  ▄█▀▀   temper 0.0.0 (8784374d5bef-dirty)
+ ▄█▄█▄█  127.0.0.1:38761
+
+ No project yet
+ Setting temper up makes your first project: open http://127.0.0.1:38761 in a
+>>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
  browser.
 
 

@@ -42,13 +42,15 @@ impl Store {
         application: &root::Limits,
         limits: &protocol::Limits,
         models: &[jig_domain_core::Model],
-        installation: [u8; 16],
+        seeds: &crate::settings::Seeds,
     ) -> Self {
+        let installation = seeds.installation;
         let routes = route::Routes::new(
             application.loads.loads,
             application,
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
+            skein_lib::CryptoRng::new(&seeds.crypto, 0x4348_5054).expect("validated cryptographic seed"),
         );
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
@@ -99,7 +101,8 @@ impl Store {
                 self.host.component.catalogue(names);
                 return true;
             }
-            out @ (root::StoreRequest::Switch
+            out @ (root::StoreRequest::Checkpoint { .. }
+            | root::StoreRequest::Switch
             | root::StoreRequest::Commit { .. }
             | root::StoreRequest::Load { .. }
             | root::StoreRequest::Read { .. }) => out,
@@ -160,8 +163,13 @@ impl Store {
         }
     }
     pub fn complete(&mut self, mut complete: Complete) {
-        let index = usize::try_from((complete.op.raw() >> 60_u32).checked_sub(8).expect("driver namespace"))
-            .expect("three drivers");
+        let index = match complete.op.raw() >> 60_u32 {
+            8 => 0,
+            9 => 1,
+            10 => 2,
+            12 => 3,
+            _ => unreachable!("store driver namespace"),
+        };
         complete.op = Token::new(complete.op.raw() & MASK);
         if let Op::Cancel { target } = &mut complete.kind {
             *target = Token::new(target.raw() & MASK);

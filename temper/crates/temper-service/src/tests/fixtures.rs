@@ -709,6 +709,7 @@ pub fn mark_store(store: &mut crate::store::Store) {
 
 fn open_seeded(store: &mut crate::store::Store) {
     store.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1006,6 +1007,7 @@ pub fn memory_store_for(
     );
     assert!(host.component.wires(&crate::store::WIRES));
     host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1015,11 +1017,7 @@ pub fn memory_store_for(
     };
     // This fixture handoff does not consume the census (jig protocol/store/README.md, 6.3).
     let Some(jig_protocol_store::Event::Census { .. }) = host.above.pop() else { panic!("opened census") };
-    crate::store::Store::new(root, &limits, models, seeds().installation).on_opened(
-        host.component,
-        installation,
-        pending,
-    )
+    crate::store::Store::new(root, &limits, models, &seeds()).on_opened(host.component, installation, pending)
 }
 pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
     service.engine_component().restore_forge(record);
@@ -1078,7 +1076,7 @@ pub fn unopened_store() -> crate::store::Store {
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let profile = crate::store::limits(&root, &root.forge, &settings.jig.limits.store).unwrap();
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
-    crate::store::Store::new(&root, &profile, &models, seeds().installation)
+    crate::store::Store::new(&root, &profile, &models, &seeds())
 }
 
 /// The prepare job's declared request and result must fit a turn fixture.

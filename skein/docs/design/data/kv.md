@@ -50,6 +50,7 @@ The owner's vocabulary (`skein-kv::Request` and `Event`):
 | `Load { range, max }` | `Loaded { rows, next }` |
 | `ReadLog { log, at, direction, max }` (section 6) | `LogRead { records, next }` or `LogUnread { at }` |
 | `Open { root }` | `Opened { last }` or `OpenFailed` |
+| `Hold`, `Release` (2.3) | `Held { last, snapshot, segments }`, `Released`; or `Refused` |
 | `Close` | `Closed` |
 
 After a fatal file failure, repair reports `Recovered { last }` or
@@ -162,6 +163,78 @@ gives a rule, and an owner that gives none pays nothing.
   prefix and counts, as of `Store::last()`, as `used()` gives the map's
   bytes. A store whose owner gave no rule gives an empty census.
 
+### 2.3 Holds
+
+For an owner that links and copies the store's files while it serves,
+as jig's store takes a checkpoint: the store names the files that
+hold its state at a commit, and keeps each of them under its name
+until the owner releases the hold. The store itself links and copies
+nothing.
+
+| Request | Terminal event |
+|---|---|
+| `Hold { owner }` | `Held { owner, last, snapshot, segments }`; `Refused` (`Unavailable`: not open, closing, or a hold already placed) |
+| `Release { owner }` | `Released { owner }`; `Refused` (`Unavailable`: no hold placed) |
+
+```rust
+Request::Hold { owner: Token }
+Request::Release { owner: Token }
+Event::Held { owner: Token, last: u64, snapshot: bool, segments: Box<[HeldSegment]> }
+Event::Released { owner: Token }
+pub struct HeldSegment { pub first: u64, pub end: Option<u64> }   // Copy
+```
+
+- **At its place in the commit order.** A hold is queued behind the
+  commits admitted before it. It is answered in the step that finds
+  each of them answered and no rename of the snapshot in flight (one in
+  flight is let finish first). No batch (section 4) spans it, and a
+  commit admitted after it is written only once it is answered. `last`
+  is the last commit answered before it.
+- **What it names,** the files recovery reads to reach `last`
+  (section 3):
+  - `snapshot`: whether `snapshot` stands, the one that recovery
+    reads, at the hold;
+  - `segments`: each segment recovery replays from that snapshot's
+    start, in order, whose first number is at most `last`, as
+    `HeldSegment`. `first` is its first number, as its name gives it
+    (`log-<first, 20 decimal digits>`). `end` is none for a segment the
+    store appends to no more, which an owner may link whole, and, for
+    the one it still appends to, the end of `last`'s frame in it: frames
+    are only appended, so the bytes before `end` never change, and an
+    owner copies those. A segment wholly before the snapshot's start,
+    which a snapshot's removal may be taking, is not named; nor is one
+    whose first number is past `last`.
+  - **Payload logs** are named by their extents at `last` (6.1), which
+    are the map's rows until a commit after the hold is answered. An
+    owner that reads them holds its own later commits until it has
+    read them, as jig's checkpoint does.
+- **While it is placed:**
+  - a snapshot that finishes is not renamed over `snapshot`: it waits,
+    written, synced and closed under its temporary name. Since a
+    snapshot's segments are deleted only after its rename (section 5),
+    no named segment is deleted either, and no next snapshot starts;
+  - no payload log's file is removed: a drop's removal (6.4) waits in a
+    list of at most `HELD_REMOVALS` (4,096) logs, and a removal past it
+    is left to the next recovery's sweep (6.4), as a crash leaves one;
+  - everything else goes on: commits, reads, appends, a segment's
+    rollover, a snapshot's chunks, and the removal of a segment wholly
+    before the current snapshot's start.
+- **Released:** `Release` is answered at once, and the acts it held
+  then go ahead in order, as each would have once it was due: the
+  snapshot's rename, its directory's sync and its segments' deletion,
+  then the logs' removals.
+- **Ended without a release** by a close, which answers its `Closed`
+  once the held acts are done, and by a fatal failure (section 4),
+  whose recovery removes what recovery removes. The owner's link or
+  copy of a file then gone fails, as it should: no hold outlives the
+  open store, and none is written to disk.
+- **In memory** (`Store::memory`), with no files: `Held` at once, with
+  `last`, no snapshot and no segment; `Released` at once.
+- **What it costs:** while a hold is placed, the store keeps on disk the
+  log written since its last snapshot and a finished snapshot's
+  temporary, and in memory its held removals, for as long as the owner
+  holds it.
+
 ## 3. On disk
 
 The store owns a directory, a root (../runtime/io/files.md):
@@ -266,7 +339,8 @@ removes them with its own.
 - **Finishing** follows ../runtime/io/README.md's replacement sequence, with the writes a
   chunk at a time: create the temporary, write, sync, close, rename over
   `snapshot`, sync the directory. Only then are the segments wholly
-  before S deleted.
+  before S deleted. While a hold is placed (2.3), the rename waits for
+  its release.
 - **A crash during a snapshot** leaves the previous snapshot and every
   segment since it, so recovery is unchanged. A crash after the rename,
   before the old segments are deleted, leaves them beside the new
@@ -378,6 +452,7 @@ section 2).
 - **`Op::Drop { log }`** erases the log's extent row in its commit. Once
   that commit is durable, the store removes the file, a missing one
   being no failure, and syncs its directory; its directory is left.
+  While a hold is placed (2.3), the removal waits for its release.
 - **At recovery,** once the map is replayed, the store lists `logs/` a
   page at a time and removes each log's file whose extent row the map
   lacks, syncing each directory it removed from. A crash between a
@@ -499,6 +574,15 @@ failed syncs.
   near the target, not the ceiling; a row past the target goes through a
   snapshot and a recovery alone in its chunk, and a row at the ceiling
   round-trips.
+- **Holds** (2.3), on the simulated disk: the files a hold names,
+  linked into another root, the named end of the segment still
+  appended to copied, and recovered there, give the model's map at
+  `last`, whatever commits, drops, rollovers and snapshots raced the
+  hold until its release, a snapshot finishing during it among them;
+  the rename and the removals it held go ahead once released, and a
+  close or a failure ends it. A fuzzy sweep draws those races and a
+  crash at any file operation while a hold is placed, after which the
+  store recovers as ever.
 - **Over the real ring:** a scratch-directory integration test commits,
   closes, reopens on the same root descriptor and verifies the value. A
   killed process leaves the page cache, so the ring shows integration,

@@ -228,6 +228,10 @@ pub struct Limits {
     pub link_address: u32,
     pub reached_name: u32,
     pub page_rows: u32,
+    pub checkpointed_name: u32,
+    pub checkpoint_path_path: u32,
+    pub checkpoint_failed_path: u32,
+    pub checkpoint_failed_error: u32,
     pub landing_exact_value: u32,
     pub landing_open_value: u32,
     pub landing_pattern_segments: u32,
@@ -512,6 +516,10 @@ pub const CEILINGS: Limits = Limits {
     link_address: 2_048,
     reached_name: 1_024,
     page_rows: 100,
+    checkpointed_name: 37,
+    checkpoint_path_path: 128,
+    checkpoint_failed_path: 128,
+    checkpoint_failed_error: 128,
     landing_exact_value: 4_096,
     landing_open_value: 4_096,
     landing_pattern_segments: 16,
@@ -573,7 +581,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 280] = [
+pub const LIMIT_NAMES: [&str; 284] = [
     "adopt_owner",
     "adopt_name",
     "adopt_prefix",
@@ -796,6 +804,10 @@ pub const LIMIT_NAMES: [&str; 280] = [
     "link_address",
     "reached_name",
     "page_rows",
+    "checkpointed_name",
+    "checkpoint_path_path",
+    "checkpoint_failed_path",
+    "checkpoint_failed_error",
     "landing_exact_value",
     "landing_open_value",
     "landing_pattern_segments",
@@ -859,7 +871,7 @@ pub const LIMIT_NAMES: [&str; 280] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 280] {
+    pub fn values(&self) -> [u32; 284] {
         [
             self.adopt_owner, self.adopt_name, self.adopt_prefix, self.adopt_landing, self.adopt_checks, self.managed_forge_host, self.managed_forge_tls_some, self.managed_forge_git,
             self.managed_forge_web_some, self.managed_forge_git_program_some, self.first_empty_org, self.first_empty_repository, self.copy_addresses_addresses, self.copy_addresses_addresses_item, self.git_hub_manifest_back_some, self.first_ask_org,
@@ -888,14 +900,15 @@ impl Limits {
             self.status_brief_lede, self.project_status_branch, self.queued_ahead, self.verifying_tiers, self.verifying_tiers_item, self.red_tiers, self.red_tiers_item, self.cleared_tiers,
             self.cleared_tiers_item, self.authority_hold_reason, self.question_line, self.questions_open, self.approval_counted, self.panel_source_branch, self.change_panel_owner, self.change_panel_name,
             self.change_panel_branch, self.change_panel_landing, self.change_panel_gates, self.change_panel_approvals, self.change_panel_unmapped_reviews, self.rule_branch, self.rule_contexts, self.rule_contexts_item,
-            self.adopted_owner, self.adopted_name, self.core_refused_refusal, self.link_address, self.reached_name, self.page_rows, self.landing_exact_value, self.landing_open_value,
-            self.landing_pattern_segments, self.landing_pattern_segments_item, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.project_landing_merge_job_some, self.project_landing_close_job_some, self.settings_gate_report_artifact,
-            self.settings_gate_report_fuzzy_some, self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored, self.settings_gate_ignored_item, self.settings_branch_name, self.settings_tier_name, self.settings_tier_workflow,
-            self.settings_tier_ignored, self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description, self.repository_gates_gates, self.repository_gates_tiers, self.project_gates_repositories, self.class_item_words,
-            self.path_set_name, self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items, self.project_classes_sets, self.drafts_panel_drafts, self.follow_source_branch, self.follow_source_paths,
-            self.follow_source_paths_item, self.follow_target_branch, self.follow_words_words, self.follow_skip_reason, self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.follow_parity_run,
-            self.follow_view_source, self.follow_view_source_branch, self.follow_view_target, self.follow_view_target_branch, self.follow_view_stopped_some, self.follow_view_entries, self.follow_view_skips, self.follows_panel_follows,
-            self.follows_panel_dependencies, self.area_name, self.area_words, self.project_areas_areas, self.area_row_name, self.area_row_words, self.findings_rows, self.findings_areas,
+            self.adopted_owner, self.adopted_name, self.core_refused_refusal, self.link_address, self.reached_name, self.page_rows, self.checkpointed_name, self.checkpoint_path_path,
+            self.checkpoint_failed_path, self.checkpoint_failed_error, self.landing_exact_value, self.landing_open_value, self.landing_pattern_segments, self.landing_pattern_segments_item, self.landing_rule_gates, self.landing_rule_approvals,
+            self.landing_rule_sets, self.project_landing_merge_job_some, self.project_landing_close_job_some, self.settings_gate_report_artifact, self.settings_gate_report_fuzzy_some, self.settings_gate_name, self.settings_gate_workflow, self.settings_gate_ignored,
+            self.settings_gate_ignored_item, self.settings_branch_name, self.settings_tier_name, self.settings_tier_workflow, self.settings_tier_ignored, self.settings_tier_ignored_item, self.settings_tier_artifact, self.settings_tier_description,
+            self.repository_gates_gates, self.repository_gates_tiers, self.project_gates_repositories, self.class_item_words, self.path_set_name, self.path_set_patterns, self.path_set_patterns_item, self.project_classes_items,
+            self.project_classes_sets, self.drafts_panel_drafts, self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item, self.follow_target_branch, self.follow_words_words, self.follow_skip_reason,
+            self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.follow_parity_run, self.follow_view_source, self.follow_view_source_branch, self.follow_view_target, self.follow_view_target_branch,
+            self.follow_view_stopped_some, self.follow_view_entries, self.follow_view_skips, self.follows_panel_follows, self.follows_panel_dependencies, self.area_name, self.area_words, self.project_areas_areas,
+            self.area_row_name, self.area_row_words, self.findings_rows, self.findings_areas,
         ]
     }
 }
@@ -3279,6 +3292,46 @@ pub enum Path {
     MakeRefusedWhy,
     /// Bytes after `MakeRefused`.
     MakeRefusedTail,
+    /// The `name` field of `Checkpointed`.
+    CheckpointedName,
+    /// The `store` field of `Checkpointed`.
+    CheckpointedStore,
+    /// The `secrets` field of `Checkpointed`.
+    CheckpointedSecrets,
+    /// The `linked` field of `Checkpointed`.
+    CheckpointedLinked,
+    /// The `copied` field of `Checkpointed`.
+    CheckpointedCopied,
+    /// The `bytes` field of `Checkpointed`.
+    CheckpointedBytes,
+    /// The `paused` field of `Checkpointed`.
+    CheckpointedPaused,
+    /// The `took` field of `Checkpointed`.
+    CheckpointedTook,
+    /// The `held` field of `Checkpointed`.
+    CheckpointedHeld,
+    /// The `removed` field of `Checkpointed`.
+    CheckpointedRemoved,
+    /// The `skipped` field of `Checkpointed`.
+    CheckpointedSkipped,
+    /// Bytes after `Checkpointed`.
+    CheckpointedTail,
+    /// The `path` field of `CheckpointPath`.
+    CheckpointPathPath,
+    /// Bytes after `CheckpointPath`.
+    CheckpointPathTail,
+    /// The `path` field of `CheckpointFailed`.
+    CheckpointFailedPath,
+    /// The `error` field of `CheckpointFailed`.
+    CheckpointFailedError,
+    /// Bytes after `CheckpointFailed`.
+    CheckpointFailedTail,
+    /// The tag of `CheckpointWhy`.
+    CheckpointWhyTag,
+    /// The `why` field of `CheckpointRefused`.
+    CheckpointRefusedWhy,
+    /// Bytes after `CheckpointRefused`.
+    CheckpointRefusedTail,
     /// The tag of `Outcome`.
     OutcomeTag,
     /// The `outcome` field of `Answer`.
@@ -4885,6 +4938,26 @@ impl Path {
             Self::MakeRefusalTag => "MakeRefusal (tag)",
             Self::MakeRefusedWhy => "MakeRefused.why",
             Self::MakeRefusedTail => "MakeRefused (tail)",
+            Self::CheckpointedName => "Checkpointed.name",
+            Self::CheckpointedStore => "Checkpointed.store",
+            Self::CheckpointedSecrets => "Checkpointed.secrets",
+            Self::CheckpointedLinked => "Checkpointed.linked",
+            Self::CheckpointedCopied => "Checkpointed.copied",
+            Self::CheckpointedBytes => "Checkpointed.bytes",
+            Self::CheckpointedPaused => "Checkpointed.paused",
+            Self::CheckpointedTook => "Checkpointed.took",
+            Self::CheckpointedHeld => "Checkpointed.held",
+            Self::CheckpointedRemoved => "Checkpointed.removed",
+            Self::CheckpointedSkipped => "Checkpointed.skipped",
+            Self::CheckpointedTail => "Checkpointed (tail)",
+            Self::CheckpointPathPath => "CheckpointPath.path",
+            Self::CheckpointPathTail => "CheckpointPath (tail)",
+            Self::CheckpointFailedPath => "CheckpointFailed.path",
+            Self::CheckpointFailedError => "CheckpointFailed.error",
+            Self::CheckpointFailedTail => "CheckpointFailed (tail)",
+            Self::CheckpointWhyTag => "CheckpointWhy (tag)",
+            Self::CheckpointRefusedWhy => "CheckpointRefused.why",
+            Self::CheckpointRefusedTail => "CheckpointRefused (tail)",
             Self::OutcomeTag => "Outcome (tag)",
             Self::AnswerOutcome => "Answer.outcome",
             Self::AnswerVersion => "Answer (version)",
@@ -5341,6 +5414,10 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.link_address > CEILINGS.link_address { return Err(Problem { path: Path::LinkAddress, reason: skein_codec::Reason::Bound }); }
     if limits.reached_name > CEILINGS.reached_name { return Err(Problem { path: Path::ReachedName, reason: skein_codec::Reason::Bound }); }
     if limits.page_rows > CEILINGS.page_rows { return Err(Problem { path: Path::PageRows, reason: skein_codec::Reason::Bound }); }
+    if limits.checkpointed_name > CEILINGS.checkpointed_name { return Err(Problem { path: Path::CheckpointedName, reason: skein_codec::Reason::Bound }); }
+    if limits.checkpoint_path_path > CEILINGS.checkpoint_path_path { return Err(Problem { path: Path::CheckpointPathPath, reason: skein_codec::Reason::Bound }); }
+    if limits.checkpoint_failed_path > CEILINGS.checkpoint_failed_path { return Err(Problem { path: Path::CheckpointFailedPath, reason: skein_codec::Reason::Bound }); }
+    if limits.checkpoint_failed_error > CEILINGS.checkpoint_failed_error { return Err(Problem { path: Path::CheckpointFailedError, reason: skein_codec::Reason::Bound }); }
     if limits.landing_exact_value > CEILINGS.landing_exact_value { return Err(Problem { path: Path::LandingExactValue, reason: skein_codec::Reason::Bound }); }
     if limits.landing_open_value > CEILINGS.landing_open_value { return Err(Problem { path: Path::LandingOpenValue, reason: skein_codec::Reason::Bound }); }
     if limits.landing_pattern_segments > CEILINGS.landing_pattern_segments { return Err(Problem { path: Path::LandingPatternSegments, reason: skein_codec::Reason::Bound }); }
@@ -5385,14 +5462,14 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.follow_parity_run > CEILINGS.follow_parity_run { return Err(Problem { path: Path::FollowParityRun, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_source > CEILINGS.follow_view_source { return Err(Problem { path: Path::FollowViewSource, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_source_branch > CEILINGS.follow_view_source_branch { return Err(Problem { path: Path::FollowViewSourceBranch, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_view_target > CEILINGS.follow_view_target { return Err(Problem { path: Path::FollowViewTarget, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_view_target_branch > CEILINGS.follow_view_target_branch { return Err(Problem { path: Path::FollowViewTargetBranch, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_view_stopped_some > CEILINGS.follow_view_stopped_some { return Err(Problem { path: Path::FollowViewStopped, reason: skein_codec::Reason::Bound }); }
-    if limits.follow_view_entries > CEILINGS.follow_view_entries { return Err(Problem { path: Path::FollowViewEntries, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.follow_view_target > CEILINGS.follow_view_target { return Err(Problem { path: Path::FollowViewTarget, reason: skein_codec::Reason::Bound }); }
+    if limits.follow_view_target_branch > CEILINGS.follow_view_target_branch { return Err(Problem { path: Path::FollowViewTargetBranch, reason: skein_codec::Reason::Bound }); }
+    if limits.follow_view_stopped_some > CEILINGS.follow_view_stopped_some { return Err(Problem { path: Path::FollowViewStopped, reason: skein_codec::Reason::Bound }); }
+    if limits.follow_view_entries > CEILINGS.follow_view_entries { return Err(Problem { path: Path::FollowViewEntries, reason: skein_codec::Reason::Bound }); }
     if limits.follow_view_skips > CEILINGS.follow_view_skips { return Err(Problem { path: Path::FollowViewSkips, reason: skein_codec::Reason::Bound }); }
     if limits.follows_panel_follows > CEILINGS.follows_panel_follows { return Err(Problem { path: Path::FollowsPanelFollows, reason: skein_codec::Reason::Bound }); }
     if limits.follows_panel_dependencies > CEILINGS.follows_panel_dependencies { return Err(Problem { path: Path::FollowsPanelDependencies, reason: skein_codec::Reason::Bound }); }
@@ -10776,6 +10853,8 @@ pub enum Request {
     TierAct(TierActRequest),
     /// `open_change` carrying `OpenChange`.
     OpenChange(OpenChange),
+    /// `checkpoint` without a payload.
+    Checkpoint,
 }
 
 impl Request {
@@ -10801,7 +10880,7 @@ impl Request {
             Self::TriageFinding(record) => TriageFinding::check(record, limits),
             Self::TierAct(record) => TierActRequest::check(record, limits),
             Self::OpenChange(record) => OpenChange::check(record, limits),
-            Self::Reachable(_) | Self::Accept(_) | Self::RemoveForge(_) | Self::StartPlayground | Self::EndPlayground | Self::Replace(_) | Self::Dismiss(_) | Self::Looked(_) | Self::SetAway(_) | Self::Overturn(_) | Self::TryAccount(_) | Self::RemoveDevice(_) => Ok(()),
+            Self::Reachable(_) | Self::Accept(_) | Self::RemoveForge(_) | Self::StartPlayground | Self::EndPlayground | Self::Replace(_) | Self::Dismiss(_) | Self::Looked(_) | Self::SetAway(_) | Self::Overturn(_) | Self::TryAccount(_) | Self::RemoveDevice(_) | Self::Checkpoint => Ok(()),
         }?;
         Ok(())
     }
@@ -21282,6 +21361,268 @@ impl MakeRefused {
 
 }
 
+/// Movable fields of `Checkpointed`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointedParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `store` field.
+    pub store: u64,
+    /// The `secrets` field.
+    pub secrets: u64,
+    /// The `linked` field.
+    pub linked: u32,
+    /// The `copied` field.
+    pub copied: u32,
+    /// The `bytes` field.
+    pub bytes: u64,
+    /// The `paused` field.
+    pub paused: u64,
+    /// The `took` field.
+    pub took: u64,
+    /// The `held` field.
+    pub held: u64,
+    /// The `removed` field.
+    pub removed: u32,
+    /// The `skipped` field.
+    pub skipped: u32,
+}
+
+/// `Checkpointed` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Checkpointed {
+    name: Box<[u8]>,
+    store: u64,
+    secrets: u64,
+    linked: u32,
+    copied: u32,
+    bytes: u64,
+    paused: u64,
+    took: u64,
+    held: u64,
+    removed: u32,
+    skipped: u32,
+}
+
+impl Checkpointed {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CheckpointedParts) -> Result<Self, Problem> {
+        let CheckpointedParts { name, store, secrets, linked, copied, bytes, paused, took, held, removed, skipped } = parts;
+        let value = Self { name, store, secrets, linked, copied, bytes, paused, took, held, removed, skipped };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `store` field.
+    #[must_use]
+    pub fn store(&self) -> u64 { self.store }
+
+    /// Reads the `secrets` field.
+    #[must_use]
+    pub fn secrets(&self) -> u64 { self.secrets }
+
+    /// Reads the `linked` field.
+    #[must_use]
+    pub fn linked(&self) -> u32 { self.linked }
+
+    /// Reads the `copied` field.
+    #[must_use]
+    pub fn copied(&self) -> u32 { self.copied }
+
+    /// Reads the `bytes` field.
+    #[must_use]
+    pub fn bytes(&self) -> u64 { self.bytes }
+
+    /// Reads the `paused` field.
+    #[must_use]
+    pub fn paused(&self) -> u64 { self.paused }
+
+    /// Reads the `took` field.
+    #[must_use]
+    pub fn took(&self) -> u64 { self.took }
+
+    /// Reads the `held` field.
+    #[must_use]
+    pub fn held(&self) -> u64 { self.held }
+
+    /// Reads the `removed` field.
+    #[must_use]
+    pub fn removed(&self) -> u32 { self.removed }
+
+    /// Reads the `skipped` field.
+    #[must_use]
+    pub fn skipped(&self) -> u32 { self.skipped }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CheckpointedParts { CheckpointedParts { name: self.name, store: self.store, secrets: self.secrets, linked: self.linked, copied: self.copied, bytes: self.bytes, paused: self.paused, took: self.took, held: self.held, removed: self.removed, skipped: self.skipped } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.checkpointed_name.min(CEILINGS.checkpointed_name)).expect("u32 fits usize") { return Err(Problem { path: Path::CheckpointedName, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::CheckpointedName, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `CheckpointPath`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointPathParts {
+    /// The `path` field.
+    pub path: Box<[u8]>,
+}
+
+/// `CheckpointPath` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointPath {
+    path: Box<[u8]>,
+}
+
+impl CheckpointPath {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CheckpointPathParts) -> Result<Self, Problem> {
+        let CheckpointPathParts { path } = parts;
+        let value = Self { path };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `path` field.
+    #[must_use]
+    pub fn path(&self) -> &[u8] { &self.path }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CheckpointPathParts { CheckpointPathParts { path: self.path } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.path.len() > usize::try_from(limits.checkpoint_path_path.min(CEILINGS.checkpoint_path_path)).expect("u32 fits usize") { return Err(Problem { path: Path::CheckpointPathPath, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.path.as_ref()) { return Err(Problem { path: Path::CheckpointPathPath, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `CheckpointFailed`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointFailedParts {
+    /// The `path` field.
+    pub path: Box<[u8]>,
+    /// The `error` field.
+    pub error: Box<[u8]>,
+}
+
+/// `CheckpointFailed` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointFailed {
+    path: Box<[u8]>,
+    error: Box<[u8]>,
+}
+
+impl CheckpointFailed {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CheckpointFailedParts) -> Result<Self, Problem> {
+        let CheckpointFailedParts { path, error } = parts;
+        let value = Self { path, error };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `path` field.
+    #[must_use]
+    pub fn path(&self) -> &[u8] { &self.path }
+
+    /// Reads the `error` field.
+    #[must_use]
+    pub fn error(&self) -> &[u8] { &self.error }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CheckpointFailedParts { CheckpointFailedParts { path: self.path, error: self.error } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.path.len() > usize::try_from(limits.checkpoint_failed_path.min(CEILINGS.checkpoint_failed_path)).expect("u32 fits usize") { return Err(Problem { path: Path::CheckpointFailedPath, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.path.as_ref()) { return Err(Problem { path: Path::CheckpointFailedPath, reason: skein_codec::Reason::Utf8 }); }
+        if self.error.len() > usize::try_from(limits.checkpoint_failed_error.min(CEILINGS.checkpoint_failed_error)).expect("u32 fits usize") { return Err(Problem { path: Path::CheckpointFailedError, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(self.error.as_ref()) { return Err(Problem { path: Path::CheckpointFailedError, reason: skein_codec::Reason::Utf8 }); }
+        Ok(())
+    }
+}
+
+/// `CheckpointWhy` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CheckpointWhy {
+    /// `not_owner` without a payload.
+    NotOwner,
+    /// `in_progress` without a payload.
+    InProgress,
+    /// `unavailable` without a payload.
+    Unavailable,
+    /// `files` without a payload.
+    Files,
+    /// `unrecognized` carrying `CheckpointPath`.
+    Unrecognized(CheckpointPath),
+    /// `vanished` carrying `CheckpointPath`.
+    Vanished(CheckpointPath),
+    /// `failed` carrying `CheckpointFailed`.
+    Failed(CheckpointFailed),
+}
+
+impl CheckpointWhy {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Unrecognized(record) | Self::Vanished(record) => CheckpointPath::check(record, limits),
+            Self::Failed(record) => CheckpointFailed::check(record, limits),
+            Self::NotOwner | Self::InProgress | Self::Unavailable | Self::Files => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `CheckpointRefused`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointRefusedParts {
+    /// The `why` field.
+    pub why: CheckpointWhy,
+}
+
+/// `CheckpointRefused` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CheckpointRefused {
+    why: CheckpointWhy,
+}
+
+impl CheckpointRefused {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CheckpointRefusedParts) -> Result<Self, Problem> {
+        let CheckpointRefusedParts { why } = parts;
+        let value = Self { why };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `why` field.
+    #[must_use]
+    pub fn why(&self) -> &CheckpointWhy { &self.why }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CheckpointRefusedParts { CheckpointRefusedParts { why: self.why } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.why.check(limits)?;
+        Ok(())
+    }
+}
+
 /// `Outcome` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
@@ -21365,6 +21706,10 @@ pub enum Outcome {
     Opened(Opened),
     /// `open_refused` carrying `OpenRefused`.
     OpenRefused(OpenRefused),
+    /// `checkpointed` carrying `Checkpointed`.
+    Checkpointed(Checkpointed),
+    /// `checkpoint_refused` carrying `CheckpointRefused`.
+    CheckpointRefused(CheckpointRefused),
 }
 
 impl Outcome {
@@ -21386,6 +21731,8 @@ impl Outcome {
             Self::FindingRefused(record) => FindingRefused::check(record, limits),
             Self::Tier(record) => TierOutcome::check(record, limits),
             Self::OpenRefused(record) => OpenRefused::check(record, limits),
+            Self::Checkpointed(record) => Checkpointed::check(record, limits),
+            Self::CheckpointRefused(record) => CheckpointRefused::check(record, limits),
             Self::ForgeRefused(_) | Self::Unknown | Self::SettingUp | Self::SetUpRefused(_) | Self::Running | Self::StartRefused(_) | Self::Connecting | Self::ConnectRefused(_) | Self::Accepted(_) | Self::Removed | Self::RemoveRefused(_) | Self::Reset | Self::EndRefused(_) | Self::Dismissed | Self::MakeKept | Self::MakeRefused(_) | Self::Looked | Self::Away | Self::Overturned | Self::OverturnRefused(_) | Self::Tried | Self::NotTheirs | Self::DraftRefused(_) | Self::DeviceAdded(_) | Self::DeviceRemoved | Self::DeviceRefused(_) | Self::Filed(_) | Self::Handed | Self::Triaged | Self::Opened(_) => Ok(()),
         }?;
         Ok(())
@@ -29605,7 +29952,7 @@ impl Request {
             Self::TriageFinding(record) => 1_u32.checked_add(TriageFinding::measure(record)).expect("schema ceilings fit u32"),
             Self::TierAct(record) => 1_u32.checked_add(TierActRequest::measure(record)).expect("schema ceilings fit u32"),
             Self::OpenChange(record) => 1_u32.checked_add(OpenChange::measure(record)).expect("schema ceilings fit u32"),
-            Self::StartPlayground | Self::EndPlayground => 1,
+            Self::StartPlayground | Self::EndPlayground | Self::Checkpoint => 1,
         }
     }
 
@@ -29638,6 +29985,7 @@ impl Request {
             Self::TriageFinding(record) => { writer.put(&[23_u8])?; record.encode(writer)?; }
             Self::TierAct(record) => { writer.put(&[24_u8])?; record.encode(writer)?; }
             Self::OpenChange(record) => { writer.put(&[25_u8])?; record.encode(writer)?; }
+            Self::Checkpoint => writer.put(&[26_u8])?,
         }
         Ok(())
     }
@@ -29678,6 +30026,7 @@ impl Request {
             23 => Self::TriageFinding(TriageFinding::decode_from(limits, reader)?),
             24 => Self::TierAct(TierActRequest::decode_from(limits, reader)?),
             25 => Self::OpenChange(OpenChange::decode_from(limits, reader)?),
+            26 => Self::Checkpoint,
             _ => return Err(Problem { path: Path::RequestTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -40905,6 +41254,227 @@ impl MakeRefused {
     }
 }
 
+impl Checkpointed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_store = &self.store;
+        writer.put(&field_store.to_be_bytes())?;
+        let field_secrets = &self.secrets;
+        writer.put(&field_secrets.to_be_bytes())?;
+        let field_linked = &self.linked;
+        writer.put(&field_linked.to_be_bytes())?;
+        let field_copied = &self.copied;
+        writer.put(&field_copied.to_be_bytes())?;
+        let field_bytes = &self.bytes;
+        writer.put(&field_bytes.to_be_bytes())?;
+        let field_paused = &self.paused;
+        writer.put(&field_paused.to_be_bytes())?;
+        let field_took = &self.took;
+        writer.put(&field_took.to_be_bytes())?;
+        let field_held = &self.held;
+        writer.put(&field_held.to_be_bytes())?;
+        let field_removed = &self.removed;
+        writer.put(&field_removed.to_be_bytes())?;
+        let field_skipped = &self.skipped;
+        writer.put(&field_skipped.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CheckpointedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = match skein_codec::read_text(reader, limits.checkpointed_name.min(CEILINGS.checkpointed_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::CheckpointedName, reason }), };
+        let decoded_store = reader.u64().ok_or(Problem { path: Path::CheckpointedStore, reason: skein_codec::Reason::Short })?;
+        let decoded_secrets = reader.u64().ok_or(Problem { path: Path::CheckpointedSecrets, reason: skein_codec::Reason::Short })?;
+        let decoded_linked = reader.u32().ok_or(Problem { path: Path::CheckpointedLinked, reason: skein_codec::Reason::Short })?;
+        let decoded_copied = reader.u32().ok_or(Problem { path: Path::CheckpointedCopied, reason: skein_codec::Reason::Short })?;
+        let decoded_bytes = reader.u64().ok_or(Problem { path: Path::CheckpointedBytes, reason: skein_codec::Reason::Short })?;
+        let decoded_paused = reader.u64().ok_or(Problem { path: Path::CheckpointedPaused, reason: skein_codec::Reason::Short })?;
+        let decoded_took = reader.u64().ok_or(Problem { path: Path::CheckpointedTook, reason: skein_codec::Reason::Short })?;
+        let decoded_held = reader.u64().ok_or(Problem { path: Path::CheckpointedHeld, reason: skein_codec::Reason::Short })?;
+        let decoded_removed = reader.u32().ok_or(Problem { path: Path::CheckpointedRemoved, reason: skein_codec::Reason::Short })?;
+        let decoded_skipped = reader.u32().ok_or(Problem { path: Path::CheckpointedSkipped, reason: skein_codec::Reason::Short })?;
+        Ok(Self { name: decoded_name, store: decoded_store, secrets: decoded_secrets, linked: decoded_linked, copied: decoded_copied, bytes: decoded_bytes, paused: decoded_paused, took: decoded_took, held: decoded_held, removed: decoded_removed, skipped: decoded_skipped })
+    }
+}
+
+impl CheckpointPath {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_path = &self.path;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_path.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_path = &self.path;
+        writer.put(&u32::try_from(field_path.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_path.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CheckpointPathTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_path = match skein_codec::read_text(reader, limits.checkpoint_path_path.min(CEILINGS.checkpoint_path_path)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::CheckpointPathPath, reason }), };
+        Ok(Self { path: decoded_path })
+    }
+}
+
+impl CheckpointFailed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_path = &self.path;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_path.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_error = &self.error;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_error.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_path = &self.path;
+        writer.put(&u32::try_from(field_path.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_path.as_ref())?;
+        let field_error = &self.error;
+        writer.put(&u32::try_from(field_error.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_error.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CheckpointFailedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_path = match skein_codec::read_text(reader, limits.checkpoint_failed_path.min(CEILINGS.checkpoint_failed_path)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::CheckpointFailedPath, reason }), };
+        let decoded_error = match skein_codec::read_text(reader, limits.checkpoint_failed_error.min(CEILINGS.checkpoint_failed_error)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::CheckpointFailedError, reason }), };
+        Ok(Self { path: decoded_path, error: decoded_error })
+    }
+}
+
+impl CheckpointWhy {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Unrecognized(record) | Self::Vanished(record) => 1_u32.checked_add(CheckpointPath::measure(record)).expect("schema ceilings fit u32"),
+            Self::Failed(record) => 1_u32.checked_add(CheckpointFailed::measure(record)).expect("schema ceilings fit u32"),
+            Self::NotOwner | Self::InProgress | Self::Unavailable | Self::Files => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::NotOwner => writer.put(&[0_u8])?,
+            Self::InProgress => writer.put(&[1_u8])?,
+            Self::Unavailable => writer.put(&[2_u8])?,
+            Self::Files => writer.put(&[3_u8])?,
+            Self::Unrecognized(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
+            Self::Vanished(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::Failed(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CheckpointWhyTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::CheckpointWhyTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::NotOwner,
+            1 => Self::InProgress,
+            2 => Self::Unavailable,
+            3 => Self::Files,
+            4 => Self::Unrecognized(CheckpointPath::decode_from(limits, reader)?),
+            5 => Self::Vanished(CheckpointPath::decode_from(limits, reader)?),
+            6 => Self::Failed(CheckpointFailed::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::CheckpointWhyTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl CheckpointRefused {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_why = &self.why;
+        size = size.checked_add(field_why.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_why = &self.why;
+        field_why.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CheckpointRefusedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_why = CheckpointWhy::decode_from(limits, reader)?;
+        Ok(Self { why: decoded_why })
+    }
+}
+
 impl Outcome {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -40934,6 +41504,8 @@ impl Outcome {
             Self::Tier(record) => 1_u32.checked_add(TierOutcome::measure(record)).expect("schema ceilings fit u32"),
             Self::Opened(record) => 1_u32.checked_add(Opened::measure(record)).expect("schema ceilings fit u32"),
             Self::OpenRefused(record) => 1_u32.checked_add(OpenRefused::measure(record)).expect("schema ceilings fit u32"),
+            Self::Checkpointed(record) => 1_u32.checked_add(Checkpointed::measure(record)).expect("schema ceilings fit u32"),
+            Self::CheckpointRefused(record) => 1_u32.checked_add(CheckpointRefused::measure(record)).expect("schema ceilings fit u32"),
             Self::Unknown | Self::SettingUp | Self::Running | Self::Connecting | Self::Removed | Self::Reset | Self::Dismissed | Self::MakeKept | Self::Looked | Self::Away | Self::Overturned | Self::Tried | Self::NotTheirs | Self::DeviceRemoved | Self::Handed | Self::Triaged => 1,
         }
     }
@@ -40981,6 +41553,8 @@ impl Outcome {
             Self::Tier(record) => { writer.put(&[37_u8])?; record.encode(writer)?; }
             Self::Opened(record) => { writer.put(&[38_u8])?; record.encode(writer)?; }
             Self::OpenRefused(record) => { writer.put(&[39_u8])?; record.encode(writer)?; }
+            Self::Checkpointed(record) => { writer.put(&[40_u8])?; record.encode(writer)?; }
+            Self::CheckpointRefused(record) => { writer.put(&[41_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -41035,6 +41609,8 @@ impl Outcome {
             37 => Self::Tier(TierOutcome::decode_from(limits, reader)?),
             38 => Self::Opened(Opened::decode_from(limits, reader)?),
             39 => Self::OpenRefused(OpenRefused::decode_from(limits, reader)?),
+            40 => Self::Checkpointed(Checkpointed::decode_from(limits, reader)?),
+            41 => Self::CheckpointRefused(CheckpointRefused::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::OutcomeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -54821,6 +55397,158 @@ impl MakeRefused {
     }
 }
 
+impl Checkpointed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.checkpointed_name))?)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.checkpointed_name))?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl CheckpointPath {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.checkpoint_path_path))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.checkpoint_path_path))?;
+        heap.checked_add(0)
+    }
+}
+
+impl CheckpointFailed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.checkpoint_failed_path))?)?.checked_add(4_u64.checked_add(u64::from(limits.checkpoint_failed_error))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.checkpoint_failed_path))?.checked_add(u64::from(limits.checkpoint_failed_error))?;
+        heap.checked_add(0)
+    }
+}
+
+impl CheckpointWhy {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(CheckpointPath::encoded_bound_within(limits)?).max(CheckpointPath::encoded_bound_within(limits)?);
+        biggest = biggest.max(CheckpointFailed::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(CheckpointPath::decoded_bound_within(limits)?).max(CheckpointPath::decoded_bound_within(limits)?);
+        biggest = biggest.max(CheckpointFailed::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+impl CheckpointRefused {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(CheckpointWhy::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(CheckpointWhy::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Outcome {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -54843,6 +55571,7 @@ impl Outcome {
         biggest = biggest.max(DeviceRefused::encoded_bound_within(limits)?).max(Filed::encoded_bound_within(limits)?);
         biggest = biggest.max(FindingRefused::encoded_bound_within(limits)?).max(TierOutcome::encoded_bound_within(limits)?);
         biggest = biggest.max(Opened::encoded_bound_within(limits)?).max(OpenRefused::encoded_bound_within(limits)?);
+        biggest = biggest.max(Checkpointed::encoded_bound_within(limits)?).max(CheckpointRefused::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -54867,6 +55596,7 @@ impl Outcome {
         biggest = biggest.max(DeviceRefused::decoded_bound_within(limits)?).max(Filed::decoded_bound_within(limits)?);
         biggest = biggest.max(FindingRefused::decoded_bound_within(limits)?).max(TierOutcome::decoded_bound_within(limits)?);
         biggest = biggest.max(Opened::decoded_bound_within(limits)?).max(OpenRefused::decoded_bound_within(limits)?);
+        biggest = biggest.max(Checkpointed::decoded_bound_within(limits)?).max(CheckpointRefused::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -56653,6 +57383,7 @@ pub fn encoded_bound(limits: &Limits) -> Option<u64> {
     biggest = encoded_bound_2(limits, biggest)?;
     biggest = encoded_bound_3(limits, biggest)?;
     biggest = encoded_bound_4(limits, biggest)?;
+    biggest = encoded_bound_5(limits, biggest)?;
     Some(biggest)
 }
 
@@ -57058,6 +57789,11 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RemoveRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(MakeRefusal::encoded_bound_within(limits)?);
     biggest = biggest.max(MakeRefused::encoded_bound_within(limits)?);
+    biggest = biggest.max(Checkpointed::encoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointPath::encoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointFailed::encoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointWhy::encoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointRefused::encoded_bound_within(limits)?);
     biggest = biggest.max(Outcome::encoded_bound_within(limits)?);
     biggest = biggest.max(Answer::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingExact::encoded_bound_within(limits)?);
@@ -57118,6 +57854,10 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::encoded_bound_within(limits)?);
     biggest = biggest.max(Welcome::encoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AreaRow::encoded_bound_within(limits)?);
     biggest = biggest.max(Findings::encoded_bound_within(limits)?);
     Some(biggest)
@@ -57133,6 +57873,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     biggest = decoded_bound_2(limits, biggest)?;
     biggest = decoded_bound_3(limits, biggest)?;
     biggest = decoded_bound_4(limits, biggest)?;
+    biggest = decoded_bound_5(limits, biggest)?;
     Some(biggest)
 }
 
@@ -57538,6 +58279,11 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RemoveRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(MakeRefusal::decoded_bound_within(limits)?);
     biggest = biggest.max(MakeRefused::decoded_bound_within(limits)?);
+    biggest = biggest.max(Checkpointed::decoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointPath::decoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointFailed::decoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointWhy::decoded_bound_within(limits)?);
+    biggest = biggest.max(CheckpointRefused::decoded_bound_within(limits)?);
     biggest = biggest.max(Outcome::decoded_bound_within(limits)?);
     biggest = biggest.max(Answer::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingExact::decoded_bound_within(limits)?);
@@ -57598,6 +58344,10 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::decoded_bound_within(limits)?);
     biggest = biggest.max(Welcome::decoded_bound_within(limits)?);
+    Some(biggest)
+}
+
+fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(AreaRow::decoded_bound_within(limits)?);
     biggest = biggest.max(Findings::decoded_bound_within(limits)?);
     Some(biggest)

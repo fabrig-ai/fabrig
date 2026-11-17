@@ -606,6 +606,14 @@ pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
+    Checkpointed {
+        token: Token,
+        checkpoint: Checkpointed,
+    },
+    CheckpointRefused {
+        token: Token,
+        why: CheckpointWhy,
+    },
     /// The named map census (jig's protocol/store/README.md, 6.3).
     Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
@@ -765,6 +773,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    Checkpoint,
     OpenChange(forge::OpenChange),
     Tier(forge::TierActRequest),
     Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
@@ -783,6 +792,7 @@ pub enum Application {
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Checkpoint(Result<Checkpointed, CheckpointWhy>),
     Tier(Result<(), forge::TierRefusal>),
     Follow(Option<Box<[u8]>>),
     Make(forge::MakeAnswer),
@@ -1136,6 +1146,9 @@ pub enum Request {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StoreRequest {
+    Checkpoint {
+        token: Token,
+    },
     /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
     Catalogue {
         names: Box<[core::settings::ModelName]>,
@@ -1452,4 +1465,31 @@ pub struct JobDiagnostic {
 pub enum JobDiagnosticEnding {
     Failed { failure: jig_domain_host::JobFailure, detail: Box<[u8]> },
     Refused(jig_domain_host::JobRefusal),
+}
+
+/// The store's cut and figures (temper/docs/design/protocol/checkpoints.md, 3).
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub struct Checkpointed {
+    pub name: Box<[u8]>,
+    pub store: u64,
+    pub secrets: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub paused: u64,
+    pub took: u64,
+    pub held: u64,
+    pub removed: u32,
+    pub skipped: u32,
+}
+/// Refusals a serving engine meets, plus deployment ownership (protocol/checkpoints.md, 3).
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub enum CheckpointWhy {
+    NotOwner,
+    InProgress,
+    Unavailable,
+    Files,
+    Unrecognized { path: Box<str> },
+    Vanished { path: Box<str> },
+    Failed { path: Box<str>, error: Box<str> },
 }

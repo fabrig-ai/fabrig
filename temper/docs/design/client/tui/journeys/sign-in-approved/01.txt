@@ -1,6 +1,7 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 │ Sign in this terminal to 127.0.0.1:43675                                     │
 │ A tab opened in your browser. Check it shows                                 │
 │ VQVX-TDSX, then press Approve.                                               │
@@ -26,6 +27,15 @@
 │ Paste the link temper printed, then Enter.                                   │
 │ ❯ Link: http://127.0.0.1:45531/jig/v1/sign-in/link?secret=… (enter sends)    │
 >>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+=======
+│ Sign in this terminal to 127.0.0.1:38761                                     │
+│ A tab opened in your browser. Check it shows                                 │
+│ BCWZ-KGDK, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:38761/terminal?code=BCWZ-KGDK                  │
+│ The code expires in 9 min.                                                   │
+│ Paste the link temper printed, then Enter.                                   │
+│ ❯ Link: http://127.0.0.1:38761/jig/v1/sign-in/link?secret=… (enter sends)    │
+>>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

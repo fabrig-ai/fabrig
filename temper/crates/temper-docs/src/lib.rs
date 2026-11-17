@@ -557,7 +557,7 @@ pub static PAGES: [Page; 76] = [
         name: "ctl-deployment",
         kind: Kind::Reference,
         title: "temper ctl deployment",
-        summary: "Read the store's census in the deployment's document.",
+        summary: "Read the deployment's store census or take a checkpoint.",
         text: include_str!("../../../docs/help/reference/ctl-deployment.md"),
     },
     Page {

@@ -156,6 +156,7 @@ pub fn memory_store(engine: &mut crate::Engine) {
         },
     );
     engine.store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,

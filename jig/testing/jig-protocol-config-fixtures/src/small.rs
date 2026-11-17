@@ -470,6 +470,7 @@ pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits 
     files: 8,
     reads: 12,
     fetch: 16_777_216,
+    checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
     orphan_erases: 1,
     held: CLIENTS.exchanges.checked_mul(2).expect("clients carried capacity"),
 };

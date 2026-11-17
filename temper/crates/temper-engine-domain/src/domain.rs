@@ -113,6 +113,7 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
+    pub(crate) checkpoints: crate::route::checkpoints::State,
     pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
@@ -600,6 +601,7 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
+            checkpoints: crate::route::checkpoints::State::new(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
@@ -1031,7 +1033,8 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Bound { .. }
             | Request::Forge { .. }
             | Request::Store(
-                crate::StoreRequest::Catalogue { .. }
+                crate::StoreRequest::Checkpoint { .. }
+                | crate::StoreRequest::Catalogue { .. }
                 | crate::StoreRequest::Switch
                 | crate::StoreRequest::Load { .. }
                 | crate::StoreRequest::Read { .. },

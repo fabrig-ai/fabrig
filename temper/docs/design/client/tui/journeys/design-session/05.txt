@@ -18,6 +18,7 @@ Recommendation: at the end of README.md so it closes the page.
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 ────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:33801 ──
 =======
 ────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:39951 ──
@@ -25,6 +26,9 @@ Recommendation: at the end of README.md so it closes the page.
 =======
 ────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:35215 ──
 >>>>>>> f29ee15eb4ff4fc3e8054b45ce86679e1e771fb2
+=======
+────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:34785 ──
+>>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
 ❯
 ────────────────────────────────────────────────────────────────────────────────
 ❯ 1. At the end of README.md   it closes the page

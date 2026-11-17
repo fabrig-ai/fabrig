@@ -230,6 +230,10 @@ impl Driver {
                     self.transactions.push(writes.to_vec());
                     self.store.pending.push_back((number, writes));
                 }
+                engine::Request::Store(engine::StoreRequest::Checkpoint { token }) => {
+                    let terminal = self.store.checkpoint(token);
+                    self.events.push_back(engine::Event::Store(terminal));
+                }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
                     let terminal = self.store.page_terminal(&range, after.as_ref(), most);

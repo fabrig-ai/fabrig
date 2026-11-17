@@ -7,6 +7,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
+mod checkpoints;
 mod findings;
 mod history;
 mod landing_views;
@@ -64,6 +65,17 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::Checkpoint => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Checkpoint,
+                    }));
+                }
                 w::Request::OpenChange(value) => {
                     let value = value.into_parts();
                     let repository = match value.repository {
@@ -292,6 +304,7 @@ pub fn to_root(
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
+                        | w::Request::Checkpoint
                         | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
@@ -1058,6 +1071,7 @@ pub fn answer(
     jig: &jig_client_protocol_wire::v28::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
+        Some(root::ApplicationAnswer::Checkpoint(value)) => checkpoints::answer(value, limits)?,
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
             let mut rows = List::with_capacity(limits.page_rows);
             for row in page.rows {

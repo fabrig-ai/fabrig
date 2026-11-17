@@ -49,8 +49,12 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
     Group { name: b"push", line: b"Push devices: list, add or remove your subscriptions" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
+<<<<<<< HEAD
     Group { name: b"deployment", line: b"Read the store's census in the deployment's document" },
     Group { name: b"worker", line: b"Workers: list, add, change places or remove" },
+=======
+    Group { name: b"deployment", line: b"Read the deployment's store census or take a checkpoint" },
+>>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
 ];
 pub const TOOLS: &[&Tool] = &[
     &rows::ME,
@@ -159,10 +163,14 @@ pub const TOOLS: &[&Tool] = &[
     &rows::MILESTONE_LIST,
     &rows::MILESTONE_SHOW,
     &crate::change::open::ROW,
+<<<<<<< HEAD
     &rows::WORKER_LIST,
     &rows::WORKER_ADD,
     &rows::WORKER_PLACES,
     &rows::WORKER_REMOVE,
+=======
+    &crate::checkpoint::ROW,
+>>>>>>> 3c12266398dd9581c550ab90e10e32ffe6ba5a48
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;

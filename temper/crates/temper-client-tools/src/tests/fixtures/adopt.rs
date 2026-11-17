@@ -99,6 +99,7 @@ impl Harness {
             | w::Request::OpenChange(_)
             | w::Request::TierAct(_)
             | w::Request::FollowAct(_)
+            | w::Request::Checkpoint
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::EndPlayground

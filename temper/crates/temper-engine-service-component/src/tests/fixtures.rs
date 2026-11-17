@@ -496,6 +496,7 @@ pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate:
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -522,7 +523,7 @@ pub(super) fn memory_store_for(
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
     let limits = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
-    let mut store = crate::store::Store::new(root, &limits, models, seeds().installation);
+    let mut store = crate::store::Store::new(root, &limits, models, &seeds());
     store.host.component = jig_protocol_store::Store::over(
         &limits,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
@@ -534,6 +535,7 @@ pub(super) fn memory_store_for(
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1377,6 +1379,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
     );
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,
@@ -1797,6 +1800,7 @@ fn exchange_secrets(store: &mut crate::store::Store, secrets: &mut skein_kv::Sto
 fn open_seeded(store: &mut crate::store::Store) {
     assert!(store.host.component.wires(&crate::store::WIRES));
     store.host.ask(jig_protocol_store::Request::Open {
+        purpose: jig_protocol_store::Purpose::Serve,
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },
         installation: seeds().installation,

@@ -445,7 +445,7 @@ impl OneShot {
                     .is_some_and(|shell| !shell.work_pending(self.env.now))
                 && let Some(Parsed::Call { call, json }) = self.call.take()
             {
-                self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
+                self.until = Some(self.env.now.saturating_add(temper_client_tools::limits::call_deadline(&call)));
                 let named = call.key.is_some();
                 self.act =
                     if self.value.is_some() || self.exporting { Act::Once { named } } else { Act::Kept { named } };

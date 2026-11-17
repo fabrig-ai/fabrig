@@ -813,6 +813,10 @@ impl World {
             | engine::Request::Store(engine::StoreRequest::Catalogue { .. })
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
+            engine::Request::Store(engine::StoreRequest::Checkpoint { token }) => {
+                let answer = self.store.checkpoint(token);
+                self.root_events.push_back(engine::Event::Store(answer));
+            }
             engine::Request::Store(engine::StoreRequest::Switch) => {
                 let answer = self.store.switch();
                 self.root_events.push_back(engine::Event::Store(answer));

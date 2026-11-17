@@ -521,9 +521,10 @@ fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }
 #[test]
-fn the_playground_reference_is_what_the_table_renders() {
+fn the_playground_push_and_deployment_references_are_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
     reference_matches(b"push", b"ctl-push");
+    reference_matches(b"deployment", b"ctl-deployment");
 }
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;

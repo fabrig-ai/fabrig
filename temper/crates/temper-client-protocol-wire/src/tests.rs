@@ -1,4 +1,5 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
+mod checkpoints;
 mod drafts;
 mod findings;
 mod fixtures;

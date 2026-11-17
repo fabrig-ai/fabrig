@@ -480,6 +480,8 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Removed
             | w::Outcome::RemoveRefused(_)
             | w::Outcome::Reset
+            | w::Outcome::Checkpointed(_)
+            | w::Outcome::CheckpointRefused(_)
             | w::Outcome::EndRefused(_),
         ) => return render::failure(b"repository answer decoding failed", json, 1),
         None => {
