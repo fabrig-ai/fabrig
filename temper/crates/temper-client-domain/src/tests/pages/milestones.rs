@@ -776,7 +776,7 @@ fn milestone_facts_take_each_pages_list_and_keep_it_until_their_own_delivery() {
         // An old ended milestone counts even when it is outside the drawn week.
         let mut ended = done(M);
         ended.ended_at = Some(Wall::EPOCH);
-        h.answer(read, page(&[ended], false));
+        h.answer(read, page_at(&[ended], false, 1));
         assert!(h.root.has_goals(PROJECT), "the list's ended page supplies the fact");
         h.down();
         h.went(Address::Settings { project: PROJECT });

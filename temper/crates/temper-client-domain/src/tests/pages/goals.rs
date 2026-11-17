@@ -867,7 +867,10 @@ fn pages_with_goals_ask_the_list_before_the_fact() {
                 read = Some(token);
             }
         }
-        h.answer(read.expect("list's refreshed ended read"), &[line(GOAL, Wall::EPOCH)]);
+        h.up(Up::ReadDone {
+            read: read.expect("list's refreshed ended read"),
+            result: Readout::Jig(c::ReadResult::Value(page_at(&[line(GOAL, Wall::EPOCH)], false, 1))),
+        });
         assert!(h.root.has_goals(fixtures::PROJECT), "the list's ended row supplies the fact");
     }
 }
