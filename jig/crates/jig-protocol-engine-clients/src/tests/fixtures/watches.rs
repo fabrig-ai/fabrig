@@ -110,6 +110,7 @@ pub fn subject_cases() -> [(&'static str, w::Subject, core::documents::Watched, 
             ),
             d::Watched::Query {
                 query: d::TaskQuery {
+                    parts: skein_lib::List::with_capacity(0),
                     project: Some(3),
                     requester: None,
                     root: Some(7),

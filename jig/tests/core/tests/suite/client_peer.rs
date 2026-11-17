@@ -136,8 +136,11 @@ fn a_watched_task_query_is_delivered_again_when_its_task_ends() {
     chat(&mut world, sign_in);
     let task = world.assignments.first().expect("chat assignment").0;
     let requester = jig_core_world::fixtures::live_row(&world, task).requester;
-    let query =
-        documents::TaskQuery { project: Some(1), requester: Some(requester), ..jig_test_profile::fixtures::OWN_TASKS };
+    let query = documents::TaskQuery {
+        project: Some(1),
+        requester: Some(requester),
+        ..jig_test_profile::fixtures::own_tasks()
+    };
     world.client_peer.as_mut().expect("configured fixture").delivered.clear();
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(QUERY_WATCHER),
@@ -193,7 +196,7 @@ fn a_committed_turn_of_a_conversation_marks_the_query_listing_it() {
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(TURN_QUERY_WATCHER),
         sign_in: world.sign_in.expect("signed in"),
-        subject: documents::Watched::Query { query: jig_test_profile::fixtures::OWN_TASKS },
+        subject: documents::Watched::Query { query: jig_test_profile::fixtures::own_tasks() },
         window: documents::Window { rows: 1, after: None },
     }));
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(TURN_QUERY_WATCHER) }));

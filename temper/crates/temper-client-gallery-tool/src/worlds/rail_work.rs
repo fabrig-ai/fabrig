@@ -51,7 +51,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         while rows.len() > window {
                             let _row = rows.swap_remove(rows.len() - 1).expect("last window row");
                         }
-                        Some(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })))
+                        Some(c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })))
                     }
                     c::Subject::Inbox { .. } => Some(c::Delivery::Inbox(Box::new(inbox(name)))),
                     c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
@@ -106,6 +106,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         Some(c::ReadValue::Question(Box::new(across_question(task))))
                     }
                     c::Read::Tasks { query, .. } => Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: rows(work, &query, true), after: None, cut: false },

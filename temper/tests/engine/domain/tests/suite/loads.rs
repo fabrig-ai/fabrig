@@ -410,6 +410,7 @@ fn an_ended_conversation_query_joins_its_owner_and_read_position_after_restart()
         party: PARTY,
         scope: reads::Scope::Tasks {
             query: core::documents::TaskQuery {
+                parts: skein_lib::List::with_capacity(0),
                 project: None,
                 requester: Some(tasks::Party::Person(PARTY)),
                 root: None,

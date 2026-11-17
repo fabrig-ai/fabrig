@@ -460,7 +460,7 @@ fn a_chats_ended_goal_is_listed_by_project() {
             requester: None,
             phase: Some(documents::PhaseClass::Ended),
             label,
-            ..jig_test_profile::fixtures::OWN_TASKS
+            ..jig_test_profile::fixtures::own_tasks()
         };
         let answer = super::paths::read(&mut world, reads::Read::Tasks { query, live: None, ended: None });
         let Some(reads::Answer::Tasks(page)) = answer else { panic!("ended project tasks: {answer:?}") };

@@ -365,6 +365,7 @@ mod tests {
     }
     fn ended_page(cut: bool, after: bool) -> c::TaskPage {
         c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows {

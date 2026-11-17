@@ -4,7 +4,7 @@ use crate::Limits;
 use jig_client_domain::contract as c;
 use skein_lib::Wall;
 
-pub(super) fn query(value: c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
+pub(super) fn query(value: &c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
     let requester = match value.requester {
         None => None,
         Some(c::Requester::Task(value)) => {
@@ -101,6 +101,7 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
 }
 pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
+        parts: skein_lib::List::with_capacity(0),
         chip: documents::chip_fields(value.chip(), limits)?,
         project: value.project(),
         requester: facts::requester(value.requester()),

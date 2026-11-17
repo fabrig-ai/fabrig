@@ -73,7 +73,7 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
                     }
                     reads::Read::EndedDelegates { task, .. } => reads::Scope::EndedDelegates { task: *task },
                     reads::Read::Inbox { group, filter, .. } => reads::Scope::Inbox { group: *group, filter: *filter },
-                    reads::Read::Tasks { query, .. } => reads::Scope::Tasks { query: *query },
+                    reads::Read::Tasks { query, .. } => reads::Scope::Tasks { query: query.clone() },
                     reads::Read::Spend { project, .. } => reads::Scope::Spend { project: *project },
                     reads::Read::Notes { project, .. } => reads::Scope::Notes { project: *project },
                     reads::Read::ScopedNotes { scope, description, .. } => {

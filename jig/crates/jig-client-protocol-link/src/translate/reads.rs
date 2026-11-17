@@ -18,7 +18,7 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
         c::Read::Tasks { query, live, ended } => w::Read::Tasks(w::ReadTasks::new(
             limits,
             w::ReadTasksParts {
-                query: super::queries::query(*query, limits)?,
+                query: super::queries::query(query, limits)?,
                 live: cursor(live.as_ref(), limits)?,
                 ended: cursor(ended.as_ref(), limits)?,
             },

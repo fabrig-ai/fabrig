@@ -412,6 +412,7 @@ impl Transport {
 /// Carry Jig contract operations through the existing real-core routes.
 /// # Errors
 /// Returns storage work and unsupported family carriers intact to their owner.
+#[expect(clippy::result_large_err, reason = "unsupported client work is returned intact; task queries own their parts")]
 pub fn contract_request(down: jig_client::Down) -> Result<jig_client_test_domain::Request, jig_client::Down> {
     Ok(jig_client_test_domain::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } })
 }

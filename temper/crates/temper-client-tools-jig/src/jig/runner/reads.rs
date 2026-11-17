@@ -191,6 +191,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 return;
             };
             let query = c::TaskQuery {
+                parts: skein_lib::List::with_capacity(0),
                 project: Some(project),
                 requester: None,
                 root: None,
@@ -702,6 +703,7 @@ pub fn task_query(call: &Call, me: &c::Me) -> Option<c::TaskQuery> {
     let project = project(call, me)?;
     let ended = value(call, 4).is_some();
     Some(c::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(project),
         requester: if value(call, 3).is_some() { Some(c::Requester::Person(me.party.number)) } else { None },
         root: None,

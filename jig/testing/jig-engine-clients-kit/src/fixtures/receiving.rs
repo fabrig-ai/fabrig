@@ -71,6 +71,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         requirements: Box::new([]),
     };
     core::Config {
+        parts: Box::new([]),
         jobs: Box::new([]),
         kept_starts: Box::new([]),
         worker_names: Box::new([]),

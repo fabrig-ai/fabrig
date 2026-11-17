@@ -99,6 +99,7 @@ impl Chats {
         let (Some(me), Some(project)) = (me, project) else { return };
         let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT) else { return };
         let query = TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(project),
             requester: Some(c::Requester::Person(me.party.number)),
             root: None,
@@ -109,7 +110,7 @@ impl Chats {
             tracked: None,
             order: c::QueryOrder::Activity,
         };
-        if self.query == Some(query) {
+        if self.query == Some(query.clone()) {
             return;
         }
         if self.query.is_some() {
@@ -125,7 +126,7 @@ impl Chats {
         self.page_answered = false;
         self.documents_known = false;
         self.first = true;
-        self.query = Some(query);
+        self.query = Some(query.clone());
         out.push(Request::Client(jig_client::Event::Watch {
             handle: self.live,
             subject: Watchable::Jig(c::Subject::Tasks { query, window: limits.client.domain.rows }),
@@ -311,11 +312,15 @@ impl Chats {
         None
     }
     fn read(&self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.closed,
                 read: Readable::Jig(Read::Tasks {
-                    query: TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended,
                 }),
@@ -552,11 +557,11 @@ impl Chats {
         self.documents_known
     }
     pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
-        let Some(query) = self.query else { return false };
+        let Some(query) = &self.query else { return false };
         query.project == Some(project) && self.page_delivered && super::home::delivered(client, self.live)
     }
     pub(super) fn chat_counts(&self, client: &Client, me: Option<&Me>, project: u32) -> bool {
-        let Some(query) = self.query else { return false };
+        let Some(query) = &self.query else { return false };
         if query.project != Some(project) {
             return false;
         }
@@ -582,7 +587,7 @@ impl Chats {
     /// (temper/docs/design/client/pages/README.md, Settings).
     #[must_use]
     pub fn open_asking(&self, client: &Client, me: Option<&Me>, project: u32) -> Option<u64> {
-        let query = self.query?;
+        let query = self.query.as_ref()?;
         if query.project != Some(project) {
             return None;
         }

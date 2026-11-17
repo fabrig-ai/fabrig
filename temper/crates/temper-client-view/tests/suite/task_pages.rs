@@ -228,6 +228,7 @@ mod tests {
     }
     fn empty_page() -> c::TaskPage {
         c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -256,6 +257,7 @@ mod tests {
         details.executor = c::Executor::Agent { charter: 1 };
         details.procedure = None;
         c::TaskLine {
+            parts: List::with_capacity(0),
             chip: task.chip,
             project: 1,
             requester: c::Requester::Task(parent),

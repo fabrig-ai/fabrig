@@ -19,6 +19,7 @@ const WEEK: u64 = 604_800_000_000_000;
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
     Some(c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, facts::TEMPLATE)?.label),
         tracked: Some(true),
@@ -121,6 +122,7 @@ impl Milestone {
     }
     fn query(&self) -> c::TaskQuery {
         c::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(self.project),
             parent: Some(self.task),
             order: c::QueryOrder::Number,
@@ -356,7 +358,7 @@ impl Milestones {
         };
         if self.query != query {
             self.leave(out);
-            self.query = query;
+            self.query.clone_from(&query);
             self.answered = false;
             self.lines.clear();
             self.ended_rows.clear();
@@ -429,11 +431,15 @@ impl Milestones {
         self.drawn = drawn;
     }
     fn read_ended(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended: None,
                 }),

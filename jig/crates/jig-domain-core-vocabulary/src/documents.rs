@@ -17,6 +17,7 @@ pub mod inbox_selection;
 pub mod live_delegates;
 pub mod objects;
 pub mod offers;
+pub mod parts;
 pub mod programs;
 pub mod project_note;
 pub mod settings;
@@ -44,6 +45,7 @@ pub use objects::{
     PersonTask, Proposal, ProposalAction, ProposalHistory, ProposalHistoryState, ProposalWaiting, ProposedTask,
     Question, ResultDoc, RetainedAction, ShownResult, SpecLine, ended_delegate_from_row,
 };
+pub use parts::{MadePart, PartAsk, PartFailure, PartInputs, PartsAsk, RowPart};
 pub use programs::{ProgramHost, ProgramLogin};
 pub use project_note::{
     Ledger, Member, Note, NoteLocation, Policy, PolicyRole, Project, ProjectResource, Recurring, Requirement,

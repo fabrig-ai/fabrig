@@ -139,6 +139,7 @@ pub(crate) fn cursor() -> c::Cursor {
 pub(crate) fn task_line() -> c::TaskLine {
     let task = goal(TASK, waiting_on_me());
     c::TaskLine {
+        parts: List::with_capacity(0),
         chip: {
             let mut chip = task.chip;
             chip.title = document_text(b"goal");
@@ -176,6 +177,7 @@ pub(crate) fn task_page_with_cursor() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
     rows.push(task_line()).expect("one task row");
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: rows,
         live_after: Some(cursor()),
         ended: c::EndedGroup::None,
@@ -409,6 +411,7 @@ pub(crate) fn ended_page() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
     rows.push(task_line()).expect("ended task");
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(EMPTY),
         live_after: None,
         ended: c::EndedGroup::Rows { rows, after: Some(cursor()), cut: false },

@@ -31,17 +31,21 @@ pub fn bounds() -> Bounds {
 pub const QUERY_REQUESTER: u64 = 1;
 
 /// A requesting party's task query, shared by the independent watch stories.
-pub const OWN_TASKS: jig_domain_core::documents::TaskQuery = jig_domain_core::documents::TaskQuery {
-    project: None,
-    requester: Some(jig_domain_tasks::Party::Person(QUERY_REQUESTER)),
-    root: None,
-    parent: None,
-    label: None,
-    phase: None,
-    executor: None,
-    tracked: None,
-    order: jig_domain_core::documents::QueryOrder::Number,
-};
+#[must_use]
+pub fn own_tasks() -> jig_domain_core::documents::TaskQuery {
+    jig_domain_core::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
+        project: None,
+        requester: Some(jig_domain_tasks::Party::Person(QUERY_REQUESTER)),
+        root: None,
+        parent: None,
+        label: None,
+        phase: None,
+        executor: None,
+        tracked: None,
+        order: jig_domain_core::documents::QueryOrder::Number,
+    }
+}
 #[must_use]
 pub fn templates() -> Box<[jig_domain_core::Template]> {
     use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};

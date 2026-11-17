@@ -170,6 +170,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         event @ (Event::Settling
         | Event::Fill { .. }
         | Event::Census(..)
+        | Event::Parts { .. }
+        | Event::PartsMarked { .. }
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }

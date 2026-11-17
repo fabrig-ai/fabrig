@@ -127,6 +127,16 @@ fn route_ask(
     work: &mut Queue<Work>,
 ) {
     match ask {
+        core::Ask::Parts(ask) => {
+            let mut parts = List::uncapped();
+            for _row in &ask.rows {
+                for _kind in &ask.kinds {
+                    parts.push(core::MadePart::Failed(core::PartFailure::Unreadable)).expect("parts fit the ask");
+                }
+            }
+            work.push(Work::Core(core::Event::Parts { connector: number, token: ask.token, parts }));
+        }
+
         core::Ask::ReleaseProject { project } => {
             if let Some(releases) = &mut domain.scripted_project_releases {
                 releases.push((number, project));

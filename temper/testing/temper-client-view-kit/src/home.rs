@@ -227,7 +227,9 @@ pub fn home_documents_with_status(
                 up: jig_client::Up::Watched {
                     watch: live.expect("Home chats"),
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
-                        chats.as_ref().map_or(c::Tasks { rows, more: false }, |chats| chats.live.clone()),
+                        chats
+                            .as_ref()
+                            .map_or(c::Tasks { ended_mark: 0, rows, more: false }, |chats| chats.live.clone()),
                     ))),
                 },
             },
@@ -486,6 +488,7 @@ pub fn settle_home(
                             up: jig_client::Up::Watched {
                                 watch,
                                 event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                                    ended_mark: 0,
                                     rows,
                                     more: false,
                                 }))),
@@ -616,6 +619,7 @@ pub fn settle_home(
                 read,
                 c::ReadValue::Tasks(Box::new(chats.map_or(
                     c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -632,11 +636,10 @@ pub fn settle_home(
                         event: jig_client::Event::Up {
                             up: jig_client::Up::Watched {
                                 watch,
-                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
-                                    chats.map_or(c::Tasks { rows: List::with_capacity(0), more: false }, |chats| {
-                                        chats.live.clone()
-                                    }),
-                                ))),
+                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(chats.map_or(
+                                    c::Tasks { ended_mark: 0, rows: List::with_capacity(0), more: false },
+                                    |chats| chats.live.clone(),
+                                )))),
                             },
                         },
                     },

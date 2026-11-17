@@ -51,6 +51,7 @@ fn chip() -> d::Chip {
 }
 fn row() -> d::TaskLine {
     d::TaskLine {
+        parts: List::with_capacity(0),
         chip: chip(),
         project: 7,
         requester: tasks::Party::Person(9),
@@ -81,7 +82,7 @@ fn tasks_page(rows: &[d::TaskLine]) -> Answer {
     for row in rows {
         live.push(row.clone()).unwrap();
     }
-    Answer::Tasks(Box::new(TaskPage { live, live_next: None, ended: EndedGroup::None }))
+    Answer::Tasks(Box::new(TaskPage { ended_mark: 0, live, live_next: None, ended: EndedGroup::None }))
 }
 
 fn list_row(value: d::TaskLine, ended: bool, more: bool) -> Answer {
@@ -89,9 +90,14 @@ fn list_row(value: d::TaskLine, ended: bool, more: bool) -> Answer {
     rows.push(value).unwrap();
     let next = more.then_some(continuation());
     Answer::Tasks(Box::new(if ended {
-        TaskPage { live: List::uncapped(), live_next: None, ended: EndedGroup::Rows { rows, next, cut: false } }
+        TaskPage {
+            ended_mark: 0,
+            live: List::uncapped(),
+            live_next: None,
+            ended: EndedGroup::Rows { rows, next, cut: false },
+        }
     } else {
-        TaskPage { live: rows, live_next: next, ended: EndedGroup::None }
+        TaskPage { ended_mark: 0, live: rows, live_next: next, ended: EndedGroup::None }
     }))
 }
 fn continuation() -> jig_domain_core::reads::Cursor {

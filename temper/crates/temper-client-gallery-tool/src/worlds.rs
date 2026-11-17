@@ -1801,6 +1801,7 @@ fn finish_document(mut t: c::Task) -> c::Task {
 }
 fn task_line(t: c::Task) -> c::TaskLine {
     c::TaskLine {
+        parts: List::with_capacity(0),
         ended_at: if t.chip.phase == c::Phase::Ended || t.chip.phase == c::Phase::Done {
             Some(t.last_activity)
         } else {
@@ -2000,6 +2001,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                 }
             }
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: rows,
                 live_after: None,
                 ended: c::EndedGroup::None,
@@ -2054,12 +2056,14 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                 }
             }
             Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::Rows { rows, after: None, cut: false },
             })))
         }
         c::Read::Tasks { .. } => Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
@@ -2435,7 +2439,7 @@ pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks
             }
         }
     }
-    c::Tasks { rows, more }
+    c::Tasks { rows, more, ended_mark: 0 }
 }
 fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
     let mut rows = List::with_capacity(limits().client.domain.rows);
@@ -2451,6 +2455,7 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         }
     }
     c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -2887,12 +2892,13 @@ impl GoalPage {
                 let rows = List::from_boxed(Box::new([line]));
                 let page = if goal_ended(&self.facts) {
                     c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows { rows, after: None, cut: false },
                     }
                 } else {
-                    c::TaskPage { live: rows, live_after: None, ended: c::EndedGroup::None }
+                    c::TaskPage { ended_mark: 0, live: rows, live_after: None, ended: c::EndedGroup::None }
                 };
                 Some(c::ReadValue::Tasks(Box::new(page)))
             }
@@ -2905,6 +2911,7 @@ impl GoalPage {
                     }
                 }
                 Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::with_capacity(0),
                     live_after: None,
                     ended: c::EndedGroup::Rows { rows, after: None, cut: false },
@@ -4419,7 +4426,7 @@ fn task_window(w: World, window: u32) -> c::Tasks {
             rows.push(row.clone()).expect("window");
         }
     }
-    c::Tasks { more: all.len() > rows.len(), rows }
+    c::Tasks { more: all.len() > rows.len(), rows, ended_mark: 0 }
 }
 fn ended_rows(w: World) -> List<c::TaskLine> {
     let all = chat_rows(w, true);

@@ -564,18 +564,36 @@ fn starting_root(live: bool) -> Domain {
     assert!(root.pages().me(root.client()).is_none());
     root
 }
+// Construct one root per row rather than retaining the table's client states on the stack.
+enum StartingSignIn {
+    SignedOut,
+    Refused(jig_client_protocol_wire::SignInAnswer),
+    WaitingForFrame,
+    Dropped,
+    Live,
+}
+fn starting_case(sign_in: StartingSignIn) -> Domain {
+    match sign_in {
+        StartingSignIn::SignedOut => f::signed_out(),
+        StartingSignIn::Refused(answer) => f::refused(answer),
+        StartingSignIn::WaitingForFrame => starting_root(false),
+        StartingSignIn::Dropped => {
+            let (mut root, watch) = f::live(None);
+            f::client(&mut root, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
+            root
+        }
+        StartingSignIn::Live => starting_root(true),
+    }
+}
 #[test]
-#[expect(clippy::large_stack_arrays, reason = "the fact rows own a client root each")]
 #[expect(clippy::too_many_lines, reason = "one fact table checks the starting steps, tokens, failure and quiet line")]
 fn the_starting_steps_follow_the_facts() {
     use crate::BoxStage;
     use jig_client_protocol_wire::SignInAnswer;
-    let (mut offline, watch) = f::live(None);
-    f::client(&mut offline, jig_client::Event::Up { up: Up::WatchEnded { watch, end: c::WatchEnd::Dropped } });
     let rows = [
         (
             BoxStage::Fetching { done: 12_300_000, total: Some(24_100_000) },
-            f::signed_out(),
+            StartingSignIn::SignedOut,
             [
                 "Downloading temper-box, once for this build: 12.3 of 24.1 MB",
                 "temper starting",
@@ -586,7 +604,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::signed_out(),
+            StartingSignIn::SignedOut,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -597,7 +615,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::NotReady),
+            StartingSignIn::Refused(SignInAnswer::NotReady),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -608,7 +626,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::Busy),
+            StartingSignIn::Refused(SignInAnswer::Busy),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper starting…",
@@ -619,7 +637,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            f::refused(SignInAnswer::LinkUsed),
+            StartingSignIn::Refused(SignInAnswer::LinkUsed),
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -630,7 +648,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(false),
+            StartingSignIn::WaitingForFrame,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -641,7 +659,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            offline,
+            StartingSignIn::Dropped,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -652,7 +670,7 @@ fn the_starting_steps_follow_the_facts() {
         ),
         (
             BoxStage::Running,
-            starting_root(true),
+            StartingSignIn::Live,
             [
                 "The box started · its log in /srv/temper/box/logs/box.log",
                 "temper started",
@@ -662,7 +680,8 @@ fn the_starting_steps_follow_the_facts() {
             [look::STEP_DONE, look::STEP_DONE, look::STEP_DONE, look::STEP_NOW],
         ),
     ];
-    for (stage, root, labels, marks) in rows {
+    for (stage, sign_in, labels, marks) in rows {
+        let root = starting_case(sign_in);
         let mut tui = starting_tui();
         tui.step(Told::Stage { stage });
         tui.step(Told::BoxLine { line: BoxLine::Starting { name: b"Forgejo".as_slice().into() } });

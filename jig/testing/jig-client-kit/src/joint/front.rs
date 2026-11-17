@@ -72,6 +72,10 @@ impl Joint {
     /// Carry an unlinked client's contract operation to the real core.
     /// # Errors
     /// Returns work outside this transport's declared Jig owner intact.
+    #[expect(
+        clippy::result_large_err,
+        reason = "unsupported client work is returned intact; task queries own their parts"
+    )]
     pub fn down(
         &mut self,
         client: ClientId,

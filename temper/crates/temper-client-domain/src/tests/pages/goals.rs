@@ -42,6 +42,7 @@ fn rows(lines: &[c::TaskLine]) -> List<c::TaskLine> {
 }
 fn page(lines: &[c::TaskLine], more: bool) -> c::ReadValue {
     c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -149,7 +150,11 @@ impl Harness {
             event: jig_client::Event::Up {
                 up: Up::Watched {
                     watch: self.watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows(lines), more }))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: rows(lines),
+                        more,
+                        ended_mark: 0,
+                    }))),
                 },
             },
         });
@@ -221,6 +226,7 @@ fn goals_read_its_query_and_release_it() {
     let mut out = Queue::uncapped();
     goals.configure(Some(&me()), fixtures::PROJECT, root.client(), &limits, &mut out);
     let query = c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(fixtures::PROJECT),
         label: Some(LABEL),
         tracked: Some(true),
@@ -235,7 +241,7 @@ fn goals_read_its_query_and_release_it() {
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {
             handle: goals.live,
-            subject: Watchable::Jig(c::Subject::Tasks { query, window: limits.client.domain.rows })
+            subject: Watchable::Jig(c::Subject::Tasks { query: query.clone(), window: limits.client.domain.rows })
         }))
     );
     assert_eq!(
@@ -243,7 +249,7 @@ fn goals_read_its_query_and_release_it() {
         Some(Request::Client(jig_client::Event::Read {
             handle: goals.ended,
             read: Readable::Jig(c::Read::Tasks {
-                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() },
                 live: None,
                 ended: None
             })
@@ -275,7 +281,7 @@ fn goals_read_its_query_and_release_it() {
         Some(Request::Client(jig_client::Event::Watch {
             handle: goals.live,
             subject: Watchable::Jig(c::Subject::Tasks {
-                query: c::TaskQuery { label: Some(LABEL + 1), ..query },
+                query: c::TaskQuery { label: Some(LABEL + 1), ..query.clone() },
                 window: limits.client.domain.rows
             })
         }))
@@ -685,7 +691,11 @@ impl FactHarness {
     fn live(&mut self, watch: Token, lines: &[c::TaskLine]) {
         self.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: rows(lines), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: rows(lines),
+                more: false,
+            }))),
         });
     }
     fn answer(&mut self, read: Token, lines: &[c::TaskLine]) {
@@ -715,7 +725,7 @@ fn fact_requests(down: &[Down], project: u32) -> (Token, Token) {
             Down::Read { read: token, what: Readable::Jig(c::Read::Tasks { query: got, live, ended }) } => {
                 assert_eq!(
                     *got,
-                    c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query }
+                    c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() }
                 );
                 assert_eq!(*live, None);
                 assert_eq!(*ended, None);

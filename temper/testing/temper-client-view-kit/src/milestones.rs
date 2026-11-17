@@ -66,6 +66,7 @@ pub fn live(
                 up: Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(lines.into()),
                         more,
                     }))),

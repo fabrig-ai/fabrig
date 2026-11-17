@@ -14,6 +14,7 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         Some(w::Requester::Deployment(_)) => return None,
     };
     Some(d::TaskQuery {
+        parts: List::with_capacity(0),
         project: value.project,
         requester,
         root: value.root,

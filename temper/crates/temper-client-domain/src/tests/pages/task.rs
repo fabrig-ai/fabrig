@@ -1324,6 +1324,7 @@ fn ended_read(page: &Task) -> Request {
         handle: page.ended.as_ref().expect("procedure's ended children").handle,
         read: Readable::Jig(c::Read::Tasks {
             query: c::TaskQuery {
+                parts: List::with_capacity(0),
                 project: None,
                 requester: None,
                 root: None,
@@ -1341,6 +1342,7 @@ fn ended_read(page: &Task) -> Request {
 }
 fn ended_page(cut: bool) -> c::TaskPage {
     c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut },
@@ -1947,6 +1949,7 @@ fn milestone_told(pages: &mut Pages, client: &jig_client::Client, told: Told) ->
 }
 fn task_rows(rows: &[c::TaskLine]) -> jig_client::Readout {
     jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::from_boxed(rows.into()),
         live_after: None,
         ended: c::EndedGroup::Rows { rows: List::from_boxed(rows.into()), after: None, cut: false },

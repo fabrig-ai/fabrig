@@ -89,6 +89,7 @@ fn total_answer(totals: w::MilestoneTotals) -> Readout {
 }
 fn page(rows: &[c::TaskLine], more: bool) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {
@@ -139,6 +140,7 @@ impl Harness {
                 up: Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(rows.into()),
                         more: false,
                     }))),
@@ -307,6 +309,7 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
     assert!(out.is_empty(), "no template 8, no reads");
     reads.configure(Some(&me()), PROJECT, root.client(), &limits(), WALL, &mut next, &mut out);
     let query = c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(PROJECT),
         label: Some(LABEL),
         tracked: Some(true),
@@ -317,12 +320,12 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
         phase: None,
         executor: None,
     };
-    assert_eq!(milestones::query(&me(), PROJECT), Some(query));
+    assert_eq!(milestones::query(&me(), PROJECT), Some(query.clone()));
     assert_eq!(
         out.pop(),
         Some(Request::Client(jig_client::Event::Watch {
             handle: reads.live,
-            subject: Watchable::Jig(c::Subject::Tasks { query, window: WINDOW })
+            subject: Watchable::Jig(c::Subject::Tasks { query: query.clone(), window: WINDOW })
         }))
     );
     assert_eq!(
@@ -330,7 +333,7 @@ fn milestones_read_the_query_and_keep_it_across_the_four_pages() {
         Some(Request::Client(jig_client::Event::Read {
             handle: reads.ended,
             read: Readable::Jig(c::Read::Tasks {
-                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query.clone() },
                 live: None,
                 ended: None
             })

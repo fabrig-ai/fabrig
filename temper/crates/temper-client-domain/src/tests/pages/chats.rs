@@ -372,6 +372,7 @@ fn the_chats_watch_live_lines_by_last_activity() {
     let mut out = Queue::with_capacity(OUTPUTS);
     chats.configure(Some(&me), Some(fixtures::PROJECT), &limits, &mut out);
     let query = TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(fixtures::PROJECT),
         requester: Some(Requester::Person(fixtures::PARTY)),
         label: Some(7),
@@ -411,6 +412,7 @@ fn closed_chats_are_read_a_page_at_a_time() {
         Told::Page {
             handle,
             page: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows: List::with_capacity(0), after: Some(cursor.clone()), cut: false },
@@ -517,6 +519,7 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         (chats.live, chats.closed)
     };
     let closed = TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -630,6 +633,7 @@ fn live_updates_do_not_replace_an_older_closed_page() {
     chats.configure(Some(&fixtures::chats::me()), Some(fixtures::PROJECT), &limits, &mut out);
     while out.pop().is_some() {}
     chats.page = Some(TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows {
@@ -649,6 +653,7 @@ pub(super) fn chat_line() -> TaskLine {
     let ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
     let budget = details.budget.clone();
     TaskLine {
+        parts: List::with_capacity(0),
         chip: task.chip,
         project: fixtures::PROJECT,
         requester: Requester::Person(fixtures::PARTY),
@@ -738,6 +743,7 @@ fn open_chat_rows(
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one ending refreshes the live group and the independent closed page")]
 fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     use crate::{Action, pages::Act};
     let limits = fixtures::limits();
@@ -752,6 +758,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: first_read,
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
@@ -771,7 +778,11 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 event: Event::Up {
                     up: jig_client::Up::Watched {
                         watch,
-                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                            ended_mark: 0,
+                            rows,
+                            more: false,
+                        }))),
                     },
                 },
             },
@@ -810,6 +821,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
                 up: jig_client::Up::ReadDone {
                     read: refreshed.expect("ending re-reads first page"),
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows { rows, after: None, cut: false },
@@ -925,12 +937,13 @@ fn settings_selects_the_newest_open_asking_chat() {
             let up = if from_watch {
                 jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows, more: false }))),
                 }
             } else {
                 jig_client::Up::ReadDone {
                     read,
                     result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: rows,
                         live_after: None,
                         ended: EndedGroup::None,
@@ -1299,6 +1312,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
         Up::ReadDone {
             read,
             result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: EndedGroup::Rows { rows: closed, after: None, cut: false },
@@ -1306,7 +1320,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
         },
         Up::Watched {
             watch,
-            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))),
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { ended_mark: 0, rows: live, more: false }))),
         },
         Up::FamilyDelivered {
             watch: facts.expect("person facts watch"),
@@ -1436,6 +1450,7 @@ fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
                 up: jig_client::Up::Watched {
                     watch,
                     event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                        ended_mark: 0,
                         rows: List::with_capacity(0),
                         more: false,
                     }))),
@@ -1449,6 +1464,7 @@ fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
     crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), lost.clone(), &mut Queue::uncapped());
     assert!(!root.pages().chats().unwrap().known(root.client()));
     let kept = TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: EndedGroup::Rows { rows: List::from_boxed(Box::new([chat_line()])), after: None, cut: false },

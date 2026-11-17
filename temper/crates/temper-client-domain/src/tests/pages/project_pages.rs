@@ -348,6 +348,7 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
     let goal_handles = [goals.live, goals.ended, goals.needs, goals.report];
     let chat_handles = [chats.live, chats.closed, chats.notes, chats.goals];
     let goal_query = c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         requester: None,
         root: None,
@@ -362,10 +363,10 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
         requester: Some(c::Requester::Person(fixtures::PARTY)),
         tracked: None,
         order: c::QueryOrder::Activity,
-        ..goal_query
+        ..goal_query.clone()
     };
     let mut expected = List::uncapped();
-    for (handle, query) in [(goals.live, goal_query), (chats.live, chat_query)] {
+    for (handle, query) in [(goals.live, goal_query.clone()), (chats.live, chat_query.clone())] {
         expected
             .push(Request::Client(jig_client::Event::Watch {
                 handle,
@@ -373,7 +374,7 @@ fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
             }))
             .expect("watch");
     }
-    for (handle, query) in [(goals.ended, goal_query), (chats.closed, chat_query)] {
+    for (handle, query) in [(goals.ended, goal_query), (chats.closed, chat_query.clone())] {
         expected
             .push(Request::Client(jig_client::Event::Read {
                 handle,

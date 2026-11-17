@@ -74,7 +74,7 @@ impl Page {
     }
     fn read_line(&mut self, live: Option<c::Cursor>, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
         self.pages = self.pages.checked_add(1).expect("at most eight own-line pages");
-        read(self.line_handle, c::Read::Tasks { query: self.query, live, ended }, out);
+        read(self.line_handle, c::Read::Tasks { query: self.query.clone(), live, ended }, out);
     }
     pub(super) fn told(&mut self, client: &Client, limits: &Limits, told: &Told, out: &mut Queue<Request>) -> bool {
         let handled = match told {

@@ -137,17 +137,20 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
     }
 }
 
-const TASK_QUERY: jig_domain_core_vocabulary::documents::TaskQuery = jig_domain_core_vocabulary::documents::TaskQuery {
-    project: Some(3),
-    requester: Some(jig_domain_tasks::Party::Person(5)),
-    root: Some(7),
-    parent: Some(11),
-    label: Some(13),
-    phase: None,
-    executor: None,
-    tracked: None,
-    order: jig_domain_core_vocabulary::documents::QueryOrder::Number,
-};
+fn task_query() -> jig_domain_core_vocabulary::documents::TaskQuery {
+    jig_domain_core_vocabulary::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
+        project: Some(3),
+        requester: Some(jig_domain_tasks::Party::Person(5)),
+        root: Some(7),
+        parent: Some(11),
+        label: Some(13),
+        phase: None,
+        executor: None,
+        tracked: None,
+        order: jig_domain_core_vocabulary::documents::QueryOrder::Number,
+    }
+}
 const QUERY_ORDERS: [jig_domain_core_vocabulary::documents::QueryOrder; 5] = {
     use jig_domain_core_vocabulary::documents::QueryOrder as O;
     [O::Number, O::Changed, O::Activity, O::Priority, O::Ended]
@@ -165,10 +168,14 @@ fn task_query_cursors_preserve_their_keys_orders_and_phases() {
     for order in QUERY_ORDERS {
         for phase in QUERY_PHASES {
             for executor in QUERY_EXECUTORS {
-                let query = jig_domain_core_vocabulary::documents::TaskQuery { order, phase, executor, ..TASK_QUERY };
+                let query = jig_domain_core_vocabulary::documents::TaskQuery { order, phase, executor, ..task_query() };
                 for query in [
-                    query,
-                    jig_domain_core_vocabulary::documents::TaskQuery { requester: None, tracked: Some(true), ..query },
+                    query.clone(),
+                    jig_domain_core_vocabulary::documents::TaskQuery {
+                        requester: None,
+                        tracked: Some(true),
+                        ..query.clone()
+                    },
                     jig_domain_core_vocabulary::documents::TaskQuery {
                         requester: Some(jig_domain_tasks::Party::Task(19)),
                         tracked: Some(false),

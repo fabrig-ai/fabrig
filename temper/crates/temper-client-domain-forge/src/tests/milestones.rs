@@ -107,6 +107,7 @@ fn facts_keep_the_name_words_maker_and_concluding_wall() {
 fn a_goals_requester_names_its_milestone_or_the_one_line_to_read() {
     let task = chat::task();
     let mut line = c::TaskLine {
+        parts: skein_lib::List::with_capacity(0),
         chip: task.chip,
         project: task.project,
         requester: c::Requester::Task(812),

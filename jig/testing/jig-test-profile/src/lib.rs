@@ -344,6 +344,7 @@ pub fn config(seed: u64) -> root::Config {
         first,
         second,
         core: core::Config {
+            parts: Box::new([]),
             jobs: Box::new([]),
             kept_starts: Box::new([]),
             worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),

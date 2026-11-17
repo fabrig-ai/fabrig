@@ -653,3 +653,32 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
     assert_eq!(page.before.unwrap().value.bytes(), &[0, 255]);
     assert_eq!(page.after.unwrap().value.bytes(), &[254, 1]);
 }
+
+#[test]
+fn a_v27_task_page_has_empty_parts_and_zero_ended_mark() {
+    use jig_client_protocol_wire as w;
+    let limits = fixtures::limits();
+    let rows = jig_client_test_records::tasks_rows_record().into_parts().rows;
+    let record = w::TaskPage::new(
+        limits.wire(),
+        w::TaskPageParts {
+            live: rows.clone(),
+            live_after: None,
+            ended: w::EndedGroup::Rows(
+                w::EndedRows::new(limits.wire(), w::EndedRowsParts { rows, after: None, cut: false }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    let record = w::TaskPage::decode(limits.receiving(), &mut Reader::new(&bytes)).unwrap();
+    let page = translate::pages::task_page(record, &limits).unwrap();
+    assert_eq!(page.ended_mark, 0);
+    assert_eq!(page.live.len(), 1);
+    assert!(page.live.get(0).unwrap().parts.is_empty());
+    let c::EndedGroup::Rows { rows, .. } = page.ended else { panic!("ended rows") };
+    assert_eq!(rows.len(), 1);
+    assert!(rows.get(0).unwrap().parts.is_empty());
+}

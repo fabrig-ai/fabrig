@@ -323,6 +323,7 @@ pub fn config(seed: u64) -> engine::Config {
         ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
+            parts: Box::new([]),
             deployment: [31; 16],
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).

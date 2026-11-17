@@ -86,7 +86,11 @@ impl DraftsPage {
                     rows.push(timed(7, 0, None)).unwrap();
                     Up::Watched {
                         watch,
-                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                            ended_mark: 0,
+                            rows,
+                            more: false,
+                        }))),
                     }
                 }
                 Down::Open { watch, subject: Watchable::Jig(Subject::Chips { tasks }) } => {
@@ -190,6 +194,7 @@ impl DraftsPage {
                 Down::Read { read, what: Readable::Jig(Read::Tasks { .. }) } => Up::ReadDone {
                     read,
                     result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: EndedGroup::Rows {

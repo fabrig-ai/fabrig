@@ -108,7 +108,7 @@ pub(crate) fn scope(read: &Read) -> Option<Scope> {
         Read::History { task, subtree, .. } => Some(Scope::History { task: *task, subtree: *subtree }),
         Read::Activity { task, .. } | Read::ActivityBeside { task, .. } => Some(Scope::Activity { task: *task }),
         Read::Inbox { group, filter, .. } => Some(Scope::Inbox { group: *group, filter: *filter }),
-        Read::Tasks { query, .. } => Some(Scope::Tasks { query: *query }),
+        Read::Tasks { query, .. } => Some(Scope::Tasks { query: query.clone() }),
         Read::Notes { project, .. } => Some(Scope::Notes { project: *project }),
         Read::ScopedNotes { scope, description, .. } => {
             Some(Scope::ScopedNotes { scope: scope.clone(), description: description.clone() })
@@ -169,7 +169,7 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
         Read::Project { project } => Some(Subject::Project { project: *project }),
         Read::Deployment => Some(Subject::Deployment),
         Read::Inbox { .. } => Some(Subject::Inbox { party }),
-        Read::Tasks { query, .. } => Some(Subject::Query { query: *query }),
+        Read::Tasks { query, .. } => Some(Subject::Query { query: query.clone() }),
         Read::TaskText { .. }
         | Read::Setting { .. }
         | Read::Revision { .. }
@@ -494,7 +494,7 @@ fn start_jig(
         return answer(destination, Answer::None(Why::Unknown));
     };
     let mut tasks = if let Read::Tasks { query, live, .. } = &read {
-        match task_live(core, env, party, *query, live.as_ref()) {
+        match task_live(core, env, party, query.clone(), live.as_ref()) {
             Ok(page) => Some(Box::new(page)),
             Err(why) => return answer(destination, Answer::None(why)),
         }
@@ -699,7 +699,7 @@ fn task_live(
         core,
         &env.limits,
         party,
-        &Subject::Query { query },
+        &Subject::Query { query: query.clone() },
         &Window { rows: env.limits.documents.rows, after },
         DocumentClock { now: env.now, wall: env.wall },
     ) {
@@ -709,7 +709,7 @@ fn task_live(
     };
     let documents::Document::Lines(lines) = document else { unreachable!("query makes task lines") };
     let live_next = match lines.next {
-        Some(after) => Some(Cursor::Live { scope: Scope::Tasks { query }, after, store_after: None }),
+        Some(after) => Some(Cursor::Live { scope: Scope::Tasks { query: query.clone() }, after, store_after: None }),
         None => None,
     };
     let ended = match ended::ended_part(&query) {
@@ -718,7 +718,7 @@ fn task_live(
             EndedGroup::Rows { rows: List::with_capacity(0), next: None, cut: false }
         }
     };
-    Ok(TaskPage { live: lines.lines, live_next, ended })
+    Ok(TaskPage { ended_mark: 0, live: lines.lines, live_next, ended })
 }
 
 pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending) -> Queue<Request> {

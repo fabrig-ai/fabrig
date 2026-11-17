@@ -138,5 +138,5 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
     if !taking {
         return Err(Missing::Unknown);
     }
-    Ok(Lines { query: *query, lines, next })
+    Ok(Lines { ended_mark: 0, query: query.clone(), lines, next })
 }

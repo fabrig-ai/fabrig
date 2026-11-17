@@ -100,7 +100,7 @@ impl Fact {
             return;
         }
         self.leave(out);
-        self.query = next;
+        self.query.clone_from(&next);
         if let Some(query) = next {
             out.push(Request::Client(jig_client::Event::Watch {
                 handle: self.live,
@@ -110,11 +110,15 @@ impl Fact {
         }
     }
     fn read_ended(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.read,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended: None,
                 }),
@@ -156,7 +160,7 @@ impl Fact {
         }
     }
     pub(super) fn has(&self, client: &Client, project: u32) -> bool {
-        let Some(query) = self.query else { return false };
+        let Some(query) = &self.query else { return false };
         if query.project != Some(project) {
             return false;
         }
@@ -244,7 +248,7 @@ impl Goals {
             if self.query.is_some() {
                 self.leave(out);
             }
-            self.query = next;
+            self.query.clone_from(&next);
             self.page = None;
             self.page_answered = false;
             self.reading_page = false;
@@ -274,12 +278,16 @@ impl Goals {
         self.reconcile(client, out);
     }
     fn read(&mut self, ended: Option<c::Cursor>, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             self.reading_page = true;
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.ended,
                 read: Readable::Jig(c::Read::Tasks {
-                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    query: c::TaskQuery {
+                        phase: Some(c::PhaseClass::Ended),
+                        order: c::QueryOrder::Ended,
+                        ..query.clone()
+                    },
                     live: None,
                     ended,
                 }),
@@ -287,7 +295,7 @@ impl Goals {
         }
     }
     fn read_needs(&self, out: &mut Queue<Request>) {
-        if let Some(query) = self.query {
+        if let Some(query) = &self.query {
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.needs,
                 read: Readable::Jig(c::Read::Inbox {
@@ -407,7 +415,7 @@ impl Goals {
                 out.push(Request::Client(jig_client::Event::Read {
                     handle: self.report,
                     read: Readable::Jig(report::read(
-                        self.query.expect("configured goals").project.expect("project query"),
+                        self.query.as_ref().expect("configured goals").project.expect("project query"),
                         row.task,
                     )),
                 }));
@@ -505,6 +513,7 @@ fn handle(number: u64) -> Handle {
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
     Some(c::TaskQuery {
+        parts: List::with_capacity(0),
         project: Some(project),
         label: Some(jig_client::shapes::template(me, project, jig_client::shapes::GOAL)?.label),
         tracked: Some(true),

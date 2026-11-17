@@ -83,6 +83,7 @@ fn goals() -> Vec<c::TaskLine> {
 fn page(rows: &[c::TaskLine], active: bool, more: bool) -> c::ReadValue {
     let rows = List::from_boxed(rows.into());
     c::ReadValue::Tasks(Box::new(c::TaskPage {
+        ended_mark: 0,
         live: if active { rows.clone() } else { List::uncapped() },
         live_after: None,
         ended: if active { c::EndedGroup::None } else { c::EndedGroup::Rows { rows, after: None, cut: more } },
@@ -279,6 +280,7 @@ impl Harness {
                     Some(Up::Watched {
                         watch,
                         event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            ended_mark: 0,
                             rows: List::from_boxed(rows.into_boxed_slice()),
                             more: false,
                         }))),

@@ -1123,8 +1123,9 @@ fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixtu
         }
     }
     ChatFixture {
-        live: c::Tasks { rows: live_rows, more },
+        live: c::Tasks { rows: live_rows, more, ended_mark: 0 },
         ended: c::TaskPage {
+            ended_mark: 0,
             live: List::with_capacity(0),
             live_after: None,
             ended: c::EndedGroup::Rows {
@@ -1639,7 +1640,7 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
     deliver(
         &mut root,
         live.expect("Settings watches chats"),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         let link = f::find(view.tree(), Role::Link, b"Ask temper").unwrap();

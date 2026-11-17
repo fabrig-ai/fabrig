@@ -410,7 +410,18 @@ fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
         4 => O::Ended,
         _ => return None,
     };
-    Some(documents::TaskQuery { project, requester, root, parent, label, phase, executor, tracked, order })
+    Some(documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
+        project,
+        requester,
+        root,
+        parent,
+        label,
+        phase,
+        executor,
+        tracked,
+        order,
+    })
 }
 
 #[cfg(test)]

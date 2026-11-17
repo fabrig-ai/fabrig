@@ -2987,7 +2987,7 @@ fn home_domain(name: &str) -> Domain {
                                 .rows
                                 .clone();
                         }
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false }))
                     }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
@@ -2999,7 +2999,7 @@ fn home_domain(name: &str) -> Domain {
                         if everyday {
                             rows = home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), false);
                         }
-                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows, more: false }))
                     }
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
                         home_needs(name),
@@ -3128,6 +3128,7 @@ fn home_domain(name: &str) -> Domain {
                         &mut root,
                         read,
                         c::ReadValue::Tasks(Box::new(c::TaskPage {
+                            ended_mark: 0,
                             live: List::with_capacity(0),
                             live_after: None,
                             ended: c::EndedGroup::Rows {
@@ -3144,6 +3145,7 @@ fn home_domain(name: &str) -> Domain {
                     &mut root,
                     read,
                     c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::with_capacity(0),
                         live_after: None,
                         ended: c::EndedGroup::Rows {

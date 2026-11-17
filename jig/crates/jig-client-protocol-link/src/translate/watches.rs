@@ -25,7 +25,7 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         }
         c::Subject::Tasks { query, window } => w::Subject::Tasks(w::SubjectTasks::new(
             limits,
-            w::SubjectTasksParts { query: super::queries::query(*query, limits)?, window: *window },
+            w::SubjectTasksParts { query: super::queries::query(query, limits)?, window: *window },
         )?),
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {

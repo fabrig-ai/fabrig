@@ -792,7 +792,7 @@ fn it_is_in_no_list() {
         assert_eq!(frame.updates, d::Count::Known(0));
         let query = d::TaskQuery {
             requester: Some(tasks::Party::Person(frame.party)),
-            ..jig_test_profile::fixtures::OWN_TASKS
+            ..jig_test_profile::fixtures::own_tasks()
         };
         let r::Answer::Tasks(page) = read(&mut driver, r::Read::Tasks { query, live: None, ended: None }) else {
             panic!("Chats query")

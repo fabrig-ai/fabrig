@@ -209,6 +209,7 @@ fn project_reads(project: &ProjectTasks) -> Vec<reads::Read> {
         reads::Read::Spend { project, from: None },
         reads::Read::Tasks {
             query: documents::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(project),
                 requester: None,
                 root: None,
@@ -269,6 +270,7 @@ fn a_run_reads_its_project_as_its_person_and_no_other() {
     let mut rows: Vec<_> = project_reads(&own).into_iter().map(|read| (read, None)).collect();
     rows.extend(project_reads(&other).into_iter().map(|read| (read, Some(reads::Answer::None(reads::Why::Unknown)))));
     let query = documents::TaskQuery {
+        parts: List::with_capacity(0),
         project: None,
         requester: Some(tasks::Party::Person(PERSON)),
         root: None,

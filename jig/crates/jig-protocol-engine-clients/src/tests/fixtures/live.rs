@@ -44,7 +44,9 @@ pub fn phase_counts() -> d::PhaseCounts {
 }
 pub fn tasks_document() -> d::Lines {
     d::Lines {
+        ended_mark: 0,
         query: d::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(7),
             requester: None,
             root: None,
@@ -56,6 +58,7 @@ pub fn tasks_document() -> d::Lines {
             order: d::QueryOrder::Changed,
         },
         lines: List::from_boxed(Box::new([d::TaskLine {
+            parts: List::with_capacity(0),
             chip: chip(),
             project: 7,
             requester: t::Party::Person(23),
