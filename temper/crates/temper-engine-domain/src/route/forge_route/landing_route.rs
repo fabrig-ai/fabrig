@@ -363,7 +363,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
             dependencies: graph,
             held: held.into_boxed(),
             failure: prepare_failure(context),
-            preparation: preparation(domain, context),
+            preparation: Some(preparation(domain, context)),
             released,
             cancelled: false,
             kept: Box::new([]),

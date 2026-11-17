@@ -1500,6 +1500,7 @@ pub enum Operation {
     Delete,
     Record,
 }
+/// A step's hearing, with no preparation at start (temper/docs/design/domain/landing-preparing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
     pub job: Option<crate::history::JobStep>,
@@ -1507,7 +1508,7 @@ pub struct LandingHeard {
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
-    pub preparation: landing::Preparation,
+    pub preparation: Option<landing::Preparation>,
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
     pub released: bool,
