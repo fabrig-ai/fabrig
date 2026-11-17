@@ -150,6 +150,7 @@ pub fn opening_row() -> ChangeRow {
             owns_turn: false,
             last_head: Some(HEAD),
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: None,

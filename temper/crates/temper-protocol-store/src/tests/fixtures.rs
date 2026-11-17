@@ -934,6 +934,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             owns_turn: true,
             last_head: Some([15; 32]),
             last_checked: None,
+            last_checked_by: None,
             clock: None,
         },
         pull: Some(16),

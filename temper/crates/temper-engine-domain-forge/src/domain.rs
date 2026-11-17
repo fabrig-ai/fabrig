@@ -3225,7 +3225,8 @@ fn record_delegate_head(
             && row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.branch)
-            && (row.change.last_head != Some(commit) || (checked && row.change.last_checked != Some(commit)))
+            && (row.change.last_head != Some(commit)
+                || (checked && (row.change.last_checked != Some(commit) || row.change.last_checked_by != Some(task))))
         {
             let mut row = row.clone();
             if row.change.last_head != Some(commit) {
@@ -3234,6 +3235,7 @@ fn record_delegate_head(
             row.change.last_head = Some(commit);
             if checked {
                 row.change.last_checked = Some(commit);
+                row.change.last_checked_by = Some(task);
             }
             pushed = Some(row);
             break;
