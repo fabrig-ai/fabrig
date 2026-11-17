@@ -23,9 +23,7 @@
   the box in the pseudo-terminal. `box-claude-sign-in` waits with it, for
   the same reason.
 
-- **Not yet:** 5: no recording takes a placeholder: the TUI's `journey` module has no `normalise` (`../journey-placeholders.status.md`) [in flight: change 7085].
 
-- **Not yet:** 1, 4.3, 6.1, 7: `add` writes the proof's recording without placeholders, there is no `normalise` command, and the print's test doesn't hold a recording to its normalisation [in flight: change 7087].
 
 - **Not yet:** 9's `role-talk`: recorded once T3 has landed, its fake model scripting a standing role's replies and its rule question, owned by temper/tui (`../../draft/whole-story.execution.md`, T3).
 
