@@ -21,9 +21,12 @@
     pressed-or-not buttons that filter in the page, reading nothing, the filter
     being in the page's address (`../web/README.md`, 2.3), a filter chosen a move, as
     the inbox's; and `.btn.small` "+ New chat" at its right, a link to `NewChat`.
-    Drafts holds the rows whose chat has a document. The page reads
-    `NoteScope::Tasks { project }` as it opens, bodies left out, and watches the
-    person's facts; a note written later is seen on the next open.
+    Drafts holds the rows whose chat has a document. The chats' query names
+    `CHAT_PART`, so each row comes with its document's description, and a
+    note written later comes with its row's next delivery
+    (`../forge/parts.md`, 5); the page reads no notes, and watches the
+    person's facts. Its ended group is read again only as its mark grows
+    (`../forge/parts.md`, 6).
   - *Its rows,* `.goal-rows` and `.goal-row`: the live group's lines by last
     activity and the ended page's by when each ended, merged newest first,
     a tie by the lower number first, each row one link: its number's, whose

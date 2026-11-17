@@ -5,6 +5,7 @@
 
 
 
+
 `settings.md`, section 7 has no known gap in the engine and workers' shared output
 room. Init's templates and the owned example give the engine the
 workers' 16,804,602 bytes; the turn-bound writer derives one worker room

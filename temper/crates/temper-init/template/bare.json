@@ -3,6 +3,9 @@
     "limits": {
       "profile": "standard",
       "overrides": {
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48,
         "authority.executors": 22,
         "clients.exchanges": 12,
         "clients.streams": 8,
@@ -30,8 +33,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -68,8 +81,12 @@
           "number": 2,
           "endpoint": "anthropic",
           "direct": "anthropic-api",
-          "keep": ["claude-*"],
-          "drop": ["*-20??????"],
+          "keep": [
+            "claude-*"
+          ],
+          "drop": [
+            "*-20??????"
+          ],
           "signed_in_plan": false,
           "manage_usage": "https://claude.ai/settings/usage",
           "sources": {
@@ -130,20 +147,13 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "worker.digest"
-        }
-      ],
       "listener": [
         {
           "in_process": "workers"
         }
       ]
     },
-    "clients": {
-    },
+    "clients": {},
     "owners": [
       {
         "provider": 1,
@@ -157,30 +167,9 @@
       "engine": {
         "in_process": "workers"
       },
-      "name": "worker",
+      "name": "local",
       "secret": "worker.secret",
-      "slots": 4,
-      "agent": {
-        "program": "$binary",
-        "configuration": "$agent",
-        "arguments": [
-          "internal",
-          "agent",
-          "$agent"
-        ]
-      },
-      "limits": {
-        "profile": "standard",
-        "overrides": {
-          "hub.accounts": 4,
-          "hub.event_bytes": 10660,
-          "hub.run_calls": 48,
-          "hub.transcript_bytes": 67215250,
-          "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480,
-          "io.output": 16804602
-        }
-      }
+      "slots": 4
     }
   ],
   "application": {

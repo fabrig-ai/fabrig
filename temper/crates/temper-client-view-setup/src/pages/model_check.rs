@@ -53,7 +53,14 @@ pub fn trial(root: &Domain, w: &Words) -> Option<Trial> {
         return Some(row_trial(
             root,
             w,
-            &trials::Row { account, task: None, took: None, step: trials::Step::Starts, state: trials::State::Running },
+            &trials::Row {
+                run_wait: None,
+                account,
+                task: None,
+                took: None,
+                step: trials::Step::Starts,
+                state: trials::State::Running,
+            },
         ));
     }
     if let Some(row) = root.forge().trials().first() {
@@ -82,7 +89,14 @@ pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial
         return Some(row_trial(
             root,
             w,
-            &trials::Row { account, task: None, took: None, step: trials::Step::Starts, state: trials::State::Running },
+            &trials::Row {
+                run_wait: None,
+                account,
+                task: None,
+                took: None,
+                step: trials::Step::Starts,
+                state: trials::State::Running,
+            },
         ));
     }
     for row in root.forge().trials() {

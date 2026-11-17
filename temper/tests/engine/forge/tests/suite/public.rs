@@ -113,7 +113,7 @@ fn a_projects_only_change_outside_every_goal_leaves_no_landing_queue_or_turn_hol
     let made = public::answer(&world, w::PUBLIC_LANDINGS, None, &[]);
     assert!(made.tasks.is_empty(), "no excluded task in the envelope, seed {SEED}");
     let mut fields = Reader::new(&made.record);
-    assert_eq!(fields.u16(), Some(2), "forge record version");
+    assert_eq!(fields.u16(), Some(w::PUBLIC_VERSION), "forge record version");
     assert_eq!(fields.u8(), Some(0), "no excluded turn holder");
     assert_eq!(fields.u32(), Some(0), "no excluded landing counted");
     assert_eq!(fields.u32(), Some(0), "no excluded queue counted or ordered");

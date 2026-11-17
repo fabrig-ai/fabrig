@@ -122,6 +122,7 @@ pub fn error_words(error: Error) -> Box<[u8]> {
         Error::NothingToMerge => b"nothing to merge",
         Error::Closed => b"target closed",
         Error::Stale => b"head changed",
+        Error::BaseMoved { .. } => b"base moved",
         Error::Conflict => b"conflict with base",
         Error::Refused => b"forge policy refused the operation",
         Error::InvalidAnswer => b"invalid forge answer",

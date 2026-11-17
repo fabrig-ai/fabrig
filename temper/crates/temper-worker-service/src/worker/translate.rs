@@ -9,6 +9,9 @@ pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
     use temper_worker_domain::wire as worker;
     let value = match ask {
         worker::Ask::Reds => v1::Ask::Reds,
+        worker::Ask::Landed { head } => {
+            v1::Ask::Landed(v1::Head::new(&v1::CEILINGS, v1::HeadParts { head }).expect("fixed-size head"))
+        }
         worker::Ask::Results(results) => {
             let mut passed = List::with_capacity(v1::CEILINGS.check_results_passed);
             for key in results.passed {
@@ -62,6 +65,8 @@ pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<temper_worker_domain:
     }
     Some(match answer {
         v1::Answer::Kept => worker::Answer::Kept,
+        v1::Answer::Landed => worker::Answer::Landed,
+        v1::Answer::Unlanded => worker::Answer::Unlanded,
         v1::Answer::Reds(value) => {
             let mut reds = List::with_capacity(value.reds().len());
             for red in value.into_parts().reds.into_boxed() {

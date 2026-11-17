@@ -115,8 +115,10 @@ own, never a change's:
   read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
   It gives up its entry number while it waits, so it reserves nothing:
   a kept number would stop every later entry's handoff, and an outbox
-  full of those would never free. Once an entry frees, the makings that
-  wait go on in the order they began to wait, each taking a fresh number
+  full of those would never free. It waits in the outbox's line beside
+  the changes, landings and releases that wait (`room.md`, 3), its place
+  kept in memory with the making. Once an entry frees, the waiters go on
+  in the order of their places, each making taking a fresh number
   and reading the default branch's tip afresh, as a restart's making
   with no entry does; fresh numbers follow that order, so the client's
   entries stay in increasing order. A making that meets a full outbox

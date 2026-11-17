@@ -142,6 +142,7 @@ pub struct ProjectCapacity {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Deployment {
+    pub worker_settings: List<WorkerState>,
     pub store: StoreFill,
     pub census: Option<Box<StoreCensus>>,
     pub hosts: List<Host>,
@@ -234,6 +235,18 @@ fn other_fields_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
         .checked_add(super::catalogue::offers_bound(limits)?)?
         .checked_add(super::catalogue::rows_bound(limits)?)
+}
+
+/// Every worker setting and its volatile link state (jig/docs/design/domain/engine/workers.md, 6).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerState {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub places: u32,
+    pub digest: Option<[u8; 32]>,
+    pub withdrawn: bool,
+    pub linked: bool,
+    pub since: Option<Wall>,
 }
 
 #[cfg(test)]

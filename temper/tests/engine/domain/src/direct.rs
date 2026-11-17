@@ -61,7 +61,10 @@ impl Driver {
         }
     }
     /// Replace a root together with the configuration used by its restart oracle.
-    pub fn replace_root(&mut self, configuration: engine::Config) {
+    pub fn replace_root(&mut self, mut configuration: engine::Config) {
+        for worker in &mut configuration.core.defaults.workers {
+            worker.places = self.env.limits.fleet.slots;
+        }
         self.restart_config = crate::oracle::config::copy(&configuration);
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
@@ -109,7 +112,11 @@ impl Driver {
 
     /// An empty deployment for stories that exercise the real first-start cut itself.
     #[must_use]
-    pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
+    pub fn cold(store: Store, mut config: engine::Config, limits: &engine::Limits) -> Driver {
+        // Nominal fixture workers offer the scenario's full fleet capacity.
+        for worker in &mut config.core.defaults.workers {
+            worker.places = limits.fleet.slots;
+        }
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
         Driver {
@@ -197,6 +204,13 @@ impl Driver {
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
+            let request = if let engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) = request {
+                let result = self.store.read(range);
+                self.events.push_back(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }));
+                continue;
+            } else {
+                request
+            };
             let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
                 let result = self.store.read(range);
                 self.events.push_back(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }));
@@ -222,6 +236,10 @@ impl Driver {
                 engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                     self.transactions.push(writes.to_vec());
                     self.store.pending.push_back((number, writes));
+                }
+                engine::Request::Store(engine::StoreRequest::Checkpoint { token }) => {
+                    let terminal = self.store.checkpoint(token);
+                    self.events.push_back(engine::Event::Store(terminal));
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
@@ -300,6 +318,7 @@ impl Driver {
                 }
                 engine::Request::Stop => self.stopped = true,
                 engine::Request::Worker(engine::WorkerRequest::Host(request)) => self.host_requests.push(request),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 other @ (engine::Request::Party(_)
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)

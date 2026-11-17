@@ -6,6 +6,7 @@ use temper_service_core::startup::problems::{put, render_past, render_path, rend
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EngineWhat {
     Room(temper_engine_domain::room::Refusal),
+    FigureEndpoints { count: u32 },
     FleetGrace { offered: skein_lib::Duration, derived: skein_lib::Duration },
     Stock(crate::stock::Floor),
     EngineAlone,
@@ -55,7 +56,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -139,6 +140,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
+            Setting::Worker(number) => (b"Worker ", Some(number)),
             Setting::Rules => (b"rules", None),
             Setting::Application { kind, scope, number } => {
                 put(writer, length, measuring, b"application kind ");
@@ -190,6 +192,10 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
         }
         put(writer, &mut length, measuring, words(what));
         match what {
+            EngineWhat::FigureEndpoints { count } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b" endpoints, at most 64, the workers' figures carry no more");
+            }
             EngineWhat::FleetGrace { offered, derived } => {
                 put(writer, &mut length, measuring, Decimal::of(offered.as_millis()).as_bytes());
                 put(writer, &mut length, measuring, b" ms; requires at least the derived fleet grace of ");

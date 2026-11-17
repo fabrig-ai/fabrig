@@ -3,6 +3,21 @@
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
+/// Memory-only task names on changes rows (client/forge/records.md, Where each row came from).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeFrom {
+    pub task: u64,
+    pub title: Box<[u8]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangesSigned {
+    pub person: u64,
+    pub head: [u8; 32],
+    pub at: Wall,
+    pub name: Option<Box<[u8]>>,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesView {
     pub project: u32,
@@ -25,6 +40,9 @@ pub struct ChangesQueue {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TrainLanding {
+    pub goal: Option<ChangeFrom>,
+    pub chat: Option<ChangeFrom>,
+    pub milestone: Option<ChangeFrom>,
     pub task: u64,
     pub member: u64,
     pub round: u16,
@@ -35,6 +53,9 @@ pub struct TrainLanding {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesQueued {
+    pub goal: Option<ChangeFrom>,
+    pub chat: Option<ChangeFrom>,
+    pub milestone: Option<ChangeFrom>,
     pub task: u64,
     pub title: Box<[u8]>,
     pub ready_since: Wall,
@@ -42,7 +63,10 @@ pub struct ChangesQueued {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {
-    pub signed: Box<[crate::SignOff]>,
+    pub goal: Option<ChangeFrom>,
+    pub chat: Option<ChangeFrom>,
+    pub milestone: Option<ChangeFrom>,
+    pub signed: Box<[ChangesSigned]>,
     pub task: u64,
     pub title: Box<[u8]>,
     pub at: Wall,

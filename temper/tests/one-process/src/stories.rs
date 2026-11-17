@@ -29,8 +29,6 @@ pub(crate) fn model_list() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::ModelsList))
 }
 
-// One hook per push: the setup's topic push and the agent's change.
-pub(crate) const ADOPT_HOOKS: usize = 2;
 // Two one-token producer turns leave three, below the four-unit admission floor.
 const CHANGE_ALLOWANCE: u64 = 5;
 const RUN_ALLOWANCE: u64 = 8;

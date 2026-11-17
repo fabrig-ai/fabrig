@@ -647,6 +647,29 @@ pub enum Word {
     BuildersNone,
     BuildersNoRole,
     BuildersCut,
+    WorkerPlaces,
+    WorkerPlace,
+    WorkerNoRuns,
+    WorkerRun,
+    WorkerRuns,
+    WorkerInBox,
+    WorkerDigest,
+    WorkerUpSince,
+    WorkerDownSince,
+    WorkerPlacesFor,
+    WorkerChange,
+    WorkerRemove,
+    WorkerAddHeading,
+    WorkerName,
+    WorkerNameHint,
+    WorkerPlacesField,
+    WorkerSecretDigest,
+    WorkerDigestHint,
+    WorkerAdd,
+    WorkerDuplicate,
+    WorkerAddHelp,
+    WorkerLinked,
+
     TeamRules,
     TeamChangeProposal,
     TeamWakes,
@@ -2227,7 +2250,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2775;
+const PHRASES: u32 = 2799;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2254,10 +2277,10 @@ const PHRASES: u32 = 2775;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5153;
+const SEGMENTS: u32 = 5193;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65507;
-const ALL: [Word; 2054] = [
+const ENGLISH_BYTES: u32 = 65975;
+const ALL: [Word; 2076] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2849,6 +2872,28 @@ const ALL: [Word; 2054] = [
     Word::BuildersNone,
     Word::BuildersNoRole,
     Word::BuildersCut,
+    Word::WorkerPlaces,
+    Word::WorkerPlace,
+    Word::WorkerNoRuns,
+    Word::WorkerRun,
+    Word::WorkerRuns,
+    Word::WorkerInBox,
+    Word::WorkerDigest,
+    Word::WorkerUpSince,
+    Word::WorkerDownSince,
+    Word::WorkerPlacesFor,
+    Word::WorkerChange,
+    Word::WorkerRemove,
+    Word::WorkerAddHeading,
+    Word::WorkerName,
+    Word::WorkerNameHint,
+    Word::WorkerPlacesField,
+    Word::WorkerSecretDigest,
+    Word::WorkerDigestHint,
+    Word::WorkerAdd,
+    Word::WorkerDuplicate,
+    Word::WorkerAddHelp,
+    Word::WorkerLinked,
     Word::TeamRules,
     Word::TeamChangeProposal,
     Word::TeamWakes,
@@ -4899,6 +4944,29 @@ impl Word {
             Self::BuildersNone => 3478,
             Self::BuildersNoRole => 3479,
             Self::BuildersCut => 3480,
+            Self::WorkerPlaces => 9834,
+            Self::WorkerPlace => 9835,
+            Self::WorkerNoRuns => 9836,
+            Self::WorkerRun => 9837,
+            Self::WorkerRuns => 9838,
+            Self::WorkerInBox => 9839,
+            Self::WorkerDigest => 9840,
+            Self::WorkerUpSince => 9841,
+            Self::WorkerDownSince => 9842,
+            Self::WorkerPlacesFor => 9843,
+            Self::WorkerChange => 9844,
+            Self::WorkerRemove => 9845,
+            Self::WorkerAddHeading => 9846,
+            Self::WorkerName => 9847,
+            Self::WorkerNameHint => 9848,
+            Self::WorkerPlacesField => 9849,
+            Self::WorkerSecretDigest => 9850,
+            Self::WorkerDigestHint => 9851,
+            Self::WorkerAdd => 9852,
+            Self::WorkerDuplicate => 9853,
+            Self::WorkerAddHelp => 9854,
+            Self::WorkerLinked => 9855,
+
             Self::TeamRules => 5131,
             Self::TeamChangeProposal => 5132,
             Self::TeamWakes => 5133,
@@ -6611,6 +6679,9 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     if word == Word::SwitcherRow && last {
         return switcher_repository_bytes(joined);
+    }
+    if [Word::WorkerPlacesFor, Word::WorkerDuplicate, Word::WorkerLinked].contains(&word) {
+        return Ok(jig_client::contract::PROGRAM_HOST_NAME);
     }
     if word == Word::AdminHost {
         return Ok(temper_client_domain::forge::change::ADDRESS_BYTES);
@@ -8563,7 +8634,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsCensusHeadsJoin => (&[b"", b", ", b""], &[Name, Name]),
         Word::SettingsBuildersTab => (&[b"Workers"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
-        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its places and whether it\xe2\x80\x99s up. An owner adds one by its secret\xe2\x80\x99s digest."], &[]),
         Word::RoleReading => (&[b"Reading role ", b"\xe2\x80\xa6"], &[Number]),
         Word::RoleUnreadable => (&[b"This role can't be read now: charter ", b"."], &[Number]),
         Word::RoleRuleReading => (&[b"Reading rule ", b"/", b"\xe2\x80\xa6"], &[Number, Number]),
@@ -8574,11 +8645,34 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BuilderUnnamed => (&[b"Worker ", b""], &[Number]),
         Word::BuilderConnected => (&[b"Connected"], &[]),
         Word::BuilderDraining => (&[b"Draining"], &[]),
-        Word::BuilderNotConnected => (&[b"Not connected"], &[]),
+        Word::BuilderNotConnected => (&[b"Down"], &[]),
         Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which workers it runs on. Ask temper to change it."], &[]),
-        Word::BuildersNone => (&[b"No worker is connected."], &[]),
+        Word::BuildersNone => (&[b"No worker is added yet."], &[]),
         Word::BuildersNoRole => (&[b"Workers are seen by the deployment\xe2\x80\x99s owners."], &[]),
         Word::BuildersCut => (&[b"Some worker facts were omitted."], &[]),
+        Word::WorkerPlaces => (&[b"", b" places"], &[Number]),
+        Word::WorkerPlace => (&[b"1 place"], &[]),
+        Word::WorkerNoRuns => (&[b"no runs"], &[]),
+        Word::WorkerRun => (&[b"1 run"], &[]),
+        Word::WorkerRuns => (&[b"", b" runs"], &[Number]),
+        Word::WorkerInBox => (&[b"in the box"], &[]),
+        Word::WorkerDigest => (&[b"digest ", b"\xe2\x80\xa6"], &[Name]),
+        Word::WorkerUpSince => (&[b"Up since ", b""], &[Name]),
+        Word::WorkerDownSince => (&[b"Down since ", b""], &[Name]),
+        Word::WorkerPlacesFor => (&[b"Places for ", b""], &[Name]),
+        Word::WorkerChange => (&[b"Change"], &[]),
+        Word::WorkerRemove => (&[b"Remove"], &[]),
+        Word::WorkerAddHeading => (&[b"Add a worker"], &[]),
+        Word::WorkerName => (&[b"The worker\xe2\x80\x99s name"], &[]),
+        Word::WorkerNameHint => (&[b"w1"], &[]),
+        Word::WorkerPlacesField => (&[b"Places"], &[]),
+        Word::WorkerSecretDigest => (&[b"Its secret\xe2\x80\x99s digest"], &[]),
+        Word::WorkerDigestHint => (&[b"64 hexadecimal digits"], &[]),
+        Word::WorkerAdd => (&[b"Add"], &[]),
+        Word::WorkerDuplicate => (&[b"", b" is already a worker."], &[Name]),
+        Word::WorkerAddHelp => (&[b"Make its secret on the worker\xe2\x80\x99s machine; temper help server says how. A worker that\xe2\x80\x99s running links once it\xe2\x80\x99s added."], &[]),
+        Word::WorkerLinked => (&[b"", b" is up: stop it first. Its runs end interrupted."], &[Name]),
+
         Word::TeamRules => (&[b"Its rules \xc2\xb7 "], &[]),
         Word::TeamChangeProposal => (&[b"change by proposal"], &[]),
         Word::TeamWakes => (&[b"Wakes on"], &[]),

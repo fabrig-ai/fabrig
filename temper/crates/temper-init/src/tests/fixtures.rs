@@ -3,7 +3,6 @@ use core::num::NonZeroU16;
 use serde_json::Value;
 
 pub const OWNED: &[u8] = include_bytes!("../../../../docs/examples/owned.json");
-pub const AGENT: &[u8] = include_bytes!("../../../../docs/examples/owned/agent.json");
 pub const DIRECTORIES: Directories<'static> = Directories { config: b"/c/temper", data: b"/d/temper/" };
 
 pub fn facts() -> Facts<'static> {
@@ -52,11 +51,6 @@ pub fn file<'a>(files: &'a [File], name: &[u8]) -> &'a File {
 
 pub fn parse(bytes: &[u8]) -> Value {
     serde_json::from_slice(bytes).expect("a whole JSON document")
-}
-
-#[expect(clippy::disallowed_methods, reason = "tests inspect the JSON text at the protocol boundary")]
-pub fn text(bytes: &[u8]) -> &str {
-    core::str::from_utf8(bytes).expect("the test's paths are UTF-8")
 }
 
 pub fn content<'a>(answer: &'a crate::Answer, name: &[u8]) -> &'a [u8] {

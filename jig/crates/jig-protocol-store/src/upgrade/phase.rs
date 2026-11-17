@@ -65,6 +65,7 @@ fn take(store: &mut Store) -> Box<Patching> {
         | Opening::SweepRemoving { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
+        | Opening::CheckpointSweep(_)
         | Opening::TranscriptsMade
         | Opening::TranscriptsOpen
         | Opening::Pending(_) => unreachable!("phase routing checked"),
@@ -174,6 +175,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     let (arrived, secret) = match io {
         Io::Store(arrived) => (arrived, false),
         Io::Secrets(arrived) => (arrived, true),
+        Io::Checkpoints(_) => unreachable!("checkpoint requests are unavailable while upgrading"),
         Io::Transcripts(arrived) => return file_up(store, env, arrived, false, above, below),
     };
     // KV recovery probes missing files; job commits also create payload logs.
@@ -302,6 +304,8 @@ pub(crate) fn event(
         | skein_kv::Event::LogUnread { .. }
         | skein_kv::Event::Got { .. }
         | skein_kv::Event::Loaded { .. }
+        | skein_kv::Event::Held { .. }
+        | skein_kv::Event::Released { .. }
         | skein_kv::Event::OpenFailed { .. }
         | skein_kv::Event::Recovered { .. }
         | skein_kv::Event::RecoveryFailed { .. } => refuse(store, above),

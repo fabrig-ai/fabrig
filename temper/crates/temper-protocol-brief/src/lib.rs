@@ -148,9 +148,8 @@ fn continuation(text: &[u8], at: usize) -> bool {
 
 fn cut_line(lost: usize, title: &[u8]) -> Box<[u8]> {
     let read: &[u8] = match title {
-        b"CI" => b"read_job/read_checks",
-        b"Pull request" => b"read_pull/read_pull_files",
-        b"Reviews" => b"read_reviews/read_remarks",
+        b"CI" => b"read_ci",
+        b"Pull request" | b"Reviews" => b"read_issues",
         b"Home" => b"read_docs",
         b"Notes" => b"recall",
         b"Plan" => b"the task's plan",

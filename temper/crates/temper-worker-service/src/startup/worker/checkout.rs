@@ -55,7 +55,7 @@ pub fn capacity<E>(
     };
     let engine = room(engine, &payload);
     let worker = match workers.first() {
-        Some(worker) => room(Some(&worker.limits), &payload),
+        Some(worker) => room(worker.limits.as_ref(), &payload),
         None => None,
     };
     if stdout.is_some()

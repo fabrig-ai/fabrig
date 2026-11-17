@@ -152,7 +152,7 @@ fn a_landed_change_carries_its_producers_report() {
         let change = made[0].task;
         assert_eq!(
             live_task(&world, change).contract,
-            tasks::Contract::Change { connector: 0, kind: 1, words: result_bytes }
+            tasks::Contract::Change { connector: 0, kind: 1, words: result_bytes, choices: Box::new([]) }
         );
         let producer = next(&mut world, 1);
         let branch = producer.workspace.repositories[0].push.clone().expect("change branch");

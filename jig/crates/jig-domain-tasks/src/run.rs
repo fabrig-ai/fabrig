@@ -252,7 +252,8 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             }
         },
         TaskResult::Verdict { code, words, fields } => match contract {
-            Contract::Verdict { choices } => {
+            Contract::Change { choices, .. } if choices.is_empty() => Some(InvalidResult::Form),
+            Contract::Verdict { choices } | Contract::Change { choices, .. } => {
                 for choice in choices {
                     if choice.code == *code {
                         return if words.len() > skein_lib::length::usize_of(choice.words)
@@ -268,9 +269,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
                 }
                 Some(InvalidResult::Verdict)
             }
-            Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => {
-                Some(InvalidResult::Form)
-            }
+            Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } => Some(InvalidResult::Form),
         },
         TaskResult::Change { connector, kind, title, words, .. } => {
             invalid_change(contract, *connector, *kind, &title.words, words, limits)
@@ -321,7 +320,7 @@ fn invalid_change(
     limits: &Limits,
 ) -> Option<InvalidResult> {
     match contract {
-        Contract::Change { connector: expected_connector, kind: expected_kind, words: limit } => {
+        Contract::Change { connector: expected_connector, kind: expected_kind, words: limit, .. } => {
             if connector != *expected_connector || kind != *expected_kind {
                 Some(InvalidResult::Change)
             } else if title.len().max(words.len()) > skein_lib::length::usize_of(*limit)
@@ -368,7 +367,7 @@ pub(crate) fn invalid_followups(
     }
     let count = batch.len();
     match (contract, result) {
-        (Contract::Verdict { choices }, TaskResult::Verdict { code, .. }) => {
+        (Contract::Verdict { choices } | Contract::Change { choices, .. }, TaskResult::Verdict { code, .. }) => {
             for choice in choices {
                 if choice.code == *code {
                     return if count > 0 && count <= skein_lib::length::usize_of(choice.followups) {

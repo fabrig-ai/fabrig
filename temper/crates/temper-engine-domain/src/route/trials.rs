@@ -1,4 +1,4 @@
-//! Joins the trials child to the core; holds nothing (temper/docs/design/domain/trial.md, 4 and 5).
+//! Joins the trials child to the core; holds each running row's last wait (temper/docs/design/domain/trial.md, 4 and 5).
 use crate::{Domain, Limits, TryAnswer, boundary::Work};
 use alloc::boxed::Box;
 use jig_domain_accounts::Holder;
@@ -150,9 +150,16 @@ fn class(class: tasks::Class) -> trials::Class {
 
 pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
     let mut moved = Queue::uncapped();
+    let mut waits = skein_lib::Map::with_capacity(crate::limits::trial_limits(&env.limits).rows);
+    let mut changed = false;
     for task in domain.trials.running() {
         let past_starting = domain.core.run_past_starting(task);
         let Some(held) = domain.core.tasks.task(task) else { continue };
+        let wait = core::documents::run_wait(&domain.core, held);
+        if domain.trial_waits.get(&task).copied().flatten() != wait {
+            changed = true;
+        }
+        waits.insert(task, wait).expect("one wait per running trial");
         let person = match held.funder {
             tasks::Funder::Pool { person, .. } => person,
             tasks::Funder::Period { .. } | tasks::Funder::Task(_) | tasks::Funder::Recurring { .. } => continue,
@@ -166,6 +173,12 @@ pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>) {
                 moved.push(trials::Event::Observed { task, past_starting, took });
             }
         }
+    }
+    domain.trial_waits = waits;
+    if changed {
+        let mut subjects = List::with_capacity(1);
+        subjects.push(Token::new(trials::TRIALS_SUBJECT)).expect("one trials subject");
+        domain.work.push(Work::Core(core::Event::Marked { connector: domain.config.forge_connector, subjects }));
     }
     for _ in 0..moved.len() {
         route(domain, env, moved.pop().expect("observation count"));
@@ -200,7 +213,7 @@ mod tests {
         let mut limits = crate::tests::resume_fixture::limits();
         limits.accounts.accounts = 100;
         limits.journal.result_bytes = 0;
-        let row = u32::try_from(size_of::<temper_engine_domain_trials::Row>()).unwrap();
+        let row = u32::try_from(size_of::<crate::TrialRow>()).unwrap();
         limits.journal.transcript_bytes = row * 2 - 1;
         assert_eq!(crate::limits::trial_limits(&limits).rows, 1);
         limits.journal.transcript_bytes = row * 2;

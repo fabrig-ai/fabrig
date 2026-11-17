@@ -22,13 +22,13 @@ pub(crate) fn sign_out(domain: &mut Domain, source: u32, name: SourceName, out: 
     let count = domain.worker_names.len();
     let mut workers = List::with_capacity(count);
     for position in 0..count {
-        workers
-            .push(domain.worker_names.worker(position).expect("admitted configured position"))
-            .expect("configured worker count");
+        if let Some(worker) = domain.worker_names.worker(position) {
+            workers.push(worker).expect("configured worker count");
+        }
     }
     out.push(Request::ProgramTargets { source, workers: workers.into_boxed() });
     for position in 0..count {
-        let worker = domain.worker_names.worker(position).expect("admitted configured position");
+        let Some(worker) = domain.worker_names.worker(position) else { continue };
         let mut target = None;
         for (_, id) in &domain.tokens {
             let host = domain.channels.get(*id).expect("current channel");

@@ -559,7 +559,7 @@ fn change(document: &Document, at: u32, path: &Path, problems: &mut Problems) ->
     let kind = check::short(&mut object, document, b"kind", path, problems);
     let words = check::count(&mut object, document, b"words", path, problems);
     object.finish(document, path, problems);
-    Some(tasks::Contract::Change { connector: connector?, kind: kind?, words: words? })
+    Some(tasks::Contract::Change { connector: connector?, kind: kind?, words: words?, choices: Box::new([]) })
 }
 fn verdict(
     document: &Document,

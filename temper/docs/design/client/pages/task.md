@@ -222,6 +222,9 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (`../view.md`, 5) |
 
+- **Its wait,** while its panel carries one and it is not held, a
+  notice after its step's line: for `OutboxRoom`, "Waiting for room in
+  the forge outbox." (`../../domain/forge/room.md`, 7).
 - **Its hold,** while it is held, a notice after its step's line: "Held
   while STEP: REASON.", STEP the step it was held at in lower case as
   the table names it ("first in the queue" for first), and REASON:

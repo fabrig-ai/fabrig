@@ -173,7 +173,7 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                 super::finish(d, env, number, Outcome::Failed(Error::Closed), out);
                 return;
             }
-            let valid = match &w.entry.effect.condition {
+            let refusal = match &w.entry.effect.condition {
                 Condition::Merge { base } => {
                     let head = match w.entry.effect.write {
                         Write::Merge { head, .. } => head,
@@ -192,16 +192,29 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                         | Write::Rerun { .. }
                         | Write::DeleteBranch { .. } => unreachable!("merge condition checked at admission"),
                     };
-                    pull.base == *base && pull.commit == head
+                    if pull.base == *base && pull.commit == head { None } else { Some(Error::Stale) }
                 }
-                Condition::Update { head, base } => pull.commit == *head && pull.base_commit == Some(*base),
-                Condition::Review { head } => pull.commit == *head,
+                Condition::Update { head, base } => {
+                    if pull.commit != *head {
+                        Some(Error::Stale)
+                    } else if pull.base_commit != Some(*base) {
+                        Some(Error::BaseMoved { base: pull.base_commit })
+                    } else {
+                        None
+                    }
+                }
+                Condition::Review { head } => {
+                    if pull.commit == *head {
+                        None
+                    } else {
+                        Some(Error::Stale)
+                    }
+                }
                 Condition::None => unreachable!("unconditional effects do not check pulls"),
             };
-            if valid {
-                super::next(d, number, Phase::Make);
-            } else {
-                super::finish(d, env, number, Outcome::Failed(Error::Stale), out);
+            match refusal {
+                Some(error) => super::finish(d, env, number, Outcome::Failed(error), out),
+                None => super::next(d, number, Phase::Make),
             }
         }
         Phase::Find { .. } => match &w.entry.effect.write {

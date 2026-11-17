@@ -23,6 +23,8 @@ pub struct Credential {
     pub name: Box<[u8]>,
     pub secret: Secret,
     pub application: wire::Application,
+    /// Figures alone reports Figures and closes; Link keeps hosting (protocol/channel/figures.md, 4).
+    pub opening: wire::Opening,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
@@ -114,7 +116,13 @@ impl Component {
             Box::new(wire::translation::Translation::new(credential.application).or(Err(Unusable::Application))?);
         let credential = wire::Credential::new(
             &bodies,
-            wire::CredentialParts { name: credential.name, secret: credential.secret, wires, output: limits.room },
+            wire::CredentialParts {
+                name: credential.name,
+                secret: credential.secret,
+                wires,
+                output: limits.room,
+                opening: credential.opening,
+            },
         );
         let Ok(credential) = credential else { return Err(Unusable::Credential) };
         let backoff = Backoff::new(limits, seed);
@@ -185,14 +193,14 @@ impl Component {
             }
             Event::Gone { connection } => self.gone(now, connection, out),
             Event::Hello { hello } => {
-                if self.life != Life::Active {
+                if self.life != Life::Active || *self.credential.opening() == wire::Opening::Figures {
                     return;
                 }
                 self.hello(now, hello, out);
                 self.pump(now, out);
             }
             Event::Up { up, parts } => {
-                if self.life != Life::Active {
+                if self.life != Life::Active || *self.credential.opening() == wire::Opening::Figures {
                     return;
                 }
                 self.up(up, &parts, out);
@@ -617,7 +625,9 @@ impl Component {
         }
     }
     fn ready(&mut self, now: Time, version: u16, terms: &List<channel::Term>, out: &mut Queue<Request>) {
-        if let Some(kind) = wire::terms_gap(&self.schema, version, Role::Initiator, terms) {
+        if *self.credential.opening() == wire::Opening::Link
+            && let Some(kind) = wire::terms_gap(&self.schema, version, Role::Initiator, terms)
+        {
             self.command(channel::Request::Refuse {
                 reason: REFUSED_LIMITS,
                 text: bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes()),
@@ -645,7 +655,7 @@ impl Component {
             if let Some(connection) = self.phase.connection() {
                 connection.live(now, &self.limits);
             }
-            if ready {
+            if ready && *self.credential.opening() == wire::Opening::Link {
                 out.push(Request::Ready);
             }
             self.command(channel::Request::Read);
@@ -672,7 +682,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v15::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v16::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -681,7 +691,7 @@ impl Component {
                 self.lose(now, Loss::Fault, out);
                 return;
             };
-            if crate::wires::singletons(&self.wires).is_none() {
+            if *self.credential.opening() == wire::Opening::Link && crate::wires::singletons(&self.wires).is_none() {
                 let incomplete = self.translation.incomplete(agreed.as_slice());
                 if !incomplete.is_empty() {
                     for wire in &incomplete {
@@ -699,7 +709,7 @@ impl Component {
             let ready = connection.wires.is_none();
             connection.wires = Some(agreed);
             connection.stated = true;
-            if ready {
+            if ready && *self.credential.opening() == wire::Opening::Link {
                 out.push(Request::Ready);
             }
             self.command(channel::Request::Read);
@@ -709,6 +719,26 @@ impl Component {
             && connection.wires.is_none()
         {
             self.lose(now, Loss::Fault, out);
+            return;
+        }
+        if kind == wire::Kind::Figures.number() {
+            let stated = match self.phase.connection() {
+                Some(connection) => connection.stated,
+                None => false,
+            };
+            let record = wire::Figures::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(body));
+            if let Ok(figures) = record
+                && stated
+            {
+                out.push(Request::Figures { figures });
+                if *self.credential.opening() == wire::Opening::Figures {
+                    self.end(now, false, out);
+                } else {
+                    self.command(channel::Request::Read);
+                }
+            } else {
+                self.lose(now, Loss::Fault, out);
+            }
             return;
         }
         if kind == wire::Kind::Restarting.number() {
@@ -922,7 +952,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v15::Limits,
+        limits: &wire::v16::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

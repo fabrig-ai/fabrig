@@ -156,6 +156,7 @@ impl World {
                     git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }

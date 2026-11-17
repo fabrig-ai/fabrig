@@ -168,13 +168,14 @@ fn workers(jig: &jig_protocol_config::Limits) -> jig_protocol_engine_workers::Li
 }
 
 pub(super) fn worker_link(worker: &jig_protocol_config::Worker) -> jig_protocol_worker_link::Limits {
-    let profile = worker.limits.link;
-    let mut sizes = workers(&worker.limits).sizes;
+    let limits = worker.limits.as_ref().expect("checked worker limits");
+    let profile = limits.link;
+    let mut sizes = workers(limits).sizes;
     sizes.slots = worker.slots;
     jig_protocol_worker_link::Limits {
         sizes,
         chunk: profile.chunk,
-        room: worker.limits.io.largest_room(),
+        room: limits.io.largest_room(),
         handshake: profile.handshake,
         ping: profile.ping,
         silence: profile.silence,

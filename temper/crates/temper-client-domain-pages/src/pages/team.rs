@@ -641,6 +641,7 @@ impl Team {
             let handle = new_handle(next);
             self.others.push(Other { party: *party, handle, waits: None }).expect("at most OTHERS watches");
             let query = c::TaskQuery {
+                parts: List::with_capacity(0),
                 project: Some(project),
                 requester: Some(c::Requester::Person(*party)),
                 root: None,

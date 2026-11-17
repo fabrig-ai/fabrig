@@ -94,6 +94,9 @@ pub fn result(answer: run::Answer, change: Option<ChangeResource>) -> Result<Ter
                     tasks::TaskResult::NoChange { words: verdict.text }
                 }
                 run::outcome::Declared::Verdict(verdict) => {
+                    if change.is_some() {
+                        return Err(Problem::Type(b"verdict"));
+                    }
                     if !verdict.items.is_empty() {
                         return Err(Problem::Type(b"items"));
                     }

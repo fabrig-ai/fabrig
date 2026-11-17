@@ -293,7 +293,7 @@ impl<A: crate::Application> Engine<A> {
             Subject::Tasks { query, window } => {
                 let rows = self.task_lines(party, query);
                 let count = rows.len().min((*window).min(self.bounds.rows) as usize);
-                Delivery::Tasks(Box::new(Tasks { rows: list(&rows[..count]), more: count < rows.len() }))
+                Delivery::Tasks(Box::new(Tasks { rows: list(&rows[..count]), more: count < rows.len(), ended_mark: 0 }))
             }
             Subject::Run { task, turn, offset } => {
                 let Some(run) = self.runs.get(task) else {

@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -49,7 +49,13 @@ fn keyed() -> Box<[u8]> {
     ask.encode(&mut bytes).expect("ask bytes");
     let record = w::Keyed::new(
         &lim,
-        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 27, request: bytes.finish(), value: None },
+        w::KeyedParts {
+            key: [5; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: None,
+        },
     )
     .expect("keyed");
     let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -101,8 +107,11 @@ fn after_stop_a_read_is_served() {
     let value = w::Read::Me;
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("read bytes");
-    let record = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 27, record: bytes.finish() })
-        .expect("read owner");
+    let record = w::Owned::new(
+        &lim,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .expect("read owner");
     let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut bytes).expect("owner bytes");
     let socket = peer.accepted_post(b"/jig/v1/read", bytes.finish());
@@ -125,8 +134,11 @@ fn after_stop_a_new_watch_is_ended_as_stopping() {
     let mut peer = signed();
     let stream = peer.open_stream();
     let lim = fixtures::limits().wire;
-    let owned = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 27, record: Box::new([0]) })
-        .expect("frame subject");
+    let owned = w::Owned::new(
+        &lim,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: Box::new([0]) },
+    )
+    .expect("frame subject");
     let open = w::Open::new(&lim, w::OpenParts { stream, watch: 1, subject: owned }).expect("watch open");
     let mut bytes = Writer::new(skein_lib::length::usize_of(open.measure()));
     open.encode(&mut bytes).expect("open bytes");

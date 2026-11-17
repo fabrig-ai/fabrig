@@ -211,6 +211,7 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
     let (mut domain, watch, out) = begin();
     crate::tests::state::domain::pages::finish_initial_inbox_reads(&mut domain, &out);
     let line = TaskLine {
+        parts: List::with_capacity(0),
         chip: crate::tests::state::domain::objects::chip(8),
         project: 1,
         requester: Requester::Person(1),

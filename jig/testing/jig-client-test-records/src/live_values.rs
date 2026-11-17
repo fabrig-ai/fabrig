@@ -121,6 +121,7 @@ pub fn task_line_record() -> w::TaskLine {
     w::TaskLine::new(
         &l,
         w::TaskLineParts {
+            parts: List::with_capacity(0),
             chip: live_chip_record(),
             project: 7,
             tracked: Some(19),
@@ -156,8 +157,11 @@ pub fn task_line_record() -> w::TaskLine {
 pub fn tasks_rows_record() -> w::Tasks {
     let l = limits();
     let row = task_line_record();
-    w::Tasks::new(&l, w::TasksParts { rows: pieces([encoded(row.measure(), |w| row.encode(w))]), more: true })
-        .expect("literal")
+    w::Tasks::new(
+        &l,
+        w::TasksParts { ended_mark: 0, rows: pieces([encoded(row.measure(), |w| row.encode(w))]), more: true },
+    )
+    .expect("literal")
 }
 #[must_use]
 pub fn stored_link_record() -> w::TaskLink {
@@ -404,6 +408,7 @@ pub fn deployment_rows_record() -> w::Deployment {
     w::Deployment::new(
         &l,
         w::DeploymentParts {
+            worker_settings: List::with_capacity(0),
             skein_bools: [false, true, false, false],
             providers: Box::new([]),
             key_bytes: 256,
@@ -539,6 +544,9 @@ fn task_refusal_record() -> w::TaskCapacityRefusal {
 /// A page fixture with defaults for every field, before a test selects its facts.
 #[must_use]
 pub fn task_page_record() -> w::TaskPage {
-    w::TaskPage::new(&limits(), w::TaskPageParts { live: Box::new([]), live_after: None, ended: w::EndedGroup::None })
-        .expect("empty page fits")
+    w::TaskPage::new(
+        &limits(),
+        w::TaskPageParts { ended_mark: 0, live: Box::new([]), live_after: None, ended: w::EndedGroup::None },
+    )
+    .expect("empty page fits")
 }

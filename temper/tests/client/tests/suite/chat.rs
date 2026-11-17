@@ -131,7 +131,7 @@ fn delegate_change(front: &mut temper_client_world::front::Joint, chat: u64) -> 
                         ]),
                         inputs: Box::new([]),
                     },
-                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 128 },
+                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 128, choices: Box::new([]) },
                     authority,
                     ..temper_engine_domain_world::fixtures::report_delegate(CHANGE_TITLE, Box::new([]))
                 }]),

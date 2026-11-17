@@ -99,7 +99,7 @@ fn words<E>(what: &What<E>, path: &config::Path) -> &'static [u8] {
     match what {
         What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
         What::WorkerAlone => {
-            b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.limits"
+            b"a worker alone takes one worker dialling a plaintext loopback socket, and an empty application object"
         }
         What::Absolute => b"must be an absolute path",
         What::Profile => b"the only profile is \"standard\"",

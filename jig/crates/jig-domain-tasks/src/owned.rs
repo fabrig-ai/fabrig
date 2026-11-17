@@ -243,7 +243,7 @@ fn contract_bytes(contract: &Contract) -> Option<u64> {
             }
             Some(total)
         }
-        Contract::Verdict { choices } => {
+        Contract::Verdict { choices } | Contract::Change { choices, .. } => {
             let mut total = bytes(size_of_val(&**choices))?;
             for choice in choices {
                 total = total.checked_add(bytes(size_of_val(&*choice.fields))?)?;
@@ -253,7 +253,7 @@ fn contract_bytes(contract: &Contract) -> Option<u64> {
             }
             Some(total)
         }
-        Contract::Job { .. } | Contract::Report { .. } | Contract::Change { .. } => Some(0),
+        Contract::Job { .. } | Contract::Report { .. } => Some(0),
     }
 }
 

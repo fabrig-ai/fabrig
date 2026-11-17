@@ -187,6 +187,9 @@
     period, with the current period and when it began
     (`../../../domain/authority.md`, section 7);
   - *the deployment:* hosts, each with its program sources' logins;
+    the workers' settings, withdrawn ones included, each linked or not
+    and since when (`worker_settings`,
+    `../../../domain/engine/workers.md`, 6);
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity; the
     store's fill against its mark, and its census (`census`), the last

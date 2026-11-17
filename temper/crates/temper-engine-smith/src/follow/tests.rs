@@ -90,7 +90,7 @@ fn follow_calls_validate_members_before_deciding() {
         );
     }
     let delegate = jig_domain_core::ToolFamilies::JIG.delegate.0;
-    for (charter, authority, offered) in [(delegate, delegate, true), (delegate, 0, true), (0, delegate, false)] {
+    for (charter, authority, offered) in [(delegate, delegate, true), (delegate, 0, false), (0, delegate, false)] {
         let tools = crate::calls::tools_for(
             skein_lib::Duration::from_secs(1),
             jig_domain_tasks::Tools(charter),

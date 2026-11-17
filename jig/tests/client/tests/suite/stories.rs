@@ -113,6 +113,7 @@ fn a_project_s_tasks_section_watches_one_query_by_last_change() {
         subjects,
         vec![Subject::Tasks {
             query: TaskQuery {
+                parts: skein_lib::List::with_capacity(0),
                 project: Some(QUERY_PROJECT),
                 requester: None,
                 root: None,

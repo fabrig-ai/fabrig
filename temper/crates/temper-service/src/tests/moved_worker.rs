@@ -22,9 +22,10 @@ fn moved_worker_members_print_their_paths_and_destinations_in_every_shape() {
         }
     }
     for document in [fixtures::document(), fixtures::worker_alone_document(), fixtures::engine_alone_document()] {
-        let input =
-            core::str::from_utf8(&document).unwrap().replace("\"application\":{", "\"application\":{\"workers\":null,");
-        let found = startup::shape(input.as_bytes(), &Directories::working()).unwrap_err();
+        let mut input: serde_json::Value = serde_json::from_slice(&document).unwrap();
+        input["application"]["workers"] = serde_json::Value::Null;
+        let input = serde_json::to_vec(&input).unwrap();
+        let found = startup::shape(&input, &Directories::working()).unwrap_err();
         assert_eq!(
             startup::lines(&found).as_ref(),
             b"application.workers: moved: a worker's workspaces are the data directory's; its git is found on PATH\n"

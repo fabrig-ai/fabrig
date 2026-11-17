@@ -13,6 +13,9 @@
         "documents.text_bytes": 512,
         "fleet.configured_workers": 8,
         "fleet.workers": 2,
+        "hub.accounts": 4,
+        "hub.event_bytes": 10660,
+        "hub.run_calls": 48,
         "hub.transcript_bytes": 67215250,
         "hub.turn_bytes": 16803810,
         "hub.turn_queue_bytes": 134430480,
@@ -30,8 +33,18 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
-          "keep": ["gpt-*"],
-          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
+          "keep": [
+            "gpt-*"
+          ],
+          "drop": [
+            "*audio*",
+            "*image*",
+            "*realtime*",
+            "*search*",
+            "*transcribe*",
+            "*tts*",
+            "*-20??-??-??"
+          ],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {
@@ -46,8 +59,17 @@
               "keys": "https://auth.openai.com/.well-known/jwks.json",
               "transport": "tls",
               "server_name": "auth.openai.com",
-              "scopes": ["openid", "profile", "email", "offline_access", "resource.invoke", "chatgpt.tokens.use.direct"],
-              "must_grant": ["chatgpt.tokens.use.direct"],
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
               "resource": "https://api.openai.com/v1",
               "redirect_path": "auth/callback",
               "redirect_port": 1455
@@ -74,20 +96,13 @@
       ]
     },
     "hosts": {
-      "workers": [
-        {
-          "name": "worker",
-          "digest": "secrets/worker.digest"
-        }
-      ],
       "listener": [
         {
           "in_process": "workers"
         }
       ]
     },
-    "clients": {
-    },
+    "clients": {},
     "owners": [
       {
         "provider": 1,
@@ -101,30 +116,9 @@
       "engine": {
         "in_process": "workers"
       },
-      "name": "worker",
+      "name": "local",
       "secret": "secrets/worker.secret",
-      "slots": 4,
-      "agent": {
-        "program": "/usr/local/bin/temper",
-        "configuration": "/home/me/temper/owned/agent.json",
-        "arguments": [
-          "internal",
-          "agent",
-          "/home/me/temper/owned/agent.json"
-        ]
-      },
-      "limits": {
-        "profile": "standard",
-        "overrides": {
-          "hub.accounts": 4,
-          "hub.event_bytes": 10660,
-          "hub.run_calls": 48,
-          "hub.transcript_bytes": 67215250,
-          "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480,
-          "io.output": 16804602
-        }
-      }
+      "slots": 4
     }
   ],
   "application": {
@@ -140,7 +134,8 @@
         "socket": "127.0.0.1:7101"
       }
     },
-    "demo": null, "sign_in": null,
+    "demo": null,
+    "sign_in": null,
     "limits": {
       "profile": "standard",
       "overrides": {

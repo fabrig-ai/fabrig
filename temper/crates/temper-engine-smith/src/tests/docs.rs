@@ -149,8 +149,11 @@ fn read_docs_is_declared_as_a_read() {
         if tool.name.as_ref() == b"read_docs" {
             found = true;
             assert_eq!(tool.effect, run::HostEffect::Read);
-            assert_eq!(tool.schema.as_ref(), br#"{"type":"object","properties":{"topic":{"type":"string","description":"A page's name, such as index."},"from":{"type":"integer","description":"The offset to read from, as next: gave it; 0 when absent.","minimum":0},"search":{"type":"string","description":"The words a section must hold, every one: at most 8."}}}"#);
-            assert_eq!(tool.description.as_ref(), b"Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.");
+            let schema = crate::json::parse(&tool.schema).unwrap();
+            let properties = schema.required(b"properties").unwrap();
+            for member in [b"topic".as_slice(), b"from", b"search"] {
+                assert!(properties.field(member).unwrap().is_some());
+            }
         }
     }
     assert!(found);

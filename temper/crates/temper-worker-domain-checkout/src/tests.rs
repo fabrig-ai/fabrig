@@ -140,6 +140,7 @@ impl Harness {
                 Op::Merge { .. } => Done::Merged,
                 Op::Reds { .. }
                 | Op::Store { .. }
+                | Op::Reset { .. }
                 | Op::Point { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
@@ -160,6 +161,7 @@ impl Harness {
                     return hold;
                 }
                 other @ (Request::Results { .. }
+                | Request::DependencyLanded { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }
@@ -313,6 +315,7 @@ fn landings(request: Request) -> Box<[Landing]> {
         Request::Pushed { client: _, outcome: Outcome::Pushed { landings } }
         | Request::Saved { client: _, outcome: Outcome::Pushed { landings } } => landings,
         other @ (Request::Results { .. }
+        | Request::DependencyLanded { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -330,6 +333,7 @@ fn refused(request: Request) -> Refusal {
         | Request::Saved { client: _, outcome: Outcome::Refused { refusal } }
         | Request::Prepared { client: _, prepared: Prepared::Refused { refusal } } => refusal,
         other @ (Request::Results { .. }
+        | Request::DependencyLanded { .. }
         | Request::ResultsEnd { .. }
         | Request::Held { .. }
         | Request::Prepared { .. }
@@ -348,6 +352,7 @@ fn workspace_of(op: &Op) -> Token {
         Op::Make { workspace, .. } => *workspace,
         Op::Reds { at, .. }
         | Op::Clone { at, .. }
+        | Op::Reset { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -1015,6 +1020,7 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
             Op::Reds { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }
@@ -1029,6 +1035,7 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Request::Io { op: next, .. } => op = next,
             Request::Prepared { prepared: Prepared::Ready { .. }, .. } => return (hold, seen),
             other @ (Request::Results { .. }
+            | Request::DependencyLanded { .. }
             | Request::ResultsEnd { .. }
             | Request::Held { .. }
             | Request::Prepared { .. }
@@ -1203,6 +1210,7 @@ fn pin_count(ops: &List<Op>) -> usize {
             | Op::Store { .. }
             | Op::Look { .. }
             | Op::Clone { .. }
+            | Op::Reset { .. }
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::CheckOut { .. }
@@ -1317,7 +1325,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
                     other @ (Op::Reds { .. }
-                    | Op::Point { .. }
+                    | Op::Reset { .. } | Op::Point { .. }
                     | Op::Store { .. }
                     | Op::Make { .. }
                     | Op::Look { .. }
@@ -2048,6 +2056,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
             assert_eq!(account, expected);
         }
         Op::Reds { .. }
+        | Op::Reset { .. }
         | Op::Point { .. }
         | Op::Store { .. }
         | Op::Clone { .. }
@@ -2950,9 +2959,12 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
             let done = match &op {
                 Op::Store { .. } => panic!("exactly one Store per remote"),
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
-                Op::Reds { .. } | Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => {
-                    Done::Succeeded
-                }
+                Op::Reds { .. }
+                | Op::Make { .. }
+                | Op::Reset { .. }
+                | Op::Point { .. }
+                | Op::Clone { .. }
+                | Op::CheckOut { .. } => Done::Succeeded,
                 Op::Look { .. }
                 | Op::Create { .. }
                 | Op::IsAncestor { .. }
@@ -2970,6 +2982,7 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                     break;
                 }
                 other @ (Request::Results { .. }
+                | Request::DependencyLanded { .. }
                 | Request::ResultsEnd { .. }
                 | Request::Held { .. }
                 | Request::Prepared { .. }

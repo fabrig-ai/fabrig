@@ -954,6 +954,7 @@ fn hold(hold: &w::Hold) -> &[u8] {
         w::Hold::Closed => b"closed",
         w::Hold::Retargeted => b"retargeted",
         w::Hold::Failed => b"failed",
+        w::Hold::Flake => b"flake",
         w::Hold::Rejected => b"rejected",
         w::Hold::Authority(value) => value.reason(),
     }

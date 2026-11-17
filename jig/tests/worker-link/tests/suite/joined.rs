@@ -257,8 +257,8 @@ mod joined_story {
         world.finish();
     }
     #[test]
-    fn a_wrong_secret_worker_redials_after_unauthorized() {
-        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 256);
+    fn a_wrong_secret_worker_redials_after_not_admitted() {
+        refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 260);
     }
     #[test]
     fn another_wire_version_worker_redials_after_wires() {

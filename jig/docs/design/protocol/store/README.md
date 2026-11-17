@@ -123,6 +123,7 @@ skein-io                        files: the ring, or the simulator's disk
 │   │   ├── secrets/    the secrets' store: the directory 0o700, its files 0o600
 │   │   └── manifest    what made this generation (below)
 │   └── 8/          the active one, as 7
+├── checkpoints/    the state at a commit, each laid out as this directory (checkpoints.md)
 └── transcripts/    one file per task, in directories by the task's number
 ```
 
@@ -257,13 +258,10 @@ skein-io                        files: the ring, or the simulator's disk
     build's levels (`opening.md`, 1.8; `<bridge>` is `records.md`, 3's
     `FLOOR_BRIDGE`).
 - **A backup** copies, with the engine stopped, the deployment's
-  directory whole. Online, which stays open (section 11),
-  it would copy `active`, then the generation `active` names, then
-  `transcripts/`, in that order, and rest on recovery's rule: no switch
-  happens while the engine serves (upgrading is open's, `opening.md`, 2), and a
-  transcript's frames past the committed length the copied map names
-  are cut at the next open (`transcripts.md`, 4). The previous generation needs no
-  copy for a backup of the deployment as it runs.
+  directory whole, or is a checkpoint: the state at one commit, taken
+  while the engine serves or over a stopped deployment, mostly by hard
+  links (`checkpoints.md`). A first start refuses a `checkpoints/` that
+  holds anything (`checkpoints.md`, 7).
 - **Opened before the root starts** (`opening.md`; `../service.md`,
   section 3).
 
@@ -907,10 +905,8 @@ intervals, and its indexes, by the rules of section 7.
 - **Backups:** copying the deployment's directory whole while the engine
   is stopped works; a copy that keeps hard links keeps the files two
   generations share as one, and one that does not stores them twice and
-  restores a deployment that opens the same. An online backup would copy `active`, the generation
-  it names and `transcripts/`, in that order (section 2), and rest on
-  recovery's rule, and on skein-kv keeping each segment the copy has
-  yet to read.
+  restores a deployment that opens the same. A copy while it serves is
+  a checkpoint's (`checkpoints.md`), whose restore is open there (10).
 - **Finding a turn faster:** a row per turn in the map, if walking an
   attempt's frames proves slow for parties' reads.
 - **Values on disk,** with only keys in memory, if a deployment outgrows

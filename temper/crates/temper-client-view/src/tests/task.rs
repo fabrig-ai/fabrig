@@ -1819,6 +1819,7 @@ fn tasks_page(lines: &[c::TaskLine], after: bool, cut: bool) -> c::TaskPage {
         rows.push(line.clone()).expect("ended rows");
     }
     c::TaskPage {
+        ended_mark: 0,
         live: List::with_capacity(0),
         live_after: None,
         ended: c::EndedGroup::Rows {

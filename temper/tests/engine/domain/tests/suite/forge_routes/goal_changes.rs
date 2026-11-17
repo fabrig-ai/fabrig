@@ -402,7 +402,7 @@ fn design_pages() -> Vec<skein_fake_llm_domain::api::Turn> {
 fn design_scripts(input: &[u8]) -> Box<[skein_fake_llm_domain::api::Script]> {
     use skein_fake_llm_domain::api::{Line, Script};
     let mut parent = vec![
-        read_turn(b"read_file", input),
+        read_turn(b"read_forge", input),
         read_turn(b"sub_agent", br#"{"brief":"@survey-design","tools":["inspect"]}"#),
     ];
     parent.extend(design_pages());
@@ -440,8 +440,10 @@ fn read_landed_design(world: &mut World, run: &engine::Assignment, head: u64, ma
     );
     let (settings, charter) = inspection_charter(run);
     let digits = engine::commit_text(&translate::commit(head));
-    let input =
-        format!(r#"{{"head":"{}","path":"docs/design/formats.md"}}"#, core::str::from_utf8(&digits).expect("hex"));
+    let input = format!(
+        r#"{{"what":"file","commit":"{}","path":"docs/design/formats.md"}}"#,
+        core::str::from_utf8(&digits).expect("hex")
+    );
     let (disk, workspace) = super::saved_retry::inspect(world, run);
     assert!(
         disk.load(workspace.directories[0].root.raw(), DESIGN, u64::MAX)
@@ -468,7 +470,7 @@ fn read_landed_design(world: &mut World, run: &engine::Assignment, head: u64, ma
 
 fn refuse_forge_answer(world: &mut World, run: &engine::Assignment, agent: &mut smith_agent_world::World) {
     let pending = agent.pending_host_calls();
-    let [call] = pending.as_slice() else { panic!("goal's read_file is relayed: {:?}", agent.answer()) };
+    let [call] = pending.as_slice() else { panic!("goal's read_forge what=file is relayed: {:?}", agent.answer()) };
     let relay = call.relay;
     let completion = 200 + u32::try_from(world.answers.len()).expect("bounded calls");
     let answer = super::change_tool::named_read(world, run, completion, &call.tool, call.input.bytes());
@@ -487,7 +489,7 @@ fn assert_design_reads(agent: &smith_agent_world::World, marker: &[u8]) {
         for part in query.messages.iter().flat_map(|message| &message.parts) {
             if let Part::ToolOutput { output, is_error, .. } = part {
                 if output.windows(last_line.len()).any(|bytes| bytes == last_line.as_bytes()) && !is_error {
-                    readers.insert(query.tools.iter().any(|tool| tool.name.as_ref() == b"read_file"));
+                    readers.insert(query.tools.iter().any(|tool| tool.name.as_ref() == b"read_forge"));
                 }
                 refused |= output
                     .windows(b"host-decided answer-too-large answer-not-shown".len())
@@ -495,7 +497,7 @@ fn assert_design_reads(agent: &smith_agent_world::World, marker: &[u8]) {
             }
         }
     }
-    assert!(refused, "oversized read_file is refused");
+    assert!(refused, "oversized read_forge what=file is refused");
     assert_eq!(readers.len(), 2, "goal and inspect-only survey reach the final marker from g");
     assert_eq!(agent.host_submissions().len(), 1, "surveys have workspace tools alone");
     assert_eq!(agent.pushes(), []);

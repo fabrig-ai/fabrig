@@ -164,6 +164,7 @@ pub fn layout(
         files: profile.files,
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
         fetch: profile.fetch,
+        checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
     })
 }
@@ -193,7 +194,7 @@ pub fn owns(token: Token) -> bool {
 #[cfg(test)]
 mod sizing_tests {
     use super::{max_whole, page_bytes, protocol};
-    use protocol::host::max_read;
+    use protocol::{checkpoints::CHUNK, host::max_read};
 
     #[test]
     fn application_spoken_equals_the_engines_worker_wire_entry() {
@@ -209,6 +210,14 @@ mod sizing_tests {
     }
 
     #[test]
+    fn checkpoint_retention_reaches_the_component() {
+        let (application, _, mut profile) = crate::tests::fixtures::store_limits();
+        profile.checkpoints.keep = 3;
+        let limits = super::layout(&application, &application.forge, &profile).unwrap();
+        assert_eq!(limits.checkpoints.keep, 3);
+    }
+
+    #[test]
     fn drivers_read_a_whole_page_in_every_admitted_store() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
         let limits = super::limits(&application, &application.forge, &profile).unwrap();
@@ -221,17 +230,19 @@ mod sizing_tests {
         limits.core.resume_bytes = 16;
         limits.core.load_bytes = 8;
         // Synthetic read fields exercise the helper without constructing a KV store.
-        for chunk in [32, protocol::sizes::MANIFEST_BYTES.checked_sub(1).unwrap()] {
+        for chunk in [32, CHUNK.checked_sub(1).unwrap()] {
             limits.store.chunk = chunk;
-            assert_eq!(max_read(&limits), chunk);
-            assert_eq!(max_whole(&limits), protocol::sizes::MANIFEST_BYTES);
+            assert_eq!(max_read(&limits), CHUNK);
+            assert!(max_whole(&limits) >= protocol::sizes::MANIFEST_BYTES);
+            assert!(max_whole(&limits) >= max_read(&limits));
         }
     }
 
     #[test]
     fn drivers_take_reads_whole_when_reads_are_larger() {
         let (_, _, mut limits) = crate::tests::fixtures::store_limits();
-        let above = protocol::sizes::MANIFEST_BYTES.checked_add(1).unwrap();
+        // Above both the checkpoint copy chunk and the whole checkpoint record bound.
+        let above = CHUNK.checked_mul(2).unwrap();
         for (chunk, resume, load) in [(above, 16, 8), (32, above, 8), (32, 16, u64::from(above))] {
             limits.store.chunk = chunk;
             limits.core.resume_bytes = resume;

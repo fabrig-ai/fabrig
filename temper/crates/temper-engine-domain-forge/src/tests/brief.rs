@@ -1138,6 +1138,8 @@ fn kept_landing_failure(d: &mut Domain) {
     let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
+        flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: policy::Landing {
             last_left: None,
@@ -1500,7 +1502,7 @@ fn a_job_read_busy_until_the_cutoff_keeps_the_marker() {
     let bytes = take(&mut d);
     let words = text(&bytes);
     assert!(words.contains("Failed check: / changes (pull_request)"));
-    assert!(words.ends_with("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]\nRepair the failed check.\n"), "{words}");
+    assert!(words.ends_with("[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]\nRepair the failed check.\n"), "{words}");
     d.reclaim();
     brief::retry(&mut d, &mut out);
     assert!(out.is_empty());
@@ -1791,7 +1793,7 @@ fn oversized_files_name_the_count_only_when_the_pull_gave_one() {
         let bytes = take(&mut d);
         let clause = if count.is_some() { "the pull changes 17 files; " } else { "" };
         let notice = format!(
-            "[files omitted from page 1: past forge.client.answer_bytes (4096): 5000 bytes; {clause}read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n"
+            "[files omitted from page 1: past forge.client.answer_bytes (4096): 5000 bytes; {clause}read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]\n"
         );
         assert!(text(&bytes).contains(&notice), "{}", text(&bytes));
         assert_eq!(text(&bytes).contains("the pull changes"), count.is_some());
@@ -1852,7 +1854,7 @@ fn busy_files_and_comparison_complete_at_the_cutoff_not_as_busy() {
         let notice = if compare {
             "[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         } else {
-            "[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
+            "[files cut at the brief's deadline: 0 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read it in your checkout]\n"
         };
         assert!(text(&bytes).ends_with(notice), "{}", text(&bytes));
         d.reclaim();
@@ -1944,7 +1946,7 @@ fn an_answer_at_the_cutoff_starts_no_next_files_page_or_comparison() {
         assert!(out.is_empty(), "no next read");
         let bytes = take(&mut d);
         assert!(!text(&bytes).contains("too late"));
-        assert!(text(&bytes).contains("[files cut at the brief's deadline: 0 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"));
+        assert!(text(&bytes).contains("[files cut at the brief's deadline: 0 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"));
     }
 }
 
@@ -2021,7 +2023,7 @@ fn files_cut_count_every_answered_row_and_keep_the_unanswered_page() {
         let bytes = take(&mut d);
         let count = if count.is_some() { "8 of 17" } else { "8" };
         let notice = format!(
-            "[files cut at the brief's deadline: {count} files read; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read_pull_files lists the pull's files]\n"
+            "[files cut at the brief's deadline: {count} files read; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]\n[comparison cut at the brief's deadline: not read; read_issues what=pull_files lists the pull's files]\n"
         );
         assert!(text(&bytes).ends_with(&notice), "{}", text(&bytes));
     }
@@ -2039,7 +2041,7 @@ fn a_late_pull_identity_completes_with_zero_files_and_the_comparison_it_would_re
         (
             change::State::Gating { head: HEAD, asked: Box::new([]) },
             Some(fixtures::BASE),
-            Some("read_pull_files lists the pull's files"),
+            Some("read_issues what=pull_files lists the pull's files"),
         ),
         (change::State::Repairing { requested: true, why: change::Repair::Ci }, None, None),
     ] {
@@ -2058,7 +2060,7 @@ fn a_late_pull_identity_completes_with_zero_files_and_the_comparison_it_would_re
         assert_cut(&out, SECTION, "files");
         let bytes = take(&mut d);
         let words = text(&bytes);
-        assert!(words.contains("[files cut at the brief's deadline: 0 of 17 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
+        assert!(words.contains("[files cut at the brief's deadline: 0 of 17 files read; read_issues what=pull_files from page 1 lists the rest, and read_forge what=file reads a path at the head or the base]"), "{words}");
         if let Some(how) = comparison {
             assert!(words.contains(&format!("[comparison cut at the brief's deadline: not read; {how}]")), "{words}");
         } else {
@@ -2112,7 +2114,7 @@ fn remarks_cut_counts_answered_reviews_and_never_claims_no_remarks() {
             ));
             let bytes = take(&mut d);
             let words = text(&bytes);
-            assert!(words.contains(&format!("[remarks cut at the brief's deadline: {read} of 2 reviews' remarks read; read_remarks reads a review's remarks]")), "{words}");
+            assert!(words.contains(&format!("[remarks cut at the brief's deadline: {read} of 2 reviews' remarks read; read_issues what=remarks reads a review's remarks]")), "{words}");
             assert!(!words.contains("gave no remarks"), "{words}");
         }
     }
@@ -2183,7 +2185,7 @@ fn job_cut_keeps_read_logs_and_marks_every_remaining_failed_check() {
         assert_eq!(words.matches("Failed check:").count(), 3, "{words}");
         assert_eq!(
             words
-                .matches("[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]")
+                .matches("[job log cut at the brief's deadline; read_ci what=checks names its job and read_ci what=job reads its log]")
                 .count(),
             2,
             "{words}"

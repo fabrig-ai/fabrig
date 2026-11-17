@@ -1196,7 +1196,7 @@ pub(crate) fn step(
     }
 }
 fn room(d: &Domain, env: &Env<Limits>, entry: u64) -> bool {
-    !d.entries.contains_key(&entry) && d.entries.len() < env.limits.entries
+    !d.entries.contains_key(&entry) && crate::room::check(d, &env.limits, None)
 }
 fn task_key(d: &Domain, task: u64) -> Option<(Repository, Box<[u8]>)> {
     for (key, row) in &d.tiers {

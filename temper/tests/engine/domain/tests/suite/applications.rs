@@ -203,7 +203,7 @@ fn assert_project_home(driver: &mut Driver) {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(97)),
         sign_in,
-        read: reads::Read::Project { project: 1 },
+        read: Box::new(reads::Read::Project { project: 1 }),
     }));
     driver.settle();
     let project = driver

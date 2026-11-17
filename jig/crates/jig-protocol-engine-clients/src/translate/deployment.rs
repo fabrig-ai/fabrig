@@ -486,6 +486,7 @@ pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Resul
         },
     )
 }
+#[expect(clippy::too_many_lines, reason = "one deployment carries bounded host, account, capacity and worker facts")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
     let mut hosts = List::with_capacity(value.hosts.len());
     for row in &value.hosts {
@@ -543,9 +544,30 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         connectors.push(*row).expect("supplied rows fit");
     }
 
+    let mut worker_settings = List::with_capacity(value.worker_settings.len());
+    for row in &value.worker_settings {
+        worker_settings
+            .push(w::WorkerState::new(
+                limits,
+                w::WorkerStateParts {
+                    number: row.number,
+                    name: row.name.clone(),
+                    places: row.places,
+                    digest: row.digest,
+                    withdrawn: row.withdrawn,
+                    linked: row.linked,
+                    since: match row.since {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                },
+            )?)
+            .expect("worker row count");
+    }
     w::Deployment::new(
         limits,
         w::DeploymentParts {
+            worker_settings,
             skein_bools: [value.cut, value.connectors_cut, value.providers_cut, value.readiness_cut],
             providers: super::catalogue::offers(&value.providers, limits.deployment_providers, limits)?,
             key_bytes: value.key_bytes,

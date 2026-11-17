@@ -12,6 +12,9 @@ test = false
 doctest = false
 
 [dependencies]
+temper-worker-service.workspace = true
+temper-engine-service-vocabulary.workspace = true
+jig-protocol-worker-wire.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-test-env.workspace = true
