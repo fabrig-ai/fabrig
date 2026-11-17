@@ -7,16 +7,6 @@
       "name": "w2",
       "secret": "secrets/w2.secret",
       "slots": 1,
-      "programs": {{
-        "check_interval_ms": 60000
-      }},
-      "graces": {{
-        "grace_ms": 1000,
-        "drain_ms": 1000,
-        "agent_stop_ms": 100,
-        "delivery_ms": 100,
-        "save_ms": 100
-      }},
       "agent": {{
         "program": "{artifact.temper}",
         "configuration": "{proc.w2.dir}/config/agent.json",
@@ -27,7 +17,6 @@
         ]
       }},
       "limits": {{
-        "profile": "small",
         "overrides": {{
           "core.call_answer_bytes": 4096,
           "hub.accounts": 4,
@@ -40,10 +29,13 @@
           "hub.turn_bytes": 1327470,
           "hub.turn_queue_bytes": 10619760,
           "hub.turns": 8,
-          "io.output": 1327857,
+          "io.output": 1328262,
           "link.ping_ms": 100,
           "link.silence_ms": 1000,
           "people.words": 512,
+          "hub.inbox": 8,
+          "tasks.run_inbox": 8,
+          "tasks.result_bytes": 4096,
           "tasks.message_bytes": 4096
         }}
       }},
@@ -51,14 +43,7 @@
     }}
   ],
   "application": {{
-    "workers": [
-      {{
-        "root": "workspaces",
-        "git": "{artifact.git}"
-      }}
-    ],
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,

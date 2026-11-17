@@ -1,15 +1,12 @@
 //! The demo and fake processes around forge-setup's commands (protocol/setup/box.md, 3).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
-use temper_forge_setup::{
-    Group, Kind, Stage, Step,
-    machine::{BoxKind, FakeMachine},
-};
+use temper_forge_setup::{Group, Kind, Stage, Step, machine::BoxKind};
 
 /// The fake kind's slot: the playground's fakes, bound to a forge by the box
 /// (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
-pub fn fake_slot(machine: &FakeMachine, llm: core::net::SocketAddr, flags: &[Box<[u8]>]) -> Group {
+pub fn fake_slot(llm: core::net::SocketAddr, flags: &[Box<[u8]>]) -> Group {
     let forge = Some(temper_forge_setup::step::FORGE_ARGUMENT);
     Group {
         kind: Some(BoxKind::Fake),
@@ -23,8 +20,7 @@ pub fn fake_slot(machine: &FakeMachine, llm: core::net::SocketAddr, flags: &[Box
             (Stage::Prepare, argument_command(b"prepare", &[b"forge", b"prepare"], flags, forge, Kind::Once)),
             (
                 Stage::Run,
-                argument_command(b"fake forge", &[b"fake", b"forge"], flags, forge, Kind::Long)
-                    .listening(Box::new([machine.listen])),
+                argument_command(b"fake forge", &[b"fake", b"forge"], flags, forge, Kind::Long).listening_group(),
             ),
         ]),
     }

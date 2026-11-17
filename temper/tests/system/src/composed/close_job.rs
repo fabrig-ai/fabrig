@@ -67,7 +67,7 @@ pub(super) fn worker_kinds(declared: &[JobBound], limits: &mut worker::Limits) -
 
 fn config(seed: u64) -> engine::Config {
     let mut config = super::agreement::config(seed);
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_engine_service_vocabulary::limits::jobs(&jig);
     assert!(config.core.jobs.contains(&temper_engine_service_vocabulary::limits::close_bound()));
@@ -85,30 +85,7 @@ fn config(seed: u64) -> engine::Config {
         }
     }
     let command = Some(b".temper/close".as_slice().into());
-    if let Some(landing) = config.landings.get_mut(&1) {
-        landing.close_job = command;
-    } else {
-        config
-            .landings
-            .insert(
-                1,
-                engine::ProjectLanding {
-                    gate_retries: 2,
-                    batch: 1,
-                    combine_main: engine::Combine::Merge,
-                    combine_other: engine::Combine::Squash,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                    landing_attempts: engine::LANDING_ATTEMPTS,
-                    check_timeout: None,
-                    by: engine::Way::Queue,
-                    close_job: command,
-                    merge_job: None,
-                    repositories: Box::new([]),
-                    after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .expect("project landing room");
-    }
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).close_job = command;
     config
 }
 
@@ -274,7 +251,7 @@ impl World {
         assert_eq!(job.kind.0, temper_engine_domain_forge::CLOSE_KIND);
         assert_eq!(job.deadline, Duration::from_secs(600));
         story.job = Some(job.run.raw());
-        let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+        let own = temper_service_core::limits::stock();
         let limits = temper_worker_service::worker_settings::payload_limits(
             &temper_worker_service::worker_settings::Limits::shared(own),
         )

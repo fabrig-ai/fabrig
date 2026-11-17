@@ -201,12 +201,27 @@ fn stock_charters() -> Box<[engine::Charter]> {
     let text = include_str!("../../../temper-init/template/temper.json")
         .replace("$llm", "127.0.0.1:8370")
         .replace("\"$provider\"", "null");
-    let document: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let mut document: serde_json::Value = serde_json::from_str(&text).unwrap();
+    // jig's unfixed parser takes the members that temper fixes outside its documents.
+    let fixed: serde_json::Value = serde_json::from_str(
+        r#"{
+        "clients":{"heartbeat_ms":10000,"link":true},
+        "deployment":{"directory":"state","seed":7},
+        "providers":[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"}],
+        "connectors":[1],"projects":[]
+    }"#,
+    )
+    .unwrap();
+    for (name, value) in fixed.as_object().unwrap() {
+        document["engine"][name] = value.clone();
+    }
     let engine_bytes = serde_json::to_vec(&document["engine"]).unwrap();
     let document =
         config::document(&engine_bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
             .unwrap();
-    let engine = config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).unwrap();
+    let engine =
+        config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
+            .unwrap();
     temper_engine_service_stock::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).charters
 }
 

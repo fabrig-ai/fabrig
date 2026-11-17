@@ -2,7 +2,7 @@ use super::http::Peer;
 use crate::{Service, server::Server};
 use skein_lib::{Time, Wall};
 pub fn server() -> Server {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
     Server::new(super::http::address(), &crate::limits::server(&jig))
 }
 pub fn server_head(server: &mut Server, out: &mut skein_lib::Queue<crate::server::Routed>) -> skein_http::server::Call {

@@ -248,7 +248,7 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
 
 #[test]
 fn selected_open_stays_within_the_small_profile_open_ceiling() {
-    let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+    let limits = jig_protocol_config_fixtures::small().store;
     let meter = skein_heap::Meter::new();
     meter.start();
     let mut world = World::unopened_observed(SEED, limits, None);

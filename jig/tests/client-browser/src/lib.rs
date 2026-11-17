@@ -210,7 +210,7 @@ mod tests {
         let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
         let document = config::document(&bytes, &DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 })
             .expect("engine document");
-        config::engine(&document, 0, &Directories::working(), Defaults::Document)
+        config::engine(&document, 0, &Directories::working(), Defaults::Document, &config::Fixed::NONE)
             .expect("the browser engine must pass startup validation");
     }
     #[test]
@@ -226,8 +226,8 @@ mod tests {
         assert_eq!(tier_configuration()["service"]["components"], serde_json::json!(["clients"]));
     }
     #[test]
-    fn the_tier_uses_the_engine_s_small_limits_profile() {
-        assert_eq!(tier_configuration()["engine"]["limits"]["profile"], "small");
+    fn the_tier_uses_the_engine_s_stock_base() {
+        assert_eq!(tier_configuration()["engine"]["limits"]["profile"], "standard");
     }
     #[test]
     fn the_tier_starts_without_any_agent_workers() {

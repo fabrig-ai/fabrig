@@ -154,7 +154,11 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
 }
 
 fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
-    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
+    produced_with_hold(limits, false)
+}
+fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
+    let mut world =
+        World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits).with_landing_held(held);
     world.adopt();
     world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
@@ -968,7 +972,7 @@ mod wait_drill;
 mod restarts;
 
 #[path = "landing_go_live.rs"]
-mod go_live;
+pub(crate) mod go_live;
 
 #[test]
 fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
@@ -1234,3 +1238,32 @@ mod stale_round;
 
 #[path = "landing_copied.rs"]
 mod copied;
+
+pub(crate) fn the_operator_hold_waits_by_queue_and_turn_until_restart() {
+    for turn in [false, true] {
+        let (mut world, change) = produced_with_hold(&StoryLimits { turn, ..StoryLimits::default() }, true);
+        for _ in 0..600 {
+            world.prepare_tick();
+        }
+        assert_eq!(world.merges, 0);
+        assert!(landing_rows(&world).is_empty(), "no train or landing task under the hold");
+        super::tiers::sign_in(&mut world);
+        let sign_in = world.signed_in.expect("reader");
+        let Some(forge_top::Document::Change(panel)) = world.oracle_document(sign_in, 1, change) else {
+            panic!("held change panel")
+        };
+        assert_eq!(panel.landing_hold(), Some(b"landing held until the engine starts without landing-held".as_slice()));
+        world.drain_cut();
+        world.restart_with_landing_held(false);
+        world.send(hello_prepare(2));
+        for _ in 0..600 {
+            world.prepare_tick();
+            if super::goal_landing::ended(&world, change).is_some() {
+                break;
+            }
+        }
+        assert!(super::goal_landing::ended(&world, change).is_some(), "released change lands");
+        assert_eq!(world.merges, 1);
+        world.close();
+    }
+}

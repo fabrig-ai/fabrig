@@ -199,6 +199,8 @@ pub fn worker<E>(limits: &worker_domain::Limits, problems: &mut SharedProblems<S
     reason = "the shell reads the worker handover; raw override provenance stays service-private"
 )]
 pub struct WorkerPart {
+    document: skein_json::Document,
+    directories: config::Directories,
     call_answer: CallAnswer,
     pub worker: settings::Worker,
     pub limits: Limits,
@@ -206,13 +208,23 @@ pub struct WorkerPart {
     pub files: Box<[config::File]>,
 }
 /// Read exactly a worker's part for serve and program-login (protocol/cluster.md, 1).
-pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
+pub fn worker_part(
+    input: &[u8],
+    directories: &config::Directories,
+    git: Option<&[u8]>,
+) -> Result<WorkerPart, Problems> {
     let document = document(input, directories, true)?;
     let at = member(&document, 0, b"workers").expect("checked workers");
     let ats = read::list(&document, at, document.len()).expect("checked worker list");
-    let jig = config::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
+    let jig = temper_service_core::derived::worker_document(
+        &document,
+        *ats.get(0).expect("one worker"),
+        directories,
+        temper_service_core::derived::STOCK,
+    )
+    .expect("checked worker");
     let mut problems = Problems::empty();
-    let (own, limits) = application::read(
+    let (_, limits) = application::read(
         &document,
         member(&document, 0, b"application").expect("checked application"),
         directories,
@@ -227,6 +239,11 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
         }
         file.at = path;
     }
+    let own = application::fixed(directories, git, &mut problems);
+    if !problems.is_empty() {
+        return Err(problems);
+    }
+    let own = own.expect("constant worker paths checked");
     Ok(WorkerPart {
         call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
         named: NamedWorker {
@@ -235,6 +252,8 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
             program: jig.agent.program.clone(),
             arguments: jig.agent.arguments.clone(),
         },
+        document,
+        directories: directories.clone(),
         worker: settings::Worker { jig, root: own.root, git: own.git },
         limits,
         files,
@@ -261,6 +280,25 @@ pub fn check_worker_part(
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
+    let sources = temper_service_core::derived::Sources::agent(&agent.declaration());
+    let at = member(&part.document, 0, b"workers").expect("checked workers");
+    let ats = read::list(&part.document, at, part.document.len()).expect("checked workers");
+    part.worker.jig = match temper_service_core::derived::worker_document(
+        &part.document,
+        *ats.get(0).expect("one worker"),
+        &part.directories,
+        sources,
+    ) {
+        Ok(worker) => worker,
+        Err(found) => return Err(Problems::jig(found, &indexed(0))),
+    };
+    let application = member(&part.document, 0, b"application").expect("checked application");
+    let Some((_, limits)) =
+        application::read_over(&part.document, application, &part.directories, sources, &mut problems)
+    else {
+        return Err(problems);
+    };
+    part.limits = limits;
     if let Err(what) = part.call_answer.compose(
         &mut part.worker.jig.limits,
         agent.tool_payload(),
@@ -345,7 +383,12 @@ fn validate(
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories) {
+        match temper_service_core::derived::worker_document(
+            document,
+            *at,
+            directories,
+            temper_service_core::derived::STOCK,
+        ) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
             }
@@ -387,6 +430,6 @@ pub fn check(
     files: &settings::Files,
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
-    let mut part = worker_part(input, directories)?;
+    let mut part = worker_part(input, directories, None)?;
     check_worker_part(&mut part, files, agent)
 }

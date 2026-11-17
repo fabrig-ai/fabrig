@@ -449,8 +449,9 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
     command
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let mut config = support::configuration::check_document(directory);
-    support::configuration::fake_entry(&mut config["application"]["machine"]["fake"], listen);
+    let config = support::configuration::check_document(directory);
+    let setup = serde_json::json!({"kind":"fake","listen":{"socket":listen},"remote":format!("http://{listen}"),"git":"demo/bin/git"});
+    support::configuration::setup(directory, 1, setup);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
     config
@@ -489,10 +490,10 @@ fn refused_deployment_start(root: &Path) {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        let mut config = forge_setup(&dir, "127.0.0.1:9");
+        let config = forge_setup(&dir, "127.0.0.1:9");
         match mode {
-            "owned" => support::owned::document(
-                &mut config,
+            "owned" => support::owned::setup(
+                &dir,
                 &support::owned::Names {
                     forgejo: Path::new("/usr/bin/false"),
                     runner: None,
@@ -506,7 +507,7 @@ fn refused_deployment_start(root: &Path) {
         }
         document(&dir.join("temper.json"), &config);
         if let Some(token) = token {
-            fs::create_dir(dir.join("playground-1")).expect("token directory");
+            fs::create_dir_all(dir.join("playground-1")).expect("token directory");
             fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
             support::write_private(&dir.join("playground-1/admin_token"), token);
         }

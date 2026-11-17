@@ -981,8 +981,7 @@ fn pull_repair_log() -> Box<[u8]> {
 }
 
 fn pull_request_ci_world() -> World {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut brief = small.root.brief;
     // CI reserves one fifth per failed job: retain 4 KiB plus framing.
     brief.read_bytes = 5 * 4_608;
@@ -1208,8 +1207,7 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
     const WORD_BYTES: usize = 2048;
     let mut words = vec![b'x'; WORD_BYTES];
     words[..b"Export CSV\n".len()].copy_from_slice(b"Export CSV\n");
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world = World::configured_limits(
         true,
         true,

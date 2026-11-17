@@ -268,7 +268,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   (`../protocol/configuration/settings.md`, 2). The issue's projection
   on or off, the chooser and the tester charter come with the issue and
   QA: until then, in the document's `landing` member, as `by` is
-  (`landing.md`, 13.1), `findings`, true or false (false by default).
+  (`landing-settings.md`, 1.1), `findings`, true or false (false by default).
 
 ## 10. Open questions
 

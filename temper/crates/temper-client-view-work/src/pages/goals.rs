@@ -395,7 +395,7 @@ pub(crate) fn row(
             &words.say(Word::ToolSeparator, &[]),
         ])
     };
-    let title = crate::common::chat::cut_title(line.chip.title.bytes(), 80, false);
+    let title = crate::common::chat::row_title(line.chip.title.bytes());
     let name = crate::accounts::words::join(&[&title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
     crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);

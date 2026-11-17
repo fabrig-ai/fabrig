@@ -1,7 +1,7 @@
 /// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn the_engine_declares_the_merge_kind_where_its_tasks_child_holds_it() {
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     let bound = limits::merge_bound();
     assert_eq!(limits::merge_jobs(&jig).as_ref(), [bound]);
     jig.core.tasks.result_bytes = 32;
@@ -13,14 +13,14 @@ fn the_engine_declares_the_merge_kind_where_its_tasks_child_holds_it() {
     assert_eq!(limits::merge_jobs(&jig).as_ref(), [bound]);
 }
 
-use crate::limits::{self, Checkout, GitComponent, Peer, Profile, Refused, Shared};
+use crate::limits::{self, Checkout, GitComponent, Peer, Refused, Shared};
 use skein_lib::Duration;
 
 /// Both production profiles bound preparing, runs' and jobs' alike.
 #[test]
 fn profiles_prepare_one_workspace_at_a_time() {
-    for profile in [Profile::Small, Profile::Standard] {
-        assert_eq!(limits::profile(profile).checkout.preparations, 1);
+    {
+        assert_eq!(limits::stock().checkout.preparations, 1);
     }
 }
 
@@ -33,8 +33,8 @@ fn preparation_overrides_refuse_zero_naming_the_value_and_minimum() {
     use jig_protocol_config::{self as config, Path};
     use skein_lib::Writer;
     for (input, value) in [
-        (br#"{"profile":"small","overrides":{"checkout.preparations":0}}"#.as_slice(), 0),
-        (br#"{"profile":"small","overrides":{"checkout.preparations":1}}"#, 1),
+        (br#"{"overrides":{"checkout.preparations":0}}"#.as_slice(), 0),
+        (br#"{"overrides":{"checkout.preparations":1}}"#, 1),
         (br#"{"profile":"standard","overrides":{"checkout.preparations":7}}"#, 7),
     ] {
         let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
@@ -57,7 +57,7 @@ fn preparation_overrides_refuse_zero_naming_the_value_and_minimum() {
 /// Each dotted name changes its field alone, with checked representations.
 #[test]
 fn shared_overrides_apply_only_to_the_named_field() {
-    let small = limits::profile(Profile::Small);
+    let small = limits::stock();
     for (name, expected) in [
         (b"checkout.workspaces".as_slice(), Shared { checkout: Checkout { workspaces: 7, ..small.checkout }, ..small }),
         (b"checkout.preparations", Shared { checkout: Checkout { preparations: 7, ..small.checkout }, ..small }),
@@ -123,11 +123,11 @@ fn shared_limits_grammar_checks_names_and_integer_representations() {
     };
     use jig_protocol_config::{self as config, Path};
     for (input, expected) in [
-        (br#"{"profile":"small","overrides":{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":18446744073709551615}}"#.as_slice(), None),
-        (br#"{"profile":"small","overrides":{"unknown":7}}"#, Some((b"unknown".as_slice(), What::Override(Refused::Unknown)))),
-        (br#"{"profile":"small","overrides":{"checkout.conflicts":4294967296}}"#, Some((b"checkout.conflicts", What::Override(Refused::Range)))),
-        (br#"{"profile":"small","overrides":{"forge.changes":18446744073709551616}}"#, Some((b"forge.changes", What::Override(Refused::Range)))),
-        (br#"{"profile":"small","overrides":{"forge.changes":"7"}}"#, Some((b"forge.changes", What::Jig(config::What::Kind)))),
+        (br#"{"overrides":{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":18446744073709551615}}"#.as_slice(), None),
+        (br#"{"overrides":{"unknown":7}}"#, Some((b"unknown".as_slice(), What::Override(Refused::Unknown)))),
+        (br#"{"overrides":{"checkout.conflicts":4294967296}}"#, Some((b"checkout.conflicts", What::Override(Refused::Range)))),
+        (br#"{"overrides":{"forge.changes":18446744073709551616}}"#, Some((b"forge.changes", What::Override(Refused::Range)))),
+        (br#"{"overrides":{"forge.changes":"7"}}"#, Some((b"forge.changes", What::Jig(config::What::Kind)))),
     ] {
         let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
         let mut problems = SharedProblems::empty();
@@ -151,17 +151,17 @@ fn reds_wait_is_stock_in_both_profiles_and_outside_its_range_names_the_override(
     };
     use jig_protocol_config::{self as config, Path};
     use skein_lib::Writer;
-    for profile in [Profile::Small, Profile::Standard] {
-        assert_eq!(limits::profile(profile).checkout.reds_read_ms, 5_000);
+    {
+        assert_eq!(limits::stock().checkout.reds_read_ms, 5_000);
     }
     for value in [100, 60_000] {
-        let mut shared = limits::profile(Profile::Small);
+        let mut shared = limits::stock();
         limits::apply(&mut shared, b"checkout.reds_read_ms", value).unwrap();
         assert_eq!(u64::from(shared.checkout.reds_read_ms), value);
     }
     for input in [
-        br#"{"profile":"small","overrides":{"checkout.reds_read_ms":99}}"#.as_slice(),
-        br#"{"profile":"small","overrides":{"checkout.reds_read_ms":60001}}"#,
+        br#"{"overrides":{"checkout.reds_read_ms":99}}"#.as_slice(),
+        br#"{"overrides":{"checkout.reds_read_ms":60001}}"#,
     ] {
         let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
         let mut problems = SharedProblems::empty();
@@ -184,16 +184,16 @@ fn rerun_processes_is_stock_and_accepts_its_endpoints_but_names_seventeen() {
     };
     use jig_protocol_config::{self as config, Path};
     use skein_lib::Writer;
-    for profile in [Profile::Small, Profile::Standard] {
-        assert_eq!(limits::profile(profile).checkout.rerun_processes, 4);
+    {
+        assert_eq!(limits::stock().checkout.rerun_processes, 4);
         for value in [0, 16] {
-            let mut shared = limits::profile(profile);
+            let mut shared = limits::stock();
             limits::apply(&mut shared, b"checkout.rerun_processes", value).unwrap();
             assert_eq!(u64::from(shared.checkout.rerun_processes), value);
         }
     }
     let document = config::document(
-        br#"{"profile":"small","overrides":{"checkout.rerun_processes":17}}"#,
+        br#"{"overrides":{"checkout.rerun_processes":17}}"#,
         &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 },
     )
     .unwrap();

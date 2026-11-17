@@ -1,0 +1,169 @@
+# Pass 1: every path below was conflicted and was taken verbatim from main (96dfd9de54).
+# Do not build before restoring the client schema delta described below.
+# Main owns client layout versions 29, 30 and 31; the goal's Hold::Flake is version 32.
+# Client wires have no bridge or kept schema text (redeploys.md, section 8).
+# Preserve all main .layouts lines and append version 32 through the drift generator.
+# Schemas are source inputs: there is no repository command to recreate a lost source edit.
+# The first entry carries the exact goal schema edit deferred by the no-hand-merge rule.
+# Execute its python command before codec generation, then run the listed drift command.
+# If downstream crates cannot compile before drift, bootstrap codecs with skein-codegen first.
+# Commands come from temper/tests/codecs/tests/suite/drift.rs, protocol/floor.md section 7,
+# and client/{tui,web}/journeys.md sections 6/5 and 8. No command was run in pass 1.
+# Recording entries require 'again NAME' (a replay/reprint alone does not recreate recordings).
+# Format: one relative path per line, TAB, pass-2 command or prerequisite.
+temper/crates/temper-client-protocol-wire/golden/connect_forgejo_admin_with_first.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/connect_forgejo_admin_without_first.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/connect_forgejo_tokens_kept.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/connect_forgejo_tokens_new.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_drafted.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_missing.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_no_repository.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_not_a_file.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_path.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_unknown.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_answer_unreachable.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_not_ready_home.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_not_ready_repository.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_ready_chat_home.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_ready_chat_repository.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_ready_home.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_ready_repository.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_started_home.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_request_started_repository.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/draft_watch.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_approvals_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_approvals_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_aways_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_aways_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_change_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_change_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_changes_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_changes_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_decisions_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_decisions_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_deployment_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_deployment_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_devices_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_devices_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_dismissals_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_dismissals_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_drafts_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_drafts_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_finding_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_finding_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_findings_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_findings_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_follows_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_follows_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_forges_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_forges_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_history_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_history_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_landing_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_landing_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_landings_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_landings_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_milestone_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_milestone_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_playground_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_playground_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_program_environment_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_program_environment_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_project_status_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_project_status_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_proposal_items_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_proposal_items_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_reading_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_reading_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_requesting_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_requesting_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_setting_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_setting_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_trials_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_trials_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_view_answer_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_view_answer_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_watching_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_watching_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_ways_panel_full.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/record_ways_panel_smallest.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/golden/replace.bin	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema	python3 -c 'from pathlib import Path; p=Path('"'"'temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema'"'"'); s=p.read_text(); s=s.replace("family temper-client-wire 31\n", "family temper-client-wire 32\n", 1); s=s.replace("authority: AuthorityHold, questions }", "authority: AuthorityHold, questions, flake }", 1); assert s.startswith("family temper-client-wire 32\n") and "authority: AuthorityHold, questions, flake }" in s; p.write_text(s)' && TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/schema/temper-client-wire.layouts	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/src/generated/v1.rs	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-client-protocol-wire/tests/generated/v1.rs	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-protocol-store-codec/src/generated/v25.rs	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/crates/temper-protocol-store-codec/tests/generated/v25.rs	TEMPER_INTERNAL_BUNDLE=none SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'
+temper/docs/design/client/tui/journeys/design-session/01.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/01.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/02.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/02.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/03.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/03.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/04.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/04.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/05.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/05.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/06.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/06.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/07.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/07.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/08.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/08.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/09.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/09.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/10.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/10.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/11.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/11.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/12.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/12.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/13.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/13.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/14.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/14.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/15.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/15.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/design-session/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again design-session
+temper/docs/design/client/tui/journeys/launchpad-chat/01.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/01.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/02.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/02.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/03.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/03.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/04.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/04.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-chat/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again launchpad-chat
+temper/docs/design/client/tui/journeys/launchpad-drawn/01.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/01.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/02.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/02.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/03.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/03.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/04.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/04.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/05.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/05.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/06.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/06.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/07.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/07.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/launchpad-drawn/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again launchpad-drawn
+temper/docs/design/client/tui/journeys/sign-in-approved/01.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/sign-in-approved/01.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/sign-in-approved/02.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/sign-in-approved/02.txt	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/tui/journeys/sign-in-approved/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again sign-in-approved
+temper/docs/design/client/web/journeys/project-landing/01.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/web/journeys/project-landing/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again project-landing
+temper/docs/design/client/web/journeys/welcome-playground/02.html	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys
+temper/docs/design/client/web/journeys/welcome-playground/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again welcome-playground
+temper/docs/design/client/web/journeys/welcome-set-up/recording	TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-journeys -- again welcome-set-up
+temper/tests/one-process/golden/settled/state/generations/1/store/log-00000000000000000001	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'
+temper/tests/one-process/golden/settled/state/generations/1/store/logs/0000000000000000/0000000000000004	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'
+temper/tests/one-process/golden/settled/state/generations/1/store/logs/0000000000000000/0000000000000006	TEMPER_INTERNAL_BUNDLE=none TEMPER_TEST_UPGRADE_IMAGE=1 cargo nextest run -p temper-one-process-world --test suite -E 'test(=upgrade::the_settled_image_matches_the_story)'

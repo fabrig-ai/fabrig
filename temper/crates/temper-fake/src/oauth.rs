@@ -101,7 +101,7 @@ impl Document {
 
     /// No observation stream is retained by the long-running standalone issuer.
     pub fn peer(&self, seed: u64) -> Result<Peer, skein_fake_peers::Error> {
-        let profile = config::profile::profile(config::profile::Profile::Small);
+        let profile = config::stock();
         let limits = limits();
         let Some(response) = skein_fake_peers::oauth::least_response(&limits) else {
             return Err(skein_fake_peers::Error::Limits);
@@ -172,7 +172,7 @@ fn account() -> issuer::Account {
 }
 
 fn limits() -> issuer::Limits {
-    let profile = config::profile::profile(config::profile::Profile::Small);
+    let profile = config::stock();
     issuer::Limits {
         document: profile.driver.client.document,
         uri_bytes: URI_BYTES,

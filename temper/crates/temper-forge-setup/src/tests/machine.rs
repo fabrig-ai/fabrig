@@ -1,27 +1,39 @@
 use super::fixtures;
+use crate::tests::machine_config as machine;
 use crate::{
     FORGE_ARGUMENT, Kind, Stage, kinds, limits,
-    machine::{self, BoxKind, Machine},
     problem::{self, Problems},
     setup::Mode,
 };
 use alloc::boxed::Box;
 use jig_protocol_config::Directories;
+use machine::{BoxKind, Machine};
 use skein_lib::{Writer, bytes};
 
 const TEMPLATE_MACHINE: &[u8] = br#"{
     "owned": {"listen":{"socket":"127.0.0.1:8372"},"remote":"http://127.0.0.1:8372",
         "person":{"login":"ada","email":"ada@example.invalid"},"forgejo":"fetched",
         "runner":{"binary":"fetched","labels":["temper-host:host"],"capacity":1,"path":"/usr/local/bin:/usr/bin:/bin"}},
-    "fake": {"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"},
-    "github": null
+    "fake": {"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}
 }"#;
 fn directories() -> Directories {
     Directories::given(b"/configuration", b"/data", b"/cache").unwrap()
 }
 fn read(input: &[u8], directories: &Directories) -> Machine {
     let mut problems = Problems::empty();
-    let result = machine::read(&fixtures::document(input), 0, &limits::small(), directories, &mut problems);
+    let result = machine::read(&fixtures::document(input), 0, &limits::stock(), directories, &mut problems);
+    assert!(problems.is_empty(), "{:?}", problem::lines(&problems));
+    result.unwrap()
+}
+fn read_test(input: &[u8], directories: &Directories, problems: &mut Problems) -> Option<machine::GitHubMachine> {
+    let mut found = jig_protocol_config::Problems::empty();
+    let result = machine::read_test(&fixtures::document(input), Some(0), directories, &mut found);
+    problems.append(found);
+    result
+}
+fn test_github(input: &[u8], directories: &Directories) -> machine::GitHubMachine {
+    let mut problems = Problems::empty();
+    let result = read_test(input, directories, &mut problems);
     assert!(problems.is_empty(), "{:?}", problem::lines(&problems));
     result.unwrap()
 }
@@ -59,16 +71,15 @@ fn the_template_machine_reads_back() {
     assert_eq!(fake.listen, ([127, 0, 0, 1], 8369).into());
     assert_eq!(fake.remote.as_ref(), b"http://127.0.0.1:8369");
     assert_eq!(fake.git.as_ref(), b"/data/demo/bin/git");
-    assert!(machine.github.is_none());
 }
 
 #[test]
 fn an_unknown_member_is_refused_by_path() {
     for (old, new, path) in [
         (
-            b"\"github\": null".as_slice(),
-            b"\"github\": null, \"extra\": true".as_slice(),
-            b"application.machine.extra".as_slice(),
+            b"\"owned\":".as_slice(),
+            b"\"github\": null, \"owned\":".as_slice(),
+            b"application.machine.github".as_slice(),
         ),
         (b"\"forgejo\":\"fetched\"", b"\"forgejo\":\"fetched\",\"extra\":true", b"application.machine.owned.extra"),
         (b"\"capacity\":1", b"\"capacity\":1,\"extra\":true", b"application.machine.owned.runner.extra"),
@@ -77,7 +88,7 @@ fn an_unknown_member_is_refused_by_path() {
         let mut problems = Problems::empty();
         let input = replace(TEMPLATE_MACHINE, old, new);
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         let expected = crate::check::joined(&[path, b": unknown member\n"]);
         assert_eq!(problem::lines(&problems), expected);
@@ -149,7 +160,7 @@ fn the_owned_slot_names_its_forge_by_the_argument() {
     let flags = Box::new([Box::from(b"--data".as_slice()), Box::from(b"/data".as_slice())]);
     let listener = ([127, 0, 0, 1], 8367).into();
     for listens in [false, true] {
-        let steps = kinds(&machine, flags.as_ref(), Box::new([listener]), listens, false);
+        let steps = kinds(machine.owned.as_ref(), flags.as_ref(), Box::new([listener]), listens, false);
         assert_eq!(steps.always.len(), 1);
         assert_eq!(steps.always[0].name(), b"serve");
         assert_eq!(steps.always[0].listeners(), &[listener]);
@@ -181,8 +192,11 @@ fn the_owned_slot_names_its_forge_by_the_argument() {
         let forgejo = &group.steps[2].1;
         let owned_listener = machine.owned.as_ref().unwrap().listen;
         assert_eq!(forgejo.ready(), Some(owned_listener));
+        assert_eq!(forgejo.listeners(), []);
+        let mut bound = forgejo.clone();
+        bound.bind_group_listener(owned_listener);
         let held = [owned_listener];
-        assert_eq!(forgejo.listeners(), if listens { &held[..] } else { &[] });
+        assert_eq!(bound.listeners(), if listens { &held[..] } else { &[] });
         let remover = group.remover.as_ref().unwrap();
         assert_eq!(remover.name(), b"remove");
         assert_eq!(remover.kind(), Kind::Once);
@@ -200,7 +214,7 @@ fn absent_kinds_have_no_entry_or_slot_and_optional_processes_are_omitted() {
     for kind in [BoxKind::Owned, BoxKind::Fake] {
         assert!(machine::entry(&empty, 5, kind, &directories()).is_none());
     }
-    let steps = kinds(&empty, &[], Box::new([]), false, false);
+    let steps = kinds(empty.owned.as_ref(), &[], Box::new([]), false, false);
     assert_eq!(steps.always.len(), 1);
     assert!(steps.asked.is_empty());
     let mut machine = read(TEMPLATE_MACHINE, &directories());
@@ -209,7 +223,7 @@ fn absent_kinds_have_no_entry_or_slot_and_optional_processes_are_omitted() {
     owned.fetch.forgejo = false;
     owned.fetch.runner = false;
     owned.listen = ([127, 0, 0, 1], 0).into();
-    let steps = kinds(&machine, &[], Box::new([]), true, false);
+    let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), true, false);
     assert_eq!(steps.asked[0].steps.len(), 2);
     assert_eq!(steps.asked[0].steps[0].1.name(), b"prepare");
     assert_eq!(steps.asked[0].steps[1].1.name(), b"forgejo");
@@ -238,7 +252,7 @@ fn machine_refusals_keep_the_member_path() {
         let input = replace(TEMPLATE_MACHINE, old, new);
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert!(
             bytes::find(&problem::lines(&problems), &crate::check::joined(&[b"application.machine.", path, b":"]))
@@ -257,16 +271,14 @@ fn github_accepts_a_fake_or_tls_and_refuses_unknown_transport_members() {
             transport,
             br#", "remote":"http://127.0.0.1:9999","web":"http://127.0.0.1:9999"}}"#,
         ]);
-        let github = read(&input, &directories()).github.unwrap();
+        let github = test_github(&input, &directories());
         assert_eq!(github.tls, tls);
         assert_eq!(github.remote.as_ref(), b"http://127.0.0.1:9999");
         assert_eq!(github.web.as_ref(), b"http://127.0.0.1:9999");
         let input = replace(&input, b"\"transport\":", b"\"unexpected\":1,\"transport\":");
         let mut problems = Problems::empty();
-        assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
-        );
-        assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.github.unexpected: unknown member\n");
+        assert!(read_test(&input, &directories(), &mut problems).is_none());
+        assert_eq!(problem::lines(&problems).as_ref(), b"application.test.github.unexpected: unknown member\n");
     }
 }
 
@@ -291,7 +303,7 @@ fn owned_public_mirrors_and_explicit_binaries_keep_setup_semantics() {
         br#""public":"https://git.example.invalid/path""#,
     );
     let mut problems = Problems::empty();
-    assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
+    assert!(machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none());
     assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.public: invalid form\n");
 }
 
@@ -323,15 +335,10 @@ fn github_refuses_non_network_endpoints_and_insecure_remote_places() {
             br#"","web":"https://example.invalid"}}"#,
         ]);
         let mut problems = Problems::empty();
+        assert!(read_test(&input, &directories(), &mut problems).is_none());
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
-        );
-        assert!(
-            bytes::find(
-                &problem::lines(&problems),
-                &crate::check::joined(&[b"application.machine.github.", path, b":"])
-            )
-            .is_some()
+            bytes::find(&problem::lines(&problems), &crate::check::joined(&[b"application.test.github.", path, b":"]))
+                .is_some()
         );
     }
 }
@@ -343,7 +350,7 @@ fn kind_slots_fetch_before_preparation_only_when_a_binary_is_fetched() {
         let owned = machine.owned.as_mut().unwrap();
         owned.fetch.forgejo = forgejo;
         owned.fetch.runner = runner;
-        let steps = kinds(&machine, &[], Box::new([]), false, false);
+        let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), false, false);
         let expected: &[Stage] = if forgejo || runner {
             &[Stage::Fetch, Stage::Prepare, Stage::Run, Stage::Run]
         } else {
@@ -359,22 +366,20 @@ fn kind_slots_fetch_before_preparation_only_when_a_binary_is_fetched() {
 #[test]
 fn github_git_is_optional_bounded_and_resolved_under_data() {
     let base = br#"{"github":{"api":{"socket":"127.0.0.1:9999"},"transport":"plaintext","remote":"http://127.0.0.1:9999","web":"http://127.0.0.1:9999"}}"#;
-    assert!(read(base, &directories()).github.unwrap().git.is_none());
+    assert!(test_github(base, &directories()).git.is_none());
     for (input, expected) in [(b"bin/git".as_slice(), b"/data/bin/git".as_slice()), (b"/opt/git", b"/opt/git")] {
         let member = crate::check::joined(&[b"\"git\":\"", input, b"\",\"web\":"]);
         let input = replace(base, b"\"web\":", &member);
-        assert_eq!(read(&input, &directories()).github.unwrap().git.as_deref(), Some(expected));
+        assert_eq!(test_github(&input, &directories()).git.as_deref(), Some(expected));
     }
     let maximum = crate::check::joined(&[b"\"git\":\"", &[b'x'; 4096], b"\",\"web\":"]);
     let input = replace(base, b"\"web\":", &maximum);
-    assert_eq!(read(&input, &Directories::working()).github.unwrap().git.unwrap().len(), 4096);
+    assert_eq!(test_github(&input, &Directories::working()).git.unwrap().len(), 4096);
     for value in [b"\"\"".as_slice(), b"\"../git\"", b"false", &crate::check::joined(&[b"\"", &[b'x'; 4097], b"\""])] {
         let input = replace(base, b"\"web\":", &crate::check::joined(&[b"\"git\":", value, b",\"web\":"]));
         let mut problems = Problems::empty();
-        assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
-        );
-        assert!(bytes::find(&problem::lines(&problems), b"application.machine.github.git:").is_some());
+        assert!(read_test(&input, &directories(), &mut problems).is_none());
+        assert!(bytes::find(&problem::lines(&problems), b"application.test.github.git:").is_some());
     }
 }
 
@@ -386,7 +391,7 @@ fn sign_in_refuses_machine_owned_person_login_at_its_path() {
         let input = replace(&input, b"\"ada\"", &crate::check::joined(&[b"\"", login, b"\""]));
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.login: invalid form\n");
     }
@@ -404,7 +409,7 @@ fn sign_in_refuses_machine_owned_person_email_at_its_path() {
         let input = replace(&input, b"ada@example.invalid", email);
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.email: invalid form\n");
     }
@@ -414,7 +419,7 @@ fn sign_in_refuses_machine_owned_person_email_at_its_path() {
 fn only_a_box_signing_in_retries_source_last_and_ignores_its_ending() {
     let mut machine = read(TEMPLATE_MACHINE, &directories());
     machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
-    let steps = kinds(&machine, &[], Box::new([]), true, false);
+    let steps = kinds(machine.owned.as_ref(), &[], Box::new([]), true, false);
     assert_eq!(steps.asked[0].before, 1, "the issuer starts before a restored source fetches discovery");
     let (stage, source) = steps.asked[0].steps.last().unwrap();
     assert_eq!(*stage, Stage::Source);
@@ -427,7 +432,7 @@ fn only_a_box_signing_in_retries_source_last_and_ignores_its_ending() {
         assert_eq!(argument.as_ref(), expected);
     }
     machine.owned.as_mut().unwrap().sign_in = None;
-    for (_, step) in &kinds(&machine, &[], Box::new([]), true, false).asked[0].steps {
+    for (_, step) in &kinds(machine.owned.as_ref(), &[], Box::new([]), true, false).asked[0].steps {
         assert_ne!(step.name(), b"source");
     }
 }
@@ -440,8 +445,8 @@ fn sign_in_refuses_machine_owned_public_at_its_path() {
         b"\"sign_in\":\"forgejo\",\"public\":\"https://forge.example\",\"forgejo\":\"fetched\"",
     );
     let mut problems = Problems::empty();
-    assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
-    assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy\n");
+    assert!(machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none());
+    assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with public; a box's sign-in through temper is not proved behind a proxy\n");
     let mut typed = jig_protocol_config::Problems::empty();
     assert!(machine::read_config(&fixtures::document(&input), 0, &directories(), &mut typed).is_none());
     assert_eq!(typed.problems.len(), 1);

@@ -40,6 +40,44 @@ fn a_chats_heading_is_its_first_sentence_or_line_cut_on_a_word() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "test constructs Unicode titles and their expected cuts")]
+fn a_row_title_is_cut_on_a_word_within_eighty_characters() {
+    for (title, expected) in [
+        ("Fix the cut", "Fix the cut"),
+        ("Short. Another sentence", "Short. Another sentence"),
+        (&"abcd ".repeat(20), "abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd abcd…"),
+        (&"é".repeat(80), &"é".repeat(80)),
+        (&"é".repeat(81), &format!("{}…", "é".repeat(79))),
+        (&format!("{} end", "x".repeat(79)), &format!("{}…", "x".repeat(79))),
+        (&format!("{}, more", "x".repeat(78)), &format!("{},…", "x".repeat(78))),
+        ("", ""),
+    ] {
+        assert_eq!(crate::common::chat::row_title(title.as_bytes()).as_ref(), expected.as_bytes(), "{title:?}");
+        assert_eq!(crate::shared::row_title(title.as_bytes()).as_ref(), expected.as_bytes(), "{title:?}");
+    }
+}
+
+#[test]
+fn only_complete_words_with_no_body_are_only_the_title() {
+    use jig_client::contract as c;
+
+    for (input, cut, expected) in [
+        ("Fix the cut", false, true),
+        ("Fix the cut\n \r\n\t", false, true),
+        ("Fix the cut\nMore.", false, false),
+        ("Fix the cut\n\u{a0}", false, false),
+        ("Fix the cut", true, false),
+        ("Fix the cut\n \r\n\t", true, false),
+        ("", true, false),
+        ("", false, true),
+    ] {
+        let words = c::DocumentText { bytes: c::Text::new(input.as_bytes().into(), 128).unwrap(), cut };
+        assert_eq!(crate::common::chat::only_title(&words), expected, "{input:?}, cut={cut}");
+        assert_eq!(crate::shared::only_title(&words), expected, "{input:?}, cut={cut}");
+    }
+}
+
+#[test]
 fn the_close_confirmation_names_each_live_delegates_fate() {
     let tree = closing(Some(CLOSE_GRACE));
     let text = fixtures::text(&tree);

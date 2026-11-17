@@ -15,19 +15,21 @@ use temper_client_domain::{
 };
 
 pub(crate) fn from_name(need: needs::Need<'_>, title: &[u8]) -> Box<[u8]> {
+    let title = crate::common::chat::row_title(title);
     if let needs::Need::Card(card) = need
         && let Some(task) = card.document()
         && let Some(lineage) = temper_client_domain::milestones::lineage(task)
     {
-        let prefix =
-            skein_lib::bytes::concat(&[lineage.milestone.title.bytes(), " › ".as_bytes(), lineage.goal.title.bytes()]);
+        let milestone = crate::common::chat::row_title(lineage.milestone.title.bytes());
+        let goal = crate::common::chat::row_title(lineage.goal.title.bytes());
+        let prefix = skein_lib::bytes::concat(&[&milestone, " › ".as_bytes(), &goal]);
         return if task.chip.task == lineage.goal.task {
             prefix
         } else {
-            skein_lib::bytes::concat(&[&prefix, " › ".as_bytes(), title])
+            skein_lib::bytes::concat(&[&prefix, " › ".as_bytes(), &title])
         };
     }
-    title.into()
+    title
 }
 pub(crate) fn from_title(
     b: &mut Builder,
@@ -59,15 +61,16 @@ fn from_link(
     linked: bool,
     milestone: bool,
 ) {
+    let title = crate::common::chat::row_title(title);
     if linked && let Some(task) = source {
-        crate::bindings::link(b, title, bindings.insert(Act::Go { address: Address::Task { task } }));
+        crate::bindings::link(b, &title, bindings.insert(Act::Go { address: Address::Task { task } }));
         if milestone {
             b.style(look::MS_FROM);
         }
     } else {
         b.open(Role::Text);
     }
-    b.text(Run::Plain, title);
+    b.text(Run::Plain, &title);
     b.close();
 }
 
@@ -160,7 +163,7 @@ pub(crate) fn answered_lines(
                 None => w.say(Word::HomeQuestion, &[]),
             }
         } else {
-            line.title.clone()
+            crate::common::chat::row_title(&line.title)
         };
         if w.shell == Shell::Terminal {
             b.open(Role::Paragraph);

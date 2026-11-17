@@ -6,6 +6,10 @@
 
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
   not read, and no landed draft's card starts a goal [in flight: change 664].
+- **Not yet:** 2, *A task's title on a line* and *A task's words after its
+  title*: a goal's and a task's rows and the lineage bar draw titles
+  whole, and an agent's task's brief repeats one-line words [in flight:
+  change 6356].
 
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 
@@ -670,7 +674,7 @@ presses the switch across projects: the render check and the walk remain
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
 
 - **Not yet:** *Team*, *The project's triager*: no setting names a
-  triager (`../../domain/landing.status.md`, 13.1; `../../domain/findings.status.md`),
+  triager (`../../domain/landing-settings.status.md`, 1.1; `../../domain/findings.status.md`),
   so no read gives `team::Facts`' `triager`, `team::parts` never shows its
   line, and the view has no words for it (`temper-client-view`'s
   `pages/team.rs`).

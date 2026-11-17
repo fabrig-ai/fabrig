@@ -18,7 +18,7 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
 
 ## 1. In one page
 
-- **A project lands by queue or by turn,** its setting (section 13).
+- **A project lands by queue or by turn,** its setting (`landing-settings.md`, section 1).
   `queue` is the change procedure (`forge/change/README.md`,
   `forge/queues.md`, `forge/README.md`, section 6), the default until
   that project's turn has been walked on real backends. `turn` is this
@@ -34,7 +34,7 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
   deployment for the project. Member change tasks wait on it; their
   goals hear each step as news.
 - **Prepare** (section 5) is a worker job stacking members' heads from
-  the train's tip by its `combine` (13.1): a no-fast-forward merge
+  the train's tip by its `combine` (`landing-settings.md`, 1.1): a no-fast-forward merge
   (stock into main) or a squash with that merge's tree (stock into
   other branches, a goal's). Each commit is its member's prefix, pushed
   to a member branch held by the landing; the last is the candidate.
@@ -359,7 +359,7 @@ The default, for a project with no prepare command:
   landing, pushes under its branch holds (jig's `domain/tasks/holds.md`,
   1). It checks out the train's repository by the round's starting
   commit, its base or last kept prefix, and combines each member above
-  onto the prefix below in landing order by `combine` (13.1). Once all
+  onto the prefix below in landing order by `combine` (`landing-settings.md`, 1.1). Once all
   are combined, it pushes each prefix to its member's branch, expecting
   it new, lowest first. temper's prepare runs no project command. The
   two ways use `../protocol/tooling.md`, 4's messages:
@@ -472,7 +472,7 @@ The default, for a project with no prepare command:
 
 - **What a gate's result depends on,** as 32 bytes: SHA-256 of a
   canonical encoding, the gate (its repository and name), the gate's
-  definition (its setting's value, section 13: its workflow, its
+  definition (its setting's value, `landing-settings.md`, section 1: its workflow, its
   ignored paths, whether it blocks, whether it reads the base), the
   candidate's tree filtered by the gate's ignored paths, and, for a gate
   that reads the base, the base's tree filtered the same way.
@@ -537,8 +537,8 @@ The default, for a project with no prepare command:
 
 - **Each gate workflow runs only when dispatched** (skein's
   `Write::Dispatch`), never on a push or a pull request event:
-  adoption says when a gate's workflow names another trigger (13.2).
-- **A train's gates:** a repository's test gates (13.1) prove the
+  adoption says when a gate's workflow names another trigger (`landing-settings.md`, 1.2).
+- **A train's gates:** a repository's test gates (`landing-settings.md`, 1.1) prove the
   trains into its main. A train into any other branch, a goal's, has
   no test gate: each delivery's own check stands for it, and its
   landing is proved by its judgement gates alone.
@@ -607,7 +607,7 @@ The default, for a project with no prepare command:
 - **A run whose workflow's own step failed** makes a failed receipt,
   read with each failed job's failed step and the end of its log
   (skein's `Read::Job`) as the landing makes it, and, where its gate
-  names a report (13.1), its failed tests, read as a tier's
+  names a report (`landing-settings.md`, 1.1), its failed tests, read as a tier's
   (`after-landing.md`, 4): a report not read leaves them unknown, never
   a fault.
 - **A round of one unit:** its changes are repaired
@@ -727,7 +727,7 @@ The default, for a project with no prepare command:
   waiting unit (4.1), every change of it waiting, a decision forms its
   next landing: the waiting units in order, each whole, up to the
   project's `batch` changes for a train into a repository's main, and
-  one unit for a train into any other branch (13.1). The first unit is
+  one unit for a train into any other branch (`landing-settings.md`, 1.1). The first unit is
   always taken, even past `batch`. The first unit that would pass it
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
@@ -766,11 +766,11 @@ The default, for a project with no prepare command:
   it, and protection may require them.
 - **A merged member's pull request is marked merged** by the forge's
   detection of a manual merge (Forgejo's "autodetect manual merge",
-  which adoption reads, 13.2): its head is in the branch, its merge
+  which adoption reads, `landing-settings.md`, 1.2): its head is in the branch, its merge
   commit its prefix. temper writes nothing to it at the turn.
 - **A squashed member's is recorded merged** by the landing at its
   squash commit (section 8), Forgejo's "manually merged" with that
-  commit, which needs the repository to allow a manual merge (13.2).
+  commit, which needs the repository to allow a manual merge (`landing-settings.md`, 1.2).
 
 ## 11. Effects and kinds
 
@@ -870,71 +870,15 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
 
 ## 13. Settings
 
+A landing's settings are `landing-settings.md`'s (2026-11-16).
+
 ### 13.1 Kinds
 
-Two kinds of temper's join `../protocol/configuration/settings.md`, 2, each
-the forge's, judged in the change's decision:
-
-| Kind | Scope | Numbers | Value |
-|---|---|---|---|
-| 4, a project's landing | each project | 1 | the members below |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, whether it blocks, and whether it reads the base (`base`, no when absent), and its `report`, if any: an artifact, its format and its fuzzy tests' name prefix (7.3; `landing-search-by-test.md`, 2), each proving the trains into its main (7.1); `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
-
-Kind 4's members, each with its default and the section it serves:
-
-| Member | Default | Serves |
-|---|---|---|
-| `by`: `queue` or `turn` | `queue` | section 1 |
-| `batch`: the most changes a landing into a repository's main forms with, from 1 to the deployment's `landing_members` | 1 | 4.1, section 9 |
-| `combine`: how a train combines its members (5.2), `merge` or `squash`, `main` for the trains into a repository's main and `other` for those into any other branch | `merge`; `squash` | 5.2, 8 |
-| `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
-| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/README.md`, 6 |
-| `dependencies_join` | yes | 4.1 |
-| `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | 4.1, 5.3 |
-| `gate_retries`; `gate_timeout` | 2; one hour | 7.4; 7.1 |
-| `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
-| `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
-| `questions_on_forge` | off | `forge/issues.md`, 1 |
-
-- **Until both kinds are settings** on jig's application settings (jig's
-  `domain/engine/settings.md`, 5), a project's `by`, its `batch`, its `combine`, its `tier_retries` and
-  `verification_bound` (`verification_bound_ms` there), its
-  `gate_timeout` (`gate_timeout_ms` there), its
-  `merge_job`, and its repositories' gates and tiers are
-  configured in the document's `landing` member
-  (`../protocol/configuration/engine.md`), as the landing rules are,
-  and read at the start.
-- **Read by a branch's path** (`forge/change/branch-path.md`): the project's `by`,
-  and each repository's gates and tiers with the branch each tier
-  follows, as the forge holds them, so that a path draws "prepare",
-  "prove" and "turn" under `turn` and a tier's stops where it has one.
-- **`turn` is refused** for a project with a repository where temper
-  cannot fast-forward main to a candidate (section 8: on GitHub, no
-  `Always` bypass of a rule requiring a pull request, or a required
-  merge queue; or an installation that cannot write statuses or
-  dispatch workflows), naming the repository and the setting that
-  would let it land.
-- **A gate's name** is letters, digits, `-` and `_`, unique in its
-  repository, and its status context's last segment.
-- **The stock's deployment ceiling** admits what landings and tiers are
-  granted (kinds 3, 4, 6, 7, 9, 12, 15, 16 and 17, and the forge's
-  procedures `landing` and `tier`), since a project's ceiling may not
-  pass the deployment's; each grant grows every row that carries
-  authority, so none is added that a release at close can spare.
+`landing-settings.md`, 1.1.
 
 ### 13.2 What adoption says
 
-- **Under `turn`,** for each repository: its gates, each workflow
-  checked to exist at the landing branch's tip and to name
-  `workflow_dispatch` alone among its triggers, and, with a report, to
-  declare `temper_tests`, or said otherwise in words; whether the forge marks a pull request merged once its base
-  holds its head (Forgejo's "autodetect manual merge"), which lands a
-  merged member's pull request (section 10); where one of the project's
-  trains squashes, whether the forge lets a pull request be recorded
-  merged by hand (Forgejo's "allow manual merge"), which a squashed
-  member's record needs (section 8); and whether the branch's rules
-  admit the landing's pull request with the gates' statuses on the
-  candidate.
+`landing-settings.md`, 1.2.
 
 ## 14. Views and acts
 

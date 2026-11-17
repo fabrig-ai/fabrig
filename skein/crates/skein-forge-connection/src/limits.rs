@@ -563,7 +563,9 @@ pub(crate) fn bounded_page_size(listing: Listing, cap: u32, l: &Limits, s: &Shar
     let room = u64::from(s.answer_bytes).checked_div(row).unwrap_or(0);
     s.rows.min(cap).min(u32::try_from(room).unwrap_or(u32::MAX))
 }
-fn largest_row(listing: Listing, l: &Limits) -> Option<u64> {
+/// A listing's largest row in answer bytes, the least room a page of it needs; None on overflow.
+#[must_use]
+pub fn largest_row(listing: Listing, l: &Limits) -> Option<u64> {
     use skein_forge::measure;
     let string = u64::from(l.string_bytes);
     let body = u64::from(l.body_bytes);

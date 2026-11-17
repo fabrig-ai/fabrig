@@ -2,6 +2,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect their captured request stream")]
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns keep matches out of step crates")]
 use super::*;
+use crate::settings;
 
 fn place() -> Place {
     Place {
@@ -21,19 +22,19 @@ fn configured() -> Domain {
         true,
     )
     .expect("empty connector");
-    d.set_machine(Machine {
-        owned_person: Box::new([]),
-        owned: None,
-        fake: Some(place()),
-        github: place(),
-        github_git_program: None,
-    });
+    d.set_machine(Machine { github: place(), github_git_program: None });
+    d.give_settings_defaults(Box::new([settings::Stock {
+        kind: 20,
+        scope: 0,
+        number: 1,
+        value: settings::SizedValue { size: 1, value: settings::Value::Welcome(settings::Welcome { shown: true }) },
+    }]));
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
 }
 
 fn ask(d: &mut Domain, number: u64, ask: Ask) -> Box<[Request]> {
-    outputs(
+    let sent = outputs(
         d,
         Event::Application {
             request: Token::new(number),
@@ -43,7 +44,18 @@ fn ask(d: &mut Domain, number: u64, ask: Ask) -> Box<[Request]> {
             carried: None,
             ask,
         },
-    )
+    );
+    let mut out = skein_lib::List::uncapped();
+    for request in sent {
+        if let Request::ChoosePlace { request, .. } = request {
+            for value in outputs(d, Event::PlaceChosen { request, place: Some(place()), git_program: None }) {
+                out.push(value).unwrap();
+            }
+        } else {
+            out.push(request).unwrap();
+        }
+    }
+    out.into_boxed()
 }
 
 fn connect(d: &mut Domain) -> Box<[Request]> {

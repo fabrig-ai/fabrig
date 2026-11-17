@@ -29,7 +29,7 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{changes::change_row, translate::commit};
 use temper_engine_protocol_forge_world::protocol::Protocol;
-use temper_engine_service_vocabulary::limits::{Profile, profile};
+use temper_limits_fixtures::small;
 
 const WINDOW: u64 = 40;
 const SCALE: u64 = 3600 / WINDOW;
@@ -165,7 +165,7 @@ fn pending(count: usize) -> (Protocol, Scheduler) {
 }
 
 fn configured(count: usize, latency: u64, update_limit: u32) -> (Protocol, Scheduler) {
-    let shipped = profile(Profile::Small).forge;
+    let shipped = small().forge;
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.client = shipped.client;
     limits.resources_per_task = shipped.resources_per_task;

@@ -10,6 +10,7 @@ pub fn to_root(
 ) -> Result<jig_test_domain::Event, Box<jig_protocol_engine_clients::Event>> {
     use jig_protocol_engine_clients::{Event, FromApplication, ToApplication};
     match request {
+        ToApplication::ProviderClientChanged { .. } => unreachable!("test application requests no provider changes"),
         ToApplication::Request { reply_to, sign_in, key, family, version, scope, record, digest, carried } => {
             let decoded = if family == 1 && version == jig_client_test_protocol_wire::VERSION {
                 codec::request(&record, bound)

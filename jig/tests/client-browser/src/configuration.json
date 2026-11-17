@@ -1,7 +1,7 @@
 {
   "engine": {
     "limits": {
-      "profile": "small",
+      "profile": "standard",
       "overrides": {
         "tasks.result_bytes": 32,
         "people.amendment_bytes": 64,
