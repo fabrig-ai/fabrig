@@ -1058,6 +1058,35 @@ fn held_run_with_history(history: u32) -> (World, u64, u64) {
     assert_eq!(world.assigned.as_ref().expect("live goal").task, goal);
     (world, signed, goal)
 }
+#[test]
+fn keyed_agreement_evidence_matches_a_whole_scan_through_a_restart() {
+    let (mut world, signed, _) = held_run_with_history(2);
+    let check = |world: &World| {
+        let scanned: Vec<_> = world
+            .store
+            .rows
+            .values()
+            .filter(|row| {
+                matches!(
+                    row,
+                    root::Record::Core(
+                        core::Record::Core(core::CoreRecord::Settings(_))
+                            | core::Record::Tasks(jig_domain_tasks::Stored::Live(_))
+                    )
+                )
+            })
+            .collect();
+        assert_eq!(agreement_rows(world).collect::<Vec<_>>(), scanned);
+    };
+    check(&world);
+    change_instructions(&mut world, signed);
+    check(&world);
+    world.park_for_message(0);
+    restart(&mut world, held_restart_configuration());
+    check(&world);
+    world.close();
+}
+
 fn instructions_edit(world: &World, instructions: &[u8]) -> settings::Item {
     let mut charter = world.domain.settings().charter(1).expect("offered charter").clone();
     charter.policy.instructions = instructions.into();

@@ -55,7 +55,11 @@ fn auxiliary_roles(policy: &mut jig_domain_authority::Policy) {
     policy.roles = roles.into_boxed_slice();
 }
 pub(super) fn start(history: u32) -> World {
-    let (config, mut limits) = configuration();
+    let (config, limits) = configuration();
+    start_with(history, config, limits)
+}
+
+pub(super) fn start_with(history: u32, config: root::Config, mut limits: root::Limits) -> World {
     limits.core.settings.history = history;
     let mut world = World::new(Setup {
         configuration: Some(config),
@@ -118,6 +122,17 @@ pub(super) fn key(key: settings::Key) -> root::Key {
 pub(super) fn record(record: settings::Record) -> root::Record {
     root::Record::Core(core::Record::Core(core::CoreRecord::Settings(record)))
 }
+/// Settings evidence and live holders, without visiting the activity and transcript archives.
+pub(super) fn agreement_rows(world: &World) -> impl Iterator<Item = &root::Record> {
+    let settings = world
+        .store
+        .rows
+        .range(key(settings::Key::Default(settings::Setting::Charter(0)))..=key(settings::Key::History(u32::MAX)));
+    let task = |number| root::Key::Core(core::Key::Tasks(jig_domain_tasks::Key::Live(number)));
+    let tasks = world.store.rows.range(task(0)..=task(u64::MAX));
+    settings.chain(tasks).map(|(_, row)| row)
+}
+
 pub(super) fn revision(world: &World, number: u32, history: bool) -> &settings::Revision {
     let address = if history { settings::Key::History(number) } else { settings::Key::Held(number) };
     let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Revision {
