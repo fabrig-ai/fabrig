@@ -204,7 +204,11 @@ temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/t
 - **`temper-client-shell-terminal`** holds, as modules:
   - `client`: the native client, `NativeClient`: temper's client root,
     its view and `jig-client-shell-native`'s transport, and when
-    `jig-client-shell-native` keeps the credential's file (section 4);
+    `jig-client-shell-native` keeps the credential's file (section 4).
+    What its tests and the process tier's person wait on it shows read-only:
+    `pending`, its readiness counts and the view's revision, and
+    `address`, the address it last applied, by its own `go` or a root's
+    `Show` (`view.md`, 3, *A new project*);
   - `route`: each of the root's requests to the native shell, the host
     or one of temper's lines;
   - `terminal`: skein's text shell's terminal with temper's settings,
