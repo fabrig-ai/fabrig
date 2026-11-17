@@ -1,5 +1,7 @@
 use super::*;
 use temper_engine_domain_forge_landing as policy;
+#[path = "landing/flake_rerun.rs"]
+mod flake_rerun;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -290,6 +292,7 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        flake_reruns: Box::new([]),
         job: None,
         landing: policy::Landing {
             last_left: None,

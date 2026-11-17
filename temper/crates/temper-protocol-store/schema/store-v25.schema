@@ -316,10 +316,11 @@ enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknow
 record HistoryJobFailed { class: HistoryJobFailure }
 enum HistoryJobOutcome { done, conflict, failed, lost, timeout, cancelled, failed_class: HistoryJobFailed }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
-record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
+record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pending: list 16 JobAttempt redispatch: bool ended: bool = false }
+record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }

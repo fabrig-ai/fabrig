@@ -1138,6 +1138,7 @@ fn kept_landing_failure(d: &mut Domain) {
     let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
+        flake_reruns: Box::new([]),
         job: None,
         landing: policy::Landing {
             last_left: None,

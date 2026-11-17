@@ -1480,6 +1480,17 @@ pub struct LandingRow {
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
+    pub flake_reruns: Box<[FlakeRerun]>,
+}
+/// A spent key and its durable job cursor (domain/landing-regate.md, 2, 4, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FlakeRerun {
+    pub key: ReceiptKey,
+    pub run: u64,
+    pub findings: Box<[u32]>,
+    pub pending: Box<[skein_forge::api::JobAttempt]>,
+    pub redispatch: bool,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEntry {

@@ -419,6 +419,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                flake_reruns: Box::new([]),
                 job: None,
                 landing: policy::Landing {
                     last_left: None,
@@ -916,6 +917,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    flake_reruns: Box::new([]),
                     job: None,
                     landing: policy::Landing {
                         last_left: None,

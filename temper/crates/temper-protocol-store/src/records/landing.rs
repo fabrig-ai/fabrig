@@ -430,9 +430,88 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     }
     w::LandingRow::new(
         &w::CEILINGS,
-        w::LandingRowParts { landing, asks, entries, job: super::history::encode_job_record(row.job.as_ref()) },
+        w::LandingRowParts {
+            landing,
+            asks,
+            entries,
+            job: super::history::encode_job_record(row.job.as_ref()),
+            flake_reruns: encode_flake_reruns(&row.flake_reruns),
+        },
     )
     .expect(FITS)
+}
+fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun> {
+    let mut encoded = List::with_capacity(u32::try_from(reruns.len()).expect(FITS));
+    for rerun in reruns {
+        let mut findings = List::with_capacity(64);
+        for number in &rerun.findings {
+            findings.push(*number).expect(FITS);
+        }
+        let mut pending = List::with_capacity(16);
+        for attempt in &rerun.pending {
+            pending
+                .push(
+                    w::JobAttempt::new(
+                        &w::CEILINGS,
+                        w::JobAttemptParts {
+                            head: attempt.head,
+                            run: attempt.run,
+                            job: attempt.job,
+                            attempt: attempt.attempt,
+                        },
+                    )
+                    .expect(FITS),
+                )
+                .expect(FITS);
+        }
+        encoded
+            .push(
+                w::LandingFlakeRerun::new(
+                    &w::CEILINGS,
+                    w::LandingFlakeRerunParts {
+                        key: encode_receipt_key(&rerun.key),
+                        run: rerun.run,
+                        findings,
+                        pending,
+                        redispatch: rerun.redispatch,
+                        ended: rerun.ended,
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    encoded
+}
+fn decode_flake_reruns(reruns: List<w::LandingFlakeRerun>) -> Box<[top::FlakeRerun]> {
+    let mut decoded = List::with_capacity(reruns.len());
+    for rerun in reruns.into_boxed() {
+        let w::LandingFlakeRerunParts { key, run, findings, pending, redispatch, ended } = rerun.into_parts();
+        let mut attempts = List::with_capacity(pending.len());
+        for attempt in pending.into_boxed() {
+            let w::JobAttemptParts { head, run, job, attempt } = attempt.into_parts();
+            attempts.push(skein_forge::api::JobAttempt { head, run, job, attempt }).expect(FITS);
+        }
+        decoded
+            .push(top::FlakeRerun {
+                key: decode_receipt_key(key),
+                run,
+                findings: findings.into_boxed(),
+                pending: attempts.into_boxed(),
+                redispatch,
+                ended,
+            })
+            .expect(FITS);
+    }
+    decoded.into_boxed()
+}
+pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
+    let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
+    let check = match check_name {
+        w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
+        w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
+    };
+    top::ReceiptKey { project, repository: names::decode_repository(repository), check, key }
 }
 fn encode_run(run: top::LandingRun) -> w::LandingRun {
     w::LandingRun::new(
@@ -451,7 +530,7 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
+    let w::LandingRowParts { landing, asks, entries, job, flake_reruns } = row.into_parts();
     let w::LandingStateParts {
         task,
         project,
@@ -500,6 +579,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
             .expect(FITS);
     }
     Ok(top::LandingRow {
+        flake_reruns: decode_flake_reruns(flake_reruns),
         job: super::history::decode_job_record(job),
         landing: d::Landing {
             searched: match searched {
@@ -644,14 +724,6 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     .expect(FITS)
 }
 
-pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
-    let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
-    let check = match check_name {
-        w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
-        w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
-    };
-    top::ReceiptKey { project, repository: names::decode_repository(repository), check, key }
-}
 pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
     let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
     let mut receipt = decode_receipt_value(receipt)?;

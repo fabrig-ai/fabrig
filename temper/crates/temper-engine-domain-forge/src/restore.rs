@@ -180,6 +180,11 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
+            field(K::Landing, RestoreSet::LandingFlakeReruns, count(row.flake_reruns.len()), u64::from(l.entries))?;
+            for rerun in &row.flake_reruns {
+                field(K::Landing, RestoreSet::LandingFlakeFindings, count(rerun.findings.len()), 64)?;
+                field(K::Landing, RestoreSet::LandingFlakeJobs, count(rerun.pending.len()), 16)?;
+            }
             for member in &row.landing.members {
                 field(K::Landing, RestoreSet::LandingGates, count(member.gates.len()), u64::from(l.gates))?;
             }
