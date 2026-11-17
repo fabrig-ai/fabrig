@@ -94,7 +94,7 @@ fn a_start_fits_against_the_prepared_workspaces_conflicts_and_schema_costs() {
     let charter = start.charter.value();
     assert_eq!(run::brief_room(charter, Some(&workspace), &agent.run_limits), Some(256));
     assert!(run::brief_bytes(&charter.brief).unwrap() <= 256);
-    assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: read_ci]\n"));
     let table = crate::worker::credentials::Table::new(0, 0);
     let values = crate::worker::start_values(&table, &start, b"/worker", fixtures::NOW).unwrap();
     encode_grants(start, values, &agent).expect("the fitted start encodes with its prepared workspace");

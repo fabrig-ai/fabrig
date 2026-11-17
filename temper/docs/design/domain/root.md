@@ -936,7 +936,7 @@ committed before its write and made once, and one proposed and kept
 until its holder accepts; a stop with a committed forge effect, making
 no commit and no write; a start refused for live tasks past lowered
 limits, or for a malformed page; a CI repair's brief carrying its failed
-step and its log's end, which `read_job` reads again, on GitHub's layer
+step and its log's end, which `read_ci what=job` reads again, on GitHub's layer
 as on Forgejo's (`forge/change/repairs.md`), and a failed repair released
 at a head CI has not passed at, its replacement's brief carrying them
 again and nothing merged. The forge's own stories are forge/README.md,

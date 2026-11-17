@@ -414,8 +414,9 @@ fn a_design_session_runs_the_drafter_with_no_change_or_goal() {
         (b"delegate", false),
         (b"note", true),
         (b"recall", true),
-        (b"read_branch", true),
-        (b"read_file", true),
+        (b"read_forge", true),
+        (b"read_issues", true),
+        (b"read_ci", true),
     ] {
         assert_eq!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), offered, "{name:?}");
     }

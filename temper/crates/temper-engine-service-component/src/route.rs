@@ -501,8 +501,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
-        root::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
-            render_host(engine, to, &answer, &tool, key, job, page, ask);
+        root::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
+            render_host(engine, to, &answer, &tool, key, read.as_deref(), job, page, ask);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -526,27 +526,24 @@ fn render_host(
     answer: &root::CallAnswer,
     tool: &[u8],
     key: jig_domain_core::CallKey,
+    read: Option<&skein_forge::api::Read>,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
     ask: root::AskHow,
 ) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render_for_task_page(
-        to,
-        answer,
-        tool,
-        bytes,
-        key.task,
-        engine.domain.reply_bound(key).unwrap_or(u32::MAX),
-        temper_engine_smith::ForgeReadBounds {
-            rows: engine.env.limits.forge.client.rows,
-            answer_bytes: engine.env.limits.forge.client.answer_bytes,
-        },
-        job,
-        page,
-        ask,
-    ));
+    let forge = temper_engine_smith::ForgeReadBounds {
+        rows: engine.env.limits.forge.client.rows,
+        answer_bytes: engine.env.limits.forge.client.answer_bytes,
+    };
+    let receiving = engine.domain.reply_bound(key).unwrap_or(u32::MAX);
+    let event = if let Some(read) = read {
+        crate::tools::render_read(to, answer, read, bytes.min(receiving), forge)
+    } else {
+        crate::tools::render_for_task_page(to, answer, tool, bytes, key.task, receiving, forge, job, page, ask)
+    };
+    engine.events.push(event);
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {
             task: key.task,

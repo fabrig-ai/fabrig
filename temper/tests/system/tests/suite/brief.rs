@@ -114,7 +114,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     let smith::Event::Start(smith::Start { charter, .. }) = &start else { panic!("smith start") };
     assert_eq!(charter.brief.sections[0].text, uncut.brief.sections[0].text);
     assert_eq!(charter.brief.sections[1].title.as_ref(), b"CI");
-    assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_ci]\n"));
     assert!(run::brief_bytes(&charter.brief).expect("fitted brief bytes") <= u64::from(BRIEF_ROOM));
     let call = |name: &[u8], arguments: &[u8]| Turn {
         lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
@@ -149,8 +149,11 @@ fn large_pull_review(seed: u64, bytes: usize) {
     let review = Script {
         cue: b"Review the change".as_slice().into(),
         turns: Box::new([
-            call(b"read_pull", br#"{"repository":"org/repo","number":1}"#),
-            call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"export.csv","max_bytes":512}"#),
+            call(b"read_issues", br#"{"what":"pull","repository":"org/repo","number":1}"#),
+            call(
+                b"read_forge",
+                br#"{"what":"file","repository":"org/repo","commit":"$HEAD","path":"export.csv","max_bytes":512}"#,
+            ),
             call(b"finish", br#"{"verdict":"1","body":"The change is correct at the reviewed head."}"#),
         ]),
     };

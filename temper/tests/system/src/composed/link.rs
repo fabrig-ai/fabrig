@@ -118,22 +118,34 @@ pub fn render(
     maximum: u32,
     task: u64,
     receiving: u32,
+    read: Option<&skein_forge::api::Read>,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
     ask: engine::AskHow,
 ) -> core::SettledAnswer {
-    let event = temper_engine_service_vocabulary::tools::render_for_task_page(
-        skein_lib::ReplyTo::new(Token::new(1)),
-        answer,
-        tool,
-        maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length")),
-        task,
-        receiving,
-        temper_engine_smith::ForgeReadBounds::STOCK,
-        job,
-        page,
-        ask,
-    );
+    let maximum = maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length"));
+    let event = if let Some(read) = read {
+        temper_engine_service_vocabulary::tools::render_read(
+            skein_lib::ReplyTo::new(Token::new(1)),
+            answer,
+            read,
+            maximum.min(receiving),
+            temper_engine_smith::ForgeReadBounds::STOCK,
+        )
+    } else {
+        temper_engine_service_vocabulary::tools::render_for_task_page(
+            skein_lib::ReplyTo::new(Token::new(1)),
+            answer,
+            tool,
+            maximum,
+            task,
+            receiving,
+            temper_engine_smith::ForgeReadBounds::STOCK,
+            job,
+            page,
+            ask,
+        )
+    };
     let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
         panic!("rendered host call")
     };

@@ -913,7 +913,7 @@ impl World {
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, read, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -922,6 +922,7 @@ impl World {
                             self.env.limits.call_answer_bytes,
                             key.task,
                             self.worker_env.limits.reply_bytes,
+                            read.as_deref(),
                             job,
                             page,
                             ask,

@@ -47,6 +47,7 @@ pub(crate) fn render(specs: &[Spec], out: &mut Writer) -> Result<(), Overflow> {
         }
         out.put(b"\n")?;
         members(schema, 0, &forms, out)?;
+        crate::forge_reads::reference(spec.name, out)?;
     }
     let mut heading = false;
     for order in 0..forms.len() {

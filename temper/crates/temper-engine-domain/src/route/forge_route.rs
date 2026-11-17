@@ -4278,7 +4278,7 @@ fn repair_failure_lines(
         let line = skein_lib::bytes::concat(&[
             b"\nFailed job: ",
             &job.name,
-            b": read_job head=",
+            b": read_ci what=job commit=",
             &prefix,
             b" run=",
             run.as_bytes(),
@@ -4346,7 +4346,7 @@ fn failed_jobs_overflow(left: u32) -> Box<[u8]> {
     skein_lib::bytes::concat(&[
         b"\n[",
         skein_lib::Decimal::of(u64::from(left)).as_bytes(),
-        b" more failed tests and jobs: read_checks names them]",
+        b" more failed tests and jobs: read_ci what=checks names them]",
     ])
 }
 

@@ -329,7 +329,7 @@ mod tests {
         let decoded =
             smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(decoded.owned_bytes().unwrap() <= owned);
-        assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+        assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_issues]\n"));
     }
 
     #[test]

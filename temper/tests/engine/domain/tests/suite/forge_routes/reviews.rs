@@ -306,11 +306,11 @@ fn settle_read(world: &mut World, to: ReplyTo, answer: jig_domain_core::SettledA
 fn assert_render_refusal(world: &mut World, run: &engine::Assignment, tool: &[u8], limit: &str, measured: usize) {
     let error = world.call_errors.last().expect("oversized read refused");
     let text = core::str::from_utf8(&error.text).expect("refusal text");
-    for expected in [limit, &measured.to_string(), "read_file", "both endpoints", "max_bytes"] {
+    for expected in [limit, &measured.to_string(), "read_forge what=file", "both endpoints", "max_bytes"] {
         assert!(text.contains(expected), "read refusal must name {expected}: {text}");
     }
     if tool == b"read_compare" {
-        for expected in ["read_pull", "head", "read_pull_files", "page"] {
+        for expected in ["read_issues what=pull", "head", "read_issues what=pull_files", "page"] {
             assert!(text.contains(expected), "compare fallback {expected}: {text}");
         }
     }

@@ -1631,12 +1631,12 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
     use serde_json::json;
     let paths = ["docs/direction.md", "docs/conventions.md"];
     let contents = ["rules\n".repeat(5334), "words\n".repeat(2167)];
-    let (branch, error) = host_tool(&mut world.driver, run, 30, b"read_branch", br#"{"branch":"main"}"#);
+    let (branch, error) = host_tool(&mut world.driver, run, 30, b"read_forge", br#"{"what":"branch","branch":"main"}"#);
     assert!(!error, "{}", String::from_utf8_lossy(&branch));
     let head = std::str::from_utf8(&branch).expect("head").trim();
     for (index, path) in paths.iter().enumerate() {
         for (offset, max_bytes) in [(0, None), (1, Some(64))] {
-            let mut input = json!({"head":head,"path":path});
+            let mut input = json!({"what":"file","commit":head,"path":path});
             if let Some(max_bytes) = max_bytes {
                 input["max_bytes"] = json!(max_bytes);
             }
@@ -1644,17 +1644,18 @@ fn configuring_documents(world: &mut World, run: &engine::Assignment) {
                 &mut world.driver,
                 run,
                 31 + u32::try_from(index).expect("document index") * 2 + offset,
-                b"read_file",
+                b"read_forge",
                 input.to_string().as_bytes(),
             );
             assert!(!error, "{}", String::from_utf8_lossy(&body));
-            assert!(body.len() <= 2048 - b"read_file".len());
+            assert!(body.len() <= 2048 - b"read_forge".len());
             let text = std::str::from_utf8(&body).expect("file answer");
             assert!(text.contains(path));
             assert!(text.ends_with("[file truncated]"));
             let (_, prefix) = text.split_once(":\n").expect("file metadata");
             let prefix = prefix.strip_suffix("\n[file truncated]").expect("visible cut");
-            let prefix = prefix.split_once("\nread_file rendered size ").map_or(prefix, |(content, _)| content);
+            let prefix =
+                prefix.split_once("\nread_forge what=file rendered size ").map_or(prefix, |(content, _)| content);
             assert!(contents[index].starts_with(prefix) && !prefix.is_empty());
             if max_bytes.is_some() {
                 assert_eq!(prefix.len(), 64);

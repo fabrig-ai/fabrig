@@ -638,11 +638,15 @@ fn assert_served(caller: &ctl::Caller) {
     assert_eq!(task["chip"]["title"]["bytes"], "Export widget's table as CSV");
 }
 
-/// The kept world configuration with room for the stock milestone template.
+/// The kept world configuration with current turn room and the stock milestone template.
 pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
     let bytes = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
     let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("kept configuration JSON");
     document["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
+    temper_playground::documents::turn_bounds::apply(
+        &mut document,
+        temper_playground::documents::agent().limits.bodies.turn_body,
+    );
     serde_json::to_vec(&document).expect("floor reader configuration")
 }
 

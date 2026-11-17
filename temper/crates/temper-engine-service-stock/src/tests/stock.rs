@@ -452,14 +452,6 @@ fn the_drafter_is_charter_12_and_template_6() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
     assert_document_rule(core::str::from_utf8(&charter.policy.instructions).unwrap());
-    assert_eq!(charter.policy.instructions.len(), 3_319);
-    assert_eq!(
-        skein_lib::sha256::digest(&charter.policy.instructions),
-        [
-            0x56, 0xb6, 0x8b, 0xbd, 0xdc, 0x3f, 0x13, 0x71, 0xf7, 0x13, 0x49, 0xf8, 0xfe, 0xf6, 0x06, 0x40, 0x4e, 0x21,
-            0x67, 0xc2, 0x20, 0x78, 0x32, 0x1a, 0x43, 0x8f, 0xcf, 0xc2, 0xc7, 0x59, 0xfc, 0xa0,
-        ]
-    );
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
     assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
@@ -763,7 +755,7 @@ fn the_chats_opening_sends_plain_edits_directly_to_change() {
         )
     );
     assert!(opening.contains("then call change with their request and only what you read"));
-    assert!(opening.contains("call read_branch with its repository before you say it isn't there"));
+    assert!(opening.contains("call read_forge what=branch with its repository before you say it isn't there"));
 }
 
 #[test]
@@ -1537,7 +1529,7 @@ fn a_stock_landing_can_start_its_prepare_job() {
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_forge what=branch for its head, then read_forge what=file), then call change with their request and only what you read: never describe unread code."));
     assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 

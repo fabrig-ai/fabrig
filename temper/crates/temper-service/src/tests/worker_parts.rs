@@ -21,8 +21,7 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
     assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, stock.host_limits.charter_bytes);
     // The smaller hub holds the fixture's fixed charter, title and one cut line.
     let mut minimum = temper_engine_smith::charter(&fixtures::resolution_with_pull(PULL_BYTES));
-    minimum.brief.sections.first_mut().unwrap().text =
-        b"\n[cut 200000 bytes; whole: read_pull/read_pull_files]\n".as_slice().into();
+    minimum.brief.sections.first_mut().unwrap().text = b"\n[cut 200000 bytes; whole: read_issues]\n".as_slice().into();
     let encoded = smith_protocol_translate::encode_charter(
         &minimum,
         &smith_charter::CEILINGS,
@@ -78,7 +77,7 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
                     panic!("{name}: pull section retained")
                 };
                 assert_eq!(section.title.as_ref(), b"Pull request", "{name}");
-                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"), "{name}");
+                assert!(section.text.ends_with(b" bytes; whole: read_issues]\n"), "{name}");
                 outcomes.push((name, Ok(()))).unwrap();
             }
             Err(why) => outcomes.push((name, Err(why))).unwrap(),

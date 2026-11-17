@@ -571,7 +571,7 @@ next run.
   section of its own (`../../domain/root.md`, 6.2): the file at the
   branch's head as the forge resolves it when it gathers the section,
   one commit named in the section and kept for its whole life, read as
-  `read_file` reads one (`../../domain/forge/README.md`, section 2). With a
+  `read_forge what=file` reads one (`../../domain/forge/README.md`, section 2). With a
   heading, the part from the first Markdown heading line whose text,
   after its `#`s and one space, equals the heading byte for byte, to
   the line before the next heading of its level or above. Cut to the

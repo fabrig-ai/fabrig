@@ -408,7 +408,7 @@ for it, never a read of another kind or another party's.
   CI. The base tip's CI is read once, and not again when the base tip
   is the head. A gathered pull request read without CI differs from a
   watched one (1) by none of its facts but CI. The keep's pull watch
-  reads its CI, and so does the agents' `read_pull`, whose answer shows
+  reads its CI, and so does the agents' `read_issues what=pull`, whose answer shows
   it; a landing's members, a brief, an overlap's bracketing reads, a
   merge's verification and every other reader that uses no CI read
   none.
@@ -420,7 +420,7 @@ for it, never a read of another kind or another party's.
   request once, however many of its members name it.
 - **The repository's own facts are read once** and kept by the forge
   component (skein's `forge/connection.md`, 4.2): its settings answer
-  `Settings` with no request, the agents' `read_settings` among them,
+  `Settings` with no request, the agents' `read_forge what=settings` among them,
   until a redirect, a `404` that is no answer, a merge refused its style
   or a write refused `Forbidden` drops them, each the forge's word that
   they may have changed. A refusal's refresh of what temper may do

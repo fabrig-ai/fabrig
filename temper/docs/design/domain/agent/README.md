@@ -298,8 +298,8 @@ host:
 - A charter where the process has no local agent: `tools.md`, section 3.
 - A `see` answer by its worker's reply bound: `ask-temper.md`, section 5.
 - The person's forge identity in a chat's brief,: `agents.md`, section 5.
-- A collaborator's login in `read_collaborators`: `tools.md`, section 3.
-- `read_permission`'s login held to the settings family: `tools.md`, section 3.
+- A collaborator's login in `read_forge what=collaborators`: `tools.md`, section 3.
+- `read_forge what=permission`'s login held to the settings family: `tools.md`, section 3.
 - A person known by a login alone: `agents.md`, section 5.
 - Which host tools a charter offers: `tools.md`, section 3.
 - What sizes temper's own way: `agents.md`, section 5.

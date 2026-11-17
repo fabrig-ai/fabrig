@@ -123,7 +123,7 @@ fn a_large_pull_review_fits_before_assignment_admission() {
     let pull = &charter.brief.sections[1];
     assert_eq!(pull.title.as_ref(), b"Pull request");
     assert!(pull.text.starts_with(b"Pull #10 acme/shop head recorded-head\n"));
-    assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    assert!(pull.text.ends_with(b" bytes; whole: read_issues]\n"));
     assert!(skein_lib::bytes::find(&pull.text, b"[cut ").is_some());
     ::core::str::from_utf8(&pull.text).expect("a pull cut keeps complete UTF-8 characters");
 }
@@ -157,7 +157,7 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
     assert_eq!(sections[0], original.brief.sections[0]);
     assert_eq!(sections[1], original.brief.sections[1]);
     assert_eq!(sections[2], original.brief.sections[2]);
-    assert!(sections[3].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(sections[3].text.ends_with(b" bytes; whole: read_ci]\n"));
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             let text = ::core::str::from_utf8(&fitted.brief.sections[1].text).unwrap();
             let (kept, marker) = text.rsplit_once("\n[cut ").expect("a section past its room is cut");
             assert!(original.starts_with(kept));
-            assert_eq!(marker, format!("{} bytes; whole: read_pull/read_pull_files]\n", size - kept.len()));
+            assert_eq!(marker, format!("{} bytes; whole: read_issues]\n", size - kept.len()));
         }
     }
 }

@@ -174,30 +174,7 @@ fn each_family_needs_both_charter_and_authority() {
         (f.effect.0, &[b"effect_forge"]),
         (f.note.0, &[b"note"]),
         (f.recall.0, &[b"recall"]),
-        (
-            f.read.0,
-            &[
-                b"read_task",
-                b"read_items",
-                b"read_item",
-                b"read_pull",
-                b"read_pull_for",
-                b"read_reviews",
-                b"read_statuses",
-                b"read_remarks",
-                b"read_branch",
-                b"read_branches",
-                b"read_pull_files",
-                b"read_compare",
-                b"read_checks",
-                b"read_file",
-                b"read_job",
-                b"read_protection",
-                b"read_settings",
-                b"read_collaborators",
-                b"read_permission",
-            ],
-        ),
+        (f.read.0, &[b"read_task", b"read_forge", b"read_issues", b"read_ci"]),
         (f.settings, &[b"settings", b"propose_settings"]),
     ];
     let all = engine::RunPolicy::EVERY_FAMILY;
@@ -264,7 +241,7 @@ fn asking_charters_keep_their_own_forms_and_require_authority() {
 #[test]
 fn stock_coder_and_goal_offers_follow_their_family_intersection() {
     let coder = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(514), tasks::Tools(514));
-    assert_eq!(coder.len(), 22);
+    assert_eq!(coder.len(), 7);
     for tool in &coder {
         assert!(
             tool.name.as_ref() == b"message" || tool.name.as_ref() == b"introduce" || tool.name.starts_with(b"read_")
@@ -565,24 +542,9 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"settings", br"{}", br#"{"from":-1}"#),
         (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
-        (b"read_items", br#"{"repository":"qa/pilot","since":0,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_item", br#"{"repository":"qa/pilot","number":1,"after":0}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_pull", br#"{"repository":"qa/pilot","number":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_pull_for", br#"{"repository":"qa/pilot","head":"h","base":"b"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_reviews", br#"{"repository":"qa/pilot","number":1,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_statuses", br#"{"repository":"qa/pilot","commit":"0000000000000000000000000000000000000000000000000000000000000000","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_remarks", br#"{"repository":"qa/pilot","number":1,"review":1,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_branch", br#"{"repository":"qa/pilot","branch":"main"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_branches", br#"{"repository":"qa/pilot","prefix":"temper/"}"#, br#"{"repository":"qa/pilot","kind":"wrong"}"#),
-        (b"read_pull_files", br#"{"repository":"qa/pilot","number":1,"head":"0000000000000000000000000000000000000000000000000000000000000000","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_compare", br#"{"repository":"qa/pilot","before":"0000000000000000000000000000000000000000000000000000000000000000","after":"0000000000000000000000000000000000000000000000000000000000000000"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_checks", br#"{"repository":"qa/pilot","commit":"0000000000000000000000000000000000000000000000000000000000000000"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_file", br#"{"repository":"qa/pilot","head":"0000000000000000000000000000000000000000000000000000000000000000","path":"file","max_bytes":32}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_job", br#"{"repository":"qa/pilot","head":"0000000000000000000000000000000000000000000000000000000000000000","run":1,"job":1,"attempt":1,"max_bytes":32}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_protection", br#"{"repository":"qa/pilot","branch":"main"}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_settings", br#"{"repository":"qa/pilot"}"#, br#"{"repository":"qa/pilot","kind":"wrong"}"#),
-        (b"read_collaborators", br#"{"repository":"qa/pilot","page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
-        (b"read_permission", br#"{"repository":"qa/pilot","user":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
+        (b"read_forge", br#"{"repository":"qa/pilot","what":"branch","branch":"main"}"#, br#"{"what":"branch","branch":1}"#),
+        (b"read_issues", br#"{"repository":"qa/pilot","what":"item","number":7}"#, br#"{"what":"item","number":0}"#),
+        (b"read_ci", br#"{"repository":"qa/pilot","what":"checks","commit":"0000000000000000000000000000000000000000"}"#, br#"{"what":"checks","commit":"bad"}"#),
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
@@ -1128,8 +1090,11 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
         assert_eq!(crate::unasked_kind(&read), Some(phrase));
         for (rendered, tool) in [
             (answer(&read), "the read"),
-            (crate::answer_for_tool(&read, b"read_file", 4096, crate::ForgeReadBounds::STOCK), "read_file"),
-            (crate::answer_for_tool(&read, b"read_compare", 4096, crate::ForgeReadBounds::STOCK), "read_compare"),
+            (crate::answer_for_tool(&read, b"read_file", 4096, crate::ForgeReadBounds::STOCK), "read_forge what=file"),
+            (
+                crate::answer_for_tool(&read, b"read_compare", 4096, crate::ForgeReadBounds::STOCK),
+                "read_forge what=compare",
+            ),
             (crate::answer_bounded(&read, 4096), "the read"),
             (
                 crate::answer_for_task(&read, b"read_commit", 4096, CALL_TASK, crate::ForgeReadBounds::STOCK),
@@ -1145,7 +1110,7 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
         for cap in [0, 32] {
             let rendered = crate::answer_for_tool(&read, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
             let expected = format!(
-                "Forge read refused: read_compare got an {phrase}, which it never asks for. Nothing was read; read again."
+                "Forge read refused: read_forge what=compare got an {phrase}, which it never asks for. Nothing was read; read again."
             );
             assert!(rendered.error());
             assert_eq!(rendered.text(), &expected.as_bytes()[..usize::try_from(cap).unwrap()]);
@@ -1282,7 +1247,7 @@ fn resolved_checks_and_statuses_name_the_api_job_attempt_in_every_state() {
                 job: Some(api::JobAttempt { head: *head, run: 7, job: 8, attempt: 2 }),
             };
             let status_line = format!(
-                "build: {state} CI result https://forge.example/org/repo/actions/runs/3/jobs/0\nread_job head "
+                "build: {state} CI result https://forge.example/org/repo/actions/runs/3/jobs/0\nread_ci what=job commit "
             );
             let attempt_line = b" run 7 job 8 attempt 2\n";
             for (read, prefix, suffix) in [
@@ -2552,74 +2517,13 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
 }
 
 #[test]
-fn every_forge_read_declares_its_flat_members_as_json() {
-    let members: &[(&[u8], &[&[u8]])] = &[
-        (b"read_items", &[b"since", b"page", b"item_kind"]),
-        (b"read_item", &[b"number", b"after"]),
-        (b"read_pull", &[b"number"]),
-        (b"read_pull_for", &[b"head", b"base"]),
-        (b"read_reviews", &[b"number", b"page", b"skip"]),
-        (b"read_statuses", &[b"commit", b"page"]),
-        (b"read_remarks", &[b"number", b"review", b"page", b"skip"]),
-        (b"read_branch", &[b"branch"]),
-        (b"read_branches", &[b"prefix"]),
-        (b"read_pull_files", &[b"number", b"head", b"page", b"skip"]),
-        (b"read_compare", &[b"before", b"after"]),
-        (b"read_checks", &[b"commit"]),
-        (b"read_file", &[b"head", b"path", b"max_bytes"]),
-        (b"read_job", &[b"head", b"run", b"job", b"attempt", b"max_bytes"]),
-        (b"read_protection", &[b"branch"]),
-        (b"read_settings", &[]),
-        (b"read_collaborators", &[b"page"]),
-        (b"read_permission", &[b"user"]),
-    ];
-    let mut count = 0;
-    for tool in tools(Duration::from_secs(1)) {
-        let mut names = None;
-        for (name, fields) in members {
-            if *name == tool.name.as_ref() {
-                names = Some(fields);
-                break;
-            }
-        }
-        let Some(names) = names else {
-            continue;
-        };
-        count += 1;
-        let schema = crate::json::parse(&tool.schema).expect("JSON schema");
-        assert!(!schema.required(b"additionalProperties").unwrap().boolean(b"additionalProperties").unwrap());
-        let properties = schema.required(b"properties").unwrap();
-        let crate::json::Value::Object(fields) = properties else {
-            panic!("properties object");
-        };
-        assert_eq!(fields.len(), names.len() + 1);
-        assert_eq!(
-            properties.required(b"repository").unwrap().required(b"type").unwrap().text(b"type").unwrap().as_ref(),
-            b"string"
-        );
-        let description =
-            properties.required(b"repository").unwrap().required(b"description").unwrap().text(b"description").unwrap();
-        assert!(
-            skein_lib::bytes::find(&description, b"leave it out, or empty").is_some()
-                || skein_lib::bytes::find(&description, b"omit or empty").is_some()
-        );
-        for name in *names {
-            let property = properties.required(name).unwrap();
-            assert!(!property.required(b"description").unwrap().text(b"description").unwrap().is_empty());
-            assert!(property.field(b"type").unwrap().is_some());
-        }
-    }
-    assert_eq!(count, members.len());
-}
-
-#[test]
 fn a_missing_job_refusal_names_the_asked_head_run_job_and_attempt_with_recovery() {
     for (head, digits, run, job, attempt) in
         [([0; 32], "0".repeat(40), 2, 0, 1), ([0xab; 32], "ab".repeat(32), 8, 15, 3)]
     {
         let pin = skein_forge::api::JobAttempt { head, run, job, attempt };
         let expected = format!(
-            "Forge read failed: job missing. No job attempt at head {digits}, run {run}, job {job}, attempt {attempt}, as asked. read_checks at this head names each Actions job's run, job and attempt as read_job takes them; a link's run number and its index of the job are not those ids."
+            "Forge read failed: job missing. No job attempt at head {digits}, run {run}, job {job}, attempt {attempt}, as asked. read_ci what=checks at this head names each Actions job's run, job and attempt as read_ci what=job takes them; a link's run number and its index of the job are not those ids."
         );
         let rendered = crate::answer_for_job(
             &engine::CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::MissingJob))),
@@ -2675,14 +2579,13 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
     ] {
         assert_eq!(decided(b"read_job", input).err(), Some(Problem::Range(field)));
     }
-    let tools = tools(Duration::from_secs(10));
     let mut schema = None;
-    for tool in &tools {
-        if tool.name.as_ref() == b"read_job" {
-            schema = Some(&tool.schema);
+    for spec in &crate::calls::SPECS {
+        if spec.name == b"read_ci" {
+            schema = Some(spec.whole());
         }
     }
-    let schema = schema.expect("read_job tool");
+    let schema = schema.expect("read_ci what=job tool");
     let schema = crate::json::parse(schema).expect("job schema");
     let properties = schema.required(b"properties").unwrap();
     for (name, minimum) in [(b"run".as_slice(), 1), (b"job".as_slice(), 0), (b"attempt".as_slice(), 0)] {
@@ -2690,8 +2593,8 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
         assert_eq!(property.required(b"minimum").unwrap().number(b"minimum").unwrap(), minimum);
         if name != b"attempt" {
             let words = property.required(b"description").unwrap().text(b"description").unwrap();
-            assert!(skein_lib::bytes::find(&words, b"read_checks").is_some(), "{words:?}");
-            assert!(skein_lib::bytes::find(&words, b"not a link's").is_some());
+            assert!(skein_lib::bytes::find(&words, b"read_ci what=checks").is_some(), "{words:?}");
+            assert!(skein_lib::bytes::find(&words, b"never a link's").is_some());
             assert!(!words.contains(&b'0'), "no job-zero invitation");
         }
     }
@@ -3027,7 +2930,7 @@ fn comparisons_answer_names_counts_and_containment_with_omissions() {
             let left = changed - u64::try_from(paths.len()).unwrap();
             if left > 0 {
                 expected.push_str(&format!(
-                    "[{left} not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n"
+                    "[{left} not listed: read_issues what=pull_files lists a pull's files; read_forge what=file reads a path at each commit]\n"
                 ));
             }
             assert!(!rendered.error());
@@ -3053,8 +2956,8 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
         "commit ids were read",
         "another id won't help",
         "Never retry with a changed or guessed id",
-        "read_pull_files",
-        "read_file",
+        "read_issues what=pull_files",
+        "read_forge what=file",
         "both endpoints",
         "max_bytes",
     ] {
@@ -3091,7 +2994,10 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
     ] {
         let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(excess))));
         for (tool, recovery) in [
-            (b"read_branches".as_slice(), "Use a longer prefix, or read_branch for one name."),
+            (
+                b"read_branches".as_slice(),
+                "The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_forge what=branch.",
+            ),
             (b"read_reviews", "Advance page to list the rest; a later page skips this oversized page."),
         ] {
             let expected = format!("Forge read failed: too large: past {expected}. {recovery}");
@@ -3114,9 +3020,9 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
 #[test]
 fn a_refused_branch_read_says_what_to_read_instead() {
     use skein_forge::api::Error;
-    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
-    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. Use a longer prefix, or read_branch for one name.";
-    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_forge what=branches needs a nonempty prefix, as temper/ for temper's branches. read_forge what=settings names the default branch, and read_forge what=branch reads one branch by its name.";
+    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_forge what=branch.";
+    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_forge what=settings names its default branch, and read_forge what=branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
     for (tool, error, expected) in [
         (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
         (
@@ -3256,16 +3162,15 @@ fn branch_lists_render_whole_within_the_host_byte_bound() {
 #[test]
 fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
     let mut count = 0_usize;
-    for tool in tools(Duration::from_secs(1)) {
-        match tool.name.as_ref() {
-            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
+    for tool in crate::calls::SPECS {
+        match tool.name {
+            b"goal" => assert_eq!(tool.description, b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
             b"delegate" => assert!(tool.description.ends_with(b"Repository changes: call change.")),
-            b"read_branches" => {
-                assert_eq!(tool.description.as_ref(), b"List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.");
-                let schema = crate::json::parse(&tool.schema).expect("JSON schema");
+            b"read_forge" => {
+                let schema = crate::json::parse(tool.whole()).expect("whole JSON schema");
                 let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
                 let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
-                assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+                assert_eq!(description.as_ref(), b"Nonempty name prefix, as temper/; longer reads fewer.");
             }
             _ => continue,
         }
@@ -3301,9 +3206,9 @@ fn successful_compare_over_host_bound_keeps_measured_feedback() {
         "host answer limit 2048 bytes",
         "forge.client.rows (8)",
         "forge.client.answer_bytes (65536)",
-        "read_pull",
-        "read_pull_files",
-        "read_file",
+        "read_issues what=pull",
+        "read_issues what=pull_files",
+        "read_forge what=file",
         "max_bytes",
         "core.call_answer_bytes",
         "agent.json",
@@ -3391,7 +3296,7 @@ fn oversized_file_feedback(tool: &[u8], value: skein_forge::api::Answer, size: u
     let words = feedback.text();
     let size_text = skein_lib::Decimal::of(u64::try_from(size).expect("fixture size"));
     assert!(skein_lib::bytes::find(words, size_text.as_bytes()).is_some());
-    for required in ["10240", "read_file", "max_bytes", "overhead"] {
+    for required in ["10240", "read_forge what=file", "max_bytes", "overhead"] {
         assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
     }
     if tool == b"read_pull_files" {
@@ -3491,7 +3396,7 @@ fn file_and_pull_rendering_boundaries() {
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in ["Forge read failed: too large: past an unnamed bound.", "read_file", "max_bytes"] {
+        for required in ["Forge read failed: too large: past an unnamed bound.", "read_forge what=file", "max_bytes"] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }
@@ -3877,3 +3782,5 @@ mod remember;
 
 #[path = "tests/wire.rs"]
 mod wire;
+
+mod forge_reads;

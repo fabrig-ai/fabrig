@@ -385,204 +385,78 @@ Offered where the run's charter names the settings family and its authority hold
   - `set`: any value. Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first.
   - `edit`: one of `reset|removed`. In place of set: reset, to follow its default again, or removed, no longer offered.
 
-## read_items
+## read_forge
 
-Issues/pulls, oldest updates first; forge.client.rows/answer_bytes bounded. Advance page.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `since`: integer [0, 18446744073709551615], 0 when absent. Only items updated at or after this time, in nanoseconds.
-- `page`: integer [1, 4294967295], 1 when absent. The page.
-- `item_kind`: one of `issue|pull`. Issues or pull requests alone; both when absent.
-
-## read_item
-
-Issue/pull and comments within forge.client.rows/answer_bytes. Advance after for comments; read_items for summaries.
+Repository reads; forge.client.rows/answer_bytes bounded. Compare names only; file by path. Each what: read_docs host-tools.
 
 A read.
 Offered where the run's charter names the read family and its authority holds it.
 
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `number`: integer [1, 18446744073709551615]; required. The issue's or pull request's number.
-- `after`: integer [0, 18446744073709551615], 0 when absent. Only the comments after this comment's id.
+- `what`: one of `branch|branches|compare|file|protection|settings|collaborators|permission`; required. Read to make; each what below lists its required and optional members.
+- `repository`: text. owner/name; omit or empty for the project's one.
+- `branch`: text. Branch name; pull_for: the branch it merges from.
+- `prefix`: text. Nonempty name prefix, as temper/; longer reads fewer.
+- `before`: text. Earlier commit: 40 or 64 lowercase hex digits.
+- `after`: text. Later commit: 40 or 64 lowercase hex digits.
+- `commit`: text. Commit id: 40 or 64 lowercase hex digits.
+- `path`: text. File or directory path; dot or empty for root.
+- `max_bytes`: integer [1, 4294967295]. Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.
+- `page`: integer [1, 4294967295], 1 when absent. Page from 1; default 1. Next page uncut; same page and skip if cut.
+- `user`: integer [1, 18446744073709551615]. Forge user's id; permission names their login.
+- `what=branch`: requires branch; takes repository, branch.
+- `what=branches`: requires prefix; takes repository, prefix.
+- `what=compare`: requires before, after; takes repository, before, after.
+- `what=file`: requires commit, path; takes repository, commit, path, max_bytes.
+- `what=protection`: requires branch; takes repository, branch.
+- `what=settings`: requires none; takes repository.
+- `what=collaborators`: requires none; takes repository, page.
+- `what=permission`: requires user; takes repository, user.
 
-## read_pull
+## read_issues
 
-Pull within forge.client.rows/answer_bytes. Files: read_pull_files by page, or read_file by path at head/base.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `number`: integer [1, 18446744073709551615]; required. The pull request's number.
-
-## read_pull_for
-
-Find a pull by head/base within forge.client.rows/answer_bytes. Files: read_pull_files by page or read_file by path at head/base.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `head`: text; required. The branch it merges from.
-- `base`: text; required. The branch it merges into.
-
-## read_reviews
-
-Pull reviews within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
+Issues and pulls; forge.client.rows/answer_bytes bounded. Advance page; if cut, same page/skip. Each what: read_docs host-tools.
 
 A read.
 Offered where the run's charter names the read family and its authority holds it.
 
-- `repository`: text. owner/name; omit or empty for sole project repo.
-- `number`: integer [1, 18446744073709551615]; required. Pull #.
-- `page`: integer [1, 4294967295], 1 when absent. Page.
-- `skip`: integer [0, 4294967295], 0 when absent. Rows read.
+- `what`: one of `items|item|pull|pull_for|reviews|remarks|pull_files`; required. Read to make; each what below lists its required and optional members.
+- `repository`: text. owner/name; omit or empty for the project's one.
+- `since`: integer [0, 18446744073709551615], 0 when absent. Items updated at or after this time in nanoseconds; default 0.
+- `page`: integer [1, 4294967295], 1 when absent. Page from 1; default 1. Next page uncut; same page and skip if cut.
+- `item_kind`: one of `issue|pull`. issue or pull alone; both when absent.
+- `number`: integer [1, 18446744073709551615]. Issue or pull number.
+- `comment`: integer [0, 18446744073709551615], 0 when absent. Comments after this id; default 0.
+- `branch`: text. Branch name; pull_for: the branch it merges from.
+- `base`: text. Branch it merges into.
+- `skip`: integer [0, 4294967295], 0 when absent. Rows of page already read; default 0.
+- `review`: integer [1, 18446744073709551615]. Review id from read_issues what=reviews.
+- `commit`: text. Commit id: 40 or 64 lowercase hex digits.
+- `what=items`: requires none; takes repository, since, page, item_kind.
+- `what=item`: requires number; takes repository, number, comment.
+- `what=pull`: requires number; takes repository, number.
+- `what=pull_for`: requires branch, base; takes repository, branch, base.
+- `what=reviews`: requires number; takes repository, number, page, skip.
+- `what=remarks`: requires number, review; takes repository, number, review, page, skip.
+- `what=pull_files`: requires number, commit; takes repository, number, commit, page, skip.
 
-## read_statuses
+## read_ci
 
-Commit statuses within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `commit`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
-- `page`: integer [1, 4294967295], 1 when absent. The page.
-
-## read_remarks
-
-Review remarks within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. owner/name; omit or empty for sole project repo.
-- `number`: integer [1, 18446744073709551615]; required. Pull #.
-- `review`: integer [1, 18446744073709551615]; required. read_reviews id.
-- `page`: integer [1, 4294967295], 1 when absent. Page.
-- `skip`: integer [0, 4294967295], 0 when absent. Rows read.
-
-## read_branch
-
-Branch head within forge.client.answer_bytes; read_branches with a longer prefix lists names.
+Checks, statuses and job logs; forge.client.rows/answer_bytes bounded. Statuses by page; logs by max_bytes. Each what: read_docs host-tools.
 
 A read.
 Offered where the run's charter names the read family and its authority holds it.
 
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `branch`: text; required. The branch's name.
-
-## read_branches
-
-List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `prefix`: text; required. A nonempty prefix of the names, as temper/.
-
-## read_pull_files
-
-Whole pull files within forge.client.rows/answer_bytes. Next page uncut; same page/skip if cut. read_file at head/base.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. owner/name; omit or empty for sole project repo.
-- `number`: integer [1, 18446744073709551615]; required. Pull #.
-- `head`: text; required. Head: 40/64 lowercase hex.
-- `page`: integer [1, 4294967295], 1 when absent. Page.
-- `skip`: integer [0, 4294967295], 0 when absent. Rows read.
-
-## read_compare
-
-Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `before`: text; required. The earlier commit's id: 40 or 64 lowercase hexadecimal digits.
-- `after`: text; required. The later commit's id: 40 or 64 lowercase hexadecimal digits.
-
-## read_checks
-
-Combined checks within forge.client.rows/answer_bytes; read_statuses by page, then read_job for a failed job.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `commit`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
-
-## read_file
-
-File prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `head`: text; required. The commit's id: 40 or 64 lowercase hexadecimal digits.
-- `path`: text; required. A file's or a directory's path; "." or empty for the root.
-- `max_bytes`: integer [1, 4294967295]. Raw prefix bytes; default: read limit. Leave host room for metadata and escaping (up to 4x); a cut is incomplete.
-
-## read_job
-
-Failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `head`: text; required. The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits.
-- `run`: integer [1, 18446744073709551615]; required. The CI run's id, as read_checks names it; not a link's run number.
-- `job`: integer [0, 18446744073709551615]; required. The CI job's id, as read_checks names it; not a link's job index.
-- `attempt`: integer [0, 4294967295]; required. The attempt's number, which may be 0 on Forgejo.
-- `max_bytes`: integer [1, 4294967295]. At most this many bytes; the read's limit when absent.
-
-## read_protection
-
-Branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items for narrower context.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `branch`: text; required. The branch's name.
-
-## read_settings
-
-Repository settings within forge.client.answer_bytes. No pages; read_branch or read_items for narrower context.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-
-## read_collaborators
-
-Collaborators within forge.client.rows/answer_bytes; advance page. read_permission reads one user.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `page`: integer [1, 4294967295], 1 when absent. The page.
-
-## read_permission
-
-User permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.
-
-A read.
-Offered where the run's charter names the read family and its authority holds it.
-
-- `repository`: text. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `user`: integer [1, 18446744073709551615]; required. The forge user's id.
+- `what`: one of `checks|job|statuses`; required. Read to make; each what below lists its required and optional members.
+- `repository`: text. owner/name; omit or empty for the project's one.
+- `commit`: text. Commit id: 40 or 64 lowercase hex digits.
+- `run`: integer [1, 18446744073709551615]. Run id from read_ci what=checks or what=statuses; never a link's run number.
+- `job`: integer [0, 18446744073709551615]. Job id from read_ci what=checks or what=statuses; never a link's job index.
+- `attempt`: integer [0, 4294967295]. Attempt from read_ci what=checks or what=statuses; may be 0 on Forgejo.
+- `max_bytes`: integer [1, 4294967295]. Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.
+- `page`: integer [1, 4294967295], 1 when absent. Page from 1; default 1. Next page uncut; same page and skip if cut.
+- `what=checks`: requires commit; takes repository, commit.
+- `what=job`: requires commit, run, job, attempt; takes repository, commit, run, job, attempt, max_bytes.
+- `what=statuses`: requires commit; takes repository, commit, page.
 
 ## read_docs
 

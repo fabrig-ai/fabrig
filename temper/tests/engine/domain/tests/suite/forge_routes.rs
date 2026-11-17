@@ -87,6 +87,7 @@ mod delegates;
 
 #[path = "forge_routes/change_tool.rs"]
 mod change_tool;
+mod read_contracts;
 
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
@@ -1468,7 +1469,7 @@ fn a_large_conflicting_pull_is_sized_before_its_brief_deadline() {
             if source.as_ref() == branch.as_ref() && expected == translate::commit(base)));
     let limit = world.env.limits.forge.client.answer_bytes;
     let omitted = format!(
-        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]",
+        "[files omitted from page 1: past forge.client.answer_bytes ({limit}): at least {} bytes; the pull changes 1 files; read_issues what=pull_files from page 2 lists the rest, and read_forge what=file reads a path at the head or the base]",
         u64::from(limit) + 1
     );
     let pull = resolver
