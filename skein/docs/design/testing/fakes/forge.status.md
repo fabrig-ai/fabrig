@@ -2,6 +2,7 @@
 
 2026-11-16. Where skein's code lags or departs from [forge.md](forge.md).
 
+- **Not yet:** 2.3, *A run's report*: a workflow's `once` ids [in flight: change 6037].
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses
 the key's public half and verifies without signing; its exact-token/key

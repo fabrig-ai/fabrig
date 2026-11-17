@@ -2,6 +2,7 @@
 
 2026-11-16. Where the tree's code lags or departs from [charter.md](charter.md).
 
+- **Not yet:** 3: a change contract's choice as a verdict named by its number, and jig's `Verdict` result refused where the run settled a change [in flight: change 6026].
 
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).

@@ -127,10 +127,14 @@ findings are `findings.md`'s, and a repair, its result and its release
 ## 5. In the store
 
 - **The landing's flake reruns,** on its row (`Landing`, `landing.md`,
-  section 12), each the receipt's key, the failed run's id and the
+  section 12), each the receipt's key, the failed run's id, the
   numbers of the findings it matched (at most 64, one per failed test
-  at most), at most one per key the landing proves; a registered
-  layout's added field, empty by default.
+  at most) and the failed jobs' attempts it has yet to rerun (at most
+  16, a receipt's own bound), at most one per key the landing proves; a
+  registered layout's added field, empty by default. Its first rerun's
+  entry is kept in the step that keeps it, and the rest one per step
+  after, as 7.4's retry keeps them, so a restart reruns what it still
+  lists.
 - **A change's regate,** on its row (`forge/change/README.md`; family
   `ChangeHot`), `regate: Option<Regate>`, `Regate { receipt:
   ReceiptKey, run: u64 }`, the receipt's whole key as `Receipt` is

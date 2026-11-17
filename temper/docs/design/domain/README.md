@@ -42,6 +42,10 @@ all. Then temper's:
      cases the top's gates report failed, one run per workflow and
      commit, and nothing landed on such a probe: the next round proves
      the green prefix whole.
+   - `landing-regate.md`: a gate run once more at the same content: a
+     red of known flakes rerun before its receipt, and a failed receipt
+     superseded once a repair found only flakes and a person released
+     its change.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.

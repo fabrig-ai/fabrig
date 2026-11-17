@@ -270,6 +270,20 @@ the summary's second line names that file and counts the failures by
 class, so that a key its capped summary had no room for stays readable
 (`draft/pre-pr-failure-list.status.md`).
 
+A landing's gate red only from known flakes runs once more
+(`domain/landing-regate.md`; `draft/flake-regate.status.md`): where every
+test a gate's run failed is named by an open flake finding of the gate
+or of a delivery's check, its failed jobs run again once before any
+receipt, kept on the landing's row across a restart, and only that
+attempt's verdict makes the receipt, its green counting the findings. A
+landing repair whose failed tests are known may end with verdict 1,
+`flake`, on its change contract's choice (jig's
+`domain/tasks/README.md`, section 3); its
+change holds, and a person's release names the failed receipt as the
+change's regate, so the next landing at that key dispatches the gate
+afresh at the same content and its receipt replaces the failed one, with
+no commit made. A red again is repaired and counted as ever.
+
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
 kept on the tier's record and said on a verifying change's line; a red
@@ -520,6 +534,7 @@ Design documents:
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
+- [`domain/landing-regate.md`](domain/landing-regate.status.md)
 - [`domain/milestones.md`](domain/milestones.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
@@ -615,6 +630,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
+- [`draft/flake-regate.md`](draft/flake-regate.status.md)
 - [`draft/focused-pyramid.md`](draft/focused-pyramid.status.md)
 - [`draft/follows.md`](draft/follows.status.md)
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)

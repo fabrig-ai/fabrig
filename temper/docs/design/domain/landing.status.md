@@ -19,8 +19,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
   prepare and key commands, as jobs (`worker/jobs.md`). 6.2: the baseline
-  at main's tip; a failed receipt rerun first when its tests match open
-  flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, its
+  at main's tip. 8, 11, 16: GitHub's turn, its
   ref fast-forwarded (kind 19), a squashed member's pull request closed
   there, and its stories on the fake GitHub. 13.1: kinds 4 and 5 as
   settings. 13.2: adoption's checks under `turn` of each gate's workflow
