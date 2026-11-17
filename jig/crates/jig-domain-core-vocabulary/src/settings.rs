@@ -7,6 +7,8 @@ pub mod check;
 pub mod fleet_needs;
 pub mod models;
 pub mod overlays;
+mod overrides;
+pub use overrides::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
 pub mod revisions;
 pub mod templates;
 use crate::{Charter, ConfiguredPolicy, Template};
@@ -31,10 +33,24 @@ pub enum Value {
     Template(Box<Template>),
     Policy(Box<ConfiguredPolicy>),
     Rules(Box<authority::Rules>),
+    Limits(Box<[Override]>),
     Model(Box<CatalogueModel>),
     Application(Box<[u8]>),
 }
 impl Value {
+    #[must_use]
+    pub fn as_limits(&self) -> Option<&[Override]> {
+        match self {
+            Self::Limits(value) => Some(value),
+            Self::Charter(_)
+            | Self::Overlay(_)
+            | Self::Template(_)
+            | Self::Policy(_)
+            | Self::Rules(_)
+            | Self::Model(_)
+            | Self::Application(_) => None,
+        }
+    }
     #[must_use]
     pub fn as_model(&self) -> Option<&CatalogueModel> {
         match self {
@@ -44,6 +60,7 @@ impl Value {
             | Self::Template(_)
             | Self::Policy(_)
             | Self::Rules(_)
+            | Self::Limits(_)
             | Self::Application(_) => None,
         }
     }
@@ -55,6 +72,7 @@ impl Value {
             | Self::Template(_)
             | Self::Policy(_)
             | Self::Rules(_)
+            | Self::Limits(_)
             | Self::Model(_)
             | Self::Application(_) => None,
         }
@@ -67,6 +85,7 @@ impl Value {
             | Self::Charter(_)
             | Self::Policy(_)
             | Self::Rules(_)
+            | Self::Limits(_)
             | Self::Model(_)
             | Self::Application(_) => None,
         }
@@ -79,6 +98,7 @@ impl Value {
             | Self::Overlay(_)
             | Self::Template(_)
             | Self::Rules(_)
+            | Self::Limits(_)
             | Self::Model(_)
             | Self::Application(_) => None,
         }
@@ -92,6 +112,7 @@ impl Value {
             | Self::Template(_)
             | Self::Policy(_)
             | Self::Model(_)
+            | Self::Limits(_)
             | Self::Application(_) => None,
         }
     }
@@ -102,6 +123,7 @@ pub struct Defaults {
     pub templates: Box<[Template]>,
     pub policies: Map<u32, ConfiguredPolicy>,
     pub rules: authority::Rules,
+    pub limits: Box<[Override]>,
     pub models: Box<[CatalogueModel]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -155,7 +177,8 @@ fn proposal_projects(items: &[Item], applications: &[application::Recorded]) -> 
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Model(_)
-            | Setting::Rules => continue,
+            | Setting::Rules
+            | Setting::Limits => continue,
             Setting::Application { scope, .. } => scope,
             Setting::ProjectPolicy { project } => project,
         };
@@ -330,6 +353,9 @@ impl Current {
         values
             .insert(Setting::Rules, Default { value: Value::Rules(Box::new(defaults.rules)), revision: 1 })
             .expect("rules slot");
+        values
+            .insert(Setting::Limits, Default { value: Value::Limits(defaults.limits), revision: 1 })
+            .expect("limits slot");
         Self {
             defaults: values,
             resolved: Map::with_capacity(limits.tasks.charters),
@@ -398,7 +424,12 @@ impl Current {
         match value {
             Value::Overlay(overlay) => Some(overlaid(self.default_value(setting)?.as_charter()?, overlay)),
             Value::Charter(charter) => Some(charter.as_ref().clone()),
-            Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => None,
+            Value::Template(_)
+            | Value::Policy(_)
+            | Value::Rules(_)
+            | Value::Limits(_)
+            | Value::Model(_)
+            | Value::Application(_) => None,
         }
     }
     #[must_use]
@@ -410,6 +441,7 @@ impl Current {
                 | Value::Template(_)
                 | Value::Policy(_)
                 | Value::Rules(_)
+                | Value::Limits(_)
                 | Value::Model(_)
                 | Value::Application(_),
             )
@@ -441,6 +473,7 @@ impl Current {
                 | Value::Template(_)
                 | Value::Policy(_)
                 | Value::Model(_)
+                | Value::Limits(_)
                 | Value::Application(_),
             )
             | None => {
@@ -480,6 +513,7 @@ impl Current {
                 | Setting::Policy(_)
                 | Setting::Model(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::ProjectPolicy { .. }
                 | Setting::Application { .. } => {}
             }
@@ -497,6 +531,7 @@ impl Current {
                 | Setting::Policy(_)
                 | Setting::Model(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::ProjectPolicy { .. }
                 | Setting::Application { .. } => {}
             }
@@ -511,7 +546,7 @@ pub fn capacity(limits: &crate::Limits) -> Option<u32> {
         .charters
         .checked_add(limits.templates)?
         .checked_add(limits.authority.projects)?
-        .checked_add(1)?
+        .checked_add(2)?
         .checked_add(jig_domain_tasks::MODELS)
 }
 fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) -> List<Setting> {
@@ -593,6 +628,14 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
     charters
         .checked_add(templates)?
         .checked_add(policies)?
+        .checked_add(
+            u64::from(OVERRIDES).checked_mul(
+                u64::try_from(size_of::<Override>())
+                    .ok()?
+                    .checked_add(u64::from(OVERRIDE_NAME_BYTES))?
+                    .checked_add(u64::from(OVERRIDE_REASON_BYTES))?,
+            )?,
+        )?
         .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
         .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)
@@ -666,6 +709,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
+                    Setting::Limits => jig_domain_tasks::Setting::Limits,
                     Setting::Model(n) => jig_domain_tasks::Setting::Model(n),
                     Setting::Application { .. } | Setting::ProjectPolicy { .. } => continue,
                 },
@@ -702,6 +746,7 @@ pub fn is_project_policy(setting: Setting) -> bool {
         | Setting::Policy(_)
         | Setting::Model(_)
         | Setting::Rules
+        | Setting::Limits
         | Setting::Application { .. } => false,
     }
 }

@@ -37,6 +37,7 @@ pub fn settings_heads(items: &[t::SettingHead]) -> List<crate::reads::RevisionIt
                     t::Setting::Template(n) => s::Setting::Template(n),
                     t::Setting::Policy(n) => s::Setting::Policy(n),
                     t::Setting::Rules => s::Setting::Rules,
+                    t::Setting::Limits => s::Setting::Limits,
                     t::Setting::Model(n) => s::Setting::Model(n),
                 },
                 edit: match item.edit {

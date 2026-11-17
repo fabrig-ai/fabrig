@@ -51,6 +51,9 @@ pub struct Limits {
     pub llm_choice_subagents: u32,
     pub template_name: u32,
     pub template_resources: u32,
+    pub override_name: u32,
+    pub override_reason: u32,
+    pub limits_value_overrides: u32,
     pub application_state_charters: u32,
     pub default_models: u32,
     pub changed_models: u32,
@@ -109,6 +112,9 @@ pub const CEILINGS: Limits = Limits {
     llm_choice_subagents: 64,
     template_name: 65_536,
     template_resources: 32,
+    override_name: 64,
+    override_reason: 120,
+    limits_value_overrides: 256,
     application_state_charters: 255,
     default_models: 64,
     changed_models: 64,
@@ -121,7 +127,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 54] = [
+pub const LIMIT_NAMES: [&str; 57] = [
     "text_bytes",
     "model_name_name",
     "model_name_efforts",
@@ -167,6 +173,9 @@ pub const LIMIT_NAMES: [&str; 54] = [
     "llm_choice_subagents",
     "template_name",
     "template_resources",
+    "override_name",
+    "override_reason",
+    "limits_value_overrides",
     "application_state_charters",
     "default_models",
     "changed_models",
@@ -181,15 +190,16 @@ pub const LIMIT_NAMES: [&str; 54] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 54] {
+    pub fn values(&self) -> [u32; 57] {
         [
             self.text_bytes, self.model_name_name, self.model_name_efforts, self.model_name_efforts_item, self.model_program_some, self.model_name, self.model_efforts, self.model_effort_some,
             self.run_policy_instructions, self.run_policy_alternatives, self.segment_bytes, self.document_name, self.document_path, self.document_heading_some, self.charter_part_instructions, self.charter_documents,
             self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions, self.overlay_parts, self.catalogue_model_shown_some, self.catalogue_model_description_some, self.last_exact_bytes,
             self.last_open_bytes, self.pattern_segments, self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.rules_implies, self.rules_requirements, self.policy_projections,
             self.policy_roles, self.policy_requirements, self.configured_policy_permissions, self.configured_policy_templates, self.field_rule_name, self.verdict_fields, self.part_path_segments, self.approval_state,
-            self.verdict_choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.template_name, self.template_resources, self.application_state_charters, self.default_models, self.changed_models,
-            self.revision_models, self.revision_items, self.revision_applications, self.proposal_models, self.proposal_items, self.proposal_applications,
+            self.verdict_choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.template_name, self.template_resources, self.override_name, self.override_reason, self.limits_value_overrides,
+            self.application_state_charters, self.default_models, self.changed_models, self.revision_models, self.revision_items, self.revision_applications, self.proposal_models, self.proposal_items,
+            self.proposal_applications,
         ]
     }
 }
@@ -781,6 +791,18 @@ pub enum Path {
     TemplateResources,
     /// Bytes after `Template`.
     TemplateTail,
+    /// The `name` field of `Override`.
+    OverrideName,
+    /// The `value` field of `Override`.
+    OverrideValue,
+    /// The `reason` field of `Override`.
+    OverrideReason,
+    /// Bytes after `Override`.
+    OverrideTail,
+    /// The `overrides` field of `LimitsValue`.
+    LimitsValueOverrides,
+    /// Bytes after `LimitsValue`.
+    LimitsValueTail,
     /// The tag of `Value`.
     ValueTag,
     /// The `number` field of `Party`.
@@ -1245,6 +1267,12 @@ impl Path {
             Self::TemplateLlm => "Template.llm",
             Self::TemplateResources => "Template.resources",
             Self::TemplateTail => "Template (tail)",
+            Self::OverrideName => "Override.name",
+            Self::OverrideValue => "Override.value",
+            Self::OverrideReason => "Override.reason",
+            Self::OverrideTail => "Override (tail)",
+            Self::LimitsValueOverrides => "LimitsValue.overrides",
+            Self::LimitsValueTail => "LimitsValue (tail)",
             Self::ValueTag => "Value (tag)",
             Self::PartyNumber => "Party.number",
             Self::PartyTail => "Party (tail)",
@@ -1390,6 +1418,9 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.llm_choice_subagents > CEILINGS.llm_choice_subagents { return Err(Problem { path: Path::LlmChoiceSubagents, reason: skein_codec::Reason::Bound }); }
     if limits.template_name > CEILINGS.template_name { return Err(Problem { path: Path::TemplateName, reason: skein_codec::Reason::Bound }); }
     if limits.template_resources > CEILINGS.template_resources { return Err(Problem { path: Path::TemplateResources, reason: skein_codec::Reason::Bound }); }
+    if limits.override_name > CEILINGS.override_name { return Err(Problem { path: Path::OverrideName, reason: skein_codec::Reason::Bound }); }
+    if limits.override_reason > CEILINGS.override_reason { return Err(Problem { path: Path::OverrideReason, reason: skein_codec::Reason::Bound }); }
+    if limits.limits_value_overrides > CEILINGS.limits_value_overrides { return Err(Problem { path: Path::LimitsValueOverrides, reason: skein_codec::Reason::Bound }); }
     if limits.application_state_charters > CEILINGS.application_state_charters { return Err(Problem { path: Path::ApplicationStateCharters, reason: skein_codec::Reason::Bound }); }
     if limits.default_models > CEILINGS.default_models { return Err(Problem { path: Path::DefaultModels, reason: skein_codec::Reason::Bound }); }
     if limits.changed_models > CEILINGS.changed_models { return Err(Problem { path: Path::ChangedModels, reason: skein_codec::Reason::Bound }); }
@@ -2705,6 +2736,8 @@ pub enum Setting {
     ProjectPolicy(ProjectPolicySetting),
     /// `model` carrying `ModelNumber`.
     Model(ModelNumber),
+    /// `limits` without a payload.
+    Limits,
 }
 
 impl Setting {
@@ -4969,6 +5002,96 @@ impl Template {
     }
 }
 
+/// Movable fields of `Override`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OverrideParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `value` field.
+    pub value: u64,
+    /// The `reason` field.
+    pub reason: Box<[u8]>,
+}
+
+/// `Override` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    name: Box<[u8]>,
+    value: u64,
+    reason: Box<[u8]>,
+}
+
+impl Override {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: OverrideParts) -> Result<Self, Problem> {
+        let OverrideParts { name, value, reason } = parts;
+        let value = Self { name, value, reason };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `value` field.
+    #[must_use]
+    pub fn value(&self) -> u64 { self.value }
+
+    /// Reads the `reason` field.
+    #[must_use]
+    pub fn reason(&self) -> &[u8] { &self.reason }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> OverrideParts { OverrideParts { name: self.name, value: self.value, reason: self.reason } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.override_name.min(CEILINGS.override_name)).expect("u32 fits usize") { return Err(Problem { path: Path::OverrideName, reason: skein_codec::Reason::Bound }); }
+        if self.reason.len() > usize::try_from(limits.override_reason.min(CEILINGS.override_reason)).expect("u32 fits usize") { return Err(Problem { path: Path::OverrideReason, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `LimitsValue`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LimitsValueParts {
+    /// The `overrides` field.
+    pub overrides: List<Override>,
+}
+
+/// `LimitsValue` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LimitsValue {
+    overrides: List<Override>,
+}
+
+impl LimitsValue {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LimitsValueParts) -> Result<Self, Problem> {
+        let LimitsValueParts { overrides } = parts;
+        let value = Self { overrides };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `overrides` field.
+    #[must_use]
+    pub fn overrides(&self) -> &List<Override> { &self.overrides }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LimitsValueParts { LimitsValueParts { overrides: self.overrides } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.overrides.capacity() > limits.limits_value_overrides.min(CEILINGS.limits_value_overrides) { return Err(Problem { path: Path::LimitsValueOverrides, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.overrides.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
 /// `Value` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
@@ -4984,6 +5107,8 @@ pub enum Value {
     Model(Box<CatalogueModel>),
     /// `overlay` carrying `Box<Overlay>`.
     Overlay(Box<Overlay>),
+    /// `limits` carrying `LimitsValue`.
+    Limits(LimitsValue),
 }
 
 impl Value {
@@ -5001,6 +5126,7 @@ impl Value {
             Self::Rules(record) => Rules::check(record, limits),
             Self::Model(record) => CatalogueModel::check(record, limits),
             Self::Overlay(record) => Overlay::check(record, limits),
+            Self::Limits(record) => LimitsValue::check(record, limits),
         }?;
         Ok(())
     }
@@ -7419,7 +7545,7 @@ impl Setting {
             Self::Application(record) => 1_u32.checked_add(ApplicationSetting::measure(record)).expect("schema ceilings fit u32"),
             Self::ProjectPolicy(record) => 1_u32.checked_add(ProjectPolicySetting::measure(record)).expect("schema ceilings fit u32"),
             Self::Model(record) => 1_u32.checked_add(ModelNumber::measure(record)).expect("schema ceilings fit u32"),
-            Self::Rules => 1,
+            Self::Rules | Self::Limits => 1,
         }
     }
 
@@ -7433,6 +7559,7 @@ impl Setting {
             Self::Application(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::ProjectPolicy(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Limits => writer.put(&[7_u8])?,
         }
         Ok(())
     }
@@ -7454,6 +7581,7 @@ impl Setting {
             4 => Self::Application(ApplicationSetting::decode_from(limits, reader)?),
             5 => Self::ProjectPolicy(ProjectPolicySetting::decode_from(limits, reader)?),
             6 => Self::Model(ModelNumber::decode_from(limits, reader)?),
+            7 => Self::Limits,
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -9722,6 +9850,85 @@ impl Template {
     }
 }
 
+impl Override {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_reason = &self.reason;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_value = &self.value;
+        writer.put(&field_value.to_be_bytes())?;
+        let field_reason = &self.reason;
+        writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_reason.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::OverrideTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = { let length = match skein_codec::read_len(reader, limits.override_name.min(CEILINGS.override_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::OverrideName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::OverrideName, reason: skein_codec::Reason::Short })?) };
+        let decoded_value = reader.u64().ok_or(Problem { path: Path::OverrideValue, reason: skein_codec::Reason::Short })?;
+        let decoded_reason = { let length = match skein_codec::read_len(reader, limits.override_reason.min(CEILINGS.override_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::OverrideReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::OverrideReason, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { name: decoded_name, value: decoded_value, reason: decoded_reason })
+    }
+}
+
+impl LimitsValue {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_overrides = &self.overrides;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_overrides.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_overrides = &self.overrides;
+        writer.put(&field_overrides.len().to_be_bytes())?;
+        for item_0 in field_overrides.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LimitsValueTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_overrides = { let count = match skein_codec::read_count(reader, limits.limits_value_overrides.min(CEILINGS.limits_value_overrides)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LimitsValueOverrides, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LimitsValueOverrides, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Override::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { overrides: decoded_overrides })
+    }
+}
+
 impl Value {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -9733,6 +9940,7 @@ impl Value {
             Self::Rules(record) => 1_u32.checked_add(Rules::measure(record)).expect("schema ceilings fit u32"),
             Self::Model(record) => 1_u32.checked_add(CatalogueModel::measure(record)).expect("schema ceilings fit u32"),
             Self::Overlay(record) => 1_u32.checked_add(Overlay::measure(record)).expect("schema ceilings fit u32"),
+            Self::Limits(record) => 1_u32.checked_add(LimitsValue::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -9745,6 +9953,7 @@ impl Value {
             Self::Rules(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::Overlay(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::Limits(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -9765,6 +9974,7 @@ impl Value {
             3 => Self::Rules(Box::new(Rules::decode_from(limits, reader)?)),
             4 => Self::Model(Box::new(CatalogueModel::decode_from(limits, reader)?)),
             5 => Self::Overlay(Box::new(Overlay::decode_from(limits, reader)?)),
+            6 => Self::Limits(LimitsValue::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -13155,6 +13365,64 @@ impl Template {
     }
 }
 
+impl Override {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.override_name))?)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.override_reason))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.override_name))?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.override_reason))?;
+        heap.checked_add(0)
+    }
+}
+
+impl LimitsValue {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.limits_value_overrides).checked_mul(Override::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Override>::price(limits.limits_value_overrides)?.checked_add(u64::from(limits.limits_value_overrides).checked_mul(Override::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Value {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -13168,6 +13436,7 @@ impl Value {
         biggest = biggest.max(Charter::encoded_bound_within(limits)?).max(Template::encoded_bound_within(limits)?);
         biggest = biggest.max(ConfiguredPolicy::encoded_bound_within(limits)?).max(Rules::encoded_bound_within(limits)?);
         biggest = biggest.max(CatalogueModel::encoded_bound_within(limits)?).max(Overlay::encoded_bound_within(limits)?);
+        biggest = biggest.max(LimitsValue::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -13183,6 +13452,7 @@ impl Value {
         biggest = biggest.max(Charter::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Charter>()).ok()?)?).max(Template::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Template>()).ok()?)?);
         biggest = biggest.max(ConfiguredPolicy::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ConfiguredPolicy>()).ok()?)?).max(Rules::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Rules>()).ok()?)?);
         biggest = biggest.max(CatalogueModel::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<CatalogueModel>()).ok()?)?).max(Overlay::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Overlay>()).ok()?)?);
+        biggest = biggest.max(LimitsValue::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -14000,6 +14270,8 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     biggest = biggest.max(Symbol::encoded_bound_within(limits)?);
     biggest = biggest.max(Template::encoded_bound_within(limits)?);
+    biggest = biggest.max(Override::encoded_bound_within(limits)?);
+    biggest = biggest.max(LimitsValue::encoded_bound_within(limits)?);
     biggest = biggest.max(Value::encoded_bound_within(limits)?);
     biggest = biggest.max(Party::encoded_bound_within(limits)?);
     biggest = biggest.max(ListDecider::encoded_bound_within(limits)?);
@@ -14010,12 +14282,12 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Set::encoded_bound_within(limits)?);
     biggest = biggest.max(Edit::encoded_bound_within(limits)?);
     biggest = biggest.max(Item::encoded_bound_within(limits)?);
-    biggest = biggest.max(Replaced::encoded_bound_within(limits)?);
-    biggest = biggest.max(RevisionItem::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Replaced::encoded_bound_within(limits)?);
+    biggest = biggest.max(RevisionItem::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowsRevision::encoded_bound_within(limits)?);
     biggest = biggest.max(Follows::encoded_bound_within(limits)?);
     biggest = biggest.max(SizedSet::encoded_bound_within(limits)?);
@@ -14122,6 +14394,8 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     biggest = biggest.max(Symbol::decoded_bound_within(limits)?);
     biggest = biggest.max(Template::decoded_bound_within(limits)?);
+    biggest = biggest.max(Override::decoded_bound_within(limits)?);
+    biggest = biggest.max(LimitsValue::decoded_bound_within(limits)?);
     biggest = biggest.max(Value::decoded_bound_within(limits)?);
     biggest = biggest.max(Party::decoded_bound_within(limits)?);
     biggest = biggest.max(ListDecider::decoded_bound_within(limits)?);
@@ -14132,12 +14406,12 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Set::decoded_bound_within(limits)?);
     biggest = biggest.max(Edit::decoded_bound_within(limits)?);
     biggest = biggest.max(Item::decoded_bound_within(limits)?);
-    biggest = biggest.max(Replaced::decoded_bound_within(limits)?);
-    biggest = biggest.max(RevisionItem::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Replaced::decoded_bound_within(limits)?);
+    biggest = biggest.max(RevisionItem::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowsRevision::decoded_bound_within(limits)?);
     biggest = biggest.max(Follows::decoded_bound_within(limits)?);
     biggest = biggest.max(SizedSet::decoded_bound_within(limits)?);

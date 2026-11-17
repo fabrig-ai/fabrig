@@ -93,6 +93,7 @@ pub fn check_change(
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => continue,
         };
@@ -225,6 +226,7 @@ pub fn check_set(
             | Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Limits(_)
             | Value::Model(_)
             | Value::Application(_) => None,
         };
@@ -266,7 +268,7 @@ pub fn check_set(
             },
             Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
             Value::Overlay(_) => unreachable!("overlay made into a charter"),
-            Value::Rules(_) | Value::Application(_) => None,
+            Value::Rules(_) | Value::Limits(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault, detail: None });
@@ -282,6 +284,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             | Setting::Policy(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => false,
         },
@@ -300,6 +303,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             | Setting::Template(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. } => false,
         },
         Value::Rules(value) => {
@@ -311,6 +315,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             setting == Setting::Rules
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
@@ -358,6 +363,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
                 && rules_patterns_fit(value, bound)
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
@@ -865,7 +871,11 @@ pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+        Setting::Model(_)
+        | Setting::Rules
+        | Setting::Limits
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => {
             return Ok(());
         }
     };

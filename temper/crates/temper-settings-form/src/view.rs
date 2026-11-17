@@ -390,6 +390,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Limits,
     /// A project's own policy (jig/docs/design/domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
@@ -482,6 +483,13 @@ pub struct SettingPolicy {
 pub struct SettingSet {
     pub value: SettingValue,
 }
+/// Structural carrier for limits; forms do not edit this kind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    pub name: Box<[u8]>,
+    pub value: u64,
+    pub reason: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Overlay(Box<Overlay>),
@@ -491,6 +499,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Limits(Box<[Override]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingsDocument {

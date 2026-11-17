@@ -712,7 +712,8 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                 | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
-                | form::SettingValue::Template(_) => {
+                | form::SettingValue::Template(_)
+                | form::SettingValue::Limits(_) => {
                     panic!("policy or rules");
                 }
             };

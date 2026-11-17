@@ -169,7 +169,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 27, maximum: 27 },
+                versions: core::documents::Versions { minimum: 28, maximum: 28 },
             },
             connectors: 2,
             resume_bytes: 256,
@@ -399,6 +399,7 @@ pub fn config(seed: u64) -> root::Config {
             },
             kinds: Box::default(),
             defaults: core::settings::Defaults {
+                limits: Box::default(),
                 models: Box::default(),
                 charters: Box::new([core::Charter {
                     parts: Box::new([]),

@@ -15,6 +15,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Limits,
     Model(SettingNumber),
     Application {
         kind: u32,
@@ -152,6 +153,13 @@ pub struct Rules {
     pub implies: List<KindImplication>,
     pub requirements: List<PolicyRequirement>,
 }
+/// A limit override carried without resolving its name (domain/engine/settings.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    pub name: Box<[u8]>,
+    pub value: u64,
+    pub reason: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Charter(Box<Charter>),
@@ -159,6 +167,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Limits(Box<[Override]>),
     Model(Box<CatalogueEntry>),
     Application(Box<[u8]>),
 }

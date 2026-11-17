@@ -303,7 +303,8 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
             | c::Setting::Model(_)
-            | c::Setting::Rules => {
+            | c::Setting::Rules
+            | c::Setting::Limits => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
             }
         }

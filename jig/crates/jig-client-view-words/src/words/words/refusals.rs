@@ -282,6 +282,7 @@ impl Words {
                 text.put(skein_lib::Decimal::of(u64::from(n.number)).as_bytes()).expect("model number room");
                 b.text(skein_ui::Run::Plain, &text.finish());
             }
+            Setting::Limits => self.text(b, JigPhrase::SettingLimits, &[]),
             Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
         }
     }

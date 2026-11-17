@@ -1,7 +1,7 @@
 //! Compact proposal reads beside revisions (temper/docs/design/domain/agent/ask-temper.md, 1).
 use crate::{Limits, Text, render, view, wire};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use skein_lib::{List, Reader};
 
 #[cfg(test)]
@@ -166,7 +166,8 @@ fn review_value(
                 | view::Setting::Model(_)
                 | view::Setting::Policy(_)
                 | view::Setting::ProjectPolicy { .. }
-                | view::Setting::Rules => render::value_inline(&value, limits, out),
+                | view::Setting::Rules
+                | view::Setting::Limits => render::value_inline(&value, limits, out),
             }
         }
         w::ReviewValue::TooLarge(size) => {
@@ -223,7 +224,8 @@ fn encode_application_value(kind: u32, value: &view::SettingValue, out: &mut ske
         | view::SettingValue::Charter(_)
         | view::SettingValue::Template(_)
         | view::SettingValue::Policy(_)
-        | view::SettingValue::Rules(_) => {}
+        | view::SettingValue::Rules(_)
+        | view::SettingValue::Limits(_) => {}
     }
     render::encode_value(value, out);
 }

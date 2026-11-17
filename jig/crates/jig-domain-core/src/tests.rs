@@ -493,6 +493,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
             models: Box::default(),
             charters: Box::new([Charter {
                 parts: Box::new([]),

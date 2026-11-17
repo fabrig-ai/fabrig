@@ -323,7 +323,8 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
             | s::Value::Policy(_)
             | s::Value::Charter(_)
             | s::Value::Model(_)
-            | s::Value::Application(_) => {
+            | s::Value::Application(_)
+            | s::Value::Limits(_) => {
                 panic!("fixture setting")
             }
         }

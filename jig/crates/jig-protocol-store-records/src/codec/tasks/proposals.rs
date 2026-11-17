@@ -788,6 +788,7 @@ fn setting_head(item: &domain::SettingHead, limits: &wire::Limits) -> Result<wir
             wire::Setting::Model(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
         domain::Setting::Rules => wire::Setting::Rules,
+        domain::Setting::Limits => wire::Setting::Limits,
     };
     wire::SettingHead::new(
         limits,
@@ -810,6 +811,7 @@ fn read_setting_head(item: wire::SettingHead) -> domain::SettingHead {
             wire::Setting::Policy(n) => domain::Setting::Policy(n.number()),
             wire::Setting::Model(value) => domain::Setting::Model(value.number()),
             wire::Setting::Rules => domain::Setting::Rules,
+            wire::Setting::Limits => domain::Setting::Limits,
         },
         edit: match item.edit {
             wire::SettingEdit::Set => domain::SettingEdit::Set,

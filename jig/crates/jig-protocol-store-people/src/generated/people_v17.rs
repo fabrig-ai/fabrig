@@ -9554,6 +9554,8 @@ pub enum Setting {
     ProjectPolicy(ProjectPolicySetting),
     /// `model` carrying `SettingNumber`.
     Model(SettingNumber),
+    /// `limits` without a payload.
+    Limits,
 }
 
 impl Setting {
@@ -22933,7 +22935,7 @@ impl Setting {
             Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
             Self::Application(record) => 1_u32.checked_add(ApplicationSetting::measure(record)).expect("schema ceilings fit u32"),
             Self::ProjectPolicy(record) => 1_u32.checked_add(ProjectPolicySetting::measure(record)).expect("schema ceilings fit u32"),
-            Self::Rules => 1,
+            Self::Rules | Self::Limits => 1,
         }
     }
 
@@ -22947,6 +22949,7 @@ impl Setting {
             Self::Application(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::ProjectPolicy(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Limits => writer.put(&[7_u8])?,
         }
         Ok(())
     }
@@ -22968,6 +22971,7 @@ impl Setting {
             4 => Self::Application(ApplicationSetting::decode_from(limits, reader)?),
             5 => Self::ProjectPolicy(ProjectPolicySetting::decode_from(limits, reader)?),
             6 => Self::Model(SettingNumber::decode_from(limits, reader)?),
+            7 => Self::Limits,
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

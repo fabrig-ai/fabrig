@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
@@ -405,6 +405,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
             s::Value::Model(value) => s::Setting::Model(value.number),
+            s::Value::Limits(_) => s::Setting::Limits,
             s::Value::Rules(_) => s::Setting::Rules,
             s::Value::Application(_) => s::Setting::Application { kind: 1, scope: 0, number: 1 },
         };

@@ -26,7 +26,7 @@ fn template() -> Template {
 fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
-        Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
+        Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Limits(_) => unreachable!(),
         Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
             unreachable!("an application's setting: apps-core")
         }
@@ -54,7 +54,10 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
     assert_eq!(current.charter(2), Some(&added));
     current.changes.remove(&Setting::Charter(1));
     assert_eq!(current.charter(1), Some(&original));
-    assert_eq!(current.offered().as_slice(), &[Setting::Charter(1), Setting::Charter(2), Setting::Rules]);
+    assert_eq!(
+        current.offered().as_slice(),
+        &[Setting::Charter(1), Setting::Charter(2), Setting::Rules, Setting::Limits]
+    );
 }
 fn fault_case(fault: Fault) {
     let mut config = config(1);
@@ -330,7 +333,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
                 Some((Setting::Template(2), Value::Template(value)))
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
-            Value::Rules(_) => None,
+            Value::Rules(_) | Value::Limits(_) => None,
             Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
                 unreachable!("an application's setting: apps-core")
             }

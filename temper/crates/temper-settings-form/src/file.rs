@@ -337,6 +337,7 @@ fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
                     c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?))
                 }
                 c::Setting::Application { kind, .. } => c::SettingValue::Application(crate::kinds::value(d, at, kind)?),
+                c::Setting::Limits => return Err(error(b"kind", b"unknown setting kind")),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })

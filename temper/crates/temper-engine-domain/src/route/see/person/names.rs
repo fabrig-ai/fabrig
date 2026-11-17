@@ -97,6 +97,7 @@ fn charters(domain: &Domain) -> Box<[SeeName]> {
             | Setting::Policy(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::ProjectPolicy { .. }
             | Setting::Application { .. } => {}
         }

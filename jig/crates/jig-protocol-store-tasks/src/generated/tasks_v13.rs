@@ -8863,6 +8863,8 @@ pub enum Setting {
     Rules,
     /// `model` carrying `SettingNumber`.
     Model(SettingNumber),
+    /// `limits` without a payload.
+    Limits,
 }
 
 impl Setting {
@@ -23135,7 +23137,7 @@ impl Setting {
     pub fn measure(&self) -> u32 {
         match self {
             Self::Charter(record) | Self::Template(record) | Self::Policy(record) | Self::Model(record) => 1_u32.checked_add(SettingNumber::measure(record)).expect("schema ceilings fit u32"),
-            Self::Rules => 1,
+            Self::Rules | Self::Limits => 1,
         }
     }
 
@@ -23147,6 +23149,7 @@ impl Setting {
             Self::Policy(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
             Self::Rules => writer.put(&[3_u8])?,
             Self::Model(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
+            Self::Limits => writer.put(&[5_u8])?,
         }
         Ok(())
     }
@@ -23166,6 +23169,7 @@ impl Setting {
             2 => Self::Policy(SettingNumber::decode_from(limits, reader)?),
             3 => Self::Rules,
             4 => Self::Model(SettingNumber::decode_from(limits, reader)?),
+            5 => Self::Limits,
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

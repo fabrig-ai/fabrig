@@ -218,6 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Limits
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
                 | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
@@ -1056,7 +1057,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
-            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
+            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } | c::Setting::Limits => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };

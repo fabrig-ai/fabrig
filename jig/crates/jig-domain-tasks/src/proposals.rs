@@ -204,6 +204,7 @@ pub enum Setting {
     Template(u32),
     Policy(u32),
     Rules,
+    Limits,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingEdit {

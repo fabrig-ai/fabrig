@@ -34,9 +34,9 @@ pub const FAMILIES: &[Family] = &[
         name: "client",
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v27.schema", "schema/client-v27-part1.schema"],
-        records: "jig_client_protocol_wire::v27",
-        generated: &["src/generated/v27.rs"],
+        schemas: &["schema/client-v28.schema", "schema/client-v28-part1.schema"],
+        records: "jig_client_protocol_wire::v28",
+        generated: &["src/generated/v28.rs"],
         golden: "golden",
         fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },
@@ -229,6 +229,9 @@ pub fn check() {
             source.push_str(&fs::read_to_string(root.join(schema)).expect("schema readable"));
         }
         let output = generate(&parse(&source).expect("schema valid"));
+        if family.name == "client" {
+            client_layout(&root, &source, write, again);
+        }
         let codec_root = tree.join(family.codec_root);
         let code = codec_root.join(family.generated.first().expect("codec path"));
         inventories
@@ -310,4 +313,26 @@ fn entries(path: &Path) -> BTreeSet<PathBuf> {
         Err(why) => panic!("{}: directory readable: {why}", path.display()),
     };
     entries.map(|entry| entry.expect("entry readable").path()).collect()
+}
+
+// Client layouts have no bridge: retain every old line and append the current one.
+fn client_layout(root: &Path, source: &str, write: bool, again: &str) {
+    use std::fmt::Write as _;
+    let schema = skein_codec::schema::parse(source.as_bytes()).expect("client schema valid");
+    let mut line = format!("{} ", schema.version());
+    for byte in schema.fingerprints().family().digest() {
+        write!(&mut line, "{byte:02x}").expect("fingerprint text");
+    }
+    line.push('\n');
+    let path = root.join("schema/jig-client-wire.layouts");
+    let mut layouts = fs::read_to_string(&path).expect("client layouts");
+    if write && !layouts.ends_with(&line) {
+        assert!(
+            !layouts.lines().any(|held| held.starts_with(&format!("{} ", schema.version()))),
+            "a committed layout is immutable"
+        );
+        layouts.push_str(&line);
+        fs::write(&path, &layouts).expect("append client layout");
+    }
+    assert!(layouts.ends_with(&line), "current client layout: {again}");
 }

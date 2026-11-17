@@ -49,6 +49,7 @@ pub fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. } => {}
         }
         for earlier in items.iter().take(at) {
@@ -61,7 +62,7 @@ pub fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
                 super::check::shape(item.setting, value, limits)?;
                 super::check::count(item.setting, &mut counts, limits)?;
             }
-            Edit::Removed if item.setting == Setting::Rules => {
+            Edit::Removed if item.setting == Setting::Rules || item.setting == Setting::Limits => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             Edit::Removed | Edit::Reset => {}

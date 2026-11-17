@@ -70,6 +70,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             return;
         }
         c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.put(kind);
@@ -157,6 +158,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             return;
         }
         c::Setting::ProjectPolicy { project } => (b"project-policy".as_slice(), Some(project)),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::Rules => (b"rules".as_slice(), None),
     };
     out.object_start();
@@ -193,6 +195,13 @@ fn named_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
+    if let c::SettingValue::Limits(values) = value {
+        for value in values {
+            limit_line(value, out);
+            out.put(b"\n");
+        }
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -217,10 +226,30 @@ pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
             }
             out.array_end();
         }
+        c::SettingValue::Limits(v) => {
+            out.array_start();
+            for value in v {
+                let mut measured = Text::measure();
+                limit_line(value, &mut measured);
+                let mut line = Text::writing_exact(measured);
+                limit_line(value, &mut line);
+                out.string(&line.finish());
+            }
+            out.array_end();
+        }
         c::SettingValue::Rules(v) => values::encode_rules(v, out),
     }
 }
 pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
+    if let c::SettingValue::Limits(values) = value {
+        for (at, value) in values.iter().enumerate() {
+            if at != 0 {
+                out.put(b"\n");
+            }
+            limit_line(value, out);
+        }
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);
@@ -286,7 +315,8 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
-        | c::SettingValue::Rules(_) => {}
+        | c::SettingValue::Rules(_)
+        | c::SettingValue::Limits(_) => {}
     }
 }
 pub fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
@@ -396,6 +426,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
                     | c::Setting::Rules
+                    | c::Setting::Limits
                     | c::Setting::Application { .. } => {}
                 }
             }
@@ -611,6 +642,7 @@ fn historical_setting(setting: c::Setting) -> bool {
         | c::Setting::Template(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules
+        | c::Setting::Limits
         | c::Setting::ProjectPolicy { .. } => false,
     }
 }
@@ -1001,4 +1033,13 @@ fn overlay_marks(overlay: &c::Overlay, out: &mut Text) {
         out.put(b" bytes of instructions");
     }
     out.put(b"\n");
+}
+
+fn limit_line(value: &c::Override, out: &mut Text) {
+    out.put(&value.name);
+    out.put(b" = ");
+    out.number(value.value);
+    out.put(b" (");
+    out.put(&value.reason);
+    out.put(b")");
 }

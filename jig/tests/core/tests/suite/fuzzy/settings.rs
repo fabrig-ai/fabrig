@@ -475,3 +475,45 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
     }
     assert_eq!(coverage, [true; 6]);
 }
+
+#[test]
+fn sorted_bounded_limit_overrides_pass_and_a_mutation_fails_at_its_position() {
+    use settings::{OVERRIDE_NAME_BYTES, OVERRIDE_REASON_BYTES, OVERRIDES, Override, OverrideFault, check_overrides};
+    let mut rng = Rng::new(71_393);
+    for _ in 0..512 {
+        let count = usize::try_from(rng.below(u64::from(OVERRIDES) + 1)).expect("bounded list");
+        let mut values = Vec::new();
+        for at in 0..count {
+            let mut name = format!("{at:03}").into_bytes();
+            let length = 3 + usize::try_from(rng.below(u64::from(OVERRIDE_NAME_BYTES) - 2)).expect("bounded name");
+            name.resize(length, b'_');
+            let reason =
+                vec![b'r'; 1 + usize::try_from(rng.below(u64::from(OVERRIDE_REASON_BYTES))).expect("bounded reason")];
+            values.push(Override {
+                name: name.into_boxed_slice(),
+                value: rng.next_u64(),
+                reason: reason.into_boxed_slice(),
+            });
+        }
+        assert_eq!(check_overrides(&values), Ok(()));
+        if count != 0 {
+            let at =
+                usize::try_from(rng.below(u64::try_from(count).expect("bounded count"))).expect("bounded position");
+            let expected = match rng.below(3) {
+                0 => {
+                    values[at].name = b"Bad".as_slice().into();
+                    OverrideFault::Name { at: u32::try_from(at).expect("position") }
+                }
+                1 if at != 0 => {
+                    values[at].name = values[at - 1].name.clone();
+                    OverrideFault::Order { at: u32::try_from(at).expect("position") }
+                }
+                _ => {
+                    values[at].reason = Box::new([0xff]);
+                    OverrideFault::Reason { at: u32::try_from(at).expect("position") }
+                }
+            };
+            assert_eq!(check_overrides(&values), Err(expected));
+        }
+    }
+}

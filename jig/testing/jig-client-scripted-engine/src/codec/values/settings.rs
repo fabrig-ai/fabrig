@@ -50,6 +50,7 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
             w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
         }
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::Limits => w::Setting::Limits,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
             limits,
             w::ProjectPolicySettingParts { project: *project },
@@ -162,6 +163,7 @@ pub(in crate::codec) fn wire_setting_value(
             w::ApplicationValueParts { bytes: value.clone() },
         )?),
         c::SettingValue::Rules(value) => w::SettingValue::Rules(Box::new(wire_rules(value, limits)?)),
+        c::SettingValue::Limits(value) => w::SettingValue::Limits(wire_limits(value, limits)?),
     })
 }
 
@@ -710,4 +712,17 @@ pub(in crate::codec) fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> 
             instructions: bytes::copy_of(value.instructions.bytes()),
         },
     )
+}
+
+fn wire_limits(values: &[c::Override], limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
+    let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+    for value in values {
+        overrides
+            .push(w::Override::new(
+                limits,
+                w::OverrideParts { name: value.name.clone(), value: value.value, reason: value.reason.clone() },
+            )?)
+            .expect("override count");
+    }
+    w::LimitsValue::new(limits, w::LimitsValueParts { overrides })
 }

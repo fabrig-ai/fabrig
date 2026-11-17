@@ -296,6 +296,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
         // jig/docs/design/domain/engine/settings.md, 2: the template stays within the task grace bound.
         c::SettingValue::Template(value) => value.grace = Some(Duration::from_secs(4)),
         c::SettingValue::Policy(value) => value.period_spend = CHANGED_SPEND,
+        c::SettingValue::Limits(_) => panic!("limits have no file editor"),
         c::SettingValue::Rules(value) => value.maximum_run_spend += 1,
         c::SettingValue::Application(bytes) => {
             if matches!(setting, c::Setting::Application { kind: 3, .. }) {

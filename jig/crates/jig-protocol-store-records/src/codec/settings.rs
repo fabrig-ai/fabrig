@@ -14,6 +14,9 @@ use settings::application;
 use skein_lib::{List, Reader, Wall, Writer};
 const EMPTY: wire::Limits = wire::Limits {
     text_bytes: 0,
+    override_name: 0,
+    override_reason: 0,
+    limits_value_overrides: 0,
     model_name_name: 0,
     model_name_efforts: 0,
     model_name_efforts_item: 0,
@@ -101,6 +104,7 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
             wire::Setting::Policy(wire::PolicyNumber::new(limits, wire::PolicyNumberParts { number: *entry })?)
         }
         settings::Setting::Rules => wire::Setting::Rules,
+        settings::Setting::Limits => wire::Setting::Limits,
         settings::Setting::Model(number) => {
             wire::Setting::Model(wire::ModelNumber::new(limits, wire::ModelNumberParts { number: *number })?)
         }
@@ -128,6 +132,7 @@ fn decode_setting(value: wire::Setting) -> settings::Setting {
         }
         wire::Setting::ProjectPolicy(value) => settings::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Rules => settings::Setting::Rules,
+        wire::Setting::Limits => settings::Setting::Limits,
         wire::Setting::Model(number) => settings::Setting::Model(number.number()),
         wire::Setting::Application(value) => {
             let wire::ApplicationSettingParts { kind, scope, number } = value.into_parts();
@@ -424,6 +429,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Template(entry) => wire::Value::Template(Box::new(encode_template(entry, limits)?)),
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
+        settings::Value::Limits(entry) => wire::Value::Limits(encode_limits(entry, limits)?),
         settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
         settings::Value::Overlay(item) => wire::Value::Overlay(Box::new(encode_overlay(item, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
@@ -436,6 +442,7 @@ fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::V
         wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits)?)),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
+        wire::Value::Limits(entry) => settings::Value::Limits(decode_limits(entry)),
         wire::Value::Model(value) => settings::Value::Model(Box::new(decode_catalogue(*value))),
     })
 }
@@ -2110,6 +2117,7 @@ pub fn encode(
                 | settings::Setting::Policy(_)
                 | settings::Setting::Model(_)
                 | settings::Setting::Rules
+                | settings::Setting::Limits
                 | settings::Setting::ProjectPolicy { .. } => return Err(bound()),
             }
             let value = encode_application(state, limits)?;
@@ -2172,6 +2180,7 @@ pub fn decode(
             | settings::Setting::Policy(_)
             | settings::Setting::Model(_)
             | settings::Setting::Rules
+            | settings::Setting::Limits
             | settings::Setting::ProjectPolicy { .. } => settings::Record::Changed {
                 setting: *setting,
                 changed: decode_changed(wire::Changed::decode(limits, &mut reader)?, limits, names)?,
@@ -2548,4 +2557,29 @@ fn encode_version(value: &settings::CharterVersion, limits: &wire::Limits) -> Re
 }
 fn decode_version(bytes: &[u8], limits: &wire::Limits) -> Result<settings::CharterVersion, wire::Problem> {
     decode_charter_version(wire::CharterVersion::decode(limits, &mut Reader::new(bytes))?, limits)
+}
+
+fn encode_limits(values: &[settings::Override], limits: &wire::Limits) -> Result<wire::LimitsValue, wire::Problem> {
+    let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+    for value in values {
+        overrides
+            .push(wire::Override::new(
+                limits,
+                wire::OverrideParts { name: value.name.clone(), value: value.value, reason: value.reason.clone() },
+            )?)
+            .expect("override count");
+    }
+    wire::LimitsValue::new(limits, wire::LimitsValueParts { overrides })
+}
+
+fn decode_limits(value: wire::LimitsValue) -> Box<[settings::Override]> {
+    let values = value.into_parts().overrides;
+    let mut overrides = List::with_capacity(values.len());
+    for item in values.into_boxed() {
+        let item = item.into_parts();
+        overrides
+            .push(settings::Override { name: item.name, value: item.value, reason: item.reason })
+            .expect("override count");
+    }
+    overrides.into_boxed()
 }

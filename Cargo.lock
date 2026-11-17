@@ -1249,6 +1249,7 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
  "jig-test-profile",
+ "skein-codec",
  "skein-codegen",
  "skein-lib",
  "skein-scratch",

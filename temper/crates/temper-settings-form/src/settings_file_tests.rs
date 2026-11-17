@@ -1016,3 +1016,32 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
         );
     }
 }
+
+#[test]
+fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
+    let limits = Limits::standard();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"a reason".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let wire = crate::wire::settings_wire_setting_value(&value, &limits.settings).unwrap();
+    let restored = crate::wire::settings_restore_setting_value(&wire, &limits).unwrap();
+    assert_eq!(restored, value);
+    let mut measured = crate::Text::measure();
+    crate::render::value_inline(&restored, &limits, &mut measured);
+    let mut text = crate::Text::writing_exact(measured);
+    crate::render::value_inline(&restored, &limits, &mut text);
+    assert_eq!(
+        text.finish().as_ref(),
+        "tasks.depth = 0 (a reason)\ntasks.tasks = 18446744073709551615 (理由)".as_bytes()
+    );
+    let bounds = JsonLimits { depth: 8, length: 1024 };
+    let mut measured = Encoder::measure(&bounds);
+    crate::render::encode_value(&restored, &mut measured);
+    let mut out = Encoder::write(measured.measured().unwrap(), &bounds);
+    crate::render::encode_value(&restored, &mut out);
+    assert_eq!(
+        out.finish().as_ref(),
+        "[\"tasks.depth = 0 (a reason)\",\"tasks.tasks = 18446744073709551615 (理由)\"]".as_bytes()
+    );
+}

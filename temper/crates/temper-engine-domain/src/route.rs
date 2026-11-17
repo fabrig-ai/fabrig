@@ -834,7 +834,12 @@ pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> O
                     made = core::settings::overlaid(default, overlay);
                     &made
                 }
-                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
+                Value::Template(_)
+                | Value::Policy(_)
+                | Value::Rules(_)
+                | Value::Limits(_)
+                | Value::Model(_)
+                | Value::Application(_) => {
                     continue;
                 }
             };

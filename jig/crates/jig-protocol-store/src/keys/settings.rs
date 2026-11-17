@@ -61,6 +61,7 @@ fn setting_write(writer: &mut KeyWriter, setting: Setting) {
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),
         Setting::Rules => (3, 0),
+        Setting::Limits => (7, 0),
         Setting::Model(n) => (6, n),
         Setting::Application { kind, scope, number } => {
             writer.tag(4);
@@ -117,6 +118,7 @@ fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
         2 => Setting::Policy(number),
         6 => Setting::Model(number),
         3 if number == 0 => Setting::Rules,
+        7 if number == 0 => Setting::Limits,
         _ => return None,
     })
 }

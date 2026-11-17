@@ -45,6 +45,7 @@ impl Given {
                     policies.insert(*number, policy.clone()).expect("counted policies");
                 }
                 Some(Defaults {
+                    limits: own.limits.clone(),
                     models: own.models.clone(),
                     charters: own.charters.clone(),
                     templates: own.templates.clone(),
@@ -434,6 +435,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
+        limits: Box::default(),
         models,
         charters,
         templates,

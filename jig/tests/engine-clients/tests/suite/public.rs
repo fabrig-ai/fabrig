@@ -1,5 +1,5 @@
 //! Public component stories (jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::{self as wire, public_v1 as w, v27};
+use jig_client_protocol_wire::{self as wire, public_v1 as w, v28};
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{PublicKind, PublicLimits, PublicRead, PublicReply, Settings, public::Names};
@@ -58,12 +58,12 @@ fn admitted(peer: &mut Peer) -> (ReplyTo, core::PublicRead) {
     (reply, read)
 }
 fn signed_in_read() -> Box<[u8]> {
-    let record = v27::Read::Me;
+    let record = v28::Read::Me;
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("measured record");
-    let record = v27::Owned::new(
+    let record = v28::Owned::new(
         &fixtures::limits().wire,
-        v27::OwnedParts { owner: v27::Owner::Jig, version: wire::VERSION, record: out.finish() },
+        v28::OwnedParts { owner: v28::Owner::Jig, version: wire::VERSION, record: out.finish() },
     )
     .expect("read envelope");
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -210,9 +210,9 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
     assert_eq!(sign_in, fixtures::FIRST_SIGN_IN);
     peer.answer_read(reply, core::reads::Answer::Document(Box::new(fixtures::me_document(7))));
     assert!(matches!(
-        v27::ReadAnswer::decode(&v27::CEILINGS, &mut Reader::new(peer.answered(me).expect("me answer")))
+        v28::ReadAnswer::decode(&v28::CEILINGS, &mut Reader::new(peer.answered(me).expect("me answer")))
             .expect("me record"),
-        v27::ReadAnswer::Value(_)
+        v28::ReadAnswer::Value(_)
     ));
     let mut baseline = None;
     for (cookie, bearer) in [
@@ -236,21 +236,21 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
     }
 }
 
-fn owned() -> v27::Owned {
-    v27::Owned::new(
-        &v27::CEILINGS,
-        v27::OwnedParts { owner: v27::Owner::Jig, version: wire::VERSION, record: Box::default() },
+fn owned() -> v28::Owned {
+    v28::Owned::new(
+        &v28::CEILINGS,
+        v28::OwnedParts { owner: v28::Owner::Jig, version: wire::VERSION, record: Box::default() },
     )
     .expect("owned read")
 }
 fn anonymous_body(route: &str) -> Box<[u8]> {
     match route.as_bytes() {
         b"request" => {
-            let record = v27::Keyed::new(
-                &v27::CEILINGS,
-                v27::KeyedParts {
+            let record = v28::Keyed::new(
+                &v28::CEILINGS,
+                v28::KeyedParts {
                     key: [7; 16],
-                    owner: v27::Owner::Jig,
+                    owner: v28::Owner::Jig,
                     version: wire::VERSION,
                     request: Box::default(),
                     value: None,
@@ -268,21 +268,21 @@ fn anonymous_body(route: &str) -> Box<[u8]> {
             writer.finish()
         }
         b"watch" => {
-            let record = v27::Open::new(&v27::CEILINGS, v27::OpenParts { stream: [7; 16], watch: 1, subject: owned() })
+            let record = v28::Open::new(&v28::CEILINGS, v28::OpenParts { stream: [7; 16], watch: 1, subject: owned() })
                 .expect("watch");
             let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("record size"));
             record.encode(&mut writer).expect("encode watch");
             writer.finish()
         }
         b"unwatch" => {
-            let record = v27::WatchClose::new(&v27::CEILINGS, v27::WatchCloseParts { stream: [7; 16], watch: 1 })
+            let record = v28::WatchClose::new(&v28::CEILINGS, v28::WatchCloseParts { stream: [7; 16], watch: 1 })
                 .expect("watch close");
             let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("record size"));
             record.encode(&mut writer).expect("encode close");
             writer.finish()
         }
         b"stream-gone" => {
-            let record = v27::Gone::new(&v27::CEILINGS, v27::GoneParts { stream: [7; 16] }).expect("gone");
+            let record = v28::Gone::new(&v28::CEILINGS, v28::GoneParts { stream: [7; 16] }).expect("gone");
             let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("record size"));
             record.encode(&mut writer).expect("encode gone");
             writer.finish()
@@ -316,22 +316,22 @@ fn every_other_exchange_without_a_credential_or_with_an_unknown_cookie_is_signed
             let mut input = Reader::new(bytes);
             match route {
                 "request" => assert_eq!(
-                    v27::KeyedAnswer::decode(&v27::CEILINGS, &mut input).expect("keyed answer"),
-                    v27::KeyedAnswer::SignedOut
+                    v28::KeyedAnswer::decode(&v28::CEILINGS, &mut input).expect("keyed answer"),
+                    v28::KeyedAnswer::SignedOut
                 ),
                 "read" => assert!(
-                    matches!(v27::ReadAnswer::decode(&v27::CEILINGS, &mut input).expect("read answer"), v27::ReadAnswer::None(row) if row.value() == &v27::ReadNone::SignedOut)
+                    matches!(v28::ReadAnswer::decode(&v28::CEILINGS, &mut input).expect("read answer"), v28::ReadAnswer::None(row) if row.value() == &v28::ReadNone::SignedOut)
                 ),
                 "watch" => assert!(
-                    matches!(v27::OpenAnswer::decode(&v27::CEILINGS, &mut input).expect("watch answer"), v27::OpenAnswer::Refused(row) if row.why() == &v27::WatchRefusal::SignedOut)
+                    matches!(v28::OpenAnswer::decode(&v28::CEILINGS, &mut input).expect("watch answer"), v28::OpenAnswer::Refused(row) if row.why() == &v28::WatchRefusal::SignedOut)
                 ),
                 "unwatch" => assert_eq!(
-                    v27::CloseAnswer::decode(&v27::CEILINGS, &mut input).expect("close answer"),
-                    v27::CloseAnswer::SignedOut
+                    v28::CloseAnswer::decode(&v28::CEILINGS, &mut input).expect("close answer"),
+                    v28::CloseAnswer::SignedOut
                 ),
                 "sign-out" => assert_eq!(
-                    v27::SignOutAnswer::decode(&v27::CEILINGS, &mut input).expect("sign-out answer"),
-                    v27::SignOutAnswer::SignedOut
+                    v28::SignOutAnswer::decode(&v28::CEILINGS, &mut input).expect("sign-out answer"),
+                    v28::SignOutAnswer::SignedOut
                 ),
                 "stream-gone" => assert!(bytes.is_empty(), "stream end acknowledged without a record"),
                 "stream" => {}

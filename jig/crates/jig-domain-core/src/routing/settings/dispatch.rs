@@ -336,7 +336,7 @@ fn decide_with(
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
                 s::Setting::Model(_) => models = true,
-                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Limits | s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -359,6 +359,7 @@ fn decide_with(
             | s::Setting::Policy(_)
             | s::Setting::Model(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Application { .. } => core.current.replaced(item.setting),
         };
         items

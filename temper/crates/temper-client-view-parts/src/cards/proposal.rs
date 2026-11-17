@@ -752,7 +752,8 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
             | c::Setting::Model(_)
-            | c::Setting::Rules => {}
+            | c::Setting::Rules
+            | c::Setting::Limits => {}
         }
     }
     if facts.live.is_none()
@@ -1072,6 +1073,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
+        c::Setting::Limits => (b"limits".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
         c::Setting::Application { kind: 3, number, .. } => (b"forge charter".as_slice(), Some(number)),

@@ -127,6 +127,7 @@ fn core_setting(setting: c::Setting) -> s::Setting {
         c::Setting::Policy(value) => s::Setting::Policy(value.number),
         c::Setting::Model(value) => s::Setting::Model(value.number),
         c::Setting::Rules => s::Setting::Rules,
+        c::Setting::Limits => s::Setting::Limits,
         c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
         c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
     }
@@ -220,7 +221,7 @@ fn proposal_items(
     let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
-            if why.field == jig_client_protocol_wire::v27::Path::TemplateLlm {
+            if why.field == jig_client_protocol_wire::v28::Path::TemplateLlm {
                 return Err(Problem::Range(b"items.template.llm"));
             }
             return Err(Problem::Range(b"items"));
@@ -655,6 +656,7 @@ fn malformed_setting(
         s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
         s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
         s::Setting::Rules => c::Setting::Rules,
+        s::Setting::Limits => c::Setting::Limits,
         s::Setting::Application { kind, scope, number } => {
             c::Setting::Application { kind: *kind, scope: *scope, number: *number }
         }
@@ -713,6 +715,7 @@ pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer
                 s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
                 s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
                 s::Setting::Rules => c::Setting::Rules,
+                s::Setting::Limits => c::Setting::Limits,
                 s::Setting::Application { kind, scope, number } => c::Setting::Application { kind: *kind, scope: *scope, number: *number },
             };
             let mut measure = settings_form::Text::measure();

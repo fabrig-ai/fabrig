@@ -597,7 +597,7 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
     let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("measured answer");
     let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 27, record: bytes.finish() })
+        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
             .expect("answer"),
     );
     assert_eq!(
@@ -751,4 +751,26 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
     assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), Ok(c::SettingFollows::Overlay));
+}
+
+#[test]
+fn limits_kind_and_each_override_cross_the_client_wire_without_loss() {
+    let limits = fixtures::limits();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"zero is a figure".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let change = c::ChangeSettings {
+        against: 7,
+        running: c::Running::Stays,
+        items: List::from_boxed(Box::new([c::SettingItem {
+            setting: c::Setting::Limits,
+            edit: c::SettingEdit::Set(c::SettingSet { value }),
+        }])),
+    };
+    let wire = t::wire_change_settings(&change, limits.wire()).unwrap();
+    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut bytes).unwrap();
+    let wire = w::ChangeSettings::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+    assert_eq!(t::restore_change_settings(&wire, &limits), Ok(change));
 }

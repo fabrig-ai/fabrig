@@ -196,7 +196,7 @@ mod tests {
         current.changes.insert(Setting::Template(2), Changed { value: None, revision: 2 }).unwrap();
         let document = document(current);
         let settings = document.settings.into_boxed();
-        let wanted = [Setting::Charter(1), Setting::Template(1), Setting::Template(2), Setting::Rules];
+        let wanted = [Setting::Charter(1), Setting::Template(1), Setting::Template(2), Setting::Rules, Setting::Limits];
         assert_eq!(settings.len(), wanted.len());
         for (line, setting) in settings.iter().zip(wanted) {
             assert_eq!(line.setting, setting);
