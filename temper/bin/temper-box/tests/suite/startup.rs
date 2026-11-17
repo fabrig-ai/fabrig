@@ -105,12 +105,7 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    let result = temper_box_shell::boxed_operations_in(
-        &[],
-        b"/",
-        &directories,
-        &fs::read(paths[0].join("temper.json")).expect("configuration"),
-    );
+    let result = crate::admission(&directories, &fs::read(paths[0].join("temper.json")).expect("configuration"));
     assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
     scratch.remove();
 }
@@ -1882,8 +1877,7 @@ fn the_live_github_configuration_passes_startup_admission() {
         .collect();
         let (directories, _) = temper_box_shell::directories::resolve(&args, &[], b"/").expect("member directories");
         let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-        let operations = temper_box_shell::operations_in(&[], b"/", &directories, &bytes)
-            .unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
+        let operations = crate::admission(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
     scratch.remove();

@@ -269,6 +269,23 @@ impl Domain {
         tasks
     }
 
+    /// Last store commit confirmed durable, restored with the deployment.
+    #[must_use]
+    pub const fn commit_position(&self) -> u64 {
+        self.durable_commit
+    }
+
+    /// Retained live conversation source, without copying provisional text or calls.
+    /// A new attempt and every retained source change have distinct positions.
+    #[must_use]
+    pub fn live_text_revision(&self, task: u64) -> Option<(u64, u64)> {
+        let token = Token::new(task);
+        Some((
+            jig_domain_views::retained_attempt(&self.core.views, token)?,
+            jig_domain_views::revision(&self.core.views, token)?,
+        ))
+    }
+
     /// Conservative mutation revision, including refused inputs, empty probes,
     /// observation drains and reclamation. Nested public calls may bump twice.
     /// Owners checkpoint it only after their release and reclaim pass settles.

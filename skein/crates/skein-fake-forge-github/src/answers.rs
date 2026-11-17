@@ -53,6 +53,15 @@ pub(crate) enum Body<'a> {
     PullValidation(&'a [u8]),
     Refusal(&'a [u8]),
     RefusalStrings(&'a [u8], &'a [&'a [u8]]),
+    RepositoryBase(&'a d::Repository),
+    Deliveries(&'a [skein_forge::github::log::Row]),
+    Logged(&'a skein_forge::github::log::Row, &'a skein_forge::github::delivery::Delivery, &'a [u8]),
+    Conversion(&'a d::Conversion),
+    Link(&'a [u8], u32, u32),
+    Parts(&'a [&'a [u8]]),
+    LocalLinks(&'a [u8], &'a [u8]),
+    ApprovalPrefix(u32),
+    MergeRules(&'a skein_fake_forge_domain::api::Protection, &'a skein_fake_forge_domain::api::Pull, u64, bool),
 }
 fn encode(body: &Body<'_>, out: &mut Writer) -> Result<(), Overflow> {
     match body {
@@ -82,9 +91,7 @@ fn encode(body: &Body<'_>, out: &mut Writer) -> Result<(), Overflow> {
         Body::Enqueued(position) => server::enqueued(*position, out),
         Body::Graphql => server::graphql_refusal(b"UNPROCESSABLE", b"Unsupported query", out),
         Body::Repository(row) => {
-            let mut scratch = Writer::new(out.room());
-            server::repository(row, &mut scratch)?;
-            let encoded = finish(scratch).ok_or(Overflow)?;
+            let encoded = finish(out.room(), &Body::RepositoryBase(row)).ok_or(Overflow)?;
             out.put(encoded.strip_suffix(b"}").ok_or(Overflow)?)?;
             out.put(br#","squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}"#)
         }
@@ -107,6 +114,25 @@ fn encode(body: &Body<'_>, out: &mut Writer) -> Result<(), Overflow> {
         Body::PullValidation(message) => extra_json(Detail::PullValidation(message), out),
         Body::Refusal(message) => server::refusal(message, &[], out),
         Body::RefusalStrings(message, errors) => server::refusal_strings(message, errors, out),
+        Body::RepositoryBase(row) => server::repository(row, out),
+        Body::Deliveries(rows) => server::deliveries(rows, out),
+        Body::Logged(row, payload, signature) => server::logged(row, payload, signature, out),
+        Body::Conversion(row) => server::conversion(row, out),
+        Body::Link(target, next, last) => server::link(target, *next, *last, out),
+        Body::Parts(parts) => {
+            for part in *parts {
+                out.put(part)?;
+            }
+            Ok(())
+        }
+        Body::LocalLinks(link, base) => crate::service::local_links_into(link, base, out),
+        Body::ApprovalPrefix(approvals) => {
+            out.put(crate::texts::ENQUEUE_APPROVAL_PREFIX)?;
+            crate::texts::approval(out, *approvals).ok_or(Overflow)
+        }
+        Body::MergeRules(protection, pull, author, queue) => {
+            crate::writes::merge::message_into(protection, pull, *author, *queue, out).ok_or(Overflow)
+        }
     }
 }
 enum Detail<'a> {
@@ -206,28 +232,19 @@ fn minted_json(
     json.object_end();
     json.object_end();
 }
-// Writer is exact-sized. Pad the scratch writer, then retain only the encoded
-// prefix; both allocations fit the response byte limit.
-pub(crate) fn finish(mut out: Writer) -> Option<Box<[u8]>> {
-    const PADDING: [u8; 8192] = [0; 8192];
-    let length = out.written();
-    for _chunk in 0..out.room().div_euclid(PADDING.len()) {
-        out.put(&PADDING).ok()?;
-    }
-    let tail = out.room();
-    out.put(PADDING.get(..tail)?).ok()?;
-    let bytes = out.finish();
-    Some(bytes::copy_of(bytes.get(..length)?))
+// Measure against the response bound, then allocate only the encoded bytes.
+pub(crate) fn finish(capacity: usize, body: &Body<'_>) -> Option<Box<[u8]>> {
+    let mut measure = Writer::measure(capacity);
+    encode(body, &mut measure).ok()?;
+    let mut out = Writer::new(measure.written());
+    encode(body, &mut out).ok()?;
+    Some(out.finish())
 }
 pub(crate) fn response(status: u16, body: &Body<'_>, limits: &Limits) -> Response {
     let Ok(capacity) = usize::try_from(limits.response) else {
         return failed();
     };
-    let mut out = Writer::new(capacity);
-    if encode(body, &mut out).is_err() {
-        return failed();
-    }
-    match finish(out) {
+    match finish(capacity, body) {
         Some(body) => Response {
             rate: None,
             etag: None,
@@ -298,11 +315,7 @@ impl Page {
             let Ok(capacity) = usize::try_from(limits.response) else {
                 return failed();
             };
-            let mut out = Writer::new(capacity);
-            if server::link(target, next, self.last, &mut out).is_err() {
-                return failed();
-            }
-            let Some(link) = finish(out) else {
+            let Some(link) = finish(capacity, &Body::Link(target, next, self.last)) else {
                 return failed();
             };
             response.link = Some(link);

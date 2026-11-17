@@ -154,7 +154,7 @@ pub fn operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, false)
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(
@@ -164,34 +164,7 @@ pub fn boxed_operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, true)
-}
-fn operations_in_mode(
-    binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    config: &[u8],
-    boxed: bool,
-) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        boxed,
-        false,
-        None,
-        None,
-        &service::stock::Given::Stock,
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 pub fn prepare_in(
     binary: &str,
@@ -239,30 +212,14 @@ pub fn prepare_in_with(
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
+    _environment: &[EnvironmentEntry],
+    _working: &[u8],
     directories: &Directories,
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        false,
-        false,
-        None,
-        None,
-        given,
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    service::startup::operations_with(config, &jig_directories(directories), given)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why))))
 }
 pub fn run(
     binary: &str,

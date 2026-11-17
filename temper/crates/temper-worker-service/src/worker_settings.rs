@@ -18,7 +18,8 @@ pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32
 }
 
 /// Operations reserved by the process for the configured git component.
-pub(crate) fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
+#[must_use]
+pub fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
     operations(&git_component(*git))
 }
 

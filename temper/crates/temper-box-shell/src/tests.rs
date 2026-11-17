@@ -155,6 +155,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
         .expect("standalone operations");
     assert_no_descriptors_in(&directory);
+    assert!(!directory.join("worker-root").exists(), "counting credit must not pin the agent or open roots");
     let mut owned = Vec::new();
     let service = super::prepare(&[], b"/", &configuration::directories(&directory), &document, &mut owned)
         .expect("same standalone preparation");
@@ -165,8 +166,13 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     assert_eq!(fs::read(directory.join("worker-root/agent/temper")).expect("pinned program"), b"program at start");
     assert_eq!(fs::read(directory.join("worker-root/agent/agent.json")).expect("pinned configuration"), agent);
     fs::remove_file(&program).expect("remove configured program");
-    let why =
-        super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
+    assert_eq!(
+        super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
+            .expect("count without program"),
+        operations
+    );
+    write("temper.json", &document);
+    let why = super::prepare_in(&[], b"/", &configuration::directories(&directory)).err().expect("pin refused");
     assert!(why.starts_with("temper serve: "), "{why}");
     assert!(why.contains(program.to_str().expect("program path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");

@@ -682,6 +682,7 @@ impl Children {
 struct LlmHistory {
     seen: usize,
     pending: i64,
+    queries: usize,
     visits: usize,
 }
 impl LlmHistory {
@@ -689,9 +690,14 @@ impl LlmHistory {
         // Deferred forge/GitHub peers are replaced before they run; a driven peer only appends.
         let suffix = observations.get(self.seen..).ok_or("LLM observation history never shrinks")?;
         self.visits += suffix.len();
-        self.pending = suffix.iter().fold(self.pending, |n, event| {
-            n + i64::from(matches!(event, Query { .. })) - i64::from(matches!(event, Answered { .. }))
-        });
+        for event in suffix {
+            if matches!(event, Query { .. }) {
+                self.queries += 1;
+                self.pending += 1;
+            } else if matches!(event, Answered { .. }) {
+                self.pending -= 1;
+            }
+        }
         self.seen = observations.len();
         Ok(self.pending)
     }
@@ -975,6 +981,9 @@ impl Referee<Proc> for Judge {
         else {
             return Err("root admission order".into());
         };
+        if let Some(engine) = service.service.as_ref().and_then(crate::service::Driven::engine_domain) {
+            caller.observe_read_version(engine);
+        }
         // This story-local join observes the engine's durable terminal record,
         // even when the live task has already been reclaimed before Ready closes.
         if procs.iter().any(|proc| {
@@ -1001,14 +1010,15 @@ impl Referee<Proc> for Judge {
                 line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
             }));
         }
-        let queries = peer.observations().iter().filter(|event| matches!(event, Query { .. })).count();
+        let pending = self.llm_history.observe(peer.observations())?;
+        let queries = self.llm_history.queries;
         caller.llm_queries.set(queries);
         caller.held.set(
             service.held_at(caller.held_index())
                 || !workers.is_empty()
                     && caller.held_name().is_some_and(|name| peer.holds.iter().any(|hold| hold.as_ref() == name))
                     && queries > caller.held_queries.get()
-                    && pending_llm(peer.observations()),
+                    && pending > 0,
         );
         caller.links.set(service.links());
         let lock_changed = self.children.lock_changed(children, caller)?;
@@ -1026,7 +1036,6 @@ impl Referee<Proc> for Judge {
         } else {
             false
         };
-        let pending = self.llm_history.observe(peer.observations())?;
         let placing = placed(workers) && pending > 0 && peer.placement_hold;
         let named_worker = |name| {
             worker_position(workers, name).and_then(|position| {
@@ -1314,11 +1323,6 @@ fn script_holds(recipe: &llm::Recipe) -> Vec<Box<[u8]>> {
     names
 }
 
-fn pending_llm(observations: &[skein_fake_peers::llm::Observation]) -> bool {
-    observations.iter().filter(|event| matches!(event, Query { .. })).count()
-        > observations.iter().filter(|event| matches!(event, Answered { .. })).count()
-}
-
 fn contact_cancelled(worker: &ServiceHost) -> bool {
     let Some(domain) = worker.service.as_ref().and_then(crate::service::Driven::worker_domain) else { return false };
     let hub = domain.host();
@@ -1567,6 +1571,7 @@ mod tests {
                     reference_visits += prefix.len();
                     let pending = history.observe(prefix).expect("growing history");
                     assert_eq!(pending, expected, "{name}, prefix {length}");
+                    assert_eq!(history.queries, prefix.iter().filter(|event| matches!(event, Query { .. })).count());
                     for placed in [false, true] {
                         assert_eq!(placed && pending > 0, placed && expected > 0, "{name}, prefix {length}");
                     }

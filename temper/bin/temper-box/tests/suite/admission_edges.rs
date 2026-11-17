@@ -46,9 +46,7 @@ fn edge(part: Part, name: &str) {
     let mut document: Value =
         serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("fixture document"))
             .expect("fixture JSON");
-    let admit = |document: &Value| {
-        temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
-    };
+    let admit = |document: &Value| crate::admission(&directories, &serde_json::to_vec(document).expect("JSON"));
     admit(&document).expect("unmodified fixture must start");
     let turn = number(&document, Part::Engine, "hub.turn_bytes");
     let resume = number(&document, Part::Engine, "core.resume_bytes");
@@ -107,9 +105,7 @@ fn transcript_padding_covers_all_resume_window_remainders() {
         for part in [Part::Engine, Part::Worker] {
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
-        let admit = |document: &Value| {
-            temper_box_shell::operations_in(&[], b"/", &directories, &serde_json::to_vec(document).expect("JSON"))
-        };
+        let admit = |document: &Value| crate::admission(&directories, &serde_json::to_vec(document).expect("JSON"));
         admit(&document).expect("both hubs hold the padded configured window");
         for part in [Part::Engine, Part::Worker] {
             set(&mut document, part, "hub.transcript_bytes", transcript - 1);
