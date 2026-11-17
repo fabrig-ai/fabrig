@@ -708,7 +708,7 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
             json!({
                 "setting":{"kind":"charter","number":number},
                 "set":{"instructions":format!("charter {number}"),"model":model,
-                    "alternatives":[],"rest":false,"time":240_000_000_000_u64}
+                    "alternatives":[],"rest":false,"time":1}
             })
         })
     };

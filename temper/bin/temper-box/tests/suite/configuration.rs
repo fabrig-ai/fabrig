@@ -125,7 +125,7 @@ fn the_owned_example_fits_the_native_client() {
 }
 fn assert_owned_limits(limits: &serde_json::Value) {
     assert_eq!(limits["profile"], "standard");
-    for (name, value) in [("hub.accounts", 4_u64), ("hub.run_calls", 48), ("hub.event_bytes", 10_660)] {
+    for (name, value) in [("hub.accounts", 4_u64), ("hub.run_calls", 48), ("hub.event_bytes", 63_738)] {
         assert_eq!(limits["overrides"][name], value, "the engine supplies the stock agent’s {name}");
     }
 }

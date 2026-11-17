@@ -381,7 +381,6 @@ pub fn run(directory: &Path, forge: &Throwaway, instructions: &str, deadline: Du
                     let charter = super::ctl::json(&calls[5]);
                     let mut value = charter["value"].clone();
                     value["turns"] = 5.into();
-                    value["time"] = 240_000_000_000_u64.into();
                     value["instructions"] = instructions.into();
                     let template = super::ctl::json(&calls[6]);
                     let mut recipe = template["value"].clone();

@@ -567,11 +567,11 @@ fn charter(
             turns,
             time,
             reserve_turns: 1,
-            // Modifying charters reserve the stock agent's five-minute check.
-            reserve_time: Duration::from_millis(if number == 2 || number == 5 {
-                agents::CHECK_TIMEOUT_MS
-            } else {
+            // Stock charters reserve one check; status and trial only finish.
+            reserve_time: Duration::from_millis(if number == 9 || number == 10 {
                 60_000
+            } else {
+                agents::CHECK_TIMEOUT_MS
             }),
             inspect: true,
             modify: number != 1,

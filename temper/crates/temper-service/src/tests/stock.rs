@@ -346,7 +346,7 @@ fn a_documents_models_are_refused_at_their_paths() {
 #[test]
 fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
     let engine = engine(&generated());
-    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let mut problems = crate::startup::Problems::empty();
     let core = config::core(&engine, [7; 16], 7);
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
