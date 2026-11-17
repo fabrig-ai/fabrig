@@ -160,13 +160,13 @@ pub const TOOLS: &[&Tool] = &[
     &rows::MILESTONE_LIST,
     &rows::MILESTONE_SHOW,
     &crate::change::open::ROW,
-    &rows::LINK,
     &rows::WORKER_LIST,
     &rows::WORKER_ADD,
     &rows::WORKER_PLACES,
     &rows::WORKER_REMOVE,
     &crate::checkpoint::ROW,
     &rows::USES,
+    &rows::LINK,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;
