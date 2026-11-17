@@ -91,7 +91,7 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
 
 #[test]
 fn client_wire_schema_matches_generated_code_and_goldens() {
-    client_layout();
+    client_layout("client-wire-v1.schema", "temper-client-wire");
     schema_matches(
         "temper-client-protocol-wire",
         "temper-client-protocol-wire",
@@ -105,17 +105,17 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
 
 // Client layouts have no bridge; preserve every older line and append the current
 // fingerprint through the same generator as the records (protocol/wires.md, 9).
-fn client_layout() {
+fn client_layout(source: &str, family: &str) {
     use std::fmt::Write;
     let root = skein_scratch::paths::tree().join("crates/temper-client-protocol-wire/schema");
-    let source = fs::read(root.join("client-wire-v1.schema")).expect("client schema");
+    let source = fs::read(root.join(source)).expect("client schema");
     let schema = skein_codec::schema::parse(&source).expect("client schema valid");
     let mut line = format!("{} ", schema.version());
     for byte in schema.fingerprints().family().digest() {
         write!(&mut line, "{byte:02x}").expect("fingerprint text");
     }
     line.push('\n');
-    let path = root.join("temper-client-wire.layouts");
+    let path = root.join(format!("{family}.layouts"));
     let mut layouts = fs::read_to_string(&path).expect("client layouts");
     if temper_test_env::rewrite() && !layouts.ends_with(&line) {
         assert!(
@@ -156,6 +156,7 @@ fn secrets_schema_matches_generated_code_and_goldens() {
 
 #[test]
 fn public_wire_schema_matches_generated_code_and_goldens() {
+    client_layout("public-v1.schema", "temper-public-wire");
     schema_matches(
         "temper-client-protocol-wire",
         "temper-client-protocol-wire",

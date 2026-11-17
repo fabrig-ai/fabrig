@@ -129,6 +129,7 @@ impl Scheduler {
                         entry: self.entry,
                         heard: change::Heard {
                             delegate_running: false,
+                            flake: false,
                             delegate_live: false,
                             review_request: None,
                             start_conflict: None,

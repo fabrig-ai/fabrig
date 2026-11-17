@@ -2024,8 +2024,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
-        Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words } => {
-            delegate_result(d, env, task, child, ended_at, status, no_change, failed, cancelled, &words, out);
+        Event::DelegateResult { task, child, ended_at, status, no_change, flake, failed, cancelled, words } => {
+            delegate_result(d, env, task, child, ended_at, status, no_change, flake, failed, cancelled, &words, out);
         }
         Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
@@ -3151,6 +3151,9 @@ fn record_delegate_head(
             && (row.change.last_head != Some(commit) || (checked && row.change.last_checked != Some(commit)))
         {
             let mut row = row.clone();
+            if row.change.last_head != Some(commit) {
+                row.regate = None;
+            }
             row.change.last_head = Some(commit);
             if checked {
                 row.change.last_checked = Some(commit);
@@ -3695,6 +3698,7 @@ fn delegated(
     }
     match kind {
         change::Delegate::Repair(why) => {
+            row.regate = None;
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
             row.repair_tasks = task_account(&row.repair_tasks, child);
         }
@@ -3705,6 +3709,7 @@ fn delegated(
         | change::Delegate::Gate { .. } => {}
     }
     row.delegate = Some((child, kind));
+    row.delegate_head = row.change.last_head;
     if let Some(read) = d.settling.get_mut(&task) {
         read.branch.producer = change::Status::Unknown;
     }
@@ -3718,6 +3723,7 @@ fn delegated(
     row.producer_failure = None;
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     let mut saved = row.clone();
     crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
@@ -3755,6 +3761,7 @@ fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, ou
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     let owned = row.change.owns_turn;
     row.change.owns_turn = false;
     let state = unasked(row, kind);
@@ -3889,6 +3896,10 @@ fn delegate_wait(state: &change::State) -> bool {
 
 #[expect(clippy::too_many_arguments, reason = "one child's terminal carries its status, failure standing and words")]
 #[expect(clippy::too_many_lines, reason = "one delegate result records its answer, ending and readiness together")]
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the typed delegate event distinguishes a flake from no-change, failure and cancellation"
+)]
 fn delegate_result(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -3897,6 +3908,7 @@ fn delegate_result(
     ended_at: Option<skein_lib::Wall>,
     status: change::Status,
     no_change: bool,
+    flake: bool,
     failed: bool,
     cancelled: bool,
     words: &[u8],
@@ -3980,6 +3992,15 @@ fn delegate_result(
     }
     d.start_conflicts.remove(&task);
     row.delegate_status = if no_change && !ci_repair { change::Status::Failed } else { status };
+    row.delegate_flake = flake
+        && match kind {
+            change::Delegate::Repair(_) => true,
+            change::Delegate::Produce
+            | change::Delegate::Close
+            | change::Delegate::Gate { .. }
+            | change::Delegate::Resolve { .. }
+            | change::Delegate::Merge { .. } => false,
+        };
     match kind {
         change::Delegate::Gate { number, head } => {
             if let Err(cause) = record_review(row, env, number, head, (status, failed, cancelled), words) {
@@ -4009,7 +4030,9 @@ fn delegate_result(
         ),
         change::Delegate::Resolve { .. } => producer_result(row, false, failed, words),
     }
-    if cancelled {
+    if row.delegate_flake {
+        row.producer_failure = Some(flake_delegate_words(child, words));
+    } else if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     } else if (failed || (no_change && !ci_repair))
         && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
@@ -4143,6 +4166,20 @@ fn failed_delegate_words(
         account.put(part).expect("measured recovery words");
     }
     Some(account.finish())
+}
+
+/// A flake verdict reserves the release instructions within the same account bound as failures.
+fn flake_delegate_words(child: u64, words: &[u8]) -> Box<[u8]> {
+    let prefix = skein_lib::bytes::concat(&[
+        b"its repair, task ",
+        skein_lib::Decimal::of(child).as_bytes(),
+        b", found only flakes: ",
+        words,
+    ]);
+    let tail = b"; release this change to run its gate once more, or cancel it";
+    let bound = skein_lib::usize_of(jig_domain_tasks::HOLD_ACCOUNT_BYTES);
+    let prefix = crate::text::fit(&prefix, bound.checked_sub(tail.len()).expect("recovery fits hold"), b"...");
+    skein_lib::bytes::concat(&[&prefix, tail])
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
@@ -5601,6 +5638,7 @@ fn titled_change(
 
 fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change::Heard {
     change::Heard {
+        flake: row.delegate_flake && row.delegate_head == pending.branch,
         // Terminal evidence belongs to the current delegate, not to the read's start.
         delegate: if row.delegate_status == change::Status::Unknown {
             pending.heard.delegate
@@ -5725,6 +5763,16 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             return;
         }
         row.change = stepped.change;
+        if row.change.last_head != effect_prior.last_head {
+            row.regate = None;
+            if row.delegate_flake {
+                row.delegate_flake = false;
+                row.producer_failure = None;
+            }
+        }
+        if let change::Decision::Delegate(change::Delegate::Repair(_)) = stepped.decision {
+            row.regate = None;
+        }
         crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
         let decision = stepped.decision;
         let took_update = matches_updating(&effect_prior.state) && row.change.last_head != effect_prior.last_head;
@@ -5755,6 +5803,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 row.result.ci_passed(&head, env.limits.client.answer_bytes);
                 row.producer_failure = None;
                 row.delegate_status = change::Status::Unknown;
+                row.delegate_flake = false;
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
@@ -6773,7 +6822,7 @@ fn accept_released_branch(
 /// Removing the durable delegate reference retires its terminal from recovery
 /// (temper/docs/design/domain/forge/change/repairs.md, A release).
 fn retire_failed_delegate(row: &mut ChangeRow) {
-    if row.delegate_status != change::Status::Failed {
+    if row.delegate_status != change::Status::Failed && !row.delegate_flake {
         return;
     }
     match row.delegate {
@@ -6786,6 +6835,7 @@ fn retire_failed_delegate(row: &mut ChangeRow) {
     }
     row.delegate = None;
     row.delegate_status = change::Status::Unknown;
+    row.delegate_flake = false;
     row.producer_failure = None;
     row.merge_result = None;
 }
@@ -6799,11 +6849,22 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     d.change_due.remove(&task);
     read_session::restart(d, env, task, env.wall);
     branch_due(d, task);
+    let regate = if let Some(row) = d.changes.get(&task)
+        && let change::State::Held { was, why: change::Hold::Flake } = &row.change.state
+        && let change::State::Repairing { why, .. } = was.as_ref()
+    {
+        Some(d.landing_regate(task, *why))
+    } else {
+        None
+    };
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
     };
     let before = crate::panel::ready(row);
+    if let Some(regate) = regate {
+        row.regate = regate;
+    }
     retire_failed_delegate(row);
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;

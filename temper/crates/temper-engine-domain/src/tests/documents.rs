@@ -330,6 +330,8 @@ fn repair() -> forge::ChangeRow {
         effect: change::EffectResult::None,
         delegate: Some((8, change::Delegate::Repair(change::Repair::Ci))),
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

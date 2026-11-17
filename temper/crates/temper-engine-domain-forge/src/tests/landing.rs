@@ -265,7 +265,7 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
     }
 }
 
-fn landing_fixture() -> Domain {
+pub(super) fn landing_fixture() -> Domain {
     landing_fixture_with(domain())
 }
 fn landing_fixture_with(mut d: Domain) -> Domain {
@@ -2711,7 +2711,7 @@ fn reporting_failed_gate(
     (d, key, run)
 }
 
-fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
     let (mut d, key, mut run) = clocked_gate();
     d.landing.flights.remove(&key);
     d.entries.remove(&9);
@@ -2741,7 +2741,7 @@ fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
     (d, key, run)
 }
 
-fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Run) -> policy::Decision {
+pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Run) -> policy::Decision {
     use skein_forge::api::{Answer, Op, Read};
     let mut requests = outputs(
         d,
@@ -2788,6 +2788,15 @@ fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Ru
                 requests = fixtures::answer(d, call, Err(skein_forge::api::Error::Missing));
                 continue;
             }
+            Op::Read(Read::Artifact { run: id, .. }) => {
+                assert_eq!(id, run.id);
+                Answer::File {
+                    head: run.commit,
+                    path: b"report".as_slice().into(),
+                    bytes: b"test a::t x\n".as_slice().into(),
+                    truncated: false,
+                }
+            }
             Op::Read(_) | Op::Write(_) => panic!("unexpected regate read {op:?}"),
         };
         requests = fixtures::answer(d, call, Ok(answer));
@@ -2795,7 +2804,7 @@ fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Ru
     panic!("regate landing decides");
 }
 
-fn commit_gate_effect(d: &mut Domain, entry: u64) {
+pub(super) fn commit_gate_effect(d: &mut Domain, entry: u64) {
     use skein_forge::api::{Answer, Op, Read};
     outputs(d, Event::Committed { entry });
     for _ in 0..4_u32 {
@@ -2815,7 +2824,7 @@ fn commit_gate_effect(d: &mut Domain, entry: u64) {
     panic!("gate effect written");
 }
 
-fn dispatch_regate(d: &mut Domain, key: &ReceiptKey, run: &skein_forge::api::Run) {
+pub(super) fn dispatch_regate(d: &mut Domain, key: &ReceiptKey, run: &skein_forge::api::Run) {
     assert_eq!(step_regate(d, 61, 91, run), policy::Decision::Dispatch { member: 0, gate: 0, key: key.key, try_: 1 });
     assert_eq!(
         d.entries.get(&91).unwrap().entry.effect.write,

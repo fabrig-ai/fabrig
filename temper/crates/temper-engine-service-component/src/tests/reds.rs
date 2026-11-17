@@ -123,6 +123,8 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
         effect: change::EffectResult::None,
         delegate: None,
         delegate_status: change::Status::Unknown,
+        delegate_flake: false,
+        delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
         goal: None,

@@ -212,6 +212,7 @@ fn review(words: &[u8]) -> Event {
         child: 52,
         status: change::Status::Passed,
         no_change: false,
+        flake: false,
         failed: false,
         cancelled: false,
         words: words.into(),

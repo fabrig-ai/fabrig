@@ -59,6 +59,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::PullClosed => w::ChangeHold::PullClosed,
         d::Hold::Retargeted => w::ChangeHold::Retargeted,
         d::Hold::Failed => w::ChangeHold::Failed,
+        d::Hold::Flake => w::ChangeHold::Flake,
         d::Hold::Rejected => w::ChangeHold::Rejected,
         d::Hold::Authority(cause) => w::ChangeHold::Authority(
             w::AuthorityHold::new(
@@ -93,6 +94,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::PullClosed => d::Hold::PullClosed,
         w::ChangeHold::Retargeted => d::Hold::Retargeted,
         w::ChangeHold::Failed => d::Hold::Failed,
+        w::ChangeHold::Flake => d::Hold::Flake,
         w::ChangeHold::Rejected => d::Hold::Rejected,
         w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
             lack: match cause.lack() {
@@ -872,6 +874,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -883,6 +886,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value;
     w::ChangeHot::new(
         &w::CEILINGS,
@@ -938,6 +942,8 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
                 None => None,
             },
             delegate_status: encode_status(*delegate_status),
+            delegate_flake: *delegate_flake,
+            delegate_head: *delegate_head,
             verdicts: encode_gate_reports(verdicts),
             gate_remarks: encode_gate_remarks(gate_remarks),
             drift: match drift {
@@ -994,6 +1000,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect,
         delegate,
         delegate_status,
+        delegate_flake,
         verdicts,
         gate_remarks,
         drift,
@@ -1005,6 +1012,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         follow_check,
         merge_result,
         history,
+        delegate_head,
     } = value.into_parts();
     Ok(top::ChangeHot {
         regate: decode_regate(regate),
@@ -1043,6 +1051,8 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
         delegate_status: decode_status(delegate_status),
+        delegate_flake,
+        delegate_head,
         verdicts: decode_gate_reports(verdicts),
         gate_remarks: decode_gate_remarks(gate_remarks),
         drift: match drift {

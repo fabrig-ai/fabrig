@@ -4743,20 +4743,13 @@ impl Domain {
     /// The candidate pins its failure snapshot even after the landing's live row retires.
     #[must_use]
     pub fn candidate_failure_words(&self, change: u64, gate: u16, candidate: api::Commit) -> Option<Box<[u8]>> {
-        let (_, receipt) = self.failure_receipt(change, gate, Some(candidate))?;
+        let (_, _, receipt) = self.failure_receipt(change, gate, Some(candidate))?;
         Some(receipt.logs.clone())
     }
     /// The receipt pins the gate run and its jobs for a repair's required words.
     #[must_use]
     pub fn landing_failure(&self, change: u64, why: change::Repair) -> Option<crate::LandingFailure> {
-        let (gate, candidate) = match why {
-            change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
-            change::Repair::Landing { gate } => (gate, None),
-            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
-                return None;
-            }
-        };
-        let (gate, receipt) = self.failure_receipt(change, gate, candidate)?;
+        let (_, gate, receipt) = self.repair_receipt(change, why)?;
         Some(crate::LandingFailure {
             gate: gate.into(),
             run: receipt.run.clone(),
@@ -4766,7 +4759,26 @@ impl Domain {
             jobs: receipt.jobs.clone(),
         })
     }
-    fn failure_receipt(&self, change: u64, gate: u16, candidate: Option<api::Commit>) -> Option<(&[u8], &Receipt)> {
+    pub(super) fn landing_regate(&self, change: u64, why: change::Repair) -> Option<crate::Regate> {
+        let (key, _, receipt) = self.repair_receipt(change, why)?;
+        Some(crate::Regate { receipt: key.clone(), run: receipt.run.id })
+    }
+    fn repair_receipt(&self, change: u64, why: change::Repair) -> Option<(&ReceiptKey, &[u8], &Receipt)> {
+        let (gate, candidate) = match why {
+            change::Repair::LandingAt { gate, candidate, .. } => (gate, Some(candidate)),
+            change::Repair::Landing { gate } => (gate, None),
+            change::Repair::Ci | change::Repair::Semantic | change::Repair::Gate(_) | change::Repair::Review { .. } => {
+                return None;
+            }
+        };
+        self.failure_receipt(change, gate, candidate)
+    }
+    fn failure_receipt(
+        &self,
+        change: u64,
+        gate: u16,
+        candidate: Option<api::Commit>,
+    ) -> Option<(&ReceiptKey, &[u8], &Receipt)> {
         let mut kept_run = None;
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {
@@ -4808,7 +4820,7 @@ impl Domain {
                 && (candidate == Some(receipt.candidate) || kept_run == Some(receipt.run.number))
                 && !receipt.passed
             {
-                return Some((name, receipt));
+                return Some((key, name, receipt));
             }
         }
         None

@@ -4296,6 +4296,10 @@ pub enum Path {
     RegateRun,
     /// Bytes after `Regate`.
     RegateTail,
+    /// The `delegate_head` field of `ChangeHot`.
+    ChangeHotDelegateHead,
+    /// The `delegate_flake` field of `ChangeHot`.
+    ChangeHotDelegateFlake,
     /// The `regate` field of `ChangeHot`.
     ChangeHotRegate,
     /// The `kept` field of `ChangeHot`.
@@ -6269,6 +6273,8 @@ impl Path {
             Self::RegateReceipt => "Regate.receipt",
             Self::RegateRun => "Regate.run",
             Self::RegateTail => "Regate (tail)",
+            Self::ChangeHotDelegateHead => "ChangeHot.delegate_head",
+            Self::ChangeHotDelegateFlake => "ChangeHot.delegate_flake",
             Self::ChangeHotRegate => "ChangeHot.regate",
             Self::ChangeHotKept => "ChangeHot.kept",
             Self::ChangeHotTaskRelease => "ChangeHot.task_release",
@@ -12745,6 +12751,8 @@ pub enum ChangeHold {
     Authority(AuthorityHold),
     /// `questions` without a payload.
     Questions,
+    /// `flake` without a payload.
+    Flake,
 }
 
 impl ChangeHold {
@@ -27958,6 +27966,10 @@ impl Regate {
 /// Movable fields of `ChangeHot`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHotParts {
+    /// The `delegate_head` field.
+    pub delegate_head: Option<[u8; 32]>,
+    /// The `delegate_flake` field.
+    pub delegate_flake: bool,
     /// The `regate` field.
     pub regate: Option<Regate>,
     /// The `kept` field.
@@ -28021,6 +28033,8 @@ pub struct ChangeHotParts {
 /// `ChangeHot` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
+    delegate_head: Option<[u8; 32]>,
+    delegate_flake: bool,
     regate: Option<Regate>,
     kept: Option<[u8; 32]>,
     task_release: Option<TaskRelease>,
@@ -28055,11 +28069,19 @@ pub struct ChangeHot {
 impl ChangeHot {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeHotParts) -> Result<Self, Problem> {
-        let ChangeHotParts { regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
-        let value = Self { regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
+        let ChangeHotParts { delegate_head, delegate_flake, regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
+        let value = Self { delegate_head, delegate_flake, regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `delegate_head` field.
+    #[must_use]
+    pub fn delegate_head(&self) -> &Option<[u8; 32]> { &self.delegate_head }
+
+    /// Reads the `delegate_flake` field.
+    #[must_use]
+    pub fn delegate_flake(&self) -> bool { self.delegate_flake }
 
     /// Reads the `regate` field.
     #[must_use]
@@ -28179,7 +28201,7 @@ impl ChangeHot {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { regate: self.regate, kept: self.kept, task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
+    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { delegate_head: self.delegate_head, delegate_flake: self.delegate_flake, regate: self.regate, kept: self.kept, task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.regate.as_ref() {
@@ -36085,7 +36107,7 @@ impl ChangeHold {
     pub fn measure(&self) -> u32 {
         match self {
             Self::Authority(record) => 1_u32.checked_add(AuthorityHold::measure(record)).expect("schema ceilings fit u32"),
-            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::BranchMoved | Self::BranchMissing | Self::PullClosed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions => 1,
+            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::BranchMoved | Self::BranchMissing | Self::PullClosed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions | Self::Flake => 1,
         }
     }
 
@@ -36104,6 +36126,7 @@ impl ChangeHold {
             Self::Rejected => writer.put(&[9_u8])?,
             Self::Authority(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
             Self::Questions => writer.put(&[11_u8])?,
+            Self::Flake => writer.put(&[12_u8])?,
         }
         Ok(())
     }
@@ -36130,6 +36153,7 @@ impl ChangeHold {
             9 => Self::Rejected,
             10 => Self::Authority(AuthorityHold::decode_from(limits, reader)?),
             11 => Self::Questions,
+            12 => Self::Flake,
             _ => return Err(Problem { path: Path::ChangeHoldTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -52001,6 +52025,8 @@ impl ChangeHot {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_delegate_head = match reader.u8().ok_or(Problem { path: Path::ChangeHotDelegateHead, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHotDelegateHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHotDelegateHead, reason: skein_codec::Reason::Tag }) };
+        let decoded_delegate_flake = match reader.u8().ok_or(Problem { path: Path::ChangeHotDelegateFlake, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeHotDelegateFlake, reason: skein_codec::Reason::Bool }) };
         let decoded_regate = match reader.u8().ok_or(Problem { path: Path::ChangeHotRegate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Regate::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotRegate, reason: skein_codec::Reason::Tag }) };
         let decoded_kept = match reader.u8().ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Tag }) };
         let decoded_task_release = match reader.u8().ok_or(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TaskRelease::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Tag }) };
@@ -52030,13 +52056,19 @@ impl ChangeHot {
         let decoded_follow_check = match reader.u8().ok_or(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowCheckProgress::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Tag }) };
         let decoded_merge_result = match reader.u8().ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_hot_merge_result_some.min(CEILINGS.change_hot_merge_result_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeHotMergeResult, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Tag }) };
         let decoded_history = match reader.u8().ok_or(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHistory::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { regate: decoded_regate, kept: decoded_kept, task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
+        Ok(Self { delegate_head: decoded_delegate_head, delegate_flake: decoded_delegate_flake, regate: decoded_regate, kept: decoded_kept, task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
     }
 }
 
 
 impl ChangeHot {
     fn measure_0(&self, mut size: u32) -> u32 {
+        let field_delegate_head = &self.delegate_head;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_delegate_head.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_regate = &self.regate;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_regate {
@@ -52102,17 +52134,17 @@ impl ChangeHot {
         let field_verdicts = &self.verdicts;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_verdicts.len().checked_mul(41).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        let field_gate_remarks = &self.gate_remarks;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_gate_remarks.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
         size
     }
 }
 
 impl ChangeHot {
     fn measure_1(&self, mut size: u32) -> u32 {
+        let field_gate_remarks = &self.gate_remarks;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_gate_remarks.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_drift = &self.drift;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_drift {
@@ -52159,6 +52191,16 @@ impl ChangeHot {
 
 impl ChangeHot {
     fn encode_0(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_delegate_head = &self.delegate_head;
+        match field_delegate_head {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_delegate_flake = &self.delegate_flake;
+        writer.put(&[u8::from(*field_delegate_flake)])?;
         let field_regate = &self.regate;
         match field_regate {
             Some(some_0) => {
@@ -52220,6 +52262,12 @@ impl ChangeHot {
         writer.put(&field_task.to_be_bytes())?;
         let field_priority = &self.priority;
         writer.put(&field_priority.to_be_bytes())?;
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_change = &self.change;
         field_change.encode(writer)?;
         let field_ci = &self.ci;
@@ -52230,12 +52278,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_pull = &self.pull;
         match field_pull {
             Some(some_0) => {
@@ -52300,6 +52342,12 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_producer_failure = &self.producer_failure;
         match field_producer_failure {
             Some(some_0) => {
@@ -52309,12 +52357,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_questions = &self.questions;
         field_questions.encode(writer)?;
         let field_follow_check = &self.follow_check;
@@ -68468,6 +68510,7 @@ impl ChangeHot {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64)?;
         size = size.checked_add(1_u64.checked_add(Regate::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size = size.checked_add(1_u64.checked_add(TaskRelease::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeEnding::encoded_bound_within(limits)?)?)?;
@@ -68495,6 +68538,7 @@ impl ChangeHot {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(Regate::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(TaskRelease::decoded_bound_within(limits)?)?.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(List::<SignOff>::price(limits.change_hot_signed)?.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeEnding::decoded_bound_within(limits)?)?;

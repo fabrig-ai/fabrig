@@ -1062,6 +1062,10 @@ pub struct ChangeRow {
     /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     /// Bounded current verdict per gate, retained through clean updates.
     pub verdicts: Box<[change::GateReport]>,
     /// Bounded explanations of gate verdicts at their named heads.
@@ -1149,6 +1153,10 @@ pub struct ChangeHot {
     pub effect: change::EffectResult,
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
+    /// A flake terminal awaiting the branch read after its end.
+    pub delegate_flake: bool,
+    /// The branch head when this delegate was asked.
+    pub delegate_head: Option<skein_forge::api::Commit>,
     pub verdicts: Box<[change::GateReport]>,
     pub gate_remarks: Box<[GateRemark]>,
     pub drift: Option<change::Hold>,
@@ -1193,6 +1201,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1256,6 +1266,8 @@ impl ChangeRow {
                 effect,
                 delegate,
                 delegate_status,
+                delegate_flake,
+                delegate_head,
                 verdicts,
                 gate_remarks,
                 drift,
@@ -1314,6 +1326,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -1354,6 +1368,8 @@ impl ChangeRow {
             effect,
             delegate,
             delegate_status,
+            delegate_flake,
+            delegate_head,
             verdicts,
             gate_remarks,
             drift,
@@ -2407,6 +2423,8 @@ pub enum Event {
         status: change::Status,
         /// The child explicitly concluded that no change applies.
         no_change: bool,
+        /// A repair concluded with the flake verdict.
+        flake: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.

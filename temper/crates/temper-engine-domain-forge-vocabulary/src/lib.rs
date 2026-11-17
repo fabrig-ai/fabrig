@@ -7,6 +7,9 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
+/// A landing repair found only flakes (domain/forge/change/repairs.md).
+pub const REPAIR_FLAKE: u32 = 1;
+
 pub mod address;
 pub mod approvals;
 pub mod away;

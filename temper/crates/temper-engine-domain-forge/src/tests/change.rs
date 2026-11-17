@@ -3,6 +3,7 @@ use super::*;
 mod empty_repair;
 mod execution;
 mod fence;
+mod flake;
 mod released_resolution;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
@@ -771,6 +772,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                flake: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -1531,6 +1533,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             child: 52,
             status: change::Status::Failed,
             no_change: false,
+            flake: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),
@@ -1654,6 +1657,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 child,
                 status,
                 no_change,
+                flake: false,
                 failed,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
@@ -1682,12 +1686,30 @@ fn delegate_waiting(
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.delegate = Some((52, kind));
+    row.delegate_head = row.change.last_head;
     row.delegate_status = change::Status::Pending;
     row.title = Box::new([]);
     row.change.state = state;
     row.change.since = Wall::EPOCH;
     outputs(&mut d, Event::Change { row });
     d
+}
+
+fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::DelegateResult {
+            task: fixtures::CHANGE,
+            child,
+            ended_at: None,
+            status: temper_engine_domain_forge_change::Status::Passed,
+            no_change: false,
+            flake: true,
+            failed: false,
+            cancelled: false,
+            words: words.into(),
+        },
+    )
 }
 
 fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
@@ -1699,6 +1721,7 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             child: 52,
             status: temper_engine_domain_forge_change::Status::Passed,
             no_change,
+            flake: false,
             failed: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
@@ -1718,6 +1741,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
             spend: None,
             delegate: change::Status::Pending,
             delegate_running: false,
+            flake: false,
             delegate_live: live,
             effect: change::EffectResult::None,
             released,
@@ -3288,6 +3312,7 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     child: 52,
                     status: c::Status::Failed,
                     no_change: false,
+                    flake: false,
                     failed: true,
                     cancelled: false,
                     words: reason.into(),

@@ -75,6 +75,7 @@ fn waiting_step(world: &mut Protocol, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
