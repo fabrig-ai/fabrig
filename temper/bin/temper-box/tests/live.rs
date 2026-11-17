@@ -114,12 +114,12 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let address = if kept {
         None
     } else {
-        let address = forge_land::live_deployment(&paths, model);
+        forge_land::live_deployment(&paths, model);
         if let forge_land::LiveModel::ChatGpt { .. } = model {
             forge_land::retain_live_model(&paths[0].join("temper.json"), model.name());
         }
         let _ = forge_land::cache_forgejo_binaries(&paths[2]);
-        Some(address)
+        None
     };
     let tag = forge_land::live_tag();
     let line = format!("Hello from temper, {tag}.");

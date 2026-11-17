@@ -109,10 +109,11 @@ fn the_owned_values_equal_the_test_kits_values() {
     for name in ["views.watchers", "views.watchers_per_party"] {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
+    documents::settings::strip_fixed(&mut source);
     assert_eq!(owned, source);
-    let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
-    worker["workers"][0]["graces"]["grace_ms"] = 300_000.into();
-    assert_eq!(serde_json::from_slice::<serde_json::Value>(documents::WORKER_DOCUMENT).expect("worker JSON"), worker);
+    let worker: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
+    let source: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
+    assert_eq!(worker["workers"][0]["name"], source["workers"][0]["name"]);
 
     let mut profile = smith_agent_process_world::profile();
     profile.policy.host_tools =

@@ -1,4 +1,4 @@
-family temper-client-wire 29
+family temper-client-wire 32
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -463,6 +463,19 @@ record ForgeCharter { charter: u32 }
 record TemplateGoal { design: bool close_out: bool }
 enum QuestionsRoute { none, up }
 record ProjectQuestions { route: QuestionsRoute }
+# Landing settings, taken at the next start (domain/landing-settings.md, 1.1).
+enum SettingsLandingWay { queue, turn }
+enum SettingsCombine { merge, squash }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 }
+enum SettingsReportFormat { junit, lines }
+record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
+record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
+record SettingsBranch { name: bytes 1048576 }
+enum SettingsFollows { landing, goals, branch: SettingsBranch }
+record SettingsTier { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 artifact: bytes 32 format: SettingsReportFormat follows: SettingsFollows span_ms: u64 description: bytes 120 }
+record RepositoryGates { forge: u16 repository: u32 gates: bytes 1114240 pieces SettingsGate tiers: bytes 1114240 pieces SettingsTier }
+record ProjectGates { repositories: bytes 1114240 pieces RepositoryGates }
+
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
@@ -505,6 +518,8 @@ enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: Area
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }
+record Welcome { shown: bool }
 
 record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
 versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }
+

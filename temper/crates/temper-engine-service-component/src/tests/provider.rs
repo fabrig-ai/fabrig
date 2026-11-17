@@ -15,11 +15,11 @@ use skein_lib::{
 const CALLBACK: &str = "https://forge.example/user/oauth2/temper/callback";
 pub(super) const VERIFIER: &str = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
 
-pub(super) struct Configuration {
-    pub(super) provider: Provider,
-    pub(super) files: [(Box<[u8]>, Secret); 2],
+pub(crate) struct Configuration {
+    pub(crate) provider: Provider,
+    pub(crate) files: [(Box<[u8]>, Secret); 2],
 }
-pub(super) fn configuration() -> Configuration {
+pub(crate) fn configuration() -> Configuration {
     // Public, offline-generated 3072-bit RSA test key, never a deployment credential.
     let files = [
         (b"provider.key".as_slice().into(), Secret::new(include_bytes!("fixtures/provider.pem").as_slice().into())),
@@ -38,7 +38,7 @@ pub(super) fn configuration() -> Configuration {
         files,
     }
 }
-pub(super) fn request(service: &mut crate::Service, method: &str, path: &str, fields: &str, body: &[u8]) -> Peer {
+pub(crate) fn request(service: &mut crate::Service, method: &str, path: &str, fields: &str, body: &[u8]) -> Peer {
     let head = format!(
         "{method} {path} HTTP/1.1\r\nHost: temper.example.com\r\nConnection: close\r\nContent-Length: {}\r\n{fields}\r\n",
         body.len()

@@ -21,7 +21,7 @@ temper-box
 ├── temper-box forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
 │   └── forgejo web                   via temper-box internal forge-child; execs without fd 3
 ├── forgejo-runner daemon             long: temper-box forge run DIRS N runner
-├── temper-box forge source DIRS N        once, then again until the source serves, when machine.owned.sign_in is set (`../openid-provider.md`, 9)
+├── temper-box forge source DIRS N        once, then again until the source serves, when the setup file's sign_in is set (`place.md`, 6)
 └── temper-box internal serve DIRS --box  long: its own tree (../binaries.md); its setup
                                       host takes each handover and reconciles (section 5);
                                       its listeners from fd 3, then its pipe to the box (below)
@@ -46,24 +46,24 @@ temper-box
   Otherwise the box
   never writes the document: a configuration directory with entries but
   no document is refused as every command refuses it.
-- **The box knows kinds, not forges.** It has a group for each kind
-  the document's machine part gives it (`init.md`): the owned kind's,
-  an owned Forgejo's fetch, preparation, Forgejo and runner
-  (`temper-forge-setup`'s steps), when the machine names the box's owned
-  Forgejo; and the fake kind's, the playground's fake LLM, a fake
-  forge's preparation and the fake forge (`temper-fake`'s), when it
-  names the fakes and the document has `application.demo`. Each is
+- **The box knows kinds, not forges.** It has a group for each kind:
+  the owned kind's, an owned Forgejo's fetch, preparation, Forgejo and
+  runner (`temper-forge-setup`'s steps); and the fake kind's, the
+  playground's fake LLM, a fake forge's preparation and the fake forge
+  (`temper-fake`'s), when the document has `application.demo`. Each
+  group's place and setup are its forge's setup file's (`place.md`, 3). Each is
   dormant until serve asks for it for a forge, and then runs for that
   forge alone, its steps' forge number that forge's: a box runs at most
   one group of each kind. It reads no store and names no forge of its
   own: it stays wiring only.
-- **A forge's group, asked.** Under the box, serve writes the group's
-  settings, the forge's kind, its setup entry (`init.md`) and its port,
-  to `<data>/box/groups/N`, private, then asks `start N` on the pipe:
+- **A forge's group, asked.** Under the box, serve writes the forge's
+  setup file (`place.md`, 3), with the port it chose, the box writes the
+  group's kind to `<data>/box/groups/N`, private, and serve asks `start N` on the pipe:
   at an owned forge's set up (`owned.md`, 5) and at the playground's start (`playground.md`).
-  The box builds the group's steps by the kind from that file, and runs
-  them in order; `temper-box forge fetch`, `prepare`, `run` and `remove`
-  read forge N's setup from the same file, and with none as 4 says.
+  The box builds the group's steps by the kind, opens the group's
+  listener at its setup file's port (`place.md`, 5), and runs the steps
+  in order; `temper-box forge fetch`, `prepare`, `run` and `remove`
+  read forge N's setup from its setup file (`place.md`, 3).
   Once the group's long steps have started and, for an owned Forgejo,
   Forgejo answers, the box writes its record, `<data>/box/started/N`, one empty file, and
   answers `started N`. `box`, `box/groups` and `box/started` are made as
@@ -109,14 +109,14 @@ temper-box
   removal that fails answers `failed N WHY`, `WHY` one of `remove:
   exited <code>`, `remove: did not start` and `remove: files not
   removed`, and the group is dormant again, to be asked again.
-- **The listeners are the box's,** every step's, from the box's start
-  to its end, a dormant group's among them: so that the port a step
+- **The listeners are the box's,** every step's, from the box's start,
+  or a group's first ask (`place.md`, 5), to its end: so that the port a step
   reports is its own from before it starts, and a second first run's
   init finds the first one's ports taken (`init.md`, 2). Each step names its
   listeners, the socket addresses the document gives it (3): `temper-box
   serve` the clients' and the webhooks' listeners, the fake LLM and the
   fake forge their ports, and, on Linux, `temper-box forge run N forgejo` the
-  owned Forgejo's port, the machine's (`init.md`; `owned.md`, 4). On a
+  owned Forgejo's port, its setup file's (`place.md`, 3; `owned.md`, 4). On a
   first run the box keeps the sockets `temper-box init` chose (`init.md`, 2); on a later
   start it opens each at the document's address before any step, with
   skein's `open_listener`, and a port taken refuses its start, naming
@@ -588,21 +588,21 @@ owned forge is refused *not under the box* (`owned.md`, 5). GitHub and a Forgejo
 elsewhere connect as under the box.
 
 `temper-box forge fetch`, `prepare` and `run` are commands of their own
-too, and a forge the box did not run has no group's file (1). A forge
-with none takes the machine's `owned` part, in `<data>/forge-N`, so that
-a host's own units run them with no file written by hand, and a data
-directory started afresh keeps them working. A document with no `owned`
-part refuses, naming the file and the part; a file there is read as
-ever, its kind and its refusals its own. `temper-box forge remove` reads the
-file alone, and refuses a forge with none: it removes a directory by
-its kind, which it does not guess.
+too, and a forge the box did not run has no group's file (1). Its setup
+file, in `<data>/forge-N`, is written by the first `forge prepare N`
+from the flags a person gives (`place.md`, 4), so that a host's own
+units run them with no file written by hand. A forge with no setup file
+refuses every other command, naming the file and `forge prepare`'s
+flags. `temper-box forge remove` reads the setup file alone, and
+refuses a forge with none: it removes a directory by its kind, which it
+does not guess.
 
-The welcome follows the document under every arrangement, its member
-`application.welcome` (../configuration/engine.md), and never `--box`,
-which only the box gives `temper-box internal serve`, for its pipe. A unit
-running `temper box` shows the welcome as any box does; one running
-`temper-box serve` on a hand-written document shows it only if that document
-asks.
+The welcome is a setting (../configuration/settings.md, 2, kind 20),
+shown by default under the box: `--box`, which only the box gives
+`temper-box internal serve`, tells its default as it tells serve to
+take its pipe. A unit running `temper box` shows the welcome as any box
+does; one running `temper-box serve` shows it only once an owner sets
+it.
 
 - **systemd,** a unit for `temper box`, whose own stop stops its tree
   (2), or one for `temper-box serve` alone; `temper-box serve`'s
@@ -616,7 +616,7 @@ asks.
   handover (`owned.md`, 5), and a start on a new store lists no forge. A person
   connects that Forgejo as its admin (`reconcile.md`, 5), the handover file
   `admin_token` the token, the connect's `--api` and `--git` the
-  machine's `listen` and `remote`, and `--web` its `public`
+  setup file's `listen` and `remote`, and `--web` its `public`
   (`../openid-provider.md`, 7). It is a managed forge from then on: `TakeOver`
   never runs, so the file stays in the forge's directory for the same
   connect on a store started afresh, where the forge is numbered 1
@@ -768,8 +768,8 @@ peer's document names two, and `box: copy source ADDRESS` prints each
 walk connects as its admin: an owned Forgejo is real, and reaches no
 `.invalid` host.
 
-Forgejo here remains owned and real. The machine's part points GitHub
-at its fake (`init.md`), and names no forge: each is made by the walk's
+Forgejo here remains owned and real. `application.test.github` points GitHub
+at its fake (`place.md`, 7), and names no forge: each is made by the walk's
 own `SetUp` or `Connect`. Elsewhere is a Forgejo the walk connects as its
 admin (`reconcile.md`, 5), at the address preparation prints.
 Its separate `fake forgejo` long step uses

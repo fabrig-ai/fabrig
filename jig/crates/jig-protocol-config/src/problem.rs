@@ -49,6 +49,8 @@ pub enum What {
     Unknown,
     /// This member's setting lives in the store when the application passes defaults.
     Stored,
+    /// The application fixes this member (configuration.md, 3.4).
+    Fixed,
     Missing,
     Duplicate,
     Kind,
@@ -217,6 +219,7 @@ impl Problem {
             | What::Json
             | What::Unknown
             | What::Stored
+            | What::Fixed
             | What::Missing
             | What::Duplicate
             | What::Kind

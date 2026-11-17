@@ -85,30 +85,7 @@ fn config(seed: u64) -> engine::Config {
         }
     }
     let command = Some(b".temper/close".as_slice().into());
-    if let Some(landing) = config.landings.get_mut(&1) {
-        landing.close_job = command;
-    } else {
-        config
-            .landings
-            .insert(
-                1,
-                engine::ProjectLanding {
-                    gate_retries: 2,
-                    batch: 1,
-                    combine_main: engine::Combine::Merge,
-                    combine_other: engine::Combine::Squash,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                    landing_attempts: engine::LANDING_ATTEMPTS,
-                    check_timeout: None,
-                    by: engine::Way::Queue,
-                    close_job: command,
-                    merge_job: None,
-                    repositories: Box::new([]),
-                    after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .expect("project landing room");
-    }
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).close_job = command;
     config
 }
 

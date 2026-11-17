@@ -2,6 +2,6 @@
 
 2026-11-17. Where the code lags or departs from [budgets.md](budgets.md).
 
-- **Not yet:** 1, 5 and 7: the delivery check passes neither `--ledger` nor `--gate`, with main's ledgers or without, so no delivery is refused for a layer over its budget [in flight: change 6350].
+- **Not yet:** 7, 8 and 9: the ledger's binaries keep one `cpu_s`, version 2, and `ledger()` refuses version 3; a binary's figure at main is its one last figure; the noise is the larger of a hundredth of a layer's figure at main and half a second; the fold's `lowest_s` takes the layer's figure at the head [in flight: change 6667].
 
 No other gaps.

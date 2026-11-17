@@ -124,18 +124,18 @@ Download an owned forge's Forgejo and runner binaries into the cache. Internal: 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. Reads the forge's immutable setup file in its data directory.
 
 ### temper-engine forge prepare
 
-`temper-engine forge prepare [DIRECTORIES] FORGE`
+`temper-engine forge prepare [DIRECTORIES] FORGE [--listen ADDR --person LOGIN EMAIL] [SETUP FLAGS]`
 
 Prepare an owned forge before its Forgejo first runs. Internal: it may change without notice.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+The first prepare writes the immutable setup file. Required: --listen ADDR --person LOGIN EMAIL. Optional: --remote URL, --public ORIGIN, --forgejo PATH (default fetched), --runner-label LABEL (repeatable; enables a runner), --runner-binary PATH (default fetched), --runner-capacity N (default 1), --runner-path PATH (default /usr/local/bin:/usr/bin:/bin), --sign-in CLIENT. Later flags must equal the file; with none it is read.
 
 ### temper-engine forge run
 
@@ -146,7 +146,7 @@ Run an owned forge's Forgejo or its runner. Internal: it may change without noti
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. Reads the forge's immutable setup file in its data directory.
 
 ### temper-engine forge sign-in
 
@@ -354,7 +354,7 @@ As temper-engine forge fetch, above.
 
 ### temper-box forge prepare
 
-`temper-box forge prepare [DIRECTORIES] FORGE`
+`temper-box forge prepare [DIRECTORIES] FORGE [--listen ADDR --person LOGIN EMAIL] [SETUP FLAGS]`
 
 As temper-engine forge prepare, above.
 

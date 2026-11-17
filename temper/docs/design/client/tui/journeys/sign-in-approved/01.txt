@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:35013                                     │
+│ Sign in this terminal to 127.0.0.1:43675                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ PXQB-NLBR, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:35013/terminal?code=PXQB-NLBR                  │
+│ VQVX-TDSX, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:43675/terminal?code=VQVX-TDSX                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:35013/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:43675/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

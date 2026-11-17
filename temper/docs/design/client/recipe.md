@@ -210,7 +210,8 @@ temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [
   each recipe's steps start there, and each check is read there, as a
   restored copy shows it.
 - **Each recipe's files:** a `forge commit`, `forge push` or `deployment
-  patch` line reads its PATHs from the `files/` of the recipe that holds the line
+  patch` line, or a `ctl settings apply`/`propose` line (`drive.md`, 3.4),
+  reads its PATHs from the `files/` of the recipe that holds the line
   (section 2), never from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or

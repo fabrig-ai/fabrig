@@ -38,7 +38,6 @@ pub struct Client {
 #[derive(Debug)]
 pub struct Issuer {
     settings: Settings,
-    clients: Box<[Client]>,
     limits: Limits,
     modulus: Box<[u8]>,
     exponent: Box<[u8]>,
@@ -52,6 +51,14 @@ pub enum Error {
     Key,
     Claims,
     Sign,
+}
+/// Why a runtime registration change was refused.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ClientError {
+    Invalid(Error),
+    Duplicate,
+    Full,
+    Unknown,
 }
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Authorization {

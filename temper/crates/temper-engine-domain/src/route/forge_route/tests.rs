@@ -2885,22 +2885,6 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     assert_eq!(row.spec.words.as_ref(), b"Land Change");
 }
 
-fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierCheck {
-    crate::translate::TierCheck {
-        name: name.into(),
-        workflow: Box::from(b"checks.yml".as_slice()),
-        ignored: Box::new([]),
-        artifact: Box::from(b"report".as_slice()),
-        format: temper_engine_domain_forge_tiers::Format::Lines,
-        follows: match branch {
-            Some(branch) => super::forge::Follows::Branch(Box::from(branch)),
-            None => super::forge::Follows::Landing,
-        },
-        span_ms: 0,
-        description: Box::default(),
-    }
-}
-
 fn result_verdicts(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
     use super::forge;
     let tiers = Box::new([
@@ -2947,35 +2931,6 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         let mut row = change_row(Some(7));
         row.change.state = state;
         row.change.last_head = Some(SHA1);
-        domain
-            .config
-            .landings
-            .insert(
-                5,
-                crate::translate::ProjectLanding {
-                    gate_retries: 2,
-                    batch: 1,
-                    combine_main: crate::Combine::Merge,
-                    combine_other: crate::Combine::Squash,
-                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-                    landing_attempts: crate::translate::LANDING_ATTEMPTS,
-                    check_timeout: None,
-                    close_job: None,
-                    merge_job: None,
-                    by: crate::translate::Way::Queue,
-                    repositories: Box::new([crate::translate::RepositoryChecks {
-                        repository: row.repository,
-                        gates: Box::new([]),
-                        tiers: Box::new([
-                            result_tier(b"fuzzy", None),
-                            result_tier(b"release", Some(b"release/v1")),
-                            result_tier(b"browser", Some(b"main")),
-                        ]),
-                    }]),
-                    after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .unwrap();
         result_verdicts(&mut domain, &env);
         let mut out = skein_lib::Queue::uncapped();
         forge::step(

@@ -244,6 +244,9 @@ pub struct Domain {
     pub(crate) apps: Map<u16, crate::AppWay>,
     setup_answers: Map<Token, (skein_lib::Wall, crate::SetUpAnswer)>,
     setup_pending: Map<Token, (Token, Duration)>,
+    pub(crate) choosing: Map<Token, make::Choosing>,
+    pub(crate) setup_people: Map<Token, Box<[u8]>>,
+    pub(crate) owned_people: Map<u16, Box<[u8]>>,
     pub(crate) connect: crate::connect::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Box<Repository>>,
@@ -391,6 +394,10 @@ impl Domain {
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
     }
+    /// The admitted requester's login is routing input, not document configuration.
+    pub fn setup_person(&mut self, request: Token, login: Box<[u8]>) {
+        self.setup_people.insert(request, login).expect("one person per admitted setup");
+    }
     /// The machine's person login for an owned forge (domain/agent/agents.md, 1).
     #[must_use]
     pub fn owned_person(&self, forge: u16) -> Option<&[u8]> {
@@ -398,8 +405,10 @@ impl Domain {
         if config.mode != crate::Mode::Owned {
             return None;
         }
-        let machine = self.machine.as_ref()?;
-        if machine.owned_person.is_empty() { None } else { Some(&machine.owned_person) }
+        match self.owned_people.get(&forge) {
+            Some(login) if !login.is_empty() => Some(login),
+            Some(_) | None => None,
+        }
     }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
@@ -893,6 +902,9 @@ impl Domain {
             apps: Map::with_capacity(l.forges),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
+            choosing: Map::with_capacity(l.applications),
+            setup_people: Map::with_capacity(l.applications),
+            owned_people: Map::with_capacity(l.forges),
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
@@ -1762,6 +1774,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
             crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
         }
+        Event::SetupPerson { forge, login } => {
+            d.owned_people.insert(forge, login).expect("kept owned person");
+        }
+        Event::PlaceChosen { request, place, git_program } => make::chosen(d, env, request, place, git_program, out),
         Event::Application { request, token, retention, ask, role, carried } => match ask {
             crate::Ask::RemoveForge { forge } => {
                 if let Some(value) = carried {
@@ -5702,7 +5718,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             reviewed = true;
         }
         let effect_prior = row.change.clone();
-        let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        if d.landing.held
+            && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
+        {
+            stepped.change = row.change.clone();
+            stepped.decision = change::Decision::Wait { until: None };
+        }
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
@@ -9227,6 +9249,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     d.rebuild_settings();
+    d.restore_landing_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -9246,6 +9269,13 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
+        let mut landing = d.landing.rows.contains_key(&row.entry.task);
+        if let skein_forge::api::Write::Merge { .. } = row.entry.effect.write {
+            landing = true;
+        }
+        if d.landing.held && landing {
+            continue;
+        }
         if !row.held && row.handoff != Handoff::Handed {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }

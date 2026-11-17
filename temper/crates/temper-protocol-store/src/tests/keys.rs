@@ -252,7 +252,7 @@ fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_by
     }
     for (kind, scope, number, slot) in [
         (0, 0, 1, 0),
-        (4, 0, 1, 0),
+        (u64::from(u32::MAX), 0, 1, 0),
         (1_u64 << 32_u8, 0, 1, 0),
         (1, 1_u64 << 32_u8, 1, 0),
         (1, 0, 1_u64 << 32_u8, 0),

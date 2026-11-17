@@ -70,7 +70,7 @@ mod producer_words;
 mod questions;
 
 #[path = "forge_routes/goal_closer.rs"]
-mod goal_closer;
+pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
@@ -108,7 +108,7 @@ mod contained_landing;
 #[path = "forge_routes/held_change.rs"]
 mod held_change;
 #[path = "forge_routes/landing.rs"]
-mod landing;
+pub(crate) mod landing;
 mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;

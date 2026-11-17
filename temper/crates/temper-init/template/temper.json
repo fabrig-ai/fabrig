@@ -1,6 +1,5 @@
 {
   "engine": {
-    "acts": [{"connector": 1, "may": ["remove_project", "remove_account", "adopt"]}],
     "limits": {
       "profile": "standard",
       "overrides": {
@@ -155,14 +154,7 @@
       ]
     },
     "clients": {
-      "provider": "$provider",
-      "heartbeat_ms": 10000,
-      "link": true,
-      "approval": true
-    },
-    "deployment": {
-      "directory": "deployment",
-      "seed": 7
+      "provider": "$provider"
     },
     "owners": [
       {
@@ -170,21 +162,7 @@
         "subject": "$email"
       }
     ],
-    "providers": [
-      {
-        "number": 1,
-        "kind": "link"
-      },
-      {
-        "number": 2,
-        "kind": "deployment"
-      }
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 1073741824,
-    "projects": []
+    "memory_bytes": 1073741824
   },
   "workers": [
     {
@@ -194,15 +172,6 @@
       "name": "worker",
       "secret": "worker.secret",
       "slots": 4,
-      "graces": {
-        "grace_ms": 300000,
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "save_ms": 1000
-      },
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "agent": {
         "program": "$binary",
         "configuration": "$agent",
@@ -227,37 +196,6 @@
     }
   ],
   "application": {
-    "welcome": true,
-    "machine": {
-      "owned": {
-        "forgejo": "fetched",
-        "runner": {
-          "binary": "fetched",
-          "labels": [
-            "temper-host:host"
-          ],
-          "capacity": 1,
-          "path": "/usr/local/bin:/usr/bin:/bin"
-        },
-        "listen": {
-          "socket": "$owned"
-        },
-        "sign_in": "$owned_sign_in",
-        "person": {
-          "login": "$login",
-          "email": "$email"
-        },
-        "remote": "$owned_git"
-      },
-      "fake": {
-        "listen": {
-          "socket": "$forge"
-        },
-        "remote": "$forge_git",
-        "git": "demo/bin/git"
-      },
-      "github": null
-    },
     "clients": {
       "listener": {
         "socket": "$listener"
@@ -620,12 +558,6 @@
         "root.loads.reply_bytes": 16804058,
         "root.loads.transcript_bytes": 16803810
       }
-    },
-    "workers": [
-      {
-        "root": "workspaces",
-        "git": "$git"
-      }
-    ]
+    }
   }
 }
