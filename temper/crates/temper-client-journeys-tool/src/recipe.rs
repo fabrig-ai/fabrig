@@ -317,6 +317,7 @@ impl Recipe {
                     paths.iter().map(AsRef::as_ref).collect::<Vec<_>>()
                 }
                 Record::Deployment(crate::line::Deployment::Patch { path, .. }) => vec![path.as_ref()],
+                Record::Ctl(args) => crate::line::settings_paths(args),
                 _ => vec![],
             })
             .collect();
@@ -325,7 +326,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "missing forge commit, push or deployment patch file",
+                    "missing forge commit, push, deployment patch or ctl settings file",
                 ));
             }
         }
@@ -334,7 +335,7 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "no forge commit, push or deployment patch line names this file",
+                    "no forge commit, push, deployment patch or ctl settings line names this file",
                 ));
             }
         }

@@ -3,7 +3,8 @@ ctl account add-key 1 {model.key} --deployment --key qa-turn-model
 ctl project make Hello --key qa-hello-project
 ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello
 ctl forge list --until made:1
-deployment patch engine landing.json
+ctl settings apply landing.json --against 1 --key qa-turn-landing
+deployment restart
 check
 ctl project show Hello
 ctl forge list

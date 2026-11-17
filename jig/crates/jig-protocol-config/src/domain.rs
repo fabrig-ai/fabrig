@@ -57,25 +57,15 @@ pub(crate) fn providers(document: &Document, at: u32, path: &Path, problems: &mu
             let kind = match kind.as_ref() {
                 b"link" => ProviderKind::Link,
                 b"application" => ProviderKind::Application,
-                b"deployment" => {
-                    deployments = deployments.saturating_add(1);
-                    if deployments > 1 {
-                        problems.push(path.member(b"kind"), What::Unique);
-                    }
-                    ProviderKind::Deployment
-                }
+                b"deployment" => ProviderKind::Deployment,
                 _ => {
                     problems.push(path.member(b"kind"), What::Form);
                     continue;
                 }
             };
-            for previous in &providers {
-                if previous.number == number {
-                    problems.push(path.member(b"number"), What::Unique);
-                    break;
-                }
-            }
-            providers.push(Provider { number, kind }).expect("bounded provider input");
+            let provider = Provider { number, kind };
+            check_provider(provider, providers.as_slice(), &mut deployments, &path, problems);
+            providers.push(provider).expect("bounded provider input");
         }
     }
     if deployments == 0 {
@@ -153,18 +143,69 @@ pub(crate) fn connectors(
         match read::integer(document, *at, u64::from(u16::MAX)) {
             Ok(number) => {
                 let number = u16::try_from(number).expect("u16 checked");
-                if number == jig_domain_core_vocabulary::RECURRING {
-                    problems.push(path.clone(), What::Bound);
-                }
-                if numbers.as_slice().contains(&number) {
-                    problems.push(path.clone(), What::Unique);
-                }
+                check_connector(number, numbers.as_slice(), &path, problems);
                 numbers.push(number).expect("bounded connector input");
             }
             Err(what) => problems.push(path, what),
         }
     }
     Some(numbers.into_boxed())
+}
+pub(crate) fn check_providers(providers: &[Provider], path: &Path, problems: &mut Problems) {
+    let mut deployments = 0_u32;
+    for (index, provider) in providers.iter().enumerate() {
+        check_provider(
+            *provider,
+            providers.get(..index).expect("enumerated prefix"),
+            &mut deployments,
+            &check::index(path, index),
+            problems,
+        );
+    }
+    if deployments == 0 {
+        problems.push(path.clone(), What::Missing);
+    }
+}
+fn check_provider(
+    provider: Provider,
+    previous: &[Provider],
+    deployments: &mut u32,
+    path: &Path,
+    problems: &mut Problems,
+) {
+    if provider.kind == ProviderKind::Deployment {
+        *deployments = deployments.saturating_add(1);
+        if *deployments > 1 {
+            problems.push(path.member(b"kind"), What::Unique);
+        }
+    }
+    for previous in previous {
+        if previous.number == provider.number {
+            problems.push(path.member(b"number"), What::Unique);
+            break;
+        }
+    }
+}
+pub(crate) fn check_connectors(numbers: &[u16], max: u32, path: &Path, problems: &mut Problems) {
+    if numbers.len() > skein_lib::length::usize_of(max) {
+        problems.push(path.clone(), What::Bound);
+    }
+    for (index, number) in numbers.iter().enumerate() {
+        check_connector(
+            *number,
+            numbers.get(..index).expect("enumerated prefix"),
+            &check::index(path, index),
+            problems,
+        );
+    }
+}
+fn check_connector(number: u16, previous: &[u16], path: &Path, problems: &mut Problems) {
+    if number == jig_domain_core_vocabulary::RECURRING {
+        problems.push(path.clone(), What::Bound);
+    }
+    if previous.contains(&number) {
+        problems.push(path.clone(), What::Unique);
+    }
 }
 pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problems: &mut Problems) -> Option<List<u32>> {
     match read::list(document, at, max) {

@@ -92,15 +92,13 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let drawn = free_addresses::<5>(&old);
+    let drawn = free_addresses::<3>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);

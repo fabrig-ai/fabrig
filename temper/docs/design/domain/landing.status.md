@@ -4,7 +4,7 @@
 
 
 
-Section 13.1 has no known gap in what a branch's path reads: the
+`landing-settings.md`, section 1.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
 
@@ -23,12 +23,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   at main's tip; a failed receipt rerun first when its tests match open
   flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, its
   ref fast-forwarded (kind 19), a squashed member's pull request closed
-  there, and its stories on the fake GitHub. 13.1: kinds 4 and 5 as
-  settings. 13.2: adoption's checks under `turn` of each gate's workflow
-  and its triggers, of a reporting gate's workflow declaring
-  `temper_tests` (left with the others by the user's word, goal 4045),
-  and of the forge's autodetect and allowance of a manual merge. 14:
-  `repository receipts`.
-- **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
+  there, and its stories on the fake GitHub. 14: `repository receipts`.
+- **Departs:** 8: `turn` is refused for every repository on GitHub
   (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
   where temper cannot fast-forward main, because GitHub's turn is not built.

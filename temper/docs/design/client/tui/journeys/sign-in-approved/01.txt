@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:39455                                     │
+│ Sign in this terminal to 127.0.0.1:44715                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ SQPT-MRDF, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:39455/terminal?code=SQPT-MRDF                  │
+│ JGKG-TZTK, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:44715/terminal?code=JGKG-TZTK                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:39455/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:44715/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

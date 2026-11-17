@@ -111,25 +111,6 @@ fn config(seed: u64) -> engine::Config {
             role.authority.delegation.kinds.clone_from(kinds);
         }
     }
-    let mut landing = engine::ProjectLanding {
-        gate_retries: 2,
-        batch: 1,
-        combine_main: engine::Combine::Merge,
-        combine_other: engine::Combine::Squash,
-        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
-        landing_attempts: engine::LANDING_ATTEMPTS,
-        check_timeout: None,
-        close_job: None,
-        merge_job: Some(b".temper/merge".as_slice().into()),
-        by: engine::Way::Queue,
-        repositories: Box::new([]),
-        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-    };
-    if let Some(existing) = config.landings.get_mut(&1) {
-        existing.merge_job = landing.merge_job.take();
-    } else {
-        config.landings.insert(1, landing).expect("project landing room");
-    }
     // The changed base takes the update route before the forge's merge.
     let rule = engine::LandingRule {
         sets: Box::new([]),
@@ -146,6 +127,8 @@ fn config(seed: u64) -> engine::Config {
         approvals: Box::new([]),
     };
     config.kinds_stock = engine::landing_stock(&[rule], &skein_lib::Map::with_capacity(0), 2, 4);
+    temper_engine_domain_world::oracle::config::landing(&mut config, 1).merge_job =
+        Some(b".temper/merge".as_slice().into());
     config
 }
 
