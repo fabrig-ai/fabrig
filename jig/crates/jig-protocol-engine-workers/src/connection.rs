@@ -21,6 +21,7 @@ pub(crate) enum Ending {
 pub(crate) struct Connection {
     pub machine: Machine,
     pub in_process: bool,
+    pub opening: Option<Event>,
     pub phase: Phase,
     pub worker: Option<u32>,
     pub channel: Token,
@@ -49,6 +50,7 @@ impl Connection {
         Self {
             machine,
             in_process,
+            opening: None,
             phase: Phase::Opening,
             worker: None,
             channel: Token::new(0),

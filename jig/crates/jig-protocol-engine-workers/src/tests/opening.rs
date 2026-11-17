@@ -134,7 +134,7 @@ fn the_current_table_admits_numbers_and_in_process_workers() {
     .expect("empty admission table");
     let first = fixtures::credential(WORKER_A, fixtures::SECRET_A, APPLICATION_VERSION);
     let refused = Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) };
-    assert_eq!(component.judge(&first, false), refused, "no table yet: the worker redials");
+    assert_eq!(component.judge(&first, false), refused, "no configured name");
     component.down(Time::ZERO, Event::Workers(fixtures::workers()), &mut Queue::uncapped());
     let Verdict::Accept { worker, .. } = component.judge(&first, false) else { panic!("table supplied") };
     assert_eq!(worker, 0);

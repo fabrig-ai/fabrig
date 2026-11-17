@@ -2056,6 +2056,7 @@ dependencies = [
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
+ "skein-fake-channel",
  "skein-io",
  "skein-lib",
 ]

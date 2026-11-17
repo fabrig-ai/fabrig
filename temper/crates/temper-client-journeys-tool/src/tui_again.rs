@@ -248,6 +248,7 @@ enum Phase {
     Save { earlier: Option<File> },
     Approve,
     Pressed,
+    Diagnostic { page: crate::again::Diagnostic },
     Finished,
 }
 struct Walker<'a> {
@@ -279,6 +280,14 @@ impl<'a> Walker<'a> {
             recording: None,
         }
     }
+    fn refused(&mut self, face: &mut BrowserFace<'_>, why: Refusal) {
+        match why {
+            why @ Refusal::SetupTimeout { .. } => {
+                self.phase = Phase::Diagnostic { page: crate::again::Diagnostic::new(why, face) };
+            }
+            why => self.refusal = Some(why),
+        }
+    }
     fn step(&self) -> u32 {
         u32::try_from(self.at + 1).expect("walk length fits u32")
     }
@@ -306,6 +315,9 @@ impl<'a> Walker<'a> {
         Ok(())
     }
     fn deadline(&self, now: Time) -> Result<(), Refusal> {
+        if matches!(self.phase, Phase::Diagnostic { .. }) {
+            return Ok(());
+        }
         if let Phase::SetupStep { at } | Phase::SetupSee { at } = &self.phase {
             if self.since.is_some_and(|since| now >= since.saturating_add(Duration::from_secs(60))) {
                 let prepared = self.setup.expect("setup phase has a setup");
@@ -473,6 +485,13 @@ impl<'a> Walker<'a> {
                 }
             }
             Phase::Pressed => self.advance(),
+            Phase::Diagnostic { page } => match page.progress(face) {
+                Ok(why) => {
+                    self.refusal = Some(why);
+                    return Ok(Next::Done);
+                }
+                Err(page) => self.phase = Phase::Diagnostic { page },
+            },
             Phase::Finished => return Ok(Next::Done),
         }
         Ok(Next::Wait { until: Some(now.saturating_add(POLL)) })
@@ -482,11 +501,13 @@ impl Play for Walker<'_> {
     fn at(&self) -> u32 {
         u32::try_from(self.at).expect("walk length fits u32")
     }
-    fn check_deadline(&mut self, _face: &mut BrowserFace<'_>, now: Time) {
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         // The harness calls this even while a page's navigation is pending.
         let progress = self.terminal.as_mut().map_or(Ok(()), Terminal::tick);
-        if self.refusal.is_none() {
-            self.refusal = progress.map_err(|why| self.fail(why)).and_then(|()| self.deadline(now)).err();
+        if self.refusal.is_none()
+            && let Err(why) = progress.map_err(|why| self.fail(why)).and_then(|()| self.deadline(now))
+        {
+            self.refused(face, why);
         }
     }
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
@@ -496,8 +517,8 @@ impl Play for Walker<'_> {
         match self.progress(face, now) {
             Ok(next) => next,
             Err(why) => {
-                self.refusal = Some(why);
-                Next::Done
+                self.refused(face, why);
+                if self.refusal.is_some() { Next::Done } else { Next::Wait { until: Some(now.saturating_add(POLL)) } }
             }
         }
     }

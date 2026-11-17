@@ -39,6 +39,7 @@ pub enum Refusal {
     SetupAfter { name: String, after: String, why: &'static str },
     SetupTimeout { name: String, setup: String, line: u32, sought: String },
     MarkTimeout { name: String, mark: u32, text: Box<[u8]> },
+    PageState { why: Box<Refusal>, address: Box<[u8]>, text: Box<[u8]> },
     Undecoded { name: String, line: u32 },
     Found { name: String, line: u32, record: &'static str, place: journey::Place, what: journey::What },
     FoundDrawn { name: String, turn: u32, what: journey::What },

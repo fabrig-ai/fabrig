@@ -180,6 +180,31 @@ pub(crate) fn join_setup(mut child: Prepared, after_journeys: &Path, name: &str)
     Ok(child)
 }
 
+pub(crate) enum Diagnostic {
+    Address { why: Box<Refusal> },
+    Text { why: Box<Refusal>, address: Box<[u8]> },
+}
+impl Diagnostic {
+    pub(crate) fn new(why: Refusal, face: &mut BrowserFace<'_>) -> Self {
+        face.cancel();
+        face.address();
+        Self::Address { why: Box::new(why) }
+    }
+    pub(crate) fn progress(self, face: &mut BrowserFace<'_>) -> Result<Refusal, Self> {
+        match self {
+            Self::Address { why } => {
+                let address = face.take_address().unwrap_or_else(|| b"unavailable".as_slice().into());
+                face.snapshot();
+                Err(Self::Text { why, address })
+            }
+            Self::Text { why, address } => {
+                let text = face.take_snapshot().unwrap_or_else(|| b"unavailable".as_slice().into());
+                Ok(Refusal::PageState { why, address, text })
+            }
+        }
+    }
+}
+
 enum Phase {
     SetupStep { at: usize },
     SetupSee { at: usize },
@@ -192,6 +217,7 @@ enum Phase {
     Still { save: Vec<u8> },
     AfterMark { until: Time },
     Find { control: Control },
+    Diagnostic { page: Diagnostic },
     Finished,
 }
 struct Walker {
@@ -264,6 +290,7 @@ impl Walker {
                 }
                 return Ok(());
             }
+            Phase::Diagnostic { .. } => return Ok(()),
             _ => {}
         }
         if let Some(since) = self.missing_since {
@@ -455,6 +482,13 @@ impl Walker {
                     }
                 }
             }
+            Phase::Diagnostic { page } => match page.progress(face) {
+                Ok(why) => {
+                    self.refusal = Some(why);
+                    return Ok(Next::Done);
+                }
+                Err(page) => self.phase = Phase::Diagnostic { page },
+            },
             Phase::Finished => return Ok(Next::Done),
         }
         Ok(Next::Wait { until: Some(now.saturating_add(POLL)) })
@@ -467,6 +501,11 @@ impl Play for Walker {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         match self.progress(face, now) {
             Ok(next) => next,
+            Err(why @ (Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. })) => {
+                // The timed-out action stays failed; these reads only explain its page.
+                self.phase = Phase::Diagnostic { page: Diagnostic::new(why, face) };
+                Next::Wait { until: Some(now.saturating_add(POLL)) }
+            }
             Err(why) => {
                 // Done lets the harness close both children before returning the refusal.
                 self.refusal = Some(why);
@@ -533,6 +572,36 @@ mod tests {
         assert!(
             matches!(walker.deadline(Time::from_nanos(30_000_000_000)), Err(Refusal::MarkTimeout { name, mark: 1, text }) if name == "child" && text.as_ref() == b"Settled")
         );
+    }
+    #[test]
+    fn setup_and_mark_timeouts_report_the_current_address_and_page() {
+        use skein_browser::boundary::{Event, Request};
+        for phase in [Phase::SetupStep { at: 0 }, Phase::MarkWait { mark: 1, text: b"Settled".as_slice().into() }] {
+            let mut walker = walker();
+            walker.phase = phase;
+            walker.since = Some(Time::ZERO);
+            let now = Time::from_nanos(60_000_000_000);
+            let mut face = BrowserFace::new(Token::new(1), "http://127.0.0.1:9000/old");
+            assert!(matches!(walker.next(&mut face, now), Next::Wait { .. }));
+            let Request::Address { op, .. } = face.requests().next().expect("read timeout address") else {
+                panic!("the timeout reads its current address")
+            };
+            let address = b"http://127.0.0.1:9000/welcome".as_slice();
+            face.event(&Event::Address { op, url: address.into() });
+            assert!(matches!(walker.next(&mut face, now), Next::Wait { .. }));
+            let Request::Snapshot { op, .. } = face.requests().next().expect("read timeout page") else {
+                panic!("the timeout reads its current page")
+            };
+            let text = b"main\n  text Waiting for the worker".as_slice();
+            face.event(&Event::Snapshot { op, text: text.into() });
+            assert_eq!(walker.next(&mut face, now), Next::Done);
+            let Refusal::PageState { why, address: found_address, text: found_text } = walker.refusal.unwrap() else {
+                panic!("the timeout retains its page state")
+            };
+            assert!(matches!(*why, Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. }));
+            assert_eq!(found_address.as_ref(), address);
+            assert_eq!(found_text.as_ref(), text);
+        }
     }
     #[test]
     fn an_end_save_waits_for_its_declared_next_mark() {

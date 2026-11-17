@@ -18,5 +18,8 @@ jig-protocol-worker-wire.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
 
+[dev-dependencies]
+skein-fake-channel.workspace = true
+
 [lints]
 workspace = true

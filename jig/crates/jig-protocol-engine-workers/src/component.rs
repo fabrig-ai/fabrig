@@ -38,6 +38,7 @@ struct Sending {
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
+    workers_ready: bool,
     names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
     pub(crate) codec: wire::v15::Limits,
@@ -111,9 +112,12 @@ impl Component {
         }
         let translation = Box::new(wire::translation::Translation::new(application).or(Err(Unusable::Application))?);
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
+        // The restore publishes even an empty initial table through Event::Workers.
+        let workers_ready = !workers.is_empty();
         Ok(Self {
             limits: *limits,
             workers,
+            workers_ready,
             names,
             wires,
             codec,
@@ -153,6 +157,18 @@ impl Component {
                         .expect("checked worker table");
                 }
                 self.workers = workers;
+                self.workers_ready = true;
+                let mut waiting = List::uncapped();
+                for (connection, state) in &self.connections {
+                    if state.opening.is_some() {
+                        waiting.push(*connection).expect("uncapped waiting openings");
+                    }
+                }
+                for connection in waiting.into_boxed() {
+                    let mut state = self.connections.remove(&connection).expect("waiting opening exists");
+                    self.progress(now, connection, &mut state, out);
+                    self.keep(connection, state);
+                }
             }
             Event::Accepted { connection, in_process } => self.accepted(now, connection, in_process, out),
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
@@ -453,6 +469,15 @@ impl Component {
         assert!(replaced.is_none(), "one state per connection");
     }
     fn progress(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
+        // The settings restore resumes an opening, never extending its handshake deadline
+        // (domain/engine/workers.md, 4).
+        if self.workers_ready
+            && state.phase == Phase::Opening
+            && !expired(state.deadline, now)
+            && let Some(opening) = state.opening.take()
+        {
+            self.heard(now, connection, state, opening, out);
+        }
         // Up produces one owner event; a decision and poll can produce Ready or Closed.
         for _ in 0_u32..3 {
             for _ in 0..skein_channel::MAX_UP {
@@ -496,12 +521,16 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         match event {
-            ChannelEvent::Opening { credential, highest, .. } => {
-                let verdict = self.judge(&credential, state.in_process);
+            ChannelEvent::Opening { credential, lowest, highest } => {
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
                 }
+                if !self.workers_ready {
+                    state.opening = Some(ChannelEvent::Opening { credential, lowest, highest });
+                    return;
+                }
+                let verdict = self.judge(&credential, state.in_process);
                 let worker = match verdict {
                     Verdict::Refuse { worker, reason, text } => {
                         state.worker = worker;
