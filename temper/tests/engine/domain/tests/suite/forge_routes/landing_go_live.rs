@@ -92,9 +92,14 @@ pub(crate) fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays(
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
     let mut world = World::configured_stock_turn(&defaults, &stock::box_model(), &limits)
-        .with_project_policy(initial)
-        .with_project_landing(1, landing(temper_fixtures::landing::Way::Queue))
-        .with_settings_owner(&forge_top::user_key(1, 7));
+        .with_settings_owner_configured(&forge_top::user_key(1, 7), |config| {
+            config.core.seed_projects[0].policy = initial;
+            temper_engine_domain_world::oracle::config::set_landing(
+                config,
+                1,
+                landing(temper_fixtures::landing::Way::Queue),
+            );
+        });
     world.adopt();
     world.send(worker_hello(Box::new([])));
     let ask = world.chat(1, b"Make a small fix");

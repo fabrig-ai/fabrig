@@ -34,6 +34,14 @@ fn settle_answer(engine: &mut crate::engine::Engine) -> Option<root::Application
         if found.is_some() {
             answer = found;
         }
+        root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        if engine.events.is_empty()
+            && engine.requests.is_empty()
+            && engine.domain.backlog() == 0
+            && engine.domain.commits_in_flight() == 0
+        {
+            break;
+        }
     }
     answer
 }

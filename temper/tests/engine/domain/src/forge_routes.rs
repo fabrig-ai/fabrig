@@ -1555,8 +1555,19 @@ impl World {
 
     /// Choose the settings owner's identity and admit settings kinds before the world's first input.
     #[must_use]
-    pub fn with_settings_owner(mut self, identity: &people::IdentityKey) -> Self {
+    pub fn with_settings_owner(self, identity: &people::IdentityKey) -> Self {
+        self.with_settings_owner_configured(identity, |_| {})
+    }
+
+    /// Edit a settings story's configuration before its one owner bootstrap.
+    #[must_use]
+    pub fn with_settings_owner_configured(
+        mut self,
+        identity: &people::IdentityKey,
+        configure: impl FnOnce(&mut engine::Config),
+    ) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "owner identity precedes startup");
+        configure(&mut self.restart_config);
         for owner in &mut self.restart_config.core.owners {
             owner.identity = identity.clone();
         }

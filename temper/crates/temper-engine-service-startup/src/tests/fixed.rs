@@ -85,7 +85,7 @@ fn fleet_grace_rounds_the_stop_bound_and_margin_up_to_a_minute() {
 }
 #[test]
 fn the_fleet_uses_the_link_stop_bound_unless_an_override_is_larger() {
-    let document: Value = serde_json::from_slice(&stock::generated()).unwrap();
+    let document: Value = serde_json::from_slice(super::fixtures::ENGINE).unwrap();
     for (ping, silence, offered, derived) in [
         (5000_u64, 15000_u64, None, 360_000),
         (5000, 15000, Some(420_000), 360_000),
@@ -94,7 +94,7 @@ fn the_fleet_uses_the_link_stop_bound_unless_an_override_is_larger() {
         (5000, 15000, Some(360_000), 360_000),
         (7000, 21000, None, 420_000),
     ] {
-        let mut value = document["engine"].clone();
+        let mut value = document.clone();
         value["limits"]["overrides"]["link.ping_ms"] = json!(ping);
         value["limits"]["overrides"]["link.silence_ms"] = json!(silence);
         value["limits"]["overrides"].as_object_mut().unwrap().remove("fleet.grace_ms");

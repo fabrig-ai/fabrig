@@ -42,7 +42,11 @@ fn running_tui(machine: &mut Machine) {
     assert_eq!(program.program, Path::new("/build/bin/temper"));
     assert_eq!(program.args, [OsStr::from_bytes(ORIGIN)]);
     step(machine, Event::TuiReady);
-    step(machine, Event::TuiSaved(super::super::tui::saves().1));
+    // The drive reads only the browse record here; rendering a TUI world is unrelated to deployment control.
+    let mut saved = Vec::new();
+    temper_client_shell_tui::journey::Line::Browse(b"http://127.0.0.1:4101/terminal?code=WDJB-MJHT".as_slice().into())
+        .write(&mut saved);
+    step(machine, Event::TuiSaved(saved.into()));
     step(machine, Event::BrowserAddress([ORIGIN, b"/"].concat().into()));
     step(machine, Event::FaceDone(Ok(())));
     step(machine, Event::Found(Some(NodeId(1))));

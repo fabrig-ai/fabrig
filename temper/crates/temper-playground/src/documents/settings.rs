@@ -43,9 +43,8 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
 pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
-    let mut deployment = deployment.clone();
-    strip_fixed(&mut deployment);
     let mut value = deployment["engine"].clone();
+    strip_engine(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
         value.as_object_mut().expect("engine").remove(member);
     }
@@ -315,7 +314,10 @@ pub fn strip_fixed(deployment: &mut Value) {
         application.remove("machine");
         application.remove("welcome");
     }
-    let engine = deployment["engine"].as_object_mut().expect("engine");
+    strip_engine(&mut deployment["engine"]);
+}
+fn strip_engine(engine: &mut Value) {
+    let engine = engine.as_object_mut().expect("engine");
     for member in ["deployment", "providers", "connectors", "acts", "projects"] {
         engine.remove(member);
     }

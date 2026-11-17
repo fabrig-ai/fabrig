@@ -80,12 +80,14 @@ impl Issuer {
         let exponent = documents::encoded(&public.exponent)?;
         let thumbprint = documents::thumbprint(&modulus, &exponent)?;
         let kid = documents::encoded(&skein_lib::sha256::digest(&thumbprint))?;
-        let configured = core::mem::replace(&mut settings.clients, List::with_capacity(0)).into_boxed();
-        let mut clients = List::with_capacity(limits.clients);
-        for client in configured {
-            clients.push(client).expect("client count checked");
+        if settings.clients.capacity() != limits.clients {
+            let configured = core::mem::replace(&mut settings.clients, List::with_capacity(0)).into_boxed();
+            let mut clients = List::with_capacity(limits.clients);
+            for client in configured {
+                clients.push(client).expect("client count checked");
+            }
+            settings.clients = clients;
         }
-        settings.clients = clients;
         Ok(Issuer { settings, limits, modulus, exponent, kid })
     }
 

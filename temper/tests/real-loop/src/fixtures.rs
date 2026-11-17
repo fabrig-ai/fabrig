@@ -450,6 +450,12 @@ pub fn own_policy(value: &mut serde_json::Value) {
 /// Build defaults after endpoint rebinding, from the deployment's models and seeds.
 #[must_use]
 pub fn given(directory: &Path) -> temper_service::stock::Given {
+    given_and_projects(directory).0
+}
+
+/// Read and parse one rebound deployment for both defaults and typed project seeds.
+#[must_use]
+pub fn given_and_projects(directory: &Path) -> (temper_service::stock::Given, Box<[jig_protocol_config::Project]>) {
     let deployment: serde_json::Value =
         serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
             .expect("deployment JSON");
@@ -459,14 +465,14 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
     } else {
         serde_json::json!({})
     };
-    let mut given = own_defaults(&deployment, &flags);
+    let mut values = deployment;
+    values["world_settings"] = flags;
+    let engine = crate::settings::configuration(&values);
+    let mut given = defaults_for(&values, &engine);
     if crate::claude::configured(directory) {
         let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
             panic!("the real loop supplies its own defaults")
         };
-        let mut values = deployment.clone();
-        values["world_settings"] = flags.clone();
-        let engine = crate::settings::configuration(&values);
         let model = engine
             .llm
             .models
@@ -490,7 +496,7 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
             subagents: Box::new([]),
         });
     }
-    given
+    (given, engine.projects)
 }
 
 /// Common real-loop defaults, with a wider fixture's own seeded policy when requested.
@@ -499,6 +505,10 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     let mut values = deployment.clone();
     values["world_settings"] = flags.clone();
     let engine = crate::settings::configuration(&values);
+    defaults_for(&values, &engine)
+}
+fn defaults_for(values: &serde_json::Value, engine: &jig_protocol_config::Engine) -> temper_service::stock::Given {
+    let flags = &values["world_settings"];
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let stock_period_spend = defaults.rules.period_spend;
@@ -549,7 +559,7 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     }
     temper_service::stock::Given::Own {
         jig: defaults,
-        forge: crate::settings::forge(&values),
+        forge: crate::settings::forge(values),
         ways: temper_service::stock::ways(),
     }
 }
@@ -565,23 +575,6 @@ pub fn standing_chats(directory: &Path) -> std::io::Result<()> {
         private(&path, &serde_json::to_vec(&flags)?)?;
     }
     Ok(())
-}
-
-/// Typed seed projects for these kernel-loop worlds; none is read from startup JSON.
-#[must_use]
-pub fn projects(directory: &Path) -> Box<[jig_protocol_config::Project]> {
-    let deployment: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("world document"))
-            .expect("world JSON");
-    let flags: serde_json::Value = if directory.join("world-settings.json").exists() {
-        serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("world settings"))
-            .expect("world settings JSON")
-    } else {
-        serde_json::json!({})
-    };
-    let mut deployment = deployment;
-    deployment["world_settings"] = flags;
-    crate::settings::configuration(&deployment).projects
 }
 
 #[cfg(test)]

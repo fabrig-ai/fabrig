@@ -455,6 +455,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
 
 #[test]
 fn the_template_machine_gives_the_domain_its_places() {
+    let mut world = None;
     for test in [None, Some(br#"{"github":null}"#.as_slice()), Some(br#"{"github":{"api":{"socket":"127.0.0.1:9999"},"transport":"plaintext","remote":"http://127.0.0.1:9999","web":"http://127.0.0.1:9998","git":"bin/github-git"}}"#.as_slice())] {
         let (config, limits) = generated_with_test(test);
         assert!(config.forges.is_empty());
@@ -478,18 +479,23 @@ fn the_template_machine_gives_the_domain_its_places() {
         }
         let place = machine.github.clone();
         let git_program = machine.github_git_program.clone();
-        let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
-        driver.settle();
-        sign_in_owner(&mut driver);
-        driver.settle();
-        driver.send(Event::Party(PartyInput::Application {
-            reply_to: ReplyTo::new(Token::new(903)), sign_in: driver.session(), key: [3; 16], digest: [3; 32],
-            scope: people::ApplicationScope::Deployment,
-            request: engine::Application::Forge(forge::Ask::Connect {
-                forge: forge::Making::New(forge::ForgeAsk::GitHub), how: forge::How::GitHubManifest { back: None },
-            }), carried: None,
-        }));
-        driver.settle();
+        // Absent and null both select the asserted stock machine; exercise that world once.
+        if fake || world.is_none() {
+            let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+            driver.settle();
+            sign_in_owner(&mut driver);
+            driver.settle();
+            driver.send(Event::Party(PartyInput::Application {
+                reply_to: ReplyTo::new(Token::new(903)), sign_in: driver.session(), key: [3; 16], digest: [3; 32],
+                scope: people::ApplicationScope::Deployment,
+                request: engine::Application::Forge(forge::Ask::Connect {
+                    forge: forge::Making::New(forge::ForgeAsk::GitHub), how: forge::How::GitHubManifest { back: None },
+                }), carried: None,
+            }));
+            driver.settle();
+            world = Some(driver);
+        }
+        let driver = world.as_ref().expect("machine world");
         let record = driver.store.rows.values().find_map(|record| {
             if let Record::Forge { row } = record && let forge::Stored::Forge(record) = row.as_ref() {
                 Some(record)

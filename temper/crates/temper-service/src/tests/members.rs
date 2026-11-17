@@ -175,7 +175,21 @@ fn the_rows_have_unique_names_and_bounded_lines() {
 
 #[test]
 fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
-    let input: serde_json::Value = serde_json::from_slice(&expanded()).unwrap();
+    let input =
+        serde_json::json!({"application": serde_json::from_slice::<serde_json::Value>(fixtures::APPLICATION).unwrap()});
+    let engine = fixtures::engine().jig;
+    let parse = |input: &[u8]| {
+        let document = config::document(input, &LIMITS).unwrap();
+        let mut problems = startup::Problems::empty();
+        let application = startup::application::parse(
+            &document,
+            document.member(0, b"application").unwrap(),
+            &engine,
+            &config::Directories::working(),
+            &mut problems,
+        );
+        if problems.is_empty() { Ok(application.expect("parsed application")) } else { Err(problems) }
+    };
     for test in [None, Some(serde_json::json!({})), Some(serde_json::json!({"github":null}))] {
         let mut input = input.clone();
         input["application"].as_object_mut().unwrap().remove("test");
@@ -183,8 +197,8 @@ fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
             input["application"]["test"] = test;
         }
         let input = serde_json::to_vec(&input).unwrap();
-        let parsed = startup::load(&input, &config::Directories::working(), false).expect("optional test");
-        assert!(parsed.1.expect("engine application").application.test_github.is_none());
+        let parsed = parse(&input).expect("optional test");
+        assert!(parsed.test_github.is_none());
     }
     for (test, expected) in [
         (serde_json::json!({"other":null}), "application.test.other: unknown member\n"),
@@ -194,13 +208,12 @@ fn test_peers_are_optional_and_only_github_is_taken_at_the_new_path() {
         let mut input = input.clone();
         input["application"]["test"] = test;
         let input = serde_json::to_vec(&input).unwrap();
-        let problems = startup::load(&input, &config::Directories::working(), false).expect_err("invalid test");
+        let problems = parse(&input).expect_err("invalid test");
         assert_eq!(startup::lines(&problems).as_ref(), expected.as_bytes());
     }
     let mut input = input;
     input["application"]["machine"]["github"] = serde_json::Value::Null;
-    let problems = startup::load(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), false)
-        .expect_err("machine.github is unknown");
+    let problems = parse(&serde_json::to_vec(&input).unwrap()).expect_err("machine.github is unknown");
     assert_eq!(
         startup::lines(&problems).as_ref(),
         b"application.machine: moved: a forge's place is chosen when it's set up, and kept with the forge\n"

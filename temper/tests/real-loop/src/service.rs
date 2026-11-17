@@ -425,12 +425,13 @@ impl ServiceHost {
                     .expect("typed worker preparation"),
             )
         } else {
+            let (given, projects) = fixtures::given_and_projects(&self.path);
             temper_box_shell::prepare_in_with_projects(
                 &environment,
                 b"/",
                 &Self::directories(&self.path, self.cluster.is_some()),
-                &fixtures::given(&self.path),
-                &fixtures::projects(&self.path),
+                &given,
+                &projects,
             )
             .expect("standalone preparation")
         };
