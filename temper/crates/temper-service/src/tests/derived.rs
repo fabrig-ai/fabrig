@@ -16,7 +16,7 @@ fn case(scale: u32) -> (Sources, Declaration, config::Limits, limits::Limits) {
         payload: STOCK.payload.checked_mul(scale).unwrap(),
         ..STOCK
     };
-    let mut agent = fixtures::startup_agent().declaration();
+    let mut agent = fixtures::agent().declaration();
     agent.turn_body = sources.turn;
     agent.tool_payload = sources.payload;
     agent.outcome_bytes = u64::from(sources.payload);

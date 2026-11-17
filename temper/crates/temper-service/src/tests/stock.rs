@@ -391,12 +391,9 @@ pub(super) fn generated() -> Box<[u8]> {
 }
 
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    {
-        let bytes = fixtures::value(document, b"engine");
-        let parsed =
-            config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
-        crate::startup::engine(&parsed, 0, &config::Directories::working()).unwrap()
-    }
+    let parsed =
+        config::document(document, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    crate::startup::engine(&parsed, parsed.member(0, b"engine").unwrap(), &config::Directories::working()).unwrap()
 }
 
 fn single_model() -> Box<[u8]> {
@@ -500,4 +497,15 @@ fn inits_document_can_seed_stock_policy_one() {
     document["engine"]["projects"] = serde_json::json!([{"number": 1_i32, "policy": 1_i32}]);
     let document = serde_json::to_vec(&document).unwrap();
     crate::named(&document, &config::Directories::working()).expect("init's limits admit a seeded stock project");
+}
+
+/// Files named by the generated init document, with fixture digest and secret bytes.
+/// Complete-start checks consume these directly rather than parsing a second time
+/// just to discover the fixture's paths.
+pub(super) fn files() -> crate::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(3);
+    for path in [b"worker.digest".as_slice(), b"worker.secret", b"/config/agent.json"] {
+        entries.push((path.into(), skein_lib::Secret::new(Box::new([b'0'; 64])))).unwrap();
+    }
+    crate::settings::Files { entries }
 }

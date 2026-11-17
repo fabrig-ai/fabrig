@@ -325,7 +325,8 @@ fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     for name in ["forge.client.op_bytes", "forge_component.body_bytes", "checkout.message_bytes"] {
         overrides.remove(name);
     }
-    let mut agent = fixtures::startup_agent();
+    // This story varies payload carriers, not the agent's spend admission.
+    let mut agent = fixtures::startup_agent_with_spend(u64::MAX);
     agent.tool_payload = 4096;
     agent.bounds.message_bytes = 4094;
     let input = serde_json::to_vec(&input).unwrap();

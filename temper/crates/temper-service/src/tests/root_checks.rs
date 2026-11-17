@@ -304,10 +304,17 @@ fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::se
     for file in named.files {
         entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
     }
+    checked_profile_with_files(document, agent, &crate::settings::Files { entries })
+}
+fn checked_profile_with_files(
+    document: &[u8],
+    agent: &crate::settings::Agent,
+    files: &crate::settings::Files,
+) -> crate::settings::Engine {
     match crate::startup::checked_start_with(
         document,
         &jig_protocol_config::Directories::working(),
-        &crate::settings::Files { entries },
+        files,
         Some(agent),
         &fixtures::seeds(),
         skein_lib::List::with_capacity(0),
@@ -321,75 +328,22 @@ fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::se
 
 /// Merge every shipped overlay member as protocol/configuration/reference.md requires.
 fn merge_profile(base: &[u8], overlay: &[u8]) -> Box<[u8]> {
-    use skein_json::writer::{Encoder, Limits};
-    let bounds = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
-    let base = jig_protocol_config::document(base, &bounds).unwrap();
-    let overlay = jig_protocol_config::document(overlay, &bounds).unwrap();
-    let mut tokens = Vec::new();
-    merge_profile_members((&base, 0), (&overlay, 0), &mut tokens);
-    let merged =
-        skein_json::Document::from_tokens(&tokens, &skein_json::document::Limits { tokens: 16_384, text: 1_048_576 })
-            .unwrap();
-    let limits = Limits { depth: 32, length: 1_048_576 };
-    let mut measure = Encoder::measure(&limits);
-    measure.document(&merged);
-    let mut writer = Encoder::write(measure.measured().unwrap(), &limits);
-    writer.document(&merged);
-    writer.finish()
+    let mut base = serde_json::from_slice(base).unwrap();
+    merge_profile_members(&mut base, serde_json::from_slice(overlay).unwrap());
+    serde_json::to_vec(&base).unwrap().into_boxed_slice()
 }
 
-fn merge_profile_members(
-    base: (&skein_json::Document, u32),
-    overlay: (&skein_json::Document, u32),
-    tokens: &mut Vec<skein_json::Token>,
-) {
-    use skein_json::{Kind, Token};
-    if base.0.token(base.1).unwrap().kind != Kind::ObjectStart
-        || overlay.0.token(overlay.1).unwrap().kind != Kind::ObjectStart
-    {
-        copy_profile_value(overlay, tokens);
-        return;
-    }
-    tokens.push(Token::ObjectStart);
-    for (document, start, retained) in [(base.0, base.1, true), (overlay.0, overlay.1, false)] {
-        let mut at = start.checked_add(1).unwrap();
-        while document.token(at).unwrap().kind != Kind::ObjectEnd {
-            let key = document.text(document.token(at).unwrap()).unwrap();
-            let value = at.checked_add(1).unwrap();
-            let previous = base.0.member(base.1, key);
-            if retained || previous.is_none() {
-                tokens.push(Token::Key(key.into()));
-                if let (Some(original), Some(replacement)) = (previous, overlay.0.member(overlay.1, key)) {
-                    merge_profile_members((base.0, original), (overlay.0, replacement), tokens);
-                } else {
-                    copy_profile_value((document, value), tokens);
-                }
+fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
+    if let (Some(base), Some(overlay)) = (base.as_object_mut(), overlay.as_object()) {
+        for (name, value) in overlay {
+            if let Some(previous) = base.get_mut(name) {
+                merge_profile_members(previous, value.clone());
+            } else {
+                base.insert(name.clone(), value.clone());
             }
-            at = jig_protocol_config::read::after(document, value).unwrap();
         }
-    }
-    tokens.push(Token::ObjectEnd);
-}
-
-fn copy_profile_value(source: (&skein_json::Document, u32), tokens: &mut Vec<skein_json::Token>) {
-    use skein_json::{Kind, Token};
-    let (document, start) = source;
-    for at in start..jig_protocol_config::read::after(document, start).unwrap() {
-        let record = document.token(at).unwrap();
-        let text = document.text(record).unwrap();
-        tokens.push(match record.kind {
-            Kind::ObjectStart => Token::ObjectStart,
-            Kind::ObjectEnd => Token::ObjectEnd,
-            Kind::ArrayStart => Token::ArrayStart,
-            Kind::ArrayEnd => Token::ArrayEnd,
-            Kind::Key => Token::Key(text.into()),
-            Kind::String => Token::String(text.into()),
-            Kind::Number => Token::Number(text.into()),
-            Kind::True => Token::True,
-            Kind::False => Token::False,
-            Kind::Null => Token::Null,
-            Kind::Long => panic!("profile text is retained"),
-        });
+    } else {
+        *base = overlay;
     }
 }
 
@@ -627,7 +581,7 @@ fn init_documents_start_without_carrier_overrides() {
     }
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
     let bytes = serde_json::to_vec(&input).unwrap();
-    let checked = checked_profile(&bytes, &agent);
+    let checked = checked_profile_with_files(&bytes, &agent, &super::stock::files());
     for name in jig_names {
         if let Some(previous) = original["engine"]["limits"]["overrides"][name].as_u64() {
             let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
@@ -645,16 +599,15 @@ fn init_documents_start_without_carrier_overrides() {
             assert_eq!((named.value)(&checked.limits), previous, "application {name}");
         }
     }
+    let worker_bytes = serde_json::to_vec(&input["workers"][0]).unwrap();
     let document = jig_protocol_config::document(
-        &bytes,
+        &worker_bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let workers = document.member(0, b"workers").unwrap();
-    let worker_at = *jig_protocol_config::read::list(&document, workers, document.len()).unwrap().get(0).unwrap();
     let worker = temper_service_core::derived::worker_document(
         &document,
-        worker_at,
+        0,
         &jig_protocol_config::Directories::working(),
         temper_service_core::derived::Sources::agent(&agent.declaration()),
     )
@@ -675,7 +628,8 @@ fn init_documents_start_without_carrier_overrides() {
 #[test]
 fn reference_overrides_stand_over_the_derived_base() {
     let input = reference_document(&super::stock::generated());
-    let checked = checked_profile(&input, &reference_agent());
+    let agent = reference_agent();
+    let checked = checked_profile_with_files(&input, &agent, &super::stock::files());
     let document: serde_json::Value = serde_json::from_slice(&input).unwrap();
     for (name, expected) in document["engine"]["limits"]["overrides"].as_object().unwrap() {
         let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();

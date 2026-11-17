@@ -23,11 +23,13 @@ fn the_engine_service_refuses_the_other_document_shapes() {
 
 #[test]
 fn an_engine_without_an_agent_derives_from_stock() {
-    use super::{fixtures, stock};
+    use super::stock;
     use crate::{settings, startup};
     use jig_protocol_config as config;
-    let input = fixtures::engine_part(&stock::generated());
-    let mut input: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    let mut input: serde_json::Value = serde_json::from_slice(&stock::generated()).unwrap();
+    input["workers"] = serde_json::from_slice(b"[]").unwrap();
+    input["application"]["workers"] = serde_json::from_slice(b"[]").unwrap();
+    input["engine"]["hosts"]["listener"] = serde_json::from_slice(br#"[{"socket":"127.0.0.1:7200"}]"#).unwrap();
     let jig = input["engine"]["limits"]["overrides"].as_object_mut().unwrap();
     for name in [
         "core.resume_bytes",
@@ -57,11 +59,6 @@ fn an_engine_without_an_agent_derives_from_stock() {
     }
     let input = serde_json::to_vec(&input).unwrap();
     let dirs = config::Directories::working();
-    let named = startup::named(&input, &dirs).unwrap();
-    let mut entries = List::with_capacity(u32::try_from(named.files.len()).unwrap());
-    for file in named.files {
-        entries.push((file.path, skein_lib::Secret::new(Box::new([b'0'; 64])))).unwrap();
-    }
     let seeds = settings::Seeds {
         deployment: [0; 16],
         seed: 1,
@@ -73,7 +70,7 @@ fn an_engine_without_an_agent_derives_from_stock() {
     let checked = startup::checked_start_with(
         &input,
         &dirs,
-        &settings::Files { entries },
+        &stock::files(),
         None,
         &seeds,
         List::with_capacity(0),
