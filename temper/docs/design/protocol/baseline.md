@@ -186,10 +186,14 @@ store keeps its row until the first patch it meets writes the levels.
   is 0), or configures more of a thing than the override bounds (its
   default charters, against `tasks.charters` 9), the test raises that
   override to this build's floor or count in the copy it starts the
-  service with, and the file stays as kept. Nothing
-  else in the configuration is changed: a member the build refuses by
-  name stays a red for the change that refused it
-  (`../draft/upgrades.md`, 10).
+  service with, and the file stays as kept. Where a milestone of
+  `../draft/config.md` moves a member and its execution row gives its
+  operators' step for a deployment's document (`../draft/config.md`, 8,
+  which departs from `../draft/upgrades.md`, 10), the copy takes that
+  step: N7's drops `engine.hosts.workers` and names the standalone
+  worker `local` (`cluster.md`, 1). Nothing else in the configuration
+  is changed: any other member the build refuses by name stays a red
+  for the change that refused it (`../draft/upgrades.md`, 10).
 - **A step per patch over it:** `golden/baseline/patched.txt` holds one
   line per patch the open applies, `<owner> <patch> <records> <commits>`
   in plan order, from the start's `Patched` events; the test fails
