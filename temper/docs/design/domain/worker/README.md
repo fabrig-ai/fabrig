@@ -730,13 +730,13 @@ among temper's tiers and keeps their fakes.
   lands but times out; a first hold pushing, releasing, and a new hold
   delivering the same existing diff without another edit; landing ancestry,
   missing landing branches, moved remote heads and unchanged save semantics.
-  Those stories run on the fakes, a domain world's, in the binary `suite`.
-  The stories that run real git against an owned Forgejo (a design's and
-  a change's delivery reaching their landing branch, and a moved goal)
-  are a binary of their own, `real`, in the real loop's layer
-  (skein/docs/foundation/testing-strategy.md, 2.8 and 8.1: a binary's
-  tests are in one tier), its CPU budget moved down with the stories that
-  left it (`tools/tiers/budgets.md`, 10).
+  Those stories run on the fakes, a domain world's, and are a binary of
+  their own, `fakes`, in the domain layer, their CPU budget moved down
+  with them (`tools/tiers/budgets.md`, 10). The stories that run real git
+  against an owned Forgejo (a design's and a change's delivery reaching
+  their landing branch, and a moved goal) stay the binary `suite`, in the
+  real loop's layer (skein/docs/foundation/testing-strategy.md, 2.8 and
+  8.1: a binary's tests are in one tier).
 - **The worker's world** (`tests/worker/domain`): jig's hub, smith's host
   domain and the checkout, against scripted engine and agent peers, the
   protocol layer's routing played with smith's codecs, and the fake
