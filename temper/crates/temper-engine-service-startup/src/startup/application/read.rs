@@ -102,22 +102,6 @@ pub(super) fn short(
         }
     }
 }
-pub(super) fn boolean(
-    object: &mut super::super::members::Object,
-    document: &Document,
-    name: &[u8],
-    path: &Path,
-    problems: &mut Problems,
-) -> Option<bool> {
-    let at = required(object, document, name, path, problems)?;
-    match read::boolean(document, at) {
-        Ok(value) => Some(value),
-        Err(what) => {
-            problems.push(path.member(name), What::Jig(what));
-            None
-        }
-    }
-}
 pub(super) fn list(
     object: &mut super::super::members::Object,
     document: &Document,

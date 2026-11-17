@@ -197,6 +197,7 @@ fn a_group_file_with_its_record_starts_at_the_box_start() {
         Item::file(b"box/groups/17", b"fake\n"),
         Item::file(b"box/started/17", b""),
     ];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     assert_eq!(h.spawn_times(b"fake-forge").len(), 1);
@@ -246,6 +247,7 @@ fn two_started_files_of_one_kind_start_the_higher_number_with_a_notice() {
         Item::file(b"box/groups/17", b"fake\n"),
         Item::file(b"box/started/17", b""),
     ];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     assert_eq!(h.spawn_times(b"fake-forge").len(), 1);

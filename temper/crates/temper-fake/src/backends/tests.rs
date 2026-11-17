@@ -23,8 +23,6 @@ fn fixture() -> (Value, Value, Paths, Peers) {
             login: Some(b"person"),
             ports: temper_init::Ports {
                 clients: port(8367).expect("port"),
-                owned: port(8368).expect("port"),
-                forge: port(8369).expect("port"),
                 llm: port(8370).expect("port"),
                 webhooks: port(8371).expect("port"),
             },
@@ -122,31 +120,30 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
 #[test]
 fn init_targets_change_together_and_preserve_registration_terms() {
     let (mut temper, agent, paths, peers) = fixture();
-    temper["engine"]["deployment"]["seed"] = 99.into();
+    temper["engine"]["memory_bytes"] = 1_152_921_504_606_846_976_u64.into();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
     assert!(effective["application"].get("charter").is_none());
     assert!(effective["application"].get("landing").is_none());
     let effective_agent = json(&docs.agent);
-    let forge = &effective["application"]["machine"]["github"];
+    let forge = &effective["application"]["test"]["github"];
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));
     assert_eq!(forge["remote"], "http://127.0.0.1:9101");
     assert_eq!(forge["web"], "http://127.0.0.1:9101");
     assert_eq!(forge["transport"], "plaintext");
     let document = crate::read::document(&docs.temper).expect("effective document");
     let app = super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
-    let at = super::member(&document, app, b"machine", &jig_protocol_config::Path::root()).expect("machine");
-    let mut problems = temper_forge_setup::problem::Problems::empty();
-    let machine = temper_forge_setup::machine::read(
+    assert!(effective["application"].get("machine").is_none());
+    let at = super::member(&document, app, b"test", &jig_protocol_config::Path::root()).expect("test");
+    let mut problems = jig_protocol_config::Problems::empty();
+    let github = temper_forge_setup::machine::read_test(
         &document,
-        at,
-        &temper_forge_setup::limits::stock(),
+        Some(at),
         &jig_protocol_config::Directories::working(),
         &mut problems,
     )
-    .expect("ordinary machine format");
+    .expect("fake GitHub");
     assert!(problems.is_empty());
-    let github = machine.github.expect("fake GitHub");
     assert!(!github.tls);
     assert_eq!(github.git.as_deref(), Some(b"/effective/data/demo/bin/git".as_slice()));
     let peer: Value = serde_json::from_slice(&docs.forgejo).expect("peer document");
@@ -173,7 +170,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         assert_eq!(endpoint["transport"], "plaintext");
         assert!(endpoint.get("server_name").is_none());
     }
-    assert_eq!(effective["engine"]["deployment"]["seed"], 99);
+    assert_eq!(effective["engine"]["memory_bytes"], 1_152_921_504_606_846_976_u64);
     assert_eq!(effective["application"]["clients"]["bundle"], "/effective/config/bundle-loopback");
     assert_eq!(effective["workers"][0]["agent"]["configuration"], "/effective/config/agent.json");
     assert_eq!(
@@ -499,9 +496,7 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
         let effective_agent = json(&docs.agent);
         assert!(effective["application"].get("forges").is_none());
         assert!(effective["application"].get("setup").is_none());
-        for kind in ["owned", "fake"] {
-            assert_eq!(effective["application"]["machine"][kind], temper["application"]["machine"][kind]);
-        }
+        assert!(effective["application"].get("machine").is_none());
         assert_eq!(
             effective_agent["programs"]["claude_code"],
             json!({"path":"/fixture/fake-claude","directory":"/effective/data/programs"})
@@ -728,6 +723,7 @@ fn admit(bytes: &[u8]) -> jig_protocol_config::Engine {
         engine,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap()
 }

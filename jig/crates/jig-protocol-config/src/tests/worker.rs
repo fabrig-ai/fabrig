@@ -5,7 +5,7 @@ use skein_lib::Duration;
 fn worker(bytes: &[u8]) -> Result<crate::Worker, crate::Problems> {
     let limits = crate::DocumentLimits { bytes: 8192, tokens: 128, depth: 8 };
     let document = crate::document(bytes, &limits).expect("worker fixture JSON");
-    crate::worker(&document, 0, &crate::Directories::working())
+    crate::worker(&document, 0, &crate::Directories::working(), &crate::FixedWorker::NONE)
 }
 fn small() -> crate::Worker {
     worker(fixtures::WORKER_SMALL).unwrap()
@@ -322,4 +322,44 @@ fn a_zero_login_check_interval_names_the_invalid_field() {
 #[test]
 fn a_missing_login_check_interval_names_the_missing_field() {
     refuses(b"\"check_interval_ms\":60000", b"", fixtures::path(&[b"programs", b"check_interval_ms"]), What::Missing);
+}
+
+fn fixed_worker(bytes: &[u8], fixed: &crate::FixedWorker) -> Result<crate::Worker, crate::Problems> {
+    let document = crate::document(bytes, &crate::DocumentLimits { bytes: 8192, tokens: 256, depth: 8 }).unwrap();
+    crate::worker(&document, 0, &crate::Directories::working(), fixed)
+}
+fn without_fixed_members() -> Box<[u8]> {
+    let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""graces": {"grace_ms": 30000, "drain_ms": 10000, "agent_stop_ms": 10000, "delivery_ms": 20000, "save_ms": 5000},"#, b"");
+    fixtures::with(&bytes, br#""programs":{"check_interval_ms":60000},"#, b"")
+}
+#[test]
+fn fixed_worker_members_are_consumed_and_refused_whole() {
+    for (fixed, name) in [
+        (crate::FixedWorker { graces: Some(graces()), check_interval: None }, b"graces".as_slice()),
+        (crate::FixedWorker { graces: None, check_interval: Some(Duration::from_secs(7)) }, b"programs".as_slice()),
+    ] {
+        let found = fixed_worker(fixtures::WORKER_SMALL, &fixed).unwrap_err();
+        assert_eq!(found.problems.as_slice(), &[Problem { path: Path::root().member(name), what: What::Fixed }]);
+    }
+}
+#[test]
+fn fixed_worker_values_feed_the_stop_bound_and_source_interval() {
+    let given = Graces {
+        grace: Duration::from_secs(300),
+        drain: Duration::from_secs(180),
+        agent_stop: Duration::from_secs(5),
+        delivery: Duration::from_secs(1),
+        save: Duration::from_secs(1),
+    };
+    let interval = Duration::from_secs(7);
+    let fixed = crate::FixedWorker { graces: Some(given), check_interval: Some(interval) };
+    let worker = fixed_worker(&without_fixed_members(), &fixed).unwrap();
+    assert_eq!(worker.graces, given);
+    assert_eq!(worker.stop_bound, Duration::from_secs(326));
+    assert_eq!(worker.check_interval, interval);
+    assert_eq!(worker.limits.hub.source_interval, interval);
+    let zero = crate::FixedWorker { check_interval: Some(Duration::ZERO), ..fixed };
+    let found = fixed_worker(&without_fixed_members(), &zero).unwrap_err();
+    assert_eq!(found.problems.get(0).unwrap().path, Path::root().member(b"programs").member(b"check_interval_ms"));
+    assert_eq!(found.problems.get(0).unwrap().what, What::Bound);
 }

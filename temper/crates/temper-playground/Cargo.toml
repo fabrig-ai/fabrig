@@ -11,6 +11,7 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+settings-form.workspace = true
 skein-fake-forge-http.workspace = true
 skein-playground.workspace = true
 skein-ui-web.workspace = true

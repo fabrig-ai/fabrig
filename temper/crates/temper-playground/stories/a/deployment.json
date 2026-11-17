@@ -1,6 +1,5 @@
 {
   "application": {
-    "welcome": true,
     "clients": {
       "bundle": null,
       "listener": {
@@ -50,40 +49,15 @@
         "forge_component.body_bytes": 16384
       }
     },
-    "machine": {
-      "fake": {
-        "git": "/usr/bin/git",
-        "listen": {
-          "socket": "127.0.0.1:3000"
-        },
-        "remote": "http://127.0.0.1:3000"
-      }
-    },
     "sign_in": null,
     "webhooks": {
       "listener": {
         "socket": "127.0.0.1:0"
       }
-    },
-    "workers": [
-      {
-        "git": "/usr/bin/git",
-        "root": "worker"
-      }
-    ]
+    }
   },
   "engine": {
-    "clients": {
-      "heartbeat_ms": 10000,
-      "link": true
-    },
-    "connectors": [
-      1
-    ],
-    "deployment": {
-      "directory": "state",
-      "seed": 7
-    },
+    "clients": {},
     "hosts": {
       "listener": [
         {
@@ -195,17 +169,6 @@
         "provider": 1,
         "subject": "owner-a"
       }
-    ],
-    "projects": [],
-    "providers": [
-      {
-        "kind": "link",
-        "number": 1
-      },
-      {
-        "kind": "deployment",
-        "number": 2
-      }
     ]
   },
   "workers": [
@@ -221,12 +184,6 @@
       },
       "engine": {
         "in_process": "workers"
-      },
-      "graces": {
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "grace_ms": 300000,
-        "save_ms": 1000
       },
       "limits": {
         "overrides": {
@@ -248,9 +205,6 @@
       },
       "memory_bytes": 1152921504606846976,
       "name": "worker-a",
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "secret": "worker.secret",
       "slots": 1
     }

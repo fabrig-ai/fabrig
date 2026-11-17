@@ -9,11 +9,10 @@ use skein_lib::{List, Secret};
 pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
-"machine":{},
-"landing":{"projects":[{"project":1}]},
-"demo":null,"sign_in":null,"limits":{"overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+
+"demo":null,"sign_in":null,"limits":{"overrides":{}}
 }"#;
-pub const DEMO: &str = r#""welcome":true,"demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
+pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
 {"cue":"Add a dark theme to widget","turns":["Theme"]},
 {"cue":"Fix widget's empty search state","turns":["Search"]}],
@@ -26,11 +25,6 @@ pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
 pub fn demo_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
-        .replacen(
-            "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
-            1,
-        )
         .replace("\"setup\":[]", DEMO_SETUP)
         .replace("\"demo\":null", DEMO)
         .into_bytes()
@@ -39,9 +33,8 @@ pub fn demo_document() -> Box<[u8]> {
 pub fn demo_service() -> crate::Service {
     let document = demo_document();
     let document = with(&document, b"workers", b"[]");
-    let document = with(&document, b"application.workers", b"[]");
     let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
-    let start = crate::startup::checked_start_with(
+    let mut start = crate::startup::checked_start_with(
         &document,
         &jig_protocol_config::Directories::working(),
         &files(),
@@ -56,6 +49,18 @@ pub fn demo_service() -> crate::Service {
         },
     )
     .unwrap();
+    let seeded = super::engine().jig;
+    start.engine.jig.projects = seeded.projects;
+    start.engine.jig.owners = seeded.owners;
+    start.engine.jig.acts = Box::new([jig_domain_people::ActGrant {
+        connector: 1,
+        may: Box::new([
+            jig_domain_people::ActKind::Close,
+            jig_domain_people::ActKind::AddKey,
+            jig_domain_people::ActKind::RemoveAccount,
+            jig_domain_people::ActKind::Adopt,
+        ]),
+    }]);
     crate::Service::prepared(start.engine, &super::seeds(), None, start.forges, start.io, None, None).unwrap()
 }
 pub fn document() -> Box<[u8]> {
@@ -66,8 +71,6 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(engine.as_bytes());
     document.extend_from_slice(br#", "workers":[{
 "engine":{"in_process":"workers"},"name":"worker-a","secret":"worker-secret","slots":1,
-"graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
-"programs":{"check_interval_ms":60000},
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
 "limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);
@@ -275,6 +278,5 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 /// The engine member of a generated standalone fixture, with no local worker.
 pub fn engine_part(input: &[u8]) -> Box<[u8]> {
     let input = with(input, b"workers", b"[]");
-    let input = with(&input, b"application.workers", b"[]");
     with(&input, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#)
 }

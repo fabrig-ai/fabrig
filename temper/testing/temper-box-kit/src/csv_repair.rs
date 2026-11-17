@@ -6,10 +6,7 @@ use super::{
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Line, Piece, Script};
 use skein_lib::{Duration, Time};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 const REPAIR: &str = "Repair the failed CI on the change branch";
 const REPOSITORY: &str = "/api/v1/repos/work/hello";
@@ -111,20 +108,18 @@ struct Forge {
 }
 impl Forge {
     fn at(paths: &[PathBuf; 3], client: &Path) -> Self {
-        let document: Value =
-            serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
         let number = first_repository::owned_forge(client)["number"].as_u64().expect("forge number");
+        let setup = super::owned::setup_value(&paths[1], u16::try_from(number).expect("forge u16"), "owned");
         Self {
             number,
-            address: document["application"]["machine"]["owned"]["listen"]["socket"].as_str().expect("address").into(),
+            address: setup["listen"]["socket"].as_str().expect("address").into(),
             header: paths[0].join("person.header"),
         }
     }
     fn person(paths: &[PathBuf; 3], client: &Path) -> Self {
         let forge = Self::at(paths, client);
-        let document: Value =
-            serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("config")).expect("JSON");
-        let login = document["application"]["machine"]["owned"]["person"]["login"].as_str().expect("person login");
+        let setup = super::owned::setup_value(&paths[1], u16::try_from(forge.number).expect("forge u16"), "owned");
+        let login = setup["person"]["login"].as_str().expect("person login");
         let work = paths[1].join(format!("forge-{}/forgejo", forge.number));
         let output = std::process::Command::new(super::owned::binaries().0)
             .arg("--work-path")

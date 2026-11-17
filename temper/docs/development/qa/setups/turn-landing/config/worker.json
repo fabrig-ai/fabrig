@@ -7,16 +7,6 @@
       "name": "worker",
       "secret": "{place.data}/worker/secrets/worker.secret",
       "slots": 2,
-      "programs": {
-        "check_interval_ms": 60000
-      },
-      "graces": {
-        "grace_ms": 1000,
-        "drain_ms": 1000,
-        "agent_stop_ms": 100,
-        "delivery_ms": 100,
-        "save_ms": 100
-      },
       "agent": {
         "program": "{place.bin}/temper-agent",
         "configuration": "{place.config}/worker/agent.json",
@@ -44,12 +34,6 @@
     }
   ],
   "application": {
-    "workers": [
-      {
-        "root": "{place.data}/worker/workspaces",
-        "git": "{place.git}"
-      }
-    ],
     "limits": {
       "profile": "standard",
       "overrides": {

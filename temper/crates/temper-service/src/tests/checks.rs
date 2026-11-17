@@ -72,8 +72,7 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
 }
 #[test]
 fn the_longest_remote_of_an_empty_machine_measures_github_com() {
-    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
-    assert_eq!(checks::machine_remote(&machine, 10), Some(44));
+    assert_eq!(checks::machine_remote(None, 10), Some(48));
 }
 #[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
@@ -112,7 +111,7 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     }
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
-        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
     assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
     assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
@@ -124,7 +123,7 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
         b"application.limits.overrides",
         br#"{"forges.installations":3,"forge_component.token_bytes":64}"#,
     );
-    let part = crate::startup::worker_part(&document, &config::Directories::working()).unwrap();
+    let part = crate::startup::worker_part(&document, &config::Directories::working(), None).unwrap();
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
@@ -297,7 +296,6 @@ enum Shape {
     ClientProcess,
     ClientRemote,
     ClientRemoteApproval,
-    Connectors,
     Program,
     Configuration,
 }
@@ -334,14 +332,13 @@ fn apply_shape(
             engine.clients.approval = true;
             engine.clients.link = false;
         }
-        Shape::Connectors => engine.connectors = Box::new([1, 2]),
         Shape::Program => workers[0].agent.program = b"temper".as_slice().into(),
         Shape::Configuration => workers[0].agent.configuration = b"agent.json".as_slice().into(),
     }
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 9] {
+fn standalone_shapes() -> [(Shape, Path, What); 8] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
         (
@@ -364,11 +361,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Half(crate::startup::EngineWhat::Loopback),
-        ),
-        (
-            Shape::Connectors,
-            Path::root().member(b"engine").member(b"connectors"),
-            What::Half(crate::startup::EngineWhat::Connectors),
         ),
         (
             Shape::Program,
@@ -461,9 +453,7 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
     for (port, listener, expected) in [
         (7100, Listener::Clients, "redirect_port: fixed port conflicts with application.clients.listener\n"),
         (7101, Listener::Webhooks, "redirect_port: fixed port conflicts with application.webhooks.listener\n"),
-        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.machine.owned.listen\n"),
         (7100, Listener::Demo, "redirect_port: fixed port conflicts with application.demo.llm.listen\n"),
-        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.machine.fake.listen\n"),
     ] {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);
@@ -531,9 +521,14 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     )
     .unwrap();
     let engine_at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
-    let mut engine =
-        config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
-            .unwrap();
+    let mut engine = config::engine(
+        &document,
+        engine_at,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
@@ -673,8 +668,14 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     );
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
-    let mut engine =
-        config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
+    let mut engine = config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        config::Defaults::Passed,
+        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+    )
+    .unwrap();
     let defaults =
         crate::stock::with_models(Box::new([fixtures::small_model()]), engine.limits.core.tasks.result_bytes);
     config::pass(&mut engine, defaults).unwrap();
@@ -838,11 +839,6 @@ fn an_engine_alone_names_each_shape_departure() {
     let rows: &[ShapeRow] = &[
         (b"workers", b"[{}]", vec![(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
-            b"application.workers",
-            br#"[{"root":"worker-root","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
-        ),
-        (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
             vec![
@@ -886,17 +882,11 @@ fn an_engine_alone_names_each_shape_departure() {
 }
 
 #[test]
-fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_lists() {
+fn the_socket_listener_in_the_old_hostsocket_case_names_the_local_worker_list() {
     let input = fixtures::with(&fixtures::document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7100"}]"#);
     assert_eq!(
         shape_problems(&input),
-        vec![
-            (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
-            (
-                Path::root().member(b"application").member(b"workers"),
-                What::Half(crate::startup::EngineWhat::EngineAlone)
-            ),
-        ]
+        vec![(Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),]
     );
 }
 

@@ -1,5 +1,5 @@
 //! The engine component seam (temper/docs/design/protocol/services.md, 4).
-use crate::system::{accounts_driver, core_config, deployment_owned, machine_config, playground_config, start_problem};
+use crate::system::{accounts_driver, core_config, machine_config, playground_config, start_problem};
 use crate::{AccountsRuntime, accounts, clients, engine, limits, settings, store, values, workers};
 use crate::{End, ForgeRuntime, Stop, forge, forges, route::box_link};
 use alloc::boxed::Box;
@@ -46,14 +46,14 @@ impl engine::Engine {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
-            settings.machine.owned.as_ref(),
+            None,
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,
-            welcome: settings.welcome,
-            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            welcome: false,
+            owned: box_line_bytes.is_some(),
             push: match &settings.push {
                 Some(push) => Some(*push.key.public()),
                 None => None,
@@ -73,19 +73,23 @@ impl engine::Engine {
         let mut core = core_config(&settings.jig, seeds);
         core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
+        let places = crate::places::Places::new(&settings);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
-            kinds_stock: settings.kinds_stock,
+            kinds_stock: temper_engine_service_stock::stock::with_welcome(
+                settings.kinds_stock,
+                box_line_bytes.is_some(),
+            ),
             ways_stock: settings.ways_stock,
             period_span: settings.period_span,
             core,
-            landings: settings.landings,
+            landing_held: settings.landing_held,
             forge: forge_config,
             identities,
-            machine: Some(machine_config(&settings.machine)),
+            machine: Some(machine_config(settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
+            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
         let demo = settings.demo;
@@ -98,6 +102,7 @@ impl engine::Engine {
             values,
             first_periods,
         )?;
+        engine.places = Some(places);
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
@@ -139,6 +144,10 @@ impl engine::Engine {
         self.setup.page(forge, state, now)
     }
     /// The binary's build name for the store floor (jig's protocol/store/records.md, 3).
+    /// The shell supplies the immutable hold before starting the loop.
+    pub fn hold_landings(&mut self, held: bool) {
+        self.domain.hold_landings(held);
+    }
     pub fn build_name(&mut self, name: &'static str) {
         self.store.build_name(name);
     }
@@ -364,6 +373,9 @@ impl engine::Engine {
             (crate::Listening::Workers, engine.workers.host.listening.take()),
         ] {
             if let Some(addr) = addr {
+                if let Some(places) = &mut engine.places {
+                    places.listening(addr);
+                }
                 engine
                     .listening
                     .try_push(crate::Note::Listening { listener, addr })

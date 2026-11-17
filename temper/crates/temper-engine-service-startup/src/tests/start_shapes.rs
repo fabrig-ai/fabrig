@@ -28,7 +28,6 @@ fn an_engine_without_an_agent_derives_from_stock() {
     use jig_protocol_config as config;
     let mut input: serde_json::Value = serde_json::from_slice(&stock::generated()).unwrap();
     input["workers"] = serde_json::from_slice(b"[]").unwrap();
-    input["application"]["workers"] = serde_json::from_slice(b"[]").unwrap();
     input["engine"]["hosts"]["listener"] = serde_json::from_slice(br#"[{"socket":"127.0.0.1:7200"}]"#).unwrap();
     let jig = input["engine"]["limits"]["overrides"].as_object_mut().unwrap();
     for name in [

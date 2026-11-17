@@ -59,6 +59,7 @@ temper-service-core.workspace = true
 
 [dev-dependencies]
 jig-protocol-config-fixtures.workspace = true
+temper-engine-service-startup.workspace = true
 jig-client.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true

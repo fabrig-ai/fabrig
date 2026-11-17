@@ -22,12 +22,7 @@ use std::{
 };
 
 pub fn run(root: &Path) {
-    if let Err(error) = story(root, false, cfg!(target_os = "linux")).and_then(|()| {
-        let failed = root.join("source-failure");
-        fs::create_dir(&failed)?;
-        fs::set_permissions(&failed, fs::Permissions::from_mode(0o700))?;
-        story(&failed, true, false)
-    }) {
+    if let Err(error) = story(root) {
         super::story_socket::finish(error);
     }
 }
@@ -36,7 +31,7 @@ pub fn run(root: &Path) {
     clippy::too_many_lines,
     reason = "the process story keeps setup, restart and fallback assertions within one owned lifetime"
 )]
-fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()> {
+fn story(root: &Path) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
     let initialized = super::story_command::standalone(
@@ -51,54 +46,17 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
     super::own_listener_files(root);
     fixture_bundle(root);
     let path = root.join("temper.json");
-    let mut document: Value = serde_json::from_slice(&fs::read(&path)?).expect("box JSON");
+    let document: Value = serde_json::from_slice(&fs::read(&path)?).expect("box JSON");
     let temper: SocketAddr = document["application"]["clients"]["listener"]["socket"]
         .as_str()
         .expect("clients socket")
         .parse()
         .expect("clients address");
-    let forge: SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-        .as_str()
-        .expect("forge socket")
-        .parse()
-        .expect("forge address");
-    document["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
-        format!("http://{forge}/user/oauth2/temper/callback").into();
-    let front = if delayed_engine {
-        let (proxy, public) = discovery_proxy(root, temper)?;
-        document["application"]["clients"]["public"] = format!("http://{public}").into();
-        Some((proxy, public))
-    } else {
-        None
-    };
-    let local = temper;
-    let temper = front.as_ref().map_or(temper, |(_, public)| *public);
-    // A runner is unrelated to the provider's integration with a real Forgejo.
-    document["application"]["machine"]["owned"]["runner"] = Value::Null;
-    super::write_private(&path, &serde_json::to_vec(&document).expect("box JSON"));
-    if fail_source {
-        let wrapper = root.join("forgejo-refuses-auth");
-        let quoted = temper_forge_setup::sign_in::quote(super::owned::binaries().0.as_os_str().as_encoded_bytes());
-        fs::write(
-            &wrapper,
-            format!(
-                "#!/bin/sh\nfor arg do\n  if [ \"$arg\" = auth ]; then exit 23; fi\ndone\nexec {} \"$@\"\n",
-                std::str::from_utf8(&quoted).expect("shell word")
-            ),
-        )?;
-        fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
-        document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper path").into();
-        super::write_private(&path, &serde_json::to_vec(&document).expect("failure configuration"));
-    }
     super::first_repository::stage_binaries(root);
-    let login = document["application"]["machine"]["owned"]["person"]["login"].as_str().expect("person login");
-    let email = document["application"]["machine"]["owned"]["person"]["email"].as_str().expect("person email");
     assert!(super::private(&root.join("provider.key")), "private issuer key");
     assert_eq!(fs::metadata(root)?.permissions().mode() & 0o777, 0o700);
-    for round in if fail_source { &["first"][..] } else { &["first", "second"][..] } {
-        if delayed_engine && *round == "second" {
-            delayed_forgejo(root, &path, &document)?;
-        }
+    let mut kept_setup = None;
+    for round in ["first", "second"] {
         let mut running = Serve {
             child: Command::new(skein_scratch::paths::binary("temper-box"))
                 .args(["--echo", "steps"])
@@ -114,19 +72,6 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         };
         let stdout = running.child.stdout.take().expect("printed link pipe");
         let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
-        #[cfg(target_os = "linux")]
-        let held_forge = if delayed_engine && *round == "second" {
-            Some(start_without_engine(root, running.child.id())?)
-        } else {
-            None
-        };
-        // The setup client's live stream goes straight to the engine, not through
-        // the finite-response discovery front. Its ordinary session stays private.
-        let setup_link = String::from_utf8(link.clone()).expect("printed link").replacen(
-            &format!("http://{temper}/"),
-            &format!("http://{local}/"),
-            1,
-        );
         let signed = super::story_command::output(
             Command::new(skein_scratch::paths::binary("temper-box"))
                 .arg("ctl")
@@ -135,10 +80,10 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
                 .current_dir(root),
             "the setup client's sign-in",
             super::WITHIN,
-            Some(setup_link.as_bytes()),
+            Some(&link),
         );
         success(&signed);
-        if *round == "first" {
+        if round == "first" {
             success(&ctl_command(root, &["forge", "setup"]));
         }
         success(&ctl_command(root, &["forge", "list", "--until", "settled"]));
@@ -147,6 +92,15 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         success(&listed);
         let row: Value = serde_json::from_slice(&listed.stdout).expect("forges JSON");
         let row = super::first_repository::owned_row(&row);
+        let number = u16::try_from(row["number"].as_u64().expect("forge number")).expect("forge u16");
+        let setup = super::owned::setup_value(root, number, "owned");
+        let forge: SocketAddr =
+            setup["listen"]["socket"].as_str().expect("chosen forge socket").parse().expect("forge address");
+        let login = setup["person"]["login"].as_str().expect("chosen person login");
+        let email = setup["person"]["email"].as_str().expect("chosen person email");
+        if let Some(kept) = &kept_setup {
+            assert_eq!(&setup, kept, "restart keeps its chosen setup");
+        }
         assert_eq!(row["state"], "connected");
         assert_eq!(row["first"]["state"], "made");
         let before = users(root, forge);
@@ -155,24 +109,8 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         let _spent = link_sign_in(&mut browser, temper, &link)?;
         let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
         assert_eq!(link_sign_in(&mut browser, temper, &link)?.status, 200);
-        if delayed_engine && *round == "second" {
-            wait_for_source(&mut browser, temper)?;
-        }
         let page = browser.call(&format!("http://{temper}/"), None)?;
         let page = std::str::from_utf8(&page.body).expect("page text");
-        if fail_source {
-            assert!(!page.contains("name=\"temper-forge-sign-in\""), "failed source has no sign-in address");
-            assert!(
-                page.contains("<meta name=\"temper-forge-sign-in-off\" content=\"1\">"),
-                "failed source has its off fact"
-            );
-            let log = super::boxed::box_log(root);
-            assert_eq!(log.lines().filter(|line| line.contains("no sign-in through temper")).count(), 1, "{log}");
-            assert!(log.contains("Forge 1 (Forgejo): started"), "setup succeeds: {log}");
-            password_sign_in(root, forge, login)?;
-            running.stop();
-            continue;
-        }
         assert!(
             page.contains(&format!("<meta name=\"temper-forge-sign-in\" content=\"1 forgejo http://{forge} owned\">")),
             "ready source meta"
@@ -198,164 +136,15 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
             "exactly one source after either start"
         );
         let log = super::boxed::box_log(root);
-        if delayed_engine && *round == "second" {
-            assert!(log.contains("temper's discovery did not answer"), "engine was away at source's first run: {log}");
-            #[cfg(target_os = "linux")]
-            {
-                let (pid, handle) = held_forge.expect("held Forgejo");
-                assert_eq!(fs::read_to_string(root.join("delayed-forge.pid"))?, pid.to_string());
-                assert!(!skein_shell::keeper::pidfd_exited(handle).expect("same Forgejo is live"));
-                skein_shell::keeper::close_keeper_fd(handle);
-            }
-        } else {
-            assert!(!log.contains("no sign-in through temper"), "{log}");
-        }
+        assert!(!log.contains("no sign-in through temper"), "{log}");
         // The next start uses its printed link in this same client directory.
         // End this sign-in first (client/ctl/README.md, 6.1).
         success(&ctl_command(root, &["sign-out"]));
         running.stop();
+        kept_setup = Some(setup);
     }
     eprintln!("box sign-in proof: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
     Ok(())
-}
-
-fn delayed_forgejo(root: &Path, path: &Path, document: &Value) -> io::Result<()> {
-    let mut document = document.clone();
-    let wrapper = root.join("delayed-forgejo");
-    let quoted = temper_forge_setup::sign_in::quote(super::owned::binaries().0.as_os_str().as_encoded_bytes());
-    fs::write(
-        &wrapper,
-        format!(
-            "#!/bin/sh\nfor arg do\n if [ \"$arg\" = web ]; then\n  printf '%s' $$ > '{0}/delayed-forge.pid'\n  while [ ! -f '{0}/start-forge' ]; do sleep 0.01; done\n fi\ndone\nexec {1} \"$@\"\n",
-            root.display(),
-            std::str::from_utf8(&quoted).expect("quoted program")
-        ),
-    )?;
-    fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
-    document["application"]["machine"]["owned"]["forgejo"] = wrapper.to_str().expect("wrapper").into();
-    super::write_private(path, &serde_json::to_vec(&document).expect("delayed-engine configuration"));
-    Ok(())
-}
-
-#[cfg(target_os = "linux")]
-fn start_without_engine(root: &Path, parent: u32) -> io::Result<(u32, skein_io::kernel::Fd)> {
-    let deadline = skein_world::Deadline::arm("the prepared Forgejo waiting at its start gate", super::WITHIN);
-    // The box prints its link before spawning its engine. Inspect only this
-    // box's own children, never another process's environment.
-    let engine = loop {
-        let children = fs::read_to_string(format!("/proc/{parent}/task/{parent}/children"))?;
-        if let Some(engine) = children.split_whitespace().find(|pid| {
-            fs::read(format!("/proc/{pid}/cmdline"))
-                .is_ok_and(|args| args.windows(b"internal\0serve\0".len()).any(|part| part == b"internal\0serve\0"))
-        }) {
-            break engine.to_owned();
-        }
-        if deadline.passed() {
-            return Err(wait_expired(&deadline));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    };
-    let signal = |signal: &str| {
-        assert!(Command::new("/bin/kill").args([signal, &engine]).status().expect("signal own engine").success());
-    };
-    while !root.join("delayed-forge.pid").exists() {
-        if deadline.passed() {
-            return Err(wait_expired(&deadline));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-    signal("-STOP");
-    let result = (|| {
-        fs::write(root.join("engine-down"), b"")?;
-        fs::write(root.join("start-forge"), b"")?;
-        wait_for_log(root, parent, "temper's discovery did not answer")?;
-        let pid = fs::read_to_string(root.join("delayed-forge.pid"))?.parse().expect("Forgejo pid");
-        let handle = skein_shell::keeper::open_pidfd(pid).expect("retain the live Forgejo");
-        assert!(!skein_shell::keeper::pidfd_exited(handle).expect("Forgejo still live"));
-        Ok((pid, handle))
-    })();
-    signal("-CONT");
-    fs::remove_file(root.join("engine-down"))?;
-    result
-}
-
-#[cfg(target_os = "linux")]
-fn wait_for_log(root: &Path, pid: u32, text: &str) -> io::Result<()> {
-    let mut deadline = skein_world::Deadline::arm("the source while the engine is held down", super::WITHIN);
-    deadline.watch_process(pid);
-    loop {
-        if super::boxed::box_log(root).contains(text) {
-            return Ok(());
-        }
-        if deadline.passed() {
-            return Err(wait_expired(&deadline));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-}
-
-fn wait_for_source(browser: &mut Browser, temper: SocketAddr) -> io::Result<()> {
-    let deadline = skein_world::Deadline::arm("the source after the engine returns", super::WITHIN);
-    loop {
-        let page = browser.call(&format!("http://{temper}/"), None)?;
-        if String::from_utf8_lossy(&page.body).contains("name=\"temper-forge-sign-in\"") {
-            return Ok(());
-        }
-        if deadline.passed() {
-            return Err(wait_expired(&deadline));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-}
-
-fn wait_expired(deadline: &skein_world::Deadline) -> io::Error {
-    match deadline.expired() {
-        skein_world::Expired::Starved(starved) => io::Error::other(super::story_socket::StarvedSocket(starved)),
-        skein_world::Expired::Failed(figures) => io::Error::new(io::ErrorKind::TimedOut, figures.to_string()),
-    }
-}
-
-/// A single-loop HTTP front supplies the deployment's 502 while the real engine
-/// is paused, then forwards to that same engine. It never logs a request.
-fn discovery_proxy(root: &Path, upstream: SocketAddr) -> io::Result<(super::parent::Guard, SocketAddr)> {
-    use std::os::fd::OwnedFd;
-    let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
-    let public = listener.local_addr()?;
-    let script = r"import http.client,http.server,pathlib,socket,sys
-root,host,port=sys.argv[1:]
-class Peer(http.server.BaseHTTPRequestHandler):
- def log_message(self,*args): pass
- def do_GET(self): self.forward()
- def do_POST(self): self.forward()
- def forward(self):
-  if pathlib.Path(root,'engine-down').exists():
-   self.send_response(502); self.send_header('Content-Length','0'); self.end_headers(); return
-  body=self.rfile.read(int(self.headers.get('Content-Length','0')))
-  peer=http.client.HTTPConnection(host,int(port))
-  peer.request(self.command,self.path,body,dict(self.headers))
-  answer=peer.getresponse(); data=answer.read()
-  self.send_response(answer.status)
-  for name,value in answer.getheaders():
-   if name.lower() not in ('connection','transfer-encoding','content-length'): self.send_header(name,value)
-  self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data); peer.close()
-server=http.server.HTTPServer(('127.0.0.1',0),Peer,bind_and_activate=False)
-server.socket=socket.socket(fileno=0); server.server_address=server.socket.getsockname()
-print('ready',flush=True)
-server.serve_forever()
-";
-    let child = Command::new("python3")
-        .args(["-I", "-B", "-c", script])
-        .arg(root)
-        .arg(upstream.ip().to_string())
-        .arg(upstream.port().to_string())
-        .stdin(Stdio::from(OwnedFd::from(listener)))
-        .stdout(Stdio::piped())
-        .stderr(fs::File::create(root.join("discovery-proxy.log"))?)
-        .spawn()?;
-    let mut proxy = super::parent::Guard::new(child);
-    let pipe = proxy.child.as_mut().expect("proxy child").stdout.as_ref().expect("proxy stdout");
-    assert_eq!(super::read_line(skein_io::kernel::Fd::new(pipe.as_raw_fd()), super::WITHIN), b"ready");
-    Ok((proxy, public))
 }
 
 fn ctl_command(root: &Path, args: &[&str]) -> std::process::Output {

@@ -176,7 +176,7 @@ pub fn worker_document(
         problems.push(found.path, found.what);
         return Err(problems);
     }
-    jig_protocol_config::worker_over(document, at, directories, &base)
+    jig_protocol_config::worker_over(document, at, directories, &crate::startup::fixed_worker(), &base)
 }
 
 /// Whether a dotted limit was explicitly supplied, independent of its value.

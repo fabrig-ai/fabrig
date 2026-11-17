@@ -16,8 +16,15 @@ fn small_limits_pass_the_engine_reader_checks() {
         &DocumentLimits { bytes: 2048, tokens: 512, depth: 8 },
     )
     .expect("fixture JSON");
-    let parsed = config::engine_over(&document, 0, &Directories::working(), Defaults::Passed, &crate::small())
-        .expect("small limits pass every reader check");
+    let parsed = config::engine_over(
+        &document,
+        0,
+        &Directories::working(),
+        Defaults::Passed,
+        &config::Fixed::NONE,
+        &crate::small(),
+    )
+    .expect("small limits pass every reader check");
     let mut expected = crate::small();
     // The reader derives two streams plus four ordinary exchanges.
     expected.clients.exchanges = 6;

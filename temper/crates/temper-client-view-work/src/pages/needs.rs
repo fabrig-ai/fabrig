@@ -529,10 +529,10 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
     b.open(Role::Slot);
     b.style(look::ASK_CONTEXT);
     if let jig_client::contract::ReadValue::Escalation(held) = page {
-        crate::cards::specification(b, &held.task.spec, w);
+        crate::cards::specification_after_title(b, &held.task.spec, w);
     }
     if let jig_client::contract::ReadValue::PersonTask(task) = page {
-        crate::cards::specification(b, &task.spec, w);
+        crate::cards::specification_after_title(b, &task.spec, w);
     }
     match asked.kind {
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {

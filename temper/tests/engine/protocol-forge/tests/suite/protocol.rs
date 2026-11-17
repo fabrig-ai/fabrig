@@ -507,6 +507,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
     });
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive routing of the forge's change outputs")]
 fn land_change(world: &mut Protocol) -> bool {
     let mut finished = false;
     for entry in 4..24 {
@@ -542,6 +543,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }

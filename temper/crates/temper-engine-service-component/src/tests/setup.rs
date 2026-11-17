@@ -1101,6 +1101,7 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert!(face.done.is_some(), "the host completed Reconcile");
         assert!(service.engine.as_ref().unwrap().setup.writes.is_empty(), "no Origin before Done");
         assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+        crate::engine::answer(service.engine.as_mut().unwrap()); // Drain root reads before holding the Origin write.
         service.engine.as_mut().unwrap().setup.above.push(face.done.take().unwrap());
         advance(service.engine.as_mut().unwrap());
         let engine = service.engine.as_mut().unwrap();
@@ -1110,8 +1111,9 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert_eq!(write.number, records::number(1, Item::Origin), "never writes AdminToken");
         assert!(engine.forge.starts.is_empty(), "Origin Kept is held");
         assert!(engine.values.identities.newest(1).is_none());
-        let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else {
-            panic!("durable Origin");
+        let durable = engine.store.host.above.pop();
+        let Some(StoreEvent::Kept { owner }) = durable else {
+            panic!("durable Origin: {durable:?}");
         };
         answer(engine, StoreEvent::Kept { owner });
         assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
@@ -1988,8 +1990,9 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
     use temper_forge_setup::{machine, setup};
     let mut config = fixtures::configured_engine();
     let setup::Mode::Owned(owned) = fixtures::owned_setup(2).entry.mode else { panic!("owned fixture") };
-    config.machine = machine::Machine {
-        owned: Some(machine::OwnedMachine {
+    config.setups = Box::new([(
+        2,
+        temper_forge_setup::setup_file::SetupFile::Owned(machine::OwnedMachine {
             sign_in: None,
             listen: owned.listen,
             remote: b"http://127.0.0.1:9".as_slice().into(),
@@ -1999,13 +2002,7 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
             forgejo: owned.forgejo,
             runner: owned.runner,
         }),
-        fake: Some(machine::FakeMachine {
-            listen: ([127, 0, 0, 1], 9).into(),
-            remote: b"http://127.0.0.1:9".as_slice().into(),
-            git: b"/data/fake/git".as_slice().into(),
-        }),
-        github: None,
-    };
+    )]);
     config.directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     fixtures::fill_files(&mut config);
     config
@@ -2401,7 +2398,19 @@ fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
 
 #[test]
 fn a_kept_fake_reads_at_start_then_waits_for_the_box_when_the_handover_is_absent() {
-    let mut service = local_service(runtime_config(), local_store(false));
+    let mut config = runtime_config();
+    config.setups = Box::new([(
+        2,
+        temper_forge_setup::setup_file::chosen(
+            temper_forge_setup::machine::BoxKind::Fake,
+            9,
+            b"ada",
+            false,
+            &config.directories,
+        )
+        .unwrap(),
+    )]);
+    let mut service = local_service(config, local_store(false));
     let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Fake);
     let engine = service.engine.as_mut().unwrap();
     insert_runtime_forge(engine, &record);

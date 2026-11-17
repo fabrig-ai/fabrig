@@ -579,6 +579,7 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
         &jig_protocol_config_fixtures::small(),
     )
     .expect("fixture engine")
@@ -713,6 +714,7 @@ pub(crate) fn worker_redial_ceiling() -> Duration {
             &document,
             at,
             &jig_protocol_config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
             &jig_protocol_config_fixtures::small(),
         )
         .expect("fixture worker")

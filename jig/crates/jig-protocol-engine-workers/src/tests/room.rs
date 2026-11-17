@@ -26,6 +26,7 @@ fn config() -> jig_protocol_config::Engine {
         0,
         &config::Directories::working(),
         config::Defaults::Passed,
+        &config::Fixed::NONE,
         &jig_protocol_config_fixtures::small(),
     )
     .expect("configuration")

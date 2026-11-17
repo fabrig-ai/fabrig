@@ -29,8 +29,9 @@ impl Draw<'_> {
         b.style(crate::look::PUBLIC_LINE);
         self.task_link(b, line.task(), line.goal());
         b.text(Run::Plain, b" ");
-        b.text(Run::Plain, line.title());
-        if line.title_cut() {
+        let title = crate::common::chat::row_title(line.title());
+        b.text(Run::Plain, &title);
+        if line.title_cut() && title.as_ref() == line.title() {
             self.words.text(b, Word::PublicTitleCut, &[]);
         }
         b.close();

@@ -18,31 +18,30 @@ pub struct Names<'a> {
     pub bot: &'a str,
     pub person: &'a str,
 }
-pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
-    let mut owned = Owned::example();
-    owned.forgejo = ([127, 0, 0, 1], names.port).into();
-    owned.forgejo_binary = names.forgejo.into();
-    let mut members = application(&owned);
-    members["webhooks"] = serde_json::Value::Null;
-    let mode = &mut members["machine"]["owned"];
-    mode["person"] = serde_json::json!({"login":names.person,"email":format!("{}@example.invalid", names.person)});
-    if let Some(binary) = names.runner {
-        mode["runner"]["binary"] = serde_json::json!(binary);
-    } else {
-        mode["runner"] = serde_json::Value::Null;
-    }
-    value["application"]["machine"] = members["machine"].take();
+pub fn setup(directory: &Path, names: &Names<'_>) {
+    let runner = names.runner.map_or(serde_json::Value::Null, |binary| {
+        serde_json::json!({
+            "binary":binary, "labels":["temper-host:host"], "capacity":1,"path":"/usr/bin:/bin"
+        })
+    });
+    super::configuration::setup(
+        directory,
+        1,
+        serde_json::json!({
+            "kind":"owned", "listen":{"socket":format!("127.0.0.1:{}", names.port)},
+            "remote":format!("http://127.0.0.1:{}", names.port), "forgejo":names.forgejo,
+            "runner":runner,"person":{"login":names.person,"email":format!("{}@example.invalid", names.person)}
+        }),
+    );
 }
 
 pub fn configuration(directory: &Path, names: &Names<'_>) {
     super::configuration(directory, &super::Forge::Unreached);
-    let path = directory.join("temper.json");
-    let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    document(&mut value, names);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    setup(directory, names);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     super::write_private(&directory.join("box/groups/1"), b"owned\n");
 }
+
 #[must_use]
 pub fn prepare_command(directory: &Path, forge: u16) -> Command {
     let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
@@ -421,9 +420,9 @@ pub fn recorded_without_runner(directory: &Path) {
     super::write_private(&path, temper_forge_setup::state::encode(&state).expose());
 }
 pub fn setup_without_runner(directory: &Path) {
-    let path = directory.join("temper.json");
+    let path = directory.join("forge-1/setup");
     let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("config")).expect("JSON");
-    config["application"]["machine"]["owned"]["runner"] = serde_json::Value::Null;
+    config["runner"] = serde_json::Value::Null;
     super::write_private(&path, &serde_json::to_vec(&config).expect("JSON"));
 }
 pub fn refused(directory: &Path, verb: &str, expected: &[u8]) {
@@ -480,6 +479,18 @@ pub fn attach(directory: &Path, port: u16, running: Running) -> skein_throwaway_
     Instance::attach(running.into_child(), port, directory, Token::new(token.trim().into()), &Settings::small())
         .expect("owned forge answers")
 }
+#[must_use]
+pub fn setup_value(directory: &Path, forge: u16, kind: &str) -> serde_json::Value {
+    let prefix = if kind == "fake" {
+        "playground"
+    } else {
+        assert_eq!(kind, "owned");
+        "forge"
+    };
+    serde_json::from_slice(&fs::read(directory.join(format!("{prefix}-{forge}/setup"))).expect("kept setup"))
+        .expect("setup JSON")
+}
+
 pub fn configuration_value(directory: &Path, change: fn(&mut serde_json::Value)) {
     let path = directory.join("temper.json");
     let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -552,14 +563,11 @@ impl Owned {
 }
 /// Each value the example names and the test's own in its place; the runner's path goes before Forgejo's,
 /// which prefixes it.
-fn stand_ins(owned: &Owned) -> [(&'static str, String); 6] {
+fn stand_ins(owned: &Owned) -> [(&'static str, String); 3] {
     [
-        ("127.0.0.1:3000", owned.forgejo.to_string()),
         ("127.0.0.1:7100", owned.clients.to_string()),
         ("127.0.0.1:7101", owned.webhooks.to_string()),
         ("api.openai.com:443", owned.llm.to_string()),
-        ("/opt/forgejo/forgejo-runner", owned.runner_binary.to_str().expect("runner path").to_owned()),
-        ("/opt/forgejo/forgejo", owned.forgejo_binary.to_str().expect("Forgejo path").to_owned()),
     ]
 }
 /// One shipped file with the test's values; a value the example no longer names is refused rather than kept.
@@ -817,8 +825,6 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
             login: Some(b"ada"),
             ports: Ports {
                 clients: NonZeroU16::new(8367).expect("clients port"),
-                owned: NonZeroU16::new(8368).expect("owned forge port"),
-                forge: NonZeroU16::new(8369).expect("the fake forge port is nonzero"),
                 llm: NonZeroU16::new(8370).expect("LLM port"),
                 webhooks: NonZeroU16::new(8371).expect("webhooks port"),
             },
@@ -944,7 +950,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         }
         (named.files, setup, forges.into_boxed())
     } else {
-        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working())
+        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working(), None)
             .unwrap_or_else(|why| {
                 panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
             });

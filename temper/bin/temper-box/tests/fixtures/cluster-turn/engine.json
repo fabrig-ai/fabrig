@@ -23,7 +23,7 @@
         "fleet.attempts": 4,
         "fleet.calls": 1,
         "fleet.engine_slots": 0,
-        "fleet.grace_ms": 10000,
+        "fleet.grace_ms": 360000,
         "fleet.turns": 8,
         "hub.transcript_bytes": 16777216,
         "hub.turn_bytes": 1327470,
@@ -117,12 +117,6 @@
       ]
     }},
     "clients": {{
-      "heartbeat_ms": 10000,
-      "link": true
-    }},
-    "deployment": {{
-      "directory": "state",
-      "seed": 7
     }},
     "owners": [
       {{
@@ -130,26 +124,7 @@
         "subject": "owner-a"
       }}
     ],
-    "providers": [
-      {{
-        "number": 1,
-        "kind": "link"
-      }},
-      {{
-        "number": 2,
-        "kind": "deployment"
-      }}
-    ],
-    "connectors": [
-      1
-    ],
-    "memory_bytes": 4503599627370496,
-    "projects": [
-      {{
-        "number": 1,
-        "policy": 1
-      }}
-    ]
+    "memory_bytes": 4503599627370496
   }},
   "workers": [],
   "application": {{
@@ -165,7 +140,6 @@
       "bundle": null,
       "public": null
     }},
-    "machine": {{}},
     "demo": null,
     "sign_in": null,
     "limits": {{
@@ -188,31 +162,6 @@
         "forge.client.poll_ms": 50,
         "forge.landing_members": 1
       }}
-    }},
-    "workers": [],
-    "landing": {{
-      "projects": [
-        {{
-          "project": 1,
-          "by": "turn",
-          "batch": 1,
-          "gates": [
-            {{
-              "forge": 1,
-              "repository": 1,
-              "gates": [
-                {{
-                  "name": "gate",
-                  "workflow": "gate.yml",
-                  "ignored": [],
-                  "blocking": true,
-                  "base": true
-                }}
-              ]
-            }}
-          ]
-        }}
-      ]
     }}
   }}
 }}

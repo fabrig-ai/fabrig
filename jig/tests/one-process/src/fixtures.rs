@@ -71,6 +71,7 @@ fn engine() -> jig_protocol_config::Engine {
         at,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("fixture engine")
 }

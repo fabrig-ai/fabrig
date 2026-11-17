@@ -1,6 +1,8 @@
 //! Documents read over an application's base (jig/docs/design/protocol/limits.md, the stock).
 #![cfg(test)]
-use jig_protocol_config::{self as config, Defaults, Directories, DocumentLimits, Limits, Path, What};
+use jig_protocol_config::{
+    self as config, Defaults, Directories, DocumentLimits, Fixed, FixedWorker, Limits, Path, What,
+};
 use skein_json::Document;
 
 fn document(limits: &[u8], rest: &[u8]) -> Document {
@@ -58,8 +60,9 @@ const CASES: [(&[u8], u32); 3] =
 fn engine_limits_read_over_the_base() {
     let base = base();
     for (limits, expected) in CASES {
-        let engine = config::engine_over(&engine(limits), 0, &Directories::working(), Defaults::Passed, &base)
-            .expect("engine limits");
+        let engine =
+            config::engine_over(&engine(limits), 0, &Directories::working(), Defaults::Passed, &Fixed::NONE, &base)
+                .expect("engine limits");
         assert_eq!(engine.limits.core.tasks.tasks, expected);
     }
 }
@@ -67,7 +70,8 @@ fn engine_limits_read_over_the_base() {
 fn worker_limits_read_over_the_base() {
     let base = base();
     for (limits, expected) in CASES {
-        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &base).expect("worker limits");
+        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &FixedWorker::NONE, &base)
+            .expect("worker limits");
         assert_eq!(worker.limits.core.tasks.tasks, expected);
     }
 }
@@ -75,9 +79,10 @@ fn worker_limits_read_over_the_base() {
 fn unknown_profiles_are_refused_at_limits_profile() {
     for limits in [br#"{"profile":"small"}"#.as_slice(), br#"{"profile":"large"}"#] {
         let base = base();
-        let engine = config::engine_over(&engine(limits), 0, &Directories::working(), Defaults::Passed, &base)
-            .expect_err("unknown engine profile");
-        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &base)
+        let engine =
+            config::engine_over(&engine(limits), 0, &Directories::working(), Defaults::Passed, &Fixed::NONE, &base)
+                .expect_err("unknown engine profile");
+        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &FixedWorker::NONE, &base)
             .expect_err("unknown worker profile");
         for problems in [engine, worker] {
             assert_eq!(
@@ -99,10 +104,11 @@ fn refused_profiles_still_check_the_document_against_the_base() {
             0,
             &Directories::working(),
             Defaults::Passed,
+            &Fixed::NONE,
             &base,
         )
         .expect_err("profile and connector count");
-        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &base)
+        let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &FixedWorker::NONE, &base)
             .expect_err("profile and worker name");
         for (problems, member) in [(engine, b"connectors".as_slice()), (worker, b"name")] {
             assert_eq!(
@@ -121,13 +127,14 @@ fn default_readers_use_jigs_stock() {
     let stock = config::stock();
     let engine = engine(b"{}");
     let directories = Directories::working();
-    let default = config::engine(&engine, 0, &directories, Defaults::Passed).expect("stock engine");
-    let over = config::engine_over(&engine, 0, &directories, Defaults::Passed, &stock).expect("engine over stock");
+    let default = config::engine(&engine, 0, &directories, Defaults::Passed, &Fixed::NONE).expect("stock engine");
+    let over = config::engine_over(&engine, 0, &directories, Defaults::Passed, &Fixed::NONE, &stock)
+        .expect("engine over stock");
     assert_eq!(default.limits, over.limits);
     assert_eq!(default.limits.core.tasks.tasks, stock.core.tasks.tasks);
     let worker = worker(b"{}");
-    let default = config::worker(&worker, 0, &directories).expect("stock worker");
-    let over = config::worker_over(&worker, 0, &directories, &stock).expect("worker over stock");
+    let default = config::worker(&worker, 0, &directories, &FixedWorker::NONE).expect("stock worker");
+    let over = config::worker_over(&worker, 0, &directories, &FixedWorker::NONE, &stock).expect("worker over stock");
     assert_eq!(default.limits, over.limits);
     assert_eq!(default.limits.core.tasks.tasks, stock.core.tasks.tasks);
 }

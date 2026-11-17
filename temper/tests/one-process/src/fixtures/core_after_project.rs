@@ -70,7 +70,7 @@ impl Harness for Incident {
         value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
         value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
-        value["engine"]["acts"] = json!([{"connector":1,"may":["adopt"]}]);
+        value["world_settings"]["adopt_only"] = true.into();
         let grant = |kind| json!({"connector":1,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}});
         let tools = 3 | if crate::across_versions::active() { core::ToolFamilies::JIG.read.0 } else { 0 };
         let authority = json!({"tools":tools,"grants":[grant(3),grant(4),grant(7),grant(8),grant(9),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":5},"budget":{"spend":500,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
@@ -100,6 +100,7 @@ struct Inputs {
     given: temper_service::stock::Given,
     codec: jig_protocol_store::codec::View,
     families: temper_protocol_store::Bounds,
+    projects: Box<[jig_protocol_config::Project]>,
     agent: temper_service::settings::Agent,
     llm: temper_fake::llm::Document,
 }
@@ -126,6 +127,7 @@ impl Inputs {
             given,
             codec,
             families,
+            projects: parsed.projects,
             agent,
             llm: provider_document(),
         }
@@ -146,12 +148,28 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
     let (parameters, inputs) = CONTEXT.with(|at| at.borrow().as_ref().expect("incident context").clone());
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    let mut service = temper_service::startup::with_setup_given(
+    let seeds = Incident::seeds(parameters.seed);
+    let files = Incident::files();
+    let mut checked = temper_service::startup::checked_start_with(
         &inputs.deployment,
         &jig_protocol_config::Directories::working(),
-        &Incident::files(),
+        &files,
         Some(&inputs.agent),
-        &Incident::seeds(parameters.seed),
+        &seeds,
+        temper_playground::documents::forges(),
+        None,
+        &inputs.given,
+        Some(b"/usr/bin/git"),
+    )
+    .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    temper_playground::documents::settings::seed_projects(&mut checked.engine_mut().jig, inputs.projects.clone());
+    checked.engine_mut().jig.acts =
+        Box::new([jig_domain_people::ActGrant { connector: 1, may: Box::new([jig_domain_people::ActKind::Adopt]) }]);
+    let mut service = temper_service::startup::from_checked(
+        checked,
+        &files,
+        Some(&inputs.agent),
+        &seeds,
         None,
         Some(temper_service::WorkerRuntime {
             wires: crate::across_versions::worker_wires(),
@@ -159,11 +177,8 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
         }),
-        temper_playground::documents::forges(),
         None,
         None,
-        None,
-        &inputs.given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));

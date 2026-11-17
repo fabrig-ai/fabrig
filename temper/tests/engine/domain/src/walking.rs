@@ -383,7 +383,7 @@ pub fn config(seed: u64) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),
@@ -870,6 +870,7 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
+                | engine::Request::ChoosePlace { .. }
                 | engine::Request::BoxGroup { .. }
                 | engine::Request::PlaygroundActs { .. }
                 | engine::Request::ResetAct { .. }

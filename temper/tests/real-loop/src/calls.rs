@@ -828,6 +828,10 @@ impl Caller {
         self.steps.iter().filter(|step| matches!(step, Step::Kill { .. })).count()
     }
     pub(crate) fn provisioned(mut steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
+        // A welcome trial provisions its own account through the native form.
+        if steps.iter().any(|step| matches!(step, Step::TrialEnded)) {
+            return Self::new(steps, scratch, root);
+        }
         let Some((position, at)) = steps.iter().enumerate().find_map(|(index, step)| {
             if let Step::SignIn { at } | Step::SameParty { at } = step { Some((index, *at)) } else { None }
         }) else {

@@ -160,6 +160,7 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
         at,
         &config::Directories::working(),
         config::Defaults::Document,
+        &config::Fixed::NONE,
         &jig_protocol_config_fixtures::small(),
     ) {
         Ok(value) => value,
@@ -582,6 +583,7 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
             document,
             *at,
             &config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
             &jig_protocol_config_fixtures::small(),
         ) {
             Ok(worker) => worker,

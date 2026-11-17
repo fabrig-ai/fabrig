@@ -196,6 +196,12 @@ This project's areas, or that it has none.
 
 Next: settings · revisions · help settings-fields
 
+## settings welcome
+
+The deployment's welcome, shown by default under the box and not shown otherwise.
+
+Next: settings · revisions · help settings-fields
+
 ## settings project-triager
 
 This project's triager, or that it has none.

@@ -340,6 +340,7 @@ fn config_document(input: &[u8]) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
         &jig_protocol_config_fixtures::small(),
     )
     .expect("fixture config");

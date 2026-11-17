@@ -7,6 +7,7 @@ pub(crate) mod fixtures;
 mod limits;
 mod link_room;
 mod mirrors;
+mod moved_worker;
 mod reds;
 mod room;
 mod root_checks;

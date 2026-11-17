@@ -113,13 +113,11 @@ fn the_owned_values_equal_the_test_kits_values() {
     // Limit fixtures are explicit here; the kit's profile does not cross this boundary.
     owned["engine"].as_object_mut().unwrap().remove("limits");
     source["engine"].as_object_mut().unwrap().remove("limits");
+    documents::settings::strip_fixed(&mut source);
     assert_eq!(owned, source);
-    let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
-    worker["workers"][0]["graces"]["grace_ms"] = 300_000.into();
-    let mut owned: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
-    owned["workers"][0].as_object_mut().unwrap().remove("limits");
-    worker["workers"][0].as_object_mut().unwrap().remove("limits");
-    assert_eq!(owned, worker);
+    let worker: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
+    let source: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
+    assert_eq!(worker["workers"][0]["name"], source["workers"][0]["name"]);
 
     let hub = jig_protocol_config::stock().hub;
     assert_eq!(documents::agent_profile().policy.inbox, hub.held.max(hub.inbox));

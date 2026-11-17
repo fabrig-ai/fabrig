@@ -32,10 +32,9 @@ fn a_workspace_reaches_items_with_each_remote_made_from_its_base() {
 }
 #[test]
 fn a_machine_without_github_gives_each_remote_one_separator() {
-    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let mut forge = fixtures::forges().into_iter().next().unwrap();
-    forge.git = crate::system::machine_config(&machine).github.git;
+    forge.git = crate::system::machine_config(None).github.git;
     let items = translate::items(
         &assignment,
         &fixtures::forge_table(&[forge]),
