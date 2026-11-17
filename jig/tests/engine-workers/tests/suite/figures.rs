@@ -1,6 +1,6 @@
 //! The two opening purposes (protocol/channel/figures.md, 7).
 use jig_engine_workers_world::{World, fixtures as f};
-use jig_protocol_engine_workers::{Event, Request};
+use jig_protocol_engine_workers::{Event, Loss, Request};
 use jig_protocol_worker_wire as w;
 use skein_lib::{Duration, List, Reader, Writer};
 
@@ -64,11 +64,20 @@ fn figures() -> w::Figures {
     .expect("figures")
 }
 fn peer(name: &[u8], secret: &[u8], schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
-    let mut parts =
-        w::Credential::decode(&w::CEILINGS, &mut Reader::new(&f::credential(name, secret, f::APPLICATION_VERSION)))
-            .expect("credential")
-            .into_parts();
+    stating(name, secret, schema, f::APPLICATION_VERSION, f::LIMITS.room)
+}
+fn stating(
+    name: &[u8],
+    secret: &[u8],
+    schema: skein_channel::Schema,
+    version: u32,
+    output: u32,
+) -> skein_fake_channel::ScriptedPeer {
+    let mut parts = w::Credential::decode(&w::CEILINGS, &mut Reader::new(&f::credential(name, secret, version)))
+        .expect("credential")
+        .into_parts();
     parts.opening = w::Opening::Figures;
+    parts.output = output;
     let record = w::Credential::new(&w::CEILINGS, parts).expect("figures credential");
     let mut bytes = Writer::new(usize::try_from(record.measure()).expect("credential size"));
     record.encode(&mut bytes).expect("credential");
@@ -90,7 +99,11 @@ fn link_peer(name: &[u8], secret: &[u8]) -> skein_fake_channel::ScriptedPeer {
     f::peer(schema(), w::VERSION, name, secret, f::APPLICATION_VERSION)
 }
 fn world() -> World {
+    world_with_room(f::LIMITS.room)
+}
+fn world_with_room(room: u32) -> World {
     let mut limits = f::limits();
+    limits.room = room;
     limits.sizes.slots = 3;
     World::new(&limits, &f::workers(), 1)
 }
@@ -129,11 +142,39 @@ fn figures_take_no_place_and_replace_no_live_link() {
     assert_eq!(world.root().len(), root_count, "no hello or lost channel reaches the fleet");
     assert!(world.openings()[openings..].iter().all(|r| matches!(r, Request::FiguresTaken { .. })));
 }
+// A derived engine room and a worker's different stock room (figures.md, 3).
+const ENGINE_ROOM: u32 = 1_048_576;
+const WORKER_ROOM: u32 = ENGINE_ROOM + 4096;
+
 #[test]
-fn figures_refusals_authenticate_before_starting() {
-    let mut world = world();
-    for (secret, expected) in [(b"wrong".as_slice(), 256), (f::SECRET_A, 262)] {
-        let connection = world.connect(peer(f::WORKER_A, secret, schema()));
+fn figures_with_unequal_output_room_are_answered_and_closed() {
+    let mut world = world_with_room(ENGINE_ROOM);
+    let owner = figures();
+    world.down(Event::Figures { figures: owner.clone() });
+    let connection = world.connect(stating(f::WORKER_A, f::SECRET_A, schema(), f::APPLICATION_VERSION, WORKER_ROOM));
+    world.run();
+    let got = heard(&world, connection);
+    assert_eq!(got.places(), 3);
+    assert_eq!(got.limits(), owner.limits());
+    assert_eq!(got.agents(), owner.agents());
+    assert!(world.gone(connection), "finished after figures drain");
+    assert_eq!(world.refusal(connection), None, "no skein limits refusal");
+    assert!(matches!(world.openings(), [Request::FiguresTaken { worker: 0 }]));
+    assert!(
+        !world.ended().iter().any(|r| matches!(r, Request::Ended { why: Loss::OutputRoom { .. }, .. })),
+        "no output room loss"
+    );
+    assert!(world.root().is_empty(), "no hello or lost channel reaches the fleet");
+}
+#[test]
+fn figures_refusals_check_authentication_and_wires_before_starting() {
+    let mut world = world_with_room(ENGINE_ROOM);
+    for (secret, version, expected) in [
+        (b"wrong".as_slice(), f::OTHER_VERSION, 256),
+        (f::SECRET_A, f::OTHER_VERSION, 257),
+        (f::SECRET_A, f::APPLICATION_VERSION, 262),
+    ] {
+        let connection = world.connect(stating(f::WORKER_A, secret, schema(), version, WORKER_ROOM));
         world.run();
         assert_eq!(world.refusal(connection).expect("refusal").0, expected);
         assert!(world.root().is_empty());
