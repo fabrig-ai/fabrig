@@ -20,6 +20,8 @@ pub struct Operation {
     /// The declaration's provider and program name, retained from its durable ask.
     pub declaration: Option<(u32, Box<[u8]>)>,
     pub task: Option<u64>,
+    /// The funder of a goal start beneath a milestone (client/ctl/milestones.md, 3).
+    pub milestone: Option<u64>,
     pub ended_task: Option<c::Phase>,
     pub asked: Option<Asked>,
     pub to: Option<c::Recipient>,
@@ -68,6 +70,12 @@ impl Operation {
         } else {
             Self::of(ask)
         };
+        if tool.name == crate::jig::rows::GOAL_START.name
+            && let Ask::Jig(ask) = ask
+            && let c::Ask::Delegate { task, .. } = ask.as_ref()
+        {
+            operation.milestone = Some(*task);
+        }
         if tool.name == crate::jig::rows::MILESTONE_NEW.name {
             operation.word = b"milestone";
         }
@@ -207,6 +215,7 @@ impl Operation {
             account: None,
             declaration: None,
             task,
+            milestone: None,
             ended_task: None,
             asked: None,
             to: None,
@@ -1050,6 +1059,9 @@ fn refused_text(
         ceiling::text(project, *holder, *dimension, *value, limits.application, out);
         return;
     }
+    if milestone_budget_refusal(operation, refusal, out) {
+        return;
+    }
     if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
         (operation.project, refusal)
         && operation.word == b"project fund"
@@ -1102,6 +1114,23 @@ fn refused_text(
             None => out.put(operation.tool_name()),
         }
     }
+}
+
+fn milestone_budget_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let (Some(milestone), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
+        (operation.milestone, refusal)
+    {
+        out.put(operation.tool_name());
+        out.put(b": refused: milestone ");
+        out.number(milestone);
+        out.put(b" had ");
+        out.number(*left);
+        out.put(b" left, ");
+        out.number(*needed);
+        out.put(b" needed; give each goal in it --budget AMOUNT");
+        return true;
+    }
+    false
 }
 
 /// Account refusals with one actionable meaning (client/ctl/areas.md).

@@ -225,6 +225,16 @@ number it stored, never a closed one found by its branches
 branch and history are frozen (`domain/forge/keeping-up.md`, 3); and a
 job's attempt names why it ended (`domain/landing-history.md`, 2.2).
 
+A landing's prepare survives a restart
+(`draft/prepare-restart.status.md`): a round at preparing reads at each
+step whether its prepare lives, has answered or is absent, from jig's
+context and its job record, never from its own marks; the forge's start
+reads and wakes each landing, deciding nothing; a lost attempt is
+retried in the same child once its writer slots settle; proven absence
+asks once again, fenced by jig's step, keeping the prefixes recovered;
+and a release at preparing reconciles the same way
+(`domain/landing-preparing.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -524,6 +534,7 @@ Design documents:
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
+- [`domain/landing-preparing.md`](domain/landing-preparing.status.md)
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
@@ -650,9 +661,11 @@ Drafts:
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/page-round-trips.md`](draft/page-round-trips.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
+- [`draft/prepare-restart.md`](draft/prepare-restart.status.md)
 - [`draft/probes-by-test.md`](draft/probes-by-test.status.md)
 - [`draft/producer-reach.md`](draft/producer-reach.status.md)
 - [`draft/project-delete-cascade.md`](draft/project-delete-cascade.status.md)
@@ -677,7 +690,7 @@ Drafts:
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: landed, with no head-only walk remaining; older stores refused by name, naming bridge build `3d1c717d379e`; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, linked into a new generation and dropped whole by retention. S1 to S8 are landed; no done upgrade job remains.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
-- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: every test binary in one layer of the pyramid, by `tools/tiers/layers.toml` and its tree's testing document; a library's own, a binary's own and generated codec tests step tests by rule, the repository's checks a group of their own; a boundary check that every binary has its layer and every line names one that exists (`tools/tiers/layers.md`). B2, goal 5567: the focused and fuzzy suites' CPU budgets by tree and layer in `tools/tiers/budgets.toml`, from the CI builder's gate runs of 11-16 plus a tenth, with each layer's per-test reference and the ideals; one-process sums each run by tree and layer, red over a budget under `--gate` and a warning in every other run (`tools/tiers/budgets.md`). B3, goal 5618: a selection judged whole against a ledger of main's figures that every run writes again with its own folded in; the budget the gate holds, the lower of the user's ceiling and a layer's lowest figure at main plus a tenth, so it only falls; budget moved down the pyramid by a line beside the budgets; a layer's red the change's where main is within or the change adds more than the noise, naming the binaries and tests that grew (`tools/tiers/budgets.md`, 7 to 10). B4, goal 5722: each test held to its reference at the gate: with main's ledger a new test, and one whose wall doubled, run alone after the suite, its CPU less its binary's empty run's; a flagged one run alone at the base too; a line with a reason beside the budgets for a test past its reference; each test's CPU alone in the ledger (`tools/tiers/references.md`).
+- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: every test binary in one layer of the pyramid, by `tools/tiers/layers.toml` and its tree's testing document; a library's own, a binary's own and generated codec tests step tests by rule, the repository's checks a group of their own; a boundary check that every binary has its layer and every line names one that exists (`tools/tiers/layers.md`). B2, goal 5567: the focused and fuzzy suites' CPU budgets by tree and layer in `tools/tiers/budgets.toml`, from the CI builder's gate runs of 11-16 plus a tenth, with each layer's per-test reference and the ideals; one-process sums each run by tree and layer, red over a budget under `--gate` and a warning in every other run (`tools/tiers/budgets.md`). B3, goal 5618: a selection judged whole against a ledger of main's figures that every run writes again with its own folded in; the budget the gate holds, the lower of the user's ceiling and a layer's lowest figure at main plus a tenth, so it only falls; budget moved down the pyramid by a line beside the budgets; a layer's red the change's where main is within or the change adds more than the noise, naming the binaries and tests that grew (`tools/tiers/budgets.md`, 7 to 10). B4, goal 5722: each test held to its reference at the gate: with main's ledger a new test, and one whose wall doubled, run alone after the suite, its CPU less its binary's empty run's; a flagged one run alone at the base too; a line with a reason beside the budgets for a test past its reference; each test's CPU alone in the ledger (`tools/tiers/references.md`). B6, goal 6324: the delivery check judges each suite as the gate does where its builder keeps main's ledgers in `TIERS_LEDGER`, a layer over its budget or a test past its reference refusing the delivery, named as any failure; without them it warns and says why; its passed-tree cache keyed by the ledgers too (`tools/pre-pr/design.md`, 4 and 7). No builder keeps them yet.
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: the room named and held: an assignment that can't encode refused naming its field and figures, in the engine's log and the held task's reason, skein's generated paths naming themselves; a charter whose fixed part passes the allowance on a wake refused at apply and over the defaults at start, with or without a local agent, from the declarations' costs by family that the service gives the domain.

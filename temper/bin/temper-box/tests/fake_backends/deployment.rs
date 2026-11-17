@@ -407,7 +407,7 @@ impl Kept {
                 .iter()
                 .any(|row| row["owner"]["login"] == "work" && row["name"] == "hello")
         );
-        assert_eq!(landings, json!({"turn":null,"landings":[]}));
+        assert_eq!(landings, json!({"project":1,"turn":null,"landings":[]}));
         Self { project, forge, repositories, landings, api }
     }
 }

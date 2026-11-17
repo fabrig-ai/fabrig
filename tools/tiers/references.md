@@ -6,7 +6,7 @@ Provisional, 2026-11-16. How the gate holds each test of the focused and fuzzy s
 
 - **A reference for each test** (`tools/tiers/budgets.md`, 6): its layer's per-test figure, its tree's own where it sets one, or a line with a reason (section 2).
 - **Only a run of its own measures a test** (`tools/tiers/design.md`, 11): a shared process's CPU can't be divided among its tests. So a test is measured where it matters: run alone, in a process of its own, its CPU that process's less its binary's run selecting no test (section 4).
-- **Which tests run alone** (section 3): with main's ledger, a new test, one the ledger lacks, and a flagged one, whose wall in the shared run is past twice its figure at main and at least 50 ms over it. Without a ledger nothing runs alone: every run but the gate's stays as it is.
+- **Which tests run alone** (section 3): with main's ledger, a new test, one the ledger lacks, and a flagged one, whose wall in the shared run is past twice its figure at main and at least 50 ms over it. Without a ledger nothing runs alone: every run but the gate's and a delivery check's with main's ledgers stays as it is.
 - **After the suite** (section 4): in the same run, under its wall, once the suite's processes have ended; their CPU counts in no layer.
 - **At the base** (section 5): a flagged test runs alone at the candidate's base too, through `tools/tiers/one-process --alone`, from the base's checkout, as the gate's runner reruns a failure there.
 - **The judgement** (section 6): a new test within its reference; an existing flagged one within the larger of its reference and half again its CPU at main. Past it is red at the gate and a warning elsewhere, as a layer over its budget is.
@@ -41,7 +41,7 @@ A one-process run given main's ledger (`tools/tiers/budgets.md`, 7) picks them o
 - **New:** the ledger's `binaries` lacks its binary, or its binary's `tests` lacks its name.
 - **Flagged:** its wall in the suite is more than twice its figure at main and at least 0.05 s more than it, its figure at main the median of the ledger's walls for it, as `tools/tiers/budgets.md`, 8 takes it: a wall of 0.130 s against a median of 0.060 s flags it; 0.110 s against 0.060 s doesn't, not being past twice; nor does 0.060 s against 0.020 s, past twice but only 0.040 s over.
 
-A run without a ledger runs nothing alone, and every test is neither: the delivery check, a builder's run and anyone's own stay as they were. A run its cancellation stopped before the suite's processes ended runs nothing alone either (section 4).
+A run without a ledger runs nothing alone, and every test is neither: a builder's run, anyone's own and a delivery check without main's ledgers stay as they were. A delivery check with them runs its new and flagged tests alone as the gate does, and, building nothing at its base, judges a flagged test by the ledger's figures alone where it has them and otherwise warns (section 6; `tools/pre-pr/design.md`, 4). A run its cancellation stopped before the suite's processes ended runs nothing alone either (section 4).
 
 ## 4. A test's run alone
 
