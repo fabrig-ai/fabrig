@@ -1,0 +1,27 @@
+# tools/outward/design.md, 2: names and their left and right marks.
+- w fabrig-ai/agents
+w w agents repository
+w w agents repositories
+w w agents repos
+w w agents repo
+w w fab
+w w fab_home
+w w heavy cargo
+w w heavy env
+w - heavy --
+- - "heavy"
+- - 'heavy'
+w w hel8
+w w debian-16gb
+w w status.fabrig.ai
+- - ~/src/fabrig/
+- - ~/src/rust/tmp/
+- - /home/free/
+w w fabrig/qa
+w w fabrig/dogfood
+w w fabrig/debt
+w w agents/loop
+w w agents/status
+w w agents/creds
+w w agents/ops
+w d hetzner

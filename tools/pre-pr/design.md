@@ -6,9 +6,11 @@ delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
 for where its tests sit, `temper/docs/design/draft/focused-pyramid.md`,
-for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`, and,
+for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
-after a landing's gate caught three reds in tests no delivery had run.
+after a landing's gate caught three reds in tests no delivery had run, and,
+for the failures file's place in the tree and a prose-only delivery's check
+with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3.
 Coding agents run no build
 or test; this check runs what the delivery changed, on the agent's warm
 checkout, before anything is pushed. A pull request into a goal's branch runs
@@ -40,6 +42,14 @@ boundary (smith's run.md, 8.1).
   whose tests read files across the tree. A docs-only delivery runs their
   focused and fuzzy tests beside citations, so a name the outward rule
   forbids (`AGENTS.md`, 1) never reaches a pushed branch unchecked
+  (section 3), unless it is prose only (below).
+- **Prose only, no build.** A delivery whose every changed path is
+  Markdown under a `docs/` directory that no registered reader declares
+  as its input (`.config/gate/read-by-tests.txt`,
+  `.config/fixture-readers.toml`) runs the outward scan as a text check
+  (`tools/outward/design.md`) and citations, and no cargo command at all:
+  the boundary packages' tests read no such file but through the outward
+  scan, which the text check gives the same verdict as the Rust test
   (section 3).
 - **A binary is a process.** The focused tests, then the fuzzy tests of
   the same set, run through `tools/tiers/one-process default` and
@@ -52,11 +62,13 @@ boundary (smith's run.md, 8.1).
   (`temper/docs/design/domain/forge/branches.md`, 3; smith's run.md, 8.1).
   The worker pins its checkout's `refs/temper/landing` at g's tip as for a
   change, so a design delivery runs this check's docs set and the boundary
-  packages' tests, with no check of its own.
+  packages' tests, with no check of its own; one of status files and other
+  prose under `docs/` alone is prose only, and builds nothing.
 - **One hold for the check.** With `TIERS_HOLD` set, the check holds its
   build directory from before its first build to its verdict, so the
   executables one-process built are still there when it runs them
-  (section 4; `tools/tiers/design.md`, 3).
+  (section 4; `tools/tiers/design.md`, 3). A prose-only delivery builds
+  nothing and takes none.
 - **The goal's reds, and inherited counts.** Nothing is built or tested
   at the base. A lint or test failure is inherited only when the goal's
   reds, which temper keeps and writes to `temper/reds` in the git
@@ -77,8 +89,9 @@ boundary (smith's run.md, 8.1).
   the inherited ones (section 6).
 - **Every failure's key kept.** Before the summary prints, it writes every
   failure it found, new, flake and inherited alike, with its key, to
-  `temper/pre-pr-failures.json` in the git directory, never the tree;
-  the file stays until the next completed check replaces it (section 6).
+  `target/temper/pre-pr-failures.json` under the checkout's root, ignored
+  by git and outside the git directory, so that an agent's `read` reaches
+  it; the file stays until the next completed check replaces it (section 6).
 - **Its results for temper.** Under temper's marker it writes
   `temper/check-results` at its end, passed or refused: its tree, base
   and verdict, the goal's reds it passed or failed, and its flakes with
@@ -165,7 +178,39 @@ boundary (smith's run.md, 8.1).
   or a line each starting `pre-pr: code and docs:`; then, once, the
   boundary line, `pre-pr: boundary tests: <packages>`, the boundary
   packages joined by a space, or `none`. With neither, print
-  `pre-pr: no code or docs inputs changed`.
+  `pre-pr: no code or docs inputs changed`. A prose-only delivery
+  (below) prints its own two lines instead of the docs-only line and the
+  boundary line.
+- **Prose only:** a delivery with docs inputs and no code input, whose
+  every changed path, deletions included, ends in `.md` and has a `docs`
+  directory component, is prose only. It runs check 5 and check 6 (the
+  outward text check, section 4) and nothing else, and reads nothing of
+  cargo: no `cargo metadata`, no boundary packages, no build, no test and
+  no hold (section 4, *The hold*). Its lines, in place of the docs-only
+  line and the boundary line:
+  `pre-pr: prose only: outward names, citations and design size limits (docs input …)`,
+  then `pre-pr: boundary tests: none (prose only)`. Its lints' and tests'
+  sets are empty.
+  - **Why it needs no test:** a test that reads a Markdown file by path
+    or compiles it in declares it (*Declared readers*, above), which makes
+    it a code input; of the boundary packages' tests, only
+    `fabrig-boundary`'s outward scan (`tests/boundary/tests/outward.rs`)
+    reads undeclared Markdown under `docs/`, and check 6 gives its verdict
+    with no build (`tools/outward/design.md`, 1).
+  - **Why under `docs/`:** `fabrig-boundary`'s `cli_names` test scans
+    every tracked file outside a `docs/` directory for an environment
+    variable's name, Markdown included (a package's README, `AGENTS.md`,
+    `DESIGN.md`), and a glob of `read-by-tests.txt` cannot name that set.
+    A delivery that changes Markdown outside `docs/` stays docs only, with
+    the boundary packages' tests.
+  - **The declarations it rests on:** each boundary package's test that
+    reads Markdown under `docs/` is declared in
+    `.config/gate/read-by-tests.txt`: among them every tree's
+    `docs/design/cli/*-env.md` and `*-args.md`, which the command-line
+    tools' reference tests compare whole, and
+    `temper/docs/design/testing/qa/setups.md`, whose recipe the QA tool's
+    tests compare. A new test that reads Markdown declares it there
+    (`AGENTS.md`, 2).
 - **The workspace's packages:** `cargo metadata --offline --no-deps
   --format-version 1` at the tree. A member's directory is its
   manifest's parent; a changed path belongs to the member whose directory
@@ -188,11 +233,13 @@ boundary (smith's run.md, 8.1).
   package <name>: not a workspace member, skipped`. Their tests read
   files of the whole tree by path (the outward rule, a kit's vocabulary),
   so any change, prose included, can break them: every delivery that
-  selects either set adds them, whatever its inputs. A package on both a
-  prefixed and an unprefixed line is in A.
+  selects either set adds them, whatever its inputs, but a prose-only one
+  (above), whose prose they read only through the outward scan. A package
+  on both a prefixed and an unprefixed line is in A.
 - **The lints' set** is C; **the tests' set** is C ∪ D ∪ R ∪ A. Each is
   ordered by package name and passed as one `-p` per package. A
-  docs-only delivery's C, D and R are empty: its tests' set is A.
+  docs-only delivery's C, D and R are empty: its tests' set is A, and a
+  prose-only one's is empty.
 - **No package selected for code:** the lints' set and C ∪ D ∪ R empty,
   code still runs checks 1 and 2, printing `pre-pr: no package changed`,
   and check 4 over A. Docs still run check 5 and check 4 over A when
@@ -336,6 +383,24 @@ delivery hears every failure; the verdict is section 6's.
    counted `comment:dead_citation` baseline still checks Markdown path
    existence in Rust comments as part of check 2, as before
    (`tools/old_forms/README.md`).
+6. **The outward names,** for a prose-only delivery alone (section 3):
+   `python3 -I -B tools/outward/outward.py` from the tree's root, with
+   section 3's private index as `GIT_INDEX_FILE`, so that it scans the
+   delivery's tree as the snapshot holds it, untracked files included and
+   ignored ones not (`tools/outward/design.md`, 2 and 3). It runs after
+   check 5, announced `pre-pr: outward …` and ended `pre-pr: outward:
+   passed|failed|inherited, <seconds> s`. Its exit decides:
+   - **0:** passed;
+   - **1:** the scan found a name: one failure, its log the scan's
+     output, the verdict's lines (`tools/outward/design.md`, 3). It stands
+     for the Rust test the delivery does not run, and is named and keyed
+     as that test's failure would be: `test fabrig-boundary::outward
+     no_file_names_the_lab`, binary id `fabrig-boundary::outward`, name
+     `no_file_names_the_lab`, so that a goal's red naming that test
+     inherits it (section 5) and the failures file keys it as a test
+     (section 6);
+   - **any other:** a failure of the check itself, `check outward`, its
+     log the scan's output.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
@@ -353,7 +418,8 @@ and the check's builds and the executables they built are one hold, not one
 claim per cargo command: an environment that lends a build directory only
 while a cargo command runs could otherwise reclaim it after one-process's
 listing has built the tests and before their processes start. A cache hit
-takes none. A hold that fails prints its warning, `pre-pr: hold: <why>;
+takes none, nor does a prose-only delivery, whose selection reads git
+alone and which runs no cargo command (section 3). A hold that fails prints its warning, `pre-pr: hold: <why>;
 going on unheld`, and refuses nothing; the summary does not repeat it, since
 it is the deployment's, not the delivery's. Killed, the check releases the
 hold by its death (`tools/tiers/design.md`, 3).
@@ -442,11 +508,13 @@ cause.
   whatever its message; otherwise it is the delivery's.
 - **A failing test** is keyed by its binary id and its name. It is
   inherited when a `- test` entry gives both; otherwise, failing at the
-  base or not, it is the delivery's.
+  base or not, it is the delivery's. The outward text check's failure is
+  keyed as its Rust test's (section 4, check 6) and judged so; it is never
+  run again, since no process of tests ran.
 - **A build failure** (section 4's, `build` or `build fuzzy`) is always
   the delivery's, whatever the goal's reds hold; so is a failure of a
   check itself (`check clippy`, `check one-process`, `check one-process
-  fuzzy`, `check selection`).
+  fuzzy`, `check outward`, `check selection`).
 - **A starved test** is neither failed nor inherited: section 4's warning
   names it, and it refuses nothing, named by an entry or not.
 - **A flake,** a failing test that passed when its process ran again
@@ -478,12 +546,14 @@ cause.
     merge base of refs/temper/landing and HEAD`) or that there was none;
   - the failures line, naming the failures file (below) and counting
     its entries by class, the same counts as the file's:
-    `failures: <N> new, <F> flakes, <I> inherited; every key in <path>`,
-    `<path>` the file's absolute path. Where the file could not be
+    `failures: <N> new, <F> flakes, <I> inherited; every key in
+    target/temper/pre-pr-failures.json`, the file's path from the
+    checkout's root, as an agent's `read` takes it in its workspace
+    (smith's `smith-protocol-machine` refuses any path with a `.git`
+    part, and the check names no such path). Where the file could not be
     written: `failures: <N> new, <F> flakes, <I> inherited; not written
-    to <path>: <error>`, `<path>` as far as it was found, else
-    `temper/pre-pr-failures.json`, and `<error>` the error's first line,
-    at most 512 bytes, cut at a character's end;
+    to target/temper/pre-pr-failures.json: <error>`, `<error>` the
+    error's first line, at most 512 bytes, cut at a character's end;
   - the sets: `lints: <packages>`, `tests: <packages>`;
   - section 4's starved lines, the focused run's then the fuzzy run's,
     each where its tests starved;
@@ -515,13 +585,24 @@ cause.
 - **The failures file** holds every failure the run found, new, flake
   and inherited alike, so that a key the summary had no room for is
   still there to read once the run's directories are gone:
-  - **Where:** `git rev-parse --git-path temper/pre-pr-failures.json`,
-    read from the checkout's root as the results file's path is: the git
-    directory, never the tree, and in a linked worktree that worktree's
-    own git directory (`temper/` is none of git's shared paths). It is
-    written through `temper/pre-pr-failures.json.tmp` renamed over it,
-    `temper/` made where it is missing, so a reader sees one check's
-    file whole.
+  - **Where:** `target/temper/pre-pr-failures.json` under the
+    checkout's root, the directory `.temper/pre-pr` runs from (`git
+    rev-parse --show-toplevel`): in a linked worktree, that worktree's
+    root, so each worktree has its own. It is that path whatever cargo's
+    target directory is (`CARGO_TARGET_DIR` does not move it), and the
+    repository's `.gitignore` ignores `/target/`, so the file is never in
+    the delivery's tree, the snapshot or a commit. It is outside the git
+    directory because an agent's `read` refuses any path with a `.git`
+    part (`smith/crates/smith-protocol-machine/src/files.rs`, `check`),
+    and smith keeps that guard: an exception naming this file would put
+    the application's knowledge in the kit
+    (`temper/docs/design/draft/small-fixes-1116.md`, 1). It is written
+    through `target/temper/pre-pr-failures.json.tmp` renamed over it,
+    `target/temper/` made where it is missing, so a reader sees one
+    check's file whole. A file an earlier check left in the git
+    directory, at `temper/pre-pr-failures.json`, is neither read nor
+    removed. temper's own files, `temper/reds`, `temper/rerun` and
+    `temper/check-results`, stay in the git directory (sections 5 and 6).
   - **When:** after the checks and before the summary prints, by every
     run that prints a summary, passed or refused, with no failure as with
     hundreds, with or without temper's marker; and by a cache hit, marked
@@ -606,8 +687,10 @@ it writes no `temper/check-results` (section 6), so temper keeps what the
 check's last pass reported. It does write the failures file (section 6),
 saying so: `cached` `true`, `verdict` `passed`, the tree and base it
 reused, zero counts and no failures, since it observed none; after its
-line it prints `failures: a cached pass, none observed; in <path>`, or
-`…; not written to <path>: <error>` as the summary's failures line does.
+line it prints `failures: a cached pass, none observed; in
+target/temper/pre-pr-failures.json`, or `…; not written to
+target/temper/pre-pr-failures.json: <error>` as the summary's failures
+line does.
 The record holds the last pass alone, so a hit is always of the last
 tree that passed here.
 
@@ -625,6 +708,12 @@ tree that passed here.
   change that brought them measured them on its own delivery and said so
   in its description. They count against the checks' deadline as every
   check does (below).
+- **A prose-only delivery builds nothing** (section 3): in a checkout
+  with no `target/`, the boundary packages' tests were a cold compile,
+  and a goal delivering only status files ran past the checks' deadline
+  three times (`temper/docs/design/draft/small-fixes-1116.md`, 3). It
+  costs citations and the outward text check, which reads each tracked
+  file once, a few seconds on this repository and no cargo.
 - **No build or test at the base.** A lint, test or build failure goes
   back to the delivery at once, judged against the goal's reds alone
   (section 5): a failing delivery takes no longer than a passing one. The
@@ -674,8 +763,9 @@ tests'. Its stories, a test each:
    its line and starts no program; a changed source checked again.
 4. **The base from git:** a merge in progress, whose base `git merge-base
    refs/temper/landing HEAD MERGE_HEAD` gives and the log names; a
-   docs-only delivery running the citation checker and the boundary packages'
-   focused and fuzzy tests, with no formatter, counted baseline or clippy.
+   docs-only delivery, of Markdown outside `docs/`, running the citation
+   checker and the boundary packages' focused and fuzzy tests, with no
+   formatter, counted baseline or clippy.
 5. **The private index:** new sources the counts read through it, the
    real index unchanged.
 6. **The sets given to the tools:** a changed package and its direct
@@ -766,12 +856,33 @@ stays within 8,192 bytes with its first two lines the verdict and the
 failures line, which names the file's path and the counts; a test name
 of several kilobytes and keys with non-ASCII text are kept whole and read
 back equal; from a fake one-process run, the file still holds every
-failure once the run's temporary directory is gone; in a linked
-worktree, the file is in that worktree's git directory and not in the
-main one's; a write that fails, the file's place taken by a directory, is
-named in the failures line and leaves the exit and the rest of the
-summary as they would be; a later passing check replaces a refused one's
-file, and a cache hit writes one marked `cached`.
+failure once the run's temporary directory is gone; the file is
+`target/temper/pre-pr-failures.json` under the checkout's root, and
+nothing is written to the git directory's `temper/pre-pr-failures.json`;
+the failures line names `target/temper/pre-pr-failures.json`; in a
+linked worktree, the file is under that worktree's root and not under the
+main one's, its summary naming the same relative path; a write that
+fails, the file's place taken by a directory, is named in the failures
+line and leaves the exit and the rest of the summary as they would be; a
+later passing check replaces a refused one's file, and a cache hit writes
+one marked `cached`.
+
+It checks a prose-only delivery (section 3) with the check's cargo, one-process and
+formatter faked to fail the test if run: Markdown under a `docs/`
+directory alone, a status file's edit, runs citations and the outward
+text check, prints the prose-only line and `pre-pr: boundary tests: none
+(prose only)`, and runs no cargo command, no one-process, no formatter,
+no counted baseline and no hold; it still refuses a file under `docs/` that holds a
+name from `tools/outward/names.txt` (the test takes the name from that
+list and spells none), the failure named `test fabrig-boundary::outward
+no_file_names_the_lab` with the scan's line in its log, and inherited
+where `temper/reds` names that test; it still refuses a broken citation;
+an exit of the scan other than 0 or 1 is `check outward`. Markdown a
+registered reader declares (a `read-by-tests.txt` glob, a fixture entry's
+path) keeps its cargo checks: the code line and the boundary packages'
+tests; so do Markdown outside `docs/` (docs only, with the boundary
+packages' tests) and a delivery that adds a non-Markdown file under
+`docs/` beside its prose.
 
 It reads a one-process run's directory as section 4 does, from a fake run
 that writes the files: failures from `junit.xml`, keyed by binary id and
@@ -783,7 +894,8 @@ one-process` otherwise; and the command: `default`, a `--out` that does not
 yet exist, one `-p` per package, `--no-tests=warn`, and no `--workspace`,
 `--profile` or `--tool-config-file`.
 
-It selects the boundary packages (section 3): a Markdown-only change runs
+It selects the boundary packages (section 3): a Markdown-only change
+outside `docs/` runs
 one-process over them alone, focused then fuzzy, beside citations, and no
 format check, counted baseline or clippy; a package on an unprefixed
 `.config/gate/always.txt` line is in the tests' set of a code delivery
