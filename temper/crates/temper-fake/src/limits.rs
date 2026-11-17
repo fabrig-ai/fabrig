@@ -36,7 +36,7 @@ pub const OBSERVATION_STATE_BYTES: u32 = 1 << 20;
 /// Eight requests beside deliveries, port-zero admission and no frozen peer records.
 #[must_use]
 pub fn peer() -> Limits {
-    let mut io = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
+    let mut io = jig_protocol_config::stock().io;
     io.sockets = CONNECTIONS.saturating_mul(2).saturating_add(1);
     io.refusals = CONNECTIONS;
     io.intake = BUFFER;

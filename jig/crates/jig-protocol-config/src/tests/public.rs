@@ -6,7 +6,7 @@
     reason = "ordinary Rust test fixtures build bounded JSON documents and tables of overrides"
 )]
 use super::fixtures;
-use crate::{Limits, Path, Problems, Profile, What, overrides};
+use crate::{Limits, Path, Problems, What, overrides};
 use jig_domain_core_vocabulary::PublicIndexLimits;
 use jig_protocol_engine_clients::PublicLimits;
 
@@ -38,7 +38,7 @@ const OVERRIDES: &[(&str, u64)] = &[
 
 fn configuration(values: &[(&str, u64)]) -> String {
     let members = values.iter().map(|(name, value)| format!("\"{name}\":{value}")).collect::<Vec<_>>().join(",");
-    format!("{{\"profile\":\"small\",\"overrides\":{{{members}}}}}")
+    format!("{{\"profile\":\"standard\",\"overrides\":{{{members}}}}}")
 }
 fn parse(values: &[(&str, u64)], prefix: &Path) -> overrides::Parsed {
     let bytes = configuration(values);
@@ -48,11 +48,11 @@ fn parse(values: &[(&str, u64)], prefix: &Path) -> overrides::Parsed {
 }
 fn start(values: &[(&str, u64)]) -> Result<crate::Engine, Problems> {
     let limits = format!("\"limits\": {}", configuration(values));
-    let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""limits": {"profile": "small"}"#, limits.as_bytes());
+    let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""limits": {"profile": "standard"}"#, limits.as_bytes());
     fixtures::engine(&bytes)
 }
 fn public_limits() -> Limits {
-    let mut limits = crate::profile(Profile::Small);
+    let mut limits = crate::stock();
     limits.clients.public = PUBLIC;
     limits.clients_http.public_calls = PUBLIC.reads;
     limits.core.public = INDEX;
@@ -70,16 +70,12 @@ fn changed(changes: &[(&'static str, u64)]) -> Vec<(&'static str, u64)> {
 
 #[test]
 fn every_profile_turns_public_reading_off() {
-    for (profile, name) in [(Profile::Small, "small"), (Profile::Standard, "standard")] {
-        let limits = crate::profile(profile);
-        assert_eq!(limits.clients.public, PublicLimits::OFF);
-        assert!(!limits.clients.public.on());
-        assert_eq!(limits.clients_http.public_calls, 0);
-        assert_eq!(limits.core.public, PublicIndexLimits::OFF);
-        let replacement = format!("\"profile\": \"{name}\"");
-        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""profile": "small""#, replacement.as_bytes());
-        assert!(fixtures::engine(&bytes).is_ok(), "{profile:?}");
-    }
+    let limits = crate::stock();
+    assert_eq!(limits.clients.public, PublicLimits::OFF);
+    assert!(!limits.clients.public.on());
+    assert_eq!(limits.clients_http.public_calls, 0);
+    assert_eq!(limits.core.public, PublicIndexLimits::OFF);
+    fixtures::engine(fixtures::ENGINE_SMALL).expect("stock with public reading off");
 }
 
 #[test]
@@ -105,7 +101,7 @@ fn public_overrides_parse_at_their_paths() {
     let zero: Vec<_> = OVERRIDES.iter().map(|(name, _)| (*name, 0)).collect();
     let parsed = parse(&zero, &prefix);
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
-    assert_eq!(parsed.limits, crate::profile(Profile::Small));
+    assert_eq!(parsed.limits, crate::stock());
     for (name, maximum) in [
         ("clients.public.reads", u64::from(u32::MAX)),
         ("clients.public.rate", u64::from(u32::MAX)),
@@ -118,7 +114,7 @@ fn public_overrides_parse_at_their_paths() {
         ("core.public.lines", u64::from(u16::MAX)),
         ("core.public.depth", u64::from(u16::MAX)),
     ] {
-        let mut limits = crate::profile(Profile::Small);
+        let mut limits = crate::stock();
         assert_eq!(overrides::apply(&mut limits, name.as_bytes(), maximum), Ok(()), "{name}");
         let parsed = parse(&[(name, maximum + 1)], &prefix);
         assert_eq!(parsed.problems.problems.len(), 1, "{name}");

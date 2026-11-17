@@ -96,7 +96,25 @@ beside the Rust test's own cases.
   the next byte. Names on a line never overlap.
 - **A prefilter,** where kept for speed, is derived from the list at
   run time (a file or a line that holds no entry's name, case folded,
-  holds none found), never a second list.
+  holds none found), never a second list. It holds exactly where the
+  text holds some entry's whole name, its bytes equal ASCII
+  case-insensitively, whatever the entry's marks: a text that holds
+  one may still hold no name found, its marks unmet, and one that
+  holds none is never cut into lines. The text check's alternation of
+  the list's names, matched case-insensitively, is this prefilter.
+- **Its cost:** both checks read every listed file whole, so the
+  prefilter and the matching do a few operations for each byte read:
+  a lookup in a table built once from the list, by the byte there or
+  the bytes ending there, never a search over the list, a sort or a
+  key folded again for each byte; an entry's name is compared only
+  where that lookup names it. At a place on a line, the entries tried
+  are those whose name's first byte, case folded, is the line's there,
+  in the list's order. So the Rust test's scan of the whole tree stays
+  a small part of the repository's checks' CPU budget
+  (`tools/tiers/budgets.toml`, `[gate.default.repository.checks]`).
+  A prefilter of each entry's first few bytes alone is too weak: short
+  prefixes are common in prose and code, and pass most lines of the
+  tree on to the matching.
 
 ## 4. The verdict
 
@@ -129,6 +147,13 @@ beside the Rust test's own cases.
   left-out paths, the binary rule, the verdict's text and a symlink read
   as its target's path. A malformed list's lines are refused, from a
   list given as text.
+- **The prefilter against a naive one,** in the same file: on texts
+  built from the list (each entry's name in upper, lower and mixed
+  case at a text's start, middle and end; each name with its last
+  byte cut or changed; two names spliced; product words), the Rust
+  prefilter holds exactly where a naive search finds some entry's
+  whole name, case folded. It stays in the focused suite, a few
+  hundred texts at most.
 - **They agree,** in `tests/boundary/tests/outward.rs`: a scratch git
   repository holding files with names of each kind of entry (each left
   and right mark, a name with digits, two names on a line, one in a

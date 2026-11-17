@@ -1995,7 +1995,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
 
 /// Stop after the producer releases its reservation, before the review is delegated.
 fn before_review() -> (World, u64) {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     // The task read includes the change's grants and its amendment offers.
     documents.grants = 16;
     let world =
@@ -2134,7 +2134,7 @@ fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
 }
 
 fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 32;
     documents.text_bytes = 512;
     let mut world = World::configured_limits(
@@ -2236,7 +2236,7 @@ fn beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer() {
 
 #[test]
 fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 16;
     documents.text_bytes = 512;
     let world =
@@ -2260,7 +2260,7 @@ fn a_vetoed_open_holds_as_its_procedure_naming_the_effect_and_decision() {
 
 #[test]
 fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
-    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 16;
     documents.text_bytes = 512;
     let world =
@@ -2284,8 +2284,7 @@ fn a_failed_open_keeps_its_effect_and_forge_refusal_after_outbox_retirement() {
 
 #[test]
 fn a_gate_repairs_with_its_whole_remarks_before_its_named_pull() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let world = World::configured_limits(
         true,
         true,

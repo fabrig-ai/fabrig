@@ -150,7 +150,7 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
         assert_eq!(request, root::Application::Follow { project: 2, follow: 1, act: expected });
     }
     for refusal in [None, Some(b"ab: this entry was skipped".as_slice().into())] {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Follow(refusal.clone())), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let w::Outcome::Follow(answer) = answer.into_parts().outcome else { panic!("follow outcome") };
@@ -411,7 +411,7 @@ fn a_git_base_with_a_port_keeps_it_in_the_host() {
     }
 }
 fn encoded(outcome: Option<forge::ApplicationOutcome>) -> w::Outcome {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let outcome = match outcome {
         Some(outcome) => Some(temper_engine_domain::ApplicationAnswer::Adopt(outcome)),
         None => None,
@@ -1144,7 +1144,7 @@ fn forges_watches_name_the_deployment_subject() {
 
 #[test]
 fn setup_outcomes_use_the_family_answer_including_unknown() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (outcome, expected) in [
         (None, w::Outcome::Unknown),
         (Some(forge::SetUpAnswer::SettingUp), w::Outcome::SettingUp),
@@ -1509,7 +1509,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
 }
 #[test]
 fn invalid_setup_refusals_translate_to_the_wire() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes = family::answer(
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid))),
         &w::CEILINGS,
@@ -1526,7 +1526,7 @@ fn invalid_setup_refusals_translate_to_the_wire() {
 
 #[test]
 fn playground_start_outcomes_encode_every_failure_and_unknown() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let group = w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"prepare 1 exited 1".as_slice().into() })
         .unwrap();
     for (answer, expected) in [
@@ -1882,7 +1882,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
 }
 #[test]
 fn accept_answers_use_the_appended_success_and_existing_refusals() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (
             forge::AcceptAnswer::Accepted { installation: 22 },
@@ -2494,7 +2494,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 }
 #[test]
 fn removal_and_playground_answers_use_their_own_outcomes() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (root::ApplicationAnswer::Try(root::TryAnswer::Tried), w::Outcome::Tried),
         (root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs), w::Outcome::NotTheirs),
@@ -2528,7 +2528,7 @@ fn removal_and_playground_answers_use_their_own_outcomes() {
 
 #[test]
 fn end_playground_answers_reset() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes =
         family::answer(Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), &w::CEILINGS, &jig)
             .unwrap();
@@ -2636,7 +2636,7 @@ fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
 
 #[test]
 fn connect_and_replace_answers_share_the_connect_outcomes() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
         (
@@ -2908,7 +2908,7 @@ fn make_repository_refuses_a_source_the_parser_rejects() {
 }
 #[test]
 fn make_repository_answers_encode_every_outcome() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (forge::MakeAnswer::Kept, w::Outcome::MakeKept),
         (forge::MakeAnswer::Refused(forge::MakeRefusal::NoSuchForge), make_refused(w::MakeRefusal::NoSuchForge)),
@@ -3791,7 +3791,7 @@ fn looked_and_status_translate_both_ways() {
         }
     );
     assert_eq!(window, jig_domain_core::documents::Window { rows: 2, after: None });
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), w::Outcome::Looked),
         (
@@ -3874,7 +3874,7 @@ fn looked_and_status_translate_both_ways() {
 fn the_worst_small_changes_document_fits_its_decision() {
     const REPOSITORY_BYTES: usize = 2048; // ChangesQueue.repository, the wire ceiling.
     let from = Some(forge::ChangeFrom { task: 1, title: Box::from([b'f'; 256]) });
-    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let limits = crate::limits::stock();
     let mut queues = List::with_capacity(32);
     // Each live change may have its own queue; the view retains at most 32 queues.
     for task in 0..limits.forge.changes.min(32) {
@@ -3935,7 +3935,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
         landed_more: 0,
     });
     let bytes = document.owned_bytes();
-    assert_eq!(bytes, 88_256, "the configured changes-document carrier's measured floor");
+    assert_eq!(bytes, 171_392, "the stock's worst changes document's measured floor");
     assert!(
         bytes <= usize::try_from(limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)).unwrap(),
         "changes document owns {bytes} bytes; allowance {}",
@@ -3947,7 +3947,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
 fn the_worst_small_ways_document_fits_its_decision() {
     // A stock headline's bound (temper/docs/design/protocol/configuration/settings.md, 8).
     const HEADLINE_BYTES: u32 = 120;
-    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let limits = crate::limits::stock();
     let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();
     let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
     assert!(
@@ -4112,7 +4112,7 @@ fn away_wall(nanos: Option<u64>) -> Option<skein_lib::Wall> {
     }
 }
 fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
     w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
 }
@@ -5636,7 +5636,7 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         (Err(forge::TierRefusal::NotHeld), Some(w::TierRefusal::NotHeld)),
         (Err(forge::TierRefusal::Words), Some(w::TierRefusal::Words)),
     ] {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Tier(value)), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };

@@ -224,7 +224,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
 
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 16;
     limits.http = server_http();
     limits
@@ -375,7 +375,7 @@ pub fn large_turn() -> Box<[u8]> {
 /// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small());
     limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
     limits.clients.public = jig_protocol_engine_clients::PublicLimits {
         reads: 2,

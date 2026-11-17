@@ -226,8 +226,8 @@ mod tests {
         assert_eq!(tier_configuration()["service"]["components"], serde_json::json!(["clients"]));
     }
     #[test]
-    fn the_tier_uses_the_engine_s_small_limits_profile() {
-        assert_eq!(tier_configuration()["engine"]["limits"]["profile"], "small");
+    fn the_tier_uses_the_engine_s_stock_base() {
+        assert_eq!(tier_configuration()["engine"]["limits"]["profile"], "standard");
     }
     #[test]
     fn the_tier_starts_without_any_agent_workers() {

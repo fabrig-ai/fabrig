@@ -34,6 +34,7 @@ jig-domain-people.workspace = true
 
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
 temper-test-env.workspace = true
 temper-engine-service-vocabulary.workspace = true
 

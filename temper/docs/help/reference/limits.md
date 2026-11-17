@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.
+Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.
 
 ## sign_in
 
@@ -28,27 +28,27 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.held`: count, 1,536. Sets the retained held-delivery count; the uncapped journal does not use it for admission.
 - `root.journal.writes`: count, 12,288. Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot.
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
-- `root.journal.transcript_bytes`: bytes, 88,256. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
-- `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
+- `root.journal.transcript_bytes`: bytes, 18,431,846. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
+- `root.journal.result_bytes`: bytes, 334,999. Bounds owned result text or assignment section text admitted to a held delivery.
 - `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
-- `root.loads.bytes`: bytes, 65,536. Bounds a kept page prefix, counting record slots and their owned bytes.
-- `root.loads.read_bytes`: bytes, 65,536. Bounds owned bytes one authenticated store read brings for a person.
-- `root.loads.reply_bytes`: bytes, 65,536. Bounds a decoded store answer before its kept prefix is cut.
-- `root.loads.transcript_bytes`: bytes, 65,536. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
+- `root.loads.bytes`: bytes, 18,432,090. Bounds a kept page prefix, counting record slots and their owned bytes.
+- `root.loads.read_bytes`: bytes, 36,863,684. Bounds owned bytes one authenticated store read brings for a person.
+- `root.loads.reply_bytes`: bytes, 18,432,090. Bounds a decoded store answer before its kept prefix is cut.
+- `root.loads.transcript_bytes`: bytes, 18,431,842. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
 - `root.brief.briefs`: count, 2. Bounds briefs the root gathers at once.
 - `root.brief.sections`: count, 10. Bounds brief sections the root gathers at once.
 - `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
-- `root.brief.read_bytes`: bytes, 4,608. Bounds bytes read for one gathered brief section.
-- `root.brief.brief_bytes`: bytes, 14,592. Bounds the body of a gathered brief.
-- `root.brief.gather_ms`: milliseconds, 30,000. Bounds the time spent gathering a brief.
-- `root.brief.budgets.task`: bytes, 4,608. Bounds task section bytes in a gathered brief.
+- `root.brief.read_bytes`: bytes, 131,584. Bounds bytes read for one gathered brief section.
+- `root.brief.brief_bytes`: bytes, 334,999. Bounds the body of a gathered brief.
+- `root.brief.gather_ms`: milliseconds, 300,000. Bounds the time spent gathering a brief.
+- `root.brief.budgets.task`: bytes, 131,584. Bounds task section bytes in a gathered brief.
 - `root.brief.budgets.dependencies`: bytes, 128. Bounds dependency section bytes in a gathered brief.
 - `root.brief.budgets.document`: bytes, 4,096. Bounds document section bytes in a gathered brief.
 - `root.brief.budgets.ci`: bytes, 4,096. Bounds CI section bytes in a gathered brief.
-- `root.brief.budgets.reviews`: bytes, 4,608. Bounds review section bytes in a gathered brief.
-- `root.brief.budgets.pull`: bytes, 4,608. Bounds pull request section bytes in a gathered brief.
+- `root.brief.budgets.reviews`: bytes, 131,584. Bounds review section bytes in a gathered brief.
+- `root.brief.budgets.pull`: bytes, 131,584. Bounds pull request section bytes in a gathered brief.
 - `root.brief.budgets.attempts`: bytes, 128. Bounds attempt section bytes in a gathered brief.
 - `root.brief.budgets.plan`: bytes, 128. Bounds plan section bytes in a gathered brief.
 - `root.brief.budgets.notes`: bytes, 64. Bounds note section bytes in a gathered brief.
@@ -58,19 +58,19 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## forge
 
 - `forge.forges`: count, 3. Bounds retained forges of every kind and mode, counting an ended forge until its removal is whole.
-- `forge.repositories`: count, 2. Bounds repositories retained by the forge connector, shared by every retained forge.
-- `forge.tasks`: count, 8. Bounds tasks participating in the forge connector.
-- `forge.holds`: count, 8. Bounds held task resources in the forge connector.
-- `forge.subscriptions`: count, 8. Bounds subscriptions to forge topics.
+- `forge.repositories`: count, 6. Bounds repositories retained by the forge connector, shared by every retained forge.
+- `forge.tasks`: count, 128. Bounds tasks participating in the forge connector.
+- `forge.holds`: count, 160. Bounds held task resources in the forge connector.
+- `forge.subscriptions`: count, 128. Bounds subscriptions to forge topics.
 - `forge.entries`: count, 8. Bounds durable outbox entries in the forge connector.
-- `forge.named_calls`: count, 32. Bounds retained named calls and their connector payloads, independently of outbox entries.
-- `forge.changes`: count, 8. Bounds live changes retained by the forge connector.
+- `forge.named_calls`: count, 128. Bounds retained named calls and their connector payloads, independently of outbox entries.
+- `forge.changes`: count, 379. Bounds live changes retained by the forge connector.
 - `forge.issues`: count, 8. Bounds live issue projections retained by the forge connector.
-- `forge.landing_members`: count, 2. Bounds changes and held member branches in one landing; at least each project's batch.
-- `forge.resources_per_task`: count, 3. Bounds distinct forge names watched by one task, including held resources and subscribed branches.
+- `forge.landing_members`: count, 5. Bounds changes and held member branches in one landing; at least each project's batch.
+- `forge.resources_per_task`: count, 10. Bounds distinct forge names watched by one task, including held resources and subscribed branches.
 - `forge.paths_per_subscription`: count, 4. Bounds paths retained by one forge subscription.
 - `forge.name_bytes`: bytes, 64. Bounds names retained by the forge connector.
-- `forge.output`: count, 80. Bounds output records reserved for one forge step.
+- `forge.output`: count, 192. Bounds output records reserved for one forge step.
 - `forge.facts`: count, 16. Bounds facts awaiting the forge connector's drain.
 - `forge.makings`: count, 32. Bounds repositories being made or failed, from 1 to 64.
 - `forge.adoptions`: count, 2. Bounds repository adoptions in flight.
@@ -79,7 +79,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_rows`: count, 32. Bounds queued rows across the changes document's queues.
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
-- `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.landings`: count, 32. Bounds live landing procedure rows.
 - `forge.key_entries`: count, 256. Bounds the entries of one tree a landing's gate key reads.
 - `forge.branch_reds`: count, 64. Bounds the reds held by a goal.
 - `forge.red_key_bytes`: bytes, 256. Bounds a goal red's key.
@@ -87,12 +87,12 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.history_events`: count, 131,072. Events retained per project, at least 1; oldest last-event changes swept whole past it.
 - `forge.findings_per_project`: count, 256. Bounds retained findings per project.
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
-- `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
+- `forge.judge_projects`: count, 16. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
-- `forge.dependencies`: count, 4. Dependencies per project.
-- `forge.follows`: count, 2. Follows per project.
+- `forge.dependencies`: count, 16. Dependencies per project.
+- `forge.follows`: count, 8. Follows per project.
 - `forge.follow_paths`: count, 8. Path prefixes per follow.
-- `forge.follow_queue`: count, 16. Queued landings per follow.
+- `forge.follow_queue`: count, 64. Queued landings per follow.
 - `forge.follow_merge`: count, 8. Landings per follow change.
 - `forge.follow_commits`: count, 8. Commits retained per follow entry.
 - `forge.follow_files`: count, 32. Files retained per follow entry.
@@ -101,7 +101,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.follow_reason_bytes`: bytes, 256. Bytes per follow skip reason.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.
 - `forge.brief_sections`: count, 40. Bounds forge brief sections gathered at once.
-- `forge.brief_bytes`: bytes, 4,608. Bounds bytes retained for one gathered forge brief section.
+- `forge.brief_bytes`: bytes, 131,584. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
 - `forge.tiers.test_id_bytes`: bytes, 256. Bounds a failing test's identifier in a tier's report.
@@ -112,8 +112,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.rate`: count, 100. Bounds requests allowed in one forge rate window.
 - `forge.client.reserve`: count, 0. Reserves requests in the forge rate window for writes.
 - `forge.client.window_ms`: milliseconds, 10,000. Sets the forge request rate window.
-- `forge.client.op_bytes`: bytes, 512. Bounds owned bytes of one forge operation.
-- `forge.client.answer_bytes`: bytes, 65,536. Bounds decoded bytes of one forge answer.
+- `forge.client.op_bytes`: bytes, 63,738. Bounds owned bytes of one forge operation.
+- `forge.client.answer_bytes`: bytes, 1,048,576. Bounds decoded bytes of one forge answer.
 - `forge.client.rows`: count, 8. Bounds rows in one forge answer page.
 - `forge.client.inbox`: count, 16. Bounds comment and review delivery stamps retained per resource.
 - `forge.client.read_attempts`: count, 3. Bounds attempts of one forge read.
@@ -123,8 +123,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.write_attempts`: count, 3. Bounds attempts of one forge write.
 - `forge.client.lifetime_ms`: milliseconds, 300,000. Bounds how long a sent forge write may arrive; moves a still-derived call deadline with it.
 - `forge.client.clock_margin_ms`: milliseconds, 1,000. Sets the allowance for clock movement when a forge write's lifetime is checked.
-- `forge.client.resources`: count, 16. Bounds resources retained for forge polling.
-- `forge.client.repositories`: count, 2. Bounds repositories retained by the forge client and read by a setup plan.
+- `forge.client.resources`: count, 2,048. Bounds resources retained for forge polling.
+- `forge.client.repositories`: count, 6. Bounds repositories retained by the forge client and read by a setup plan.
 - `forge.client.poll_ms`: milliseconds, 5,000. Sets the normal interval between forge resource polls.
 - `forge.client.poll_max_ms`: milliseconds, 30,000. Bounds the interval between forge resource polls.
 - `forge.client.hinted_ms`: milliseconds, 1,000. Sets the delay before a hinted forge read.
@@ -132,18 +132,18 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.settle_ms`: milliseconds, 30,000. Bounds settling after a pull request's head or base moves, while hinted CI and mergeability are read again.
 - `forge.client.fallback_ms`: milliseconds, 300,000. Timed reads fall back while repository deliveries arrive; 0 keeps the polling paces.
 - `forge.client.facts`: count, 16. Bounds forge client facts awaiting drain.
-- `forge.change_policy.repairs`: count, 3. Bounds repair attempts in a change.
-- `forge.change_policy.resolutions`: count, 3. Bounds conflict resolution attempts in a change.
+- `forge.change_policy.repairs`: count, 80. Bounds repair attempts in a change.
+- `forge.change_policy.resolutions`: count, 80. Bounds conflict resolution attempts in a change.
 - `forge.change_policy.reruns`: count, 1. Bounds re-runs of a runner-failed job at one head.
-- `forge.change_policy.updates`: count, 3. Bounds update attempts in a change.
-- `forge.change_policy.questions`: count, 4. Bounds questions raised in a change.
-- `forge.change_policy.tasks`: count, 6. Bounds the producer, reviews and repairs a change may create.
+- `forge.change_policy.updates`: count, 80. Bounds update attempts in a change.
+- `forge.change_policy.questions`: count, 80. Bounds questions raised in a change.
+- `forge.change_policy.tasks`: count, 80. Bounds the producer, reviews and repairs a change may create.
 - `forge.change_policy.stall_ms`: milliseconds, 1,800,000. Bounds the wait for a silent forge during a change.
 - `forge.change_policy.unknown_grace_ms`: milliseconds, 1,800,000. Bounds the grace for CI that says nothing of its execution at checking.
 - `forge.change_policy.runner_wait_ms`: milliseconds, 14,400,000. Bounds the wait for a runner at checking.
 - `forge.change_policy.gates`: count, 8. Bounds gates retained by a change.
 - `forge.change_policy.clean_heads`: count, 8. Bounds clean branch heads retained by a change.
-- `forge.issue_policy.plan_items`: count, 8. Bounds items in an issue plan.
+- `forge.issue_policy.plan_items`: count, 384. Bounds items in an issue plan.
 - `forge.issue_policy.milestones`: count, 8. Bounds milestones in an issue projection.
 - `forge.issue_policy.title_bytes`: bytes, 128. Bounds an issue title.
 - `forge.issue_policy.body_bytes`: bytes, 512. Bounds an issue body.
@@ -156,11 +156,11 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `checkout.preparations`: count, 1. Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
-- `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.
+- `checkout.message_bytes`: bytes, 63,740. Bounds a commit message's title and body together.
 - `checkout.conflicts`: count, 512. Bounds conflicted paths per repository; zero disables merge starts.
 - `checkout.path_bytes`: bytes, 255. Bounds one full relative conflicted path.
 - `checkout.remote_timeout_ms`: milliseconds, 60,000. Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.
-- `checkout.local_timeout_ms`: milliseconds, 10,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
+- `checkout.local_timeout_ms`: milliseconds, 60,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
 - `checkout.reds_read_ms`: milliseconds, 5,000. Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.
 - `checkout.rerun_processes`: count, 4. Bounds failing test processes run again by a check; 0 to 16.
 - `checkout.facts`: count, 256. Bounds facts kept until the parent drains them; later facts are dropped and counted.
@@ -207,10 +207,10 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge_component.depth`: count, 16. Bounds JSON nesting followed in a forge response.
 - `forge_component.chunk`: bytes, 4,096. Bounds bytes of a JSON string demanded at once.
 - `forge_component.string_bytes`: bytes, 512. Bounds a retained forge name, title, context, description, link or path.
-- `forge_component.body_bytes`: bytes, 16,384. Bounds a forge response body retained whole.
+- `forge_component.body_bytes`: bytes, 127,497. Bounds a forge response body retained whole.
 - `forge_component.inner`: count, 32. Bounds elements retained from a list within one forge document.
 - `forge_component.target_bytes`: bytes, 4,096. Bounds a forge request target.
-- `forge_component.repositories`: count, 2. Bounds repositories in the forge component's table.
+- `forge_component.repositories`: count, 6. Bounds repositories in the forge component's table.
 - `forge_component.users`: count, 256. Bounds users in the forge component's table.
 - `forge_component.tls.read`: bytes, 16,384. Bounds plaintext demanded at once from a forge TLS connection.
 - `forge_component.tls.send`: bytes, 16,384. Bounds plaintext send room demanded from a forge TLS connection.

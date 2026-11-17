@@ -234,7 +234,7 @@ fn inventory_settings(count: u32) -> Option<u32> {
 mod settings_tests {
     use super::*;
     fn ceiling(name: &[u8], maximum: u32) {
-        let mut limits = crate::profile(crate::Profile::Small);
+        let mut limits = crate::stock();
         crate::overrides::apply(&mut limits, name, u64::from(maximum)).unwrap();
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
@@ -246,7 +246,7 @@ mod settings_tests {
     }
     #[test]
     fn settings_proposal_reasons_fit_the_wire() {
-        let mut limits = crate::profile(crate::Profile::Small);
+        let mut limits = crate::stock();
         limits.clients.wire.document_text_bytes = limits.core.people.words;
         limits.core.documents.text_bytes = 128;
         limits.core.notes.body_bytes = 128;
@@ -263,14 +263,14 @@ mod settings_tests {
     }
     #[test]
     fn pending_settings_fit_the_wire_inventory() {
-        let maximum = crate::profile(crate::Profile::Small).clients.wire.settings_document_pending;
+        let maximum = crate::stock().clients.wire.settings_document_pending;
         ceiling(b"core.settings.proposals", maximum);
     }
     #[test]
     fn offer_accounts_and_template_previews_fit_the_wire() {
         for (name, field) in [(b"accounts.accounts".as_slice(), "accounts"), (b"core.templates".as_slice(), "defaults")]
         {
-            let mut limits = crate::profile(crate::Profile::Small);
+            let mut limits = crate::stock();
             let value = if field == "accounts" { limits.core.accounts.accounts } else { limits.core.templates };
             if field == "accounts" {
                 limits.clients.wire.me_model_accounts = value;
@@ -343,22 +343,20 @@ mod settings_tests {
     }
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
-        let mut limits = crate::profile(crate::Profile::Small);
-        // Small has eleven other slots in each set and one shared 64-row model range.
-        limits.core.tasks.charters = 85;
+        let mut limits = crate::stock();
+        // Stock has 25 other slots in each set and one shared 64-row model range.
+        limits.core.tasks.charters = 71;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 86;
+        limits.core.tasks.charters = 72;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }
     #[test]
     fn profile_core_shares_remain_representable() {
-        for profile in [crate::Profile::Small, crate::Profile::Standard] {
-            let limits = crate::profile(profile);
-            assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
-        }
+        let limits = crate::stock();
+        assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
     }
 }
 
@@ -389,7 +387,7 @@ mod proposal_settings_tests {
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {
-            let mut limits = crate::profile(crate::Profile::Small);
+            let mut limits = crate::stock();
             limits.clients.wire.proposal_action_settings_items = proposal;
             limits.clients.wire.retained_action_settings_items = retained;
             limits.clients.wire.settings_review_items = review;

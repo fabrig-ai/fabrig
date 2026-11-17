@@ -3,7 +3,7 @@ use skein_lib::Token;
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"overrides": {"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -90,7 +90,7 @@ pub fn engine() -> settings::Engine {
 }
 
 fn small_limits() -> limits::Limits {
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = limits::stock();
     own.root.journal.run_bytes = 32_768;
     own
 }
@@ -131,12 +131,13 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::engine(
+    let mut jig = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
         &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
+        &jig_protocol_config_fixtures::small(),
     )
     .unwrap();
     let own = match jig.llm.endpoints.first() {
@@ -320,11 +321,11 @@ fn store_limits_for(
     settings: &settings::Engine,
 ) -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("root limits");
-    (root, settings.jig.limits.core, settings.jig.limits.store)
+    (root, settings.jig.limits.core, jig_protocol_config::stock().store)
 }
 
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
-    crate::translate::limits(&limits::profile(limits::Profile::Small)).unwrap()
+    crate::translate::limits(&limits::stock()).unwrap()
 }
 
 pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {

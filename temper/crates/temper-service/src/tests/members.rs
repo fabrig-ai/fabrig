@@ -29,7 +29,7 @@ const APPLICATION: &[u8] = br#"{
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
-"limits":{"profile":"small","overrides":{}}
+"limits":{"profile":"standard","overrides":{}}
 }"#;
 
 fn expanded() -> Box<[u8]> {
