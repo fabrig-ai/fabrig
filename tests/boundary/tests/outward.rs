@@ -87,12 +87,21 @@ fn word(byte: u8) -> bool {
 
 /// The lab's names on `line`, left to right, never overlapping, each as the line spells it.
 fn names(line: &[u8]) -> Vec<&[u8]> {
+    // Keep the list's precedence, but inspect only names with this initial byte.
+    static INITIALS: OnceLock<[Vec<&'static Name>; 256]> = OnceLock::new();
+    let initials = INITIALS.get_or_init(|| {
+        let mut initials: [Vec<&Name>; 256] = std::array::from_fn(|_| Vec::new());
+        for entry in entries() {
+            initials[usize::from(entry.text[0].to_ascii_lowercase())].push(entry);
+        }
+        initials
+    });
     let mut result = Vec::new();
     let mut start = 0;
     while start < line.len() {
         let left = start == 0 || !word(line[start - 1]);
         let rest = &line[start..];
-        let length = entries().iter().filter(|entry| entry.text[0].eq_ignore_ascii_case(&rest[0])).find_map(|entry| {
+        let length = initials[usize::from(rest[0].to_ascii_lowercase())].iter().find_map(|entry| {
             let name = &entry.text;
             if (entry.left && !left) || !rest.get(..name.len()).is_some_and(|text| text.eq_ignore_ascii_case(name)) {
                 return None;
@@ -123,15 +132,27 @@ fn prefix_key(bytes: &[u8]) -> u32 {
 
 /// A case-folded prefix set derived from the list, never another list of names.
 fn may_hold_name(text: &[u8]) -> bool {
-    static PREFIXES: OnceLock<(usize, Vec<u32>)> = OnceLock::new();
-    let (width, prefixes) = PREFIXES.get_or_init(|| {
+    static PREFIXES: OnceLock<(usize, Vec<u32>, Box<[bool]>)> = OnceLock::new();
+    let (width, prefixes, pairs) = PREFIXES.get_or_init(|| {
         let width = entries().iter().map(|entry| entry.text.len()).min().unwrap_or(1).min(4);
         let mut prefixes: Vec<u32> = entries().iter().map(|entry| prefix_key(&entry.text[..width])).collect();
         prefixes.sort_unstable();
         prefixes.dedup();
-        (width, prefixes)
+        let mut pairs = vec![false; 65_536].into_boxed_slice();
+        for entry in entries() {
+            let pair = prefix_key(&entry.text[..width.min(2)]);
+            pairs[usize::try_from(pair).expect("two-byte prefix")] = true;
+        }
+        (width, prefixes, pairs)
     });
-    text.windows(*width).any(|part| prefixes.binary_search(&prefix_key(part)).is_ok())
+    text.windows(*width).any(|part| {
+        let pair = if *width == 1 {
+            usize::from(part[0].to_ascii_lowercase())
+        } else {
+            (usize::from(part[0].to_ascii_lowercase()) << 8) | usize::from(part[1].to_ascii_lowercase())
+        };
+        pairs[pair] && prefixes.binary_search(&prefix_key(part)).is_ok()
+    })
 }
 
 /// Every name in a file's `text`: its line, from 1, and its text.

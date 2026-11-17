@@ -328,16 +328,17 @@ fn checked_profile_with_files(
 
 /// Merge every shipped overlay member as protocol/configuration/reference.md requires.
 fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
-    if let (Some(base), Some(overlay)) = (base.as_object_mut(), overlay.as_object()) {
-        for (name, value) in overlay {
-            if let Some(previous) = base.get_mut(name) {
-                merge_profile_members(previous, value.clone());
-            } else {
-                base.insert(name.clone(), value.clone());
+    match (base, overlay) {
+        (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
+            for (name, value) in overlay {
+                if let Some(previous) = base.get_mut(&name) {
+                    merge_profile_members(previous, value);
+                } else {
+                    base.insert(name, value);
+                }
             }
         }
-    } else {
-        *base = overlay;
+        (base, overlay) => *base = overlay,
     }
 }
 

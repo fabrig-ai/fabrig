@@ -759,8 +759,11 @@ pub fn widest() -> engine::Limits {
     limits
 }
 fn component_limits(limits: &engine::Limits) -> Limits {
-    let profile = jig_protocol_config::stock();
-    let mut profile = profile.store;
+    // These worlds keep the stock's store joins, including the box-allowance
+    // stories. Derive that immutable profile once, not its client wire sizes
+    // for every new store as well.
+    static PROFILE: std::sync::OnceLock<Limits> = std::sync::OnceLock::new();
+    let mut profile = *PROFILE.get_or_init(|| jig_protocol_config::stock().store);
     profile.store.budget = 4 * 1024 * 1024;
     profile.store.key = u32::MAX;
     profile.store.value = u32::MAX;
