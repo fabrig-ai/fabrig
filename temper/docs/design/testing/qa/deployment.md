@@ -27,8 +27,9 @@ deployment's engine rather than a box of their own.
 - **Prepared once** (section 4): the documents rendered, the worker's
   secret and its digest made; the fake git's link made at every start.
 - **Started in order, stopped in reverse** (sections 5 and 7): the fake
-  Forgejo, the fake model, the engine, the worker; ctl signed in from a
-  file, no link printed anywhere; then, but in a ctl session, the
+  Forgejo, the fake model, the engine; ctl signed in from a file, no
+  link printed anywhere, and the worker added as a setting; the worker,
+  admitted by it; then, but in a ctl session, the
   browser signed in from the engine's fresh link, as a box's is; at the
   end the TUI and the browser go first.
 - **Its lines** (section 6): ctl and forge lines with the deployment's
@@ -70,9 +71,12 @@ writes it, with the fakes in place of real backends
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
 - **Three paths fixed:** the worker's document names its secret at its
-  data path `secrets/worker.secret`, and the engine's names that
-  worker's digest at its data path `secrets/worker.digest`, the files
-  the place makes (section 4); and the worker's document names its root
+  data path `secrets/worker.secret`; the engine's names no worker, since
+  workers are settings and `engine.hosts.workers` is refused
+  (`../../protocol/configuration/settings.md`, 4), and the session
+  keeps that worker's digest at the engine's data path
+  `secrets/worker.digest`, which section 5's `worker add` sends; both
+  files the place makes (section 4); and the worker's document names its root
   `workspaces`, under its data path, so that the agent it pins is in
   `data/worker/workspaces/agent/`, which a copy leaves out (`places.md`,
   4).
@@ -132,7 +136,7 @@ for a deployment:
 | `config/engine/temper.json` | the engine's document, rendered |
 | `config/worker/temper.json` | the worker's, rendered |
 | `config/forgejo.json`, `config/model.json` | the fakes' documents, rendered |
-| `data/engine/` | the engine's data directory: its store, `secrets/worker.digest` |
+| `data/engine/` | the engine's data directory: its store, and `secrets/worker.digest`, which the session reads for the worker's setting and the engine reads not at all |
 | `data/worker/` | the worker's: `secrets/worker.secret`, its workspaces, its programs, and its agent's configuration as temper pins it, `workspaces/agent/agent.json` |
 | `data/forgejo/` | the fake Forgejo's kept state, `state`, and the outputs its document names there |
 | `data/model/` | the fake model's outputs its document names there |
@@ -194,16 +198,26 @@ nowhere. Each within its bound; a failure is the deployment's (section
    its stderr has said `listening clients ` and `listening workers ` and
    its stdout has given its first line starting `http://`, within 120
    seconds.
-4. **The worker:** `temper-worker serve --config SCRATCH/config/worker
+4. **ctl, signed in from a file:** the engine's first link written to
+   `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
+   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
+   exit 0 within 60 seconds, then `session/link` removed.
+5. **The worker's setting:** an engine admits only a worker its settings
+   hold (`../../draft/config.md`, 6.7), so the session adds it as its
+   owner does, `temper ctl SCRATCH/session/ctl worker add WORKER
+   --places PLACES --digest SHA256` (`../../client/ctl/workers.md`):
+   `WORKER` the rendered worker document's `workers[0].name`, `PLACES`
+   its `slots`, `SHA256` the 64 digits of `data/engine/secrets/worker.digest`;
+   exit 0 within 60 seconds. A held deployment's store keeps the
+   setting, so where `temper ctl SCRATCH/session/ctl worker list --json`
+   already lists `WORKER`, nothing is added. A refusal is the
+   deployment's failure (section 7).
+6. **The worker:** `temper-worker serve --config SCRATCH/config/worker
    --data SCRATCH/data/worker --cache SCRATCH/cache/worker`, ready at its
    stderr's `linked `, within 120 seconds. It pins its agent's program,
    `{place.bin}/temper-agent`, as it starts (`../../protocol/binaries.md`,
    5).
-5. **ctl, signed in from a file:** the engine's first link written to
-   `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
-   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
-   exit 0 within 60 seconds, then `session/link` removed.
-6. **The browser,** but in a ctl session (`../../client/drive.md`,
+7. **The browser,** but in a ctl session (`../../client/drive.md`,
    2.6): `../../client/drive.md`, 2.3's step 3 on the engine's origin,
    the first link's `http://HOST:PORT`, `{place.clients}`. Headless
    Chromium opens the first link, now spent; the engine, as a box's
@@ -218,10 +232,10 @@ nowhere. Each within its bound; a failure is the deployment's (section
    start fails it, as `../../client/drive.md`, 2.3 has them; here such
    a failure is the deployment's (section 7). So the browser holds the
    session's sign-in and a copy holds none, as at a box.
-7. **`ready`** on stdout, and the lines are read.
+8. **`ready`** on stdout, and the lines are read.
 
 Every link the engine prints but its first and, in a full session, the
-fresh one step 6 takes is read and dropped, and the engine's stdout is
+fresh one step 7 takes is read and dropped, and the engine's stdout is
 written nowhere. So no link is printed, logged, answered or kept, and no
 copy holds a sign-in (`../../draft/landed-qa.md`, 5 and 11).
 
@@ -290,13 +304,13 @@ most 64 KiB.
 
 It answers `| patched DOCUMENT` and `ok`. The page's troubles are not
 counted during the line: the engine is down for part of it, and the
-page's requests then fail by design; step 6's main region is its check.
+page's requests then fail by design; step 7's main region is its check.
 A patch that is no JSON
 object, a result that is no JSON object, or a file missing fails the
 line before anything stops, naming it. An engine or worker that does
 not start again ends the deployment as failed (section 7): the line
 fails, and every later one fails `failed: the deployment exited`. A page
-that shows no main region within step 6's bound fails the line, naming
+that shows no main region within step 7's bound fails the line, naming
 what it showed, and the deployment runs on. Its
 bound is 300 seconds. It is kept as any line (`../../client/drive.md`,
 4), so the recipe holds it, and its file in `files/`.
@@ -364,7 +378,10 @@ instead.
     secret's and the digest's form; the link made again;
   - the start: the order and each ready line over injected events; ctl
     signed in from `session/link`, the link in no log, no answer and no
-    program's argument; a process's exit before its ready line, status
+    program's argument; the worker's `worker add` after the sign-in and
+    before the worker starts, its name, places and digest from the
+    rendered document and the digest file, none sent where `worker list`
+    already lists it, and its refusal status 4; a process's exit before its ready line, status
     4; every later link dropped;
   - the stop's order and bounds; status 3 from the engine's refusal and
     from the forge's state;
@@ -373,7 +390,7 @@ instead.
     in a ctl session, web and tui lines failing, unkept;
   - `{place.bundle}` rendered from `--bundle`, and refused, naming the
     document, in a session given none;
-  - the browser at a deployment (section 5, step 6), over injected
+  - the browser at a deployment (section 5, step 7), over injected
     events: after ctl's sign-in the spent first link opened, the
     engine's next stdout link taken as the fresh one and opened, `/`
     loaded on the engine's origin and the main region found before
