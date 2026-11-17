@@ -1,7 +1,8 @@
 # configuration: status
 
-2026-11-12. Where jig's code lags or departs from [configuration.md](configuration.md).
+2026-11-17. Where jig's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 3: the `limits` row's member optional, absent reading the application's base. [in flight: change 6969]
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts.md`, 3.4) [in flight: change 928].
 

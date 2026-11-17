@@ -163,6 +163,15 @@ writes only `slots`.
   sides: `people.inbox_tasks` is twice `tasks.tasks`, `tasks.exemptions`
   at most `tasks.tasks`, and `forge.landings` at most `forge.holds` over
   `forge.landing_members`, each from its scaled source.
+- **The other side of a tie follows its scaled side:** where a check
+  ties a count of the list to one outside it, the outside figure is
+  derived, at most its stock unless the check needs more, and never below
+  what the check needs: `forge.landing_members` is the least of its stock
+  and `forge.holds`; `tasks.delegates` the least of its stock and
+  `tasks.tasks` less one; `people.operations` the larger of
+  `tasks.delegates` plus one and `tasks.project_goals`, at most
+  `tasks.tasks`. At the stock's 40 live goals each is its stock figure.
+  An override of one still wins, and the checks judge it.
 - **A cap a format sets holds:** a scaled count takes the least of its
   formula and its cap, `forge.holds` the store's 256 goals of a tier
   row, `forge.tasks` its 1,024 closer's selections and
