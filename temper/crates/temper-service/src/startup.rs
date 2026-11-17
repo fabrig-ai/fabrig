@@ -265,6 +265,22 @@ fn load_with_sources(
             Ok(document) => document,
             Err(found) => return Err(problem(found.path, What::Jig(found.what))),
         };
+    // A remote engine takes the stock agent's sources, not an unused supplied agent
+    // (protocol/configuration/derived.md, 1 and 2).
+    let workers = match member(&document, 0, b"workers") {
+        Some(at) => read::list(&document, at, u32::MAX).ok(),
+        None => None,
+    };
+    let sources = match workers {
+        Some(workers) => {
+            if workers.is_empty() {
+                temper_service_core::derived::STOCK
+            } else {
+                sources
+            }
+        }
+        None => temper_service_core::derived::STOCK,
+    };
     load_document_over(&document, directories, check_start, given, sources)
 }
 // Refuse obsolete room settings and diagnose unrepresentable rooms before transport or store sizing.

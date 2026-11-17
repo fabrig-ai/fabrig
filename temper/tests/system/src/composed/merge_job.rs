@@ -95,7 +95,7 @@ struct Resolution {
 
 fn config(seed: u64) -> engine::Config {
     let mut config = super::agreement::config(seed);
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_service_core::limits::merge_jobs(&jig);
     assert_eq!(config.core.jobs.as_ref(), [temper_service_core::limits::merge_bound()]);
@@ -416,7 +416,7 @@ impl World {
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, 3);
         assert_eq!(job.deadline, Duration::from_secs(600));
-        let mut own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+        let mut own = temper_service_core::limits::stock();
         let checkout = &self.worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;
         own.checkout.name_bytes = checkout.name_bytes;

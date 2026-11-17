@@ -251,9 +251,7 @@ pub fn engine_with_sources(
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
     let mut base = config::stock();
-    if !temper_service_core::derived::small(document, at)
-        && let Err(found) = temper_service_core::derived::engine(&mut base, sources)
-    {
+    if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
         let mut problems = config::Problems::empty();
         problems.push(found.path, found.what);
         return Err(problems);

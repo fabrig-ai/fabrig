@@ -100,7 +100,7 @@ fn words<E>(what: &What<E>) -> &'static [u8] {
  What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
  What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
  What::Absolute => b"must be an absolute path",
- What::Profile => b"the only profile is \"small\"",
+ What::Profile => b"the only profile is \"standard\"",
  What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
  What::Override(limits::Refused::Range) => b"outside its type",
  What::Against { .. } => b"must agree with ",

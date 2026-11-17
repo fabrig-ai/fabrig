@@ -69,6 +69,18 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
+    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
+    value["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .entry("tasks.result_bytes")
+        .or_insert(512.into());
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
@@ -90,8 +102,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
         "machine":{"github":null},"demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     absolute_paths(&mut value, directory);

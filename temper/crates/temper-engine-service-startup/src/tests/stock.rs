@@ -31,5 +31,10 @@ pub(super) fn generated() -> Box<[u8]> {
     panic!("init writes temper.json")
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    {
+        let bytes = fixtures::value(document, b"engine");
+        let parsed =
+            config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+        crate::startup::engine(&parsed, 0, &config::Directories::working()).unwrap()
+    }
 }

@@ -13,7 +13,7 @@ use crate::startup::{Problems, checks, lines};
 // The stock catalogue holds twelve charters and six templates.
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":6,"authority.executors":22,"tasks.executor_kinds":22,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
-const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
+const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {
     let found = match fixtures::start(
@@ -115,7 +115,7 @@ fn watched_names_do_not_change_checkout_channel_capacity() {
             b"",
             "watched names: {watched}"
         );
-        let mut own = crate::limits::profile(crate::limits::Profile::Small);
+        let mut own = temper_limits_fixtures::small();
         own.forge.resources_per_task = watched;
         assert_eq!(
             crate::translate::limits(&own).expect("channel limits").items_repositories,
@@ -274,8 +274,8 @@ fn unaccountable_policy_bytes_use_the_existing_bound_formatter() {
 
 #[test]
 fn the_small_engine_watermark_counts_commits_and_door_outputs() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let root = crate::limits::engine(&jig, &own).unwrap();
     assert_eq!(root.watermark, own.root.journal.commits + own.root.journal.deliveries);
     assert_eq!(root.watermark, 515);
@@ -283,7 +283,7 @@ fn the_small_engine_watermark_counts_commits_and_door_outputs() {
 
 #[test]
 fn judge_projects_past_the_wires_dismissals_name_both() {
-    let mut limits = crate::limits::profile(crate::limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     for (projects, expected) in [
         (1024, b"".as_slice()),
         (1025, b"application.limits.overrides.forge.judge_projects: must agree with wire::DISMISSED / 8\n".as_slice()),
@@ -541,7 +541,7 @@ fn the_reference_room_starts_and_holds_its_relations() {
         (
             "forge.client.answer_bytes",
             2 * (2 * (payload - 2) + 21)
-                + u64::from(crate::limits::profile(crate::limits::Profile::Standard).forge_component.string_bytes)
+                + u64::from(crate::limits::stock().forge_component.string_bytes)
                 + u64::try_from(skein_forge::measure::FILE_BYTES).unwrap(),
         ),
         ("root.journal.run_bytes", 65_536),
@@ -631,7 +631,12 @@ fn init_documents_start_without_carrier_overrides() {
     for name in jig_names {
         if let Some(previous) = original["engine"]["limits"]["overrides"][name].as_u64() {
             let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
-            assert_eq!((named.value)(&checked.jig.limits), previous, "engine {name}");
+            let expected = if name == "io.output" {
+                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
+            } else {
+                previous
+            };
+            assert_eq!((named.value)(&checked.jig.limits), expected, "engine {name}");
         }
     }
     for name in own_names {
@@ -657,7 +662,12 @@ fn init_documents_start_without_carrier_overrides() {
     for name in jig_names {
         if let Some(previous) = original["workers"][0]["limits"]["overrides"][name].as_u64() {
             let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
-            assert_eq!((named.value)(&worker.limits), previous, "worker {name}");
+            let expected = if name == "io.output" {
+                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
+            } else {
+                previous
+            };
+            assert_eq!((named.value)(&worker.limits), expected, "worker {name}");
         }
     }
 }
@@ -705,8 +715,9 @@ fn forge_body_follows_the_effective_operation_unless_overridden() {
         (r#"{"forge.client.op_bytes":1000,"forge_component.body_bytes":3000}"#, 3000),
     ] {
         let input = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides.as_bytes());
+        let input = core::str::from_utf8(&input).unwrap().replace(",\"forge_component.body_bytes\":16384", "");
         let document = jig_protocol_config::document(
-            &input,
+            input.as_bytes(),
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
         )
         .unwrap();

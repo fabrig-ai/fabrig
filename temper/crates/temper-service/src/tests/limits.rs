@@ -4,15 +4,15 @@ use skein_lib::{Duration, Token};
 
 #[test]
 fn an_override_sets_the_field_its_dotted_name_names() {
-    let mut limits = limits::profile(limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     assert_eq!((limits.forges.log_origins, limits.forge_component.log_origins), (20, 20));
     assert_eq!(limits.forge_component.log_poll, Duration::from_secs(5));
     assert_eq!(limits.forge_component.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
     assert_eq!(limits.forge.change_policy.questions, 4);
-    for profile in [limits::Profile::Small, limits::Profile::Standard] {
-        assert_eq!(limits::profile(profile).forge.change_policy.reruns, 1);
+    {
+        assert_eq!(limits::stock().forge.change_policy.reruns, 1);
     }
     let rows: [(&[u8], u64); 17] = [
         (b"forge.repositories", 3),
@@ -56,7 +56,7 @@ fn an_override_sets_the_field_its_dotted_name_names() {
 
 #[test]
 fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound() {
-    let mut limits = limits::profile(limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     assert_eq!(limits.forge.change_policy.tasks, 6);
     let name = b"forge.change_policy.tasks";
     for tasks in [8, u32::MAX] {
@@ -72,8 +72,8 @@ fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound
 
 #[test]
 fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
-    for profile in [limits::Profile::Small, limits::Profile::Standard] {
-        let mut own = limits::profile(profile);
+    {
+        let mut own = limits::stock();
         assert_eq!((own.forge.history_days, own.forge.history_events), (14, 131_072));
         for days in [1, 3650] {
             assert_eq!(limits::apply(&mut own, b"forge.history_days", days), Ok(()));
@@ -108,8 +108,8 @@ fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
 
 #[test]
 fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
-    for profile in [limits::Profile::Small, limits::Profile::Standard] {
-        let mut own = limits::profile(profile);
+    {
+        let mut own = limits::stock();
         assert_eq!(own.checkout.preparations, 1);
         assert_eq!(limits::apply(&mut own, b"checkout.preparations", 2), Ok(()));
         assert_eq!(crate::worker_settings::checkout(own.checkout).preparations, 2);
@@ -182,27 +182,21 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
 
 #[test]
 fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
-    // Keep an explicit large operation carrier: the derived payload's smaller
-    // carrier fits, but this stored row still needs a larger map value.
+    // The stock map admits the tier cap with an explicit large operation carrier.
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
         br#"{"profile":"standard","overrides":{"forge.changes":379,"forge.client.op_bytes":262144}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    let starting = crate::startup::named(&document, &directories).unwrap_err();
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-        .unwrap_err();
-    for problems in [starting, reading] {
-        let found = crate::startup::lines(&problems);
-        assert!(found.starts_with(b"engine.limits.store: the store's map value, "));
-        assert!(found.ends_with(b" bytes, past its bound of 4580852 bytes\n"));
-    }
+    crate::startup::named(&document, &directories).expect("the stock map admits the tier cap");
+    crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the stock reader admits the tier cap");
 }
 
 #[test]
 fn an_unknown_name_or_a_value_past_its_type_is_refused() {
-    let mut limits = limits::profile(limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     let before = limits;
     let rows: [(&[u8], u64, limits::Refused); 6] = [
         (b"forge.unknown", 1, limits::Refused::Unknown),
@@ -234,10 +228,10 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
 
 #[test]
 fn stock_profiles_hold_a_few_hundred_conflicted_paths() {
-    for profile in [limits::Profile::Small, limits::Profile::Standard] {
-        let own = limits::profile(profile);
-        assert_eq!(own.checkout.conflicts, 512, "{profile:?}");
-        assert_eq!(own.git_component.stdout_bytes, 131_072, "{profile:?}");
+    {
+        let own = limits::stock();
+        assert_eq!(own.checkout.conflicts, 512);
+        assert_eq!(own.git_component.stdout_bytes, 131_072);
     }
 }
 
@@ -245,8 +239,8 @@ fn stock_profiles_hold_a_few_hundred_conflicted_paths() {
 fn the_small_profile_passes_each_domains_validity() {
     let settings = fixtures::engine();
     assert!(temper_engine_domain_forge::valid(&settings.limits.forge));
-    for profile in [limits::Profile::Small, limits::Profile::Standard] {
-        let mut bounds = limits::profile(profile).forge;
+    {
+        let mut bounds = limits::stock().forge;
         assert_eq!(bounds.sitting, temper_engine_domain_forge::SITTING);
         bounds.sitting = Duration::ZERO;
         assert!(!temper_engine_domain_forge::valid(&bounds));
@@ -261,7 +255,7 @@ fn the_small_profile_passes_each_domains_validity() {
         ),
         Ok(())
     );
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
     assert_eq!(root.journal.transcript_bytes, root.forge.client.answer_bytes);
@@ -277,68 +271,17 @@ fn the_small_profile_passes_each_domains_validity() {
 }
 
 #[test]
-fn the_standard_profile_holds_fabrig_scale_work() {
-    let small = limits::profile(limits::Profile::Small);
-    let standard = limits::profile(limits::Profile::Standard);
-    let expected = limits::Limits {
-        forge: temper_engine_domain_forge::Limits {
-            follows: 8,
-            dependencies: 16,
-            follow_queue: 64,
-            brief_bytes: 131_584,
-            tasks: 128,
-            holds: 128,
-            changes: 128,
-            named_calls: 128,
-            landings: 32,
-            client: skein_forge_client::Limits { resources: 128, op_bytes: 262_144, ..small.forge.client },
-            change_policy: temper_engine_domain_forge_change::Limits {
-                reruns: 1,
-                questions: 80,
-                tasks: 80,
-                repairs: 80,
-                resolutions: 80,
-                updates: 80,
-                ..small.forge.change_policy
-            },
-            issue_policy: temper_engine_domain_forge_issues::Limits { plan_items: 384, ..small.forge.issue_policy },
-            ..small.forge
-        },
-        root: limits::Root {
-            brief: temper_engine_domain::BriefLimits {
-                read_bytes: 131_584,
-                brief_bytes: 334_999,
-                budgets: temper_engine_domain::BriefBudgets {
-                    task: 131_584,
-                    pull: 131_584,
-                    reviews: 131_584,
-                    ..small.root.brief.budgets
-                },
-                ..small.root.brief
-            },
-            journal: temper_engine_domain::JournalLimits {
-                // Task row 22,467,664 + 22 * 8 executors + 8 question watermark + 56 open attempt.
-                transcript_bytes: 22_467_928,
-                result_bytes: 334_999,
-                ..small.root.journal
-            },
-            loads: temper_engine_domain::loads::Limits {
-                transcript_bytes: 70_208,
-                bytes: 70_456,
-                reply_bytes: 70_456,
-                read_bytes: 131_072,
-                ..small.root.loads
-            },
-        },
-        ..small
-    };
-    assert_eq!(standard, expected);
+fn the_stock_has_room_for_its_landing_members() {
+    let limits = limits::stock();
+    assert!(limits.forge.holds >= limits.forge.landings * limits.forge.landing_members);
+    assert!(limits.forge.resources_per_task > limits.forge.landing_members);
+    assert!(limits.forge.client.resources >= limits.forge.holds);
 }
 
 #[test]
 fn the_standard_brief_and_its_carriers_share_their_bounds() {
-    let own = limits::profile(limits::Profile::Standard);
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let own = limits::stock();
+    let jig = jig_protocol_config_fixtures::small();
     let root = limits::engine(&jig, &own).expect("coherent brief carriers");
     assert!(temper_engine_domain::valid(&root));
     assert_eq!(own.root.brief.read_bytes, own.root.brief.budgets.task);
@@ -354,12 +297,7 @@ fn the_standard_brief_and_its_carriers_share_their_bounds() {
 
 #[test]
 fn the_standard_profile_passes_each_domains_validity() {
-    let mut own = limits::profile(limits::Profile::Standard);
-    // This compatibility fixture carries jig's larger executor list. Temper's stock
-    // journal figure is left to its own stock change; each extra executor owns eight bytes.
-    let executors = jig_protocol_config::stock().core.tasks.executor_kinds;
-    own.root.journal.transcript_bytes +=
-        (executors - 22) * u32::try_from(size_of::<jig_domain_tasks::AuthorityExecutor>()).unwrap();
+    let own = limits::stock();
     assert!(temper_engine_domain_forge::valid(&own.forge));
     assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(own.checkout)));
     assert_eq!(
@@ -369,12 +307,11 @@ fn the_standard_profile_passes_each_domains_validity() {
         ),
         Ok(())
     );
-    for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
-        let jig = jig_protocol_config::profile(profile);
+    for jig in [jig_protocol_config::stock(), jig_protocol_config_fixtures::small()] {
         let root = limits::engine(&jig, &own).expect("coherent root profile");
         assert!(temper_engine_domain::valid(&root));
     }
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+    let jig = jig_protocol_config::stock();
     let root = limits::engine(&jig, &own).unwrap();
     crate::store::admit(&root, &root.forge, &jig.store, None).expect("coherent standard store profile");
     let mut short = own;
@@ -394,7 +331,7 @@ fn the_standard_profile_is_read_by_name() {
     use jig_protocol_config::{self as config, Path};
     let jig = fixtures::engine().jig;
     let directories = config::Directories::working();
-    let mut standard = limits::profile(limits::Profile::Standard);
+    let mut standard = limits::stock();
     limits::derive(&mut standard, temper_service_core::derived::STOCK).unwrap();
     for (member, expected) in [
         (br#"{"profile":"standard","overrides":{}}"#.as_slice(), Some(standard)),
@@ -507,7 +444,7 @@ fn each_git_component_limit_has_its_dotted_override() {
         (b"git_component.sweep_bytes", 4096, [3, 131_072, 512, 4096, 16, 4096]),
     ];
     for (name, value, expected) in names {
-        let mut limits = limits::profile(limits::Profile::Small);
+        let mut limits = temper_limits_fixtures::small();
         limits::apply(&mut limits, name, value).unwrap();
         let git = limits.git_component;
         assert_eq!(
@@ -528,13 +465,13 @@ fn each_git_component_limit_has_its_dotted_override() {
 
 #[test]
 fn the_small_profile_gives_settle_thirty_seconds() {
-    assert_eq!(limits::profile(limits::Profile::Small).forge.client.settle, Duration::from_secs(30));
+    assert_eq!(temper_limits_fixtures::small().forge.client.settle, Duration::from_secs(30));
 }
 
 #[test]
 fn the_hook_limits_have_dotted_overrides() {
     type Row = (&'static [u8], u64, u64, fn(&limits::Limits) -> u64);
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let rows: [Row; 5] = [
         (b"forge_component.hooks", 3, 3, |l| u64::from(l.forge_component.hooks)),
         (b"forge_component.hook_head_bytes", 4096, 4096, |l| u64::from(l.forge_component.hook_head_bytes)),
@@ -552,7 +489,7 @@ fn the_hook_limits_have_dotted_overrides() {
 #[expect(clippy::disallowed_methods, reason = "ordinary tests inspect diagnostic text")]
 fn records_and_installations_override_and_check_both_bounds() {
     let jig = fixtures::engine().jig;
-    let defaults = limits::profile(limits::Profile::Small);
+    let defaults = temper_limits_fixtures::small();
     assert_eq!(defaults.records.value_bytes, 4096);
     assert_eq!(defaults.forges.installations, 8);
     assert_eq!(defaults.forge_component.installations, 8);
@@ -639,7 +576,7 @@ fn encoded_setup_writes_fit_exactly_and_name_the_short_bound() {
 #[expect(clippy::disallowed_macros, clippy::disallowed_methods, reason = "tests format diagnostic text")]
 fn log_limits_check_zero_capacity_and_timing_relations() {
     let jig = fixtures::engine().jig;
-    let defaults = limits::profile(limits::Profile::Small);
+    let defaults = temper_limits_fixtures::small();
     for name in [
         "forges.log_origins",
         "forge_component.log_origins",
@@ -738,7 +675,7 @@ fn installation_capacity_fits_the_client_row_at_64_and_refuses_65() {
     const ROW_INSTALLATIONS: u32 = 64;
     let jig = fixtures::engine().jig;
     for (installations, accepted) in [(ROW_INSTALLATIONS, true), (ROW_INSTALLATIONS + 1, false)] {
-        let mut own = limits::profile(limits::Profile::Small);
+        let mut own = temper_limits_fixtures::small();
         own.forges.installations = installations;
         own.forge_component.installations = installations;
         let mut problems = crate::startup::Problems::empty();
@@ -765,9 +702,9 @@ fn picker_page_has_its_own_override_and_startup_bounds() {
 
 #[test]
 fn effective_core_limits_preserve_each_configured_policy_budget() {
-    let own = limits::profile(limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     for configured in [16_384, 512, 4096] {
-        let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+        let mut jig = jig_protocol_config_fixtures::small();
         jig.core.policy_bytes = configured;
         let root = limits::engine(&jig, &own).expect("configured policy budget fits the root");
         assert_eq!(temper_engine_domain::core_limits(&root).policy_bytes, configured);
@@ -776,8 +713,8 @@ fn effective_core_limits_preserve_each_configured_policy_budget() {
 
 #[test]
 fn effective_core_limits_preserve_the_configured_call_answer_budget() {
-    let own = limits::profile(limits::Profile::Small);
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let own = temper_limits_fixtures::small();
+    let mut jig = jig_protocol_config_fixtures::small();
     // The service fixture's configured bound differs from both profile and journal.
     jig.core.call_answer_bytes = fixtures::engine().jig.limits.core.call_answer_bytes;
     let root = limits::engine(&jig, &own).expect("configured answer budget fits the root");
@@ -821,7 +758,7 @@ fn token_rows_include_schema_framing_in_startup_admission() {
 
 #[test]
 fn a_repair_holds_its_task_pull_and_whole_gate_remarks() {
-    let limits = limits::profile(limits::Profile::Small);
+    let limits = temper_limits_fixtures::small();
     let brief = limits.root.brief;
     assert_eq!(brief.budgets.reviews, 4608);
     assert_eq!(brief.brief_bytes, 14_592);
@@ -832,7 +769,7 @@ fn a_repair_holds_its_task_pull_and_whole_gate_remarks() {
 }
 #[test]
 fn server_connections_carry_the_box_streams_and_four_calls() {
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     jig.clients.streams = 8;
     jig.clients.exchanges = 12;
     jig.clients_http.streams = 8;
@@ -869,7 +806,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
 
 #[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
-    let mut limits = limits::profile(limits::Profile::Small);
+    let mut limits = temper_limits_fixtures::small();
     assert_eq!(limits.root.brief.sections, 10);
     assert_eq!(limits.root.brief.budgets.document, 4096);
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
@@ -879,7 +816,7 @@ fn small_holds_two_document_sections_with_their_own_budget_and_override() {
 
 #[test]
 fn every_row_is_a_name_the_parser_takes() {
-    let small = limits::profile(limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     for (index, row) in limits::NAMES.iter().enumerate() {
         let mut changed = small;
         let value = (row.value)(&small);
@@ -900,7 +837,7 @@ fn every_row_is_a_name_the_parser_takes() {
 
 #[test]
 fn an_unknown_name_is_refused() {
-    let small = limits::profile(limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     for name in [b"".as_slice(), b"root.absent", b"setup.absent", b"sign_in.members.extra", b"box.restarts"] {
         let mut changed = small;
         assert!(limits::find(name).is_none());
@@ -927,7 +864,7 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     use jig_domain_notes as notes;
     use skein_lib::{List, Queue, Wall};
     use temper_engine_domain::{self as engine, loads};
-    let notes = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.notes;
+    let notes = jig_protocol_config::stock().core.notes;
     let mut segments = List::<Box<[u8]>>::with_capacity(notes.pattern_bytes);
     for _ in 0..notes.pattern_bytes {
         segments.push(Box::new([])).unwrap();
@@ -954,7 +891,7 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
         changed: Wall::EPOCH,
     })));
     let page_bytes = engine::record_bytes(&row).unwrap() + u64::try_from(size_of::<engine::Record>()).unwrap();
-    let mut domain = loads::Loads::new(&limits::profile(limits::Profile::Standard).root.loads);
+    let mut domain = loads::Loads::new(&limits::stock().root.loads);
     let mut out = Queue::uncapped();
     let owner = loads::begin(
         &mut domain,
@@ -1002,8 +939,8 @@ fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
 
 #[test]
 fn follow_limits_have_their_profile_values_and_dotted_overrides() {
-    let small = limits::profile(limits::Profile::Small);
-    let standard = limits::profile(limits::Profile::Standard);
+    let small = temper_limits_fixtures::small();
+    let standard = limits::stock();
     for (name, tiny, normal, unit) in [
         ("forge.follows", 2, 8, limits::Unit::Count),
         ("forge.dependencies", 4, 16, limits::Unit::Count),
@@ -1032,7 +969,7 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
 /// temper/docs/design/domain/worker/jobs.md.
 #[test]
 fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     let bound = limits::close_bound();
     let merge = limits::merge_bound();
     jig.core.tasks.spec_bytes = bound.spec;
@@ -1051,7 +988,7 @@ fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
 #[test]
 fn the_engine_declares_prepare_only_with_its_tasks_child_room() {
     let bound = limits::prepare_bound();
-    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let mut jig = jig_protocol_config_fixtures::small();
     for (spec, result, admitted) in [(16_384, 4_096, true), (16_383, 4_096, false), (16_384, 4_095, false)] {
         jig.core.tasks.spec_bytes = spec;
         jig.core.tasks.result_bytes = result;

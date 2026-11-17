@@ -953,7 +953,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
             temper_forge_setup::check::Checked {
                 fetch_bytes: 0,
                 setup: temper_forge_setup::setup::Setup { entries: Box::new([]) },
-                limits: temper_forge_setup::limits::small(),
+                limits: temper_forge_setup::limits::stock(),
             },
             Box::<[temper_service::ForgeRuntime]>::default(),
         )
@@ -1021,8 +1021,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
     let setup = checked_setup(&document, &named);
     let named_files = named.files.into_vec();
     let mut entries = List::with_capacity(u32::try_from(named_files.len()).expect("file count"));
-    let token_bytes =
-        temper_service::limits::profile(temper_service::limits::Profile::Small).forge_component.token_bytes;
+    let token_bytes = temper_limits_fixtures::small().forge_component.token_bytes;
     for file in named_files {
         let bytes = match file.path.as_ref() {
             b"forge-1/api_token" | b"demo/forge/api_token" | b"forge-3/api_token" => {

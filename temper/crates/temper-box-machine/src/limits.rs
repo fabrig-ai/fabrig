@@ -56,9 +56,9 @@ impl Unfit {
         }
     }
 }
-/// The shipped profile (forge-setup decision 5).
+/// The stock (forge-setup decision 5).
 #[must_use]
-pub fn small() -> Limits {
+pub fn stock() -> Limits {
     Limits {
         backoff: Duration::from_millis(500),
         backoff_max: Duration::from_secs(30),
@@ -127,7 +127,7 @@ pub enum Unit {
     Milliseconds,
 }
 
-/// One override name and its small-profile value reader.
+/// One override name and its value reader.
 #[derive(Clone, Copy, Debug)]
 pub struct Name {
     pub name: &'static str,

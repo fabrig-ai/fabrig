@@ -402,7 +402,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let machine = temper_forge_setup::machine::read(
         &d,
         machine_at,
-        &temper_forge_setup::limits::small(),
+        &temper_forge_setup::limits::stock(),
         &directories,
         &mut problems,
     )

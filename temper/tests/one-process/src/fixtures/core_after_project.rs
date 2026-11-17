@@ -104,11 +104,9 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
     let given = Incident::given(&document);
     let parsed = temper_playground::documents::settings::configuration(&document);
     let codec = jig_protocol_store::codec::limits(&parsed.limits.core).expect("incident record bounds");
-    let families = temper_protocol_store::bounds(
-        &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-        parsed.limits.core.tasks.spec_bytes,
-    )
-    .expect("incident forge bounds");
+    let families =
+        temper_protocol_store::bounds(&temper_limits_fixtures::small().forge, parsed.limits.core.tasks.spec_bytes)
+            .expect("incident forge bounds");
     temper_playground::documents::settings::strip_models(&mut document);
     document.as_object_mut().expect("deployment object").remove("world_settings");
     let mut agent = temper_playground::documents::agent();

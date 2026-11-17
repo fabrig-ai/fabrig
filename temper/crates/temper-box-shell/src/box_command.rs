@@ -239,17 +239,14 @@ fn open_listeners(
             let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
                 *fd
             } else {
-                let (fd, _) = skein_shell::open_listener(
-                    *addr,
-                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
-                )
-                .map_err(|why| {
-                    format!(
-                        "{}: port {} ({addr}): cannot listen: {why:?}",
-                        directories.document().display(),
-                        addr.port()
-                    )
-                })?;
+                let (fd, _) =
+                    skein_shell::open_listener(*addr, jig_protocol_config::stock().io.backlog).map_err(|why| {
+                        format!(
+                            "{}: port {} ({addr}): cannot listen: {why:?}",
+                            directories.document().display(),
+                            addr.port()
+                        )
+                    })?;
                 owned.push(fd);
                 fd
             };
@@ -345,7 +342,7 @@ pub(crate) fn machine(
     let machine = machine::read(
         &document,
         at,
-        &temper_forge_setup::limits::small(),
+        &temper_forge_setup::limits::stock(),
         &jig_directories(directories),
         &mut problems,
     );

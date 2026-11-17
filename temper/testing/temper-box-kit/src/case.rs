@@ -58,8 +58,15 @@ impl Run {
             .iter()
             .filter_map(|(read, position)| Some((*read, self.observed_at.get(*position).copied().flatten()?)))
             .collect();
-        Observed { documents, observed_at, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
-            .with_commands(&self.steps)
+        Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
+            documents,
+            observed_at,
+            told: self.told.clone(),
+            commands: Vec::new(),
+            kit: self.kit.clone(),
+        }
+        .with_commands(&self.steps)
     }
     #[must_use]
     pub fn first_placed(&self) -> &BTreeMap<u64, String> {

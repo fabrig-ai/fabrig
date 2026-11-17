@@ -106,7 +106,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         Ok(())
     );
     for &(name, needed, setting, words) in rows {
-        let mut at = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+        let mut at = engine.clone();
         config::overrides::apply(&mut at.limits, name, needed).unwrap();
         let mut problems = crate::startup::Problems::empty();
         crate::startup::checks::stock(&at, &mut problems);
@@ -391,7 +391,12 @@ pub(super) fn generated() -> Box<[u8]> {
 }
 
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    {
+        let bytes = fixtures::value(document, b"engine");
+        let parsed =
+            config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+        crate::startup::engine(&parsed, 0, &config::Directories::working()).unwrap()
+    }
 }
 
 fn single_model() -> Box<[u8]> {
@@ -419,9 +424,9 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     let document = generated();
     crate::named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
     let engine = engine(&document);
-    let own = crate::limits::profile(crate::limits::Profile::Standard);
+    let own = crate::limits::stock();
     assert_eq!(own.root.journal.run_bytes, 65_536);
-    assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
+    assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
     for (number, expected) in [(2, 12_596), (5, 27_596)] {

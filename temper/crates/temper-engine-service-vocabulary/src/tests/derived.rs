@@ -13,7 +13,7 @@ fn forge_check(own: &limits::Limits) -> Result<(), skein_forge_connection::Unusa
 #[test]
 fn forge_body_carrier() {
     for payload in [STOCK.payload, STOCK.payload * 2] {
-        let mut own = limits::profile(limits::Profile::Standard);
+        let mut own = limits::stock();
         limits::derive(&mut own, derived::Sources { payload, ..STOCK }).unwrap();
         assert_eq!(own.forge_component.body_bytes, 2 * (payload - 2) + 21);
         forge_check(&own).unwrap();
@@ -49,7 +49,7 @@ fn forge_body_carrier() {
 #[test]
 fn forge_answer_carrier() {
     for payload in [STOCK.payload, STOCK.payload * 2] {
-        let mut own = limits::profile(limits::Profile::Standard);
+        let mut own = limits::stock();
         let stock = own.forge.client.answer_bytes;
         limits::derive(&mut own, derived::Sources { payload, ..STOCK }).unwrap();
         let least = 2 * own.forge_component.body_bytes

@@ -24,7 +24,7 @@ impl Disk {
         Self::with_items(&[])
     }
     pub fn with_items(items: &[skein_fake_machine::Item]) -> Self {
-        let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).store;
+        let mut limits = jig_protocol_config_fixtures::small().store;
         limits.store.budget = 4_194_304;
         limits.store.ops = 256;
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

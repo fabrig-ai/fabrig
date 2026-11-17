@@ -716,7 +716,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     service.engine.as_mut().expect("engine").setup = fixture_setup(&config, &mut endpoints).unwrap();
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.end().is_some());
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms"] {
         assert_eq!(crate::limits::apply(&mut own, name, 0), Err(crate::limits::Refused::Range));
     }

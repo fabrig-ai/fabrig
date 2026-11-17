@@ -30,7 +30,7 @@ fn case(scale: u32) -> (Sources, Declaration, config::Limits, limits::Limits) {
     } else {
         derived::engine(&mut jig, sources).unwrap();
     }
-    let mut own = limits::profile(limits::Profile::Standard);
+    let mut own = limits::stock();
     limits::derive(&mut own, sources).unwrap();
     (sources, agent, jig, own)
 }

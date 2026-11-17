@@ -87,11 +87,8 @@ fn story_as_forge_keeps_the_product_stock() {
         panic!("the composition supplies its settings")
     };
     let engine = documents::settings::configuration(&document);
-    let limits = temper_service::limits::engine(
-        &engine.limits,
-        &temper_service::limits::profile(temper_service::limits::Profile::Small),
-    )
-    .expect("playground engine limits");
+    let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
+        .expect("playground engine limits");
     assert_eq!(forge, temper_service::stock::forge(&limits));
     let charters: Vec<_> = forge.iter().filter(|item| item.kind == 3).map(|item| &item.value.value).collect();
     assert_eq!(charters, [&Value::Charter(2), &Value::Charter(4)]);

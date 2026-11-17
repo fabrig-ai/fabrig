@@ -100,11 +100,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let init: serde_json::Value = serde_json::from_slice(&super::configuration::init_document()).expect("init JSON");
-    let profile = jig_protocol_config::profile(match init["engine"]["limits"]["profile"].as_str().unwrap() {
-        "small" => jig_protocol_config::Profile::Small,
-        "standard" => jig_protocol_config::Profile::Standard,
-        other => panic!("unknown profile {other}"),
-    });
+    let profile = jig_protocol_config::stock();
     let timeout = profile.core.fleet.grace;
     for worker in init["workers"].as_array().expect("init workers") {
         let bytes = serde_json::to_vec(worker).expect("worker JSON");
@@ -259,8 +255,8 @@ fn configure_example_preserves_stock_landing_gate() {
         &temper_engine_smith::kinds::Bounds { segments: 9, segment_bytes: 4096, gates: 64, approvals: 64 },
     )
     .expect("documented landing rule");
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let temper = temper_limits_fixtures::small();
     let limits = temper_service::limits::engine(&jig, &temper).expect("stock limits");
     let stock = temper_service::stock::forge(&limits);
     let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (2, 0, 1)).expect("stock rule");

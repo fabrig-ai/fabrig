@@ -21,7 +21,7 @@ fn directories() -> Directories {
 }
 fn read(input: &[u8], directories: &Directories) -> Machine {
     let mut problems = Problems::empty();
-    let result = machine::read(&fixtures::document(input), 0, &limits::small(), directories, &mut problems);
+    let result = machine::read(&fixtures::document(input), 0, &limits::stock(), directories, &mut problems);
     assert!(problems.is_empty(), "{:?}", problem::lines(&problems));
     result.unwrap()
 }
@@ -77,7 +77,7 @@ fn an_unknown_member_is_refused_by_path() {
         let mut problems = Problems::empty();
         let input = replace(TEMPLATE_MACHINE, old, new);
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         let expected = crate::check::joined(&[path, b": unknown member\n"]);
         assert_eq!(problem::lines(&problems), expected);
@@ -238,7 +238,7 @@ fn machine_refusals_keep_the_member_path() {
         let input = replace(TEMPLATE_MACHINE, old, new);
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert!(
             bytes::find(&problem::lines(&problems), &crate::check::joined(&[b"application.machine.", path, b":"]))
@@ -264,7 +264,7 @@ fn github_accepts_a_fake_or_tls_and_refuses_unknown_transport_members() {
         let input = replace(&input, b"\"transport\":", b"\"unexpected\":1,\"transport\":");
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.github.unexpected: unknown member\n");
     }
@@ -291,7 +291,7 @@ fn owned_public_mirrors_and_explicit_binaries_keep_setup_semantics() {
         br#""public":"https://git.example.invalid/path""#,
     );
     let mut problems = Problems::empty();
-    assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
+    assert!(machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none());
     assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.public: invalid form\n");
 }
 
@@ -324,7 +324,7 @@ fn github_refuses_non_network_endpoints_and_insecure_remote_places() {
         ]);
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert!(
             bytes::find(
@@ -372,7 +372,7 @@ fn github_git_is_optional_bounded_and_resolved_under_data() {
         let input = replace(base, b"\"web\":", &crate::check::joined(&[b"\"git\":", value, b",\"web\":"]));
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert!(bytes::find(&problem::lines(&problems), b"application.machine.github.git:").is_some());
     }
@@ -386,7 +386,7 @@ fn sign_in_refuses_machine_owned_person_login_at_its_path() {
         let input = replace(&input, b"\"ada\"", &crate::check::joined(&[b"\"", login, b"\""]));
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.login: invalid form\n");
     }
@@ -404,7 +404,7 @@ fn sign_in_refuses_machine_owned_person_email_at_its_path() {
         let input = replace(&input, b"ada@example.invalid", email);
         let mut problems = Problems::empty();
         assert!(
-            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+            machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none()
         );
         assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.email: invalid form\n");
     }
@@ -440,7 +440,7 @@ fn sign_in_refuses_machine_owned_public_at_its_path() {
         b"\"sign_in\":\"forgejo\",\"public\":\"https://forge.example\",\"forgejo\":\"fetched\"",
     );
     let mut problems = Problems::empty();
-    assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
+    assert!(machine::read(&fixtures::document(&input), 0, &limits::stock(), &directories(), &mut problems).is_none());
     assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy\n");
     let mut typed = jig_protocol_config::Problems::empty();
     assert!(machine::read_config(&fixtures::document(&input), 0, &directories(), &mut typed).is_none());

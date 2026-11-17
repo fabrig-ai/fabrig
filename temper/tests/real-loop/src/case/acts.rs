@@ -2,8 +2,16 @@
 use super::{A, DESIGN, DIRECTOR, PERSON, PROJECT};
 use crate::{
     argv,
-    calls::{self, D1, call, join, number, sign_in, start},
+    calls::{self, D1, join, number, sign_in, start},
 };
+
+fn until(at: calls::Dir, argv: calls::Argv, holds: &'static [u8], early: &'static [u8]) -> calls::Step {
+    calls::until(at, argv, holds, early).whole_activity()
+}
+
+fn call(at: calls::Dir, argv: calls::Argv) -> calls::Step {
+    calls::call(at, argv).whole_activity()
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Read {
@@ -288,7 +296,7 @@ fn held(key: &'static str, act: Option<calls::Step>) -> Vec<calls::Step> {
     steps.extend(act);
     steps.push(join(HELD_A_ENDED));
     // The director can already be ended too: a fresh wait exits unknown.
-    steps.push(calls::until(
+    steps.push(until(
         D1,
         argv!["task", "show", number(DIRECTOR), "--json"],
         b"\"phase\":\"ended\"",
@@ -442,7 +450,7 @@ pub fn step_4_6(base: usize) -> Vec<calls::Step> {
         // ctl's predicates distinguish phase/replied, but cannot select a
         // committed turn or its text. Activity contains only committed turns;
         // chat/run can also contain the live writing, so cannot be this barrier.
-        calls::until(D1, argv!["task", "activity", number(HANG), "--json"], HANG_READ.as_bytes(), b"run_began"),
+        until(D1, argv!["task", "activity", number(HANG), "--json"], HANG_READ.as_bytes(), b"run_began"),
         // Once the read is committed, await the following in-run wait.
         // Its withheld turn is sealed when the worker stops, as A's parked waits are.
         call(D1, argv!["task", "show", number(HANG), "--until", "replied", "--json"]),
@@ -528,18 +536,13 @@ pub fn step_5_1() -> Vec<calls::Step> {
         // full task document through the director's answer and both reports.
         start(D1, argv!["task", "show", number(RULES), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(RULES), "--until", "replied"]),
-        calls::until(
-            D1,
-            argv!["task", "show", number(RULES), "--json"],
-            b"\"work\":\"waiting\"",
-            b"\"phase\":\"running\"",
-        ),
+        until(D1, argv!["task", "show", number(RULES), "--json"], b"\"work\":\"waiting\"", b"\"phase\":\"running\""),
         // Hold the owner's response, not its checkout preparation: stopping
         // during setup would exercise cancellation before it can ask anything.
         calls::writing_task(D1, SCOPE),
         call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
-        calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
-        calls::until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
+        until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
         // Both old responses and the resumed response have their own fake hold.
         calls::release_hold(SCOPE_QUESTION_HOLD),
         calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
@@ -549,7 +552,7 @@ pub fn step_5_1() -> Vec<calls::Step> {
         ),
         calls::writing_task(D1, SCOPE),
         calls::release_hold(SCOPE_QUESTION_HOLD),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(RULES), "--activity", "32", "--json"],
             SCOPE_QUESTION.as_bytes(),
@@ -587,7 +590,7 @@ pub fn step_5_3() -> Vec<calls::Step> {
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "shape", SHAPE_PERSON]),
         call(D1, argv!["task", "show", number(SHAPE), "--until", "replied"]),
         start(D1, argv!["task", "show", number(SHAPE), "--until", "ended", "--json"]),
-        calls::until(D1, argv!["task", "show", number(MOVER), "--json"], super::NEW_BRIEF.as_bytes(), b"\"task\""),
+        until(D1, argv!["task", "show", number(MOVER), "--json"], super::NEW_BRIEF.as_bytes(), b"\"task\""),
         call(
             D1,
             argv![
@@ -658,9 +661,9 @@ pub fn step_5_2() -> Vec<calls::Step> {
         calls::writing_task(D1, IMPLEMENTER),
         // h1 exists after B's reply; its review is created asynchronously.
         // Wait for its live delegate card before reading the review's document.
-        calls::until(D1, argv!["task", "show", number(H1), "--json"], Agent::Review.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(H1), "--json"], Agent::Review.cue(), b"\"task\""),
         calls::writing_task(D1, H1_REVIEWER),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(HELPER), "--activity", "32", "--json"],
             b"\"phase\":\"ended\"",
@@ -669,25 +672,20 @@ pub fn step_5_2() -> Vec<calls::Step> {
         // replied alone can still be writing; read the parked owner's phase.
         call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle"]),
         call(D1, argv!["task", "stop", number(BOWNER), "--key", "stop-b"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(BOWNER), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
             b"\"task\"",
         ),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(IMPLEMENTER), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
             b"\"task\"",
         ),
-        calls::until(
-            D1,
-            argv!["task", "show", number(H1), "--activity", "32", "--json"],
-            b"\"phase\":\"held\"",
-            b"\"task\"",
-        ),
-        calls::until(
+        until(D1, argv!["task", "show", number(H1), "--activity", "32", "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        until(
             D1,
             argv!["task", "show", number(H1_REVIEWER), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
@@ -709,19 +707,14 @@ pub fn step_5_2() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle", "--json"]).succeeds(),
         calls::release_hold(IMPLEMENTER_HOLD),
         calls::release_hold(REVIEW_HOLD),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(IMPLEMENTER), "--activity", "32", "--json"],
             b"\"phase\":\"ended\"",
             b"\"task\"",
         ),
-        calls::until(
-            D1,
-            argv!["task", "show", number(H1), "--activity", "32", "--json"],
-            b"\"phase\":\"ended\"",
-            b"\"task\"",
-        ),
-        calls::until(
+        until(D1, argv!["task", "show", number(H1), "--activity", "32", "--json"], b"\"phase\":\"ended\"", b"\"task\""),
+        until(
             D1,
             argv!["task", "show", number(BOWNER), "--activity", "32", "--json"],
             b"\"phase\":\"ended\"",
@@ -730,7 +723,7 @@ pub fn step_5_2() -> Vec<calls::Step> {
         // B's two attempts span two activity pages; retain the supplied cursor.
         call(D1, argv!["task", "activity", number(BOWNER), "--before", calls::activity_before(B_ENDED_5_2), "--json"]),
         call(D1, argv!["task", "show", number(OWNER), "--activity", "32", "--json"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(PAUSE), "--activity", "32", "--json"],
             b"\"phase\":\"ended\"",
@@ -761,7 +754,7 @@ pub fn step_5_5() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(PLANNER), "--until", "phase:idle", "--json"]),
         // Step::Held gates ctl writes. The LLM's emitted piece, read through
         // the live run document, proves its answer is at the fake hold.
-        calls::until(
+        until(
             D1,
             argv!["task", "run", number(PLAN_DIRECTOR), "--json"],
             PLAN_ANSWER_PENDING.as_bytes(),
@@ -848,23 +841,18 @@ pub fn step_5_4() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(STORY_OWNER), "--until", "replied"]),
         // The delegate cue selects x3's review before its writing observation.
         // Fake Pieces keep it writing until ReleaseHold (i2's addendum 2).
-        calls::until(D1, argv!["task", "show", number(X3), "--json"], Agent::Review.cue(), b"\"task\""),
-        calls::until(D1, argv!["task", "show", number(X3_REVIEWER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(X3), "--json"], Agent::Review.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(X3_REVIEWER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(X3), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(X3_CODER), "--activity", "32", "--json"]),
         calls::release_hold(B_DELEGATE_HOLD),
-        calls::until(
-            D1,
-            argv!["task", "show", number(OVERLAP_OWNER), "--json"],
-            Agent::PlannedWriter.cue(),
-            b"\"task\"",
-        ),
-        calls::until(D1, argv!["task", "show", number(PLANNED), "--json"], b"\"live_delegates\":1", b"\"task\""),
-        calls::until(D1, argv!["task", "show", number(PLANNED_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"], Agent::PlannedWriter.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(PLANNED), "--json"], b"\"live_delegates\":1", b"\"task\""),
+        until(D1, argv!["task", "show", number(PLANNED_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(PLANNED), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--until", "phase:idle"]),
         call(D1, argv!["task", "stop", number(OVERLAP_OWNER), "--key", "stop-b"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(OVERLAP_OWNER), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
@@ -876,7 +864,7 @@ pub fn step_5_4() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(X3), "--until", "phase:closing"]),
         // Commit the note before releasing the review: otherwise the cancel's
         // result can take the note's fresh number between A's two tool calls.
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"],
             b"\"tool\":\"note\"",
@@ -885,7 +873,7 @@ pub fn step_5_4() -> Vec<calls::Step> {
         calls::release_hold(X3_REVIEW_HOLD),
         call(D1, argv!["task", "show", number(X3), "--until", "ended"]),
         call(D1, argv!["task", "show", number(X3), "--activity", "32", "--json"]),
-        calls::until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], Agent::StoryWriter.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], Agent::StoryWriter.cue(), b"\"task\""),
         // a1's review has no hold. Watch endings once, then read their journals,
         // avoiding repeated reads of the same large activity documents.
         call(D1, argv!["task", "show", number(STORY_CHANGE), "--until", "ended"]),
@@ -912,13 +900,13 @@ pub fn step_5_4() -> Vec<calls::Step> {
         // B's batched turns fit its complete journal in this one page.
         // Select the run woken by a1's change result, then await its held
         // writing turn (i2's addendum 2). x3's result was a cancellation.
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"],
             b"\"kind\":{\"result\":{\"change\":",
             b"\"task\"",
         ),
-        calls::until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(STORY_OWNER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         calls::release_hold(STORY_RECALL_HOLD),
         call(D1, argv!["task", "show", number(STORY_OWNER), "--until", "ended"]),
         call(D1, argv!["task", "show", number(STORY_OWNER), "--activity", "32", "--json"]),
@@ -1004,22 +992,17 @@ pub fn step_6_5() -> Vec<calls::Step> {
                 "budget-answer"
             ],
         ),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(BUDGET_SUBOWNER), "--json"],
             Agent::BudgetInvestigator.cue(),
             b"\"task\"",
         ),
-        calls::until(
-            D1,
-            argv!["task", "show", number(BUDGET_SUBOWNER), "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
+        until(D1, argv!["task", "show", number(BUDGET_SUBOWNER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(BUDGET_A5), "--until", "phase:idle"]),
         call(D1, argv!["task", "show", number(BUDGET_A5), "--activity", "32", "--json"]),
         calls::release_hold(BUDGET_AMEND_HOLD),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(BUDGET_A5), "--activity", "32", "--json"],
             b"\"work\":\"writing\"",
@@ -1100,8 +1083,8 @@ pub fn step_6_4() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "phase:idle"]),
         call(D1, argv!["task", "show", number(RED_CODER), "--until", "ended"]),
         // No ctl predicate selects review creation: poll only this later transition.
-        calls::until(D1, argv!["task", "show", number(RED_CHANGE), "--json"], Agent::Review.cue(), b"\"task\""),
-        calls::until(D1, argv!["task", "show", number(RED_REVIEW), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(RED_CHANGE), "--json"], Agent::Review.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(RED_REVIEW), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         // News and forge hints wake a4's procedure for a step that finds nothing to do: a plain read can catch it
         // due. Read it settled: an ended a4 answers with its ended read, which the oracle names.
         call(D1, argv!["task", "show", number(RED_CHANGE), "--until", "phase:idle", "--json"]),
@@ -1110,21 +1093,16 @@ pub fn step_6_4() -> Vec<calls::Step> {
         calls::release_hold(RED_REVIEW_HOLD),
         // Until cannot retry an unknown task: first observe the deployment
         // repair among project roots, then its coder's live delegate card.
-        calls::until(
+        until(
             D1,
             argv!["task", "list", "--project", number(PROJECT), "--json"],
             Agent::RedRepairCoder.cue(),
             b"\"tasks\"",
         ),
-        calls::until(D1, argv!["task", "show", number(RED_REPAIR), "--json"], Agent::RedRepairCoder.cue(), b"\"task\""),
-        calls::until(
-            D1,
-            argv!["task", "show", number(RED_REPAIR_CODER), "--json"],
-            b"\"work\":\"writing\"",
-            b"\"task\"",
-        ),
+        until(D1, argv!["task", "show", number(RED_REPAIR), "--json"], Agent::RedRepairCoder.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(RED_REPAIR_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "message", number(RED_DIRECTOR), "--key", "red-tip", RED_MESSAGE]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(RED_DIRECTOR), "--activity", "32", "--json"],
             b"\"kind\":{\"timer\":{",
@@ -1182,23 +1160,18 @@ pub fn step_6_7() -> Vec<calls::Step> {
         start(D1, argv!["task", "show", number(CAP_DIRECTOR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(CAP_DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(CAP_OWNER), "--until", "replied"]),
-        calls::until(
-            D1,
-            argv!["task", "show", number(CAP_SUBOWNER), "--json"],
-            Agent::CapImplementer.cue(),
-            b"\"task\"",
-        ),
-        calls::until(D1, argv!["task", "show", number(CAP_A5), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(CAP_SUBOWNER), "--json"], Agent::CapImplementer.cue(), b"\"task\""),
+        until(D1, argv!["task", "show", number(CAP_A5), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         // The deadline hold lasts until the director is explicitly released below.
         call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--until", "held", "--json"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(CAP_SUBOWNER), "--activity", "32", "--json"],
             b"\"reason\":\"deadline\"",
             b"\"task\"",
         ),
         call(D1, argv!["task", "show", number(CAP_A5), "--activity", "32", "--json"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", number(CAP_OWNER), "--activity", "32", "--json"],
             b"\"work\":\"writing\"",
@@ -1211,7 +1184,7 @@ pub fn step_6_7() -> Vec<calls::Step> {
         // The director's document includes A's observation too. Once A parks
         // after its pass, only the director can satisfy the writing checkpoint.
         call(D1, argv!["task", "show", number(CAP_OWNER), "--until", "phase:idle"]),
-        calls::until(D1, argv!["task", "show", number(CAP_DIRECTOR), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(CAP_DIRECTOR), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--activity", "32", "--json"]),
         calls::release_hold(CAP_SPLIT_HOLD),
         call(D1, argv!["task", "show", number(CAP_SUBOWNER), "--until", "phase:idle"]),
@@ -1296,8 +1269,8 @@ pub fn step_6_6() -> Vec<calls::Step> {
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "waiting", PERSON]),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(A1), "--until", "replied"]),
-        calls::until(D1, argv!["task", "show", number(E1), "--json"], Agent::Review.cue(), b"\"task\""),
-        calls::until(
+        until(D1, argv!["task", "show", number(E1), "--json"], Agent::Review.cue(), b"\"task\""),
+        until(
             D1,
             argv!["task", "show", calls::delegate(WAITING_REVIEW_CREATED), "--json"],
             b"\"work\":\"writing\"",
@@ -1305,7 +1278,7 @@ pub fn step_6_6() -> Vec<calls::Step> {
         ),
         call(D1, argv!["task", "show", number(E1), "--json"]),
         call(D1, argv!["task", "show", number(REPIN), "--activity", "32", "--json"]),
-        calls::until(
+        until(
             D1,
             argv!["task", "show", calls::delegate(WAITING_REPIN_PENDING), "--json"],
             b"\"work\":\"writing\"",
@@ -1388,12 +1361,12 @@ pub fn step_6_8() -> Vec<calls::Step> {
         call(D1, argv!["chat", "start", "--project", number(PROJECT), "--key", "qa", PERSON]),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(A1), "--until", "replied"]),
-        calls::until(D1, argv!["task", "show", number(T), "--json"], b"\"work\":\"writing\"", b"\"task\""),
-        calls::until(D1, argv!["task", "show", number(A), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(T), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(A), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(A1), "--activity", "32", "--json"]),
         calls::release_hold(OWNER_HOLD),
         call(D1, argv!["task", "show", number(A), "--until", "phase:idle"]),
-        calls::until(D1, argv!["task", "show", number(A2), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        until(D1, argv!["task", "show", number(A2), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(A1), "--activity", "32", "--json"]),
         call(D1, argv!["task", "show", number(T), "--activity", "32", "--json"]),
         calls::release_hold(NEXT_HOLD),

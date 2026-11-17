@@ -77,7 +77,7 @@ pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployme
 
 fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limits::Limits, String> {
     use temper_box_machine::limits::{self, Refused};
-    let mut limits = limits::small();
+    let mut limits = limits::stock();
     let mut problems = Vec::new();
     let prefix = "application.limits.overrides.";
     for (name, value) in overrides.iter().filter(|(name, _)| name.starts_with(b"box.")) {

@@ -1,7 +1,6 @@
 {{
   "engine": {{
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "authority.executors": 22,
         "authority.grants": 15,
@@ -67,6 +66,9 @@
         "tasks.saved_resources": 4,
         "tasks.spec_bytes": 512,
         "tasks.tasks": 8,
+        "tasks.inbox_bytes": 4096,
+        "tasks.run_inbox": 8,
+        "tasks.exemptions": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 2,
         "views.text_bytes": 1024
@@ -167,7 +169,6 @@
     "demo": null,
     "sign_in": null,
     "limits": {{
-      "profile": "small",
       "overrides": {{
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,
@@ -176,6 +177,7 @@
         "forge.client.pending": 8,
         "forge.name_bytes": 64,
         "forge.resources_per_task": 2,
+        "forge.landing_members": 1,
         "forge_component.connections": 4,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 4194304,

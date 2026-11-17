@@ -48,17 +48,17 @@ fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
     let mut engine = fixtures::engine().jig;
     for (profile, smallest, words) in [
         (
-            config::Profile::Small,
+            jig_protocol_config_fixtures::small(),
             SMALL,
             "engine.limits.io.output: 6816 bytes, short of the smallest resumed start, 6817 bytes\n",
         ),
         (
-            config::Profile::Standard,
+            config::stock(),
             STANDARD,
             "engine.limits.io.output: 27200 bytes, short of the smallest resumed start, 27201 bytes\n",
         ),
     ] {
-        let limits = config::profile(profile);
+        let limits = profile;
         for (row, output, expected) in
             [("stock", limits.io.output, ""), ("met", smallest, ""), ("one short", smallest - 1, words)]
         {
@@ -100,7 +100,7 @@ fn a_checkout_with_one_repository_can_start() {
 }
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     for limits in [
         crate::translate::limits(&own).unwrap(),
         crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap(),
@@ -128,7 +128,7 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
-    let mut engine = crate::limits::profile(crate::limits::Profile::Small);
+    let mut engine = temper_limits_fixtures::small();
     crate::limits::apply(&mut engine, b"forges.installations", 3).unwrap();
     crate::limits::apply(&mut engine, b"forge_component.token_bytes", 64).unwrap();
     let engine_limits = crate::translate::limits(&engine).unwrap();
@@ -179,7 +179,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
 }
 #[test]
 fn git_component_limits_against_the_checkout_name_both() {
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.checkout.name_bytes = 600;
     let git = own.git_component;
     for (git, expected) in [
@@ -214,7 +214,7 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8528072 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8528072 bytes\n"
     );
 }
 
@@ -248,13 +248,13 @@ fn checkout_capacity_keeps_the_agent_saved_and_rooms_in_one_refusal() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798148 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798148 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\n"
     );
 }
 
 #[test]
 fn a_channel_limit_past_a_ceiling_names_the_limit() {
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     own.checkout.name_bytes = 600;
     let normal = payload::Bounds {
         repositories: 1,
@@ -286,7 +286,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 fn one_ios_entities_hold_both_services_and_their_children() {
     let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 260 bytes, past its bound of 256\n".as_slice());
+    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 320 bytes, past its bound of 256\n".as_slice());
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -429,7 +429,7 @@ fn hook_connections_past_the_process_sockets_are_refused() {
         fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
-        b"engine.limits.io.sockets: 257 bytes, past its bound of 256\n"
+        b"engine.limits.io.sockets: 317 bytes, past its bound of 256\n"
     );
 }
 #[test]
@@ -903,9 +903,9 @@ fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_li
 #[test]
 fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     const TURN: u32 = 65_536;
-    let mut engine = config::profile(config::Profile::Small);
+    let mut engine = jig_protocol_config_fixtures::small();
     let mut worker = fixtures::worker_settings().jig;
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let mut agent = fixtures::startup_agent();
     agent.limits.bodies.turn_body = TURN;
     let loaded = TURN + u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
@@ -984,8 +984,8 @@ fn the_cluster_shapes_accept_both_loopback_families_and_the_whole_v4_range() {
 }
 #[test]
 fn turn_checks_use_only_what_each_process_knows() {
-    let engine = config::profile(config::Profile::Small);
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let engine = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     // The small hub's 262144 bytes hold its 65536-byte resume window exactly.
     let mut found = Problems::empty();
     checks::turns(Some(&engine), &[], &own, None, &mut found);

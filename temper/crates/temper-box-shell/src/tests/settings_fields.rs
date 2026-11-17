@@ -229,10 +229,8 @@ fn every_member_ctl_prints_for_the_stock_is_a_field() {
     const STOCK_VALUES: usize = 21;
     let llm = llm();
     let models = models(&llm);
-    let stock = temper_service::stock::with_models(
-        llm.models.clone(),
-        jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Standard).core.tasks.result_bytes,
-    );
+    let stock =
+        temper_service::stock::with_models(llm.models.clone(), jig_protocol_config::stock().core.tasks.result_bytes);
     let mut checked = 0;
     for value in stock.models {
         walk(Shape::Catalogue, printed(&StockValue::Model(Box::new(value)), &models));

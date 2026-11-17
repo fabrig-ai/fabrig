@@ -123,7 +123,7 @@ pub(crate) fn source(
     let discovery = discovery(bytes, named)?;
     let clock = skein_shell::Clock::new();
     let until = clock.now().now.saturating_add(deadline);
-    let limits = jig_protocol_config::profile(config::Profile::Small).io;
+    let limits = jig_protocol_config::stock().io;
     let answered = http::get(&discovery, until).is_ok_and(|answer| (200..300).contains(&answer.status));
     if !answered {
         return Err("temper's discovery did not answer".into());

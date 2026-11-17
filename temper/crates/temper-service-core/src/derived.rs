@@ -13,6 +13,9 @@ pub struct Sources {
 /// Smith's standard agent with init's declarations and endpoints, a 63,740-byte
 /// tool payload and 48,000-token endpoint outputs (derived.md, 3).
 pub const STOCK: Sources = Sources { turn: 18_431_842, payload: 63_740, inbox: 82, unacknowledged: 8 };
+/// Fabrig’s own development of 2026-11-16: T + 1,024 bytes of frame margin
+/// (configuration/limits.md, the stock covers fabrig’s development).
+pub const OUTPUT_FLOOR: u32 = 18_432_866;
 impl Sources {
     #[must_use]
     pub fn agent(agent: &Declaration) -> Self {
@@ -67,7 +70,7 @@ pub fn call_answer(payload: u32, stock: u32) -> u32 {
 #[must_use]
 pub fn output(limits: &Limits) -> Option<u32> {
     use jig_protocol_worker_wire::{CEILINGS, sizes, v14};
-    let own = crate::limits::profile(crate::limits::Profile::Standard);
+    let own = crate::limits::stock();
     let payload = temper_protocol_worker_wire::limits(&checkout_bounds(&own.checkout, &own.peer))?;
     let sizes = worker_sizes(limits, limits.hub.slots, &payload, own.peer.forges)?;
     let bodies = sizes::limits(&sizes)?;
@@ -106,10 +109,12 @@ fn both(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_config
     ))?;
     limits.hub.outcome_bytes = outcome(sources.payload, limits.hub.outcome_bytes);
     limits.core.call_answer_bytes = call_answer(sources.payload, limits.core.call_answer_bytes);
-    limits.io.output = output(limits).ok_or(failure(
-        b"io.output",
-        b"cannot derive from the agent's largest turn (T) within the worker wire's ceilings",
-    ))?;
+    limits.io.output = output(limits)
+        .ok_or(failure(
+            b"io.output",
+            b"cannot derive from the agent's largest turn (T) within the worker wire's ceilings",
+        ))?
+        .max(OUTPUT_FLOOR);
     Ok(())
 }
 /// Apply the engine's carriers to its base, before jig reads the overrides.
@@ -166,9 +171,7 @@ pub fn worker_document(
     sources: Sources,
 ) -> Result<jig_protocol_config::Worker, jig_protocol_config::Problems> {
     let mut base = jig_protocol_config::stock();
-    if !small(document, at)
-        && let Err(found) = worker(&mut base, sources)
-    {
+    if let Err(found) = worker(&mut base, sources) {
         let mut problems = jig_protocol_config::Problems::empty();
         problems.push(found.path, found.what);
         return Err(problems);
@@ -176,17 +179,6 @@ pub fn worker_document(
     jig_protocol_config::worker_over(document, at, directories, &base)
 }
 
-/// Small is a test's set of figures and keeps its own carriers.
-#[must_use]
-pub fn small(document: &skein_json::Document, at: u32) -> bool {
-    use crate::startup::member;
-    let Some(limits) = member(document, at, b"limits") else { return false };
-    let Some(profile) = member(document, limits, b"profile") else { return false };
-    match jig_protocol_config::read::text(document, profile, 16) {
-        Ok(name) => name.as_ref() == b"small",
-        Err(_) => false,
-    }
-}
 /// Whether a dotted limit was explicitly supplied, independent of its value.
 #[must_use]
 pub fn overridden(document: &skein_json::Document, at: u32, name: &[u8]) -> bool {
@@ -204,7 +196,7 @@ pub fn slots(document: &skein_json::Document) -> Option<u32> {
     let at = member(document, *workers.get(0)?, b"slots")?;
     u32::try_from(read::integer(document, at, u64::from(u32::MAX)).ok()?).ok()
 }
-/// A worker's places follow its slots, even with a small profile (derived.md, 5.2).
+/// A worker's places follow its slots, from the document’s own slot count (derived.md, 5.2).
 pub fn places(document: &skein_json::Document, application: u32, slots: u32, limits: &mut crate::limits::Shared) {
     if !overridden(document, application, b"checkout.workspaces") {
         limits.checkout.workspaces = slots;

@@ -44,9 +44,11 @@
         "root.loads.bytes": 998292,
         "root.loads.read_bytes": 1996088,
         "root.loads.reply_bytes": 998292,
-        "root.loads.transcript_bytes": 998044
-      },
-      "profile": "small"
+        "root.loads.transcript_bytes": 998044,
+        "forge.client.answer_bytes": 65536,
+        "forge.client.op_bytes": 512,
+        "forge_component.body_bytes": 16384
+      }
     },
     "machine": {
       "fake": {
@@ -155,9 +157,10 @@
         "tasks.tasks": 4,
         "tasks.tree_tasks": 6,
         "views.runs": 1,
-        "views.text_bytes": 1024
-      },
-      "profile": "small"
+        "views.text_bytes": 1024,
+        "tasks.inbox_bytes": 4096,
+        "tasks.run_inbox": 8
+      }
     },
     "llm": {
       "endpoints": [
@@ -236,9 +239,12 @@
           "hub.turn_bytes": 998044,
           "hub.turn_queue_bytes": 7984352,
           "people.words": 512,
-          "tasks.message_bytes": 512
-        },
-        "profile": "small"
+          "tasks.message_bytes": 512,
+          "tasks.result_bytes": 512,
+          "hub.inbox": 8,
+          "hub.held": 8,
+          "tasks.run_inbox": 8
+        }
       },
       "memory_bytes": 1152921504606846976,
       "name": "worker-a",

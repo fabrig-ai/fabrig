@@ -272,7 +272,7 @@ fn group_file_listing_is_refused_above_its_configured_bound() {
         Item::file(b"box/groups/17", b"fake\n"),
     ];
     for bound in [0, 1] {
-        let limits = crate::limits::Limits { groups: bound, ..crate::limits::small() };
+        let limits = crate::limits::Limits { groups: bound, ..crate::limits::stock() };
         let mut h =
             Harness::configured(super::fixtures::kind_steps(), &items, true, skein_sim::Config::calm().buffer, &limits);
         h.run_until_idle();

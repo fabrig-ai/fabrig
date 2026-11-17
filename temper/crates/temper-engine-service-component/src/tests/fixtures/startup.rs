@@ -11,7 +11,7 @@ pub const APPLICATION: &[u8] = br#"{
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 "machine":{},
 "landing":{"projects":[{"project":1}]},
-"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+"demo":null,"sign_in":null,"limits":{"overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
 }"#;
 pub const DEMO: &str = r#""welcome":true,"demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -69,7 +69,7 @@ pub fn document() -> Box<[u8]> {
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "programs":{"check_interval_ms":60000},
 "agent":{"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
+"limits":{"overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976}],"application":"#);
     document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.resources_per_task\":4}").as_bytes());
     document.extend_from_slice(b"}");
@@ -107,17 +107,26 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
             ("core.resume_bytes", u64::from(resume)),
+            ("tasks.inbox_bytes", 4096),
+            ("tasks.run_inbox", 8),
             ("authority.grants", 16),
             ("notes.scopes", 32),
         ]
     } else if path == b"workers[0].limits.overrides" {
         &[
+            ("hub.accounts", 8),
+            ("hub.inbox", 8),
+            ("hub.held", 8),
+            ("tasks.result_bytes", 512),
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
         ]
     } else if path == b"application.limits.overrides" {
         &[
+            ("forge.client.answer_bytes", 65536),
+            ("forge.client.op_bytes", 512),
+            ("forge_component.body_bytes", 16384),
             ("root.journal.transcript_bytes", u64::from(resume)),
             ("root.loads.transcript_bytes", u64::from(turn)),
             ("root.loads.bytes", u64::from(loaded)),
@@ -152,7 +161,7 @@ fn engine_turn_limits() -> String {
     result
 }
 fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
+    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.result_bytes":512,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {

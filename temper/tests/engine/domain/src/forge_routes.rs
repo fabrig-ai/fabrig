@@ -504,8 +504,7 @@ impl World {
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
             }
-            limits.people.amendment_bytes =
-                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
+            limits.people.amendment_bytes = jig_protocol_config_fixtures::small().core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
             limits.journal.writes = journal::WALKING_WRITES;
@@ -994,8 +993,7 @@ impl World {
                 limits.forge.client.op_bytes = TREE_FORGE_BYTES;
                 limits.forge.client.answer_bytes = TREE_FORGE_BYTES;
                 // Reports use jig's deployment result bound.
-                limits.tasks.result_bytes =
-                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.result_bytes;
+                limits.tasks.result_bytes = jig_protocol_config_fixtures::small().core.tasks.result_bytes;
                 limits.tasks.inbox_bytes = RESULT_INBOX_BYTES;
                 limits.loads.bytes = limits.loads.bytes.max(RESULT_INBOX_BYTES);
                 limits.loads.reply_bytes = limits.loads.reply_bytes.max(RESULT_INBOX_BYTES);
@@ -3749,8 +3747,9 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vo
     let at = limits.member(&document, b"overrides").expect("application overrides");
     let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
     let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Standard);
+    let mut temper = temper_engine_service_vocabulary::limits::stock();
+    // The deadline stories use a thirty-second gather and advance their clock by it.
+    temper.root.brief.gather = Duration::from_secs(30);
     for index in at..end {
         let token = document.token(index).expect("application override token");
         let Some(name) = document.text(token) else { continue };

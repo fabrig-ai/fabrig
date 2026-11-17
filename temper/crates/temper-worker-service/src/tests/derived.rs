@@ -6,16 +6,13 @@ use crate::{
     worker_settings,
 };
 use jig_protocol_config as config;
-use temper_service_core::{
-    derived::{self, STOCK},
-    limits,
-};
+use temper_service_core::derived::{self, STOCK};
 
 fn root(payload: u32, turn: u32) -> temper_worker_domain::Limits {
     let mut root = worker_settings::root_limits(
         &fixtures::worker_settings(),
         &fixtures::startup_agent(),
-        &worker_settings::Limits::shared(limits::profile(limits::Profile::Small)),
+        &worker_settings::Limits::shared(temper_service_core::limits::stock()),
     );
     root.agent.message_bytes = u64::from(payload);
     root.agent.call_bytes = u64::from(payload);
@@ -162,7 +159,7 @@ fn output_carrier() {
     for turn in [STOCK.turn, wire::CEILINGS.assignment_transcript / 4 - 4] {
         sources.turn = turn;
         derived::worker(&mut worker.jig.limits, sources).unwrap();
-        assert_eq!(worker.jig.limits.io.output, overhead + turn);
+        assert_eq!(worker.jig.limits.io.output, (overhead + turn).max(derived::OUTPUT_FLOOR));
         let own = fixtures::worker_limits();
         let payload = worker_settings::payload_limits(&own).unwrap();
         let mut link = worker_settings::link_limits(&worker.jig, &payload, own.peer.forges).unwrap();
@@ -182,7 +179,7 @@ fn output_carrier() {
             stall: link.stall,
         };
         assert!(jig_protocol_engine_workers::limits::valid_with_schema(&engine, &schema));
-        link.room -= 1;
+        link.room = overhead + turn - 1;
         assert!(!jig_protocol_worker_link::valid_with_schema(&link, &schema));
         let mut least = wire::sizes::smallest_resumed(
             engine.sizes.answered,

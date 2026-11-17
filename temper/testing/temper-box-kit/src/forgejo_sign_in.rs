@@ -367,7 +367,7 @@ fn sign_in(
     forge: std::net::SocketAddr,
     link: &str,
 ) -> io::Result<()> {
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
@@ -399,7 +399,7 @@ fn through_temper(
     temper: std::net::SocketAddr,
     forge: std::net::SocketAddr,
 ) -> io::Result<Landed> {
-    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let opened = browser.call(&format!("http://{forge}/user/oauth2/temper"), None)?;
     assert_eq!(opened.status, 307);
     let authorization = opened.location.expect("provider authorization redirect");

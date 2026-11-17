@@ -15,17 +15,26 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
             ("core.resume_bytes", u64::from(resume)),
+            ("tasks.inbox_bytes", 4096),
+            ("tasks.run_inbox", 8),
             ("authority.grants", 16),
             ("notes.scopes", 32),
         ]
     } else if path == b"workers[0].limits.overrides" {
         &[
+            ("hub.accounts", 8),
+            ("hub.inbox", 8),
+            ("hub.held", 8),
+            ("tasks.result_bytes", 512),
             ("hub.turn_bytes", u64::from(turn)),
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
         ]
     } else if path == b"application.limits.overrides" {
         &[
+            ("forge.client.answer_bytes", 65536),
+            ("forge.client.op_bytes", 512),
+            ("forge_component.body_bytes", 16384),
             ("root.journal.transcript_bytes", u64::from(resume)),
             ("root.loads.transcript_bytes", u64::from(turn)),
             ("root.loads.bytes", u64::from(loaded)),

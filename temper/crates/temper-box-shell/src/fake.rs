@@ -455,7 +455,7 @@ fn forge_entry(
     let machine = machine::read(
         &document,
         at,
-        &temper_forge_setup::limits::small(),
+        &temper_forge_setup::limits::stock(),
         &jig_directories(directories),
         &mut problems,
     );

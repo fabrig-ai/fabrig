@@ -282,9 +282,9 @@ pub(super) static MEMBERS: [Member; 128] = [
         shape: "application-limits",
         name: "profile",
         kind: "text",
-        bound: "small or standard",
-        required: true,
-        line: "The limits profile used before applying overrides.",
+        bound: "standard",
+        required: false,
+        line: "May be absent or standard; either reads the stock before overrides.",
         gone: None,
     },
     Member {
@@ -293,7 +293,7 @@ pub(super) static MEMBERS: [Member; 128] = [
         kind: "named limits",
         bound: "see temper help limits",
         required: true,
-        line: "The dotted limit names whose values replace the profile’s.",
+        line: "The dotted limit names whose values replace the stock’s.",
         gone: None,
     },
     Member {
