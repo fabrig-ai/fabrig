@@ -50,7 +50,9 @@ temper-box
   the owned kind's, an owned Forgejo's fetch, preparation, Forgejo and
   runner (`temper-forge-setup`'s steps); and the fake kind's, the
   playground's fake LLM, a fake forge's preparation and the fake forge
-  (`temper-fake`'s), when the document has `application.demo`. Each
+  (`temper-fake`'s), in every box, the fake LLM on the listener the box
+  holds from its start for the scripted provider
+  (`../configuration/providers.md`, 4). Each
   group's place and setup are its forge's setup file's (`place.md`, 3). Each is
   dormant until serve asks for it for a forge, and then runs for that
   forge alone, its steps' forge number that forge's: a box runs at most

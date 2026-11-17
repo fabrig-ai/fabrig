@@ -1,13 +1,13 @@
 # config: status
 
-2026-11-16. Where the design lags or departs from [config.md](config.md).
+2026-11-17. Where the design lags or departs from [config.md](config.md).
 
 - **Design lags:**
   - 1, 3, 4: `../protocol/configuration/README.md`, sections 1, 2, 3, 6 and 8, give one JSON document, `temper.json`, with jig's three parts at its top level, and every member written out; `../protocol/configuration/engine.md` gives `application`'s members; `../protocol/setup/init.md`, sections 2 and 3, give the documents `init` writes, the box's of 631 lines.
   - 4.5: `../protocol/documentation.md`, section 8, renders `configuration` and `configuration-engine` from the JSON document's decoders, and `limits` and `limits-engine` with `small`'s values.
   - 5: `../protocol/configuration/limits.md` and jig's `protocol/limits.md` give one stock, but a document still overrides it by dotted name in its `limits`, and the counts are constants, not formulas of `live_goals`; `memory_bytes` is still the document's (5.3).
   - 5.2: `../protocol/configuration/limits.md`, `forge.changes`, and `../protocol/store.md`, section 4, cap `forge.changes` at 379 by the tier rows' ceiling of 759 and keep a failing test's id within 4 KiB; `forge.tiers.test_id_bytes` is 256.
-  - 6.1, 6.2: `../protocol/configuration/settings.md`, section 1, keeps the limits and `engine.llm` in the document, the providers leaving it "by a design of their own, later".
+  - 6.1: `../protocol/configuration/settings.md`, section 1, keeps the limits in the document.
   - 6.3: `../protocol/configuration/figures.md`, section 3, has a worker host the smaller of its setting's places and its document's `slots`; it takes its workspaces and git operations from the figures' limits until they're derived from its places (7).
   - 7: `../protocol/configuration/derived.md` derives the turn's, the payload's and the clients' carriers and a worker's places, but not the graces, and not the engine's limits on workers from the workers' settings.
 - **Design departs:**
@@ -21,6 +21,9 @@
   - 6.4: an owned or fake forge's port is always chosen at set-up and its binaries fetched: no person gives others at set-up (`../protocol/setup/place.md`, 1), because nobody sets them but by editing the document today, and a field in `SetUp` would move the client's wire for it (the user, 2026-11-16). A host's own units give theirs to `forge prepare` once (`../protocol/setup/place.md`, 4).
   - 6.4: `engine.clients.provider` stays the document's: a managed Forgejo's sign-in through temper names it, and section 4's file has no key for it; only the owned forge's client is made with the forge (`../protocol/configuration/moved.md`, section 6; `../protocol/setup/place.md`, 6). Decided by goal 5135's design, 2026-11-16, so that dev.fabrig.ai's sign-in to its Forgejo keeps working.
   - 7: a formula's figure passes today's check at the stock, and at twice it only where the wires and the store take twice: jig's worker wire caps a turn's body at 33,554,432, below twice the stock's T (36,863,684), and the store's transcript ceiling likewise. There the test checks the arithmetic at twice, today's check at the largest T the ceiling takes, and the start's refusal at twice (`../protocol/configuration/derived.md`, section 6). Raising a ceiling moves its wire, which isn't N1's. Decided by N1's goal, 2026-11-16.
+  - 6.2: the engine keeps the current LLM providers in its data directory, `providers.setting`, and each start builds from it, the stock's where there is none (`../protocol/configuration/providers.md`, 3), since a start builds its accounts driver, its workers' encodings and its core's provider facts before its store opens, as the box keeps `agents.setting` (6.3). The store stays the providers' home, and a change still applies at the next start. Decided by N4's designer, 2026-11-17.
+  - 6.2: the scripted provider's port is chosen at the box's start, not the playground's, and held for the fake LLM until the playground starts (`../protocol/configuration/providers.md`, 4), since the box's worker pins its agents' endpoints at its start (`../protocol/configuration/figures.md`, 4). Its key is made at the playground's start, as this draft has it. Decided by N4's designer, 2026-11-17.
+  - 6.2: every box has the scripted provider and configures the playground, whether `temper-box init` wrote it with `--box` or not; the welcome, kind 20, still decides whether it's offered (`../protocol/configuration/providers.md`, 4), since `demo` leaving the file leaves nothing else to tell the two apart. Decided by N4's designer, 2026-11-17.
   - 8: `upgrades.md`, section 10, has each release read the previous release's configuration members. This draft's builds refuse a member that moved, and dev.fabrig.ai moves by its operators' steps, by the user's word until v0.1.0 has users (`notes.md`, section 21).
 - **Open:**
   - 11: a raise taken at once by every child; the memory budget's stock; an override's reason; the webhooks' listener. Each has a default in its question.

@@ -202,9 +202,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   needs; C, and so every budget above, scales with it.
 - **The stock's models,** the binary's, as read from the providers' pages on
   2026-11-06, numbered in this order and for good, the scripted model last, 8,
-  its prices its own (`../setup/init.md`, 3). A row whose provider the document
-  doesn't configure isn't among the defaults, so the scripted model is there
-  where `demo` is. Each has a window of 1,048,576 and an
+  its prices its own (`../setup/init.md`, 3). The seven of OpenAI and Anthropic
+  are every deployment's defaults, the stock's providers being every
+  deployment's, and the scripted model is the box's, beside its scripted
+  provider (`providers.md`, 2 and 4). Each has a window of 1,048,576 and an
   output of 8,192, whatever a provider allows; takes the efforts `low`,
   `medium`, `high`, `xhigh` and `max`, low to high, so that a picker has
   one scale, where Terra and Luna also take OpenAI's `none`; is

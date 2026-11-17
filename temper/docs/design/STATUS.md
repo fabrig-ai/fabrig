@@ -589,6 +589,7 @@ Design documents:
 - [`protocol/configuration/figures.md`](protocol/configuration/figures.status.md)
 - [`protocol/configuration/limits.md`](protocol/configuration/limits.status.md)
 - [`protocol/configuration/moved.md`](protocol/configuration/moved.status.md)
+- [`protocol/configuration/providers.md`](protocol/configuration/providers.status.md)
 - [`protocol/configuration/reference.md`](protocol/configuration/reference.status.md)
 - [`protocol/configuration/settings.md`](protocol/configuration/settings.status.md)
 - [`protocol/configuration/stock.md`](protocol/configuration/stock.status.md)

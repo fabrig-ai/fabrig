@@ -11,8 +11,9 @@ it are jig's (jig's `protocol/channel/figures.md`).
 
 ## 1. In one page
 
-- **The engine composes the figures** (2) from its own limits, its
-  `engine.llm`'s endpoints and the `agents` setting (5). It does so
+- **The engine composes the figures** (2) from its own limits, the
+  endpoints of the LLM providers it runs (`providers.md`, 3) and the
+  `agents` setting (5). It does so
   after its store's restore and at each change of that setting, and
   gives them to its workers host. The host sends them at each opening.
 - **A worker alone takes them at each start** (3). It opens for its
@@ -41,7 +42,7 @@ filled so:
 | `places` | jig's, for each worker as it's sent |
 | `limits` | every limit of jig's that the engine holds, and every one of temper's (`limits.md`), each by its dotted name as an override names it, at the value the engine started with |
 | `agents.profile` | the `agents` setting's profile figures (5), by the names smith's profile takes: `declared.NAME`, `policy.NAME` |
-| `agents.endpoints` | each of `engine.llm`'s endpoints, in its order (`README.md`, section 2): its name, number, dialect, provider, program, address, transport, headers and deadlines as `engine.llm` holds them, and its limits the `agents` setting's for its name, else the setting's `fallback` |
+| `agents.endpoints` | each endpoint of the providers the engine runs (`providers.md`, 3), in their providers' order and each provider's: its name, number, dialect, provider, program, address, transport, headers and deadlines as its provider's setting holds them, and its limits the `agents` setting's for its name, else the setting's `fallback` |
 
 - **One function composes them,**
   `temper_engine_service_vocabulary::figures::compose`. It takes the
@@ -49,11 +50,12 @@ filled so:
   with temper's limits) and the `agents` setting's value, and returns
   the generated `Figures` with `places` 0. The engine calls it, and so
   does the box for its own worker (4), so both build the same figures.
-- **At most 64 endpoints.** `Agents.endpoints` holds 64, so temper's
-  start checks refuse an `engine.llm` with more, naming it:
-  `engine.llm: N endpoints, at most 64, the workers' figures carry no
-  more`. jig's own reader keeps its bound; the check is temper's, run
-  before `compose`, so `compose` stays total.
+- **At most 64 endpoints.** `Agents.endpoints` holds 64, and jig's
+  `provider` kind holds no more across its providers (jig's
+  `domain/engine/llm-providers.md`, 4); temper's start checks still
+  refuse running providers with more, naming where they came from:
+  `providers.setting: N endpoints, at most 64, the workers' figures carry
+  no more`. The check runs before `compose`, so `compose` stays total.
 - **Limits by name both ways.** Each limits module has a list of its
   limits by name and value: jig's in `jig-protocol-config`, temper's in
   `temper-service-core`. Each is the reverse of that module's override
@@ -138,8 +140,8 @@ filled so:
   ```
 
   `profile` is smith's profile figures by name over smith's `standard`.
-  `endpoints` is the limits for each endpoint, by its name in
-  `engine.llm`. `fallback` is the limits of an endpoint the value
+  `endpoints` is the limits for each endpoint, by its name among the
+  providers' endpoints. `fallback` is the limits of an endpoint the value
   doesn't name.
 - **Its default is today's stock agent configuration:** the figures
   `temper-box init` writes in `agent.json` (`../setup/init.md`, 3). That
@@ -231,8 +233,10 @@ written as JSON by the worker's start:
   worker's document loses its limits and `agent`, and its `agent.json`
   goes (`../../draft/config.execution.md`, N3).
 - **No store patch.** Kind 21 starts empty, over its default.
-- **A worker on another host reaches the endpoints `engine.llm` names,**
-  as the copies it kept did before.
+- **A worker on another host reaches the endpoints its engine runs,**
+  as the copies it kept did before: an endpoint's address is the one its
+  agents dial from their worker's host (jig's
+  `domain/engine/llm-providers.md`, 2).
 
 ## 9. Testing
 
@@ -265,7 +269,3 @@ compiled, and run after landing.
   a worker's start. That waits for limits as settings
   (`../../draft/config.md`, 6.1), when the carriers move with the
   setting.
-- **An endpoint seen from another host.** A worker uses `engine.llm`'s
-  addresses. An endpoint the engine reaches on its loopback doesn't
-  serve a worker on another host. That waits for providers in the store
-  (`../../draft/config.md`, 6.2).
