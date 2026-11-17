@@ -44,6 +44,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(39), "help_forge_install"),
     (Some(jig::rows::EXPORT_AT), "help_account_export"),
     (Some(jig::rows::IMPORT_AT), "help_account_import"),
+    (Some(jig::rows::USES_AT), "help_account_uses"),
     (Some(jig::rows::SETTINGS_AT), "help_settings_show"),
     (Some(jig::rows::SETTING_AT), "help_settings_show"),
     (Some(jig::rows::REVISION_AT), "help_revision_show"),

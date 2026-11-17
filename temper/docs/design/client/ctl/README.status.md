@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-15. Remaining gaps between temper's code and [README.md](README.md).
+2026-11-17. Remaining gaps between temper's code and [README.md](README.md).
 
 
 

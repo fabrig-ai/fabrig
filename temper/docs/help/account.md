@@ -79,11 +79,18 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 - **ctl:** `account list` reads the accounts and waits for one usable
   or settled; `account connect`, `account add-key` and `account
   declare` add a source, and `account verify` checks a program's
-  login; `account replace-key`, `account rank`, `account retry`,
+  login; `account replace-key`, `account rank`, `account uses`, `account retry`,
   `account disconnect` and `account forget` change one; `account
   export` and `account import` move one; `model list` reads the
   models. Each verb's arguments are its help: `temper ctl help
   account`.
+- **Paying for a service:** `account uses ACCOUNT --party N` makes
+  the service's work run on its holder's subscription once a use names
+  it. Each `--party N` or `--project N` repeats, up to 16 uses together;
+  the named uses replace the whole list. `account uses ACCOUNT --default`
+  restores jig's defaults. A person's plan may pay for its holder's
+  services and projects whose other members are services. Another person,
+  or a project with another person, is refused by the engine.
 - **The binary:** `temper-box program-login` signs a program in on this
   host (`temper-box help commands`).
 - **temper's runs** name a model, and an account where they choose

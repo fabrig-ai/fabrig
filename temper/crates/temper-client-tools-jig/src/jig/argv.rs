@@ -335,6 +335,7 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
             }
         }
     }
+    check_account_uses(tool, call)?;
     check_declaration(tool, call)?;
     if tool.name == b"task answer" && call.form == 3 && approval_state(call).is_none() {
         return Err(Usage::Kind { tool: 0, form: 0, argument: 2 });
@@ -343,6 +344,25 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
         check_inbox(call)?;
     }
     check_watch(tool, call)?;
+    Ok(())
+}
+fn check_account_uses(tool: &Tool, call: &Call) -> Result<(), Usage> {
+    if tool.name != b"account uses" || call.form != 0 {
+        return Ok(());
+    }
+    let mut count = 0_usize;
+    for slot in call.values.iter().skip(1) {
+        match slot {
+            Some(Values::Many(values)) => count = count.checked_add(values.len()).expect("bounded uses"),
+            None | Some(Values::One(_)) => {}
+        }
+    }
+    if count == 0 {
+        return Err(Usage::Missing { tool: call.tool, form: call.form, argument: 1 });
+    }
+    if count > usize::try_from(super::rows::ACCOUNT_USES).expect("wire bound fits") {
+        return Err(Usage::Many { tool: call.tool, form: call.form, argument: 2 });
+    }
     Ok(())
 }
 fn check_declaration(tool: &Tool, call: &Call) -> Result<(), Usage> {
