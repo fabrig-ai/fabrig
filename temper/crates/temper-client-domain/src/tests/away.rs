@@ -105,12 +105,12 @@ fn link(root: &mut Domain, link: Link) -> Queue<Request> {
 }
 
 #[test]
-fn the_watch_opens_once_for_a_party() {
+fn the_watch_opens_once_for_a_live_link() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let frame = f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     away::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no party yet");
+    assert!(child.is_empty(), "the link is starting");
     let mut out = Queue::uncapped();
     let Watchable::Family { scope, window, record } = away::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")

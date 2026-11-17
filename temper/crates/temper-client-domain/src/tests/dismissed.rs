@@ -117,12 +117,12 @@ fn link(root: &mut Domain, link: Link) -> Queue<Request> {
 }
 
 #[test]
-fn the_watch_opens_once_the_party_is_known() {
+fn the_watch_opens_once_the_link_is_live_without_me() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let frame = f::start(&mut root, List::with_capacity(0));
     let mut child = Queue::uncapped();
     dismissed::configure(&mut root.forge, f::limits().forge, &mut child);
-    assert!(child.is_empty(), "no party yet");
+    assert!(child.is_empty(), "the link is starting");
     let mut out = Queue::uncapped();
     let Watchable::Family { scope, window, record } = dismissed::watch(&f::limits().forge).unwrap() else {
         panic!("family watch")
@@ -133,11 +133,11 @@ fn the_watch_opens_once_the_party_is_known() {
     assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Dismissed);
     assert_eq!(dismissed::handle().asker, f::FORGE_ASKER);
     assert_eq!(dismissed::handle().number, 2);
-    f::confirm(&mut root, frame, f::PARTY, &mut out);
-    assert!(opening(&mut out).is_some());
+    assert!(root.pages().me(root.client()).is_none());
+    assert!(opening(&mut link(&mut root, Link::Live)).is_some());
     assert!(root.client().document(dismissed::handle()).is_some());
     f::confirm(&mut root, frame, f::PARTY, &mut out);
-    assert_eq!(opening(&mut out), None, "same party opens no second watch");
+    assert_eq!(opening(&mut out), None, "me opens no second watch");
     assert_eq!(opening(&mut link(&mut root, Link::Offline)), None);
     assert_eq!(opening(&mut link(&mut root, Link::Live)), None);
 }

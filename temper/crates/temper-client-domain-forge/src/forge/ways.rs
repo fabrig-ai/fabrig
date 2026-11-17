@@ -263,7 +263,7 @@ pub fn configure(side: &mut Side, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some() && side.ways.watch == Watch::Unknown {
+    if side.link == Link::Live && side.ways.watch == Watch::Unknown {
         side.ways.watch = Watch::Open;
         out.push(Request::Client {
             asked: jig_client::Event::Watch {

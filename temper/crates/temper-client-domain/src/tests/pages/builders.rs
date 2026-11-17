@@ -66,6 +66,27 @@ fn document() -> c::Deployment {
 }
 
 #[test]
+fn role_gated_deployment_watches_wait_for_me_and_leave_in_its_step() {
+    for address in [Address::Accounts, Address::Builders { project: fixtures::PROJECT }] {
+        let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+        let me = fixtures::start(&mut root, List::uncapped());
+        let starting = event(&mut root, Event::Went { place: Place::Address(address) });
+        assert!(deployment_watch(&starting).is_none());
+        let mut live = Queue::uncapped();
+        crate::route::told(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            jig_client::Told::Link { link: jig_client::Link::Live },
+            &mut live,
+        );
+        assert!(root.pages().me(root.client()).is_none());
+        assert!(deployment_watch(&live).is_none(), "live alone names no role");
+        let with_me = deliver(&mut root, me, frame(Some(c::HeldRole::Owner)));
+        assert!(deployment_watch(&with_me).is_some(), "me and live ask in the same step");
+    }
+}
+
+#[test]
 fn the_watch_opens_for_a_role_and_closes_on_leaving() {
     for (role, address) in [
         (c::HeldRole::Owner, Address::Builders { project: fixtures::PROJECT }),

@@ -181,7 +181,7 @@ pub(super) fn opened(owner: bool) -> (crate::Domain, Token, Token) {
     (root, me, watch(out).expect("session forges watch"))
 }
 #[test]
-fn the_forges_watch_opens_once_me_is_delivered_for_every_person() {
+fn me_opens_no_second_forges_watch_for_any_person() {
     for owner in [false, true] {
         let (mut root, me, _) = opened(owner);
         assert!(watch(up(&mut root, Up::Watched { watch: me, event: f::frame(f::PARTY) })).is_none());

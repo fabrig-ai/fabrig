@@ -751,6 +751,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
     }
+    let mut link = client.link().state;
     let returning = match &event {
         Event::Returned { .. } => true,
         Event::Push(_)
@@ -1288,7 +1289,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             me_changed(pages, client, out);
             pages.team.told(env, client, &Told::Changed { handle }, out);
         }
-        Event::Link { link } => {
+        Event::Link { link: changed } => {
+            link = changed;
             if let Some(task) = &mut pages.task {
                 // Successful sign-in can tell SignedOut then Starting in one step.
                 // The installed credential, rather than that intermediate tell,
@@ -1304,7 +1306,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
     }
     if let Some(page) = &mut pages.connect_model {
-        page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
+        page.read_environment(&pages.address, link, &mut pages.next, out);
         page.refresh_login(client, &mut pages.serial, out);
     }
     default_chosen(pages, client);
@@ -1339,7 +1341,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
-    pages.told.configure(pages.told_open, pages.party, &mut pages.next, env.limits.forge, out);
+    pages.told.configure(pages.told_open, pages.party, link, &mut pages.next, env.limits.forge, out);
     if let Some(page) = &mut pages.remembered {
         page.configure(accounts::current_me(client), &mut pages.next, out);
     }

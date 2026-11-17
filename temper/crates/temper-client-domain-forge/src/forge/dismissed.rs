@@ -151,7 +151,7 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some()
+    if side.link == Link::Live
         && !side.dismissed_open
         && let State::Unknown = side.dismissed
     {

@@ -148,7 +148,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         assert_eq!(root.forge().approvals().more(), 0);
         let mut out = Queue::uncapped();
         f::confirm(&mut root, me, f::PARTY, &mut out);
-        let watch = opening(&out).expect("approvals watch after me");
+        let watch = opening(&out).expect("approvals watch once live");
         let Watchable::Family { scope, window, record } = approvals::watch(&f::limits().forge).unwrap() else {
             panic!("family watch")
         };

@@ -142,7 +142,7 @@ pub fn configure(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         side.changed();
         return;
     }
-    if side.party.is_some() && side.trials.watch == Watch::Unknown {
+    if side.link == Link::Live && side.trials.watch == Watch::Unknown {
         if let Some(subject) = watch(&limits) {
             side.trials.watch = Watch::Open;
             out.push(Request::Client { asked: jig_client::Event::Watch { handle: handle(), subject } });
