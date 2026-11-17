@@ -888,6 +888,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
             "implementation choices a spec leaves open",
             "a new dependency",
             "a departure from a landed design",
+            "starting work on findings: a goal for them, the backlog or a hand-off",
             away_note,
         ]
     );
@@ -980,7 +981,15 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
             "Listed in Decided for you for 24 hours, to overturn.",
         ]
     );
-    assert_eq!(story.reaches_lines(b"Asks you"), ["a new dependency", "a departure from a landed design", away_note]);
+    assert_eq!(
+        story.reaches_lines(b"Asks you"),
+        [
+            "a new dependency",
+            "a departure from a landed design",
+            "starting work on findings: a goal for them, the backlog or a hand-off",
+            away_note
+        ]
+    );
     story.needs();
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");

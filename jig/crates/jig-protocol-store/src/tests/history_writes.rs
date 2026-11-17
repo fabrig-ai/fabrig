@@ -1,4 +1,4 @@
-//! History routing at the byte commit edge (protocol/store/logs.md, 3 and 6).
+//! History routing at the byte commit edge (protocol/store/logs.md, 3).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,
@@ -33,8 +33,7 @@ fn failed(events: &[Event], check: CommitCheck) {
     let [Event::Failed { why: CommitFailure::Check(why), .. }] = events else { panic!("{events:?}") };
     assert_eq!(*why, check);
 }
-const SETS: crate::PatchSets =
-    crate::PatchSets { sets: &[crate::SKEIN_PATCH_SET, crate::SMITH_PATCH_SET, crate::JIG_STORE_PATCH_SET] };
+const SETS: crate::OwnerSets = crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] };
 fn limits() -> crate::Limits {
     let mut limits = fixtures::store_limits();
     limits.store.ops = 128;
@@ -47,7 +46,7 @@ fn open(limits: &crate::Limits) -> Store {
         secrets: skein_kv::Store::memory(&limits.secrets),
     };
     let mut store = Store::over(limits, fixtures::APPLICATION, &[], stores);
-    store.patch_sets(SETS);
+    store.owner_sets(SETS);
     let events = fixtures::run(
         &mut store,
         Request::Open { owner: Token::new(1), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
@@ -225,39 +224,4 @@ fn dropping_history_with_erases_removes_map_copies_without_appending() {
             assert_eq!(fixtures::get_kv(&mut store, &key), None);
         }
     }
-}
-
-#[test]
-fn task_logs_consumes_only_the_rows_within_quarter_writes_and_all_bytes() {
-    let rows = [fixtures::terminal(5, 1), fixtures::terminal(6, 1), fixtures::terminal(7, 1)];
-    let store = opened();
-    let rows: Vec<_> = rows
-        .iter()
-        .map(|row| {
-            let skein_kv::Op::Put { key, value } = put(&store, row) else { unreachable!() };
-            crate::JobRow { key, value }
-        })
-        .collect();
-    let bytes = crate::JobWrite::Put { key: rows[0].key.clone(), value: rows[0].value.clone() }.bytes();
-    let mut page = crate::JobPage {
-        rows: rows.into(),
-        end: false,
-        layout: None,
-        room: crate::JobRoom { writes: 8, bytes: u64::MAX },
-    };
-    for (writes, limit, count) in [(8, u64::MAX, 2), (12, bytes, 1), (12, bytes.checked_sub(1).unwrap(), 0)] {
-        page.room = crate::JobRoom { writes, bytes: limit };
-        let answer = crate::jobs::page("task-logs", &page);
-        if count == 0 {
-            assert!(answer.is_err());
-            continue;
-        }
-        let answer = answer.unwrap();
-        assert_eq!(answer.writes.len(), count);
-        assert_eq!(answer.through.as_ref(), Some(&page.rows[count.checked_sub(1).unwrap()].key));
-    }
-    page.rows = Box::new([]);
-    page.end = true;
-    page.room = crate::JobRoom { writes: 0, bytes: 0 };
-    assert!(crate::jobs::page("task-logs", &page).unwrap().writes.is_empty());
 }

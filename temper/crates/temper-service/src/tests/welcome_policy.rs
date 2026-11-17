@@ -24,13 +24,7 @@ fn generated_files() -> temper_init::Answer {
             git: Some(b"/bin/git"),
             claude: None,
             login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: port(8367),
-                owned: port(8368),
-                forge: port(8369),
-                llm: port(8370),
-                webhooks: port(8371),
-            },
+            ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
@@ -40,6 +34,9 @@ fn generated_files() -> temper_init::Answer {
 }
 
 fn generated() -> (engine::Config, engine::Limits) {
+    generated_with_test(None)
+}
+fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) {
     let mut files = settings::Files { entries: List::with_capacity(8) };
     let mut document = None;
     for file in generated_files().files {
@@ -56,14 +53,20 @@ fn generated() -> (engine::Config, engine::Limits) {
         }
     }
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").expect("absolute directories");
-    let parsed = parse(&document.expect("generated temper.json"), &directories).expect("real welcome preparation");
+    let mut document: serde_json::Value = serde_json::from_slice(&document.expect("generated temper.json")).unwrap();
+    if let Some(test) = test {
+        document["application"]["test"] = serde_json::from_slice(test).unwrap();
+    }
+    let document = serde_json::to_vec(&document).unwrap();
+    let parsed = parse(&document, &directories).expect("real welcome preparation");
     let mut problems = super::Problems::empty();
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
-        machine: parsed.application.machine,
+        setups: Box::new([]),
+        test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
@@ -72,14 +75,16 @@ fn generated() -> (engine::Config, engine::Limits) {
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,
-        welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
-        landings: parsed.application.landings,
+        landing_held: false,
         limits: parsed.application.limits,
     };
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits, settings.jig.memory)
@@ -91,21 +96,20 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
-            host_part: None,
+            host_part: temper_engine_domain::room::HostPart {
+                allowance: u64::MAX,
+                ..temper_engine_domain::room::HostPart::EMPTY
+            },
             kinds_stock: crate::stock::forge(&limits),
             ways_stock: Box::default(),
-            machine: Some(crate::system::machine_config(&settings.machine)),
+            machine: Some(crate::system::machine_config(settings.test_github.as_ref())),
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
             identities,
             forges,
-            playground: crate::system::playground_config(
-                settings.demo.as_ref(),
-                settings.welcome,
-                settings.limits.setup.deadline,
-            ),
-            landings: settings.landings,
+            playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
+            landing_held: false,
             under_box: false,
         },
         limits,
@@ -214,7 +218,10 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     let project = frame.projects.iter().find(|project| project.project == 1).expect("first made project");
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
-    assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4, 6]);
+    assert_eq!(
+        procedures.iter().map(|procedure| (procedure.connector, procedure.code)).collect::<Vec<_>>(),
+        [(1, 2), (core::RECURRING, core::GATHERING), (1, 3), (1, 4), (1, 6)]
+    );
     assert_eq!(charters.as_slice(), &[1, 2, 4, 5, 9, 11, 12, 13, 14, 15, 16]);
     let charters = charters.as_slice().to_vec();
     for (number, (turns, seconds)) in charters.into_iter().zip([
@@ -448,18 +455,53 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
 
 #[test]
 fn the_template_machine_gives_the_domain_its_places() {
-    let (config, _) = generated();
-    assert!(config.forges.is_empty());
-    assert!(config.identities.is_empty());
-    let machine = config.machine.expect("machine is passed to the domain");
-    let owned = machine.owned.unwrap();
-    assert_eq!(owned.api.host.as_ref(), b"127.0.0.1");
-    assert_eq!(owned.api.port, 8368);
-    assert!(owned.api.tls.is_none());
-    assert_eq!(machine.fake.unwrap().api.port, 8369);
-    assert_eq!(machine.github.api.host.as_ref(), b"api.github.com");
-    assert_eq!(machine.github.api.port, 443);
-    assert_eq!(machine.github.api.tls.as_deref(), Some(b"api.github.com".as_slice()));
-    assert_eq!(machine.github.git.as_ref(), b"https://github.com");
-    assert_eq!(machine.github.web.as_deref(), Some(b"https://github.com".as_slice()));
+    let mut world = None;
+    for test in [None, Some(br#"{"github":null}"#.as_slice()), Some(br#"{"github":{"api":{"socket":"127.0.0.1:9999"},"transport":"plaintext","remote":"http://127.0.0.1:9999","web":"http://127.0.0.1:9998","git":"bin/github-git"}}"#.as_slice())] {
+        let (config, limits) = generated_with_test(test);
+        assert!(config.forges.is_empty());
+        assert!(config.identities.is_empty());
+        let machine = config.machine.as_ref().expect("machine is passed to the domain");
+        let fake = test.is_some_and(|test| test != br#"{"github":null}"#);
+        if fake {
+            assert_eq!(machine.github.api.host.as_ref(), b"127.0.0.1");
+            assert_eq!(machine.github.api.port, 9999);
+            assert!(machine.github.api.tls.is_none());
+            assert_eq!(machine.github.git.as_ref(), b"http://127.0.0.1:9999");
+            assert_eq!(machine.github.web.as_deref(), Some(b"http://127.0.0.1:9998".as_slice()));
+            assert_eq!(machine.github_git_program.as_deref(), Some(b"/data/bin/github-git".as_slice()));
+        } else {
+            assert_eq!(machine.github.api.host.as_ref(), b"api.github.com");
+            assert_eq!(machine.github.api.port, 443);
+            assert_eq!(machine.github.api.tls.as_deref(), Some(b"api.github.com".as_slice()));
+            assert_eq!(machine.github.git.as_ref(), b"https://github.com");
+            assert_eq!(machine.github.web.as_deref(), Some(b"https://github.com".as_slice()));
+            assert!(machine.github_git_program.is_none());
+        }
+        let place = machine.github.clone();
+        let git_program = machine.github_git_program.clone();
+        // Absent and null both select the asserted stock machine; exercise that world once.
+        if fake || world.is_none() {
+            let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+            driver.settle();
+            sign_in_owner(&mut driver);
+            driver.settle();
+            driver.send(Event::Party(PartyInput::Application {
+                reply_to: ReplyTo::new(Token::new(903)), sign_in: driver.session(), key: [3; 16], digest: [3; 32],
+                scope: people::ApplicationScope::Deployment,
+                request: engine::Application::Forge(forge::Ask::Connect {
+                    forge: forge::Making::New(forge::ForgeAsk::GitHub), how: forge::How::GitHubManifest { back: None },
+                }), carried: None,
+            }));
+            driver.settle();
+            world = Some(driver);
+        }
+        let driver = world.as_ref().expect("machine world");
+        let record = driver.store.rows.values().find_map(|record| {
+            if let Record::Forge { row } = record && let forge::Stored::Forge(record) = row.as_ref() {
+                Some(record)
+            } else { None }
+        }).expect("Connect keeps its new GitHub forge");
+        assert_eq!(record.place, place);
+        assert_eq!(record.git_program, git_program);
+    }
 }

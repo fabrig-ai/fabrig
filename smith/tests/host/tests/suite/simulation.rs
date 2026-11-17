@@ -98,6 +98,7 @@ fn count_answers(world: &World, wanted: Token) -> usize {
             Down::Start { .. }
             | Down::Message { .. }
             | Down::Acknowledge { .. }
+            | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
             | Down::Drain => false,
@@ -139,6 +140,7 @@ fn process_started_precedes_agent_admitted_and_start_is_first() {
         Down::Message { .. }
         | Down::Answer { .. }
         | Down::Acknowledge { .. }
+        | Down::Renewals { .. }
         | Down::Grant { .. }
         | Down::Cancel
         | Down::Drain => {
@@ -487,6 +489,7 @@ fn inbound_messages_are_ordered_bounded_and_named_opaquely() {
             Down::Start { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
+            | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
             | Down::Drain => None,
@@ -706,6 +709,7 @@ fn an_oversized_generic_answer_is_too_large_but_delivery_always_fits() {
         | Down::Start { .. }
         | Down::Message { .. }
         | Down::Acknowledge { .. }
+        | Down::Renewals { .. }
         | Down::Grant { .. }
         | Down::Cancel
         | Down::Drain => panic!("too large reply"),
@@ -1063,6 +1067,7 @@ fn every_delivery_terminal_survives_withdrawal_and_expired_deadline() {
             | Down::Start { .. }
             | Down::Message { .. }
             | Down::Acknowledge { .. }
+            | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
             | Down::Drain => panic!("full terminal required"),
@@ -1089,6 +1094,7 @@ fn grant_generation_races_are_fenced_by_emission_not_queued_refresh() {
         | Down::Message { .. }
         | Down::Answer { .. }
         | Down::Acknowledge { .. }
+        | Down::Renewals { .. }
         | Down::Cancel
         | Down::Drain => {
             panic!("latest refresh")
@@ -1381,6 +1387,7 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
         | Down::Message { .. }
         | Down::Answer { .. }
         | Down::Acknowledge { .. }
+        | Down::Renewals { .. }
         | Down::Grant { .. }
         | Down::Drain => panic!("wall must politely cancel first"),
     }
@@ -1591,4 +1598,49 @@ fn drain_keeps_watchdog_and_wall_supervision() {
         assert_eq!(world.seen.signals, [Signal::Terminate]);
         world.clean_end();
     }
+}
+
+#[test]
+fn renewals_reach_the_channel_and_grant_waits_keep_the_watchdog_bounded() {
+    let mut world = World::new(73, limits());
+    world.live();
+    for held in [true, false] {
+        world.event(Input::Parent(parent::Event::Renewals { held }));
+        assert_eq!(world.seen.down.last(), Some(&Down::Renewals { held }));
+        world.sent();
+    }
+    world.up(Up::Long { operation: smith_host_domain::Operation::Grant, span: Duration::from_secs(30) });
+    world.at(39);
+    assert_eq!(world.seen.fault, None);
+    world.at(40);
+    faulted(&mut world, Fault::NoProgress);
+}
+
+#[test]
+fn a_coalesced_grant_never_passes_its_renewals_notice() {
+    let mut world = World::new(74, limits());
+    world.live();
+    grant(&mut world, 2);
+    grant(&mut world, 3);
+    world.event(Input::Parent(parent::Event::Renewals { held: false }));
+    grant(&mut world, 4);
+    world.sent();
+    assert!(matches!(world.seen.down.last(), Some(Down::Grant { grant }) if grant.generation == 3));
+    world.sent();
+    assert_eq!(world.seen.down.last(), Some(&Down::Renewals { held: false }));
+    world.sent();
+    assert!(matches!(world.seen.down.last(), Some(Down::Grant { grant }) if grant.generation == 4));
+    world.sent();
+    finish(&mut world);
+}
+
+#[test]
+fn a_stopped_run_needs_no_renewals_record_to_end() {
+    let mut world = World::new(75, limits());
+    world.live();
+    world.event(Input::Parent(parent::Event::Stop { agent: world.agent() }));
+    world.event(Input::Parent(parent::Event::Renewals { held: true }));
+    world.sent();
+    assert_eq!(world.seen.down.last(), Some(&Down::Cancel));
+    finish(&mut world);
 }

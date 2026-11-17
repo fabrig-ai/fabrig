@@ -24,6 +24,10 @@ pub trait Harness: 'static {
         false
     }
     fn configure(_document: &mut serde_json::Value) {}
+    /// Worlds may build typed seed configuration after the document's fixed-member checks.
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+        documents::settings::seed_configuration(engine, document);
+    }
     #[must_use]
     fn agent_profile() -> smith_agent_service::profile::Profile {
         documents::agent_profile()
@@ -34,7 +38,7 @@ pub trait Harness: 'static {
     }
     /// Override sets for a test phase's open; the playground keeps production's sets.
     #[must_use]
-    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
+    fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         None
     }
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
@@ -267,14 +271,33 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     let mut document: serde_json::Value = serde_json::from_slice(&parameters.deployment).expect("deployment JSON");
     H::configure(&mut document);
     let given = H::given(&document);
+    let typed_document = document.clone();
     documents::settings::strip_models(&mut document);
+    document.as_object_mut().expect("deployment").remove("world_settings");
     let bytes = serde_json::to_vec(&document).expect("deployment JSON");
-    let mut service = temper_service::startup::with_setup_given(
+    let seeds = H::seeds(parameters.seed);
+    let files = H::files();
+    let agent = H::agent_settings();
+    let mut checked = temper_service::startup::checked_start_with(
         &bytes,
         &jig_protocol_config::Directories::working(),
-        &H::files(),
-        Some(&H::agent_settings()),
-        &H::seeds(parameters.seed),
+        &files,
+        Some(&agent),
+        &seeds,
+        documents::forges(),
+        None,
+        &given,
+        Some(b"/usr/bin/git"),
+    )
+    .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    H::configure_engine(&mut checked.engine_mut().jig, &typed_document);
+    checked.engine_mut().directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+    let mut service = temper_service::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
         None,
         Some(temper_service::WorkerRuntime {
             wires: H::worker_wires(),
@@ -282,16 +305,14 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
             path: b"/worker".as_slice().into(),
             agent: documents::pinned_agent(),
         }),
-        documents::forges(),
+        // Demo compositions model the box's welcome and use its default.
+        (!typed_document["application"]["demo"].is_null()).then_some(256),
         None,
-        None,
-        None,
-        &given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
-    if let Some(sets) = H::patch_sets() {
-        service.patch_sets(sets);
+    if let Some(sets) = H::owner_sets() {
+        service.owner_sets(sets);
     }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");
@@ -417,6 +438,15 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
                 operations: (documents::agent_limits().routes + 3).max(smith_agent_shell::list::operations()),
             },
             agent_roots::<H>,
+        ),
+        (
+            HostedProgram {
+                program: b"/setup/demo/bin/git".as_slice().into(),
+                make: git::<H>,
+                instances: 1,
+                operations: 1,
+            },
+            worker_root,
         ),
         (
             HostedProgram { program: b"/usr/bin/git".as_slice().into(), make: git::<H>, instances: 1, operations: 1 },

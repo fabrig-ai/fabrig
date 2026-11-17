@@ -54,6 +54,11 @@ when configuration is read. What is still open is listed in section 8.
   (`configuration.md`, section 7). One that passes its own has those four members refused
   as unknown, each naming its path and that its setting lives in the
   store, so that no document seems to configure what it does not.
+- **An application may fix members** as its constants (3.4): the
+  deployment's directory and seed, the identity providers, the
+  connectors, the acts, the seeded projects, the clients' heartbeat,
+  link and approval, and a worker's graces and programs. A document
+  naming one is refused, naming its path.
 - **Templates are data the engine serves and never expands.** The
   application's shapes of work (jig's chat and goal among them) are
   numbered templates among the settings; a project's policy may override some
@@ -103,7 +108,7 @@ the application's main (its shell)
 | templates | each template the application defines, as defaults when the application passes none (`../domain/engine/settings.md`, 7), with the store's changes over them, numbered and never renumbered, with its defaults; jig's chat and goal among them unless the application drops them (3.1) | the core, only to serve each project's merged templates in `me` (`../client/domain/contract/documents.md`, 1); the client, which fills them in |
 | hosts | the engine's own slots, if it runs agents in the engine (shape 2), and their `smith-inline-agent`'s limits; the workers' names, each with the file of its secret's digest, a data path; the workers' listener: its addresses, socket addresses or an in-process name (skein's `runtime/io/README.md`, section 3), and its certificate and key files, data paths, but for an in-process name (`channel/README.md`, section 9); a listener on an in-process name tells the core its workers are in its process, and that no worker outlives it (`../domain/engine/restart.md`) | the fleet; `jig-protocol-engine-workers`; `smith-inline-agent`, through the application's startup |
 | llm | the LLM providers (`../domain/providers.md`), each numbered, with its name for showing and the `endpoint` its added models take, and, where that endpoint names a program, an optional `direct` endpoint, naming none, that its sign-ins and keys take (below); its endpoints, each with an optional `program` named among its provider's `programs`; where the application passes no defaults, the models, each a default of the `model` setting (`../domain/engine/settings.md`, 1), numbered by position from 1, and each provider's `models`, naming them, both refused where it passes them: each model's window, output, the efforts it takes, low to high, or none (`efforts`), and the one of them a task given no LLM choice takes (`effort`, the first when left out; `../domain/tasks/README.md`, section 3), its name for showing (`shown`, optional), whether a picker shows it (`picker`, true when left out; `../client/domain/contract/documents.md`, 1), and the rest of what smith's agent configuration declares of it (smith's `protocol/agent.md`, section 4), its prices (input, cached input, output, and cache writes when priced apart), its prompt cache's life in milliseconds (`cache_life_ms`, optional, 0 or left out for a model with no prompt cache; `../domain/tasks/standing.md`, 5.3) and its optional `description`, what it is good at, for the brief's catalogue (`../domain/engine/briefs.md`, section 1); the sources it offers: a sign-in, with its public registration (its entry client id, its name hint, its authorization, token, revocation and published keys' addresses with their transport, its issuer, its scopes and those that must be granted, its resource, its redirect's path, and its port where fixed, an ephemeral loopback port for each sign-in otherwise), a key, a program, named `claude_code` where the program is Claude Code (smith's `protocol/programs.md`, section 3), or none; a sign-in waits for its redirect within the profile's sign-in deadline, as a limit of the driver (`limits.md`; skein's `oauth/README.md`, section 3); and the facts its terms ask an application to show: whether a signed-in source is a plan, and its manage-usage address (`../domain/providers.md`, 2.6). No account, key or record: accounts are made at runtime and kept in the store (`../domain/accounts.md`, 3.1; `llm.md`, sections 4 and 5) | the core; smith's and skein's components and skein's accounts driver, through the application's startup; `jig-protocol-accounts` |
-| clients | the heartbeat of the clients' streams (`client/wire.md`, section 2); whether the clients' component gives a printed link's one-time secret at start, whose URL the application's startup prints (`client/sign-in.md`), only where its clients reach it on loopback, which that startup checks against its own listener (`service.md`, section 3); `approval`, a boolean, false when absent, whether it holds sign-ins approved by a signed-in browser (`client/sign-in.md`), apart from `link` and only on loopback too, which the startup checks the same way; `provider`, the OpenID provider's (`client/openid.md`), or `null` for none: `key`, the file of its signing key, an RSA key of 3072 bits as PKCS#8 PEM (`-----BEGIN PRIVATE KEY-----`), made on the host that uses it by the application's setup (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072`), mode 0600 and owned by the service's own user, never copied, printed or logged; the start refuses, each with its reason, a key of another form or size, a file readable or writable by group or others, reached through a link, or owned by another than the process's effective user; `clients`, each its `id` (1 to 255 visible ASCII bytes, unique), the file of its `secret` or `null` for a public client (skein's `oauth/issuer.md`, section 2), and its one `redirect_uri` (`https`, or `http` on loopback with a port), at least one; and `addresses`, the providers, each of kind application or link, whose subjects are verified addresses, given as the claims' `email`, a link's being the deployment's own word on its one owner. A key skein's issuer refuses, a client off its rules, or a provider in `addresses` of another kind refuses the start at its path. The provider's codes and access tokens are counted by the limits `provider_codes` and `provider_tokens` (`limits.md`). The listener, its certificate and key, and what serves a browser are the application's service's own members (`service.md`, section 7) | `jig-protocol-engine-clients` |
+| clients | the heartbeat of the clients' streams (`client/wire.md`, section 2); whether the clients' component gives a printed link's one-time secret at start, whose URL the application's startup prints (`client/sign-in.md`), only where its clients reach it on loopback, which that startup checks against its own listener (`service.md`, section 3); `approval`, a boolean, false when absent, whether it holds sign-ins approved by a signed-in browser (`client/sign-in.md`), apart from `link` and only on loopback too, which the startup checks the same way; `provider`, the OpenID provider's (`client/openid.md`), or `null` for none: `key`, the file of its signing key, an RSA key of 3072 bits as PKCS#8 PEM (`-----BEGIN PRIVATE KEY-----`), made on the host that uses it by the application's setup (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072`), mode 0600 and owned by the service's own user, never copied, printed or logged; the start refuses, each with its reason, a key of another form or size, a file readable or writable by group or others, reached through a link, or owned by another than the process's effective user; `clients`, each its `id` (1 to 255 visible ASCII bytes, unique), the file of its `secret` or `null` for a public client (skein's `oauth/issuer.md`, section 2), and its one `redirect_uri` (`https`, or `http` on loopback with a port), none or more, an application adding its own while it runs (`client/openid.md`); and `addresses`, the providers, each of kind application or link, whose subjects are verified addresses, given as the claims' `email`, a link's being the deployment's own word on its one owner. A key skein's issuer refuses, a client off its rules, or a provider in `addresses` of another kind refuses the start at its path. The provider's codes and access tokens are counted by the limits `provider_codes` and `provider_tokens` (`limits.md`). The listener, its certificate and key, and what serves a browser are the application's service's own members (`service.md`, section 7) | `jig-protocol-engine-clients` |
 | connectors | the application's connectors' numbers, as the core knows them (`../domain/model.md`, 3.5); none takes the number the core keeps for its own procedures (below) | the core |
 | acts | the deployment's acts each connector may make in its owners' name (`../domain/people/acts.md`, 3), none without the member: a list of `{"connector", "may"}`, each `connector` one of `connectors`, at most once, and `may` the kinds it is granted, each at most once, among `close`, `add_key`, `remove_account`, `adopt`, `make_project` and `remove_project`. A connector not configured, or named twice, and a kind unknown, or named twice, refuse the start at their path. The validated entry count becomes people's `act_grants` memory bound, checked by its constructor; each entry charges at most one of every act kind. Every act is refused while `owners` names none | the people child, at every start |
 | limits | a profile, and any limit overridden by name (`limits.md`) | every child and component of jig's |
@@ -274,6 +279,14 @@ and `core.policy_bytes` limit. Unknown references name their member.
     (`{"main": ..., "sub_agents": [...], "later": {"main": ...,
     "sub_agents": [...]}}`). It names no account.
 
+  Its flags are checked against the executor it admits: a named
+  charter's, as that charter's agent; a chosen executor's ended by
+  `Standing`, or by `Requester` as a conversation, as an agent's; a
+  chosen executor's ended by `Requester` and no conversation, as jig's
+  gathering's, the only task of that shape, which its creator fills as
+  the gathering's executor (`../domain/tasks/gatherings.md`, section 2);
+  any other chosen executor's, as a person task's.
+
   It names no wake policy, parameters, inputs or dependencies, and
   resources only by its connectors' symbols (3.3): a task filled from it wakes by its charter's default wake
   policy, as the settings hold it when the task is made, and parks as
@@ -411,6 +424,47 @@ no `ended_by` key.
 - **Checked at start:** the list's shape and bound, and no pair twice.
   Whether a connector offers a symbol is the connector's to say, at the
   batch.
+
+### 3.4 Members an application fixes
+
+An application may fix some of jig's members as its own constants, so
+that its documents stop carrying values nobody changes (temper's
+`protocol/configuration/moved.md`). It passes them to the parser, as it
+passes its settings' defaults (section 1); jig's reference binary passes
+none and reads every member as the tables above and section 4 give them.
+
+- **What may be fixed,** each on its own: of the engine's part,
+  `deployment` (its directory and its seed), `providers`, `connectors`,
+  `acts`, `projects` (fixed as none: the first start seeds no project,
+  and projects are made at runtime, `../domain/people/acts.md`, 2), and
+  `clients`' `heartbeat_ms`, `link` and `approval` together; of the
+  worker's part, `graces` and `programs` (its `check_interval_ms`).
+- **A fixed member is refused** where a document names it, naming its
+  path, as an unknown member is (section 1), with `What::Fixed`: the
+  application's words say where it went. A part left with no member, the
+  worker's `programs`, is refused whole; `clients` keeps `provider`, and
+  is optional once its other members are fixed: absent, it has no
+  provider.
+- **A fixed value is checked as a document's would be,** and joins the
+  start's checks across the whole (section 7) as if read: an owner's
+  provider among the fixed providers, an act's connector among the fixed
+  connectors, the printed link's loopback check. A fixed value that
+  fails one is the application's fault, refused at start by the path its
+  member would have, so that a test of the application's constants finds
+  it.
+- **The contract,** in `jig-protocol-config`: a value `Fixed` given to
+  `engine` beside `Defaults`, each member an `Option`, `None` read from
+  the document: `deployment: Option<Deployment>`, `providers:
+  Option<Box<[IdentityProvider]>>`, `connectors: Option<Box<[u16]>>`,
+  `acts: Option<Box<[ActGrant]>>`, `projects: Option<Box<[Project]>>`
+  (`Some` of none alone), and `clients: Option<FixedClients>`, a
+  `FixedClients { heartbeat, link, approval }` of the types `Clients`
+  has them; and a value `FixedWorker` given to `worker`, `graces:
+  Option<Graces>` and `check_interval: Option<Duration>` of the types
+  `Worker` has them, the hub's `source_interval` following
+  `check_interval` as it does when read. `Fixed::NONE` and
+  `FixedWorker::NONE` fix nothing. The typed `Engine` and `Worker` are
+  unchanged: a fixed member's field holds the fixed value.
 
 ## 4. jig's part for a worker
 

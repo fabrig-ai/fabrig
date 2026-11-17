@@ -575,7 +575,10 @@ class RunnerTests(unittest.TestCase):
 
     def test_verify_all_accepts_gate_budget(self):
         path = self.root / 'tools/tiers/budgets.toml'
-        path.write_text('[gate.hearth.default]\ncpu_suite_s=30')
+        path.write_text('[gate.default]\nreferences={step=0.04}\n'
+                        '[gate.default.hearth]\nideal_s=30\n'
+                        '[gate.default.hearth.step]\ncpu_s=2')
+        (path.parent / 'layers.toml').write_text('layers=["step"]')
         result, calls = self.invoke('--verify-all')
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [call for call in calls if call['name'] == 'wrap']
@@ -584,9 +587,11 @@ class RunnerTests(unittest.TestCase):
                             for call in commands))
 
     def test_verify_all_validates_budgets_before_any_command(self):
+        (self.root / 'tools/tiers/layers.toml').write_text('layers=["step"]')
         path = self.root / 'tools/tiers/budgets.toml'
         for content in ('[unknown]\ncpu_suite_s=1', '[qa-smith]\nwall_hard_s=0',
-                        '[qa-smith]\ncpu_test_s=true', '[qa-smith]\nunknown=1', '[bad'):
+                        '[qa-smith]\ncpu_test_s=true', '[qa-smith]\nunknown=1', '[bad',
+                        '[gate.hearth.default]\ncpu_suite_s=30'):
             with self.subTest(content=content):
                 path.write_text(content)
                 result, calls = self.invoke('--verify-all')

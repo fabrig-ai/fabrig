@@ -1,6 +1,7 @@
 # branches: status
 
-2026-11-13. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-15. Where the tree's code lags or departs from [branches.md](branches.md).
+
 
 
 `change/repairs.md` has no known implementation gap in a resolution's files:

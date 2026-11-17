@@ -111,6 +111,16 @@ pub(crate) fn write_in(
     number: u64,
     admission: &tasks::CompoundAdmission<'_>,
 ) -> Result<(), people::Refusal> {
+    writable_in(core, limits, party, number, admission, false)
+}
+fn writable_in(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    number: u64,
+    admission: &tasks::CompoundAdmission<'_>,
+    question: bool,
+) -> Result<(), people::Refusal> {
     let row = admission.task(number).ok_or(people::Refusal::Unknown)?;
     let held = core.people.role(party, row.project);
     // Project 0's task is the application's (jig/docs/design/domain/authority.md, 6.1).
@@ -131,6 +141,8 @@ pub(crate) fn write_in(
     }
     match row.executor {
         tasks::Executor::Agent { .. } => {}
+        tasks::Executor::Procedure { connector, code }
+            if question && core.person_answers && connector == crate::RECURRING && code == crate::GATHERING => {}
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
             return Err(people::Refusal::NotOffered);
         }
@@ -267,7 +279,7 @@ pub(crate) fn question(
     if row.requester != tasks::Party::Person(party) {
         return Err(people::Refusal::Unknown);
     }
-    write(core, limits, party, number)?;
+    writable_in(core, limits, party, number, &tasks::CompoundAdmission::new(&core.tasks, 0), true)?;
     let mut found = false;
     for line in &row.question_lines {
         if line.message == message && line.answer.is_none() {

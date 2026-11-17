@@ -10,7 +10,6 @@ mod cluster;
 mod forge;
 mod github;
 mod github_land;
-mod goal_delivery;
 mod lifecycle;
 mod lock;
 mod lost;
@@ -19,9 +18,11 @@ mod notes;
 mod peers;
 mod restart;
 mod sign_in;
+mod teardown;
 mod template_bounds;
 mod terminal;
 mod tools;
+mod turn_landing;
 
 mod fuzzy {
     mod case_4_1_4_3;
@@ -45,4 +46,3 @@ mod fuzzy {
 }
 
 mod adoption_hold;
-mod plan_chat;

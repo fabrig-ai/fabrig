@@ -57,6 +57,7 @@ impl Ledger {
                 &value,
                 &[
                     "head",
+                    "gaps",
                     "landings",
                     "cases",
                     "builds",
@@ -70,6 +71,7 @@ impl Ledger {
             )?;
             Ok(Self {
                 head: object.get("head").map(string).transpose()?,
+                gaps: q::records(object, "gaps")?.iter().map(crate::gap_document::gap).collect::<Result<_, _>>()?,
                 landings: array(required(object, "landings")?)?.iter().map(landing).collect::<Result<_, _>>()?,
                 cases: array(required(object, "cases")?)?.iter().map(case).collect::<Result<_, _>>()?,
                 builds: array(required(object, "builds")?)?.iter().map(build).collect::<Result<_, _>>()?,
@@ -94,11 +96,13 @@ impl Ledger {
     pub fn document(&self) -> Value {
         let mut document = json!({
             "head": self.head,
+            "gaps": self.gaps.iter().map(crate::gap_document::document).collect::<Vec<_>>(),
             "landings": self.landings.iter().map(|landing| {
                 let (answer, why) = match &landing.answer {
                     None => (None, None),
                     Some(Answer::None { why }) => (Some("none"), Some(why)),
                     Some(Answer::Cases) => (Some("cases"), None),
+                    Some(Answer::Gap) => (Some("gap"), None),
                 };
                 json!({"number": landing.number, "commit": landing.commit, "goal": landing.goal,
                     "pull": landing.pull, "title": landing.title, "seen": landing.seen,
@@ -106,7 +110,7 @@ impl Ledger {
                     "unanswered": landing.unanswered, "sessions": landing.sessions})
             }).collect::<Vec<_>>(),
             "cases": self.cases.iter().map(|case| json!({"number": case.number, "surface": case.surface,
-                "page": case.page, "state": case.state.name(), "pass": case.pass, "blocks": if case.blocks == 0 { None } else { Some(case.blocks) },
+                "page": case.page, "kind": case.kind.stored(), "state": case.state.name(), "pass": case.pass, "blocks": if case.blocks == 0 { None } else { Some(case.blocks) },
                 "outcomes": case.outcomes.iter().map(q::outcome_document).collect::<Vec<_>>(), "queued": case.queued, "line": case.line,
                 "asks": case.asks.iter().map(|ask| json!({"landing": ask.landing, "setup": ask.setup,
                     "adds": ask.adds, "steps": ask.steps.iter().map(step_document).collect::<Vec<_>>() })).collect::<Vec<_>>() })).collect::<Vec<_>>(),
@@ -115,7 +119,7 @@ impl Ledger {
                 "deleted": build.deleted, "holds": build.holds, "order": build.order, "held": build.held })).collect::<Vec<_>>(),
             "sessions": self.sessions.iter().map(|session| json!({"number": session.number, "kind": match session.kind { SessionKind::Triage => "triage", SessionKind::Pass => "pass" },
                 "pass": session.pass, "before": session.before.as_ref().map(q::before_document),
-                "landing": session.landing, "effort": session.effort, "started": session.started,
+                "landing": session.landing, "deployments": if session.deployments.is_empty() { None } else { Some(&session.deployments) }, "effort": session.effort, "started": session.started,
                 "ended": session.ended, "exit": session.exit.map(exit_document), "tokens": session.tokens,
                 "pages": if session.kind == SessionKind::Triage { Some(&session.pages) } else { None }, "setups": if session.kind == SessionKind::Triage { Some(&session.setups) } else { None } })).collect::<Vec<_>>(),
             "passes": self.passes.iter().map(q::pass_document).collect::<Vec<_>>(),
@@ -190,6 +194,7 @@ fn landing(value: &Value) -> Result<Landing, Refusal> {
         None => None,
         Some("none") => Some(Answer::None { why: text(object, "why")? }),
         Some("cases") => Some(Answer::Cases),
+        Some("gap") => Some(Answer::Gap),
         Some(other) => return Err(refused(format!("unknown answer {other}"))),
     };
     Ok(Landing {
@@ -206,18 +211,21 @@ fn landing(value: &Value) -> Result<Landing, Refusal> {
     })
 }
 fn case(value: &Value) -> Result<Case, Refusal> {
-    let object =
-        object(value, &["number", "surface", "page", "asks", "state", "queued", "line", "pass", "blocks", "outcomes"])?;
+    let object = object(
+        value,
+        &["number", "kind", "surface", "page", "asks", "state", "queued", "line", "pass", "blocks", "outcomes"],
+    )?;
     let state = q::case_state(&text(object, "state")?)?;
     let asks = array(required(object, "asks")?)?.iter().map(ask).collect::<Result<Vec<_>, _>>()?;
     if asks.is_empty() {
         return Err(refused("case has no asks"));
     }
     let surface = text(object, "surface")?;
-    if surface != "web" && surface != "tui" {
+    if surface != "ctl" && surface != "web" && surface != "tui" {
         return Err(refused(format!("unknown case surface {surface}")));
     }
     Ok(Case {
+        kind: stored_kind(object)?,
         number: integer(object, "number")?,
         surface,
         page: text(object, "page")?,
@@ -268,8 +276,19 @@ fn session(value: &Value) -> Result<Session, Refusal> {
     let object = object(
         value,
         &[
-            "number", "kind", "landing", "effort", "started", "ended", "exit", "tokens", "pages", "setups", "pass",
+            "number",
+            "kind",
+            "landing",
+            "effort",
+            "started",
+            "ended",
+            "exit",
+            "tokens",
+            "pages",
+            "setups",
+            "pass",
             "before",
+            "deployments",
         ],
     )?;
     let kind = match text(object, "kind")?.as_str() {
@@ -297,6 +316,7 @@ fn session(value: &Value) -> Result<Session, Refusal> {
         exit: object.get("exit").map(exit).transpose()?,
         tokens: optional_number(object, "tokens")?,
         pages,
+        deployments: object.get("deployments").map(strings).transpose()?.unwrap_or_default(),
         setups: if kind == SessionKind::Triage { strings(required(object, "setups")?)? } else { Vec::new() },
     })
 }
@@ -309,4 +329,8 @@ fn line(value: &Value) -> Result<Line, Refusal> {
         words: text(object, "words")?,
         given: flag(object, "given")?,
     })
+}
+
+pub(crate) fn stored_kind(object: &Map<String, Value>) -> Result<crate::Kind, Refusal> {
+    object.get("kind").map(|value| crate::Kind::parse(&string(value)?)).transpose().map(Option::unwrap_or_default)
 }

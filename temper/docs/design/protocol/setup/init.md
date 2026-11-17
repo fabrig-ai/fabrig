@@ -1,5 +1,15 @@
 # The configuration and `temper-box init`
 
+**Since 2026-11-16 the document holds no `application.machine`**
+(`../configuration/moved.md`): an owned or fake forge's place is chosen
+when it is set up and kept in its setup file, and a test's fake GitHub
+is `application.test.github` (`place.md`). Where this document gives
+`application.machine`, its parts or the ports `temper-box init --box`
+chooses for them, read the setup file's members, chosen at set-up;
+`temper-box init --box` writes no `machine`, still makes `demo/bin/git`
+and `provider.key`, and writes `engine.clients.provider` with no client
+(`place.md`, 6).
+
 - **One document,** `temper-box serve`'s, `temper.json` in the
   configuration directory (../configuration/README.md, section 2 and ../configuration/directories.md). Every
   `temper-box forge` command and `temper box` read it whole, check it
@@ -492,8 +502,7 @@ override.
   playground: the machine's `fake`, `application.demo`, the scripted
   provider in `engine.llm` and in the agent's configuration, and the
   reset's grant in `engine.acts`. A document without them is the same
-  document less those members: the machine part `github` null alone,
-  `application.demo` null, `engine.llm` the owned example's with
+  document less those members: `application.demo` null, `engine.llm` the owned example's with
   Anthropic's provider (below), and no `engine.acts`.
 - **No forge** (`init.md`): a first run's store holds none, and the
   person makes each from the client, none needing a restart: the
@@ -558,7 +567,7 @@ override.
   and its output 8,192, so the scripted model leaves every charter the
   room luna leaves it: smith's host part, at the owned threshold, 4/5,
   holds the largest stock charter's tools and the authorised brief with
-  a whole spec (`../../domain/agent/tools.md` and `../../domain/agent/charter.md`, 5). The message bound is
+  a whole spec (`../../domain/agent/room.md`, 1, and `../../domain/agent/charter.md`, 5). The message bound is
   the agent's (1), and a request at the threshold stays within the
   fake's request bound; its source a key. The agent's configuration
   declares it too (2).

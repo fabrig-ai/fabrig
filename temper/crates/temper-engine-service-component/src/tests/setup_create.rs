@@ -304,6 +304,13 @@ fn ask_first(service: &mut crate::Service, number: u64, first: domain::SetUpFirs
     // Drive the root's journal seam, including its child continuations.
     for _ in 0_u32..256 {
         root_turn(engine);
+        while let Some(io) = engine.take_place_io() {
+            match io {
+                crate::PlaceIo::Choose { request } => engine.place_port(request, Some(9)),
+                crate::PlaceIo::Write { forge, setup, .. } => engine.place_file(forge, Ok(*setup)),
+                crate::PlaceIo::Read { .. } => panic!("a fresh forge writes its setup"),
+            }
+        }
         if engine.box_link.write.is_some() {
             break;
         }
@@ -512,23 +519,13 @@ fn deferred_setups_connect_without_create_or_a_first_repository() {
     }
 }
 
-fn owner_machine() -> temper_forge_setup::machine::OwnedMachine {
-    temper_forge_setup::machine::OwnedMachine {
-        sign_in: None,
-        listen: ([127, 0, 0, 1], 9).into(),
-        remote: b"http://127.0.0.1:9".as_slice().into(),
-        person: temper_forge_setup::setup::Account {
-            login: b"owner".as_slice().into(),
-            email: b"owner@example.test".as_slice().into(),
-        },
-        public: None,
-        fetch: temper_forge_setup::setup::Fetch { forgejo: false, runner: false, mirror: None },
-        forgejo: b"/bin/forgejo".as_slice().into(),
-        runner: None,
-    }
-}
+#[path = "setup_places.rs"]
+mod places_tests;
 
 fn fresh_owned() -> crate::Service {
+    fresh_with_places(false, false)
+}
+fn fresh_with_places(provider: bool, playground: bool) -> crate::Service {
     let mut config = fixtures::engine();
     // Adoption carries seven forge options and their resource name.
     config.jig.limits.core.authority.segments = 7;
@@ -538,11 +535,74 @@ fn fresh_owned() -> crate::Service {
     let mut owner = project_owner.clone();
     owner.project = 0;
     config.jig.owners = Box::new([owner, project_owner]);
-    config.machine.owned = Some(owner_machine());
+    config.setups = Box::new([]);
+    if provider || playground {
+        config.directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    }
+    if playground {
+        config.demo = Some(crate::settings::Demo {
+            provider: 1,
+            owner: b"playground".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            cues: Box::new([]),
+            landing: b"main".as_slice().into(),
+            key_file: b"/data/demo/llm.key".as_slice().into(),
+        });
+    }
+    if provider {
+        let mut provider = crate::tests::provider::configuration();
+        provider.provider.clients = Box::new([]);
+        provider.provider.addresses = Box::new([1]);
+        config.jig.clients.provider = Some(provider.provider);
+        let files = core::mem::replace(&mut config.files.entries, List::uncapped());
+        for file in files.into_boxed() {
+            config.files.entries.push(file).unwrap();
+        }
+        for (path, bytes) in provider.files {
+            if path.as_ref() == b"provider.key" {
+                config.files.entries.push((path, bytes)).unwrap();
+            }
+        }
+        config.clients.public = Some(crate::startup::application::Origin {
+            scheme: crate::startup::application::Scheme::Https,
+            host: b"temper.example.com".as_slice().into(),
+            port: None,
+            name: b"temper.example.com".as_slice().into(),
+        });
+        config.clients.listener = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+        config.webhooks = Some(skein_forge_connection::hooks::Webhooks {
+            listener: skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into()),
+        });
+        let first = config.jig.llm.providers.first_mut().expect("world provider");
+        first.sign_in = Some(jig_protocol_config::llm::Registration {
+            issuer: b"https://issuer.example".as_slice().into(),
+            client: b"client".as_slice().into(),
+            scopes: Box::new([b"openid".as_slice().into()]),
+            name_hint: None,
+            authorization: b"https://issuer.example/authorize".as_slice().into(),
+            token: b"https://issuer.example/token".as_slice().into(),
+            revocation: None,
+            keys: b"https://issuer.example/keys".as_slice().into(),
+            endpoint_transport: jig_protocol_config::llm::Transport::Plaintext,
+            must_grant: Box::new([]),
+            resource: None,
+            redirect_path: b"/callback".as_slice().into(),
+            redirect_port: Some(3002),
+        });
+    }
+
+    // This world supplies the redirect reservation without driving an LLM sign-in host.
+    let places = if provider { Some(crate::places::Places::new(&config)) } else { None };
+    if provider {
+        config.jig.llm.providers.first_mut().unwrap().sign_in = None;
+    }
     let io = config.jig.limits.io;
     let endpoints = crate::forge::prepare(&config, List::with_capacity(0)).unwrap();
     let mut service =
         crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, io, Some(256), None).unwrap();
+    if let Some(places) = places {
+        service.engine.as_mut().unwrap().places = Some(places);
+    }
     service.engine.as_mut().unwrap().store = fixtures::memory_store();
     restore_local(&mut service);
     assert!(service.engine.as_ref().unwrap().domain.forges().rows.is_empty());
@@ -621,6 +681,13 @@ fn start_owned(service: &mut crate::Service, forge: &Forge) {
     })));
     for _ in 0_u32..256 {
         root_turn(engine);
+        while let Some(io) = engine.take_place_io() {
+            match io {
+                crate::PlaceIo::Choose { request } => engine.place_port(request, Some(9)),
+                crate::PlaceIo::Write { forge, setup, .. } => engine.place_file(forge, Ok(*setup)),
+                crate::PlaceIo::Read { .. } => panic!("a fresh forge writes its setup"),
+            }
+        }
         if engine.box_link.write.is_some()
             && engine.domain.quiescent()
             && engine.events.is_empty()

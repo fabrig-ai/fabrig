@@ -25,7 +25,7 @@ fn the_root_reports_the_earliest_credentials_expiry() {
 
 #[test]
 fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
-    let own = crate::limits::profile(crate::limits::Profile::Small);
+    let own = temper_limits_fixtures::small();
     let mut domain = temper_engine_domain_forge::Domain::new(
         &own.forge,
         7,
@@ -595,6 +595,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Bound { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
+                | root::Request::ChoosePlace { .. }
                 | root::Request::BoxGroup { .. }
                 | root::Request::PlaygroundActs { .. }
                 | root::Request::ResetAct { .. }
@@ -615,6 +616,7 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 | root::Request::Account(_)
                 | root::Request::ToChild(_)
                 | root::Request::Busy(_)
+                | root::Request::Restarting { .. }
                 | root::Request::Drained
                 | root::Request::Stop) => crate::route::request(engine, other),
             }
@@ -901,11 +903,13 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     }
     engine.step(trace.inputs.pop().expect("first productive input"));
     engine.release_trace = Some(trace);
-    engine.store.host.above.push(jig_protocol_store::Event::Patched {
+    engine.store.host.above.push(jig_protocol_store::Event::Ran {
         owner: Token::new(999),
         of: jig_protocol_store::Owner::Application,
-        patch: 999,
-        counts: jig_protocol_store::Counts { records: 1, commits: 1 },
+        job: "fixture-progress".into(),
+        rows: 1,
+        commits: 1,
+        counts: Box::new([]),
     });
     // Enter the release stage with an answer already waiting; the next service
     // pass must take that answer before another quantum of productive work.
@@ -927,7 +931,7 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     assert!(engine.store.host.above.is_empty(), "the waiting answer is taken between quanta");
     let mut answered = false;
     for note in &engine.notes {
-        if let crate::Note::Patched { patch: 999, .. } = note {
+        if let crate::Note::Ran { .. } = note {
             answered = true;
         }
     }

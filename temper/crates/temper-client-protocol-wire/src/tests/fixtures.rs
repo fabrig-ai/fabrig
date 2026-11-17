@@ -190,6 +190,7 @@ pub fn panel_parts() -> v1::ChangePanelParts {
     let limits = limits();
     v1::ChangePanelParts {
         wait: None,
+        source: None,
         way: v1::Way::Queue,
         in_landing: None,
         task: 17,
@@ -326,7 +327,8 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
                 parts.way = v1::Way::Turn;
                 parts.in_landing = *member.landing();
             }
-            Step::Producing
+            Step::Taking
+            | Step::Producing
             | Step::Opening
             | Step::Recreating
             | Step::Reopening

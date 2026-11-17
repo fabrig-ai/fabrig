@@ -1060,6 +1060,7 @@ fn world_in_layout(
                         }
                         v1::Read::Finding(_)
                         | v1::Read::History(_)
+                        | v1::Read::Milestone(_)
                         | v1::Read::RevisionSetting(_)
                         | v1::Read::ProposalItems(_) => {}
                     }
@@ -1635,6 +1636,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
             &l,
             w::ChangePanelParts {
                 wait: None,
+                source: None,
                 way: w::Way::Queue,
                 in_landing: None,
                 task,
@@ -1965,6 +1967,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         && let Some(value) = goal.read(w, what)
     {
         return Some(value);
+    }
+    if let c::Read::Task { task: number } = what {
+        for facts in goal_facts(w) {
+            if facts.number == *number {
+                let mut task = base_task(*number, facts.title);
+                task.chip = goal_line(w, facts).chip;
+                task.label = 2;
+                task.priority = Some(1);
+                return Some(c::ReadValue::Task(Box::new(task)));
+            }
+        }
     }
     match what {
         c::Read::Tasks { query, .. } if query.tracked == Some(true) && query.requester.is_some() => {
@@ -2406,6 +2419,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
             *phase = c::ChipPhase::Active(c::RunStage::Idle);
             line.chip.phase = c::Phase::Idle;
         }
+        GoalState::Waits(_) | GoalState::WaitsForRoom => unreachable!("gallery facts supply no waiting goal"),
         GoalState::Needs { funds: false } | GoalState::Running => {}
     }
     line
@@ -2845,6 +2859,25 @@ impl GoalPage {
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch answers the goal’s related read documents")]
     fn read(&self, w: World, what: &c::Read) -> Option<c::ReadValue> {
+        if let c::Read::Task { task: number } = what {
+            if *number == self.facts.number {
+                return Some(c::ReadValue::Task(Box::new(self.document(w))));
+            }
+            if self.document(w).requester == c::Requester::Task(*number) {
+                let mut chat = base_task(*number, "The goal's chat");
+                chat.label = CHAT_LABEL;
+                return Some(c::ReadValue::Task(Box::new(chat)));
+            }
+            for index in 0..self.delegates.len() {
+                let line = self.delegate(w, index);
+                if line.chip.task == *number {
+                    let mut task = base_task(*number, "");
+                    task.chip = line.chip;
+                    task.requester = c::Requester::Task(self.facts.number);
+                    return Some(c::ReadValue::Task(Box::new(task)));
+                }
+            }
+        }
         match what {
             c::Read::Tasks { query, .. }
                 if *query == temper_client_domain::pages::goal::own_line_query(&self.document(w)) =>
@@ -3789,7 +3822,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_703_100_000_000_000,
         },
-        _ => panic!("task absent from this world step"),
+        _ => panic!("task {number} absent from world {w:?}"),
     }
 }
 fn activity(w: World, task: u64) -> c::ActivityPage {
@@ -4288,6 +4321,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,

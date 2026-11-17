@@ -199,7 +199,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 82_870);
+            assert_eq!(original.owned_bytes().unwrap(), 82_933);
 
             assert_eq!(receiving, 65_463);
             assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
@@ -214,7 +214,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 231, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 168, "the goal's brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -255,11 +255,11 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
+    let brief = crate::limits::stock().root.brief;
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 337_300, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 337_237, "charter 5's maximal non-brief host part leaves this room");
 
     assert_eq!(brief.brief_bytes, 334_999);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
@@ -441,7 +441,13 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let jig = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+    let jig = jig_protocol_config::worker(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service_core::startup::fixed_worker(),
+    )
+    .unwrap();
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
     let agent = worker_agent(configured());
@@ -451,7 +457,7 @@ fn measure_worker() {
         .push((worker.jig.secret.clone(), skein_lib::Secret::new(b"worker-secret-value".as_slice().into())))
         .unwrap();
     let overrides = fixtures::value(&generated(), b"application.limits.overrides");
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let overrides = jig_protocol_config::document(
         &overrides,
         &jig_protocol_config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 },
@@ -513,7 +519,7 @@ fn measure_worker() {
 
 fn measure_turn(number: u32) {
     let config = configured();
-    let body = usize::try_from(crate::limits::profile(crate::limits::Profile::Small).root.brief.brief_bytes).unwrap();
+    let body = usize::try_from(temper_limits_fixtures::small().root.brief.brief_bytes).unwrap();
     let assignment = assignment(number, false, body);
     let limits = config.service.limits.domain;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

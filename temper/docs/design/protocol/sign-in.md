@@ -167,42 +167,77 @@ A deployment that opens its public projects to anyone
 
 ### 2.5 The negative walk
 
-What a visitor can try against a deployment that has opened, played in
-the one-process world (`../testing/README.md`, 2.5) through temper's real
-service and a caching proxy of the world that follows 2.4, each answer
-checked against what 2.4, jig's `protocol/client/default-http.md`, 5 and `protocol/client/public-reads.md`
-, and jig's `domain/people/public-reading.md` allow:
+What a visitor can try against a deployment that has opened, each
+answer checked against what 2.4, jig's `protocol/client/default-http.md`, 5 and `protocol/client/public-reads.md`
+, and jig's `domain/people/public-reading.md` allow. Each case is
+tested in the lowest world that owns it (`../testing/README.md`, 2.5;
+`skein/docs/foundation/testing-strategy.md`, 9). The one-process world
+(`../testing/README.md`, 2.5) plays the walk's path through temper's
+real service, started from configuration's bytes, and a caching proxy
+of the world that follows 2.4, with the cases only that whole service
+shows; jig's worlds play what its mapping, its clients' component and
+its core decide, and temper's lower worlds what its forge and its
+start decide. Every answer the one-process world reads is held to 2.4's
+headers.
 
-- **Every owner, version and kind:** jig's and the forge's, each
-  version served and one not, a kind no owner declared; identifiers of
+- **Every owner, version and kind,** the path, in the one-process
+  world: jig's and the forge's, each version served and one not, a
+  kind no owner declared, on a public project with a landed goal,
+  read directly and through the proxy.
+- **Every inaccessible identifier, one unknown:** identifiers of
   another project's tasks, of a project that is private, being deleted
   or never made, of a conversation's delegate and of a change outside
-  every goal's tree, all one unknown, byte for byte.
+  every goal's tree, all one unknown, byte for byte. Each owner's
+  identifiers are its own world's: jig's in its core's world (jig's
+  `domain/people/public-reading.md`, 6) and its clients' component's
+  (jig's `protocol/client/public-reads.md`), the forge's in the forge's
+  world (`../client/forge/README.md`, 9.5); the one answer every
+  unknown takes, whatever its owner, is the mapping's (jig's
+  `protocol/client/public-reads.md`).
 - **Malformed paths:** numbers past their type, leading zeros, short,
   long and upper-case identifiers, encoded, empty and dot segments, a
-  query, a trailing slash: `404`, `no-store`, never kept by the proxy.
+  query, a trailing slash: `404`, `no-store`, in jig's mapping world
+  (jig's `protocol/client/public-reads.md`); never kept by the proxy, by
+  its own rules (below).
 - **No credential anywhere else:** every keyed request, read, watch,
   stream and sign-out with no credential answered signed out, and the
   same with a visitor's cookie of another deployment; a signed-in
-  person's cookie and a bearer on a public read changing no byte of it.
-- **No widening:** a project's member's `SetVisibility` refused; the
-  limits' relations broken one at a time, each refusing the start.
+  person's cookie and a bearer on a public read changing no byte of
+  it: jig's clients' component's and mapping's worlds (jig's
+  `protocol/client/public-reads.md`). The proxy dropping cookies,
+  `Authorization`, `Forwarded` and `X-Forwarded-` from a public read
+  before it goes on is its own rule.
+- **No widening:** a project's member's `SetVisibility` refused, in
+  jig's core world (jig's `domain/people/public-reading.md`, 6), and
+  its `project amend --visibility` exiting 2 in `tests/client`
+  (`../client/ctl/testing.md`, 2); the limits' relations broken one at a
+  time, each refusing the start, in `temper-service`'s own tests (8).
 - **A store written before public reading** opened with every project
-  private.
-- **Revocation:** a project made private and one deleted while reads
-  of it are under way and cached, each answered unknown by the engine
-  at once and by the proxy within the `max-age`, never later; the
-  proxy's upstream stopped, its copies served until their freshness
-  ends and never after.
-- **The proxy's key:** two deployments behind one proxy with the same
-  path, each answered its own; a refused `Host` with a copy in the
-  cache, refused.
-- **Load:** public reads past the proxy's and the engine's limits,
-  busy, while a signed-in person's reads and requests at the same
-  moment are all answered within their usual time; reads abandoned
-  midway, the budgets whole after.
+  private, in the one-process world: a start with public reading off
+  writes it, and one with it on opens it.
+- **Revocation,** in the one-process world: a project made private and
+  one deleted while reads of it are under way and cached, each
+  answered unknown by the engine at once and by the proxy within the
+  `max-age`, never later. The proxy's upstream stopped, its copies
+  served until their freshness ends and never after, is its own rule.
+- **The proxy's key,** its own rule: two deployments behind one proxy
+  with the same path, each answered its own; a refused `Host` with a
+  copy in the cache, refused.
+- **Load,** in the one-process world: public reads past the proxy's
+  and the engine's limits, busy, while a signed-in person's reads and
+  requests at the same moment are all answered within their usual
+  time; reads abandoned midway, the budgets whole after. The
+  admission's own cases are jig's (jig's
+  `domain/people/public-reading.md`, 6; `protocol/client/public-reads.md`).
 - **No CORS:** no `Access-Control-` header on any answer, a document's,
-  an error's, a refusal's or a preflight's.
+  an error's, a refusal's or a preflight's: on every answer the
+  one-process world reads, on the mapping's answers in jig's mapping
+  world (jig's `protocol/client/public-reads.md`), and on the proxy's
+  own, by its own rules.
+- **The proxy's own rules,** in the one-process world: what it keeps
+  and what it never keeps, the `Age` it keeps and the stale copy it
+  never serves, its upstream stopped, its key, a refused `Host`, the
+  headers it drops, and no `Access-Control-` header of its own.
 
 ## 3. Who may sign in
 
@@ -504,6 +539,14 @@ its sockets tagged as the server's are.
   refused; each other ending of 4.3; a restart between start and return
   answered expired. Each story within the world's budget
   (`../testing/checks.md`, 1).
+- **The start's public figures,** `temper-service`'s own tests, on a
+  deployment's document as `temper-box serve` reads it, with no
+  service run: the document opening public reading (2.4) accepted, and
+  each of the limits' relations (jig's `protocol/limits.md`) broken
+  one at a time refusing the start, naming the limit it breaks; a rate
+  with no public room, an index past its lines, the index's memory
+  alone (one diagnostic), and a kind past its schema's ceiling among
+  them (the negative walk, 2.5).
 - **Step tests:** the configuration's members and their checks; the
   `Binding` family's codec, goldens and fuzz seed; the forge connector's
   bind in its world (`tests/engine/forge`); the claims' reader; the

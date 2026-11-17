@@ -19,8 +19,6 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                owned: NonZeroU16::new(8368).unwrap(),
-                forge: NonZeroU16::new(8369).unwrap(),
                 llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
@@ -50,7 +48,9 @@ fn single_model() -> Box<[u8]> {
     ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let mut base = config::stock();
+    temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
+    fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
     let mut engine = engine(&single_model());
@@ -61,7 +61,7 @@ fn single_engine() -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let document = generated();
-    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
+    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
 }
 
 #[test]
@@ -538,6 +538,77 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
 }
 
 #[test]
+fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
+    use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+    use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let template = defaults.templates.iter().find(|template| template.number == 8).expect("milestone template");
+    assert_eq!(
+        *template,
+        jig_domain_core::Template {
+            number: 8,
+            name: b"milestone".as_slice().into(),
+            executor: TemplateExecutor::Chosen,
+            contract: Contract::Report { words: engine.limits.core.tasks.result_bytes },
+            shallower: 1,
+            budget: TemplateBudget::Given,
+            deadline: TemplateDeadline::None,
+            tracked: Some(1),
+            flags: Flags {
+                ended_by: EndedBy::Requester,
+                conversation: false,
+                listed: true,
+                retention: Retention::Kept
+            },
+            label: 4,
+            grace: None,
+            llm: None,
+            resources: Box::new([]),
+        }
+    );
+    for role in &defaults.policies.get(&1).unwrap().policy.roles {
+        if role.number <= 2 {
+            assert!(role.authority.delegation.kinds.contains(&jig_domain_authority::Executor::Procedure(2)));
+        }
+    }
+    let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
+    let core = config::core(&engine, [1; 16], 7);
+    assert_eq!(
+        jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
+        Ok(())
+    );
+}
+
+#[test]
+fn the_stocks_ways_are_two_and_four_never_eight() {
+    use jig_client::contract as c;
+    use jig_domain_tasks::EndedBy;
+    use temper_client_view_kit as view;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let root = view::root_in_project(Some(view::PROJECT));
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates = skein_lib::List::uncapped();
+    for template in &defaults.templates {
+        let mut client = view::goals::template(template.number, &template.name, template.tracked.is_some());
+        client.flags.ended_by = match template.flags.ended_by {
+            EndedBy::Requester => c::EndedBy::Requester,
+            EndedBy::Result => c::EndedBy::Result,
+            EndedBy::Standing => c::EndedBy::Standing,
+            EndedBy::Closer(closer) => c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code }),
+        };
+        project.templates.push(client).unwrap();
+    }
+    for words in [view::words(), view::browser_words()] {
+        let ways = temper_client_view_parts::common::goals::ways(&me, view::PROJECT, &words);
+        let numbers: Box<[_]> = ways.iter().map(|way| way.number).collect();
+        assert_eq!(numbers.as_ref(), [2, 4]);
+    }
+}
+
+#[test]
 fn the_porter_owns_and_controls_its_follows() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -822,7 +893,7 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
             assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says."));
             assert!(paragraph.contains(decision));
-            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+            assert!(paragraph.contains("Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the eleven; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
         }
     }
     let goal = crate::stock::charter_set().goal.unwrap();
@@ -831,6 +902,7 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
         "Before you ask anything, call `decided`",
         "the question, its options, the one you'd take, why, its kind, the paths",
         "see settings project-classes",
+        "other for what fits none of the eleven",
         "On Decided, carry on with it and ask no one; on Ask, ask as the answer says.",
         "If you're told a decision was overturned, ask it with `message`",
     ] {
@@ -852,6 +924,10 @@ fn the_triager_is_told_to_group_findings_and_ask_once_a_group() {
     paragraphs.find(|paragraph| paragraph.starts_with("Before asking your person")).expect("asking paragraph");
     let grouping = paragraphs.next().expect("grouping paragraph after asking");
     assert!(grouping.starts_with("Group what you keep: the findings one act would settle, by what they are."));
+    assert!(grouping.contains("Call `decided` for the group's question with kind `findings` and no paths, since its choice starts work and changes no file itself."));
+    assert!(grouping.contains(
+        "Where `decided` says Decided, carry your recommended choice out; your person reads it under Decided for you."
+    ));
     assert!(grouping.contains("Ask your person one question a group, after `decided` says Ask as Before asking says, in the line form: the question in one sentence; then what the findings share and what the choices weigh;"));
     assert!(
         grouping.contains(
@@ -1091,7 +1167,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             let charter = jig_domain_core::settings::charters::resolved(
                 charter,
                 &defaults.models,
-                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+                &jig_protocol_config::stock().core,
             )
             .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
@@ -1287,16 +1363,10 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
-    let engine_bytes = fixtures::value(&document, b"engine");
-    let engine = fixtures::parse_engine(&engine_bytes);
+    let document = generated();
+    let engine = engine(&document);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let core = config::core(&engine, [1; 16], 7);
-    for ceiling in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).unwrap().policy.ceiling,
-        &core.seed_projects[0].policy.policy.ceiling,
-    ] {
+    for ceiling in [&defaults.rules.ceiling, &defaults.policies.get(&1).unwrap().policy.ceiling] {
         use jig_domain_authority::Executor;
         for executor in [Executor::Procedure(6), Executor::Job(4)] {
             assert!(ceiling.delegation.kinds.contains(&executor));
@@ -1613,6 +1683,28 @@ fn kinds_are_declared_with_their_bounds() {
                 charters: 1
             },
             Kind {
+                number: 4,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: u32::try_from(
+                    temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                        &temper_client_protocol_wire::v1::CEILINGS
+                    )
+                    .expect("landing bound")
+                )
+                .expect("bounded encoding"),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 5,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: settings::CARRIER,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
                 number: 6,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
@@ -1709,6 +1801,16 @@ fn kinds_are_declared_with_their_bounds() {
                 value_bytes: 9,
                 per_scope: 1,
                 charters: 0
+            },
+            Kind {
+                number: 20,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Welcome(settings::Welcome {
+                    shown: true
+                })),
+                per_scope: 1,
+                charters: 0,
             },
         ]
     );
@@ -2107,7 +2209,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

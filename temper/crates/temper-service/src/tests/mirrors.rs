@@ -35,9 +35,9 @@ fn shared_override_names_match_engine_and_handed_owners() {
     }
     assert_eq!(actual.len(), temper_service_core::limits::NAMES.len(), "no duplicate name");
     assert_eq!(actual, expected);
-    for profile in [crate::limits::Profile::Small, crate::limits::Profile::Standard] {
-        let engine = crate::limits::profile(profile);
-        let shared = temper_service_core::limits::profile(profile);
+    {
+        let engine = crate::limits::stock();
+        let shared = temper_service_core::limits::stock();
         assert_eq!(crate::limits::worker(&engine), crate::worker_settings::Limits::shared(shared));
     }
 }

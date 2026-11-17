@@ -16,11 +16,6 @@
     from its start, not that probe alone: the room is measured once, at
     the round's longest member branch, and the selection only narrows
     (`../domain/landing-search-by-test.md`, 3; the designer, goal 4045).
-  - 8: the store's fields are added in place to the registered family
-    `temper-store` with their defaults, with no patch and no golden
-    store's line, as `AGENTS.md`, section 2 and
-    `../protocol/baseline.md`, 7 say registered families take none
-    (`../domain/landing-search-by-test.md`, 9; the designer, goal 4045).
 - **Open:** none. Adoption's words for a gate whose workflow does not
   declare `temper_tests` (8, 10) are designed in `../domain/landing.md`,
   13.2 and left unbuilt with that section's other checks under `turn`

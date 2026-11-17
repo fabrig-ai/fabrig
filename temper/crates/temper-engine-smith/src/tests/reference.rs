@@ -212,7 +212,19 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
                     b"description" => {
                         let Value::String(text) = value else { panic!("{tool}.{member}: description is text") };
                         // note.first states both replacement and overshooting append semantics.
-                        let bound = if tool == "note" && member == "input.first" { 128 } else { MEMBER_BYTES };
+                        let bound = if tool == "note" && member == "input.first" {
+                            128
+                        } else if tool == "delegate" && member == "input.batch[].contract" {
+                            // The contract gives both its shapes and the person report floor.
+                            169
+                        } else if (tool == "settings" && member == "input.setting.project")
+                            || (tool == "propose_settings" && member == "input.items[].setting.project")
+                        {
+                            // The setting's project description names every kind that takes no project.
+                            122
+                        } else {
+                            MEMBER_BYTES
+                        };
                         assert!(text.len() <= bound, "{tool}.{member}: description exceeds {bound} bytes");
                     }
                     b"properties" => {

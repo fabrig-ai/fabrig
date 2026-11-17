@@ -42,7 +42,7 @@ fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
         settings.jig.limits.hub.charter_bytes = hub;
         settings.agent_charter_bytes = local;
         let encoding = fixtures::encoding(&settings);
-        let Some(jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. }) =
+        let Ok(jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. }) =
             crate::assignment::down(
                 fixtures::resolution_with_pull(PULL_BYTES),
                 &fixtures::forge_table(&fixtures::forges()),

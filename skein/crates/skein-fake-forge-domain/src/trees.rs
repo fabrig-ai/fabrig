@@ -137,7 +137,9 @@ fn entries(tree: &Tree, directories: &Directories, prefix: &[u8], limits: &Limit
     entries.into_boxed()
 }
 
-fn blob_id(content: &[u8]) -> [u8; 20] {
+/// The stable blob identity shared by contents reads and writes.
+#[must_use]
+pub fn blob_id(content: &[u8]) -> [u8; 20] {
     let mut hash = Sha256::new();
     hash.update(b"\x01");
     hash.update(&skein_lib::len_u64(content.len()).to_be_bytes());

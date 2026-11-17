@@ -46,14 +46,8 @@ impl Harness for ReadyWorld {
     type Process = Native;
     fn configure(document: &mut serde_json::Value) {
         document["application"]["welcome"] = true.into();
-        document["engine"]["projects"] = serde_json::json!([]);
-        document["engine"]["acts"] = serde_json::json!([{"connector": 1, "may": ["adopt"]}]);
-        document["application"]["machine"]["owned"] = serde_json::json!({
-            "listen": {"socket": "127.0.0.1:3000"},
-            "remote": "http://127.0.0.1:3000",
-            "forgejo": "/world/forgejo", "runner": null,
-            "person": {"login": "owner", "email": "owner@example.invalid"}
-        });
+        document["world_settings"]["empty_projects"] = true.into();
+        document["world_settings"]["adopt_only"] = true.into();
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
@@ -185,7 +179,7 @@ impl Host for BoxPeer {
                     } else {
                         self.input.extend_from_slice(&buf[..usize::try_from(count).expect("read size")]);
                         if self.input.ends_with(b"\n") {
-                            assert_eq!(self.input, b"start 1 owned\n", "only the owned forge's start is asked");
+                            assert_eq!(self.input, b"start 1\n", "only the owned forge's start is asked");
                             assert!(!self.started, "one forge start");
                             self.started = true;
                             self.input.clear();
@@ -245,6 +239,7 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
     ReadyWorld::configure(&mut document);
     let given = ReadyWorld::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
+    document.as_object_mut().expect("deployment").remove("world_settings");
     let mut service = temper_service::startup::with_setup_given(
         &serde_json::to_vec(&document).expect("deployment bytes"),
         &jig_protocol_config::Directories::working(),
@@ -307,6 +302,7 @@ struct Judge {
     rows: BTreeMap<root::Key, root::Record>,
     seen: Rc<RefCell<Outcome>>,
     handed: bool,
+    answers: usize,
     browsing: bool,
     stopped: bool,
     checking: Option<()>,
@@ -431,7 +427,7 @@ impl Judge {
             caller.commands.push_back(Command::new(&[b"account", b"list", b"--until", b"usable"]));
             self.handed = true;
         }
-        for answer in &caller.answers {
+        for answer in &caller.answers[self.answers..] {
             match (&(answer.exit), &(Exit::Code(0))) {
                 (left, right) if left != right => {
                     let finding = format!("ctl: {}", String::from_utf8_lossy(&answer.error));
@@ -440,6 +436,7 @@ impl Judge {
                 _ => {}
             }
         }
+        self.answers = caller.answers.len();
         if self.handed && caller.answers.len() == 3 && !self.browsing {
             for proc in procs.iter_mut() {
                 if let Proc::Other(Native::Person(HarnessProcess::Client(person))) = proc {
@@ -677,6 +674,7 @@ pub fn run() -> Outcome {
                 rows: BTreeMap::new(),
                 seen: seen.clone(),
                 handed: false,
+                answers: 0,
                 browsing: false,
                 stopped: false,
                 checking: None,

@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 74] = [
+pub static PAGES: [Page; 75] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -400,6 +400,13 @@ pub static PAGES: [Page; 74] = [
         text: include_str!("../../../docs/help/reference/ctl-chat.md"),
     },
     Page {
+        name: "ctl-milestone",
+        kind: Kind::Reference,
+        title: "temper ctl milestone",
+        summary: "Milestones: make one, say whole, list and show its goals.",
+        text: include_str!("../../../docs/help/reference/ctl-milestone.md"),
+    },
+    Page {
         name: "ctl-goal",
         kind: Kind::Reference,
         title: "temper ctl goal",
@@ -431,7 +438,7 @@ pub static PAGES: [Page; 74] = [
         name: "ctl-change",
         kind: Kind::Reference,
         title: "temper ctl change",
-        summary: "Changes: read a change's way to landing.",
+        summary: "Changes: open one or read its way to landing.",
         text: include_str!("../../../docs/help/reference/ctl-change.md"),
     },
     Page {
@@ -578,14 +585,14 @@ pub static PAGES: [Page; 74] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every limit application.limits.overrides takes: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {
         name: "limits-engine",
         kind: Kind::Reference,
         title: "Engine limits",
-        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
+        summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the stock's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits-engine.md"),
     },
     Page {
@@ -599,7 +606,7 @@ pub static PAGES: [Page; 74] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.",
+        summary: "Settings value types, bounds and effects, for settings files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

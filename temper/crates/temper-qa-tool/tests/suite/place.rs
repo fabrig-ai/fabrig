@@ -9,7 +9,7 @@ use std::{
 };
 use temper_qa_tool::{
     Home, Refusal,
-    faces::{ArchiveFace, RealDrive},
+    faces::{ArchiveFace, RealArchive, RealDrive, copy_members},
     place::{PassPlace, PlacePaths, RecipeInput, place_busy},
 };
 
@@ -66,6 +66,8 @@ walk)
     fi
     mkdir -p box/config box/data
     printf '%s\n' "$name" > box/data/state
+    mkdir -p box/data/box/fake-backends/data/workspaces/agent
+    printf 'pinned\n' > box/data/box/fake-backends/data/workspaces/agent/temper-box
     printf 'walked %s\n' "$name"
     ;;
 *) exit 1 ;;
@@ -80,16 +82,17 @@ struct Archive {
     store: PathBuf,
 }
 impl ArchiveFace for Archive {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         assert_mode(archive, 0o600);
         self.saved.push(archive.to_owned());
         let snapshot = self.store.join(self.saved.len().to_string());
-        copy(&scratch.join("config"), &snapshot.join("config"));
-        copy(&scratch.join("data"), &snapshot.join("data"));
+        for member in ["config", "data"] {
+            copy(scratch, &snapshot, Path::new(member), left_out);
+        }
         fs::write(archive, snapshot.to_str().expect("snapshot path")).expect("archive marker");
         Ok(())
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         if let Some(refused) = &self.removed_before_retry
             && archive != refused
         {
@@ -97,16 +100,21 @@ impl ArchiveFace for Archive {
         }
         self.restored.push(archive.to_owned());
         let snapshot = fs::read_to_string(archive).expect("archive marker");
-        copy(Path::new(&snapshot), scratch);
+        copy(Path::new(&snapshot), scratch, Path::new(""), left_out);
         Ok(())
     }
 }
-fn copy(from: &Path, to: &Path) {
-    fs::create_dir_all(to).expect("copy directory");
-    for entry in fs::read_dir(from).expect("source") {
+fn copy(source: &Path, destination: &Path, relative: &Path, left_out: &[&str]) {
+    if left_out.iter().any(|path| relative == Path::new(path)) {
+        return;
+    }
+    let from = source.join(relative);
+    let to = destination.join(relative);
+    fs::create_dir_all(&to).expect("copy directory");
+    for entry in fs::read_dir(&from).expect("source") {
         let entry = entry.expect("entry");
         if entry.file_type().expect("type").is_dir() {
-            copy(&entry.path(), &to.join(entry.file_name()));
+            copy(source, destination, &relative.join(entry.file_name()), left_out);
         } else {
             fs::copy(entry.path(), to.join(entry.file_name())).expect("file copy");
         }
@@ -123,21 +131,31 @@ impl World {
         Self::with_ports(false)
     }
     fn with_ports(fixed: bool) -> Self {
+        Self::with_kind(fixed, temper_qa_tool::Kind::Box)
+    }
+    fn with_kind(fixed: bool, kind: temper_qa_tool::Kind) -> Self {
         let scratch = Scratch::new("qa-place");
         let mut config = serde_json::json!({"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["unused"]}});
         if fixed {
             config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
         }
+        if kind == temper_qa_tool::Kind::Deployment {
+            config["places"][0]["kind"] = serde_json::json!("deployment");
+        }
         fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("configuration");
         let home = Home::open(scratch.path()).expect("home");
         let started = home
             .transact(|ledger| {
-                super::passes::queue(ledger, "work", "web");
-                super::passes::queue(ledger, "home", "web");
+                if kind == temper_qa_tool::Kind::Box {
+                    super::passes::queue(ledger, "work", "web");
+                    super::passes::queue(ledger, "home", "web");
+                } else {
+                    super::passes::queue_kinds(ledger);
+                }
                 super::passes::build(ledger, OLD, &[1], 1);
-                super::passes::build(ledger, BUILD, &[1, 2], 2);
+                super::passes::build(ledger, BUILD, if kind == temper_qa_tool::Kind::Box { &[1, 2] } else { &[1] }, 2);
                 ledger.mark_build_deleted(OLD, 3)?;
-                Ok(super::passes::start(ledger))
+                Ok(ledger.start_pass("places/1", kind, &["ctl".into(), "web".into()], "high", 4).expect("pass"))
             })
             .expect("pass through ledger operations");
         let environment = vec![
@@ -174,7 +192,9 @@ impl World {
         }
         fs::write(place.paths.directory.join("catalogue"), CATALOGUE).expect("catalogue");
         let tool = place.paths.bin.join("temper-client-journeys");
-        fs::write(&tool, TOOL).expect("fake build");
+        let tool_text =
+            if kind == temper_qa_tool::Kind::Deployment { TOOL.replace("box", "deployment") } else { TOOL.into() };
+        fs::write(&tool, tool_text).expect("fake build");
         fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).expect("executable");
         Self { _scratch: scratch, home, session: started.session, place }
     }
@@ -215,6 +235,87 @@ impl World {
             .recipe("added", &input, &["welcome".into(), "project-landing".into(), "chat-draft".into()], &mut output)
             .expect("recipe command");
         (code, String::from_utf8(output).expect("output"))
+    }
+}
+
+fn ctl_world() -> World {
+    let mut world = World::new();
+    for (name, recipe) in [
+        ("welcome", "recipe 1\ncheck\nctl project list\n"),
+        (
+            "project-landing",
+            "recipe 1\nafter \"welcome\"\nctl project make Hello\ncheck\nctl project list --until made:1\nctl project show Hello\n",
+        ),
+    ] {
+        fs::write(world.place.setups.join(name).join("recipe"), recipe).expect("ctl recipe");
+        fs::write(world.place.paths.directory.join(format!("expected-{name}")), recipe).expect("expected recipe");
+    }
+    let tool = TOOL
+        .replace(
+            "test \"$QA_RECIPE_ENV\" = captured",
+            "test \"$QA_RECIPE_ENV\" = captured\ntest \"${SKEIN_TEST_CHROMIUM+x}\" != x",
+        )
+        .replace("cat \"hash-$3\" ;;", "cmp \"expected-$3\" \"$5/$3/recipe\"\n    cat \"hash-$3\" ;;");
+    fs::write(world.place.paths.bin.join("temper-client-journeys"), tool).expect("ctl fake build");
+    world.home.configuration.surfaces = vec!["ctl".into()];
+    world.place =
+        PassPlace::for_session(&world.home, world.session, world.place.drive, world.place.archive).expect("ctl place");
+    world
+}
+
+#[test]
+fn ctl_only_setup_walks_and_checks_its_copy_without_chromium() {
+    let mut world = ctl_world();
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2);
+    assert!(world.walks()[0].starts_with("recipe walk welcome --bin "));
+    assert!(world.walks()[1].starts_with("recipe walk project-landing --from welcome "));
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2, "restoring only checks the saved state");
+    assert_eq!(world.place.archive.restored.len(), 1);
+    assert!(world.walks()[2].starts_with("recipe walk project-landing --from project-landing "));
+    assert_eq!(world.setup_file(), format!("project-landing {PROJECT}\n"));
+}
+
+#[test]
+fn ctl_only_recipe_preserves_its_check_and_proves_and_restores_without_chromium() {
+    for after in ["fresh", "project-landing"] {
+        let mut world = ctl_world();
+        let lines = ["ctl project make Added", "check", "ctl project list --until made:1", "ctl project show Added"];
+        let input = RecipeInput::decode(
+            &serde_json::to_vec(&serde_json::json!({"after":after,"lines":lines,"readme":"Added is ready."}))
+                .expect("JSON"),
+        )
+        .expect("ctl recipe input");
+        let parent = if after == "fresh" { String::new() } else { format!("after \"{after}\"\n") };
+        let expected = format!("recipe 1\n{parent}{}\n", lines.join("\n"));
+        fs::write(world.place.paths.directory.join("expected-added"), &expected).expect("expected ctl recipe");
+        let mut output = Vec::new();
+        let code = world.place.recipe("added", &input, &[], &mut output).expect("write and prove");
+        let output = String::from_utf8(output).expect("output");
+        assert_eq!(code, 0, "{output}");
+        assert!(output.contains(&format!("recipe added walked from {after}:")), "{output}");
+        assert_eq!(fs::read_to_string(world.place.setups.join("added/recipe")).expect("written recipe"), expected);
+        let walks = world.walks();
+        let proving = walks.last().expect("proving walk");
+        if after == "fresh" {
+            assert!(proving.starts_with("recipe walk added --bin "), "{proving}");
+        } else {
+            assert!(proving.starts_with("recipe walk added --from project-landing "), "{proving}");
+        }
+        let catalogue = format!(
+            "{CATALOGUE}added{}: Added is ready.\n",
+            if after == "fresh" { String::new() } else { format!(" (after {after})") }
+        );
+        fs::write(world.place.paths.directory.join("catalogue"), catalogue).expect("updated catalogue");
+        let saved = world.place.archive.saved.len();
+        let (code, output) = world.setup("added");
+        assert_eq!(code, 0, "{output}");
+        assert_eq!(world.place.archive.saved.len(), saved);
+        assert!(world.walks().last().expect("copy check").starts_with("recipe walk added --from added "));
+        assert_eq!(world.setup_file(), format!("added {ADDED}\n"));
     }
 }
 
@@ -727,6 +828,323 @@ fn recipe_input_and_names_reject_paths_and_multiline_records() {
                 .contains("invalid recipe name")
         );
     }
-    let paths = PlacePaths::new(&world.place.paths.directory);
+    let paths = PlacePaths::new(&world.place.paths.directory, temper_qa_tool::Kind::Box);
     assert_eq!(paths.scratch, world.place.paths.directory.join("box"));
+}
+
+const PINNED_AGENT: &str = "data/box/fake-backends/data/workspaces/agent";
+const CHECKOUT_AGENT: &str = "data/box/fake-backends/data/workspaces/1/repo/agent/kept";
+
+fn write_copy_state(scratch: &Path, pinned: bool) {
+    let kept = scratch.join(CHECKOUT_AGENT);
+    fs::create_dir_all(kept.parent().expect("checkout agent parent")).expect("checkout agent directory");
+    fs::write(kept, "checkout state").expect("checkout agent state");
+    fs::write(scratch.join("data/state"), "setup state").expect("setup state");
+    if pinned {
+        let agent = scratch.join(PINNED_AGENT);
+        fs::create_dir_all(&agent).expect("pinned agent directory");
+        fs::write(agent.join("temper-box"), "pinned binary").expect("pinned binary");
+        fs::write(agent.join("agent.json"), "{}").expect("pinned document");
+    }
+}
+
+fn assert_copy_state(scratch: &Path) {
+    assert!(!scratch.join(PINNED_AGENT).exists(), "the pinned agent directory is left out");
+    assert_eq!(fs::read_to_string(scratch.join("data/state")).expect("setup state"), "setup state");
+    assert_eq!(fs::read_to_string(scratch.join(CHECKOUT_AGENT)).expect("checkout state"), "checkout state");
+}
+
+fn real_archive() -> RealArchive {
+    RealArchive { environment: vec![(Box::from(b"PATH".as_slice()), Box::from(b"/usr/bin:/bin".as_slice()))] }
+}
+
+#[test]
+fn real_copies_leave_out_only_the_pinned_agent_and_allow_its_absence() {
+    for pinned in [true, false] {
+        let scratch = Scratch::new("qa-real-copy");
+        let source = scratch.path().join("source");
+        let restored = scratch.path().join("restored");
+        let archive = scratch.path().join("copy.tar");
+        write_copy_state(&source, pinned);
+        fs::create_dir(&restored).expect("restore directory");
+        let mut face = real_archive();
+        face.create(&source, &archive, &[PINNED_AGENT]).expect("create copy");
+        // With a pin, inspect create's archive without masking it through extract's exclusion.
+        // Without one, exercise extract's exclusion of an absent directory as well.
+        let left_out: &[&str] = if pinned { &[] } else { &[PINNED_AGENT] };
+        face.extract(&archive, &restored, left_out).expect("restore copy");
+        assert_copy_state(&restored);
+    }
+}
+
+#[test]
+fn real_restore_leaves_out_the_pinned_agent_from_an_older_copy() {
+    let scratch = Scratch::new("qa-real-restore");
+    let source = scratch.path().join("source");
+    let restored = scratch.path().join("restored");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    fs::create_dir(&restored).expect("restore directory");
+    let output = Command::new("tar")
+        .arg("--create")
+        .arg("--file")
+        .arg(&archive)
+        .arg("--directory")
+        .arg(&source)
+        .arg("data")
+        .stdin(Stdio::null())
+        .output()
+        .expect("plain tar");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    real_archive().extract(&archive, &restored, &[PINNED_AGENT]).expect("restore older copy");
+    assert_copy_state(&restored);
+}
+
+#[test]
+fn a_place_saves_state_without_the_walks_pinned_agent() {
+    let mut world = World::new();
+    let (code, output) = world.setup("welcome");
+    assert_eq!(code, 0, "{output}");
+    assert!(world.place.paths.scratch.join(PINNED_AGENT).join("temper-box").exists(), "the walk pinned its agent");
+    assert_eq!(world.place.archive.saved.len(), 1);
+    let saved = world.place.paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar"));
+    let snapshot = fs::read_to_string(saved).expect("archive marker");
+    assert!(!Path::new(&snapshot).join(PINNED_AGENT).exists(), "save leaves out the pinned directory");
+    assert_eq!(fs::read_to_string(Path::new(&snapshot).join("data/state")).expect("saved state"), "welcome\n");
+}
+
+#[test]
+fn a_place_restores_an_older_copy_without_its_pinned_agent() {
+    let mut world = World::new();
+    let archive = world.copy("welcome", WELCOME, OLD);
+    let snapshot = fs::read_to_string(&archive).expect("archive marker");
+    write_copy_state(Path::new(&snapshot), true);
+    // Inspect the restored state without simulating another worker start in the check.
+    let check = TOOL.replace(
+        "    mkdir -p box/data/box/fake-backends/data/workspaces/agent\n    printf 'pinned\\n' > box/data/box/fake-backends/data/workspaces/agent/temper-box\n",
+        "",
+    ).replace("    printf '%s\\n' \"$name\" > box/data/state\n", "");
+    fs::write(world.place.paths.bin.join("temper-client-journeys"), check).expect("check script");
+    let (code, output) = world.setup("welcome");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.restored, [archive]);
+    assert_copy_state(&world.place.paths.scratch);
+    assert!(Path::new(&snapshot).join(PINNED_AGENT).exists(), "the existing copy is not rewritten");
+}
+
+#[test]
+fn a_copy_takes_the_members_its_box_made() {
+    // A box with fake backends keeps its configuration under data/, so its config/ may never be made.
+    let scratch = Scratch::new("qa-copy-members");
+    let box_directory = scratch.path();
+    assert!(copy_members(box_directory).is_err(), "an empty box directory has nothing to copy");
+    fs::create_dir(box_directory.join("data")).expect("data");
+    assert_eq!(copy_members(box_directory).expect("members"), ["data"]);
+    fs::create_dir(box_directory.join("config")).expect("config");
+    assert_eq!(copy_members(box_directory).expect("members"), ["config", "data"]);
+}
+
+#[test]
+fn ctl_only_pass_refuses_web_and_tui_in_a_setups_parent_before_restore() {
+    for surface in ["web", "tui"] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = vec!["ctl".into()];
+        world.place = PassPlace::for_session(
+            &world.home,
+            world.session,
+            RealDrive {
+                environment: vec![(Box::from(b"QA_RECIPE_ENV".as_slice()), Box::from(b"captured".as_slice()))],
+            },
+            Archive::default(),
+        )
+        .expect("ctl pass place");
+        fs::write(&world.place.paths.setup, "fresh\n").expect("prior setup");
+        fs::write(
+            world.place.setups.join("chat-draft/recipe"),
+            "recipe 1\nafter project-landing\ncheck\nctl task list\n",
+        )
+        .expect("ctl child");
+        fs::write(world.place.setups.join("project-landing/recipe"), format!("recipe 1\n{surface} see Ready\n"))
+            .expect("parent");
+        let why = world.place.setup("chat-draft", &mut Vec::new()).expect_err("surface refused").to_string();
+        assert!(why.contains(&format!("recipe project-landing:2 has a {surface} line")), "{why}");
+        assert!(why.contains("the pass's surfaces take ctl and forge lines alone"), "{why}");
+        assert_eq!(world.setup_file(), "fresh\n");
+        assert_eq!(world.walks().len(), 0);
+        assert_eq!(world.place.archive.restored.len(), 0);
+        assert_eq!(world.setup("fresh").0, 0);
+    }
+}
+
+#[test]
+fn a_new_recipe_copies_push_files_and_keeps_the_push_line() {
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(&files).expect("files");
+    fs::write(files.join("a.txt"), b"pushed").expect("file");
+    let mut input = commit_input();
+    input.lines[0] = r#"forge push forgejo playground/widget work/topic "m" "a.txt""#.into();
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
+    assert_eq!(fs::read(world.place.setups.join("added/files/a.txt")).expect("kept file"), b"pushed");
+    assert!(fs::read_to_string(world.place.setups.join("added/recipe")).expect("recipe").contains(&input.lines[0]));
+}
+
+fn deployment_world() -> World {
+    let world = World::with_kind(true, temper_qa_tool::Kind::Deployment);
+    fs::create_dir_all(world.place.setups.join("welcome/config")).expect("root config");
+    let tool = world.place.paths.bin.join("temper-client-journeys");
+    let text = fs::read_to_string(&tool).expect("fake").replace("mkdir -p deployment/config deployment/data", "mkdir -p deployment/config deployment/data\n    if test \"$from\" = fresh; then printf 'saved config' > deployment/config/receipt; else test \"$(cat deployment/config/receipt)\" = 'saved config'; fi");
+    fs::write(tool, text).expect("config-checking fake");
+    world
+}
+
+const DEPLOYMENT_PINNED_AGENT: &str = "data/worker/workspaces/agent";
+const DEPLOYMENT_WORKSPACE: &str = "data/worker/workspaces/w1/file";
+const DEPLOYMENT_OTHER_AGENT: &str = "data/other/data/worker/workspaces/agent/kept";
+
+fn deployment_copy_state(scratch: &Path, pinned: bool) {
+    for path in [DEPLOYMENT_WORKSPACE, DEPLOYMENT_OTHER_AGENT] {
+        let file = scratch.join(path);
+        fs::create_dir_all(file.parent().expect("state directory")).expect("state directory");
+        fs::write(file, "kept state").expect("state");
+    }
+    if pinned {
+        let agent = scratch.join(DEPLOYMENT_PINNED_AGENT);
+        fs::create_dir_all(&agent).expect("agent directory");
+        fs::write(agent.join("temper-agent"), "pinned binary").expect("pinned binary");
+    }
+}
+fn assert_deployment_copy_state(scratch: &Path) {
+    assert!(!scratch.join(DEPLOYMENT_PINNED_AGENT).exists(), "the deployment's pinned agent is left out");
+    for path in [DEPLOYMENT_WORKSPACE, DEPLOYMENT_OTHER_AGENT] {
+        assert_eq!(fs::read_to_string(scratch.join(path)).expect("kept state"), "kept state");
+    }
+}
+
+#[test]
+fn deployment_setup_saves_real_copies_without_its_pinned_agent_and_allows_its_absence() {
+    for pinned in [true, false] {
+        let world = deployment_world();
+        let paths = world.place.paths.clone();
+        deployment_copy_state(&paths.directory.join("seed"), pinned);
+        let tool = paths.bin.join("temper-client-journeys");
+        let text = fs::read_to_string(&tool)
+            .expect("fake")
+            .replace("printf 'walked %s\\n'", "cp -R seed/data deployment/\n    printf 'walked %s\\n'");
+        fs::write(tool, text).expect("state-writing fake");
+        let mut place =
+            PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+        assert_eq!(place.setup("welcome", &mut Vec::new()).expect("save setup"), 0);
+        assert_eq!(paths.scratch.join(DEPLOYMENT_PINNED_AGENT).exists(), pinned, "the walk's state");
+        let restored = paths.directory.join("inspect");
+        fs::create_dir(&restored).expect("inspection directory");
+        // Inspect the saved tar without extract's exclusion masking a faulty save.
+        real_archive()
+            .extract(&paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar")), &restored, &[])
+            .expect("inspect copy");
+        assert_deployment_copy_state(&restored);
+        assert_eq!(fs::read_to_string(restored.join("config/receipt")).expect("configuration"), "saved config");
+    }
+}
+
+#[test]
+fn deployment_setup_restores_an_older_real_copy_without_its_pinned_agent() {
+    let world = deployment_world();
+    let paths = world.place.paths.clone();
+    let source = paths.directory.join("older");
+    deployment_copy_state(&source, true);
+    fs::create_dir_all(source.join("config")).expect("older config");
+    fs::write(source.join("config/receipt"), "saved config").expect("older config");
+    let directory = paths.copies.join("welcome");
+    fs::create_dir_all(&directory).expect("copy directory");
+    let archive = directory.join(format!("{WELCOME}-{OLD}.tar"));
+    real_archive().create(&source, &archive, &[]).expect("older copy including pinned agent");
+    let mut place =
+        PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+    let mut output = Vec::new();
+    assert_eq!(place.setup("welcome", &mut output).expect("restore older copy"), 0);
+    assert!(String::from_utf8(output).expect("output").contains("restored from its copy made at aaaaaaaaaaaa"));
+    assert_deployment_copy_state(&paths.scratch);
+    assert!(archive.exists(), "checking a copy keeps it");
+}
+
+#[test]
+fn deployment_walks_save_and_restore_their_private_scratch_with_bundle() {
+    if under_umasks("place::deployment_walks_save_and_restore_their_private_scratch_with_bundle", &["022", "000"]) {
+        return;
+    }
+    let mut world = deployment_world();
+    let paths = world.place.paths.clone();
+    assert_eq!(paths.scratch, paths.directory.join("deployment"));
+    assert!(!paths.directory.join("box").exists());
+    assert_mode(&paths.scratch, 0o700);
+    let (code, output) = world.setup("project-landing");
+    assert_eq!(code, 0, "{output}");
+    assert_eq!(world.place.archive.saved.len(), 2);
+    assert_eq!(
+        world.walks()[0],
+        format!(
+            "recipe walk welcome --bin {} --bundle {} --scratch {} --setups {} --strict --ports 31001,31002,31003,31004,31005,31006,31007,31008,31009",
+            paths.bin.display(),
+            paths.bundle.display(),
+            paths.scratch.display(),
+            world.place.setups.display()
+        )
+    );
+    // Save the next state with both data and the configuration receipt.
+    assert_eq!(world.setup("chat-draft").0, 0);
+    fs::write(paths.scratch.join("data/state"), "changed").expect("changed state");
+    fs::write(paths.scratch.join("config/receipt"), "changed").expect("changed config");
+    assert_eq!(world.setup("chat-draft").0, 0);
+    assert_eq!(fs::read_to_string(paths.scratch.join("config/receipt")).expect("restored config"), "saved config");
+    assert_eq!(fs::read_to_string(paths.scratch.join("data/state")).expect("checked state"), "chat-draft\n");
+    assert_eq!(world.place.archive.saved.len(), 3, "checking a copy does not replace it");
+}
+
+#[test]
+fn setups_refuse_fresh_and_chains_of_the_other_places_kind_before_walking() {
+    let mut deployment = deployment_world();
+    let before = deployment.walks();
+    assert_eq!(
+        deployment.place.setup("fresh", &mut Vec::new()).expect_err("no fresh").to_string(),
+        "a deployment's place has no fresh setup: its setups start from their root's config/"
+    );
+    fs::remove_dir(deployment.place.setups.join("welcome/config")).expect("box root");
+    assert_eq!(
+        deployment.place.setup("chat-draft", &mut Vec::new()).expect_err("box chain").to_string(),
+        "setup chat-draft is a box's; places/1 is a deployment's place"
+    );
+    assert_eq!(deployment.walks(), before);
+    let mut boxed = World::new();
+    fs::create_dir(boxed.place.setups.join("welcome/config")).expect("deployment root");
+    assert_eq!(
+        boxed.place.setup("chat-draft", &mut Vec::new()).expect_err("deployment chain").to_string(),
+        "setup chat-draft is a deployment's; places/1 is a box's place"
+    );
+    assert_eq!(boxed.walks().len(), 0);
+}
+
+#[test]
+fn deployment_recipes_copy_patch_files_and_inherit_the_parents_kind_without_config() {
+    let mut world = deployment_world();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(files.join("patches")).expect("patch directory");
+    fs::write(files.join("patches/engine.json"), b"{\"application\":{}}").expect("patch");
+    let input = RecipeInput::decode(br#"{"after":"welcome","lines":["deployment patch engine \"patches/engine.json\"","check","ctl task list"],"readme":"A patched deployment."}"#).expect("recipe input");
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
+    let added = world.place.setups.join("added");
+    assert_eq!(fs::read(added.join("files/patches/engine.json")).expect("recipe patch"), b"{\"application\":{}}");
+    assert!(!added.join("config").exists());
+    assert!(
+        fs::read_to_string(added.join("recipe"))
+            .expect("recipe")
+            .starts_with("recipe 1\nafter \"welcome\"\ndeployment patch engine")
+    );
+    fs::write(world.place.paths.directory.join("catalogue"), format!("{CATALOGUE}added (after welcome): Patched.\n"))
+        .expect("catalogue");
+    assert_eq!(world.setup("added").0, 0, "the new recipe is a deployment's through its root");
+    let missing = RecipeInput { lines: vec!["deployment patch agent missing.json".into()], ..input };
+    let why = world.place.recipe("added", &missing, &[], &mut Vec::new()).expect_err("missing patch").to_string();
+    assert!(why.contains("missing.json"), "{why}");
+    assert!(!added.exists(), "a refused recipe leaves nothing");
 }

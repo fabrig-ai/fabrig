@@ -54,14 +54,9 @@ pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
         .expect("six wire slots");
     wires
 }
-/// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
-pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
-    sets: &[
-        protocol::SKEIN_PATCH_SET,
-        protocol::SMITH_PATCH_SET,
-        jig_protocol_accounts::JIG_PATCH_SET,
-        temper_protocol_store::PATCH_SET,
-    ],
+/// Owners kept by every engine shape, upstream first (protocol/floor.md, 3).
+pub const OWNER_SETS: protocol::OwnerSets = protocol::OwnerSets {
+    sets: &[protocol::SKEIN_SET, protocol::SMITH_SET, jig_protocol_accounts::JIG_SET, temper_protocol_store::OWNER_SET],
 };
 // Widen each version while the static wire row is evaluated.
 const fn wire_version(version: u16) -> u32 {
@@ -259,7 +254,7 @@ mod sizing_tests {
     // budget refuses sign-ins while the map still has room.
     #[test]
     fn the_standard_store_holds_the_roots_fill_mark() {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+        let jig = jig_protocol_config::stock();
         let (application, _, _) = crate::tests::fixtures::store_limits();
         let mark = temper_engine_domain::core_limits(&application).fill_mark;
         assert_eq!(mark, jig.core.fill_mark);
@@ -277,7 +272,6 @@ mod sizing_tests {
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
-        assert_eq!(profile.store.page.bytes, 4_582_931);
     }
 
     #[test]

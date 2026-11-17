@@ -47,7 +47,7 @@ record Landed { commit: fixed 32 task: u64 }
 # 04.2: family 14, Release.
 enum ReleaseEnding { done, failed, cancelled }
 record PendingRelease { entry: u64 name: option Name }
-record ReleaseRow { task: u64 root: u64 ending: ReleaseEnding close_pull: option u64 comment: option bytes 1048576 pending_release: option PendingRelease failed: bool effects_settled: bool releasing: bool room: option u64 = none }
+record ReleaseRow { task: u64 root: u64 ending: ReleaseEnding close_pull: option u64 comment: option bytes 1048576 pending_release: option PendingRelease failed: bool effects_settled: bool releasing: bool }
 
 # 04.3a: writes, conditions, proposed effects and outbox entries.
 enum Verdict { approve, request_changes, comment }
@@ -131,7 +131,7 @@ record AnswerValue { answer: Answer }
 enum ReadResult { answer: boxed AnswerValue, error: ErrorValue }
 record CallRead { result: ReadResult }
 record CallEffect { entry: u64 deadline: u64 outcome: option Outcome }
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other, findings }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
 enum ReachReason { kind, set: ReachSet, always }
@@ -186,7 +186,7 @@ record NoChange { words: bytes 65536 }
 record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
 record Judgement { landing: u64 round: u16 pull: u64 branch: bytes 4096 base: bytes 4096 prefix: fixed 32 }
 record Judging { head: fixed 32 ready_since: u64 target: Judgement asked: list 1024 u64 }
-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging }
+enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging, taking: Producing }
 record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
@@ -196,7 +196,9 @@ enum Way { queue, turn }
 record StartedFrom { task: u64 head: fixed 32 }
 record EarlyHeads { heads: list 64 StartedFrom }
 enum Early { none, started: EarlyHeads, spent: EarlyHeads }
-record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
+enum Execution { unknown, waiting, running }
+record ExecutionClock { since: u64 head: fixed 32 run: u64 attempt: u32 ran: u64 waited: u64 unknown: u64 at: u64 seen: Execution }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
@@ -251,7 +253,15 @@ record FollowReasonAct { after: fixed 32 reason: bytes 8192 }
 record FollowMergeAct { afters: list 32 fixed 32 }
 enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
 record FollowOutcome { refusal: option bytes 8192 }
-enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused, make_kept, make_refused: MakeRefused, follow: FollowOutcome }
+# A person's opened change terminal (domain/forge/change/opened.md, 2 and 3).
+record Opened { task: u64 }
+record OpenRepository { owner: bytes 1024 name: bytes 1024 }
+record SeveralRepositories { repositories: list 64 OpenRepository }
+record UnderPrefix { owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 }
+record NamePast { bound: u32 }
+enum OpenRefusal { several: SeveralRepositories, no_repository, not_a_repository, under_prefix: UnderPrefix, name_past: NamePast }
+record OpenRefused { reason: OpenRefusal }
+enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused, make_kept, make_refused: MakeRefused, follow: FollowOutcome, opened: Opened, open_refused: OpenRefused }
 record Application { token: u64 until: u64 outcome: ApplicationOutcome }
 # Family 16: each forge's writer, before restored effects (protocol/store.md, 2).
 record ForgeWriter { forge: u16 author: u64 }
@@ -299,14 +309,14 @@ record LandingResolve { base: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
-record LandingRun { id: u64 attempt: u32 ended: bool }
+record LandingRun { id: u64 attempt: u32 ended: bool clock: option ExecutionClock = none }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
 enum HistoryJobFailure { unprepared, run, result, unstarted, undelivered, unknown }
 record HistoryJobFailed { class: HistoryJobFailure }
 enum HistoryJobOutcome { done, conflict, failed, lost, timeout, cancelled, failed_class: HistoryJobFailed }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
-record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry room: option u64 = none }
+record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
@@ -382,6 +392,19 @@ record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: boo
 record CharterValue { number: u32 }
 record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }
+# Landing settings, taken at the next start (domain/landing-settings.md, 1.1).
+enum SettingsLandingWay { queue, turn }
+enum SettingsCombine { merge, squash }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 }
+enum SettingsReportFormat { junit, lines }
+record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
+record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
+record SettingsBranch { name: bytes 1048576 }
+enum SettingsFollows { landing, goals, branch: SettingsBranch }
+record SettingsTier { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 artifact: bytes 32 format: SettingsReportFormat follows: SettingsFollows span_ms: u64 description: bytes 120 }
+record RepositoryGates { forge: u16 repository: u32 gates: bytes 1114240 pieces SettingsGate tiers: bytes 1114240 pieces SettingsTier }
+record ProjectGates { repositories: bytes 1114240 pieces RepositoryGates }
+
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 record ReachKindOf { kind: ReachKind }
@@ -415,6 +438,10 @@ enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking 
 record Dismissed { party: u64 what: PersonFact }
 record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 }
 record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange }
+record MilestoneLanding { at: u64 goal: u64 change: u64 }
+enum MilestoneOutcome { complete, ended, closed }
+record MilestoneEnd { at: u64 outcome: MilestoneOutcome done: u32 failed: u32 closed: u32 spent: u64 }
+record MilestoneRow { project: u32 task: u64 name: bytes 256 last_landing: option MilestoneLanding ended: option MilestoneEnd }
 record LandingLog { repository: Repository landings: list 256 LoggedLanding }
 
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 findings: option fixed 32 = none }
@@ -513,8 +540,9 @@ record TaskRelease { revision: u64 at: u64 }
 
 record FindingsTopic { project: u32 }
 enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participation: NumberTopic, findings: FindingsTopic }
-record ChangeCold { goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
-record ChangeHot { room: option u64 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
+record ChangeSource { branch: bytes 4096 at: option fixed 32 }
+record ChangeCold { milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
+record ChangeHot { kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
 
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }
 
@@ -565,8 +593,9 @@ record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 
 record ProjectTriager { owner: AreaOwner }
+record Welcome { shown: bool }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }
@@ -582,7 +611,8 @@ enum Filer { task: Number, party: Number }
 record FindingSignature { repository: Repository source: bytes 64 ids: list 64 bytes 512 first: bytes 512 }
 record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 signature: option FindingSignature seen: option u32 }
 record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 at: u64 }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow }
 
 versioned record Row { value: Value }
+
 

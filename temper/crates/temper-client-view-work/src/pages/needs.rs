@@ -389,17 +389,11 @@ fn from(
     };
     b.open(Role::Text);
     b.style(look::ASK_META);
-    b.name(&skein_lib::bytes::concat(&[&prefix, &title, &suffix]));
+    b.name(&skein_lib::bytes::concat(&[&prefix, &ask::from_name(need, &title), &suffix]));
     if let Some(name) = project {
         ask::text(b, Role::Text, &name, look::CHIP);
     }
-    if linked && let Some(task) = source {
-        ask::link(b, bindings, &title, Address::Task { task });
-    } else {
-        b.open(Role::Text);
-        b.text(Run::Plain, &title);
-        b.close();
-    }
+    ask::from_title(b, need, &title, source, bindings, linked);
     b.open(Role::Text);
     b.text(Run::Plain, &suffix);
     b.close();
@@ -535,10 +529,10 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
     b.open(Role::Slot);
     b.style(look::ASK_CONTEXT);
     if let jig_client::contract::ReadValue::Escalation(held) = page {
-        crate::cards::specification(b, &held.task.spec, w);
+        crate::cards::specification_after_title(b, &held.task.spec, w);
     }
     if let jig_client::contract::ReadValue::PersonTask(task) = page {
-        crate::cards::specification(b, &task.spec, w);
+        crate::cards::specification_after_title(b, &task.spec, w);
     }
     match asked.kind {
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {

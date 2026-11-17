@@ -45,8 +45,10 @@ pub(crate) fn main(
                     let bands = open_bands(root, words.shell);
                     let shown = Page {
                         task,
+                        names: super::goals::Names::dependencies(task, root.pages().me(root.client())),
                         report: goal.report.as_ref(),
                         draft: &goal.draft,
+                        chat: goal.requester_chat(root.pages().me(root.client())),
                         counts: goal.counts(task, ended),
                         state: goal.state(task, ended, !bands.is_empty()),
                     };
@@ -81,7 +83,7 @@ pub(crate) fn main(
     b.close();
 }
 
-fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
+pub(crate) fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
     let mut bands = List::uncapped();
     if let Some(inbox) = root.pages().inbox() {
         for need in &root.pages().needs().needs(inbox, root.forge().approvals()) {
@@ -102,7 +104,29 @@ fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
     bands.into_boxed()
 }
 
-fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings, first: bool) {
+pub(crate) fn band(
+    b: &mut Builder,
+    root: &Domain,
+    task: &c::Task,
+    card: &Card,
+    w: &Words,
+    bindings: &mut Bindings,
+    first: bool,
+) {
+    band_named(b, root, task, card, w, bindings, first, None);
+}
+
+#[expect(clippy::too_many_arguments, reason = "a milestone band adds its supplied goal title to the shared band")]
+pub(crate) fn band_named(
+    b: &mut Builder,
+    root: &Domain,
+    task: &c::Task,
+    card: &Card,
+    w: &Words,
+    bindings: &mut Bindings,
+    first: bool,
+    title: Option<&[u8]>,
+) {
     let mut asked = if first { ask::read(card, w) } else { ask::bounded(card, w) };
     let kind = match asked.kind {
         Kind::Funds { .. } => Word::NeedsKindFunds,
@@ -123,6 +147,9 @@ fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, 
     b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
     b.text(Run::Plain, &w.say(kind, &[]));
     b.close();
+    if let Some(title) = title {
+        b.text(Run::Plain, &w.say(Word::MsBandGoal, &[Hole::Name(copy_of(title))]));
+    }
     b.text(Run::Plain, &question);
     b.close();
     if first {
@@ -209,8 +236,10 @@ fn funds_offered(asked: &ask::Asked<'_>) -> bool {
 
 struct Page<'a> {
     task: &'a c::Task,
+    names: super::goals::Names<'a>,
     report: Option<&'a Report>,
     draft: &'a (Option<Box<[u8]>>, Option<u64>),
+    chat: Option<u64>,
     counts: Counts,
     state: State,
 }
@@ -221,7 +250,7 @@ impl Page<'_> {
         self.meta(b, words, times);
         let headline = match self.report {
             Some(report) => report.headline.clone(),
-            None => fallback(words, goal::fallback(self.state, self.task, self.counts)),
+            None => fallback(words, goal::fallback(self.state, self.task, self.counts), &self.names, &self.task.chip),
         };
         text(b, Role::Heading { level: 1 }, &headline);
         byline(b, self.report, Word::GoalWrittenAt, words, times);
@@ -233,7 +262,28 @@ impl Page<'_> {
         {
             chat_link(b, *task, &words.say(Word::GoalDraft, &[]), bindings);
         }
-        if let c::Requester::Task(task) = self.task.requester {
+        let milestone = match temper_client_domain::milestones::lineage(self.task) {
+            Some(lineage)
+                if self.task.requester == c::Requester::Task(lineage.milestone.task)
+                    && lineage.goal.task == self.task.chip.task =>
+            {
+                Some(lineage.milestone)
+            }
+            Some(_) | None => None,
+        };
+        if let Some(milestone) = milestone {
+            let title = crate::common::chat::row_title(milestone.title.bytes());
+            let label = words.say(Word::GoalIn, &[Hole::Name(title)]);
+            crate::bindings::link(
+                b,
+                &label,
+                bindings.insert(Act::Go { address: Address::Task { task: milestone.task } }),
+            );
+            b.style(look::GOAL_BTN);
+            b.style(look::GOAL_SMALL);
+            b.text(Run::Plain, &label);
+            b.close();
+        } else if let Some(task) = self.chat {
             chat_link(b, task, &words.say(Word::GoalChat, &[Hole::Number(task)]), bindings);
         }
         self.acts(b, words, bindings);
@@ -260,10 +310,10 @@ impl Page<'_> {
     }
 
     fn meta(&self, b: &mut Builder, words: &Words, times: &mut Times) {
-        let (state_word, token) = super::goals::state_word(self.state);
+        let (state_word, token) = super::goals::state_word(words, self.state, &self.names, &self.task.chip);
         let mut items = List::with_capacity(5);
         items.push(copy_of(self.task.chip.title.bytes())).expect("five meta items");
-        items.push(words.say(state_word, &[])).expect("five meta items");
+        items.push(state_word).expect("five meta items");
         if self.counts.total != 0 {
             items
                 .push(words.say(
@@ -279,34 +329,7 @@ impl Page<'_> {
         items
             .push(words.say(Word::GoalSince, &[Hole::Name(times.say(words, TimeForm::Clock, self.task.made))]))
             .expect("five meta items");
-        b.open(Role::Paragraph);
-        b.style(look::GOAL_META);
-        match words.shell {
-            Shell::Browser => {
-                for (index, item) in items.iter().enumerate() {
-                    if index != 0 {
-                        text(b, Role::Text, &words.say(Word::GoalSeparator, &[]));
-                    }
-                    b.open(Role::Text);
-                    if index == 1 {
-                        b.style(token);
-                    }
-                    b.run(if index == 0 { Run::Strong } else { Run::Plain }, item);
-                    b.close();
-                }
-            }
-            Shell::Terminal => {
-                b.open(Role::Text);
-                for (index, item) in items.iter().enumerate() {
-                    if index != 0 {
-                        b.run(Run::Plain, &words.say(Word::ToolSeparator, &[]));
-                    }
-                    b.run(Run::Plain, item);
-                }
-                b.close();
-            }
-        }
-        b.close();
+        meta(b, items.as_slice(), Some(token), words);
     }
 
     fn side(&self, b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
@@ -381,7 +404,14 @@ impl Page<'_> {
                 }
                 b.close();
             }
-            State::Needs { .. } | State::Paused | State::Running | State::Landed | State::Closed | State::Failed => {
+            State::Needs { .. }
+            | State::Paused
+            | State::Waits(_)
+            | State::WaitsForRoom
+            | State::Running
+            | State::Landed
+            | State::Closed
+            | State::Failed => {
                 if let Some(report) = self.report {
                     for (word, value) in [(Word::GoalLeft, &report.left), (Word::GoalRisk, &report.risk)] {
                         if let Some(value) = value {
@@ -402,7 +432,12 @@ impl Page<'_> {
                             }
                             None => {}
                         },
-                        State::Needs { .. } | State::Paused | State::Planning | State::Running => {}
+                        State::Needs { .. }
+                        | State::Paused
+                        | State::Waits(_)
+                        | State::WaitsForRoom
+                        | State::Planning
+                        | State::Running => {}
                     }
                 }
             }
@@ -412,7 +447,7 @@ impl Page<'_> {
     }
 }
 
-fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
+fn fallback(words: &Words, value: Fallback, names: &super::goals::Names<'_>, chip: &c::Chip) -> Box<[u8]> {
     match value {
         Fallback::Planning { draft: Some(draft) } => words.say(Word::GoalPlanningDraft, &[Hole::Name(draft)]),
         Fallback::Planning { draft: None } => words.say(Word::GoalPlanningAsked, &[]),
@@ -421,9 +456,11 @@ fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
         Fallback::Landed { first_line: None } => words.say(Word::GoalLandedLine, &[]),
         Fallback::Failed { reason } => words.say(Word::GoalFailedReason, &[Hole::Name(reason)]),
         Fallback::Tasks(counts) => super::goals::tasks_done(words, counts.done, counts.total),
+        Fallback::Waits(wait) => super::goals::wait_sentence(words, State::Waits(wait), names, chip),
+        Fallback::WaitsForRoom => super::goals::wait_sentence(words, State::WaitsForRoom, names, chip),
     }
 }
-fn text(b: &mut Builder, role: Role, value: &[u8]) {
+pub(crate) fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.open(role);
     b.name(value);
     if role == Role::Text {
@@ -451,7 +488,7 @@ fn chat_link(b: &mut Builder, task: u64, label: &[u8], bindings: &mut Bindings) 
     b.close();
 }
 
-fn section(b: &mut Builder, title: Word, words: &Words) {
+pub(crate) fn section(b: &mut Builder, title: Word, words: &Words) {
     b.open(Role::Region);
     b.name(&words.say(title, &[]));
     b.style(look::GOAL_SECTION);
@@ -460,7 +497,7 @@ fn section(b: &mut Builder, title: Word, words: &Words) {
     b.text(Run::Plain, &words.say(title, &[]));
     b.close();
 }
-fn facts(b: &mut Builder, value: &[u8]) {
+pub(crate) fn facts(b: &mut Builder, value: &[u8]) {
     b.open(Role::Paragraph);
     b.style(look::GOAL_FACTS);
     b.text(Run::Plain, value);
@@ -590,9 +627,9 @@ impl<'a> Delegates<'a> {
         if row.line == Some(goal::Line::Running) {
             b.style(look::GOAL_LINE_RUNNING);
         }
-        let title = row.chip.title.bytes();
-        crate::bindings::link(b, title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
-        b.text(Run::Plain, title);
+        let title = crate::common::chat::row_title(row.chip.title.bytes());
+        crate::bindings::link(b, &title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
+        b.text(Run::Plain, &title);
         b.close();
         let said = match row.line {
             Some(goal::Line::Landed) => match row.ended {
@@ -620,9 +657,8 @@ impl<'a> Delegates<'a> {
         match line {
             goal::Line::Running => words.say(Word::Running, &[]),
             goal::Line::WaitsOn(task) => match self.rows.get(&task) {
-                Some(row) if row.line.is_some() => {
-                    words.say(Word::GoalWaitsTitle, &[Hole::Name(copy_of(row.chip.title.bytes()))])
-                }
+                Some(row) if row.line.is_some() => words
+                    .say(Word::GoalWaitsTitle, &[Hole::Name(crate::common::chat::row_title(row.chip.title.bytes()))]),
                 Some(_) | None => words.say(Word::GoalWaitsTask, &[Hole::Number(task)]),
             },
             goal::Line::WaitsOnTasks(count) => words.say(Word::GoalWaitsTasks, &[Hole::Number(u64::from(count))]),
@@ -796,5 +832,39 @@ fn composer(
     b.style(look::GOAL_HINT);
     b.text(Run::Plain, &words.say(Word::GoalHint, &[]));
     b.close();
+    b.close();
+}
+
+/// The shared header metadata keeps both shells in the same item order.
+pub(crate) fn meta(b: &mut Builder, items: &[Box<[u8]>], token: Option<skein_ui::Style>, words: &Words) {
+    b.open(Role::Paragraph);
+    b.style(look::GOAL_META);
+    match words.shell {
+        Shell::Browser => {
+            for (index, item) in items.iter().enumerate() {
+                if index != 0 {
+                    text(b, Role::Text, &words.say(Word::GoalSeparator, &[]));
+                }
+                b.open(Role::Text);
+                if index == 1
+                    && let Some(token) = token
+                {
+                    b.style(token);
+                }
+                b.run(if index == 0 { Run::Strong } else { Run::Plain }, item);
+                b.close();
+            }
+        }
+        Shell::Terminal => {
+            b.open(Role::Text);
+            for (index, item) in items.iter().enumerate() {
+                if index != 0 {
+                    b.run(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+                }
+                b.run(Run::Plain, item);
+            }
+            b.close();
+        }
+    }
     b.close();
 }

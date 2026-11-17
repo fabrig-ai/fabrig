@@ -819,6 +819,83 @@ fn approval_cases() -> &'static [ApprovalCase] {
     ]
 }
 #[test]
+fn a_milestone_filter_takes_approvals_of_its_merged_goals() {
+    use crate::tests::approvals as a;
+    let (mut root, _, approvals) = approval_root();
+    let filter = crate::address::Filter { goal: Some(700), ..crate::address::Filter::ALL };
+    root_event(&mut root, crate::Event::Went { place: crate::Place::Address(Address::Inbox { filter }) });
+    let goal = root.pages.inbox.as_mut().unwrap().goal.take().unwrap();
+    let handle = goal.handle;
+    let mut known = fixture().inbox.take().unwrap();
+    known.cards.clear();
+    known.goal = Some(goal);
+    known.filter = filter;
+    root.pages.inbox = Some(known);
+    let mut milestone = fixtures::chat::task();
+    milestone.chip.task = 700;
+    milestone.chip.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    let mut out = Queue::uncapped();
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(milestone)))),
+        },
+        &mut out,
+    );
+    let mut ended = None;
+    for request in &out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) },
+                },
+        } = request
+            && query.parent == Some(700)
+        {
+            ended = Some(*read);
+        }
+    }
+    let line = super::goals::line(a::GOAL, Wall::EPOCH);
+    root_event(
+        &mut root,
+        crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read: ended.expect("milestone's ended goals read"),
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
+                        c::TaskPage {
+                            live: List::uncapped(),
+                            live_after: None,
+                            ended: c::EndedGroup::Rows {
+                                rows: List::from_boxed(Box::new([line])),
+                                after: None,
+                                cut: false,
+                            },
+                        },
+                    )))),
+                },
+            },
+        },
+    );
+    a::deliver(
+        &mut root,
+        approvals,
+        &[
+            a::row(a::CHANGE, fixtures::PROJECT, Some(a::GOAL)),
+            a::row(NO_GOAL_CHANGE, fixtures::PROJECT, None),
+            a::row(a::OTHER_CHANGE, fixtures::PROJECT, Some(999)),
+        ],
+        0,
+    );
+    let needs = root.pages().needs().needs(root.pages().inbox().unwrap(), root.forge().approvals());
+    assert_eq!(needs.len(), 1);
+    assert_eq!(needs[0].object(), ObjectKey::Task(a::CHANGE));
+}
+
+#[test]
 fn needs_take_the_approvals_after_the_inbox_by_its_filter() {
     use crate::tests::approvals as a;
     for (name, filter, objects, known, later, at, expected, shown) in approval_cases() {
@@ -2131,4 +2208,18 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         let mut fixture = stop_fixture(true, reach, true, true, None);
         assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep { object: FIRST })).is_empty(), "nothing offered");
     }
+}
+
+#[test]
+fn findings_stop_proposal_names_the_work_not_the_triager() {
+    use pages::stop_asking::Act as Stop;
+    use temper_protocol_reaches::{Kind, Offer, Reach, Subject};
+    let reach = Reach { kind: Kind::Findings, ..stop_reach() };
+    let mut fixture = stop_fixture(false, reach, true, true, None);
+    stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+    let sent =
+        stop_sent(&stop_act(&mut fixture.root, Stop::Propose { offer: Offer::Decide(Subject::Kind(Kind::Findings)) }));
+    let [(_, jig_client::Ask::Jig(ask))] = sent.as_ref() else { panic!("one proposal") };
+    let c::Ask::Propose { reason, .. } = ask.as_ref() else { panic!("settings proposal") };
+    assert_eq!(reason.bytes(), b"Stop asking in Project 1: let agents decide starting work on findings, then tell whoever they would have asked.");
 }

@@ -28,7 +28,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - Rehearses an upgrade over a copy; switches nothing.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
 
 ### `temper-engine upgrade --back`
 
@@ -82,15 +82,15 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Forms:** `[DIRECTORIES] FORGE`
 - Download an owned forge's Forgejo and runner binaries into the cache.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Notes:** Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+- **Notes:** Fetches only the binaries the forge's setup gives as "fetched", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. Reads the forge's immutable setup file in its data directory.
 
 ### `temper-engine forge prepare`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] FORGE`
+- **Forms:** `[DIRECTORIES] FORGE [--listen ADDR --person LOGIN EMAIL] [SETUP FLAGS]`
 - Prepare an owned forge before its Forgejo first runs.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Notes:** A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+- **Notes:** The first prepare writes the immutable setup file. Required: --listen ADDR --person LOGIN EMAIL. Optional: --remote URL, --public ORIGIN, --forgejo PATH (default fetched), --runner-label LABEL (repeatable; enables a runner), --runner-binary PATH (default fetched), --runner-capacity N (default 1), --runner-path PATH (default /usr/local/bin:/usr/bin:/bin), --sign-in CLIENT. Later flags must equal the file; with none it is read.
 
 ### `temper-engine forge run`
 
@@ -98,7 +98,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Forms:** `[DIRECTORIES] FORGE forgejo|runner`
 - Run an owned forge's Forgejo or its runner.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Notes:** Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.
+- **Notes:** Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. Reads the forge's immutable setup file in its data directory.
 
 ### `temper-engine forge sign-in`
 

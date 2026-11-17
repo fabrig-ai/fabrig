@@ -370,7 +370,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                     dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
-                    preparation: policy::Preparation::Idle,
+                    preparation: Some(policy::Preparation::Idle),
                     released: false,
                     cancelled: false,
                     kept: Box::new([]),
@@ -492,7 +492,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -575,7 +575,7 @@ fn busy_landing_gather() -> (Domain, Env<Limits>) {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -786,7 +786,7 @@ fn landing_merge_evidence(single: bool) {
                     dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
-                    preparation: policy::Preparation::Idle,
+                    preparation: Some(policy::Preparation::Idle),
                     released: false,
                     cancelled: false,
                     kept: Box::new([]),
@@ -925,7 +925,7 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -1317,7 +1317,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -1785,7 +1785,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                     dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
-                    preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                    preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                     released: false,
                     cancelled: false,
                     kept: Box::new([]),
@@ -2017,7 +2017,7 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                     dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
-                    preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                    preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                     released: false,
                     cancelled: false,
                     kept: Box::new([]),
@@ -2064,6 +2064,222 @@ fn connected_member_landing() -> Domain {
     d
 }
 
+fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+    use skein_forge::api as a;
+    let mut d = connected_member_landing();
+    let after = d.after_landing(5).expect("project");
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: None,
+            }]),
+            tiers: Box::new([])
+        }]),
+        policy::Project { gate_timeout: Duration::from_secs(5), ..policy::Project::DEFAULT },
+        after
+    ));
+    let row = d.landing.rows.get_mut(&61).expect("landing");
+    row.landing.members[0].gates = Box::new([policy::GateProof {
+        proof: policy::Proof::Dispatched { key: [7; 32], try_: 1 },
+        posted: policy::Posted::Pending,
+        faults: 0,
+    }]);
+    row.entries = Box::new([LandingEntry {
+        entry: 9,
+        member: 0,
+        gate: 0,
+        operation: Operation::Dispatch,
+        preparation: Some(row.landing.preparation),
+        base: Some(fixtures::BASE),
+        run: None,
+    }]);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let inputs = Box::new([
+        a::Input { name: b"temper_commit".as_slice().into(), value: commit_text(&fixtures::HEAD) },
+        a::Input { name: b"temper_key".as_slice().into(), value: commit_text(&[7; 32]) },
+    ]);
+    outputs(
+        &mut d,
+        Event::Enqueue {
+            entry: skein_forge_client::Entry {
+                number: 9,
+                task: 61,
+                repository: REPO,
+                effect: skein_forge_client::Effect {
+                    write: a::Write::Dispatch {
+                        workflow: b"gate.yml".as_slice().into(),
+                        branch: b"temper/1/l61".as_slice().into(),
+                        inputs: inputs.clone(),
+                    },
+                    condition: skein_forge_client::Condition::None,
+                },
+                start: Some(skein_forge_client::Position {
+                    at: Time::from_nanos(10),
+                    comment: 0,
+                    review: 0,
+                    review_page: 1,
+                }),
+                attempt: Some(skein_forge_client::Attempt {
+                    sent: Time::from_nanos(10),
+                    deadline: Time::from_nanos(20),
+                    wall: Wall::from_nanos(10),
+                    expires: Wall::from_nanos(20),
+                }),
+                failures: 0,
+                queued: false,
+            },
+        },
+    );
+    d.flights.remove(&(61, 9));
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [7; 32] };
+    d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).expect("main key");
+    let mut flight = runs::follow();
+    flight.inputs = inputs;
+    let run = a::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: a::Event::Dispatch,
+        actor: *d.writers.get(&REPO.forge).expect("writer"),
+        state: a::RunState::Waiting,
+        conclusion: None,
+        url: b"https://forge/run/7".as_slice().into(),
+        created: Time::from_nanos(20),
+        jobs: Box::new([]),
+    };
+    d.landing.flights.insert(key.clone(), flight).expect("gate flight");
+    (d, key, run)
+}
+
+fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api::Run) -> policy::Decision {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        clock,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: Some(policy::Preparation::Idle),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    for _ in 0..20_u32 {
+        let (call, op) = fixtures::next_at(d, clock);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Runs { .. }) => Answer::Runs { runs: Box::new([run.clone()]), more: false },
+            Op::Read(Read::Run { run: id }) => {
+                assert_eq!(id, run.id);
+                Answer::Run(run.clone())
+            }
+            Op::Read(_) | Op::Write(_) => panic!("unexpected gate read {op:?}"),
+        };
+        let mut answered = fixtures::answer_at(d, clock, call, Ok(answer));
+        while let Some(request) = answered.pop() {
+            if let Request::LandingDecision { decision, .. } = request {
+                return decision;
+            }
+        }
+    }
+    panic!("a gate poll decides");
+}
+
+#[test]
+fn a_queued_gate_only_expires_after_its_running_time_passes_the_bound() {
+    let (mut d, key, mut run) = clocked_gate();
+    let mut clock = env();
+    for seconds in [100, 110, 120] {
+        clock.now = Time::from_nanos(seconds * 1_000_000_000);
+        clock.wall = Wall::from_nanos(clock.now.as_nanos());
+        assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+        assert_eq!(d.landing.flights.get(&key).unwrap().clock.unwrap().ran(clock.wall), Duration::ZERO);
+    }
+    run.state = skein_forge::api::RunState::Running;
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    clock.now = Time::from_nanos(125_000_000_000);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert!(
+        matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }),
+        "the running bound is strict"
+    );
+    clock.now = Time::from_nanos(125_000_000_001);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert_eq!(
+        poll_clocked_gate(&mut d, &clock, &run),
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 })
+    );
+    assert_eq!(d.landing_hold_words(61).unwrap().as_ref(), b"gate gate of org/repo: run 8 running past its bound");
+}
+
+#[test]
+fn a_gate_waiting_past_its_runner_bound_names_the_wait() {
+    let (mut d, _, run) = clocked_gate();
+    let mut clock = env();
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    clock.now = clock.now.saturating_add(clock.limits.change_policy.runner_wait);
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert_eq!(
+        poll_clocked_gate(&mut d, &clock, &run),
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 })
+    );
+    assert_eq!(
+        d.landing_hold_words(61).unwrap().as_ref(),
+        b"gate gate of org/repo: run 8 waiting for a runner past its bound"
+    );
+}
+
+#[test]
+fn a_rebuilt_landing_counts_on_from_its_saved_run_clock() {
+    let (mut d, key, mut run) = clocked_gate();
+    let mut clock = env();
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    run.state = skein_forge::api::RunState::Running;
+    clock.now = clock.now.saturating_add(Duration::from_secs(10));
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+    let saved = d.landing.rows.get(&61).unwrap().entries[0].run.unwrap().clock.unwrap();
+    assert_eq!(saved, d.landing.flights.get(&key).unwrap().clock.unwrap());
+    d.landing.flights.remove(&key);
+    landing::rebuild(&mut d);
+    assert_eq!(d.landing.flights.get(&key).unwrap().clock, Some(saved));
+    assert!(!d.landing.flights.get(&key).unwrap().waiting, "rebuilt flight: {:?}", d.landing.flights.get(&key));
+    clock.now = clock.now.saturating_add(Duration::from_secs(6));
+    clock.wall = Wall::from_nanos(clock.now.as_nanos());
+    let decision = poll_clocked_gate(&mut d, &clock, &run);
+    assert_eq!(
+        decision,
+        policy::Decision::Hold(policy::Hold::Timeout { member: 0, gate: 0, run: 8 }),
+        "rebuilt flight: {:?}",
+        d.landing.flights.get(&key)
+    );
+}
+
 #[test]
 fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
     let mut d = connected_member_landing();
@@ -2085,7 +2301,7 @@ fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: report.as_slice().into(),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -2095,6 +2311,148 @@ fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Busy));
     let row = d.landing.rows.get(&61).expect("waiting round");
     assert_eq!(preparation::outcomes(&row.landing.round.failure, LIMITS.landing_members), Some(prepared));
+}
+
+fn preparing_landing() -> Domain {
+    let mut d = connected_member_landing();
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let row = d.landing.rows.get_mut(&61).expect("round");
+    row.landing.phase = policy::Phase::Preparing;
+    row.landing.round.pull = None;
+    row.landing.round.combined = None;
+    row.landing.members[0].candidate = None;
+    row.landing.members[0].asked = Some(row.landing.preparation);
+    d
+}
+
+fn preparing_heard(preparation: Option<policy::Preparation>) -> LandingHeard {
+    LandingHeard {
+        job: None,
+        outcomes: Box::new([]),
+        dependencies: Box::new([]),
+        held: Box::new([]),
+        failure: Box::new([]),
+        preparation,
+        released: false,
+        cancelled: false,
+        kept: Box::new([]),
+    }
+}
+
+fn read_preparing_member(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::Answer;
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    fixtures::answer_next(d, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+}
+
+fn read_absent_prefix(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/1/l61".as_slice().into() }));
+    fixtures::answer(d, call, Err(Error::Missing));
+    fixtures::answer_next(
+        d,
+        Ok(Answer::Commits {
+            commits: Box::new([skein_forge::api::CommitMessage {
+                id: fixtures::HEAD,
+                parents: Box::new([]),
+                message: Box::new([]),
+            }]),
+            more: false,
+        }),
+    )
+}
+
+#[test]
+fn a_start_read_failure_wakes_the_landing_without_a_decision() {
+    use skein_forge::api::{Error, Op, Read};
+    let mut d = preparing_landing();
+    let mut out = Queue::uncapped();
+    landing::refresh(&mut d, &env(), &mut out);
+    assert_eq!(d.landing.pending.iter().next().expect("start read").1.heard.preparation, None);
+    while let Some(request) = out.pop() {
+        assert!(!matches!(request, Request::LandingDecision { .. }));
+    }
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: fixtures::opening_row().branch }));
+    let requests = fixtures::answer(&mut d, call, Err(Error::Missing));
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }));
+    for request in requests {
+        assert!(!matches!(request, Request::LandingDecision { .. }));
+    }
+}
+
+#[test]
+fn a_start_leaves_a_real_steps_entry_and_absent_preparation_to_decide() {
+    let mut d = preparing_landing();
+    let heard = preparing_heard(Some(policy::Preparation::Absent));
+    outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: heard.clone() });
+    let mut out = Queue::uncapped();
+    landing::refresh(&mut d, &env(), &mut out);
+    assert!(out.is_empty(), "the start leaves the pending gather untouched");
+    let pending = d.landing.pending.iter().next().expect("real step's gather").1;
+    assert_eq!(pending.entry, 91);
+    assert_eq!(pending.heard, heard);
+    read_preparing_member(&mut d);
+    let requests = read_absent_prefix(&mut d);
+    assert!(!requests.contains(&Request::WakeProcedure { task: 61 }));
+    let mut decision = None;
+    for request in requests {
+        if let Request::LandingDecision { task, entry, decision: found, .. } = request {
+            assert!(decision.is_none(), "one decision for the real step");
+            decision = Some((task, entry, found));
+        }
+    }
+    assert_eq!(
+        decision,
+        Some((61, None, policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE })),
+        "the real step decides with its hearing and no outbox effect"
+    );
+}
+
+#[test]
+fn a_start_at_a_stale_round_reads_no_members_prefix() {
+    let mut d = preparing_landing();
+    d.landing.rows.get_mut(&61).expect("round").landing.round.ending = Some(policy::RoundEnd::Stale);
+    let mut out = Queue::uncapped();
+    landing::refresh(&mut d, &env(), &mut out);
+    let requests = read_preparing_member(&mut d);
+    assert!(d.landing.pending.is_empty(), "no prefix read remains at the stale round");
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }));
+    for request in requests {
+        assert!(!matches!(request, Request::LandingDecision { .. }));
+    }
+}
+
+#[test]
+fn a_hearing_without_preparation_reaches_policy_as_running() {
+    let mut d = preparing_landing();
+    d.landing.rows.get_mut(&61).expect("round").landing.members[0].asked = None;
+    outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: preparing_heard(None) });
+    read_preparing_member(&mut d);
+    let requests = read_absent_prefix(&mut d);
+    let mut decision = None;
+    for request in requests {
+        if let Request::LandingDecision { task: 61, decision: found, .. } = request {
+            decision = Some(found);
+        }
+    }
+    assert_eq!(decision, Some(policy::Decision::Wait { until: None }), "the policy waits on a running prepare");
+    assert_eq!(d.landing.rows.get(&61).expect("waiting round").landing.phase, policy::Phase::Preparing);
+}
+
+#[test]
+fn a_start_read_of_a_cancelled_landing_wakes_instead_of_taking_its_step() {
+    let mut d = preparing_landing();
+    let mut out = Queue::uncapped();
+    d.landing.rows.get_mut(&61).expect("round").landing.phase = policy::Phase::Cancelled;
+    landing::step(&mut d, &env(), 61, 0, preparing_heard(None), &mut out);
+    assert_eq!(out.pop(), Some(Request::WakeProcedure { task: 61 }));
+    assert!(out.is_empty());
 }
 
 #[test]
@@ -2116,7 +2474,7 @@ fn a_busy_landing_read_retries_before_the_hearing_fallback() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -2190,7 +2548,7 @@ fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -2464,7 +2822,7 @@ fn reporting_failed_gate(
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: policy::Preparation::Idle,
+                preparation: Some(policy::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),

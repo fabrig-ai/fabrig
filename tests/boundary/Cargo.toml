@@ -16,10 +16,12 @@ serde_json.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
+aho-corasick.workspace = true
 skein-codec.workspace = true
 skein-codegen.workspace = true
 skein-scratch.workspace = true
 skein-shell.workspace = true
+toml.workspace = true
 
 # Ordinary Rust (skein's programming-model.md, 10.2), held to the test
 # crates' lints.

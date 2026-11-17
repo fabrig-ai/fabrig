@@ -33,6 +33,8 @@ pub mod landing;
 pub mod landing_log;
 pub mod limits;
 pub mod make;
+pub mod milestones;
+pub use milestones::{MilestoneEnd, MilestoneLanding, MilestoneOutcome, MilestoneRow, MilestoneTotals};
 pub mod making;
 pub mod panel;
 pub mod preparation;
@@ -106,7 +108,7 @@ pub use limits::{
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,
-    PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
+    PanelSource, PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
@@ -322,6 +324,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
+        Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
@@ -496,6 +499,16 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Landing(value), .. }) => {
+                let mut held = 0_u64;
+                for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
+                    held = held.checked_add(bytes(command))?;
+                }
+                Some(held)
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Gates(value), .. }) => {
+                settings::gates_heap(value)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Rule(rule), .. }) => {
                 let mut held = skein_lib::len_u64(rule.pattern.segments.len())
                     .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
@@ -574,6 +587,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | settings::Value::Charter(_)
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
+                    | settings::Value::Welcome(_)
                     | settings::Value::ProjectTriager(_)
                     | settings::Value::Goal(_),
                 ..
@@ -585,6 +599,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Milestone(row) => Some(skein_lib::len_u64(row.name.len())),
         Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
         Stored::Red(row) => skein_lib::len_u64(row.key.len())
             .checked_add(skein_lib::len_u64(row.head.len()))?
@@ -677,7 +692,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words),
                 None => 0,
             }),
-            ApplicationOutcome::CoreRefused(_)
+            ApplicationOutcome::OpenRefused(reason) => match reason {
+                OpenRefusal::NoRepository | OpenRefusal::NotARepository | OpenRefusal::NamePast { .. } => Some(0),
+                OpenRefusal::UnderPrefix { owner, name, prefix } => {
+                    bytes(owner).checked_add(bytes(name))?.checked_add(bytes(prefix))
+                }
+                OpenRefusal::Several(names) => {
+                    let mut held = skein_lib::len_u64(names.len())
+                        .checked_mul(u64::try_from(size_of::<DraftRepository>()).ok()?)?;
+                    for name in names {
+                        held = held.checked_add(bytes(&name.owner))?.checked_add(bytes(&name.name))?;
+                    }
+                    Some(held)
+                }
+            },
+            ApplicationOutcome::Opened { .. }
+            | ApplicationOutcome::CoreRefused(_)
             | ApplicationOutcome::ForgeRefused(_)
             | ApplicationOutcome::MakeKept
             | ApplicationOutcome::MakeRefused(_) => Some(0),
@@ -794,6 +824,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             total.checked_add(row.relay.held_bytes()?)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
+            .checked_add(match &row.source {
+                Some(source) => bytes(&source.branch),
+                None => 0,
+            })?
             .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
             .checked_add(skein_lib::len_u64(row.repair_tasks.len()).checked_mul(8)?)?
             .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
@@ -898,6 +932,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::ChangeCold(row) => u64::try_from(size_of::<ChangeCold>())
             .ok()?
+            .checked_add(match &row.source {
+                Some(source) => bytes(&source.branch),
+                None => 0,
+            })?
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
@@ -1038,7 +1076,8 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         change::State::Held { was, .. } => {
             u64::try_from(size_of::<change::State>()).ok()?.checked_add(change_state_bytes(was, depth.checked_add(1)?)?)
         }
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }

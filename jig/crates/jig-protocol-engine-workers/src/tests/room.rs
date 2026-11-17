@@ -9,7 +9,7 @@ fn config() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let document = config::document(
         br#"{
-        "limits":{"profile":"small"},
+        "limits":{"profile":"standard"},
         "llm":{"providers":[],"endpoints":[]},
         "hosts":{"workers":[],"listener":[{"socket":"127.0.0.1:7100"}]},
         "clients":{"heartbeat_ms":10000,"link":true},
@@ -21,7 +21,15 @@ fn config() -> jig_protocol_config::Engine {
         &config::DocumentLimits { bytes: 1024, tokens: 256, depth: 8 },
     )
     .expect("configuration document");
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).expect("configuration")
+    config::engine_over(
+        &document,
+        0,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &config::Fixed::NONE,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .expect("configuration")
 }
 
 #[test]
@@ -178,7 +186,7 @@ fn an_unencodable_job_is_answered_with_bounded_words() {
         };
         assert_eq!((found, run, attempt), (channel, Token::new(7), Token::new(2)));
         assert!(parts.is_empty());
-        let words = b"job cannot encode";
+        let words = b"job cannot encode: Job.spec too large";
         let why = words[..words.len().min(usize::try_from(detail).expect("detail"))].into();
         assert_eq!(answer, hub::JobEnding::Refused(hub::JobRefusal::Invalid(hub::JobInvalid::Start { why })));
         assert!(out.is_empty(), "no channel send or loss");

@@ -28,9 +28,8 @@ pub(super) fn run_with(
     load: bool,
     writes: Vec<protocol::Write>,
 ) -> Result<Rows, String> {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let jig = jig_protocol_config_fixtures::small();
+    let own = temper_limits_fixtures::small();
     let root = temper_engine_service_vocabulary::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
     let limits = temper_engine_service_vocabulary::store::limits(&root, &root.forge, &jig.store)
         .ok_or("fixture store limits")?;
@@ -66,7 +65,7 @@ pub(super) fn run_with(
     let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], 0);
     let mut component = protocol::Store::on_directory(&limits, application, &[], seeded);
     assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
-    component.patch_sets(temper_engine_service_vocabulary::store::PATCH_SETS);
+    component.owner_sets(temper_engine_service_vocabulary::store::OWNER_SETS);
     let mut host = StoreHost {
         store: component,
         limits,
@@ -176,6 +175,7 @@ impl StoreHost {
                     ))) => header,
                     None => jig_domain_core::Deployment {
                         id: [1; 16],
+                        restart_wait_ms: None,
                         tasks: 0,
                         people: 0,
                         sign_ins: 0,

@@ -429,6 +429,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
         role(result_bytes),
         ask(result_bytes),
         design(result_bytes),
+        milestone(result_bytes),
     ]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
@@ -808,6 +809,17 @@ fn role(result_bytes: u32) -> Template {
         ..goal(result_bytes)
     }
 }
+fn milestone(result_bytes: u32) -> Template {
+    Template {
+        number: 8,
+        name: bytes::copy_of(b"milestone"),
+        shallower: 1,
+        deadline: TemplateDeadline::None,
+        flags: Flags { ended_by: EndedBy::Requester, conversation: false, listed: true, retention: Retention::Kept },
+        label: 4,
+        ..goal(result_bytes)
+    }
+}
 fn goal(result_bytes: u32) -> Template {
     Template {
         resources: Box::new([]),
@@ -920,4 +932,28 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
         gates: Box::new([settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]),
         approvals: Box::default(),
     }
+}
+
+/// The welcome's default comes from the box flag at each start
+/// (temper/docs/design/protocol/configuration/settings.md, 2).
+#[must_use]
+pub fn with_welcome(
+    stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    shown: bool,
+) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use temper_engine_domain_forge::settings;
+    let mut defaults = List::uncapped();
+    for row in stock {
+        defaults.push(row).expect("stock defaults");
+    }
+    let value = settings::Value::Welcome(settings::Welcome { shown });
+    defaults
+        .push(settings::Stock {
+            kind: 20,
+            scope: 0,
+            number: 1,
+            value: settings::SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        })
+        .expect("welcome default");
+    defaults.into_boxed()
 }

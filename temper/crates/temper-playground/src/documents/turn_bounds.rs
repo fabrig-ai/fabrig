@@ -63,22 +63,16 @@ pub fn apply(document: &mut Value, turn: u32) {
     }
 }
 fn worker_output(limits: &Value, turn: u64) -> u64 {
-    use jig_protocol_config::{Profile, profile};
-    use jig_protocol_worker_wire::v14;
-
-    let defaults = profile(match limits["profile"].as_str().expect("worker profile") {
-        "small" => Profile::Small,
-        "standard" => Profile::Standard,
-        other => panic!("unknown worker profile: {other}"),
-    });
+    use jig_protocol_worker_wire::v15;
+    let defaults = jig_protocol_config::stock();
     let overrides = &limits["overrides"];
     let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
-    let bodies = v14::Limits {
+    let bodies = v15::Limits {
         turn_body: u32::try_from(turn).expect("turn body"),
         turn_refused: u32::try_from(inbox).expect("run inbox"),
-        ..v14::CEILINGS
+        ..v15::CEILINGS
     };
-    let frame = v14::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
+    let frame = v15::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
     let output = overrides["io.output"].as_u64().unwrap_or(u64::from(defaults.io.output));
     output.max(frame)
 }

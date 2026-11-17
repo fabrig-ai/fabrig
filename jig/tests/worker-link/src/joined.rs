@@ -337,6 +337,9 @@ impl Joined {
             turn: 1,
         });
     }
+    pub fn engine_restarting(&mut self, wait: Duration) {
+        self.engine_event(engine::Event::Restarting { wait });
+    }
     pub fn engine_down(&mut self, down: host::LinkDown, parts: Box<[Part]>, values: Box<[Option<engine::GrantValue>]>) {
         self.engine_event(engine::Event::Down { channel: self.channel.expect("admitted hello"), down, parts, values });
     }
@@ -384,6 +387,7 @@ impl Joined {
             }
             Request::RelayCancelled { .. }
             | Request::Lost
+            | Request::Restarting { .. }
             | Request::GracePassed
             | Request::Closed
             | Request::Refused { .. }
@@ -441,7 +445,10 @@ impl Joined {
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
             engine::Request::Opened { .. } | engine::Request::Refused { .. } => self.engine_openings.push(request),
-            engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
+            engine::Request::Told { .. }
+            | engine::Request::Unsent { .. }
+            | engine::Request::Lost { .. }
+            | engine::Request::Closed => {
                 self.engine_root.push(request);
             }
         }
@@ -527,6 +534,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Told { .. }
                 | engine::Request::Opened { .. }
                 | engine::Request::Refused { .. }
                 | engine::Request::Unsent { .. }

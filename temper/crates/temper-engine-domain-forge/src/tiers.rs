@@ -680,6 +680,11 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
     );
     if let Some(flight) = &row.flight {
         follow.restore(flight, d.writers.get(&row.repository.forge).copied().unwrap_or(0));
+        if let Some(kept) = d.entries.get(&flight.entry)
+            && let Some(attempt) = kept.entry.attempt
+        {
+            follow.wall = Some(attempt.wall);
+        }
     }
     follow
 }
@@ -1257,7 +1262,7 @@ pub(crate) fn answered(
     let ended = if reporting {
         reported_part(d, env, &mut row, &mut follow, answer, out)
     } else {
-        let ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime).is_some();
+        let ended = follow.answered(answer, writer, env.now, env.wall, env.limits.client.lifetime).is_some();
         words::observe(&mut row, &follow);
         if row.held.is_none() && row.result.is_none() {
             observed_part(d, env, &mut row, &mut follow, out);
@@ -1493,6 +1498,7 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
             }
             if let Some(attempt) = kept.entry.attempt {
                 follow.since = Some(attempt.sent);
+                follow.wall = Some(attempt.wall);
             }
         }
         if !made {

@@ -8,12 +8,30 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
             names
                 .replace("see temper help settings for held revisions", "")
                 .replace("temper/docs/design/client/ctl/results.md, 1", "")
+        } else if path == &std::path::PathBuf::from("src/jig/render/goal_title.rs") {
+            // The goal title warning names the application's help page (client/ctl/areas.md), area 2.
+            names.replace("temper ctl help goal start", "")
         } else if path == &std::path::PathBuf::from("src/jig/rows.rs") {
             // Sign-in help names the local recovery commands (client/ctl/README.md, 6.1).
             names
                 .replace("temper ctl dir sign-out", "")
                 .replace("temper does not know it", "")
                 .replace("temper-box serve prints\\na fresh one", "")
+        } else {
+            names
+        };
+        // Milestone identity is shared with the pages (client/pages/milestone.md, 1).
+        // These three call sites name only its template and chip predicate.
+        let names = if [
+            std::path::PathBuf::from("src/jig/runner/milestone.rs"),
+            std::path::PathBuf::from("src/jig/runner/acts/milestone.rs"),
+            std::path::PathBuf::from("src/jig/runner/acts/goal.rs"),
+        ]
+        .contains(path)
+        {
+            names
+                .replace("temper_client_domain_forge::milestones::template", "")
+                .replace("temper_client_domain_forge::milestones::is", "")
         } else {
             names
         };

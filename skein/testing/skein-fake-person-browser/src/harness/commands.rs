@@ -309,7 +309,12 @@ impl Process {
         if let Some(child) = self.child {
             if !self.closing_child {
                 self.closing_child = true;
-                self.requests.push_back(io::Request::Signal { child, signal: Signal::Kill, to: Target::Group });
+                self.requests.push_back(io::Request::Signal {
+                    child,
+                    signal: Signal::Kill,
+                    to: Target::Group,
+                    reason: io::kernel::Reason::Closed,
+                });
                 self.requests.push_back(io::Request::Close { entity: child });
             }
             for (at, &pipe) in self.pipes.iter().enumerate() {

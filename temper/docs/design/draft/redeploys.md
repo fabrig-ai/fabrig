@@ -1,15 +1,15 @@
 # redeploys: a new build reaches a deployment without stopping its work
 
-Draft, 2026-11-12. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `upgrades.md` and `staged-upgrades.md`. This draft is the processes' half, and replaces `upgrades.md`, section 9.
+Draft, 2026-11-12, with 5.2 and 5.3 amended on 2026-11-15. How a deployment takes a new build of temper while its work goes on: the engine restarted alone while the workers keep their runs, a worker restarted with its agents resuming where they left off, and each part speaking the previous version of the wires between them. It comes from a session with the user on 2026-11-12, after redeploys of dev.fabrig.ai that each cost minutes of failed preparations and held goals, and from a read of main at `ee03a1159c`. The user's word that day: wire versions are no longer changed in place; the store and the wires upgrade from now on, heading to v0.1.0, and dev.fabrig.ai exercises both. The store's half is `upgrades.md` and `staged-upgrades.md`. This draft is the processes' half, and replaces `upgrades.md`, section 9.
 
 ## 1. In one page
 
-- **Versions move with their layouts, from now** (section 3). Every wire between the engine, its workers and their agents takes a new version at the landing that changes its layout and keeps the old version's text. A wire that spans builds brings its bridge, as a stored family brings its patch (`staged-upgrades.md`, section 3); smith's channel is declared per-build (4.4). The gate refuses a layout changed in place.
+- **Versions move with their layouts, from now** (section 3). Every wire between the engine, its workers and their agents takes a new version at the landing that changes its layout and keeps the old version's text. A wire that spans builds brings its bridge; smith's channel is declared per-build (4.4). The gate refuses a layout changed in place.
 - **Each side states what it speaks, by layout** (3.2): at the opening, each wire's range of versions and each version's fingerprint. An in-place change the gate missed is refused there, named, rather than met by a task's first assignment.
 - **A version mismatch is never a task's failure** (3.4): what a worker cannot read waits for one that can, spending no try.
 - **The newer side bridges** (section 4). It speaks every version of a wire from its floor up, translating up by the forward patch and down by its reverse. What the older side cannot hold is never sent to it. A change no bridge can carry is declared breaking, and raises the floor.
 - **An agent is always its worker's build** (4.4): the worker pins its agent's program and configuration at its start, so the channel between them never spans two builds.
-- **The engine alone, by default** (section 5). A check says when the workers may stay; the stop settles, the restart fits the workers' grace, and they ride it with their runs.
+- **The engine alone, by default** (section 5). A check says when the workers may stay; the stop settles and tells the workers it restarts, they keep their runs through a restart wait of 20 minutes, and ride it.
 - **A worker drains, then starts warm** (section 6): it takes no new work, stops each agent at the end of its turn within a bound, saves the work, and ends each attempt interrupted with no try spent. It keeps its stores and admits preparations a few at a time.
 - **Workers in turn** (section 7): a redeploy restarts the engine alone, then the workers one at a time when asked or required, and every part together only across a breaking change.
 - **Clients are refused and reload** (section 8): a page or a client of another version is told so, and reloads or upgrades. Bridging them is later.
@@ -31,7 +31,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 3.1 With every layout change
 
-- **The rule reversed** (the user, 2026-11-12). Until now, a change a reader would notice was made in place, its version unmoved, until v0.1.0 (jig's `protocol/README.md`, section 7; skein's `data/codec/README.md`, section 5). From now, the wires this draft names take a new version at the landing that changes their layout, as stored families do (`staged-upgrades.md`, section 3).
+- **The rule reversed** (the user, 2026-11-12). Until now, a change a reader would notice was made in place, its version unmoved, until v0.1.0 (jig's `protocol/README.md`, section 7; skein's `data/codec/README.md`, section 5). From now, the wires this draft names take a new version at the landing that changes their layout.
 - **The wires,** each a schema with its own version:
   - jig's worker channel, its kinds' table included: each kind's number, its direction and the record it carries;
   - temper's payloads in it, a git identity's value among them (`../protocol/channel.md`, section 6);
@@ -42,8 +42,8 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
   - smith's channel between a worker and its agents, which has no bridge (4.4).
 
   Clients' wires are section 8's.
-- **The old version's text is kept,** with its golden bytes, as a stored family's is (skein's `data/codec/command.md`, section 7), and a wire that spans builds brings its bridge (section 4). The bridge inventory (4.2) also names per-build wires, whose exemption is from translation, never from version moves or kept text.
-- **The gate refuses** a wire whose layout differs from its latest kept text with its version unmoved, as it refuses a stored family's (`upgrades.md`, section 12).
+- **The old version's text is kept,** with its golden bytes (skein's `data/codec/command.md`, section 7), and a wire that spans builds brings its bridge (section 4). The bridge inventory (4.2) also names per-build wires, whose exemption is from translation, never from version moves or kept text.
+- **The gate refuses** a wire whose layout differs from its latest kept text with its version unmoved.
 - **The churn it meets** (main, 2026-10-15 to 11-12): 29 in-place changes to the schemas of jig's channel (14), temper's payloads (4), smith's charter (4), its turns (2) and its channel (5); 14 of them a field, an option or a variant appended; and 19 version moves beside them.
 
 ### 3.2 Fingerprints at the opening
@@ -58,7 +58,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 ### 3.3 The floor
 
 - **Each build speaks every version of a wire from its floor to its current.** The floor is kept in the repository, one per wire.
-- **It bounds what is spoken, not what is read.** A kept text and its forward patch stay for good, as a stored family's do (skein's `data/codec/command.md`, section 7), since stored turns, calls' names and deliveries' evidence keep the versions they were written in. Below the floor, a build no longer negotiates the version or translates down to it.
+- **It bounds what is spoken, not what is read.** A kept text and its forward patch stay for good (skein's `data/codec/command.md`, section 7), since stored turns, calls' names and deliveries' evidence keep the versions they were written in. Below the floor, a build no longer negotiates the version or translates down to it.
 - **It moves only by a landing that says so:** one that raises it once no deployment speaks the versions below, or a breaking change (4.5), which raises it to its own version.
 - **At least the previous version, for a wire that spans builds.** A landing that moves its version leaves its floor at or below the previous one, unless the change is breaking. A wire declared per-build in the bridge inventory (4.2) speaks only its build's version and needs no breaking declaration for that move.
 - **Until bridges are built,** each build's floor is its current version: versions move and are compared, and nothing is translated. A worker of another layout is then refused at the opening by name, and the check (5.1) says it may not stay.
@@ -127,21 +127,29 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 5.1 When the workers may stay
 
-- **The check** (`upgrade --check`, `../protocol/binaries.md`), run by the new binary before the swap. Goal 648 builds it as a rehearsal of the store's patching over a copy, whose verdict on the workers compares the wire numbers the store keeps (`upgrades.md`, section 9, before this draft), and says unknown when it keeps none. Judging each worker by its ranges, fingerprints and terms is this draft's, and new. A worker may stay when, for every wire, its stated range meets the new build's range at or above the new build's floor, its fingerprints for the versions both name agree, its terms fit the new build's for the agreed versions (3.2), and no breaking change or fresh mark lies between. It names each worker that may not, and why.
+- **The check** (`upgrade --check`, `../protocol/binaries.md`), run by the new binary before the swap. It is a rehearsal of the store's registry changes and jobs over a copy, whose verdict on the workers compares the wire numbers the store keeps (`upgrades.md`, section 9, before this draft), and says unknown when it keeps none. Judging each worker by its ranges, fingerprints and terms is this draft's, and new. A worker may stay when, for every wire, its stated range meets the new build's range at or above the new build's floor, its fingerprints for the versions both name agree, its terms fit the new build's for the agreed versions (3.2), and no breaking change or fresh mark lies between. It names each worker that may not, and why.
 - **What it reads:** beside the wires the store keeps for the engine (jig's `protocol/store/records.md`, 3), each worker's opening as the engine last authenticated it: its name, its ranges, its fingerprints, its terms and when. So the check runs with the engine stopped.
 - **A worker with no record,** or none since the engine's last start, is reported unknown and treated as one that may not stay.
 - **A worker that may not stay** makes the redeploy one of every part together (7.3).
 
-### 5.2 The stop settles
+### 5.2 The stop settles and says so
 
-- **Told to stop, the engine settles first** (`upgrades.md`, section 8; jig's `domain/engine/restart.md`, 1): its effects in flight on the forge settle, which main does, and no run is placed meanwhile, which main does not yet hold, since it still resumes the fleet while settling.
-- **The workers keep their runs.** Their links stay up while the engine settles, and their grace starts when the link drops.
+- **Told to stop, the engine settles first** (`upgrades.md`, section 8; jig's `domain/engine/restart.md`, 1): its effects in flight on the forge settle, and no run is placed meanwhile.
+- **Then it says it restarts.** Once settled, the engine keeps in its store that it restarts and how long it asks its workers to wait, its restart wait; then, before it closes their links, it tells each worker so. It says it only on a link whose agreed version of the workers' wire carries the word: at an older version the word is not sent, which is no mismatch and raises no floor (4.3), and that worker keeps its grace. Without the word, a clean close, a reset and a silence look alike to a worker, and each meets the same grace.
+- **The workers keep their runs.** Their links stay up while the engine settles, and their wait starts when the link drops.
 
-### 5.3 The window fits the grace
+### 5.3 The window fits the wait
 
-- **The window** is the settled stop, the swap, the store's patching (`upgrades.md`, section 6) and the start up to the first hello. The rehearsal measures it (`staged-upgrades.md`, section 5).
-- **The workers' grace covers it with room.** The 60 s shipped is shorter than a start that patches. Its default rises to cover a measured window, and the engine's grace over its workers rises with it, since it must outlast every worker's stop bound (6.1): a worker gone for good has its runs moved elsewhere that much later. Default: 5 minutes for the workers' grace (section 12).
-- **A window past the grace** ends the runs interrupted, with no try spent (jig's `domain/hosts/hub.md`, 6): a slow restart costs turns, never tasks.
+- **The window** is the settled stop, the swap, the store's registry changes and jobs (jig's `protocol/store/opening.md`, section 2) and the start up to the first hello. The rehearsal measures it (`staged-upgrades.md`, section 5). On 2026-11-15, dev.fabrig.ai's engine restarts took 2 and 6 minutes, a check over the stopped backup and a start replaying the store's log, and its workers, whose configuration kept a 10-second grace from before 5 minutes was the default, cut three runs.
+- **A restart said is waited for long.** A worker that heard the word keeps its runs through the restart wait, by default 20 minutes (section 12), counted on its own clock from the link's loss, rather than its grace, whose end cancels nothing meanwhile. Past the wait it cancels and saves as at its grace's end. The user's word of 2026-11-15: runs wait a good while for the engine, rather than being cancelled.
+- **A link lost without a word keeps the grace,** 5 minutes by default. It may be a partition, with the engine still up and holding the worker's runs for its own grace, which outlasts every worker's stop bound (6.1; jig's `domain/engine/fleet.md`). A longer grace would keep a worker gone for good from its runs' retry as long. An engine that crashes is ridden when it is back within the grace.
+- **The engine holds the runs as long.** Every start that follows a stop which said it, until the word is discharged, holds each run it restores on a worker for the longest restart wait said and its grace after it, counted on its own clock from that start, rather than its grace alone. The hold stays with the run through its worker's hello and any loss after it, since a hello received doesn't show that the worker heard the engine back, and a later word never shortens a hold outstanding. The word is discharged once each run it covered has ended, been placed elsewhere after its hold, or had its worker hear the engine again. So no next attempt is placed while a worker may still host the last, and a worker gone for good across a restart has its runs moved elsewhere that much later. A build that doesn't know the word holds them for its grace alone, so going back past the build that brings it is every part together, each worker drained first (7.3).
+- **A worker's bounds keep their meaning.** The stop bound a worker states at its hello still bounds a link lost without the word, and a stop; the hello's check of it against the engine's grace is unchanged. A word heard has a bound of its own, the restart wait and the same tail after it, which the engine's hold covers. A worker told to stop while it waits drains as ever (6.1), within its stop bound.
+- **A waiting run goes on** as far as it can without its engine: its agent's turns with the LLM, its tools and checks, its saves and pushes, its jobs within their own deadlines. Its turns, its answers and its calls relayed to the engine are kept and sent at the relink (jig's `domain/hosts/hub.md`, 6). The rest is degraded as today: its reads from the engine fail at the loss, so a check judges without its inherited reds, as when their lookup is late, and its reports to the engine, a check's results among them, and its live pieces are dropped.
+- **What needs the engine waits within the run's own deadlines.** A relayed call waits within its caller's and its run's deadlines; past them it fails to its agent as any slow call does, and the run goes on. A relayed attempt that its own timeout withdraws while the link is down is tried again with no uncertain effect. A completion that can't be issued for want of a valid grant waits for one, keeping its retries, as a wait its agent's supervision knows of; one already issued runs on under its provider's deadlines, and an account that must be signed in again fails as it does now.
+- **The run's budgets keep counting.** The wait ends cancellation for contact, not the run's own bounds: a run whose time, turns or spend run out meanwhile ends as any run whose budget runs out.
+- **A window past the wait** ends the runs interrupted, with no try spent (jig's `domain/hosts/hub.md`, 6): a slow restart costs turns, never tasks.
+- **Who will not ride it is named.** Before the stop, the redeploy (section 7) reads from the running engine each worker's agreed version of the workers' wire, and names those that will not hear the word and so keep their grace alone. The first redeploy onto the build that brings the word is stopped by an engine that cannot say it, so all its workers keep their grace. The referee (7.5) judges each worker by the wait it was given and its own return.
 
 ### 5.4 The opening
 
@@ -176,7 +184,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 7.1 The engine alone, by default
 
-1. **A build that patches the store** is first rehearsed on a backup of the deployment's data and drilled on staging.fabrig.ai, and a backup is taken with the engine stopped (`staged-upgrades.md`, sections 5 to 7).
+1. **A build that runs a store job** is first rehearsed on a backup of the deployment's data and drilled on staging.fabrig.ai, and a backup is taken with the engine stopped (`staged-upgrades.md`, sections 5 to 7).
 2. The new build's check (5.1) says the workers may stay.
 3. The settled stop, the swap and the start, which the workers ride (5.2, 5.3).
 4. A redeploy whose change the workers run goes on with 7.2.
@@ -198,8 +206,8 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 7.5 Exercised on dev.fabrig.ai
 
-- **Every redeploy is a drill** (the user, 2026-11-12). Its script runs the check, does what the check says, and its referee reports afterwards: each worker's agreed versions; no try spent and no attempt lost because of the redeploy; no goal held for its infrastructure since; the window against the grace.
-- **staging.fabrig.ai goes first** with a build that patches the store (7.1) or carries a breaking change.
+- **Every redeploy is a drill** (the user, 2026-11-12). Its script runs the check, does what the check says, and its referee reports afterwards: each worker's agreed versions; no try spent and no attempt lost because of the redeploy; no goal held for its infrastructure since; each worker's return against the wait it was given, the restart wait or its grace; and no run ended for contact while the engine went alone, though such an end spends no try.
+- **staging.fabrig.ai goes first** with a build that runs a store job (7.1) or carries a breaking change.
 - **The drills run on the deployments after landing.** Plans prove with the focused and fuzzy suites alone (section 10).
 
 ## 8. Clients
@@ -222,13 +230,14 @@ Plans prove it with the focused and fuzzy suites alone; the drills come after la
 - **The opening:** a worker speaking the floor, one speaking the current, one naming a version with another layout (refused, named), one with no version in common (refused, named), and one whose appended field fits its terms only once translated.
 - **A story across versions** in the one-process world (`../testing/README.md`, 2.5), with a worker made to speak its wires' previous versions: a goal through a landing, a close job, a chat resumed, a run adopted across an engine restart and sent a message, a call's answer and a renewed git identity after it, and a host tool of the previous contract called by that run.
 - **The engine alone:** an engine restarted mid-run with its workers kept, the run going on with no new attempt; a window past the grace ending it interrupted.
+- **A restart said:** an engine that announced its restart, back after longer than the grace and within the restart wait, the run's turns and checks going on meanwhile, its relayed call and its completion's grant waiting, and no new attempt; the same window after a link lost without a word, the run ended interrupted after the grace; a worker gone for good across an announced restart, its run placed elsewhere only once the hold has passed; a hello received whose answer never reaches the worker, then the link lost, the hold kept; two restarts in a row, a crash during the start between them, and a shorter restart wait on the second, no hold shortened; a call near its deadline, and an attempt withdrawn by its own timeout while the link is down; a run near its time budget, ending as its budget says; a worker at the version before, sent no word, keeping its grace and its link.
 - **A worker drained:** mid-turn, the turn ends, the work is saved and the next attempt resumes with no try spent; a job drained before its effect ends interrupted; a save past the stop bound abandoned, with nothing written after it.
 - **A mismatch refused:** an assignment its worker cannot read waits for another worker, spending no try, its notice naming the wire.
 - **An agent is its worker's build:** with the configured program and configuration replaced under a running worker, its next agent is still the pinned one.
 
 ## 11. Who carries what
 
-temper/migration carries every part, across the trees.
+Each part is carried by a goal, across the trees.
 
 | Part | Where |
 |---|---|
@@ -238,6 +247,7 @@ temper/migration carries every part, across the trees.
 | The host tools' contracts; jobs' requests and results; git identities for each channel (4.2) | temper's engine and worker |
 | Agents pinned at the worker's start; the drain and the enforced stop bound; jobs on a drain; preparations a few at a time (4.4, section 6) | temper's worker; jig's hub |
 | A settled stop that places nothing; the graces (5.2, 5.3) | jig's engine; temper's configuration |
+| The restart said on each link whose version carries it, and its wait: kept by the worker, held by the engine over the runs it restores until discharged; a waiting run's relayed calls and grants; the redeploy naming who keeps its grace alone, and its referee judging each worker by its wait (5.2, 5.3, 7.5) | jig's engine, fleet, link and hub; smith's run and session; temper's configuration; the redeploy script and its referee |
 | `versions` and `upgrade --check` with ranges, fingerprints, terms, floors and workers' openings (3.2, 5.1) | temper's binaries |
 | The policy for infrastructure failures (section 9) | jig's tasks |
 | The redeploy script, its referee and the drills (section 7) | the deployments' operator |
@@ -248,6 +258,9 @@ temper/migration carries every part, across the trees.
 - **Clients bridged:** pages and clients of the previous version served, once their wires settle.
 - **The drain's bound.** Default: 3 minutes.
 - **The workers' grace.** Default: 5 minutes, with the engine's grace above every worker's enforced stop bound.
+- **The restart wait.** Default: 20 minutes, with room over every window measured so far, 6 minutes on 2026-11-15 and 11½ on 2026-11-13's store patch, not a current upgrade path; a worker gone for good across a restart holds its runs that long and the grace after it. It is the engine's to set and say, so one setting serves every worker.
+- **A run's reports to the engine** kept and sent at the relink, as its turns are, rather than dropped while it waits. Later.
+- **A worker back as a new process** proves the runs it no longer lists are gone, so they could be retried at once rather than after the restart wait. Later.
 - **How long a floor stays.** Default: until dev.fabrig.ai and staging.fabrig.ai have both run past it for a week.
 - **The policy for infrastructure failures** (section 9). Default: a bound of its own, in jig.
 - **A newer worker before its engine** (4.3). Default: only when all its wires go down whole.

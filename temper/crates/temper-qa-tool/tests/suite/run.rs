@@ -159,7 +159,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].setups, ["fresh", "project"]);
     let command = &run.processes.commands[0];
     assert_eq!(command.arguments, ["agent", "--effort=cheap"]);
-    assert_eq!(command.directory, world.home.session_directory(1).join("tree"));
+    assert_eq!(command.directory, world.home.triage_tree());
     assert_eq!(command.output, world.home.session_directory(1).join("output"));
     for (key, value) in [
         ("CAPTURED", "kept".to_owned()),
@@ -205,8 +205,8 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         "temper-qa triage case FILE",
         "The fakes alone",
         "the person's forge is the box's fake Forgejo",
-        "what only the box's own Forgejo or another real backend shows is no case",
-        "a landing that changes nothing else a person meets is no QA, its line saying so",
+        "what a person meets that these cannot show is a gap",
+        "is a gap: `temper-qa triage gap KIND WHY`, never none",
         "\"expect\"",
     ] {
         assert!(brief.contains(words), "{words}\n{brief}");
@@ -225,7 +225,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(ledger.sessions[0].tokens, Some(1234));
     assert_eq!(ledger.sessions.len(), 2);
     assert_eq!(ledger.sessions[1].landing, Some(2));
-    assert!(!world.home.session_directory(1).join("tree").exists());
+    assert!(world.home.triage_tree().is_dir());
     let brief = fs::read_to_string(world.home.session_directory(2).join("brief")).expect("second brief");
     for words in ["Case 1: web / work; landings 1", "setup fresh", "open Work", "Drafts lists the draft"] {
         assert!(brief.contains(words), "{words}");
@@ -338,7 +338,7 @@ fn refusing_a_worktree_or_command_ends_unstarted_and_leaves_the_landing_count_un
         assert_eq!(ledger.sessions[0].exit, Some(Exit::Unstarted));
         assert_eq!(ledger.landings[0].sessions, 0);
         assert_eq!(ledger.landings[0].triaged, None);
-        assert!(!world.home.session_directory(1).join("tree").exists());
+        assert_eq!(world.home.triage_tree().is_dir(), !git_refuses);
         run.git.fail_add = false;
         run.processes.next.clear();
         run.processes.next.push_back(Agent::None);
@@ -462,29 +462,29 @@ fn a_step_failing_for_an_hour_is_one_line_until_it_succeeds() {
 }
 
 #[test]
-fn cycles_wait_for_poll_but_wake_on_agent_exit_or_bound() {
+fn cycles_wait_for_events_and_the_nearest_bound_without_polling() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::None]);
-    run.cycle();
-    assert_eq!(run.clock.time, 60, "an idle cycle waits for poll");
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("idle timeout"), None);
     land(&mut run, 2, 7);
+    run.waker().poke();
     run.cycle();
-    assert_eq!(run.clock.time, 61, "the first one-second probe sees the exit");
-    assert_eq!(world.ledger().sessions[0].exit, None, "the next tick records the end");
-    assert!(world.ledger().landings[0].answer.is_some(), "commands can record between ticks");
+    assert_eq!(run.clock.time, 0, "a poke runs a tick at once");
+    assert_eq!(world.ledger().sessions.len(), 1);
     run.cycle();
-    assert_eq!(world.ledger().sessions[0].ended, Some(61));
-    assert_eq!(run.clock.time, 121);
+    assert_eq!(world.ledger().sessions[0].ended, Some(0), "exit wakes without advancing the clock");
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
+    run.tick();
+    assert_eq!(run.wait_timeout().expect("bound"), Some(30));
     run.cycle();
-    assert_eq!(run.clock.time, 30, "the bound also wakes the next tick");
+    assert_eq!(run.clock.time, 30);
     assert_eq!(run.processes.signals, [(1, Signal::Term)]);
-    run.home.configuration.bounds.poll = 0;
-    run.cycle();
-    assert_eq!(run.clock.time, 30, "zero poll has no wait");
+    assert_eq!(world.ledger().sessions[0].exit, Some(Exit::Bound));
+    assert_eq!(run.wait_timeout().expect("pending kill"), Some(10));
 }
 
 #[test]
@@ -494,7 +494,7 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
         .home
         .transact(|ledger| {
             ledger.record_landing(&id(2), 7, None, "landed", 0);
-            ledger.start_session(1, "cheap", super::pages(), vec!["fresh".into()], 0)?;
+            ledger.start_session(1, "cheap", super::pages(), vec!["fresh".into()], Vec::new(), 0)?;
             Ok(())
         })
         .expect("running session");
@@ -766,12 +766,14 @@ printf 'ended\n' >&2
     assert_eq!(before.passes[0].requests[0].goal, Some(41), "file before polling state");
     assert_eq!(before.passes[0].requests[0].ended, None, "stderr cannot end the goal");
     assert_eq!(run.processes.bounded.iter().map(|(_, seconds)| *seconds).collect::<Vec<_>>(), [600, 60]);
+    assert_eq!(run.wait_timeout().expect("waiting goal check"), Some(60));
     run.tick();
     assert_eq!(world.ledger(), before, "live changes nothing");
     fs::write(world.home.directory.join("state-answer"), "ended\n\n").expect("ended");
     run.clock.time = 20;
     run.tick();
     assert_eq!(world.ledger().passes[0].requests[0].ended, Some(20));
+    assert_eq!(run.wait_timeout().expect("ended goal disarms state check"), None);
     let calls = run.processes.bounded.len();
     run.tick();
     assert_eq!(run.processes.bounded.len(), calls, "ended goals are not polled again");
@@ -784,7 +786,9 @@ printf 'ended\n' >&2
         .home
         .transact(|ledger| {
             super::passes::build(ledger, &id(1), &[1], 100);
-            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 21).expect("resume allowed by ended");
+            let resumed = ledger
+                .resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 21)
+                .expect("resume allowed by ended");
             assert_eq!(resumed.build, id(1));
             Ok(())
         })
@@ -802,7 +806,8 @@ fn a_second_request_names_the_earlier_goal_that_carried_the_finding() {
         .home
         .transact(|ledger| {
             ledger.end_goal(41, 10)?;
-            let resumed = ledger.resume_pass("places/1", &["web".into()], "high", 11).expect("resume");
+            let resumed =
+                ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 11).expect("resume");
             ledger.record_check(resumed.session, 1, "holds", "still fails", 12)?;
             ledger.end_pass_session(resumed.session, Exit::Code(0), None, 13, "qa", &[])
         })
@@ -879,6 +884,141 @@ case "$PWD" in */passes/1/requests/1) exit 1;; esac
     assert_eq!(world.ledger().passes[0].requests[0].filed, Some(0));
 }
 
+fn request_answers(run: &mut super::world::Loop, answers: &[(Exit, Option<&str>)]) {
+    run.processes.answers.extend(answers.iter().map(|(exit, stdout)| temper_qa_tool::faces::CommandAnswer {
+        exit: *exit,
+        last_stdout: stdout.map(str::to_owned),
+    }));
+}
+
+fn seed_open_gap(world: &World) {
+    world
+        .home
+        .transact(|ledger| {
+            let landing = u64::try_from(ledger.landings.len()).expect("landing count") + 1;
+            super::landing(ledger, landing);
+            let session = super::session(ledger, landing);
+            ledger.triage_gap(session, "ctl", "no runner tool", "tools", 0)?;
+            ledger.end_session(session, Exit::Code(0), None, 0, "qa")
+        })
+        .expect("open gap");
+}
+
+fn request_git(world: &World) -> Git {
+    let mut git = baseline();
+    for landing in world.ledger().landings {
+        git.commit(landing.number, &[landing.number - 1], "landing");
+    }
+    git
+}
+
+fn unfiled_requests() -> World {
+    let world = World::new();
+    seed_request(&world, 1, 20, "home", &id(0));
+    seed_request(&world, 2, 10, "work", &id(1));
+    world
+}
+
+#[test]
+fn an_older_request_failure_leaves_a_later_success_filed() {
+    let world = unfiled_requests();
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(0), Some("goal 42"))]);
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, Some(0));
+    assert_eq!(ledger.passes[0].requests[0].goal, Some(42));
+    assert_eq!(ledger.passes[1].requests[0].filed, None);
+    assert_eq!(
+        run.processes.bounded.iter().map(|(command, _)| command.directory.clone()).collect::<Vec<_>>(),
+        [request_directory(&world, 2, 1), request_directory(&world, 1, 1)]
+    );
+    assert!(request_directory(&world, 1, 1).join("tree/temper/docs/development/qa/requests/pass-1-1.md").is_file());
+    run.clock.time = 3600;
+    request_answers(&mut run, &[(Exit::Code(1), None)]);
+    run.tick();
+    assert_eq!(
+        world.ledger().lines[0].words,
+        "requests has failed for an hour: pass 2, request 1: command exited Code(1)"
+    );
+    request_answers(&mut run, &[(Exit::Code(0), Some("goal 41"))]);
+    run.tick();
+    assert_eq!(world.ledger().passes[1].requests[0].goal, Some(41));
+    assert_eq!(run.processes.bounded.len(), 4, "only the failed request is retried");
+}
+
+#[test]
+fn a_gap_is_filed_while_a_findings_request_fails() {
+    let world = World::new();
+    seed_request(&world, 1, 5, "work", &id(0));
+    seed_open_gap(&world);
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(0), None)]);
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, None);
+    assert_eq!(ledger.gaps[0].state, temper_qa_tool::GapState::Filed);
+    assert_eq!(ledger.gaps[0].filed, Some(0));
+    let directory = world.home.directory.join("gaps/requests/1");
+    assert!(directory.join("tree/temper/docs/development/qa/gaps/gap-1.md").is_file());
+    assert!(!directory.join("goal").exists());
+    assert_eq!(run.processes.bounded[1].0.directory, directory);
+}
+
+#[test]
+fn two_failed_requests_are_named_in_oldest_first_order() {
+    let world = unfiled_requests();
+    let mut run = world.start(request_git(&world), &[]);
+    for time in [0, 3600] {
+        run.clock.time = time;
+        request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(2), None)]);
+        run.tick();
+    }
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].requests[0].filed, None);
+    assert_eq!(ledger.passes[1].requests[0].filed, None);
+    assert_eq!(
+        ledger.lines[0].words,
+        "requests has failed for an hour: pass 2, request 1: command exited Code(1); pass 1, request 1: command exited Code(2)"
+    );
+}
+
+#[test]
+fn every_request_failure_is_reported_while_waiting_goals_are_checked() {
+    let mut world = World::new();
+    seed_request(&world, 0, 5, "home", &id(0));
+    seed_request(&world, 1, 10, "work", &id(1));
+    seed_request(&world, 2, 20, "home", &id(2));
+    world
+        .home
+        .transact(|ledger| {
+            ledger.file_request(2, 1, Some(41), 0)?;
+            ledger.file_request(3, 1, Some(42), 0)
+        })
+        .expect("waiting goals");
+    seed_open_gap(&world);
+    world.home.configuration.request.state = Some(vec!["state".into()]);
+    let mut run = world.start(request_git(&world), &[]);
+    request_answers(
+        &mut run,
+        &[(Exit::Code(1), None), (Exit::Code(2), None), (Exit::Code(3), None), (Exit::Code(0), Some("ended"))],
+    );
+    run.tick();
+    assert_eq!(world.ledger().passes[2].requests[0].ended, Some(0));
+    assert_eq!(run.processes.bounded[2].0.arguments, ["state", "41"]);
+    assert_eq!(run.processes.bounded[3].0.arguments, ["state", "42"]);
+    run.clock.time = 3600;
+    request_answers(&mut run, &[(Exit::Code(1), None), (Exit::Code(2), None), (Exit::Code(3), None)]);
+    run.tick();
+    assert_eq!(
+        world.ledger().lines[0].words,
+        "requests has failed for an hour: pass 1, request 1: command exited Code(1); gaps 1: command exited Code(2); goal 41: state command exited Code(3)"
+    );
+    assert_eq!(world.ledger().passes[1].requests[0].ended, None);
+    assert_eq!(world.ledger().gaps[0].state, temper_qa_tool::GapState::Open);
+    assert_eq!(run.processes.bounded.len(), 7, "each failure retries; the ended goal is not checked again");
+}
+
 #[test]
 fn bounded_requests_are_not_filed_and_real_commands_are_killed_at_the_bound() {
     use temper_qa_tool::faces::{ProcessCommand, Processes, RealProcesses};
@@ -901,4 +1041,324 @@ fn bounded_requests_are_not_filed_and_real_commands_are_killed_at_the_bound() {
     };
     assert_eq!(RealProcesses::default().run(&command, 0).expect("bounded command").exit, Exit::Bound);
     assert!(!command.output.with_extension("stdout").exists(), "temporary stdout is removed");
+}
+
+#[test]
+fn triage_lists_ctl_groups_from_the_merge_tree_before_web_and_tui() {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    for name in ["ctl-task.md", "ctl-project.md", "ctl.md", "help.md", "ctl-no.txt", "ctl-directory/README.md"] {
+        run.git.file_at(2, &format!("temper/docs/help/reference/{name}"), b"# Reference");
+    }
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.sessions[0].pages["ctl"], ["project", "task"]);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    let surfaces = brief.split("## Surfaces").nth(1).expect("surfaces").split("## Setups").next().expect("section");
+    assert!(surfaces.find("- ctl: project:").expect("ctl first") < surfaces.find("- web:").expect("web"));
+    assert!(surfaces.find("- web:").expect("web") < surfaces.find("- tui:").expect("tui"));
+    for words in [
+        "- ctl: task: temper/docs/help/reference/ctl-task.md",
+        "temper/docs/design/client/ctl/README.md",
+        "temper/docs/design/client/ctl/tools.md",
+        "through ctl, the web client or the TUI, ctl first",
+    ] {
+        assert!(brief.contains(words), "{words}\n{brief}");
+    }
+    assert!(!brief.contains("ctl and help are outside"));
+}
+
+fn triage_catalogue(ctl_only: bool) -> (World, super::world::Loop) {
+    let mut world = World::new();
+    if ctl_only {
+        world.home.configuration.surfaces = vec!["ctl".into()];
+    }
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.git.file_at(2, "temper/docs/help/reference/ctl-task.md", b"# Task\n");
+    for (name, recipe) in [
+        ("ctl-root", "recipe 1\ncheck\nctl task list\n"),
+        ("ctl-chain", "recipe 1\nafter \"ctl-root\"\ncheck\nctl task list\n"),
+        ("web-root", "recipe 1\nweb see \"Welcome\"\n"),
+        ("web-chain", "recipe 1\nafter \"web-root\"\ncheck\nctl task list\n"),
+        ("tui-root", "recipe 1\ntui see \"Welcome\"\n"),
+        ("tui-chain", "recipe 1\nafter tui-root\ncheck\nctl task list\n"),
+        ("missing-parent", "recipe 1\nafter absent\ncheck\nctl task list\n"),
+        ("cycle", "recipe 1\nafter cycle\ncheck\nctl task list\n"),
+    ] {
+        let directory = format!("temper/docs/development/qa/setups/{name}");
+        run.git.file_at(2, &format!("{directory}/recipe"), recipe.as_bytes());
+        run.git.file_at(2, &format!("{directory}/README.md"), format!("# Setup\n\nThe {name} state.\n").as_bytes());
+    }
+    run.tick();
+    (world, run)
+}
+
+#[test]
+fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
+    let (world, run) = triage_catalogue(true);
+    let ledger = world.ledger();
+    let session = &ledger.sessions[0];
+    assert_eq!(session.pages, [("ctl".into(), vec!["task".into()])].into());
+    assert_eq!(session.setups, ["fresh", "ctl-chain", "ctl-root"]);
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    let surfaces =
+        brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
+    assert_eq!(
+        surfaces,
+        "- ctl: task: temper/docs/help/reference/ctl-task.md\n- ctl design: temper/docs/design/client/ctl/README.md; temper/docs/design/client/ctl/tools.md\n"
+    );
+    let setups =
+        brief.split("## Setups\n\n").nth(1).expect("setups").split("\n## Queued cases").next().expect("section");
+    assert_eq!(
+        setups,
+        "- fresh (box): a fresh box at its welcome with nothing set up\n- ctl-chain (box): The ctl-chain state. (temper/docs/development/qa/setups/ctl-chain/README.md)\n- ctl-root (box): The ctl-root state. (temper/docs/development/qa/setups/ctl-root/README.md)\n"
+    );
+    assert!(brief.contains("\"surface\":\"ctl\""));
+    assert!(brief.contains(r#"Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#));
+    assert!(brief.contains("A case's surface is ctl; for ctl, page is one of its groups."));
+}
+
+#[test]
+fn default_triage_keeps_all_surfaces_and_setup_cases() {
+    let (world, run) = triage_catalogue(false);
+    let mut ledger = world.ledger();
+    let number = ledger.sessions[0].number;
+    assert_eq!(
+        ledger.sessions[0].setups,
+        ["fresh", "ctl-chain", "ctl-root", "cycle", "missing-parent", "tui-chain", "tui-root", "web-chain", "web-root"]
+    );
+    let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+    assert!(brief.starts_with("# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only:"));
+    assert!(brief.contains("\"surface\":\"web\""));
+    assert!(brief.contains("A case's surface is ctl, web or tui; for ctl, page is one of its groups."));
+    for (surface, page, setup) in
+        [("ctl", "task", "ctl-chain"), ("web", "work", "web-chain"), ("tui", "chat", "tui-chain")]
+    {
+        let mut input = super::case();
+        input.surface = surface.into();
+        input.page = page.into();
+        input.setup = setup.into();
+        ledger.add_case(number, &input, 1).expect("default accepts each surface and setup");
+    }
+    assert_eq!(ledger.cases.iter().map(|case| case.surface.as_str()).collect::<Vec<_>>(), ["ctl", "web", "tui"]);
+}
+
+#[test]
+fn triage_names_only_each_configured_surface_set() {
+    for (configured, words) in [
+        (vec!["web"], "the web client"),
+        (vec!["tui"], "the TUI"),
+        (
+            vec!["web", "ctl"],
+            "ctl or the web client, ctl first: write ctl cases before web cases, the person's acts and temper's account as `temper ctl` gives them",
+        ),
+        (
+            vec!["tui", "ctl"],
+            "ctl or the TUI, ctl first: write ctl cases before TUI cases, the person's acts and temper's account as `temper ctl` gives them",
+        ),
+        (vec!["tui", "web"], "the web client or the TUI"),
+        (vec![], "the configured surfaces (none)"),
+    ] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = configured.iter().map(|name| (*name).to_owned()).collect();
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        run.tick();
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        assert!(brief.starts_with(&format!(
+            "# Triage\n\nJudge what a person now sees or does through {words}. The green path only:"
+        )));
+        let ledger = world.ledger();
+        let surfaces =
+            brief.split("## Surfaces\n\n").nth(1).expect("surfaces").split("\n## Setups").next().expect("section");
+        for name in ["ctl", "web", "tui"] {
+            assert_eq!(
+                ledger.sessions[0].pages.contains_key(name),
+                configured.contains(&name),
+                "{configured:?}: {name}"
+            );
+            assert_eq!(
+                surfaces.contains(&format!("- {name}")),
+                configured.contains(&name),
+                "{configured:?}: {surfaces}"
+            );
+        }
+    }
+}
+
+#[test]
+fn ctl_triage_takes_eight_parents_and_leaves_out_nine() {
+    // The recipe and its eight parents qualify; a ninth parent exceeds recipe.md, 3.2.
+    const QUALIFYING_CHAIN: usize = 9;
+    let mut world = World::new();
+    world.home.configuration.surfaces = vec!["ctl".into()];
+    let mut run = world.start(baseline(), &[Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    for index in 0..=QUALIFYING_CHAIN {
+        let parent = index.checked_sub(1).map_or(String::new(), |parent| format!("after chain-{parent}\n"));
+        let recipe = format!("recipe 1\n{parent}check\nctl task list\n");
+        run.git.file_at(2, &format!("temper/docs/development/qa/setups/chain-{index}/recipe"), recipe.as_bytes());
+    }
+    run.tick();
+    assert_eq!(
+        world.ledger().sessions[0].setups,
+        ["fresh", "chain-0", "chain-1", "chain-2", "chain-3", "chain-4", "chain-5", "chain-6", "chain-7", "chain-8"]
+    );
+}
+
+fn a_running_triage() -> (World, super::world::Loop) {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::None, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    run.tick();
+    (world, run)
+}
+
+#[test]
+fn a_second_triage_moves_and_cleans_the_kept_tree_instead_of_making_one() {
+    let (world, mut run) = a_running_triage();
+    let tree = world.home.triage_tree();
+    fs::write(tree.join("leftover"), "agent's untracked file").expect("leftover");
+    land(&mut run, 4, 8);
+    run.tick();
+    assert_eq!(run.git.calls.iter().filter(|call| call.starts_with("add ")).count(), 1);
+    assert!(run.git.calls.contains(&format!("checkout {}", id(4))));
+    assert!(run.git.calls.contains(&"clean -ffdxq".into()));
+    assert!(!run.git.calls.iter().any(|call| call.starts_with("remove ")));
+    assert!(!tree.join("leftover").exists());
+    assert_eq!(run.processes.commands[0].directory, tree);
+    assert_eq!(run.processes.commands[1].directory, tree);
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains(&format!("Tree: {}", tree.display())));
+}
+
+#[test]
+fn a_failed_triage_tree_move_removes_and_makes_it_again() {
+    let (world, mut run) = a_running_triage();
+    fs::write(world.home.triage_tree().join("leftover"), "old").expect("leftover");
+    run.git.move_error = Some("checkout refused".into());
+    land(&mut run, 4, 8);
+    run.tick();
+    let calls = &run.git.calls;
+    let moved = calls.iter().position(|call| call == &format!("checkout {}", id(4))).expect("move tried");
+    let removed = calls.iter().position(|call| call.starts_with("remove ")).expect("removed");
+    let added = calls.iter().position(|call| call == &format!("add {}", id(4))).expect("made again");
+    assert!(moved < removed && removed < added);
+    assert_eq!(run.git.prunes, 1);
+    assert!(!world.home.triage_tree().join("leftover").exists());
+    assert_eq!(world.ledger().sessions[1].exit, None);
+}
+
+#[test]
+fn triage_offers_only_the_configured_places_kinds() {
+    use temper_qa_tool::Kind;
+    for kinds in [vec![Kind::Box], vec![Kind::Deployment], vec![Kind::Box, Kind::Deployment]] {
+        let mut world = World::new();
+        world.home.configuration.places.clear();
+        world.home.configuration.kinds.clear();
+        for (index, kind) in kinds.iter().enumerate() {
+            let place = format!("places/{index}");
+            world.home.configuration.places.push(place.clone());
+            world.home.configuration.kinds.insert(place, *kind);
+        }
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        let setups = "temper/docs/development/qa/setups";
+        for name in ["ctl-hello", "turn-landing"] {
+            run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
+        }
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.tick();
+        let mut ledger = world.ledger();
+        let session = &ledger.sessions[0];
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        for (name, kind) in [("fresh", Kind::Box), ("ctl-hello", Kind::Box), ("turn-landing", Kind::Deployment)] {
+            let offered = kinds.contains(&kind);
+            assert_eq!(session.setups.contains(&name.into()), offered, "{name}: {kinds:?}");
+            assert_eq!(brief.contains(&format!("- {name} ({}):", kind.name())), offered, "{brief}");
+        }
+        assert_eq!(session.deployments, if kinds.contains(&Kind::Deployment) { vec!["turn-landing"] } else { vec![] });
+        let number = session.number;
+        let mut input = super::case();
+        input.setup = if kinds == [Kind::Deployment] { "ctl-hello" } else { "turn-landing" }.into();
+        if kinds.len() == 1 {
+            let why = ledger.add_case(number, &input, 1).expect_err("setup not offered").to_string();
+            assert_eq!(
+                why,
+                format!(
+                    "case refused: setup {} is not in the catalogue; setups: {}",
+                    input.setup,
+                    ledger.sessions[0].setups.join(", ")
+                )
+            );
+        } else {
+            ledger.add_case(number, &input, 1).expect("both kinds offered");
+            assert_eq!(ledger.cases[0].kind, Kind::Deployment);
+        }
+    }
+}
+
+#[test]
+fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_configuration() {
+    for surfaces in [vec!["ctl"], vec!["ctl", "web", "tui"], vec!["web"]] {
+        let mut world = World::new();
+        world.home.configuration.surfaces = surfaces.iter().map(|surface| (*surface).into()).collect();
+        world.home.configuration.places.push("places/2".into());
+        world.home.configuration.kinds.insert("places/2".into(), temper_qa_tool::Kind::Deployment);
+        let mut run = world.start(baseline(), &[Agent::Never]);
+        run.tick();
+        land(&mut run, 2, 7);
+        let setups = "temper/docs/development/qa/setups";
+        for (name, recipe) in [
+            ("root", "recipe 1\ncheck\nctl task list\n"),
+            ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
+            ("welcome", "recipe 1\ncheck\nctl task list\n"),
+            ("box-child", "recipe 1\nafter welcome\ncheck\nctl task list\n"),
+            ("cycle", "recipe 1\nafter cycle\ncheck\n"),
+            ("missing", "recipe 1\nafter absent\ncheck\n"),
+        ] {
+            run.git.file_at(2, &format!("{setups}/{name}/recipe"), recipe.as_bytes());
+        }
+        run.git.file_at(2, &format!("{setups}/root/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/box-child/config/engine/temper.json"), b"{}");
+        for depth in 1..=9 {
+            let parent = if depth == 1 { "root".into() } else { format!("depth-{}", depth - 1) };
+            run.git.file_at(
+                2,
+                &format!("{setups}/depth-{depth}/recipe"),
+                format!("recipe 1\nafter {parent}\ncheck\n").as_bytes(),
+            );
+        }
+        run.tick();
+        let ledger = world.ledger();
+        let session = &ledger.sessions[0];
+        assert!(session.deployments.contains(&"turn-landing".into()));
+        assert!(session.deployments.contains(&"depth-8".into()), "eight parents are allowed");
+        assert!(!session.deployments.contains(&"depth-9".into()), "a ninth parent is not followed");
+        assert!(!session.deployments.contains(&"box-child".into()), "only the root's config decides kind");
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        for line in ["- fresh (box):", "- turn-landing (deployment):", "- box-child (box):", "- depth-8 (deployment):"]
+        {
+            assert!(brief.contains(line), "{line}\n{brief}");
+        }
+        if surfaces == ["ctl"] {
+            assert!(!session.setups.contains(&"depth-9".into()));
+            assert!(!session.setups.contains(&"cycle".into()));
+            assert!(!session.setups.contains(&"missing".into()));
+        } else {
+            for name in ["depth-9", "cycle", "missing"] {
+                assert!(brief.contains(&format!("- {name} (box):")), "unfollowable chains default to box");
+            }
+        }
+        assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("decode"), ledger);
+    }
 }

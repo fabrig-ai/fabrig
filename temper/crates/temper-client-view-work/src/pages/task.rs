@@ -38,6 +38,13 @@ pub fn main(
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(page) = root.pages().task()
+        && page.shape == Shape::Milestone
+        && page.document(root.client()).is_some()
+    {
+        super::milestone::main(b, root, words, bindings, rows, times, sign_in);
+        return;
+    }
+    if let Some(page) = root.pages().task()
         && page.shape == Shape::Agent
         && page.document(root.client()).is_some()
     {
@@ -482,7 +489,8 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
     b.style(look::PLAN_ROW);
     b.open(Role::Slot);
     task_link(b, chip.task, words, bindings);
-    text(b, Role::Paragraph, chip.title.bytes());
+    let title = crate::common::chat::row_title(chip.title.bytes());
+    text(b, Role::Paragraph, &title);
     b.close();
     executor(b, chip.executor, words);
     state(b, task::row_state(chip), words);

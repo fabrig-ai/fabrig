@@ -79,6 +79,7 @@ fn observe_pull(d: &mut Domain) {
         progress: List::uncapped(),
         failed: change_ci::Failed::new(Box::new([])),
         stall: None,
+        execution: None,
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,

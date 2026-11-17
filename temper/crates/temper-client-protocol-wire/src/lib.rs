@@ -15,6 +15,8 @@ pub mod v1;
 pub const fn settings_kind(kind: u32) -> bool {
     kind == 1
         || kind == 2
+        || kind == 4
+        || kind == 5
         || kind == 3
         || kind == 6
         || kind == 7
@@ -26,6 +28,7 @@ pub const fn settings_kind(kind: u32) -> bool {
         || kind == 13
         || kind == 14
         || kind == 15
+        || kind == 20
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
@@ -84,7 +87,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 26;
+pub const CLIENT_VERSION: u32 = 32;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
@@ -348,6 +351,11 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         return None;
     }
     match record.request() {
+        v1::Request::OpenChange(value) => {
+            if !valid_open_change(value) {
+                return None;
+            }
+        }
         v1::Request::Connect(connect) => {
             if !valid_making(connect.forge()) {
                 return None;
@@ -401,6 +409,31 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::EndPlayground => {}
     }
     Some(record)
+}
+
+// temper/docs/design/domain/forge/change/opened.md, 2: the client's act keeps these bounds.
+fn valid_open_change(value: &v1::OpenChange) -> bool {
+    if value.branch().is_empty() || value.title().is_empty() {
+        return false;
+    }
+    for field in [value.into(), value.body()] {
+        if let Some(value) = field
+            && value.is_empty()
+        {
+            return false;
+        }
+    }
+    if let Some(at) = value.at() {
+        if at.len() != 40 && at.len() != 64 {
+            return false;
+        }
+        for byte in at {
+            if !byte.is_ascii_digit() && !(b'a'..=b'f').contains(byte) {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 // temper/docs/design/client/forge/records.md: managed addresses enter whole.
@@ -714,6 +747,21 @@ pub fn finding_answer(record: &v1::FindingAnswer) -> Box<[u8]> {
 pub fn decode_finding_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FindingAnswer> {
     let mut reader = Reader::new(bytes);
     let record = v1::FindingAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a milestone's totals (temper/docs/design/domain/milestones.md, 7).
+#[must_use]
+pub fn milestone_answer(record: &v1::MilestoneAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete milestone answer.
+#[must_use]
+pub fn decode_milestone_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::MilestoneAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::MilestoneAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
 

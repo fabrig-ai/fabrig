@@ -283,7 +283,7 @@ impl Judge {
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }
-        if engine["application"]["workers"] != serde_json::json!([]) {
+        if engine["application"].get("workers").is_some() {
             return Err(format!(
                 "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                 engine["application"]["workers"],
@@ -1147,7 +1147,7 @@ fn configure_engine(value: &mut Value) {
     engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
     // Nine slots hold the stock charters.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
     // Keep log polling aligned with the live GitHub story.
     let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {

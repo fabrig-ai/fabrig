@@ -799,6 +799,13 @@ impl World {
             Err(request) => *request,
         };
         match request {
+            engine::Request::Restarting { wait } => {
+                assert!(!self.absence.drained, "the word precedes the close");
+                if self.absence.link_joined {
+                    self.absence.told = Some(wait);
+                }
+            }
+            engine::Request::Drained => self.absence.drained = true,
             engine::Request::Store(engine::StoreRequest::Catalogue { .. })
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
@@ -859,6 +866,7 @@ impl World {
             | engine::Request::Account(_)
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }
@@ -877,7 +885,6 @@ impl World {
             | engine::Request::Setup { .. }
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
-            | engine::Request::Drained
             | engine::Request::Stop) => panic!("unscripted engine output: {other:?}"),
         }
     }
@@ -989,6 +996,7 @@ impl World {
             | engine::Request::Account(_)
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }
@@ -1008,6 +1016,7 @@ impl World {
             | engine::Request::ToChild(_)
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
+            | engine::Request::Restarting { .. }
             | engine::Request::Drained
             | engine::Request::Stop) => return self.protocol.play(other),
         };
@@ -1174,6 +1183,7 @@ impl World {
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Start(_)
             | Delivery::NotesLoad { .. }
@@ -1355,7 +1365,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::RedsAsk { owner, check, bytes });
             }
             worker::Request::RedsAnswer { owner, check, bytes } => {
-                let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+                let own = temper_service_core::limits::stock();
                 let limits = temper_worker_service::worker_settings::payload_limits(
                     &temper_worker_service::worker_settings::Limits::shared(own),
                 )

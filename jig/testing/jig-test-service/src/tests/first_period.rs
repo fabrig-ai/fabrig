@@ -54,7 +54,7 @@ fn started() -> Service {
     core.views.watchers = 4;
     core.views.subjects_per_change = 4;
     core.documents.rows = 2;
-    parsed.limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &parsed.engine.limits);
+    parsed.limits = crate::limits::small(&parsed.engine.limits);
     parsed.limits.root.journal = f::journal(&parsed.limits.root);
     let (mut engine, io) = crate::startup::engine_startup(parsed, &f::files(&document), None, &f::seeds(), None, false)
         .expect("fixture startup");
@@ -171,6 +171,7 @@ fn later_start() -> Service {
         calls: 0,
         connector_rows: 0,
         projects: 0,
+        restart_wait_ms: None,
         applications: 0,
         commits: 1,
     };

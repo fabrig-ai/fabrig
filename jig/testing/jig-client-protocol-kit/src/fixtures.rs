@@ -70,7 +70,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: 26, last: 26 },
+            Served { family: None, first: 27, last: 27 },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
         providers: jig_client_kit::test::list([0]),
@@ -135,7 +135,7 @@ pub fn engine_limits() -> Limits {
         exchanges: 8,
         exchanges_per_client: 4,
         message_bytes: MESSAGE_BYTES,
-        wire: jig_client_protocol_wire::v26::CEILINGS,
+        wire: jig_client_protocol_wire::v27::CEILINGS,
         link_span: Duration::from_secs(300),
     }
 }
@@ -224,7 +224,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
 
 #[must_use]
 pub fn server_limits() -> jig_test_service::server::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small()).server;
     limits.connections = 16;
     limits.http = server_http();
     limits
@@ -375,7 +375,7 @@ pub fn large_turn() -> Box<[u8]> {
 /// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
-    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    let mut limits = jig_test_service::limits::small(&jig_protocol_config_fixtures::small());
     limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
     limits.clients.public = jig_protocol_engine_clients::PublicLimits {
         reads: 2,

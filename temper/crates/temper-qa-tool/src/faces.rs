@@ -75,7 +75,9 @@ pub trait GitFace {
     fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal>;
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn qa_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal>;
     fn prune(&mut self) -> Result<(), Refusal>;
 }
@@ -220,8 +222,26 @@ impl GitFace for RealGit {
         }
         Ok(values)
     }
+    fn gap_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
+        let text = self.text(&["log", "--reverse", "--format=%B%x00", &format!("{parent}..{commit}"), "--"])?;
+        let mut values = Vec::new();
+        for message in text.split('\0') {
+            for (key, value) in trailers(message) {
+                if key == "QA-gap" && !values.contains(&value) {
+                    values.push(value);
+                }
+            }
+        }
+        Ok(values)
+    }
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
         self.worktree(&["worktree", "add", "--detach"], path, &[commit])
+    }
+    fn move_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal> {
+        let tree = Self { directory: path.into(), environment: self.environment.clone() };
+        tree.bytes(&["checkout", "--force", "--detach", commit])?;
+        tree.bytes(&["clean", "-ffdxq"])?;
+        Ok(())
     }
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal> {
         if !path.exists() {
@@ -255,6 +275,8 @@ pub struct CommandAnswer {
     pub last_stdout: Option<String>,
 }
 pub trait Processes {
+    /// Register the loop's event channel before starting children.
+    fn wake_on_exit(&mut self, waker: crate::events::Waker);
     /// Run to exit with closed stdin, keeping both streams at `command.output`.
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal>;
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal>;
@@ -263,7 +285,8 @@ pub trait Processes {
 }
 #[derive(Default)]
 pub struct RealProcesses {
-    children: BTreeMap<u64, Child>,
+    children: BTreeMap<u64, std::sync::mpsc::Receiver<Result<Exit, Refusal>>>,
+    waker: Option<crate::events::Waker>,
     pub environment: Environment,
 }
 impl RealProcesses {
@@ -273,6 +296,9 @@ impl RealProcesses {
     }
 }
 impl Processes for RealProcesses {
+    fn wake_on_exit(&mut self, waker: crate::events::Waker) {
+        self.waker = Some(waker);
+    }
     fn run(&mut self, request: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
         let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
         // Files drain both streams without pipes filling while we wait. Only stdout
@@ -296,7 +322,7 @@ impl Processes for RealProcesses {
                 .map_err(|why| refused(format!("output: {why}")))?;
             let mut command = Command::new(program);
             captured(&mut command, &request.environment);
-            let mut child = command
+            let child = command
                 .args(arguments)
                 .current_dir(&request.directory)
                 .stdin(Stdio::null())
@@ -305,18 +331,18 @@ impl Processes for RealProcesses {
                 .process_group(0)
                 .spawn()
                 .map_err(|why| refused(format!("{program}: {why}")))?;
-            let clock = skein_shell::Clock::default();
-            let started = clock.now().now.as_nanos();
-            let exit = loop {
-                if let Some(status) = child.try_wait().map_err(|why| refused(format!("{program}: {why}")))? {
-                    break status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code);
+            let number = u64::from(child.id());
+            let ended = wait_for_child(child, None);
+            let exit = match ended.recv_timeout(Duration::from_secs(seconds)) {
+                Ok(result) => result?,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    self.signal(number, Signal::Kill)?;
+                    ended.recv().map_err(|why| refused(format!("process {number}: {why}")))??;
+                    Exit::Bound
                 }
-                if clock.now().now.as_nanos().saturating_sub(started) >= seconds.saturating_mul(1_000_000_000) {
-                    self.signal(u64::from(child.id()), Signal::Kill)?;
-                    child.wait().map_err(|why| refused(format!("{program}: {why}")))?;
-                    break Exit::Bound;
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(refused(format!("process {number}: exit waiter disconnected")));
                 }
-                std::thread::sleep(Duration::from_millis(10));
             };
             let mut stdout = BufReader::new(File::open(&stdout_path).map_err(|why| refused(format!("stdout: {why}")))?);
             let mut last = None;
@@ -360,16 +386,21 @@ impl Processes for RealProcesses {
             .spawn()
             .map_err(|why| refused(format!("{program}: {why}")))?;
         let number = u64::from(child.id());
-        self.children.insert(number, child);
+        self.children.insert(number, wait_for_child(child, self.waker.clone()));
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
-        let child = self.children.get_mut(&process).ok_or_else(|| refused(format!("no process {process}")))?;
-        let Some(status) = child.try_wait().map_err(|why| refused(format!("process {process}: {why}")))? else {
-            return Ok(None);
-        };
-        self.children.remove(&process);
-        Ok(Some(status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code)))
+        let ended = self.children.get(&process).ok_or_else(|| refused(format!("no process {process}")))?;
+        match ended.try_recv() {
+            Ok(result) => {
+                self.children.remove(&process);
+                result.map(Some)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => Ok(None),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                Err(refused(format!("process {process}: exit waiter disconnected")))
+            }
+        }
     }
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal> {
         let mut command = Command::new("kill");
@@ -394,6 +425,29 @@ impl Processes for RealProcesses {
     }
 }
 
+/// Each child has one blocking waiter; it publishes the result before waking the loop.
+fn wait_for_child(
+    mut child: Child,
+    waker: Option<crate::events::Waker>,
+) -> std::sync::mpsc::Receiver<Result<Exit, Refusal>> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
+    )]
+    std::thread::spawn(move || {
+        let result = child
+            .wait()
+            .map(|status| status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code))
+            .map_err(|why| refused(format!("process {}: {why}", child.id())));
+        let _ = sender.send(result);
+        if let Some(waker) = waker {
+            waker.poke();
+        }
+    });
+    receiver
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Moment {
     pub wall: u64,
@@ -401,7 +455,7 @@ pub struct Moment {
 }
 pub trait ClockFace {
     fn now(&self) -> Moment;
-    fn sleep(&mut self, seconds: u64);
+    fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>);
 }
 #[derive(Default)]
 pub struct RealClock(skein_shell::Clock);
@@ -410,8 +464,8 @@ impl ClockFace for RealClock {
         let now = self.0.now();
         Moment { wall: now.wall.as_secs(), monotonic: now.now.as_nanos() / 1_000_000_000 }
     }
-    fn sleep(&mut self, seconds: u64) {
-        std::thread::sleep(std::time::Duration::from_secs(seconds));
+    fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>) {
+        let _ = events.wait(timeout);
     }
 }
 
@@ -474,19 +528,13 @@ impl DriveFace for RealDrive {
         if let Some(from) = request.from {
             command.args(["--from", from]);
         }
+        command.arg("--bin").arg(&place.bin);
+        command.arg("--bundle").arg(&place.bundle);
+        command.arg("--scratch").arg(&place.scratch).arg("--setups").arg(request.setups).arg("--strict");
         if let Some(ports) = &place.ports {
             command.args(["--ports", ports]);
         }
         let status = command
-            .arg("--bin")
-            .arg(&place.bin)
-            .arg("--bundle")
-            .arg(&place.bundle)
-            .arg("--scratch")
-            .arg(&place.scratch)
-            .arg("--setups")
-            .arg(request.setups)
-            .arg("--strict")
             .stdout(output)
             .stderr(error)
             .status()
@@ -506,36 +554,53 @@ impl DriveFace for RealDrive {
     }
 }
 
-/// Copies hold config/ and data/ alone; cache/ stays at the place (qa/places.md, 2 and 4).
+/// Copies hold config/ and data/ but for the relative paths left out by the place;
+/// cache/ stays at the place (qa/places.md, 2 and 4).
 pub trait ArchiveFace {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal>;
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal>;
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal>;
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal>;
 }
 pub struct RealArchive {
     pub environment: Environment,
 }
 impl RealArchive {
-    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path, left_out: &[&str]) -> Command {
         let mut command = Command::new("tar");
         captured(&mut command, &self.environment);
         command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
+        command.args(["--anchored", "--no-wildcards"]);
+        for path in left_out {
+            command.arg(format!("--exclude={path}"));
+        }
         command
     }
 }
+/// A copy's members present in `scratch`: a box run with fake backends keeps its configuration under
+/// `data/`, so its `config/` may never be made (qa/places.md, 4).
+pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
+    let members: Vec<_> = ["config", "data"].into_iter().filter(|name| scratch.join(name).is_dir()).collect();
+    if members.is_empty() {
+        return Err(refused(format!("{} holds neither config nor data to copy", scratch.display())));
+    }
+    Ok(members)
+}
 impl ArchiveFace for RealArchive {
-    fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
+        let members = copy_members(scratch)?;
         checked(
-            self.command("--create", scratch, archive)
-                .args(["config", "data"])
+            self.command("--create", scratch, archive, left_out)
+                .args(members)
                 .output()
                 .map_err(|why| refused(format!("tar: {why}")))?,
             "tar --create",
         )?;
         Ok(())
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path) -> Result<(), Refusal> {
+    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         checked(
-            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
+            self.command("--extract", scratch, archive, left_out)
+                .output()
+                .map_err(|why| refused(format!("tar: {why}")))?,
             "tar --extract",
         )?;
         Ok(())
@@ -550,5 +615,60 @@ fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {
         Ok(output.stdout)
     } else {
         Err(refused(format!("{name}: {}: {}", output.status, String::from_utf8_lossy(&output.stderr).trim())))
+    }
+}
+
+/// Hashing kept builds and installing their files (qa/builds.md, 3–4; qa/places.md, 3).
+pub trait BuildFilesFace {
+    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal>;
+    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal>;
+    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()>;
+}
+pub struct RealBuildFiles {
+    pub environment: Environment,
+}
+impl RealBuildFiles {
+    fn command(&self, directory: &Path) -> Command {
+        let mut command = Command::new("sha256sum");
+        captured(&mut command, &self.environment);
+        command.current_dir(directory).stdin(Stdio::null());
+        command
+    }
+}
+impl BuildFilesFace for RealBuildFiles {
+    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal> {
+        checked(
+            self.command(directory)
+                .arg("--")
+                .args(files)
+                .output()
+                .map_err(|why| refused(format!("sha256sum: {why}")))?,
+            "sha256sum",
+        )
+    }
+    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal> {
+        let manifest = fs::canonicalize(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
+        let output = self
+            .command(directory)
+            .arg("--check")
+            .arg("--")
+            .arg(manifest)
+            .output()
+            .map_err(|why| refused(format!("sha256sum --check: {why}")))?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            // --check names mismatching files on stdout, with its summary on stderr.
+            Err(refused(format!(
+                "sha256sum --check: {}: {}{}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            )))
+        }
+    }
+
+    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()> {
+        fs::hard_link(source, destination)
     }
 }

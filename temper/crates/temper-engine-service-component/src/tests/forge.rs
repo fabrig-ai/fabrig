@@ -323,7 +323,7 @@ fn forge_component_limits_that_disagree_are_problems_naming_both() {
 #[test]
 fn forge_component_overrides_take_dotted_names_and_ms() {
     type Row = (&'static [u8], u64, u64, fn(&limits::Limits) -> u64);
-    let mut own = limits::profile(limits::Profile::Small);
+    let mut own = temper_limits_fixtures::small();
     let rows: [Row; 4] = [
         (b"forge.client.calls", 3, 196_608, |limits| limits.forge_component.kept_bytes),
         (b"forge.client.answer_bytes", 8192, 24_576, |limits| limits.forge_component.kept_bytes),
@@ -500,9 +500,9 @@ const LARGE_BODY_BYTES: u32 = 2 * LARGE_OP_BYTES + 6 + 15;
 #[test]
 fn the_small_profile_keeps_the_body_room_the_word_derives() {
     for (op_bytes, expected) in [(SMALL_OP_BYTES, PROFILE_BODY_BYTES), (LARGE_OP_BYTES, LARGE_BODY_BYTES)] {
-        let mut limits = limits::profile(limits::Profile::Small).forge;
+        let mut limits = temper_limits_fixtures::small().forge;
         limits.client.op_bytes = op_bytes;
-        assert_eq!(forge::small(&limits).body_bytes, expected, "op_bytes={op_bytes}");
+        assert_eq!(forge::stock(&limits).body_bytes, expected, "op_bytes={op_bytes}");
     }
 }
 
@@ -700,7 +700,7 @@ fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
 }
 #[test]
 fn a_seeded_github_apps_records_start_one_connected_forge_as_its_bot_and_serve_a_call() {
-    use jig_client_protocol_wire::v26::SignInAnswer;
+    use jig_client_protocol_wire::v27::SignInAnswer;
     use skein_lib::{List, Secret};
     use temper_engine_domain_forge as domain;
     use temper_github_app::APP;

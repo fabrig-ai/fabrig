@@ -411,13 +411,10 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     temper_real_loop_world::settings::stage_policies(value);
     landing::configure(value, &mut agent, *api);
     value.as_object_mut().expect("deployment").remove("world_settings");
-    for seed in value["engine"]["projects"].as_array_mut().expect("seeds") {
-        seed["policy"] = 1.into();
-    }
     super::configuration::use_stock(value);
     // Nine slots hold the stock charters.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
     // The creation offer carries nine stock charters and four procedures.

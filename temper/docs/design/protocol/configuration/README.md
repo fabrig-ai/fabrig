@@ -92,6 +92,13 @@ document says what temper adds. What is open is listed in `README.md`, section 9
   dialling it. A document of none of the three is refused (`README.md`, section 2).
 - **The agent's configuration is smith's** (section 4), and `temper-box open`
   takes no file at all (section 7).
+- **Members that moved** (`moved.md`): what nobody changes is temper's
+  constant, jig's deployment, providers, connectors, acts, seeded
+  projects, clients' heartbeat, link and approval and a worker's graces
+  and programs among them, and a worker's workspaces and git; the
+  welcome is a setting; a forge's place is chosen when it's set up. A
+  document naming one is refused, naming where it went. Where this
+  document or `engine.md` still describes one, `moved.md` wins.
 - **Settings leave the document** (`settings.md`):
   jig's charters, templates, policies and rules, and temper's landing
   rules and forge's charter, become settings in the store, changed by a
@@ -162,10 +169,12 @@ document says what temper adds. What is open is listed in `README.md`, section 9
     "workers"}`;
   - `engine.hosts.listener` is `[{"in_process": "workers"}]`, and
     `engine.hosts.workers` names that one worker;
-  - `engine.connectors` is exactly `[1]`: the forge connector, temper's
-    one connector, whose number both ends of the client's wire fix as
-    `temper-client-protocol-wire`'s `FORGE` (`../../client/forge/records.md`);
   - the worker's `agent` paths are absolute (section 4).
+
+  `engine.connectors` is temper's constant `[1]` (`moved.md`, section
+  2): the forge connector, temper's one connector, whose number both
+  ends of the client's wire fix as `temper-client-protocol-wire`'s
+  `FORGE` (`../../client/forge/records.md`).
 
   The worker's `agent` names temper's own binary (section 4), which no
   check can tell from another program.
@@ -199,7 +208,8 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **Templates are jig's two defaults,** chat (template 1, label 1) and
   goal (template 2, label 2), as jig's `protocol/configuration.md`,
   3.1 gives them, the chat's executor the charter chats run under;
-  temper defines no template of its own. One flag departs from jig's
+  temper's own, templates 4 to 8, are the stock's (`stock.md`), template
+  8 a milestone's (`../../domain/milestones.md`, section 2). One flag departs from jig's
   defaults: the chat is ended by its requester, `"ended_by":
   "requester"` (jig's `protocol/configuration.md`, 3.2), so that a chat
   stays open past its run's turn until its person closes it
@@ -249,21 +259,20 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 
 ## 3. temper's members for a worker
 
-**`welcome`:** a boolean, or absent: `true` shows the welcome
+**The welcome** is no member: it is temper's setting of kind 20
+(`settings.md`, 2), shown by default under the box, and
+`application.welcome` is refused (`moved.md`). It shows the welcome
 (`../../client/pages/README.md`) and lets the deployment offer the
-playground (../setup/playground.md); `false` or absent, none.
+playground (../setup/playground.md), read by the client from the
+deployment's read (`../../client/forge/records.md`) and by
+`StartPlayground`'s offer.
 
-- **The document alone says:** a start reads the member whoever wrote
-  the document. `temper-box init --box` writes `true`, `temper-box init` alone
-  nothing (../setup/init.md, 2), and no flag of any command changes it,
-  `temper-box internal serve`'s `--box` among them (../setup/box.md, 4).
-- **Its readers:** the client, from the deployment's read
-  (`../../client/forge/records.md`), and `StartPlayground`'s offer (../setup/playground.md
-  ).
-
-**`application.workers`:** a list with one entry per entry of the
-top-level `workers`, in the same order; standalone and a worker alone
-have one, an engine alone none. Each:
+**A worker's workspaces and git** were `application.workers`, a list
+with one entry per entry of the top-level `workers`; they are temper's
+constants now, and the list is refused (`moved.md`, section 2): the
+root is `workspaces` in the data directory, and `git` the first on the
+worker's `PATH` at its start. What each feeds, and how it is checked,
+is as the members' were:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
@@ -285,16 +294,27 @@ have one, an engine alone none. Each:
   worker on another host. The cluster's workers are on its machine, and
   it serves them (`../cluster.md`, 2).
 
-**The engine-away bound** is jig's worker member `graces.grace_ms`: how
+**The engine-away bound** is jig's worker grace `grace_ms`, temper's
+constant (`moved.md`, section 2): how
 long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
-2). `temper-box init` writes 300,000, five minutes
+2). It is 300,000, five minutes
 (`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
-settled stop, the swap, its store's patching, its switch, its listeners
-again) passes within it and each run is adopted where it stands; a
-deployment whose engine takes longer to start raises it, and the
-engine's grace with it (below). The playground's worker document
-writes the same.
+settled stop, the swap, its store's registry commit and jobs, its switch, its listeners
+again) passes within it and each run is adopted where it stands; the
+engine's grace is derived above it (below).
+
+**The restart wait** is jig's engine override `fleet.restart_wait_ms`
+(jig's `domain/engine/fleet.md`, *A restart said holds its runs*): how
+long the engine's settled stop asks its workers to keep their runs after
+their links drop, 1,200,000, twenty minutes, in both of jig's profiles
+(`../../draft/redeploys.md`, 5.3 and 12), with room over every engine
+restart measured so far. `temper-box init` writes none. One setting
+serves every worker, each of which keeps its runs for the longer of it
+and its own grace (`../../domain/worker/README.md`, section 2); the
+engine holds their claims as long at its next start. It bounds a lost
+link, not a stop, so the worker's stop bound and its service manager's
+stop timeout are unchanged.
 
 - **The drain's bound** is jig's worker member `graces.drain_ms`: how
   long a worker told to stop lets its runs end their turns before it
@@ -309,9 +329,9 @@ writes the same.
   (300,000, 5,000, 1,000 and 1,000) and the drain's default, which the
   320 seconds of notice and grace outlast. It is a deadline the
   worker keeps (jig's `domain/hosts/hub.md`, 6), and it must stay below
-  the engine's `fleet.grace`, 360 seconds in both of jig's profiles,
-  derived from it (jig's `domain/engine/fleet.md`), or the hello is
-  refused; a deployment that raises the one raises the other with it.
+  the engine's `fleet.grace`, or the hello is refused (jig's
+  `domain/engine/fleet.md`): temper derives that grace from the stop
+  bound, 360 seconds with jig's link profile (`moved.md`, section 2).
 - **The service manager's stop timeout** sits above the stop bound: a
   unit that kills the worker sooner is a crash, losing the workspace's
   changes since its last save or delivery, and the attempt is lost
@@ -780,8 +800,8 @@ one owned Forgejo's place, with its own values (../setup/init.md, 1).
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
-  git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/forge.md`,
-  section 7: `moved-repository-is-a-redirect`;
+  git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/throwaway.md`,
+  section 2: `moved-repository-is-a-redirect`;
   `crates/temper-git-transcripts-tool/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
 - Profiles' numbers: `limits.md`, section 1.

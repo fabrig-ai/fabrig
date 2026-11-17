@@ -64,11 +64,11 @@ const RESPONSE_LATENCY: Duration = Duration::from_millis(40);
 const GENERATION_TWO_AT: Time = Time::from_nanos(1_000_000);
 const RESPONSE_401: llm::Evidence = llm::Evidence::Response { status: Some(401) };
 
-fn grant(generation: u64, renewable: bool, valid: Duration) -> Grant {
+pub(super) fn grant(generation: u64, renewable: bool, valid: Duration) -> Grant {
     Grant { name: GrantName { account: 0, generation }, valid, renewable }
 }
 
-fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failure: llm::Failure) -> World {
+pub(super) fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failure: llm::Failure) -> World {
     let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1510) };
     settings.limits.session.retries = RETRIES;
     settings.provider.latency_min = RESPONSE_LATENCY;
@@ -102,7 +102,7 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     world
 }
 
-fn counts(world: &World) -> (usize, usize, usize, usize) {
+pub(super) fn counts(world: &World) -> (usize, usize, usize, usize) {
     let retries = world
         .facts()
         .iter()
@@ -261,4 +261,67 @@ fn recoverable_failures_keep_their_attempt_counts() {
             "{label}"
         );
     }
+}
+
+pub(super) fn seconds(value: u64) -> Time {
+    Time::ZERO.saturating_add(Duration::from_secs(value))
+}
+
+#[test]
+fn held_renewals_wait_without_a_retry_and_new_grants_issue_in_order() {
+    let mut world =
+        account_world(Some(0), Some(grant(3, true, Duration::from_secs(60))), 0, llm::Failure::Unauthorized);
+    world.start_at(seconds(90));
+    world.renewals_at(seconds(10), true);
+    world.renewals_at(seconds(399), false);
+    world.grant_at(seconds(400), grant(4, true, Duration::from_secs(3600)));
+    world.run(2000);
+    assert_eq!(counts(&world), (1, 0, 1, 0));
+    let call = &world.completions()[0];
+    assert_eq!(call.grant, Some(GrantName { account: 0, generation: 4 }));
+    assert_eq!(call.started, seconds(400));
+    let notices = world.long_notices();
+    assert_eq!(notices[0].0, seconds(90));
+    assert_eq!(notices[0].1, Some(smith_domain::Operation::Grant));
+    assert!(notices[0].2.expect("bounded grant wait") > seconds(400));
+    assert_eq!(
+        &notices[1..3].iter().map(|notice| (notice.0, notice.1)).collect::<Vec<_>>(),
+        &[(seconds(400), None), (seconds(400), Some(smith_domain::Operation::Completion))]
+    );
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
+}
+
+#[test]
+fn resumed_stale_grants_and_keys_fail_unsent_with_their_recovery_retries() {
+    for (renewable, held, expected_wait) in [(true, true, true), (true, false, false), (false, true, false)] {
+        let mut world =
+            account_world(Some(0), Some(grant(3, renewable, Duration::from_secs(60))), 0, llm::Failure::Unauthorized);
+        world.start_at(seconds(90));
+        world.renewals_at(seconds(10), held);
+        world.renewals_at(seconds(399), false);
+        world.grant_at(seconds(400), grant(3, renewable, Duration::ZERO));
+        world.run(2000);
+        assert_eq!(counts(&world), (0, 3, 1, 0));
+        assert_eq!(
+            world.long_notices().iter().any(|notice| notice.1 == Some(smith_domain::Operation::Grant)),
+            expected_wait
+        );
+        assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Model(_), .. }));
+    }
+}
+
+#[test]
+fn a_grant_wait_ends_at_the_runs_time_budget() {
+    let mut world =
+        account_world(Some(0), Some(grant(3, true, Duration::from_secs(60))), 0, llm::Failure::Unauthorized);
+    world.start_at(seconds(90));
+    world.renewals_at(seconds(10), true);
+    world.run(2000);
+    assert_eq!(counts(&world), (0, 0, 1, 0));
+    assert_eq!(world.long_notices().last().expect("grant wait ended").1, None);
+    assert!(matches!(
+        world.answer(),
+        run::Answer::Failed { failure: run::RunFailure::Budget { exhausted: run::Exhausted::Time, .. }, .. }
+    ));
+    assert!(world.next_deadline().is_none());
 }

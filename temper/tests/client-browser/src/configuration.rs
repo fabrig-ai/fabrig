@@ -3,7 +3,8 @@
 //! `temper` and cannot be imported. The LLM endpoint is unreached at `127.0.0.1:9`; no forge is kept
 //! until connected; `application.clients.bundle` names the bundle; and every relative path is made absolute
 //! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
-//! directory and the harness starts it in the test's.
+//! directory and the harness starts it in the test's. The first-run demo reserves every listener init wrote
+//! through `temper_fixtures::ports` (temper/docs/design/testing/process-tier.md, Three at a time).
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 use temper_playground::documents::turn_bounds;
 
@@ -18,7 +19,7 @@ const RELATIVE: &[&str] = &[
     "secrets/forge-1.api-token",
     "secrets/forge-1.git-token",
     "state",
-    "worker-root",
+    "workspaces",
 ];
 
 pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
@@ -40,10 +41,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
-    for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-        project["policy"] = 1.into();
-        project.as_object_mut().expect("seed").remove("roles");
-    }
     temper_playground::documents::settings::strip_models(&mut value);
     // Admit stock policy 1's fourteen grants and fifteen executor kinds.
     for (name, count) in [
@@ -60,7 +57,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
         ("tasks.charters", 16),
-        ("core.templates", 6),
+        ("core.templates", 7),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
@@ -69,6 +66,23 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 4096.into();
+    value["engine"]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.run_inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.inbox"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.held"] = 8.into();
+    value["engine"]["limits"].as_object_mut().expect("engine limits").remove("profile");
+    value["workers"][0]["limits"].as_object_mut().expect("worker limits").remove("profile");
+    value["workers"][0]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("worker overrides")
+        .entry("tasks.result_bytes")
+        .or_insert(512.into());
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        let worker = worker.as_object_mut().expect("worker");
+        worker.remove("graces");
+        worker.remove("programs");
+    }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.to_str().expect("program path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
@@ -76,7 +90,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
@@ -86,13 +99,11 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["application"] = serde_json::json!({
-        "welcome":true,
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "machine":{"github":null},"demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
-            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
-        "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
+        "demo":null,"sign_in":null,
+        "limits":{"overrides":{"forge.client.answer_bytes":65_536,"forge.client.op_bytes":512,"forge_component.body_bytes":16_384,"checkout.name_bytes":256,"checkout.repositories":2,
+            "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.landing_members":1,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}}});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
     absolute_paths(&mut value, directory);
     (
@@ -155,7 +166,7 @@ pub(crate) fn flags(directory: &Path) -> Vec<std::ffi::OsString> {
     ["--config", "--data", "--cache"].into_iter().flat_map(|flag| [flag.into(), directory.into()]).collect()
 }
 
-/// Let init write its first-run deployment, then name the gate's bundle and reserve every loopback port.
+/// Let init write its first-run deployment, then reserve every listener it wrote and name the gate's bundle.
 pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).expect("private demo directory");
     let initialized = std::process::Command::new(program)
@@ -168,23 +179,29 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     let path = directory.join("temper.json");
     let mut value: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
-    let sockets = [
-        &value["application"]["clients"]["listener"]["socket"],
-        &value["application"]["machine"]["fake"]["listen"]["socket"],
-        &value["application"]["demo"]["llm"]["listen"]["socket"],
-        &value["application"]["webhooks"]["listener"]["socket"],
-    ];
-    let addresses = temper_fixtures::ports::addresses::<4>(&[]);
-    let replacements = std::array::from_fn::<_, 4, _>(|index| {
-        (sockets[index].as_str().expect("demo socket").to_owned(), addresses[index].to_string())
-    });
-    replace_sockets(&mut value, &replacements);
+    let agent_path = directory.join("agent.json");
+    let mut agent = serde_json::from_slice(&fs::read(&agent_path).expect("demo agent")).expect("JSON");
+    own_demo_listeners(&mut value, &mut agent);
     value["application"]["clients"]["bundle"] = serde_json::json!(bundle);
     private(&path, &serde_json::to_vec(&value).expect("demo JSON"));
-    let path = directory.join("agent.json");
-    let mut agent = serde_json::from_slice(&fs::read(&path).expect("demo agent")).expect("JSON");
-    replace_sockets(&mut agent, &replacements);
-    private(&path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
+    private(&agent_path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
+}
+
+/// Reserve every init listener and move its references in both documents together.
+fn own_demo_listeners(value: &mut serde_json::Value, agent: &mut serde_json::Value) {
+    let sockets = [
+        "/application/clients/listener/socket",
+        "/application/demo/llm/listen/socket",
+        "/application/webhooks/listener/socket",
+    ]
+    .map(|pointer| {
+        value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
+    });
+    let addresses = temper_fixtures::ports::addresses::<3>(&sockets);
+    let replacements: Vec<_> =
+        sockets.into_iter().zip(addresses).map(|(before, after)| (before.to_string(), after.to_string())).collect();
+    replace_sockets(value, &replacements);
+    replace_sockets(agent, &replacements);
 }
 
 /// Replace the turns of exactly one request offered by the demo.
@@ -244,7 +261,7 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
 }
 
-/// Update references to a reserved listener in both documents, including the forge's git URL.
+/// Move socket strings and HTTP origins, preserving URL paths and leaving longer port numbers alone.
 fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, String)]) {
     match value {
         serde_json::Value::String(text) => {
@@ -253,8 +270,10 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
                     text.clone_from(after);
                     break;
                 }
-                if text.strip_prefix("http://") == Some(before.as_str()) {
-                    *text = format!("http://{after}");
+                if let Some(tail) = text.strip_prefix("http://").and_then(|url| url.strip_prefix(before))
+                    && (tail.is_empty() || tail.starts_with('/'))
+                {
+                    *text = format!("http://{after}{tail}");
                     break;
                 }
             }
@@ -288,6 +307,74 @@ pub(crate) fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::En
 #[cfg(test)]
 mod tests {
     use super::stock_engine;
+
+    #[test]
+    fn demo_reserves_every_init_listener_and_moves_its_references() {
+        use std::num::NonZeroU16;
+        let facts = temper_init::Facts {
+            binary: b"/test/temper",
+            git: Some(b"/usr/bin/git"),
+            claude: None,
+            login: None,
+            sign_in: true,
+            ports: temper_init::Ports {
+                clients: NonZeroU16::new(8367).expect("clients port"),
+                llm: NonZeroU16::new(8370).expect("LLM port"),
+                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
+            },
+        };
+        let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
+        let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("demo init");
+        let [mut value, mut agent] = [b"temper.json".as_slice(), b"agent.json".as_slice()].map(|name| {
+            let file = answer.files.iter().find(|file| file.name == name).expect("init file");
+            let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
+            serde_json::from_slice(bytes).expect("init JSON")
+        });
+        super::own_demo_listeners(&mut value, &mut agent);
+        for document in [&value, &agent] {
+            let text = serde_json::to_string(document).expect("document JSON");
+            for port in 8367..=8371 {
+                let old = format!("127.0.0.1:{port}");
+                assert!(!text.contains(&old), "init socket remains: {old}");
+            }
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for pointer in [
+            "/application/clients/listener/socket",
+            "/application/demo/llm/listen/socket",
+            "/application/webhooks/listener/socket",
+        ] {
+            let address: std::net::SocketAddr =
+                value.pointer(pointer).expect("listener").as_str().expect("socket").parse().expect("address");
+            assert!(address.ip().is_loopback());
+            assert!((10_000..temper_fixtures::ports::ephemeral_first()).contains(&address.port()));
+            assert!(seen.insert(address), "listeners must be distinct: {address}");
+        }
+        assert!(value["application"].get("machine").is_none());
+        assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn socket_references_move_only_at_an_origin_boundary() {
+        let mut value = serde_json::json!({"references": [
+            "127.0.0.1:8368",
+            "http://127.0.0.1:8368",
+            "http://127.0.0.1:8368/user/oauth2/temper/callback",
+            "127.0.0.1:83681",
+            "http://127.0.0.1:83681/user/oauth2/temper/callback"
+        ]});
+        super::replace_sockets(&mut value, &[("127.0.0.1:8368".into(), "127.0.0.1:10001".into())]);
+        assert_eq!(
+            value,
+            serde_json::json!({"references": [
+                "127.0.0.1:10001",
+                "http://127.0.0.1:10001",
+                "http://127.0.0.1:10001/user/oauth2/temper/callback",
+                "127.0.0.1:83681",
+                "http://127.0.0.1:83681/user/oauth2/temper/callback"
+            ]})
+        );
+    }
 
     #[test]
     fn the_picker_fixture_admits_stock_models_for_every_charter() {

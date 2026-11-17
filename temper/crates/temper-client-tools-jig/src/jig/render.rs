@@ -2,6 +2,7 @@
 mod activity;
 pub mod acts;
 pub mod document;
+pub(super) mod goal_title;
 pub mod holds;
 pub mod lists;
 mod notes;
@@ -242,6 +243,22 @@ impl Part<'_> {
 }
 /// Application vocabulary for enum phrases, parts and changes, borrowed for this step alone.
 pub trait Parts: core::fmt::Debug {
+    /// Supplemental application reads use the same retained read set and call identity.
+    fn extra_read(&self, _reading: &crate::jig::runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
+        None
+    }
+    /// A host renders its own joined record before the generic document dispatch.
+    fn print_read(
+        &self,
+        _reading: &crate::jig::runner::reads::Reading,
+        _me: Option<&contract::Me>,
+        _client: &Client,
+        _handle: Handle,
+        _limits: &Limits,
+    ) -> Option<Printed> {
+        None
+    }
+
     fn diagnostic_prefix(&self) -> &'static [u8];
     fn command_prefix(&self) -> &'static [u8];
     /// What a hold for failed runs asks first.
@@ -389,6 +406,9 @@ pub(crate) fn reads(
         },
         None => None,
     };
+    if let Some(printed) = vocabulary.print_read(reading, party, client, me, limits) {
+        return printed;
+    }
     for (local, page) in &reading.pages {
         if reading.called.call.tool == crate::jig::rows::PROPOSAL_AT && *local >= crate::jig::runner::proposal::FIRST {
             continue;

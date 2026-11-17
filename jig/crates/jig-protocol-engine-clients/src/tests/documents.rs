@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire::v27 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -76,18 +76,24 @@ const PROJECT_ROOM: [u32; 2] = [2, 32];
 #[test]
 fn me_encoding_preserves_rows_despite_spare_list_capacity() {
     let limits = fixtures::wire_limits();
+    let expected = translate::owner::frame(&frame_with_creating_bounds(), &[], &limits).unwrap();
     for project_room in PROJECT_ROOM {
-        let mut frame = fixtures::frame_two_projects();
+        let mut frame = frame_with_creating_bounds();
         let mut projects = List::with_capacity(project_room);
-        for project in frame.projects.into_boxed() {
+        for mut project in frame.projects.into_boxed() {
+            if let Some(creating) = &mut project.creating
+                && let jig_domain_core_vocabulary::acts::Bounds::Create { authority, .. } = &mut creating.within
+            {
+                let mut kinds = List::with_capacity(64);
+                for kind in &authority.executors {
+                    kinds.push(*kind).expect("stock executor room");
+                }
+                authority.executors = kinds;
+            }
             projects.push(project).expect("fixture project room");
         }
         frame.projects = projects;
-        assert_eq!(
-            translate::owner::frame(&frame, &[], &limits),
-            Ok(fixtures::frame_two_projects_record()),
-            "projects room {project_room}"
-        );
+        assert_eq!(translate::owner::frame(&frame, &[], &limits), Ok(expected.clone()), "projects room {project_room}");
     }
 }
 fn a_task_with_a_hold_becomes_its_record() {

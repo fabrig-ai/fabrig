@@ -298,6 +298,7 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
@@ -341,7 +342,7 @@ fn reference_rules(current: &jig_domain_core::settings::Current) -> jig_client::
     let value = jig_domain_core::settings::Value::Rules(Box::new(current.rules().clone()));
     let wire =
         jig_protocol_engine_clients::translate::settings::value(&value, &[], link.wire()).expect("stock rules fit ctl");
-    let jig_client_protocol_wire::v26::SettingValue::Rules(wire) = wire else { panic!("rules") };
+    let jig_client_protocol_wire::v27::SettingValue::Rules(wire) = wire else { panic!("rules") };
     jig_client_protocol_link::translate::settings::restore_rules(&wire, &link).expect("stock rules")
 }
 
@@ -500,6 +501,11 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     )
     .expect("reference project rule codec");
     let bounds = settings::Bounds {
+        landing_members: 4,
+        repositories: 2,
+        landing_gates: 2,
+        tiers: 2,
+        ignored_paths: 4,
         landing_rules: 2,
         gates: 4,
         roles: 4,

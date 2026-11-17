@@ -1,8 +1,5 @@
-//! A goal's red families and their patch (protocol/store.md, 2).
-use super::{
-    catch_up::{current_row, patched},
-    fixtures,
-};
+//! A goal's red families (protocol/store.md, 2).
+use super::fixtures;
 use crate::{Undecodable, keys, records, v25};
 use skein_lib::{List, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -116,18 +113,6 @@ fn red_decoding_checks_key_why_head_and_configured_byte_bounds() {
         .unwrap_err();
     }
 }
-#[test]
-fn the_red_patch_keeps_old_rows_without_making_a_red_or_counter() {
-    // A v21 ForgeNumber row: version, Value tag, then the last forge's u16.
-    let bytes = patched(22, 11, b"Row", patched(21, 10, b"Row", b"\0\x15\x16\0\x03".as_slice().into()));
-    assert_eq!(bytes.as_ref(), b"\0\x17\x16\0\x03");
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let bytes = patched(23, 12, b"Row", bytes);
-    let bytes = patched(24, 13, b"Row", bytes);
-    assert_eq!(records::decode(&current_row(b"forge_number", bytes), &bounds), Ok(d::Stored::ForgeNumber { last: 3 }));
-    assert_eq!(crate::STORE_VERSION, 25);
-}
-
 fn golden_red() -> Box<[u8]> {
     skein_lib::bytes::concat(&[
         7_u64.to_be_bytes().as_slice(),
@@ -204,35 +189,6 @@ fn named_red_answers_have_golden_bytes_and_charge_every_snapshot() {
     }
 }
 #[test]
-fn the_red_reply_patch_preserves_old_named_calls_without_making_reds() {
-    assert_eq!(crate::STORE_VERSION, 25);
-    // A v21 named follow reply, independent of the current generated records.
-    let before = skein_lib::bytes::concat(&[
-        b"\0\x15\0".as_slice(),
-        &7_u64.to_be_bytes(),
-        &1_u64.to_be_bytes(),
-        &2_u32.to_be_bytes(),
-        &3_u32.to_be_bytes(),
-        b"\x05",
-        &4_u32.to_be_bytes(),
-        b"\0",
-    ]);
-    let after = patched(22, 11, b"Row", patched(21, 10, b"Row", before.clone()));
-    assert_eq!(after.get(..2).unwrap(), b"\0\x17");
-    assert_eq!(after.get(2..).unwrap(), before.get(2..).unwrap());
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let after = patched(23, 12, b"Row", after);
-    let after = patched(24, 13, b"Row", after);
-    assert_eq!(
-        records::decode(&after, &bounds),
-        Ok(d::Stored::Call {
-            key: d::NamedCall { task: 7, attempt: 1, completion: 2, position: 3 },
-            answer: d::CallPayload::Follow { follow: 4, refusal: None },
-        })
-    );
-}
-
-#[test]
 fn red_passes_have_golden_keys_and_bytes_and_admit_only_bounded_matching_keys() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let row = d::Stored::RedPass(d::RedPass { change: 7, key: b"key".as_slice().into(), generation: 5 });
@@ -271,7 +227,7 @@ fn finding() -> d::Finding {
         seen: None,
     }
 }
-fn old_finding() -> Box<[u8]> {
+fn finding_prefix() -> Box<[u8]> {
     skein_lib::bytes::concat(&[
         &1_u32.to_be_bytes(),
         &2_u32.to_be_bytes(),
@@ -303,7 +259,7 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &old_finding(), options]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));
@@ -345,17 +301,4 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
     }
     let row = d::Stored::Finding(d::Finding { seen: Some(0), ..finding() });
     assert_eq!(records::decode(&records::encode(&row), &bounds), Err(Undecodable::Malformed));
-}
-#[test]
-fn the_pass_and_flake_patch_restores_old_findings_without_either_option_or_inventing_rows() {
-    let before = skein_lib::bytes::concat(&[b"\0\x16\x26", &old_finding()]);
-    let after = patched(22, 11, b"Row", before);
-    let golden = skein_lib::bytes::concat(&[b"\0\x17\x26", &old_finding(), b"\0\0"]);
-    assert_eq!(after, golden);
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    let after = patched(23, 12, b"Row", after);
-    let after = patched(24, 13, b"Row", after);
-    assert_eq!(records::decode(&current_row(b"finding", after), &bounds), Ok(d::Stored::Finding(finding())));
-    let before = b"\0\x16\x16\0\x03".as_slice().into();
-    assert_eq!(patched(22, 11, b"Row", before).as_ref(), b"\0\x17\x16\0\x03");
 }

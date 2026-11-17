@@ -6,7 +6,7 @@
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
 use super::{fixtures, stock};
-use jig_client_protocol_wire::v26 as wire;
+use jig_client_protocol_wire::v27 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -70,10 +70,13 @@ fn stock_box(account: OneAccount) -> StockBox {
     let mut core = jig_protocol_config::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
     let config = engine::Config {
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         period_span: crate::stock::PERIOD_SPAN,
         core,
-        landings: application.landings,
+        landing_held: false,
         kinds_stock: crate::stock::forge(&limits),
         ways_stock: Box::default(),
         forge: temper_engine_domain_forge::Config { push: None, namespace: Box::new([31; 16]), writers: Box::new([]) },

@@ -8,6 +8,7 @@ says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.
 
 
+
 - **Design departs:** 4, from that request, which has an agent's task's "Stop task" and "Stop this task?" become
   "Close task" and "Close this task?". That act is jig's hold, which "can't be reopened" would misstate, so the hold is
   "Pause" and "Resume", sent at once, and "Close" is `Ask::Cancel`, on the sheet the request names. Its cut decided it,

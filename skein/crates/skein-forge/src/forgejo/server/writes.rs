@@ -33,6 +33,9 @@ pub(crate) enum WriteKind {
     NewRepository,
     Migration,
     NewFile,
+    ChangeFiles,
+    Changes,
+    Change,
     Author,
     Committer,
     NewTeam,
@@ -59,6 +62,7 @@ pub(crate) fn fields(kind: WriteKind) -> &'static [Field] {
         WriteKind::NewToken => {
             const { &[field(b"name", Read::Text, true), field(b"scopes", Read::Array(Kind::Write(WriteKind::Scopes)), true)] }
         }
+        WriteKind::ChangeFiles | WriteKind::Changes | WriteKind::Change => super::change_files::fields(kind),
         WriteKind::NewHook => super::hooks::fields(),
         WriteKind::Collaborator => const { &[field(b"permission", Read::Text, true)] },
         WriteKind::HookConfig => super::hooks::config(),
@@ -181,9 +185,12 @@ pub(crate) fn fields(kind: WriteKind) -> &'static [Field] {
 }
 pub(crate) fn element(kind: WriteKind) -> Option<Kind> {
     match kind {
+        WriteKind::Changes => Some(Kind::Write(WriteKind::Change)),
         WriteKind::Scopes => Some(Kind::Write(WriteKind::Scope)),
         WriteKind::Logins => Some(Kind::Write(WriteKind::Login)),
         WriteKind::Dispatch
+        | WriteKind::ChangeFiles
+        | WriteKind::Change
         | WriteKind::Inputs
         | WriteKind::Collaborator
         | WriteKind::HookConfig
@@ -258,6 +265,17 @@ fn route_tail(
             }
             return Ok(Route::Ready(Request::Rerun { at, job: number_value(job)? }));
         }
+        [contents] if &**contents == b"contents" => (
+            Method::Post,
+            WriteKind::ChangeFiles,
+            Request::ChangeFiles {
+                at,
+                branch: Box::new([]),
+                new_branch: None,
+                message: Box::new([]),
+                files: Box::new([]),
+            },
+        ),
         [contents, parts @ ..] if &**contents == b"contents" && !parts.is_empty() => {
             (Method::Post, WriteKind::NewFile, new_file(at, parts))
         }
@@ -360,6 +378,11 @@ fn route_tail(
         } else {
             0
         }),
+        changes: if kind == WriteKind::ChangeFiles {
+            Some(Box::new(super::change_files::Changes::new(limits)))
+        } else {
+            None
+        },
         terminal: false,
         merge_id: None,
         committer: crate::forgejo::request::Author { name: Box::new([]), email: Box::new([]) },
@@ -371,6 +394,7 @@ pub struct BodyDecoder {
     pub(super) request: Request,
     pub(super) texts: List<Box<[u8]>>,
     pub(super) inputs: List<crate::api::Input>,
+    pub(super) changes: Option<Box<super::change_files::Changes>>,
     pub(super) terminal: bool,
     /// The merge body supplies exactly one id, chosen by its style.
     pub(super) merge_id: Option<&'static [u8]>,
@@ -402,8 +426,12 @@ pub fn body(decoder: &mut BodyDecoder, limits: &Limits, event: &tokenizer::Event
         }
         Move::Scalar { kind, key, value } => decoder.scalar(kind, key, value, limits),
         Move::End(kind) => {
-            decoder.end(kind, limits);
-            Ok(())
+            if let Some(changes) = &mut decoder.changes {
+                changes.end(kind, &mut decoder.request)
+            } else {
+                decoder.end(kind, limits);
+                Ok(())
+            }
         }
         Move::Done => {
             decoder.terminal = true;
@@ -627,6 +655,9 @@ impl BodyDecoder {
                     .or(Err(Malformed::Value { field: key }))?;
             }
             return Ok(());
+        }
+        if let Some(changes) = &mut self.changes {
+            return changes.text(kind, key, text, &mut self.request, limits);
         }
         self.text(key, text)
     }

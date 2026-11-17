@@ -279,6 +279,43 @@ fn no_notices(rows: &[Request]) {
 }
 
 #[test]
+fn a_withdrawal_the_hub_knows_unsent_reaches_smith_distinct_from_withdrawn() {
+    use skein_lib::{Duration, Time, Token};
+    for (lost, expected) in [(true, agent::Reply::Unsent), (false, agent::Reply::Withdrawn)] {
+        let mut h = Harness::new();
+        h.run(Event::Ready);
+        h.started();
+        if lost {
+            h.run(Event::Lost);
+        }
+        let call = Token::new(17);
+        h.say(agent::Up::Call {
+            call,
+            name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+            deadline: Time::ZERO.saturating_add(Duration::from_secs(30)),
+            ask: agent::Ask::Host {
+                tool: Box::from(&b"inspect"[..]),
+                effect: agent::Effect::Read,
+                body: Box::from(&b"{}"[..]),
+            },
+        });
+        let rows = h.say(agent::Up::Withdraw { call });
+        let mut found = false;
+        for row in &rows {
+            if let Request::Process(process) = row
+                && let agent::process::Request::Send { message: agent::Down::Answer { call: answered, reply }, .. } =
+                    process.as_ref()
+            {
+                assert_eq!(*answered, call);
+                assert_eq!(*reply, expected, "the hub's withdrawal classification reaches smith");
+                found = true;
+            }
+        }
+        assert!(found, "smith receives the terminal: {rows:?}");
+    }
+}
+
+#[test]
 fn earlier_host_answers_take_the_same_agents_reply_bound() {
     for error in [false, true] {
         for extra in [0, 1] {

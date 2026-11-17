@@ -4,9 +4,7 @@ mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;
 use skein_lib::Writer;
-pub(crate) use support::{
-    check_document, demo_document, directories, documents, fake_entry, flags, old_form_check_document,
-};
+pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup};
 use temper_service::startup::{self, members};
 
 type Renderer = fn(&[u8], &mut Writer) -> Result<(), skein_lib::Overflow>;
@@ -19,13 +17,7 @@ pub(super) fn init_document() -> Box<[u8]> {
         binary: b"/opt/temper/bin/temper-box",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/usr/bin/claude"),
-        ports: temper_init::Ports {
-            clients: ports[0],
-            owned: ports[1],
-            forge: ports[2],
-            llm: ports[3],
-            webhooks: ports[4],
-        },
+        ports: temper_init::Ports { clients: ports[0], llm: ports[3], webhooks: ports[4] },
         login: Some(b"person"),
     };
     let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
@@ -55,6 +47,8 @@ fn the_pages_configuration_are_what_the_tables_render() {
         render(&init, &mut out).expect("configuration page fits its measured length");
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
+        assert!(!rendered.contains("application.test"), "test peers are not public configuration");
+        assert!(!rendered.contains("- `test`:"), "the test member is not public configuration");
         assert_eq!(rendered.matches("restart").count(), 1, "one restart rule per page");
         render(&init, &mut Writer::new(rendered.len() - 1)).expect_err("one byte short");
         let path = directory.join(name).with_extension("md");

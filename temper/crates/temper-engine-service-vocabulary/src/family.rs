@@ -10,6 +10,7 @@ use temper_engine_domain_forge_change as change;
 mod findings;
 mod history;
 mod landing_views;
+mod milestones;
 mod refusals;
 mod ways;
 pub use ways::ways_panel;
@@ -48,6 +49,9 @@ pub fn to_root(
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
+        kit::ToApplication::ProviderClientChanged { .. } => {
+            unreachable!("provider changes are not client family requests")
+        }
         kit::ToApplication::Request { reply_to, sign_in, key, family, version, record, digest, scope, carried } => {
             let request = match wire::owner(family) {
                 Some(wire::Owner::Forge) if version == wire::CLIENT_VERSION => wire::decode_requesting(&record, limits),
@@ -60,6 +64,38 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::OpenChange(value) => {
+                    let value = value.into_parts();
+                    let repository = match value.repository {
+                        Some(named) => {
+                            let named = named.into_parts();
+                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
+                        }
+                        None => None,
+                    };
+                    let budget = match value.budget {
+                        w::OpenBudget::Amount(value) => forge::OpenBudget::Amount(value.amount()),
+                        w::OpenBudget::AsAllowed => forge::OpenBudget::AsAllowed,
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::OpenChange(forge::OpenChange {
+                            project: value.project,
+                            repository,
+                            branch: value.branch,
+                            at: value.at,
+                            into: value.into,
+                            title: value.title,
+                            body: value.body,
+                            budget,
+                        }),
+                    }));
+                }
                 w::Request::SetDraft(value) => {
                     let value = value.into_parts();
                     let repository = match value.repository {
@@ -239,6 +275,7 @@ pub fn to_root(
                         | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
                         | w::Request::FollowAct(_)
+                        | w::Request::OpenChange(_)
                         | w::Request::TierAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
@@ -543,6 +580,13 @@ pub fn to_root(
                             None
                         }
                     }
+                    w::Read::Milestone(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::Milestone(read))
+                        } else {
+                            None
+                        }
+                    }
                     w::Read::Finding(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
                             forge_settings_query(w::Read::Finding(read))
@@ -680,6 +724,7 @@ pub fn to_root(
 /// (client/forge/served.md, 2). No domain record carries a deployment's web address.
 #[must_use]
 pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let landing_hold = value.landing_hold();
     let pull = match value.pull {
         Some(number) => {
             Some(w::Pull::new(limits, w::PullParts { number, address: address(&value, number, forges) }).ok()?)
@@ -706,7 +751,13 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             head: value.head,
             pull,
             step: panel_step(value.step, limits)?,
-            hold: panel_hold(value.hold),
+            hold: if let Some(reason) = landing_hold {
+                Some(w::Hold::Authority(
+                    w::AuthorityHold::new(limits, w::AuthorityHoldParts { reason: Box::from(reason) }).ok()?,
+                ))
+            } else {
+                panel_hold(value.hold)
+            },
             wait: match value.wait {
                 Some(forge::PanelWait::OutboxRoom) => Some(w::ChangeWait::OutboxRoom),
                 None => None,
@@ -726,6 +777,16 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
             questions: panel_questions(value.questions, limits)?,
+            source: match value.source {
+                Some(source) => Some(
+                    w::PanelSource::new(
+                        limits,
+                        w::PanelSourceParts { branch: source.branch, at: source.at, kept: source.kept },
+                    )
+                    .ok()?,
+                ),
+                None => None,
+            },
         },
     )
     .ok()?;
@@ -874,6 +935,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
         forge::PanelStep::Preparing { landing } => {
             w::Step::Preparing(w::InLanding::new(limits, w::InLandingParts { landing }).ok()?)
         }
+        forge::PanelStep::Taking => w::Step::Taking,
         forge::PanelStep::Producing => w::Step::Producing,
         forge::PanelStep::Opening => w::Step::Opening,
         forge::PanelStep::Recreating => w::Step::Recreating,
@@ -992,7 +1054,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v26::Limits,
+    jig: &jig_client_protocol_wire::v27::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
@@ -1115,6 +1177,13 @@ pub fn answer(
         ) => w::Outcome::ForgeRefused(
             w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
         ),
+        Some(root::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Opened { task })) => {
+            w::Outcome::Opened(w::Opened::new(limits, w::OpenedParts { task }).ok()?)
+        }
+        Some(root::ApplicationAnswer::Adopt(forge::ApplicationOutcome::OpenRefused(reason))) => {
+            let reason = open_refusal(reason, limits)?;
+            w::Outcome::OpenRefused(w::OpenRefused::new(limits, w::OpenRefusedParts { reason }).ok()?)
+        }
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(
@@ -1345,6 +1414,36 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     )
     .ok()
 }
+fn open_refusal(reason: forge::OpenRefusal, limits: &w::Limits) -> Option<w::OpenRefusal> {
+    Some(match reason {
+        forge::OpenRefusal::NoRepository => w::OpenRefusal::NoRepository,
+        forge::OpenRefusal::NotARepository => w::OpenRefusal::NotARepository,
+        forge::OpenRefusal::NamePast { bound } => {
+            w::OpenRefusal::NamePast(w::NamePast::new(limits, w::NamePastParts { bound }).ok()?)
+        }
+        forge::OpenRefusal::UnderPrefix { owner, name, prefix } => {
+            w::OpenRefusal::UnderPrefix(w::UnderPrefix::new(limits, w::UnderPrefixParts { owner, name, prefix }).ok()?)
+        }
+        forge::OpenRefusal::Several(names) => {
+            let mut repositories = List::with_capacity(limits.several_repositories_repositories);
+            for named in names {
+                repositories
+                    .push(
+                        w::DraftRepository::new(
+                            limits,
+                            w::DraftRepositoryParts { owner: named.owner, name: named.name },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            w::OpenRefusal::Several(
+                w::SeveralRepositories::new(limits, w::SeveralRepositoriesParts { repositories }).ok()?,
+            )
+        }
+    })
+}
+
 fn repository_making(row: forge::RepositoryMaking, limits: &w::Limits) -> Option<w::RepositoryMaking> {
     let from = match row.from {
         forge::MakeFrom::Empty => w::MakeFrom::Empty,
@@ -2305,6 +2404,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
     use forge::settings::Edit;
     match answer {
         root::ForgeReadAnswer::History(value) => history::answer(value, limits),
+        root::ForgeReadAnswer::Milestone(value) => milestones::answer(value, limits),
         root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
@@ -2358,6 +2458,7 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
         w::Read::History(value) => Some(root::ForgeRead::History(history::query(value)?)),
         w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
+        w::Read::Milestone(value) => Some(root::ForgeRead::Milestone { project: value.project(), task: value.task() }),
         w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {
             Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })

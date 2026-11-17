@@ -2,6 +2,7 @@
 mod drafts;
 mod findings;
 mod fixtures;
+mod opened;
 mod source;
 mod tiers;
 mod versions;
@@ -1381,13 +1382,16 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         )
         .unwrap(),
     );
-    for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 25, 3][..]),
-        (revision, &[0, 25, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
-    ] {
+    for (read, bytes) in
+        [(v1::Read::Deployment, &[3][..]), (revision, &[4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..])]
+    {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
-        assert_eq!(crate::reading(&record).as_ref(), bytes);
-        assert_eq!(crate::decode_reading(bytes, &limits), Some(record));
+        let mut expected = skein_lib::Writer::new(bytes.len() + 2);
+        expected.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        expected.put(bytes).unwrap();
+        let bytes = expected.finish();
+        assert_eq!(crate::reading(&record), bytes);
+        assert_eq!(crate::decode_reading(&bytes, &limits), Some(record));
     }
 }
 

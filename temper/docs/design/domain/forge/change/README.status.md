@@ -13,6 +13,7 @@
 
 
 
+
 - **Not yet:** 3, *Its own writes are its own*: an update's made head is not recorded as its branch's head, so a goal's landing on its held branch takes it for drift and holds `BranchMoved`; a let-go update is judged against the base's tip read now, not the base it asked for; and a close-out's or catch-up's merge into the goal's branch takes no writer slot the landing sees (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `change_facts`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`).
 
 

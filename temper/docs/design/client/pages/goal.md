@@ -43,7 +43,8 @@ an open need on it, whether it has a report, and its direct delegates' total.
     opened once the document says the task is tracked and running inside the
     goal's page, its cards the page's as Needs you's are (`../README.md`, 3.6).
 - **The header,** `header.goal-head`:
-  - `p.meta.mono`, items separated by `<span>·</span>`: `<b>TITLE</b>`; `S`'s
+  - `p.meta.mono`, items separated by `<span>·</span>`: `<b>TITLE</b>`,
+    the goal's whole first line, since this is its own page; `S`'s
     word in its `state-*` class, as a goal's row says it (`README.md`); "6 of 9 tasks"
     when there are tasks; "31 of 40 spent", the budget's numbers as supplied,
     no currency; "since " and `made` in the clock form (`../view.md`, 6).
@@ -52,12 +53,21 @@ an open need on it, whether it has a report, and its direct delegates' total.
     goal's words (below), or "Planning: reading what was asked." without one;
     closed, "Closed by you. What landed on the goal branch stays there.";
     landed, the result's first line, or "Landed."; failed, "Failed: " and the
-    failure's reason; otherwise "N of M tasks done.", as a Goals row's (`README.md`).
+    failure's reason; waits or waits for room, its wait as a sentence, "Waits
+    on S6.", as a Goals row's (`work.md`, 1, *Goals*), its names from the
+    goal's document's `dependencies` where they carry a title, else "task N";
+    otherwise "N of M tasks done.", as a Goals row's (`README.md`).
   - `p.byline`: "Written by its agent at " and the note's `changed` in the
     clock form. No byline with no report.
   - `.acts`: "Draft" (`.btn.small`), when the goal's words name a draft and a
-    chat: to that `Chat`. "Chat T2", when the requester is a task: to that
-    chat. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Close",
+    chat: to that `Chat`. "in Store shape", when the requester is a
+    milestone, the goal its delegate by its document's lineage
+    (`milestones::lineage`, `milestone.md`, 1): the milestone's name, a link
+    to its `Task` (`../../draft/milestones.md`, 5.5). "Chat T2", when the
+    requester is a chat: to that chat; a task requester that is neither, its
+    document read once by number and told a chat by the project's chat
+    template's label as `Task::chat` tells one, gives none, and until that
+    read none is drawn. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Close",
     `task.md`, 4's. Ended, none of the three.
 - **Needs you bands,** one `section.band` named "Needs you" per open need of
   the goal, in the inbox's order, between the header and the report:
@@ -105,7 +115,9 @@ an open need on it, whether it has a report, and its direct delegates' total.
       reads it, `../view.md`, 5); a person task's answer, an advisor's report
       or another result is done, and not landed.
     - Each task not landed, `p.task-line`, with class `running` when
-      running: the title, a link to its `Task`, then its state: "done" and its end
+      running: the title, cut past 80 characters as every row's is
+      (`README.md`, 2, *A task's title on a line*), a TITLE below too,
+      a link to its `Task`, then its state: "done" and its end
       in the clock form; "running";
       "waits on TITLE" for one dependency, or "waits on task N" where the title
       is not among these rows; "waits on N tasks" for several; "waits on you"
@@ -204,7 +216,8 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   "Completed", "Failed" or "Cancelled", with its spend and with no
   dependency line or held card; its "Task N" link is muted, as the
   mockup's done row.
-- **A plan row's cells:** the "Task N" link and the task's title; its
+- **A plan row's cells:** the "Task N" link and the task's title, cut
+  past 80 characters (`README.md`, 2, *A task's title on a line*); its
   executor; its state; its spend, "N spent", what the task spent
   itself (its chip's `budget.spent`; not the row's `spent`, which adds
   what the ended tasks it funded spent), in the deployment's unit, a

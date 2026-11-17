@@ -843,6 +843,8 @@ mod tests {
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
             room: None,
+            source: None,
+            kept: None,
             task_release: None,
             job: None,
             signed: Box::new([]),
@@ -880,6 +882,7 @@ mod tests {
                 owns_turn: false,
                 last_head: Some([7; 32]),
                 last_checked: None,
+                clock: None,
             },
             pull: Some(7),
             pending: None,
@@ -887,6 +890,7 @@ mod tests {
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
             verdicts: Box::new([]),
+            milestone: None,
             goal: None,
             ending: None,
             repair_tasks: Box::new([]),

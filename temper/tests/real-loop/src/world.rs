@@ -15,50 +15,28 @@ use skein_world::{
 pub(crate) struct Proc {
     pub(crate) kind: Kind,
     diagnostics: diagnostics::Operations,
-    production_exchanges: Option<usize>,
-    issuer_accepts: usize,
 }
 impl Proc {
     pub(crate) fn new(kind: Kind) -> Self {
-        Self { kind, diagnostics: diagnostics::Operations::default(), production_exchanges: None, issuer_accepts: 0 }
+        Self { kind, diagnostics: diagnostics::Operations::default() }
     }
     pub(crate) fn code_exchanges(&self) -> usize {
         let Kind::Issuer(peer) = &self.kind else { panic!("issuer process") };
-        self.production_exchanges.unwrap_or_else(|| {
-            peer.observations()
-                .iter()
-                .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
-                .count()
-        })
+        peer.observations()
+            .iter()
+            .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
+            .count()
     }
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
-        if let Kind::Issuer(peer) = &mut self.kind {
-            self.issuer_accepts += peer
-                .completions()
-                .iter()
-                .filter(|complete| matches!(complete.result, Ok(skein_io::kernel::Done::Accepted { .. })))
-                .count();
-        }
         self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
             && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
         {
             self.diagnostics.terminals.observe(host.completions());
         }
-        let plans = if let (Some(_), Kind::Issuer(peer)) = (self.production_exchanges, &mut self.kind) {
-            temper_fake::oauth::refill(peer, crate::issuer::SEED).expect("box issuer refill");
-            Some(peer.granted().len())
-        } else {
-            None
-        };
         self.kind.iterate(now, wall);
-        if let (Some(before), Some(exchanges), Kind::Issuer(peer)) = (plans, &mut self.production_exchanges, &self.kind)
-        {
-            // Each consumed successful token plan is one exchange; the box retains no observations.
-            *exchanges += before - peer.granted().len();
-        }
     }
     fn drain(&mut self) {
         self.kind.drain();
@@ -102,7 +80,7 @@ pub(crate) enum Kind {
     Caller(Box<Caller>),
     Ctl(Box<crate::calls::Recorded>),
     Terminal(Box<temper_client_shell_terminal::terminal::Terminal>),
-    Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    Agent(Box<agent::Hosted>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Claude(Box<smith_fake_claude::Fake>),
@@ -219,23 +197,24 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, recipe, steps, direct_key, sign_in, false)
+    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent)
 }
 
-pub(crate) fn run_production_sign_in(
+pub(crate) fn run_stubborn(
     scratch: &skein_scratch::Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_issuer(scratch, || llm::scripted(Box::new([])), steps, true, true, true)
+    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn)
 }
 
-fn run_with_issuer(
+fn run_with_agent(
     scratch: &skein_scratch::Scratch,
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
     direct_key: bool,
     sign_in: bool,
-    production: bool,
+    agent: agent::Factory,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
@@ -279,22 +258,16 @@ fn run_with_issuer(
             None => ServiceHost::new(scratch.path().into(), signals, direct_key),
         })))
     });
-    host(&mut world, scratch.path(), steps, direct_key, 1);
+    host(&mut world, scratch.path(), steps, direct_key, 1, agent);
     if let Some(listener) = reservation {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let address = listener.local_addr().expect("issuer address");
         let fd = skein_io::kernel::Fd::new(listener.as_raw_fd());
         world.spawn_with_fds(vec![fd], || {
-            let mut peer = if production {
-                crate::issuer::production(address)
-            } else {
-                crate::issuer::peer(address, &crate::issuer::registration(address))
-            };
+            let mut peer = crate::issuer::peer(address, &crate::issuer::registration(address));
             peer.adopt_listener(fd, address).expect("held issuer listener");
             let _ = listener.into_raw_fd();
-            let mut proc = Proc::new(Kind::Issuer(Box::new(peer)));
-            proc.production_exchanges = production.then_some(0);
-            proc
+            Proc::new(Kind::Issuer(Box::new(peer)))
         });
     }
     world.run(&skein_shell::Clock::new(), patience)
@@ -432,13 +405,24 @@ pub(crate) fn run_forge(
             false,
         ))))
     });
-    host(&mut world, scratch.path(), steps, false, 1);
+    let document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configured forge story"))
+            .expect("forge story JSON");
+    let agents = document["workers"]
+        .as_array()
+        .expect("workers")
+        .iter()
+        .map(|worker| u32::try_from(worker["slots"].as_u64().expect("worker slots")).expect("bounded slots"))
+        .sum();
+    host(&mut world, scratch.path(), steps, false, agents, agent::agent);
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
         *state.borrow_mut() = Some(forge);
         Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
     });
-    world.host_roots(crate::git::program(), crate::git::roots);
+    let mut git = crate::git::program();
+    git.instances = agents;
+    world.host_roots(git, crate::git::roots);
     let outcome = world.run(&skein_shell::Clock::new(), patience);
     crate::git::share(None);
     outcome
@@ -477,7 +461,7 @@ pub(crate) fn run_github(
         Proc::new(Kind::Service(Box::new(service)))
     });
     // This story provisions its account explicitly, retaining every ctl output.
-    host(&mut world, scratch.path(), steps, true, 1);
+    host(&mut world, scratch.path(), steps, true, 1, agent::agent);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.host_roots(crate::git::route_program(), crate::git::roots);
     world.run(&skein_shell::Clock::new(), patience)
@@ -488,6 +472,7 @@ fn host<R: Referee<Proc>>(
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
     direct_key: bool,
     agents: u32,
+    agent: agent::Factory,
 ) {
     let root = skein_shell::open_root(path).expect("caller launch root");
     world.spawn_with_fds(vec![root], || {
@@ -517,10 +502,15 @@ fn host<R: Referee<Proc>>(
         crate::terminal::roots,
     );
     if agents != 0 {
-        host_agent(world, path, agents);
+        host_agent(world, path, agents, agent);
     }
 }
-fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Path, agents: u32) {
+fn host_agent<R: Referee<Proc>>(
+    world: &mut World<Proc, R>,
+    path: &std::path::Path,
+    agents: u32,
+    agent: agent::Factory,
+) {
     use std::os::unix::ffi::OsStrExt;
     let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
@@ -540,7 +530,7 @@ fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Pa
     world.host_roots(
         HostedProgram {
             program: fixtures::pinned_agent_program(path).as_os_str().as_bytes().into(),
-            make: agent::agent,
+            make: agent,
             instances: agents,
             operations: smith_agent_service::program_operations(&configuration.service).expect("agent program routes")
                 + 3,
@@ -876,13 +866,14 @@ impl Judge {
             }
             self.armed = true;
         }
-        self.children.apply(children, caller);
-        for proc in children.iter() {
-            if let Kind::Issuer(peer) = &proc.kind {
-                caller.issuer_accepted.set(proc.issuer_accepts);
-                caller.issuer_rejected.set(peer.rejected());
+        if caller.cancelling_run() {
+            for proc in children.iter_mut() {
+                if let Kind::Agent(agent) = &mut proc.kind {
+                    agent.cancel();
+                }
             }
         }
+        self.children.apply(children, caller);
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
             let state = borrowed.as_mut().ok_or("spawned forge")?;
@@ -936,9 +927,6 @@ impl Judge {
             self.controls.signal(engine_index, ServiceSignal::Terminate);
         }
         if shutdown.peers {
-            // Check before waiting on all hosted children: an orphaned held
-            // program must fail for its missing interrupt, not a world timeout.
-            caller.check_program_stop()?;
             self.finish_peers(peer, children);
         }
         Ok(())
@@ -987,6 +975,14 @@ impl Referee<Proc> for Judge {
         else {
             return Err("root admission order".into());
         };
+        // This story-local join observes the engine's durable terminal record,
+        // even when the live task has already been reclaimed before Ready closes.
+        if procs.iter().any(|proc| {
+            matches!(&proc.kind, Kind::Service(host) if host.service.as_ref().and_then(crate::service::Driven::engine_domain).is_some())
+                && proc.diagnostics.terminals.ended.contains(&crate::calls::TRIAL_TASK)
+        }) {
+            caller.trial_ended.set(true);
+        }
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
         let mut workers_changed = false;
@@ -1282,7 +1278,7 @@ fn cluster_roots<R: Referee<Proc>>(
             forge.map(|(fixture, _, _)| fixture),
         ))))
     });
-    host(world, &engine.path().join("data"), steps, false, 0);
+    host(world, &engine.path().join("data"), steps, false, 0, agent::agent);
     for (name, scratch) in workers.iter().zip(worker_scratch) {
         world.spawn_signals(|signals| {
             Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
@@ -1292,7 +1288,7 @@ fn cluster_roots<R: Referee<Proc>>(
                 forge.map(|(fixture, _, _)| fixture),
             ))))
         });
-        host_agent(world, &scratch.path().join("data"), 1);
+        host_agent(world, &scratch.path().join("data"), 1, agent::agent);
     }
     let mut git = crate::git::program();
     git.instances = u32::try_from(workers.len()).expect("worker git count");

@@ -11,6 +11,8 @@ mod goal;
 mod goals;
 mod home_cards;
 mod limits;
+mod milestone;
+mod milestones;
 mod needs;
 mod playground;
 mod rail;

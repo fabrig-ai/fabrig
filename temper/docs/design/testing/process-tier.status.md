@@ -12,7 +12,7 @@
   Their original CPU medians transfer about 15.9 CPU s to a tier whose
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
-
+- **Not yet:** the whole document: the story of a deployment at its place has no runtime result in the tier; it is written and compiled in its plan and runs after landing.
 
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
@@ -42,9 +42,10 @@ stories: the box keeps `here_key` and the browser tab, and each lower
 story the bullet names is present in its world, holding its walk's keeps
 on that world's clock. Home's plan brief and its restart story, Away's
 sequence, the chat's goal report and the usable account are the joint
-world's; the held issuer sockets and both documents are the real loop's;
-both copy stories are the one-process world's; the logged turn-away is
-the fake's own process story.
+world's; the held issuer sockets are temper-fake's own, on skein's
+simulator; the long document is the system world's and its rewritten
+path the real loop's; both copy stories are the one-process world's;
+the logged turn-away is the fake's own process story.
 
 - **Not yet:** the whole document: no passing whole run is recorded for the three-test
   profile with the one fixed-callback walk serialized. Its proof belongs

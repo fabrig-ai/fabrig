@@ -1,11 +1,8 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
-use jig_protocol_store::{
-    self as store, Event, KeptFamily, KeptMap, Owner, PatchSet, PatchSets, Request, Root, TranscriptRead, codec,
-    format, keys,
-};
+use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
 use jig_store_world::root;
-use jig_test_patches_jig::{frames, patches as jig};
+use jig_test_patches_jig::frames;
 use jig_test_patches_smith::patches as smith;
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
@@ -13,52 +10,21 @@ use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
 pub(crate) const FRAME_KEY_BYTES: usize = 18;
-pub(crate) const SETS: PatchSets = PatchSets {
-    sets: &[
-        PatchSet {
-            jobs: &[],
-            owner: Owner::Jig,
-            name: jig_test_patches_jig::NAME,
-            level: Some(2),
-            patches: jig::PATCHES,
-            fresh: None,
-            families: &[KeptFamily {
-                retired: &[],
-                current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
-                types: &[],
-                flights: &[],
-                name: "fixture-frame",
-                texts: jig::kept::fixture_frame::TEXTS,
-                map: KeptMap::Store,
-                keys: &[],
-                frames: Some(jig_test_patches_jig::FRAME_ROOT),
-            }],
-        },
-        PatchSet {
-            jobs: &[],
-            owner: Owner::Smith,
-            name: jig_test_patches_smith::NAME,
-            level: Some(1),
-            patches: smith::PATCHES,
-            fresh: Some(jig_test_patches_smith::FRESH),
-            families: &[KeptFamily {
-                retired: &[],
-                current: smith::kept::fixture_turn::TEXTS.last().expect("kept text"),
-                types: &[],
-                flights: &[],
-                name: "fixture-turn",
-                texts: smith::kept::fixture_turn::TEXTS,
-                map: KeptMap::Store,
-                keys: &[],
-                frames: Some(jig_test_patches_smith::ROOT),
-            }],
-        },
-    ],
-};
+pub(crate) use jig_store_world::patches::FRAME_SETS as SETS;
+pub(crate) fn floor() -> Box<[u8]> {
+    let row = store::component_v3::Floor::new(
+        &store::component_v3::CEILINGS,
+        store::component_v3::FloorParts { number: store::FLOOR, build: Box::new([]) },
+    )
+    .expect("floor fits");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure()));
+    row.encode(&mut writer).expect("measured floor");
+    writer.finish()
+}
 fn env(limits: &store::Limits) -> Env<store::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }
-pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
+pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
     let mut maps = store::Stores {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
@@ -76,6 +42,7 @@ pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, 
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
     let ops = Box::new([
         skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
+        skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
         skein_kv::Op::Put { key: own(keys::Own::Layouts), value: format::layouts().encode() },
         skein_kv::Op::Put {
             key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),
@@ -104,7 +71,7 @@ pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, 
         &mut below,
     );
     let mut component = store::Store::over(limits, root::APPLICATION, &[], maps);
-    component.patch_sets(sets);
+    component.owner_sets(sets);
     (component, env(limits))
 }
 pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
@@ -129,10 +96,7 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
 pub(crate) use jig_store_world::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
-#[expect(
-    clippy::too_many_lines,
-    reason = "the exhaustive file-request table names token-rooted removal beside descriptor-rooted removal"
-)]
+
 pub(crate) fn decode(
     component: &mut store::Store,
     env: &Env<store::Limits>,
@@ -199,7 +163,6 @@ pub(crate) fn decode(
                 | Event::Back { .. }
                 | Event::BackRefused { .. }
                 | Event::Closed { .. }
-                | Event::Patched { .. }
                 | Event::Job { .. }
                 | Event::Ran { .. }) => panic!("decode event {other:?}"),
             }

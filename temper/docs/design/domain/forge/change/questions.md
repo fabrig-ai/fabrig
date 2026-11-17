@@ -30,7 +30,7 @@ stored setting naming it is refused, not read, naming the setting
   agent that asked is kept by its own question (jig's
   `domain/tasks/lifecycle.md`, 8): its run parks, no try spent, until the
   change answers, a `finish` before then parking it too, whatever its
-  form, and the change's wait for it is no stall (`repairs.md`). Its
+  form, and the change's wait for it is no stall (`stalls.md`, 1). Its
   reviews are delegated without the Message family, as under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
   asked (its producing task, and the repair or the resolution it has

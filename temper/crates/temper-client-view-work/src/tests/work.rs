@@ -60,6 +60,9 @@ fn limits() -> temper_client_domain::Limits {
     let mut limits = f::domain_limits();
     // The small whole project opens three lists, reports and provenance together.
     limits.client.domain.handles = 64;
+    limits.client.domain.text = 1024;
+    limits.client.domain.long_text = 1024;
+    limits.client.domain.turn_text = 1024;
     limits.client.domain.reads = 32;
     limits.client.exchanges = 32;
     limits
@@ -191,10 +194,13 @@ impl Fixture {
         }
         reads.into_boxed()
     }
-    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
     fn populate(&mut self, full: bool) {
+        self.populate_named(full, None);
+    }
+    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
+    fn populate_named(&mut self, full: bool, title: Option<&[u8]>) {
         self.drafts(&[]);
-        let mut goal = line(GOAL, b"membership-handoff");
+        let mut goal = line(GOAL, title.unwrap_or(b"membership-handoff"));
         goal.label = 8;
         goal.tracked = Some(1);
         goal.delegates_done = 6;
@@ -202,9 +208,10 @@ impl Fixture {
         goal.budget.numbers.spent = 31;
         goal.budget.numbers.budget = 50;
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
-        let chat_lines = [line(CHAT, b"The comment is stale"), line(DRAFT, b"Read barriers")];
+        let chat_lines =
+            [line(CHAT, title.unwrap_or(b"The comment is stale")), line(DRAFT, title.unwrap_or(b"Read barriers"))];
         self.live(self.chats, if full { &chat_lines } else { &[] });
-        let draft_notes = [note(DRAFT, b"Read barriers")];
+        let draft_notes = [note(DRAFT, title.unwrap_or(b"Read barriers"))];
         for (read, what) in self.reads() {
             if let c::Read::Tasks { .. } = what {
                 self.answer(
@@ -224,9 +231,9 @@ impl Fixture {
         let mut queued = List::with_capacity(3);
         if full {
             for (task, title) in [
-                (QUEUED_GOAL, b"Witness retention".as_slice()),
-                (QUEUED_CHAT, b"Comment rewritten"),
-                (INDEPENDENT, b"Witness rejoin test"),
+                (QUEUED_GOAL, title.unwrap_or(b"Witness retention")),
+                (QUEUED_CHAT, title.unwrap_or(b"Comment rewritten")),
+                (INDEPENDENT, title.unwrap_or(b"Witness rejoin test")),
             ] {
                 queued
                     .push(
@@ -252,7 +259,7 @@ impl Fixture {
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
-                    title: b"Handoff states".as_slice().into(),
+                    title: title.unwrap_or(b"Handoff states").into(),
                     at: RECENT,
                 },
             )
@@ -307,7 +314,7 @@ impl Fixture {
                 } else if document.goal.is_some() {
                     let mut chip = document.chip.clone();
                     chip.task = GOAL;
-                    chip.title = text(b"membership-handoff");
+                    chip.title = text(title.unwrap_or(b"membership-handoff"));
                     document.lineage_chips.push(chip).unwrap();
                 }
                 self.answer(read, c::ReadValue::Task(Box::new(document)));
@@ -325,6 +332,103 @@ impl Fixture {
                 bytes: wire::drafts_panel(&panel),
             },
         });
+    }
+    fn open_milestones(&mut self) -> Token {
+        let mut me = self.root.pages().me(self.root.client()).unwrap().clone();
+        let templates = &mut me.projects.get_mut(0).unwrap().templates;
+        let mut template = templates.get(1).unwrap().clone();
+        template.number = temper_client_domain::milestones::TEMPLATE;
+        template.label = 9;
+        *templates = list(&[templates.get(0).unwrap().clone(), templates.get(1).unwrap().clone(), template]);
+        self.up(Up::Watched { watch: self.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
+        for request in &self.out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, window }) },
+                    },
+            } = request
+                && query.label == Some(9)
+                && *window > 1
+            {
+                return *watch;
+            }
+        }
+        panic!("milestone list watch");
+    }
+    fn serve_milestone(
+        &mut self,
+        own: &c::TaskLine,
+        live: &[c::TaskLine],
+        ended: &[c::TaskLine],
+        whole: bool,
+        totals: Option<&w::MilestoneTotals>,
+    ) {
+        for _ in 0_u8..3 {
+            let mut down = List::uncapped();
+            while let Some(request) = self.out.pop() {
+                if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: request } } = request {
+                    down.push(request).unwrap();
+                }
+            }
+            for request in down.into_boxed() {
+                match request {
+                    Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                        if query.parent == Some(M) =>
+                    {
+                        self.live(watch, live);
+                    }
+                    Down::Read { read, what: Readable::Jig(c::Read::Tasks { query, .. }) } => {
+                        self.answer(
+                            read,
+                            ended_page(if query.parent == Some(M) {
+                                ended
+                            } else if query.label == Some(9) && own.chip.phase == c::Phase::Ended {
+                                core::slice::from_ref(own)
+                            } else {
+                                &[]
+                            }),
+                        );
+                    }
+                    Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
+                        let mut document = f::task::document();
+                        if task == M {
+                            document.chip = own.chip.clone();
+                            document.concluded = whole.then_some(c::Concluded { by: 1, at: NOW });
+                        } else {
+                            document.chip.task = task;
+                            document.goal = Some(3);
+                            let mut goal = line(3, b"C4 running").chip;
+                            goal.details.details.executor = c::Executor::Agent { charter: 1 };
+                            document.lineage_chips = list(&[own.chip.clone(), goal]);
+                        }
+                        self.answer(read, c::ReadValue::Task(Box::new(document)));
+                    }
+                    Down::Read { read, what: Readable::Family { .. } } => {
+                        let result = match totals {
+                            Some(totals) => w::MilestoneResult::Totals(totals.clone()),
+                            None => w::MilestoneResult::NotMilestone,
+                        };
+                        let answer = w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result }).unwrap();
+                        self.up(Up::ReadDone {
+                            read,
+                            result: Readout::Family {
+                                family: wire::FORGE,
+                                record: Some(wire::milestone_answer(&answer)),
+                            },
+                        });
+                    }
+                    Down::Read { read, what: Readable::Jig(c::Read::Notes { .. }) } => self.answer(read, notes(&[])),
+                    Down::Save { .. }
+                    | Down::Erase { .. }
+                    | Down::Send { .. }
+                    | Down::Open { .. }
+                    | Down::Continue { .. }
+                    | Down::Close { .. }
+                    | Down::Read { .. } => {}
+                }
+            }
+        }
     }
     fn tree(&self, words: &Words) -> (Tree, Bindings) {
         let mut b = Builder::new(&f::tree_limits());
@@ -506,7 +610,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
 }
 
 fn heading_work(flight: u32, drafts: u32, landed: u32) -> Work {
-    let card = Card { item: Item::Goal(GOAL), changes: List::uncapped() };
+    let card = Card { goals: List::uncapped(), item: Item::Goal(GOAL), changes: List::uncapped() };
     let mut work = Work::default();
     for _ in 0..flight {
         work.in_flight.push(card.clone()).unwrap();
@@ -516,7 +620,14 @@ fn heading_work(flight: u32, drafts: u32, landed: u32) -> Work {
     }
     for _ in 0..landed {
         work.landed
-            .push(Landed { signed: None, item: Item::Goal(GOAL), change: LANDED, commit: [0xab; 32], at: NOW })
+            .push(Landed {
+                milestone: None,
+                signed: None,
+                item: Item::Goal(GOAL),
+                change: LANDED,
+                commit: [0xab; 32],
+                at: NOW,
+            })
             .unwrap();
     }
     work
@@ -633,7 +744,17 @@ fn work_rows_draw_signers_after_the_title_in_the_byline_style() {
             let mut bindings = Bindings::new(f::tree_limits().bindings);
             b.open(Role::Page);
             b.open(Role::List);
-            work::work_row(&mut b, &words, &mut bindings, LANDED, b"12:30", b"Change title", b"abababa", signed);
+            work::work_row(
+                &mut b,
+                &words,
+                &mut bindings,
+                LANDED,
+                b"12:30",
+                b"Change title",
+                b"abababa",
+                signed,
+                look::WORK_ROW,
+            );
             b.close();
             b.close();
             let tree = b.finish();
@@ -805,4 +926,433 @@ fn landed_and_chat_drafts_share_the_headings_count_and_newest_first_order() {
     let from = styled(&tree, look::WORK_FROM);
     assert!(skein_lib::bytes::find(&subtree_text(&tree, from[0]), b"catch-up.md").is_some());
     assert!(skein_lib::bytes::find(&subtree_text(&tree, from[1]), b"read-barriers.md").is_some());
+}
+
+const M: u64 = 100;
+fn milestone_line() -> c::TaskLine {
+    let mut own = line(M, b"Store shape");
+    own.budget.numbers.budget = 400;
+    own.chip.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    own
+}
+fn ended_page(rows: &[c::TaskLine]) -> c::ReadValue {
+    c::ReadValue::Tasks(Box::new(c::TaskPage {
+        live: List::uncapped(),
+        live_after: None,
+        ended: c::EndedGroup::Rows { rows: list(rows), after: None, cut: false },
+    }))
+}
+fn milestone_totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
+    w::MilestoneTotals::new(
+        &w::CEILINGS,
+        w::MilestoneTotalsParts { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None },
+    )
+    .unwrap()
+}
+fn milestone_goal(task: u64, title: &[u8]) -> c::TaskLine {
+    let mut line = line(task, title);
+    line.requester = c::Requester::Task(M);
+    line.label = 8;
+    line.tracked = Some(1);
+    line
+}
+fn ended_goal(task: u64, title: &[u8], ending: c::ChipEnding, at: u64) -> c::TaskLine {
+    let mut line = milestone_goal(task, title);
+    line.chip.phase = c::Phase::Ended;
+    line.chip.details.phase = c::ChipPhase::Ended;
+    line.chip.details.details.ending = Some(ending);
+    line.ended_at = Some(Wall::from_nanos(at));
+    line
+}
+fn queued_change(task: u64) -> w::ChangesQueued {
+    w::ChangesQueued::new(
+        &w::CEILINGS,
+        w::ChangesQueuedParts {
+            task,
+            title: b"Move the reader".as_slice().into(),
+            ready_since: RECENT,
+            checks_since: None,
+        },
+    )
+    .unwrap()
+}
+fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::ChangesLanded]) {
+    let panel = w::ChangesPanel::new(
+        &w::CEILINGS,
+        w::ChangesPanelParts {
+            project: f::PROJECT,
+            landing: b"main".as_slice().into(),
+            more: 0,
+            landed_more: 0,
+            landed_default_more: 0,
+            queues: list(&[w::ChangesQueue::new(
+                &w::CEILINGS,
+                w::ChangesQueueParts {
+                    way: w::Way::Queue,
+                    repository: b"owner/repo".as_slice().into(),
+                    branch: b"main".as_slice().into(),
+                    in_flight: None,
+                    red: false,
+                    changes: list(queued),
+                },
+            )
+            .unwrap()]),
+            landed: list(landed),
+            landed_default: list(landed),
+        },
+    )
+    .unwrap();
+    page.up(Up::FamilyDelivered {
+        watch: page.changes,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::changes_panel(&panel),
+        },
+    });
+}
+
+#[test]
+fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let mut running = milestone_goal(3, b"C4 running");
+    running.delegates_done = 5;
+    running.delegates_total = 7;
+    let mut waiting = milestone_goal(5, b"C5 waiting");
+    waiting.chip.details.phase = c::ChipPhase::Waiting { dependencies: list(&[3]), more: false, holds: false };
+    waiting.chip.phase = c::Phase::Waiting;
+    let done = ended_goal(4, b"S8 done", c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))), RECENT);
+    let failed = ended_goal(6, b"S9 failed", c::ChipEnding::Failed(text(b"failed")), RECENT - 1);
+    let closed = ended_goal(
+        7,
+        b"S10 closed",
+        c::ChipEnding::Cancelled { by: c::Requester::Person(1), at: NOW, reason: text(b"closed"), result: None },
+        RECENT - 2,
+    );
+    page.live(page.goals, &[waiting.clone(), running.clone()]);
+    let watch = page.open_milestones();
+    assert!(temper_client_domain::pages::work::facts(&page.root, f::PROJECT).is_none(), "waits for milestone list");
+    let own = milestone_line();
+    page.live(watch, core::slice::from_ref(&own));
+    let (unread, _) = page.tree(&f::browser_words());
+    assert!(styled(&unread, look::WORK_HEADLINE).is_empty(), "ended milestone list still unread");
+    send_panel(&mut page, &[queued_change(21)], &[]);
+    page.serve_milestone(&own, &[waiting, running], &[failed, closed, done], true, Some(&milestone_totals(1, 1, 2)));
+    let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
+    assert_eq!(facts.milestones.len(), 1);
+    assert_eq!(facts.goals.len(), 5, "includes the drawn milestone's ended goals");
+    let placed = temper_client_domain::pages::work::place(&facts, NOW);
+    assert_eq!(placed.in_flight.len(), 1);
+    assert_eq!(placed.in_flight.get(0).unwrap().item, Item::Milestone(M));
+    assert_eq!(placed.in_flight.get(0).unwrap().goals.get(0).unwrap().changes.get(0).unwrap().task, 21);
+    for words in [f::browser_words(), f::words()] {
+        let (tree, bindings) = page.tree(&words);
+        assert_eq!(skein_ui::outline::check(&tree), None);
+        assert_eq!(styled(&tree, look::WORK_CARD).len(), 1);
+        assert_eq!(styled(&tree, look::MS_CARD).len(), 1);
+        for value in [
+            "One in flight.",
+            "In flight · 1",
+            "A milestone opens to its goals, and a goal to its tasks and changes;",
+            "4 goals · whole",
+            "212 spent of 400",
+            "1 of 4 goals done.",
+            "running · 5 / 7",
+            "Move the reader",
+            "waits on C4",
+            "S9 failed",
+            "S10 closed",
+        ] {
+            assert!(has(&tree, value), "missing {value}");
+        }
+        let cards = styled(&tree, look::MS_CARD);
+        let card_text = subtree_text(&tree, cards[0]);
+        assert_eq!(skein_lib::bytes::count(&card_text, b"Move the reader", 2), 1, "change on its goal line alone");
+        if words.shell == crate::words::Shell::Browser {
+            let folds = styled(&tree, look::MS_FOLD);
+            assert_eq!(folds.len(), 2);
+            assert_eq!(folds[0].name.as_deref(), Some(b"1 waits".as_slice()));
+            assert_eq!(folds[1].name.as_deref(), Some("1 done, the last S8 at 07:54 · 1 failed · 1 closed".as_bytes()));
+            for fold in folds {
+                assert_eq!(fold.role, Role::Disclosure);
+                assert!(!fold.states.as_slice().contains(&skein_ui::State::Expanded));
+            }
+        } else {
+            let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+            skein_ui_text::render(&tree, b"temper", None, &mut print);
+            let printed = print.text.as_slice();
+            assert!(skein_lib::bytes::find(printed, "[4] milestone · Store shape".as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(printed, "▒■□× 1 done of 4".as_bytes()).is_some());
+            assert!(
+                skein_lib::bytes::find(printed, b"1 waits").unwrap()
+                    < skein_lib::bytes::find(printed, b"C5 waiting").unwrap()
+            );
+        }
+        let mut links = List::uncapped();
+        for node in tree.nodes() {
+            if let Some(link) = node.link
+                && let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                    address: Address::Task { task },
+                })) = bindings.decode(link.token, skein_ui::Act::Press)
+            {
+                links.push(task).unwrap();
+            }
+        }
+        assert_eq!(links.as_slice(), &[M, 3, 21, 5, 4, 6, 7]);
+    }
+}
+
+#[test]
+fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change() {
+    const WEEK: u64 = 604_800_000_000_000;
+    for (failed, completed, last_change, read, complete) in [
+        (0, RECENT, 21, true, true),
+        (0, NOW.as_nanos() - WEEK, 21, true, true),
+        (0, NOW.as_nanos() - WEEK - 1, 21, true, false),
+        (0, NOW.as_nanos() + 1, 21, true, false),
+        (0, RECENT, 22, true, false),
+        (1, RECENT, 21, true, false),
+        (0, RECENT, 21, false, false),
+    ] {
+        let mut page = Fixture::new(None, false);
+        page.populate(false);
+        let watch = page.open_milestones();
+        page.live(watch, &[]);
+        let mut own = milestone_line();
+        own.chip.phase = c::Phase::Ended;
+        own.chip.details.phase = c::ChipPhase::Ended;
+        own.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))));
+        own.ended_at = Some(Wall::from_nanos(RECENT));
+        let mut totals = milestone_totals(1, failed, 0).into_parts();
+        totals.ended = Some(completed);
+        totals.last_landing = Some(
+            w::MilestoneLanding::new(
+                &w::CEILINGS,
+                w::MilestoneLandingParts { at: RECENT, goal: 3, change: last_change },
+            )
+            .unwrap(),
+        );
+        let totals = w::MilestoneTotals::new(&w::CEILINGS, totals).unwrap();
+        let landing = w::ChangesLanded::new(
+            &w::CEILINGS,
+            w::ChangesLandedParts {
+                task: 21,
+                title: b"The landing".as_slice().into(),
+                at: RECENT,
+                commit: [0xab; 32],
+                default_branch: true,
+                signed: List::with_capacity(8),
+            },
+        )
+        .unwrap();
+        send_panel(&mut page, &[], &[landing]);
+        page.serve_milestone(&own, &[], &[], true, if read { Some(&totals) } else { None });
+        let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
+        let placed = temper_client_domain::pages::work::place(&facts, NOW);
+        assert!(placed.in_flight.is_empty(), "ended milestone is never a card");
+        assert_eq!(placed.landed.len(), 1, "a milestone is never its own landed row");
+        let row = placed.landed.get(0).unwrap();
+        assert_eq!(row.item, Item::Goal(3));
+        assert_eq!(row.milestone.as_ref().unwrap().name.as_ref(), b"Store shape");
+        assert_eq!(row.milestone.as_ref().unwrap().completed.is_some(), complete);
+        for words in [f::browser_words(), f::words()] {
+            let (tree, bindings) = page.tree(&words);
+            assert!(has(&tree, "Landed this week · 1"));
+            assert!(has(&tree, "C4 running"));
+            assert!(has(&tree, " · in Store shape"));
+            assert_eq!(has(&tree, ", now complete"), complete, "{failed} {completed} {last_change} {read}");
+            let mut links = List::uncapped();
+            for node in tree.nodes() {
+                if let Some(link) = node.link
+                    && let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                        address: Address::Task { task },
+                    })) = bindings.decode(link.token, skein_ui::Act::Press)
+                {
+                    links.push(task).unwrap();
+                }
+            }
+            assert_eq!(links.as_slice(), &[3]);
+        }
+    }
+}
+
+#[test]
+fn a_milestone_card_names_only_the_metadata_that_has_answered() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let watch = page.open_milestones();
+    let own = milestone_line();
+    page.live(watch, core::slice::from_ref(&own));
+    let mut document_reads = List::uncapped();
+    let mut total_read = None;
+    let mut down = List::uncapped();
+    while let Some(request) = page.out.pop() {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: request } } = request {
+            down.push(request).unwrap();
+        }
+    }
+    for request in down.into_boxed() {
+        match request {
+            Down::Read { read, what: Readable::Jig(c::Read::Tasks { .. }) } => page.answer(read, ended_page(&[])),
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.parent == Some(M) =>
+            {
+                page.live(watch, &[]);
+            }
+            Down::Read { read, what: Readable::Jig(c::Read::Task { task: M }) } => {
+                document_reads.push(read).unwrap();
+            }
+            Down::Read { read, what: Readable::Family { .. } } => {
+                total_read = Some(read);
+            }
+            Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Read { .. } => {}
+        }
+    }
+    let (tree, _) = page.tree(&f::browser_words());
+    assert!(has(&tree, "0 goals"));
+    assert!(has(&tree, "No goals yet."));
+    assert!(!has(&tree, "whole"));
+    assert!(!has(&tree, "so far"));
+    assert!(!has(&tree, "spent"));
+    assert_eq!(styled(&tree, look::WORK_ROW).len(), 0);
+    let answer = w::MilestoneAnswer::new(
+        &w::CEILINGS,
+        w::MilestoneAnswerParts { result: w::MilestoneResult::Totals(milestone_totals(6, 0, 0)) },
+    )
+    .unwrap();
+    page.up(Up::ReadDone {
+        read: total_read.unwrap(),
+        result: Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) },
+    });
+    let (tree, _) = page.tree(&f::browser_words());
+    assert!(has(&tree, "6 goals"));
+    assert!(has(&tree, "212 spent of 400"));
+    let from = subtree_text(&tree, styled(&tree, look::WORK_FROM)[0]);
+    assert!(skein_lib::bytes::find(&from, b"so far").is_none());
+    let mut document = f::task::document();
+    document.chip = own.chip.clone();
+    document.concluded = None;
+    for read in document_reads.into_boxed() {
+        page.answer(read, c::ReadValue::Task(Box::new(document.clone())));
+    }
+    let (tree, _) = page.tree(&f::browser_words());
+    assert!(has(&tree, "6 goals so far"));
+    let mut no_budget = own.clone();
+    no_budget.budget.numbers.budget = 0;
+    page.live(watch, &[no_budget]);
+    let (tree, _) = page.tree(&f::browser_words());
+    assert!(!has(&tree, "spent"));
+}
+
+#[test]
+fn a_placed_goal_uses_the_shared_live_row_while_the_milestones_read_catches_up() {
+    let mut page = Fixture::new(None, false);
+    page.populate(false);
+    let mut goal = milestone_goal(3, b"C4 running");
+    goal.delegates_total = 7;
+    page.live(page.goals, &[goal]);
+    let watch = page.open_milestones();
+    let own = milestone_line();
+    page.live(watch, core::slice::from_ref(&own));
+    let old = ended_goal(3, b"Stale ended goal", c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))), RECENT);
+    page.serve_milestone(&own, &[], &[old], true, None);
+    let (tree, _) = page.tree(&f::browser_words());
+    assert_eq!(styled(&tree, look::WORK_CARD).len(), 1);
+    assert!(has(&tree, "C4 running"));
+    assert!(!has(&tree, "Stale ended goal"));
+    assert_eq!(styled(&tree, look::WORK_ROW).len(), 1, "a live goal has one place, never an ended line too");
+}
+
+#[test]
+fn work_cards_and_rows_cut_only_their_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate_named(true, Some(title));
+        page.drafts(&[landed_draft(b"docs/design/draft/another.md", title)]);
+        for words in [f::browser_words(), f::words()] {
+            let (tree, bindings) = page.tree(&words);
+            let mut title_quotes = 0_usize;
+            for quote in styled(&tree, look::WORK_QUOTE) {
+                if quote.name.as_deref() == Some(cut) {
+                    title_quotes += 1;
+                }
+            }
+            assert_eq!(title_quotes, 2, "the chat draft and landed draft titles");
+            for task in [GOAL, CHAT, QUEUED_GOAL, QUEUED_CHAT, INDEPENDENT] {
+                let link = title_link(
+                    &tree,
+                    &bindings,
+                    if task == CHAT { Address::Chat { task } } else { Address::Task { task } },
+                );
+                assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+                assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+            if title != cut {
+                assert!(skein_lib::bytes::find(&f::text(&tree), title).is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn milestone_groups_cut_their_from_and_goal_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate(false);
+        let running = milestone_goal(3, title);
+        page.live(page.goals, core::slice::from_ref(&running));
+        let watch = page.open_milestones();
+        let mut own = milestone_line();
+        own.chip.title = text(title);
+        page.live(watch, core::slice::from_ref(&own));
+        page.serve_milestone(&own, &[running], &[], true, Some(&milestone_totals(0, 0, 1)));
+        for words in [f::browser_words(), f::words()] {
+            let (tree, bindings) = page.tree(&words);
+            for task in [M, 3] {
+                let link = title_link(&tree, &bindings, Address::Task { task });
+                assert!(skein_lib::bytes::find(link.name.as_deref().unwrap(), cut).is_some());
+                assert!(skein_lib::bytes::find(&subtree_text(&tree, link), cut).is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn changes_rows_cut_the_change_and_origin_goal_titles_in_both_shells() {
+    for (title, cut) in f::row_titles() {
+        let mut page = Fixture::new(None, false);
+        page.populate_named(true, Some(title));
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = Bindings::new(f::tree_limits().bindings);
+            crate::pages::changes::main(&mut b, &page.root, &words, &mut bindings, f::PROJECT, &mut Times::new(NOW));
+            let tree = b.finish();
+            let link = title_link(&tree, &bindings, Address::Task { task: QUEUED_GOAL });
+            assert_eq!(skein_lib::bytes::count(link.name.as_deref().unwrap(), cut, 3), 2);
+            assert_eq!(skein_lib::bytes::count(&subtree_text(&tree, link), cut, 3), 2);
+        }
+    }
+}
+
+fn title_link<'a>(tree: &'a Tree, bindings: &Bindings, address: Address) -> &'a skein_ui::Node {
+    for node in tree.nodes() {
+        if node.role == Role::Link
+            && let Some(binding) = node.binding
+            && bindings.decode(binding.token, skein_ui::Act::Press)
+                == Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                    address: address.clone(),
+                }))
+        {
+            return node;
+        }
+    }
+    panic!("missing title link {address:?}");
 }

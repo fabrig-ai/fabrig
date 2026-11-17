@@ -15,11 +15,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::ResetAct { .. } => {}
         root::Request::ForgeKept(record) => crate::forges::record(engine, record),
         root::Request::ForgeGone { forge } => crate::forge::gone::request(engine, forge),
-        root::Request::BoxGroup { forge, kind, request } => {
-            let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.group(forge, kind, request, &mut out);
-            box_link::drain(engine, &mut out);
-        }
+        root::Request::ChoosePlace { request, kind, login } => crate::places::choose(engine, request, kind, login),
+        root::Request::BoxGroup { forge, kind, request } => crate::places::start_group(engine, forge, kind, request),
         root::Request::BoxRemove { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);
             engine.box_link.remove(forge, &mut out);
@@ -28,9 +25,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
         root::Request::SetUp { forge, request, first } => {
             crate::setup::lifecycle::first(engine, forge, first);
-            let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.group(forge, temper_engine_domain_forge::BoxKind::Owned, request, &mut out);
-            box_link::drain(engine, &mut out);
+            crate::places::start_group(engine, forge, temper_engine_domain_forge::BoxKind::Owned, request);
         }
         root::Request::Connect { forge, request, how, carried } => match how {
             temper_engine_domain_forge::How::GitHubApp { app, .. } => {
@@ -130,6 +125,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             let drain = engine.drain.as_mut().expect("settling follows the service’s stop");
             drain.unsettled.push(write).expect("at most one unfinished write per forge entry");
         }
+        root::Request::Restarting { wait } => engine.workers.restarting(wait, &mut engine.events),
         root::Request::Drained => stop::drained(engine),
         root::Request::Stop => stop::root(engine),
         root::Request::Worker(request) => worker(engine, request),
@@ -384,6 +380,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::NotesLoad { .. }
             | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
+            | root::Delivery::Restarting { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },
     }

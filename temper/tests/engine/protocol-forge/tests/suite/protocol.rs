@@ -12,6 +12,8 @@ use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         room: None,
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -43,6 +45,7 @@ fn change_row() -> top::ChangeRow {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: None,
@@ -50,6 +53,7 @@ fn change_row() -> top::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -504,6 +508,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
     });
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive routing of the forge's change outputs")]
 fn land_change(world: &mut Protocol) -> bool {
     let mut finished = false;
     for entry in 4..24 {
@@ -539,6 +544,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
@@ -873,8 +879,8 @@ const PENDING_INSTALLATION_REQUESTS_PER_MINUTE: u64 =
 fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
     use skein_lib::Duration;
-    use temper_engine_service_vocabulary::limits::{Profile, profile};
-    let shipped = profile(Profile::Small).forge;
+    use temper_limits_fixtures::small;
+    let shipped = small().forge;
     let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =
         Wall::from_nanos(verdict.as_nanos() + shipped.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos());
@@ -898,6 +904,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         world.event(top::Event::Committed { entry });
                     }
                     match decision {
+                        change::Decision::Failed => panic!("unexpected source failure"),
                         change::Decision::Wait { until: at } => until = at,
                         change::Decision::Hold(why) => hold_reason = Some(why),
                         change::Decision::Finish { .. } => finished = true,

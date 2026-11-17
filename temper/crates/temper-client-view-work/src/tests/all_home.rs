@@ -304,6 +304,7 @@ fn decision(number: u32) -> h::Decided {
             number,
             task: u64::from(number),
             title: Some(b"Porter".as_slice().into()),
+            milestone: None,
             at: Wall::from_nanos(3 * DAY + 65 * MINUTE),
             question: b"A compiler builtin?".as_slice().into(),
             took: b"Ported as checked_add.".as_slice().into(),

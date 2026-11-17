@@ -65,8 +65,8 @@ pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::Tcp
     temper_fixtures::ports::reserve(taken)
 }
 
-/// Gives every listener an init-made document names a chosen
-/// address, so that no story depends on init's preferred ports.
+/// Reserves every listener an init-made document names and moves its socket and HTTP URLs,
+/// keeping URL paths, so that no story depends on init's preferred ports.
 pub fn own_listeners(document: &mut serde_json::Value) {
     fn replace(value: &mut serde_json::Value, moves: &[(String, String)]) {
         match value {
@@ -74,8 +74,10 @@ pub fn own_listeners(document: &mut serde_json::Value) {
                 for (before, after) in moves {
                     if text == before {
                         text.clone_from(after);
-                    } else if text.strip_prefix("http://") == Some(before.as_str()) {
-                        *text = format!("http://{after}");
+                    } else if let Some(tail) = text.strip_prefix("http://").and_then(|url| url.strip_prefix(before))
+                        && (tail.is_empty() || tail.starts_with('/'))
+                    {
+                        *text = format!("http://{after}{tail}");
                     } else {
                         continue;
                     }
@@ -90,15 +92,13 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]
     .map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
-    let drawn = free_addresses::<5>(&old);
+    let drawn = free_addresses::<3>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
@@ -785,15 +785,22 @@ const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_n
 // The hinted job's 5 s sleep outlasts settle (protocol/setup/README.md, 6, protocol/setup/testing.md, 4).
 const HINTED_SETTLE_MS: u64 = 3000;
 
-/// Raises the three keep paces, lowers the change's stall to 600 s, and shortens the hinted story's settle.
+/// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
+/// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    for name in
-        ["forge.client.poll_ms", "forge.client.poll_max_ms", "forge.client.slow_ms", "forge.change_policy.stall_ms"]
-    {
+    for name in [
+        "forge.client.poll_ms",
+        "forge.client.poll_max_ms",
+        "forge.client.slow_ms",
+        "forge.change_policy.stall_ms",
+        "forge.change_policy.unknown_grace_ms",
+    ] {
         value["application"]["limits"]["overrides"][name] = RAISED_MS.into();
     }
+    value["application"]["limits"]["overrides"]["forge.change_policy.runner_wait_ms"] =
+        RAISED_MS.saturating_mul(8).into();
     value["application"]["limits"]["overrides"]["forge.client.settle_ms"] = HINTED_SETTLE_MS.into();
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }

@@ -2,6 +2,7 @@
 
 2026-11-10. Where the tree's code lags or departs from [openid.md](openid.md).
 
+
 - **Departs:** the whole document: `authorize_reply` in
   `jig/crates/jig-protocol-engine-clients/src/provider.rs` maps people's
   `Again`, including `NotReady` during restoration, to `NotReady`;

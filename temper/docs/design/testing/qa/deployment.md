@@ -1,7 +1,7 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, from `../../draft/landed-qa.md`, sections 2, 5,
-6 and 10, milestone Q6 of `../../draft/landed-qa.execution.md`. A place
+Provisional, 2026-11-14, revised 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5,
+6 and 10, milestones Q6 and Q7 of `../../draft/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
 as processes of their own beside them, started from a setup's `config/`
@@ -9,8 +9,12 @@ at the place's ports, stopped in order, copied, and restored with a
 newer build of each, as a redeploy does. The drive session starts and
 stops it (`../../client/drive.md`, 2), the recipe walk reaches its
 states (`../../client/recipe.md`, 5), and the place installs, saves and
-restores it as it does a box (`places.md`). In Q6 it takes ctl, forge
-and deployment lines alone; the web client and the TUI reach it in Q7.
+restores it as it does a box (`places.md`), one kind of place behind the
+one interface a box is behind too, where this document gives its values
+(`kinds.md`). It takes ctl, forge and
+deployment lines, Q6's, and, but in a ctl session, web and tui lines on
+the engine's own origin, Q7's: the session's browser and TUI reach the
+deployment's engine rather than a box of their own.
 
 ## 1. In one page
 
@@ -24,12 +28,19 @@ and deployment lines alone; the web client and the TUI reach it in Q7.
   secret and its digest made; the fake git's link made at every start.
 - **Started in order, stopped in reverse** (sections 5 and 7): the fake
   Forgejo, the fake model, the engine, the worker; ctl signed in from a
-  file, no link printed anywhere.
+  file, no link printed anywhere; then, but in a ctl session, the
+  browser signed in from the engine's fresh link, as a box's is; at the
+  end the TUI and the browser go first.
 - **Its lines** (section 6): ctl and forge lines with the deployment's
-  values, and `deployment patch`, which changes a document between two
-  starts, so a project's landing reaches what the recipe made.
+  values; web and tui lines on the engine's origin, but in a ctl
+  session; and `deployment patch`, which changes a document between two
+  starts, so a project's landing reaches what the recipe made, the TUI
+  stopped and the page loaded again around it.
+- **Its bundle:** the engine serves the session's `--bundle`, which its
+  document names as `{place.bundle}` (section 2), so the page is the
+  kept build's bundle, as a box's is.
 - **A newer build** (section 8): every process from the place's `bin/`,
-  the store patched forward, the fakes' state back.
+  the store's registry and jobs upgraded as needed, the fakes' state back.
 
 ## 2. Its documents
 
@@ -53,10 +64,13 @@ writes it, with the fakes in place of real backends
   the place's (section 4); the model's key and the forge's admin token
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
-- **Two paths fixed:** the worker's document names its secret at its
+- **Three paths fixed:** the worker's document names its secret at its
   data path `secrets/worker.secret`, and the engine's names that
   worker's digest at its data path `secrets/worker.digest`, the files
-  the place makes (section 4).
+  the place makes (section 4); and the worker's document names its root
+  `workspaces`, under its data path, so that the agent it pins is in
+  `data/worker/workspaces/agent/`, which a copy leaves out (`places.md`,
+  4).
 - **The place's names.** Within the documents' JSON string values alone,
   each `{place.NAME}` is replaced by the place's value when they are
   rendered (section 4); any other text stays as it is, a `{` not followed
@@ -72,9 +86,16 @@ writes it, with the fakes in place of real backends
   | `{place.config}`, `{place.data}`, `{place.cache}` | the scratch directory's `config/`, `data/` and `cache/`, absolute |
   | `{place.bin}` | the session's `--bin`, absolute; the worker's agent is `{place.bin}/temper-agent` |
   | `{place.git}` | the scratch directory's `data/bin/git`, absolute: the fake git program (section 4) |
+  | `{place.bundle}` | the session's `--bundle`, absolute: the web bundle the engine serves, named by its document's `application.clients.bundle` (`../../protocol/configuration/engine.md`), as a box is given its `--bundle` |
 
   A `{place.NAME}` of no name here refuses the session, naming the
-  document and the name.
+  document and the name; `{place.bundle}` in a session given no
+  `--bundle` refuses it the same way, naming the document and saying
+  that the name needs `--bundle`. A root whose engine serves the page
+  names `{place.bundle}`, so that the page is the kept build's bundle
+  whatever the engine's binary holds (`../../client/web/README.md`,
+  2.6), and a place gives every session its `bundle/` (`places.md`, 4
+  and 5).
 - **Its ports** are the place's nine (`places.md`, 2), in the order
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists a box's
   (`../../protocol/setup/box.md`, 5), each position bound by the
@@ -91,6 +112,8 @@ writes it, with the fakes in place of real backends
   Positions 3, 4, 6 and 7 bind nothing at a deployment. So a place's
   `ports` in `qa.json` serve either kind, and a copy's documents and
   forge records name the place's ports, which no other place takes.
+  Each position's name, by what binds it at each kind, is `kinds.md`,
+  4's.
   A deployment takes no kernel's port: a session without `--ports`
   refuses.
 
@@ -110,11 +133,13 @@ for a deployment:
 | `data/model/` | the fake model's outputs its document names there |
 | `data/bin/git` | a link to `{place.bin}/temper-box`, the fake git program (`../fakes.md`, 3) |
 | `cache/engine/`, `cache/worker/` | the engine's and the worker's caches |
-| `session/` | the session's own (`../../client/drive.md`, 2.2): ctl's directory, and each process's output, `forgejo.log`, `model.log`, `engine.log`, `worker.log` |
+| `session/` | the session's own (`../../client/drive.md`, 2.2): ctl's directory, the browser's profile, the TUI's directories, looks and kept lines as a box's session has them, and each process's output, `forgejo.log`, `model.log`, `engine.log`, `worker.log` |
 
 - **A copy is `config/` and `data/`,** the deployment's whole data and
   configuration once every process has stopped, the fakes' state among
-  it, archived as a box's are (`places.md`, 4). `cache/` stays at the
+  it, archived as a box's are (`places.md`, 4), but for the worker's
+  pinned agent, `data/worker/workspaces/agent/`, which its every start
+  pins again from `{place.bin}` (section 5). `cache/` stays at the
   place, as a box's does.
 - **Private:** every directory the session makes there is 0o700 and
   every file 0o600, each mode set once it is made (`places.md`, 2).
@@ -172,14 +197,36 @@ nowhere. Each within its bound; a failure is the deployment's (section
 5. **ctl, signed in from a file:** the engine's first link written to
    `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
    SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
-   exit 0 within 60 seconds, then `session/link` removed. Every later
-   link the engine prints is read and dropped. So no link is printed,
-   logged, answered or kept, and no copy holds a sign-in
-   (`../../draft/landed-qa.md`, 5 and 11).
-6. **`ready`** on stdout, and the lines are read.
+   exit 0 within 60 seconds, then `session/link` removed.
+6. **The browser,** but in a ctl session (`../../client/drive.md`,
+   2.6): `../../client/drive.md`, 2.3's step 3 on the engine's origin,
+   the first link's `http://HOST:PORT`, `{place.clients}`. Headless
+   Chromium opens the first link, now spent; the engine, as a box's
+   serve does, answers the spent link's `POST` at
+   `/jig/v1/sign-in/link` with 401 and prints a fresh link on its
+   stdout (jig's `protocol/client/sign-in.md`, its printed link),
+   within 30 seconds; the session takes that line, the first `http://`
+   line of the engine's stdout after the spent link's opening, and the
+   browser opens it, then loads `/` on the engine's origin and waits
+   until the page shows the client's main region, within 60 seconds.
+   The spent link's 401 is not counted, and any other trouble at the
+   start fails it, as `../../client/drive.md`, 2.3 has them; here such
+   a failure is the deployment's (section 7). So the browser holds the
+   session's sign-in and a copy holds none, as at a box.
+7. **`ready`** on stdout, and the lines are read.
+
+Every link the engine prints but its first and, in a full session, the
+fresh one step 6 takes is read and dropped, and the engine's stdout is
+written nowhere. So no link is printed, logged, answered or kept, and no
+copy holds a sign-in (`../../draft/landed-qa.md`, 5 and 11).
 
 While a step waits, any process's exit ends the wait as the
 deployment's failure.
+
+**The TUI** starts at the session's first `tui` line, as at a box
+(`../../client/drive.md`, 3.3): `BIN/temper http://HOST:PORT` at the
+engine's origin, signed in by the browser's approval. It is the
+session's, never the deployment's: no copy holds it.
 
 ## 6. Its lines
 
@@ -200,9 +247,12 @@ deployment's failure.
 
 - **forge lines** run as `../../client/drive.md`, 3.5 has them, on the
   same API and admin token.
-- **web and tui lines** fail, `failed: line N: a deployment takes ctl,
-  forge and deployment lines`, and are not kept: they reach a deployment
-  in Q7 (`../../draft/landed-qa.execution.md`).
+- **web and tui lines** run as `../../client/drive.md`, 3.2 and 3.3
+  have them, on the engine's origin: `web reload PATH` loads PATH there,
+  and the TUI is `BIN/temper` at that origin. In a ctl session,
+  `--ctl --deployment`, they fail as a ctl session's do,
+  `failed: line N: this session takes ctl, forge and deployment lines
+  alone`, and are not kept (`../../client/drive.md`, 2.6).
 
 ### 6.2 `deployment patch`
 
@@ -215,26 +265,39 @@ most 64 KiB.
 
 1. **Read:** PATH as a JSON merge patch (RFC 7396), one JSON object, its
    string values rendered with the place's names (section 2).
-2. **Stopped:** the worker, then the engine, as at the end (section 7),
+2. **The TUI ended,** where one runs, as `tui stop` ends it
+   (`../../client/drive.md`, 3.3): its connection is the engine's, which
+   is about to stop, so the next `tui` line starts it again, signed in
+   afresh.
+3. **Stopped:** the worker, then the engine, as at the end (section 7),
    each exiting 0.
-3. **Patched:** the patch applied to `config/engine/temper.json`,
+4. **Patched:** the patch applied to `config/engine/temper.json`,
    `config/worker/temper.json` or `config/worker/agent.json`, written to
    a temporary file beside it and renamed over it.
-4. **Started again:** the engine, then the worker, as section 5's steps
-   3 and 4. ctl's sign-in is the engine store's and outlives the
-   restart, so the engine's new link is dropped.
+5. **Started again:** the engine, then the worker, as section 5's steps
+   3 and 4. ctl's sign-in and the browser's are the engine store's and
+   outlive the restart, so the engine's new link is dropped.
+6. **The page loaded again,** but in a ctl session: the browser loads
+   `/` on the engine's origin, which the restart keeps, and waits until
+   the page shows the client's main region, within 60 seconds, so the
+   next web line meets a live page.
 
-It answers `| patched DOCUMENT` and `ok`. A patch that is no JSON
+It answers `| patched DOCUMENT` and `ok`. The page's troubles are not
+counted during the line: the engine is down for part of it, and the
+page's requests then fail by design; step 6's main region is its check.
+A patch that is no JSON
 object, a result that is no JSON object, or a file missing fails the
 line before anything stops, naming it. An engine or worker that does
 not start again ends the deployment as failed (section 7): the line
-fails, and every later one fails `failed: the deployment exited`. Its
+fails, and every later one fails `failed: the deployment exited`. A page
+that shows no main region within step 6's bound fails the line, naming
+what it showed, and the deployment runs on. Its
 bound is 300 seconds. It is kept as any line (`../../client/drive.md`,
 4), so the recipe holds it, and its file in `files/`.
 
 So a recipe gives a project's landing to what its own lines made, a
 project and a repository whose numbers exist once those lines have run
-(`../../domain/landing.md`, 13.1): `deployment patch engine
+(`../../domain/landing-settings.md`, 1.1): `deployment patch engine
 landing.json`, the file holding `{"application": {"landing":
 {"projects": [...]}}}`, which a merge patch replaces whole. Once a
 project's `by`, `batch` and gates are settings
@@ -243,7 +306,9 @@ instead.
 
 ## 7. Stopped, and its exits
 
-- **At `end` or stdin's end:** the worker by `SIGTERM`, waited on within
+- **At `end` or stdin's end:** the TUI ended and the browser closed,
+  as a box's session ends them (`../../client/drive.md`, 2.4), where
+  they run; then the worker by `SIGTERM`, waited on within
   60 seconds; then the engine, within 60 seconds; then the fake model;
   then the fake Forgejo, which writes its state at its orderly stop
   (`../fakes.md`, 2), each within 30 seconds. A process past its bound
@@ -255,8 +320,8 @@ instead.
   |---|---|---|
   | 0 | ended, every process stopped cleanly, whatever the lines answered | `ended` |
   | 3 | a store refused by name: the engine's log holds a line starting `temper-engine serve: ` that names a directory under the scratch directory (`../../protocol/store.md`, 5), or the fake Forgejo's a line starting `temper-box fake forge: state ` naming a file under it (`../fakes.md`, 2) | `refused: ` and that line |
-  | 4 | the deployment failed: a process exited, panicked, or missed its ready line within its bound, ctl's sign-in failed, or a stop passed its bound | `deployment failed: WHY`, then the last 20 lines of each process's log, each prefixed `\| ` |
-  | 1 | the session's own failure: its command line, a document missing, past its bound or no JSON, a `{place.NAME}` of no name, `config/` or `data/` alone | `failed: WHY`, on stderr |
+  | 4 | the deployment failed: a process exited, panicked, or missed its ready line within its bound, ctl's sign-in failed, the browser's start failed (its fresh link or the page not within its bound, or a trouble at the start that `../../client/drive.md`, 2.3 counts, in its words), or a stop passed its bound | `deployment failed: WHY`, then the last 20 lines of each process's log, each prefixed `\| ` |
+  | 1 | the session's own failure: its command line, a document missing, past its bound or no JSON, a `{place.NAME}` of no name, `{place.bundle}` with no `--bundle`, `config/` or `data/` alone | `failed: WHY`, on stderr |
 
   A place makes a copy refused by its store again from its recipe, as it
   does a box's (`places.md`, 4).
@@ -266,14 +331,17 @@ instead.
 - **Every process the newer build's:** a pass installs its build into
   the place's `bin/` before any process starts (`places.md`, 3), and
   every start runs from `bin/`: the engine, the worker and the agent it
-  pins, the fakes and the fake git, whose link names `bin/temper-box`.
-  The documents name the place's `bin/` and directories, never a kept
+  pins, the fakes and the fake git, whose link names `bin/temper-box`;
+  the engine serves the place's `bundle/`, which the pass installs with
+  `bin/` (`places.md`, 3), so the page is the newer build's too.
+  The documents name the place's `bin/`, `bundle/` and directories, never a kept
   build's, so a copy restores only at the place that made it, as a
   box's does.
-- **Patched forward:** the engine patches its store as it starts, as a
-  redeploy does (`../../protocol/store.md`, 5; `../../redeploy.md`); a
-  store it has no patch for is refused by name, status 3, and the place
-  makes the copy again. The fake Forgejo restores its state; a state it
+- **Upgraded at open:** the engine plans the store's registry and runs
+  pending jobs in a copy before restoring and switching, as a redeploy
+  does (`../../protocol/store.md`, 4 and 5; `../../redeploy.md`). A
+  store below the floor is refused by name (`../../protocol/floor.md`,
+  4), status 3, and the place makes the copy again. The fake Forgejo restores its state; a state it
   cannot read is refused by name, status 3, too.
 
 ## 9. Its code and tests
@@ -296,15 +364,31 @@ instead.
     from the forge's state;
   - the values from the rendered documents; `deployment patch`'s merge,
     its stop and start in order, its refusals before anything stops;
-    web and tui lines failing, unkept.
+    in a ctl session, web and tui lines failing, unkept;
+  - `{place.bundle}` rendered from `--bundle`, and refused, naming the
+    document, in a session given none;
+  - the browser at a deployment (section 5, step 6), over injected
+    events: after ctl's sign-in the spent first link opened, the
+    engine's next stdout link taken as the fresh one and opened, `/`
+    loaded on the engine's origin and the main region found before
+    `ready`; the spent link's 401 not counted; another trouble, or no
+    fresh link within its bound, status 4 with the deployment's tails;
+    every other engine link dropped and in no log, answer or argument;
+  - web and tui lines at the engine's origin: `web reload PATH` and the
+    TUI's program naming `http://{place.clients}`;
+  - `deployment patch` with a TUI running and a page open: the TUI
+    ended before the worker stops, the page loaded again at `/` after
+    the worker's `linked`, the main region found before `ok`, a trouble
+    during the line not counted; in a ctl session, neither;
+  - the end: the TUI ended and the browser closed before the worker's
+    `SIGTERM`.
 - **The process tier's story** of a deployment at its place
   (`../process-tier.md`), written and compiled in Q6 and run after
-  landing.
+  landing; Q7 opens its sessions as ctl sessions, `--ctl`, with a
+  fixture bundle as `--bundle`.
 
 ## 10. Later
 
-- **The web client and the TUI** at a deployment (Q7), and a place's
-  kinds behind one interface (Q8; `../../draft/landed-qa.md`, 10).
 - **A fake GitHub, several workers, and program accounts** at a
   deployment: its worker's `temper-worker program-login` with the fake
   coding agent's command line beside it, once a setup needs them. Q6's
@@ -313,6 +397,5 @@ instead.
 
 ## 11. Open questions
 
-- **A deployment's ports by use:** positions shared with a box's nine
-  (section 2). Default: shared, until Q8's one framework names a place's
-  ports by what binds them.
+None of its own: a place's ports named in `qa.json` rather than listed
+is `kinds.md`, 11's.

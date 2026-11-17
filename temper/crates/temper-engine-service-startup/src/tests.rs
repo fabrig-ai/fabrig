@@ -11,3 +11,5 @@ mod start_shapes;
 mod stock;
 
 mod reds;
+
+mod fixed;

@@ -2,6 +2,8 @@ use crate::support;
 use temper_box_shell::directories::jig_directories;
 #[path = "creating.rs"]
 mod creating;
+#[path = "configuration/turn_landing.rs"]
+mod turn_landing;
 
 // The process configuration reader admits a MiB, 64K tokens and 32 levels.
 const DOCUMENT: jig_protocol_config::DocumentLimits =
@@ -238,7 +240,8 @@ fn the_clusters_documents_check_as_their_shapes() {
                 startup::named(&bytes, &jig_directories(&directories)).expect("checked engine alone");
             }
             Shape::WorkerAlone => {
-                let part = startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
+                let part =
+                    startup::worker_part(&bytes, &jig_directories(&directories), None).expect("checked worker alone");
                 let worker = &part.worker.jig;
                 let stop = jig_protocol_config::stop_bound(
                     &worker.graces,

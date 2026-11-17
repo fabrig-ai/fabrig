@@ -3,6 +3,7 @@
 //! writes.
 //! A requester's confirmed branch moves become its change's new head
 //! (temper/docs/design/domain/forge/change/README.md, 3).
+mod taking;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Map, Queue, Set, Token};
 use temper_engine_domain_forge_change as change;
@@ -80,10 +81,12 @@ pub(crate) struct PendingCi {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum StepStage {
+    Taking,
     Branch,
     Base,
     Pull,
     Ci,
+    ExecutionRun(u64),
     StallChecks,
     StallJobs,
     BaseCi,
@@ -116,6 +119,7 @@ pub(crate) struct PendingStep {
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
+    execution: Option<crate::execution::Gather>,
     failed: crate::change_ci::Failed,
     stall: Option<crate::stall::Report>,
     base_ci: change::Status,
@@ -217,6 +221,7 @@ pub struct Domain {
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
+    pub(crate) milestones: Map<u64, crate::MilestoneRow>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) history_reads: crate::history::read::State,
     pub(crate) history_sweep: crate::history::sweep::State,
@@ -239,6 +244,9 @@ pub struct Domain {
     pub(crate) apps: Map<u16, crate::AppWay>,
     setup_answers: Map<Token, (skein_lib::Wall, crate::SetUpAnswer)>,
     setup_pending: Map<Token, (Token, Duration)>,
+    pub(crate) choosing: Map<Token, make::Choosing>,
+    pub(crate) setup_people: Map<Token, Box<[u8]>>,
+    pub(crate) owned_people: Map<u16, Box<[u8]>>,
     pub(crate) connect: crate::connect::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Box<Repository>>,
@@ -389,6 +397,10 @@ impl Domain {
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
     }
+    /// The admitted requester's login is routing input, not document configuration.
+    pub fn setup_person(&mut self, request: Token, login: Box<[u8]>) {
+        self.setup_people.insert(request, login).expect("one person per admitted setup");
+    }
     /// The machine's person login for an owned forge (domain/agent/agents.md, 1).
     #[must_use]
     pub fn owned_person(&self, forge: u16) -> Option<&[u8]> {
@@ -396,8 +408,10 @@ impl Domain {
         if config.mode != crate::Mode::Owned {
             return None;
         }
-        let machine = self.machine.as_ref()?;
-        if machine.owned_person.is_empty() { None } else { Some(&machine.owned_person) }
+        match self.owned_people.get(&forge) {
+            Some(login) if !login.is_empty() => Some(login),
+            Some(_) | None => None,
+        }
     }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
@@ -578,7 +592,9 @@ impl Domain {
                 Some(crate::Answered::Make(crate::MakeAnswer::Refused(*why)))
             }
             Some(
-                outcome @ (crate::ApplicationOutcome::Adopted(_)
+                outcome @ (crate::ApplicationOutcome::Opened { .. }
+                | crate::ApplicationOutcome::OpenRefused(_)
+                | crate::ApplicationOutcome::Adopted(_)
                 | crate::ApplicationOutcome::CoreRefused(_)
                 | crate::ApplicationOutcome::ForgeRefused(_)),
             ) => Some(crate::Answered::Adopt(outcome.clone())),
@@ -906,6 +922,7 @@ impl Domain {
             bindings: Map::with_capacity(l.bindings),
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
+            milestones: Map::uncapped(),
             project_facts: Map::with_capacity(l.judge_projects),
             history_reads: crate::history::read::State::new(l.judge_projects),
             history_sweep: crate::history::sweep::State::new(l.history_events),
@@ -930,6 +947,9 @@ impl Domain {
             apps: Map::with_capacity(l.forges),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
+            choosing: Map::with_capacity(l.applications),
+            setup_people: Map::with_capacity(l.applications),
+            owned_people: Map::with_capacity(l.forges),
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
@@ -1400,6 +1420,23 @@ impl Domain {
         repositories.into_boxed()
     }
 
+    /// Repositories a person's change may land into
+    /// (temper/docs/design/domain/forge/change/opened.md, 2).
+    #[must_use]
+    pub fn opening_repositories(&self, project: u32) -> Box<[&Repository]> {
+        let mut repositories = List::with_capacity(self.repositories.capacity());
+        for (_, repository) in &self.repositories {
+            if repository.role_for(project).is_some()
+                && repository.role_for(project) != Some(Role::Context)
+                && repository.kinds.open
+                && !self.forge_ended(repository.provider.forge)
+            {
+                repositories.push(repository.as_ref()).expect("bounded adopted repositories");
+            }
+        }
+        repositories.into_boxed()
+    }
+
     /// Adopted repositories in this project that still permit a workspace push.
     #[must_use]
     pub fn writable_repositories(&self, project: u32) -> Box<[&Repository]> {
@@ -1787,6 +1824,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
             crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
         }
+        Event::SetupPerson { forge, login } => {
+            d.owned_people.insert(forge, login).expect("kept owned person");
+        }
+        Event::PlaceChosen { request, place, git_program } => make::chosen(d, env, request, place, git_program, out),
         Event::Application { request, token, retention, ask, role, carried } => match ask {
             crate::Ask::RemoveForge { forge } => {
                 if let Some(value) = carried {
@@ -1994,6 +2035,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DropProjection { entry } => {
             d.projection_room.remove(&entry);
         }
+        Event::Milestone { row } => crate::milestone_rows::project(d, row, out),
         Event::Project { entry, repository, view } => project(d, env, entry, repository, view, out),
         Event::FailProjection { goal, repository, closing } => {
             fail_projection(d, env, goal, Some(repository), closing, out);
@@ -3620,7 +3662,8 @@ fn relay_hold(state: &change::State, why: change::Hold) -> change::State {
     }
     let was = match state {
         change::State::Held { was, .. } => was.as_ref().clone(),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -3899,7 +3942,8 @@ fn delegate_wait(state: &change::State) -> bool {
         change::State::Producing { requested }
         | change::State::Repairing { requested, .. }
         | change::State::Resolving { requested, .. } => *requested,
-        change::State::WaitingProducer { .. }
+        change::State::Taking { .. }
+        | change::State::WaitingProducer { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -4237,7 +4281,8 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
             **was == (change::State::Producing { requested: true })
                 || **was == (change::State::Producing { requested: false })
         }
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Repairing { .. }
         | change::State::WaitingProducer { .. }
         | change::State::Resolving { .. }
@@ -4342,6 +4387,11 @@ fn record_review(
 }
 
 fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
+    if row.source.is_some()
+        && let Some(crate::Ending::Failed { .. }) = &row.ending
+    {
+        return Some(change::Decision::Failed);
+    }
     if row.change.state == change::State::Ended {
         return Some(change::Decision::Cancel);
     }
@@ -4523,9 +4573,11 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     let repository = row.repository;
-    let branch = row.branch.clone();
+    let selecting = row.change.state == (change::State::Taking { requested: false }) && row.kept.is_none();
+    let branch =
+        if selecting { row.source.as_ref().expect("taking source").branch.clone() } else { row.branch.clone() };
     let producer = if row.delegate_status == change::Status::Unknown { heard.delegate } else { row.delegate_status };
-    let read_branch = hints::has_head(d, row) || branch_is_due(d, env, task, producer);
+    let read_branch = selecting || hints::has_head(d, row) || branch_is_due(d, env, task, producer);
     let Some(sequence) = d.sequence.checked_add(1) else {
         emit(out, Request::Refused { task });
         return;
@@ -4536,7 +4588,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         task,
         entry,
         follow_tree: List::with_capacity(env.limits.key_entries),
-        stage: StepStage::Branch,
+        stage: if selecting { StepStage::Taking } else { StepStage::Branch },
         heard,
         gates: if gates.is_empty() { row.verdicts.clone() } else { gates },
         queue_repair_active,
@@ -4549,6 +4601,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        execution: None,
         failed: crate::change_ci::Failed::new(Box::new([])),
         stall: None,
         base_ci: change::Status::Unknown,
@@ -4623,7 +4676,8 @@ pub(crate) fn landed_commit(state: &change::State) -> Option<skein_forge::api::C
         | change::State::Red { merge, .. }
         | change::State::Cleared { merge }
         | change::State::Uncleared { merge } => Some(*merge),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -4672,6 +4726,7 @@ fn step_verified(
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
+        execution: None,
         failed: crate::change_ci::Failed::new(Box::new([])),
         stall: None,
         base_ci: change::Status::Unknown,
@@ -4753,6 +4808,10 @@ fn step_read(
         }
         return;
     }
+    if pending.stage == StepStage::Taking {
+        taking::answered(d, env, pending, result, out);
+        return;
+    }
     if pending.stage == StepStage::StallChecks || pending.stage == StepStage::StallJobs {
         if pending.stage == StepStage::StallChecks {
             pending.stall = Some(match result {
@@ -4818,7 +4877,7 @@ fn step_read(
         pull_ci = required.is_empty();
     }
     let next = match pending.stage {
-        StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
+        StepStage::Taking | StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
             unreachable!("special reads handled above")
         }
         StepStage::Branch => {
@@ -4980,7 +5039,7 @@ fn step_read(
                     let saved = row.clone();
                     save_change_parts(d, out, saved);
                 }
-                if ci == skein_forge::api::Ci::Failed || result_rows {
+                if ci == skein_forge::api::Ci::Failed || result_rows || execution_due(&preparing, &pending) {
                     // Repairs retain the contexts they observed, beside the pull verdict.
                     skein_forge::api::Read::Checks { commit }
                 } else if let Some(read) = step_after_ci(d, &mut pending, out) {
@@ -5010,13 +5069,33 @@ fn step_read(
                     let saved = row.clone();
                     save_change_parts(d, out, saved);
                 }
-                pending.failed = crate::change_ci::Failed::new(rows);
+                if execution_due(&preparing, &pending) {
+                    pending.execution = Some(crate::execution::Gather::new(rows));
+                } else {
+                    pending.failed = crate::change_ci::Failed::new(rows);
+                }
             }
-            if pending.ci == change::Status::Failed
+            if pending.execution.is_none() && execution_due(&preparing, &pending) {
+                pending.execution = Some(crate::execution::Gather::new(Box::new([])));
+            }
+            if let Some(read) = next_execution(&mut pending) {
+                read
+            } else if pending.ci == change::Status::Failed
                 && let Some(read) = pending.failed.next(pending.branch.unwrap_or([0; 32]))
             {
                 let skein_forge::api::Read::Run { run } = read else { unreachable!("failed run") };
                 pending.stage = StepStage::Run(run);
+                read
+            } else if let Some(read) = step_after_ci(d, &mut pending, out) {
+                read
+            } else {
+                step_paths(d, env, owner, pending, out);
+                return;
+            }
+        }
+        StepStage::ExecutionRun(run) => {
+            pending.execution.as_mut().expect("execution gather").answered(run, result);
+            if let Some(read) = next_execution(&mut pending) {
                 read
             } else if let Some(read) = step_after_ci(d, &mut pending, out) {
                 read
@@ -5142,6 +5221,46 @@ fn step_read(
     child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
 }
 
+fn execution_due(state: &change::State, pending: &PendingStep) -> bool {
+    match state {
+        change::State::Checking { head } => {
+            pending.branch == Some(*head)
+                && (pending.ci == change::Status::Pending || pending.ci == change::Status::Unknown)
+        }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Judging { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Held { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    }
+}
+
+fn next_execution(pending: &mut PendingStep) -> Option<skein_forge::api::Read> {
+    let read = pending.execution.as_mut()?.next()?;
+    let skein_forge::api::Read::Run { run } = read else { unreachable!("execution run") };
+    pending.stage = StepStage::ExecutionRun(run);
+    Some(read)
+}
+
 fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: PendingStep, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get(&pending.task) else { return };
     if let (Some(before), Some(after), Some(repository)) =
@@ -5212,7 +5331,8 @@ fn result_contexts(state: &change::State) -> bool {
         | change::State::Queued { .. }
         | change::State::Held { .. }
         | change::State::Repairing { .. } => true,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -5280,7 +5400,8 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
         }
         let since = match other.change.state {
             change::State::Queued { ready_since, .. } | change::State::First { ready_since, .. } => Some(ready_since),
-            change::State::Producing { .. }
+            change::State::Taking { .. }
+            | change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
@@ -5346,7 +5467,8 @@ pub(crate) fn owns_turn(row: &ChangeRow) -> bool {
         | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::Landing { .. } => true,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -5663,7 +5785,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             reviewed = true;
         }
         let effect_prior = row.change.clone();
-        let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        if d.landing.held
+            && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
+        {
+            stepped.change = row.change.clone();
+            stepped.decision = change::Decision::Wait { until: None };
+        }
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
@@ -5733,7 +5861,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                 emit_change_effect(d, env, &mut row, &pending, prior, effect, out);
                 return;
             }
-            decision @ (change::Decision::None
+            decision @ (change::Decision::Failed
+            | change::Decision::None
             | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
@@ -5781,7 +5910,12 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                             &row,
                             &facts,
                             &heard,
-                            crate::settle::cap(d, env, &row, &facts, decision),
+                            execution_poll(
+                                env,
+                                &facts,
+                                execution_due(&row.change.state, &pending),
+                                crate::settle::cap(d, env, &row, &facts, decision),
+                            ),
                         ),
                         entry: None,
                         evidence: if decision == change::Decision::Hold(change::Hold::BranchMoved) {
@@ -5871,6 +6005,18 @@ fn drive_check(
     }
 }
 
+/// Poll both the first reading after entering checking and later readings (stalls.md, 2.1).
+fn execution_poll(env: &Env<Limits>, facts: &change::Facts, due: bool, decision: change::Decision) -> change::Decision {
+    if (facts.execution.is_some() || due)
+        && let change::Decision::Wait { until } = decision
+    {
+        let delay = if facts.execution.is_some() { env.limits.client.poll_max } else { Duration::ZERO };
+        let poll = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(delay.as_nanos()));
+        return change::Decision::Wait { until: Some(until.unwrap_or(poll).min(poll)) };
+    }
+    decision
+}
+
 fn repair_poll(
     env: &Env<Limits>,
     row: &ChangeRow,
@@ -5893,7 +6039,8 @@ fn repair_poll(
 pub(crate) fn in_queue(state: &change::State) -> bool {
     match state {
         change::State::Queued { .. } | change::State::First { .. } => true,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -6073,6 +6220,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        taken: row.kept,
         fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
         rerun: match d.configured.get(&row.repository.forge) {
             Some(config) => {
@@ -6091,6 +6239,10 @@ fn change_facts(
         ci: change::Ci {
             head: pending.branch.unwrap_or([0; 32]),
             status: if has_ci && requires.ci { pending.ci } else { change::Status::Passed },
+        },
+        execution: match &pending.execution {
+            Some(gather) => Some(gather.reading()),
+            None => None,
         },
         base_ci: change::Ci {
             head: base_tip,
@@ -6360,6 +6512,12 @@ fn emit_change_effect(
         crate::change_history::write(d, env.wall, row, event, out);
     }
     keep_entry(d, entry, None, out);
+    if let change::State::Taking { .. } = row.change.state {
+        let until = skein_lib::Wall::from_nanos(
+            row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
+        );
+        d.wait_change(env, row.task, Some(until));
+    }
     emit(
         out,
         Request::ChangeDecision {
@@ -6507,6 +6665,7 @@ pub(crate) fn change_outcome(
     };
     rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
+    let account = taking::make_account(d.changes.get(&task).expect("found change row"), account, outcome);
     let Some(row) = d.changes.get_mut(&task) else { unreachable!("found change row") };
     let closed_opening = opening
         && match outcome {
@@ -6590,7 +6749,10 @@ pub(crate) fn change_outcome(
     d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved.clone());
     match outcome {
-        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(commit), .. } => {
+        skein_forge_client::Outcome::Made {
+            made: skein_forge_client::Made::Updated(commit) | skein_forge_client::Made::Branch(commit),
+            ..
+        } => {
             record_change_head(d, env, &saved, commit, out);
         }
         skein_forge_client::Outcome::Made {
@@ -6599,7 +6761,6 @@ pub(crate) fn change_outcome(
                 | skein_forge_client::Made::Commented(_)
                 | skein_forge_client::Made::Reviewed(_)
                 | skein_forge_client::Made::Merged(_)
-                | skein_forge_client::Made::Branch(_)
                 | skein_forge_client::Made::Set,
             ..
         }
@@ -6652,7 +6813,8 @@ pub(crate) fn matches_updating(state: &change::State) -> bool {
 pub(crate) fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
         change::State::Updating { base, .. } | change::State::Preparing { main: base, .. } => Some(*base),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -6719,7 +6881,8 @@ fn record_change_head(
 pub(crate) fn matches_held(state: &change::State) -> bool {
     match state {
         change::State::Held { .. } => true,
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -6816,7 +6979,8 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     row.change.since = env.wall;
     if lifted && row.effect == change::EffectResult::Failed {
         match row.change.state {
-            change::State::Updating { .. }
+            change::State::Taking { .. }
+            | change::State::Updating { .. }
             | change::State::Preparing { .. }
             | change::State::Checking { .. }
             | change::State::Judging { .. }
@@ -6960,7 +7124,8 @@ fn no_change_words(d: &Domain, task: u64) -> Option<&[u8]> {
     let row = d.changes.get(&task)?;
     match &row.change.state {
         change::State::NoChange { words } => Some(words),
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -7371,7 +7536,8 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
                 .into(),
             }),
         },
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -7424,7 +7590,8 @@ fn ended_change_state(
         change::State::Red { merge, since } => change::State::Red { merge: *merge, since: *since },
         change::State::Cleared { merge } => change::State::Cleared { merge: *merge },
         change::State::Uncleared { merge } => change::State::Uncleared { merge: *merge },
-        change::State::Producing { .. }
+        change::State::Taking { .. }
+        | change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
@@ -8120,7 +8287,8 @@ fn veto_change(
             change::State::First { head, .. } | change::State::Queued { head, .. } => {
                 row.change.state = change::State::Gating { head, asked: Box::new([]) };
             }
-            change::State::Producing { .. }
+            change::State::Taking { .. }
+            | change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
@@ -9063,6 +9231,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Tier(row) => {
             d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
         }
+        Stored::Milestone(row) => {
+            d.milestones.insert(row.task, row).expect("restored milestone within project bound");
+        }
         Stored::LandingLog(row) => {
             d.landing_logs.insert(row.repository, row).expect("restored log within limits");
         }
@@ -9244,6 +9415,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     d.rebuild_settings();
+    d.restore_landing_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -9263,6 +9435,13 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
+        let mut landing = d.landing.rows.contains_key(&row.entry.task);
+        if let skein_forge::api::Write::Merge { .. } = row.entry.effect.write {
+            landing = true;
+        }
+        if d.landing.held && landing {
+            continue;
+        }
         if !row.held && row.handoff != Handoff::Handed {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }
@@ -9841,6 +10020,8 @@ impl Domain {
                         | crate::ApplicationOutcome::ForgeRefused(_)
                         | crate::ApplicationOutcome::MakeKept
                         | crate::ApplicationOutcome::Follow(_)
+                        | crate::ApplicationOutcome::Opened { .. }
+                        | crate::ApplicationOutcome::OpenRefused(_)
                         | crate::ApplicationOutcome::MakeRefused(_) => false,
                     } {
                         return Key::Application(key.raw());
@@ -9954,6 +10135,7 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::Milestone
             | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device

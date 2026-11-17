@@ -1036,9 +1036,7 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile =
-            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-                .root;
+        let profile = temper_limits_fixtures::small().root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1177,6 +1175,15 @@ impl Joint {
     }
     /// A goal and its delegated authority fit, with bounds chosen by the story.
     pub(crate) fn with_delegates(seed: u64, limits: &client::Limits, delegates: u32, page_rows: u32) -> Self {
+        Self::with_delegate_kinds(seed, limits, delegates, page_rows, &[jig_domain_authority::Executor::Charter(1)])
+    }
+    pub(crate) fn with_delegate_kinds(
+        seed: u64,
+        limits: &client::Limits,
+        delegates: u32,
+        page_rows: u32,
+        kinds: &[jig_domain_authority::Executor],
+    ) -> Self {
         use jig_domain_authority as authority;
         let tasks = delegates.checked_add(1).expect("goal plus its delegates");
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
@@ -1191,6 +1198,11 @@ impl Joint {
             policy.roles[0].authority.delegation.depth = 2;
             let mut authority_limits = temper_engine_domain_world::walking::limits().authority;
             authority_limits.batch = delegates;
+            authority_limits.executors =
+                authority_limits.executors.max(u32::try_from(kinds.len()).expect("executor kinds"));
+            rules.ceiling.delegation.kinds = kinds.into();
+            policy.ceiling.delegation.kinds = kinds.into();
+            policy.roles[0].authority.delegation.kinds = kinds.into();
             let mut domain = authority::Domain::new(rules, authority_limits).expect("delegate authority");
             let mut out = skein_lib::Queue::uncapped();
             authority::step(
@@ -1208,6 +1220,14 @@ impl Joint {
             engine_limits.tasks.tree_tasks = tasks;
             engine_limits.tasks.delegates = delegates;
             engine_limits.tasks.batch = delegates;
+            // Each delegate can retain question and result credits in its parent's inbox.
+            engine_limits.tasks.inbox_messages = engine_limits.tasks.inbox_messages.max(2 * delegates);
+            engine_limits.people.inbox_recipients = engine_limits
+                .people
+                .inbox_recipients
+                .max(2 * engine_limits.tasks.inbox_messages + authority_limits.roles + 4);
+            engine_limits.tasks.executor_kinds = engine_limits.tasks.executor_kinds.max(authority_limits.executors);
+            engine_limits.documents.executors = engine_limits.documents.executors.max(authority_limits.executors);
             engine_limits.authority = authority_limits;
             // The core prices two inbox projections for each live task.
             engine_limits.people.inbox_tasks = tasks * 2;
@@ -1282,22 +1302,27 @@ impl Joint {
     /// client/engine.md and client/testing.md: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, false, None)
+        Self::change_landing(seed, limits, None, false, false, None, None)
+    }
+    /// Hold-card stories can shorten execution's unknown grace below the fixture's sign-in lifetime.
+    #[must_use]
+    pub fn with_change_grace(seed: u64, limits: &client::Limits, grace: Duration) -> Self {
+        Self::change_landing(seed, limits, None, false, false, None, Some(grace))
     }
     /// testing/checks.md, 3: the deployment also waits for the project's owner's review.
     #[must_use]
     pub fn with_change_approval(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, true, None)
+        Self::change_landing(seed, limits, None, false, true, None, None)
     }
     /// Settings and a following change through the same joined engine.
     #[must_use]
     pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, true, false, None)
+        Self::change_landing(seed, limits, None, true, false, None, None)
     }
     /// One Change record's room, so a settled row can be evicted while its history stays.
     #[must_use]
     pub fn with_change_eviction(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, false, Some(1))
+        Self::change_landing(seed, limits, None, false, false, Some(1), None)
     }
     #[expect(
         clippy::too_many_lines,
@@ -1310,6 +1335,7 @@ impl Joint {
         settings: bool,
         approval: bool,
         changes: Option<u32>,
+        unknown_grace: Option<Duration>,
     ) -> Self {
         // Chat, reviewer and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
@@ -1323,6 +1349,9 @@ impl Joint {
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
+            if let Some(grace) = unknown_grace {
+                limits.forge.change_policy.unknown_grace = grace;
+            }
             if let Some(changes) = changes {
                 limits.forge.changes = changes;
             }

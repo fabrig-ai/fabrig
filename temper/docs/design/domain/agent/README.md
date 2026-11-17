@@ -24,6 +24,9 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **A charter's room** (`room.md`): the allowance a charter is fitted to,
+  its brief cut to what the rest leaves, a refusal naming what didn't fit,
+  and the checks at start and at each change of settings.
 - **A standing role** (`standing.md`) is jig's task that stands under a
   charter of temper's: an agent that owns some of a project's work for
   the project's life, its Now its memory, its requester its person.
@@ -237,6 +240,25 @@ host:
   results, and proposes what is beyond its authority; a chat that waits,
   hears its person's words, parks, and resumes from its transcript; a
   host tool answered busy by the engine, asked again and decided once.
+- **A person's words during a turn,** in the system world
+  (`../../testing/README.md`, 2.1): an Open chat's first model call
+  held, as the world's absence stories hold one, the person's words
+  said to the chat while it is held, then the call answered and the
+  run going on. Two model calls, both answered, with no nudge or retry;
+  the words in the second call's request once and never in the
+  first's; each reply committed once; and the chat parked with no hold,
+  no result and no try spent. A message crossing a completion smith has
+  sent is smith's run world's, and a read fence's taking of offered
+  words jig's tasks world's.
+- **A goal's design delivery,** in the system world (5;
+  `../forge/branches.md`, 3): a goal naming its own goal branch, its
+  agent's edit delivered with `deliver` and its run finished with its
+  report. The forge's record holds no run branch at any point; g's tip
+  holds the edit and the landing branch is as it was; the goal ends
+  done with its report; the agent reads the delivery's answer,
+  `delivered` with a receipt naming g, and no tool's answer is an
+  error. git's side of it, g fast-forwarded, is the checkout world's
+  (`tests/worker/checkout`).
 
 ## 8. Open questions
 

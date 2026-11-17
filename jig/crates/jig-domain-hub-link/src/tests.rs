@@ -565,13 +565,35 @@ fn a_refused_start_is_transient_permanent_or_busy() {
                 cause: host::StartCause::Other,
                 why: b"invalid assignment".as_slice().into(),
             })),
-            tasks::End::Failed(tasks::Class::Permanent),
+            tasks::End::FailedWithReason {
+                class: tasks::Class::Permanent,
+                reason: b"invalid assignment".as_slice().into(),
+            },
             fleet::Answer::Invalid,
         ),
         (
             host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
                 cause: host::StartCause::Grants,
                 why: b"invalid grants".as_slice().into(),
+            })),
+            tasks::End::FailedWithReason {
+                class: tasks::Class::Permanent,
+                reason: b"invalid grants".as_slice().into(),
+            },
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Other,
+                why: Box::new([]),
+            })),
+            tasks::End::Failed(tasks::Class::Permanent),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Grants,
+                why: Box::new([]),
             })),
             tasks::End::Failed(tasks::Class::Permanent),
             fleet::Answer::Invalid,
@@ -620,6 +642,62 @@ fn a_refused_start_is_transient_permanent_or_busy() {
         };
         assert_eq!(answer, expected, "a refused start closes without an acknowledgement");
     }
+}
+
+#[test]
+fn an_invalid_starts_reason_keeps_its_words() {
+    let why = b"assignment cannot encode: charter.fixed_owned 82,884, bound 65,536, wire ceiling 67,108,864";
+    for cause in [host::StartCause::Other, host::StartCause::Grants] {
+        let ending = host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause,
+            why: Box::from(why.as_slice()),
+        }));
+        assert_eq!(
+            payload::ending(&ending),
+            tasks::End::FailedWithReason { class: tasks::Class::Permanent, reason: Box::from(why.as_slice()) }
+        );
+    }
+}
+
+#[test]
+fn an_invalid_starts_reason_keeps_a_marked_utf8_head() {
+    let bound = skein_lib::usize_of(tasks::REASON_BYTES);
+    let ascii = "x".repeat(200);
+    let across = "x".repeat(121) + "é" + &"z".repeat(77);
+    let aligned = "x".repeat(120) + "é" + &"z".repeat(78);
+    for (why, expected) in [
+        ("x".repeat(bound), "x".repeat(bound)),
+        (ascii, "x".repeat(122) + " [cut]"),
+        (across, "x".repeat(121) + " [cut]"),
+        (aligned, "x".repeat(120) + "é [cut]"),
+    ] {
+        let ending = host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Other,
+            why: why.into_bytes().into_boxed_slice(),
+        }));
+        let tasks::End::FailedWithReason { class, reason } = payload::ending(&ending) else {
+            panic!("invalid start carries its reason");
+        };
+        assert_eq!(class, tasks::Class::Permanent);
+        assert_eq!(reason.as_ref(), expected.as_bytes());
+        assert!(reason.len() <= bound);
+        assert!(skein_lib::bytes::is_utf8(&reason));
+    }
+}
+
+#[test]
+fn an_invalid_starts_non_utf8_reason_reads_as_text() {
+    let ending = host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+        cause: host::StartCause::Other,
+        why: b"assignment: \xff cannot encode".as_slice().into(),
+    }));
+    assert_eq!(
+        payload::ending(&ending),
+        tasks::End::FailedWithReason {
+            class: tasks::Class::Permanent,
+            reason: b"assignment: ? cannot encode".as_slice().into(),
+        }
+    );
 }
 
 /// jig/docs/design/domain/engine/executors.md, 5: the cause accompanies the class.

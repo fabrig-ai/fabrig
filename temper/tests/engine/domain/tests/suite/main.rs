@@ -27,6 +27,7 @@ mod loads;
 mod mark;
 mod memory;
 mod notes_load;
+mod opened;
 mod oracle;
 mod orders;
 mod panel_before_change;
@@ -55,6 +56,7 @@ mod fuzzy {
     mod escalation;
     mod findings;
     mod follows;
+    mod landing_settings;
     mod loads;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]

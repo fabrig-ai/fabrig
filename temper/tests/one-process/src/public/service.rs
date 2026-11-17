@@ -61,6 +61,11 @@ impl Harness for Deployment {
     fn agent_settings() -> temper_service::settings::Agent {
         agent_settings()
     }
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+        let mut document = document.clone();
+        document["world_settings"] = fixtures::world_document()["world_settings"].clone();
+        temper_playground::documents::settings::seed_configuration(engine, &document);
+    }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         stories::given(document)
     }
@@ -146,11 +151,7 @@ pub(super) fn phase(
 ) -> skein_fake_machine::Machine {
     super::ACTIVE.with(|active| active.set(true));
     BEARER.with(|held| *held.borrow_mut() = None);
-    let advanced = matches!(
-        name,
-        "every_owner_version_and_kind_answers_as_declared"
-            | "every_inaccessible_identifier_is_one_unknown_byte_for_byte"
-    );
+    let advanced = name == "every_owner_version_and_kind_answers_as_declared";
     let story = if advanced { Story::Merge } else { Story::Chat { words: b"Hello" } };
     stories::set(story);
     stories::setup_settings(if advanced { world::Phase::Story } else { world::Phase::Restart });

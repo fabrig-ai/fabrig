@@ -255,7 +255,7 @@ pub(crate) fn host_returned(
                 }
             })
         }
-        HostReply::Busy => {
+        HostReply::Busy | HostReply::Unsent => {
             let exhausted = if relay.unknown { Returned::HostUnknown } else { Returned::Busy };
             host_recover(relay, name.attempt, active, env, exhausted)
         }

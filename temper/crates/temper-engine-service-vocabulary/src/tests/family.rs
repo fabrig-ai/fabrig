@@ -12,6 +12,86 @@ const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
 const REQUEST_KEY: [u8; 16] = [5; 16];
 const WATCHER: Token = Token::new(7);
 #[test]
+fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
+    for (budget, expected_budget) in [
+        (
+            w::OpenBudget::Amount(w::OpenAmount::new(&w::CEILINGS, w::OpenAmountParts { amount: 500 }).unwrap()),
+            forge::OpenBudget::Amount(500),
+        ),
+        (w::OpenBudget::AsAllowed, forge::OpenBudget::AsAllowed),
+    ] {
+        let input = w::OpenChange::new(
+            &w::CEILINGS,
+            w::OpenChangeParts {
+                project: 7,
+                repository: Some(
+                    w::DraftRepository::new(
+                        &w::CEILINGS,
+                        w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
+                    )
+                    .unwrap(),
+                ),
+                branch: b"docs/x".as_slice().into(),
+                at: Some(Box::new([b'a'; 40])),
+                into: Some(b"release".as_slice().into()),
+                title: b"Fix the docs".as_slice().into(),
+                body: Some(b"Keep examples.".as_slice().into()),
+                budget,
+            },
+        )
+        .unwrap();
+        let record =
+            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::OpenChange(input) }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application { request, reply_to, sign_in, key, digest, .. }) = event
+        else {
+            panic!("opening")
+        };
+        assert_eq!((reply_to, sign_in, key, digest), (REPLY, 3, REQUEST_KEY, [7; 32]));
+        assert_eq!(
+            request,
+            root::Application::OpenChange(forge::OpenChange {
+                project: 7,
+                repository: Some(forge::DraftRepository {
+                    owner: b"org".as_slice().into(),
+                    name: b"repo".as_slice().into()
+                }),
+                branch: b"docs/x".as_slice().into(),
+                at: Some(Box::new([b'a'; 40])),
+                into: Some(b"release".as_slice().into()),
+                title: b"Fix the docs".as_slice().into(),
+                body: Some(b"Keep examples.".as_slice().into()),
+                budget: expected_budget,
+            })
+        );
+    }
+    assert_eq!(
+        encoded(Some(forge::ApplicationOutcome::Opened { task: 81 })),
+        w::Outcome::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { task: 81 }).unwrap())
+    );
+    let w::Outcome::OpenRefused(answer) =
+        encoded(Some(forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix {
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+        })))
+    else {
+        panic!("open refusal")
+    };
+    let w::OpenRefusal::UnderPrefix(why) = answer.reason() else { panic!("under prefix") };
+    assert_eq!((why.owner(), why.name(), why.prefix()), (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice()));
+}
+
+#[test]
 fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
     use forge::follows::FollowAct as A;
     let after = [0xab; 32];
@@ -70,7 +150,7 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
         assert_eq!(request, root::Application::Follow { project: 2, follow: 1, act: expected });
     }
     for refusal in [None, Some(b"ab: this entry was skipped".as_slice().into())] {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Follow(refusal.clone())), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let w::Outcome::Follow(answer) = answer.into_parts().outcome else { panic!("follow outcome") };
@@ -331,7 +411,7 @@ fn a_git_base_with_a_port_keeps_it_in_the_host() {
     }
 }
 fn encoded(outcome: Option<forge::ApplicationOutcome>) -> w::Outcome {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let outcome = match outcome {
         Some(outcome) => Some(temper_engine_domain::ApplicationAnswer::Adopt(outcome)),
         None => None,
@@ -369,7 +449,7 @@ fn an_outcome_past_its_retention_is_encoded_unknown() {
 }
 #[test]
 fn a_core_refusal_uses_jigs_refusal_record() {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     let limits = fixtures::engine().jig.limits.clients.wire;
     for (row, input, expected) in [
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
@@ -617,8 +697,10 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
 fn panel() -> forge::Panel {
     forge::Panel {
         wait: None,
+        landing_held: false,
         way: change::Way::Queue,
         in_landing: None,
+        source: None,
         task: CHANGE_TASK,
         forge: 1,
         owner: b"acme".as_slice().into(),
@@ -704,6 +786,7 @@ fn a_panel_encodes_and_decodes_back_whole() {
         &w::CEILINGS,
         w::ChangePanelParts {
             wait: None,
+            source: None,
             way: w::Way::Queue,
             in_landing: None,
             task: CHANGE_TASK,
@@ -1071,7 +1154,7 @@ fn forges_watches_name_the_deployment_subject() {
 
 #[test]
 fn setup_outcomes_use_the_family_answer_including_unknown() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (outcome, expected) in [
         (None, w::Outcome::Unknown),
         (Some(forge::SetUpAnswer::SettingUp), w::Outcome::SettingUp),
@@ -1308,7 +1391,7 @@ fn expected_forge_row(
 
 #[test]
 fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     for (bound, expected) in [
         (people::Bound::Reasoning, j::Bound::Reasoning),
         (people::Bound::Metadata, j::Bound::Metadata),
@@ -1436,7 +1519,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
 }
 #[test]
 fn invalid_setup_refusals_translate_to_the_wire() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes = family::answer(
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid))),
         &w::CEILINGS,
@@ -1453,7 +1536,7 @@ fn invalid_setup_refusals_translate_to_the_wire() {
 
 #[test]
 fn playground_start_outcomes_encode_every_failure_and_unknown() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let group = w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"prepare 1 exited 1".as_slice().into() })
         .unwrap();
     for (answer, expected) in [
@@ -1572,7 +1655,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Tier(_)
+                        root::Application::OpenChange(_)
+                        | root::Application::Tier(_)
                         | root::Application::Follow { .. }
                         | root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
@@ -1705,12 +1789,11 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_twenty_five() {
+fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::v26::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::v27::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 25);
 }
 
 #[test]
@@ -1809,7 +1892,7 @@ fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
 }
 #[test]
 fn accept_answers_use_the_appended_success_and_existing_refusals() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (
             forge::AcceptAnswer::Accepted { installation: 22 },
@@ -2421,7 +2504,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 }
 #[test]
 fn removal_and_playground_answers_use_their_own_outcomes() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (root::ApplicationAnswer::Try(root::TryAnswer::Tried), w::Outcome::Tried),
         (root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs), w::Outcome::NotTheirs),
@@ -2455,7 +2538,7 @@ fn removal_and_playground_answers_use_their_own_outcomes() {
 
 #[test]
 fn end_playground_answers_reset() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes =
         family::answer(Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), &w::CEILINGS, &jig)
             .unwrap();
@@ -2563,7 +2646,7 @@ fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
 
 #[test]
 fn connect_and_replace_answers_share_the_connect_outcomes() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
         (
@@ -2835,7 +2918,7 @@ fn make_repository_refuses_a_source_the_parser_rejects() {
 }
 #[test]
 fn make_repository_answers_encode_every_outcome() {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (forge::MakeAnswer::Kept, w::Outcome::MakeKept),
         (forge::MakeAnswer::Refused(forge::MakeRefusal::NoSuchForge), make_refused(w::MakeRefusal::NoSuchForge)),
@@ -3675,7 +3758,7 @@ fn looked_and_status_translate_both_ways() {
         }
     );
     assert_eq!(window, jig_domain_core::documents::Window { rows: 2, after: None });
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), w::Outcome::Looked),
         (
@@ -3757,7 +3840,7 @@ fn looked_and_status_translate_both_ways() {
 #[test]
 fn the_worst_small_changes_document_fits_its_decision() {
     const REPOSITORY_BYTES: usize = 2048; // ChangesQueue.repository, the wire ceiling.
-    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let limits = crate::limits::stock();
     let mut queues = List::with_capacity(32);
     // Each live change may have its own queue; the view retains at most 32 queues.
     for task in 0..limits.forge.changes.min(32) {
@@ -3812,7 +3895,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
 fn the_worst_small_ways_document_fits_its_decision() {
     // A stock headline's bound (temper/docs/design/protocol/configuration/settings.md, 8).
     const HEADLINE_BYTES: u32 = 120;
-    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let limits = crate::limits::stock();
     let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();
     let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
     assert!(
@@ -3977,7 +4060,7 @@ fn away_wall(nanos: Option<u64>) -> Option<skein_lib::Wall> {
     }
 }
 fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
     w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
 }
@@ -4788,6 +4871,9 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     );
 }
 
+#[path = "milestones.rs"]
+mod milestones;
+
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {
     let reading = w::Reading::new(
@@ -5483,10 +5569,31 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         (Err(forge::TierRefusal::NotHeld), Some(w::TierRefusal::NotHeld)),
         (Err(forge::TierRefusal::Words), Some(w::TierRefusal::Words)),
     ] {
-        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Tier(value)), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };
         assert_eq!(answer.into_parts().refusal, expected);
     }
+}
+
+#[test]
+fn an_opened_panel_carries_its_source_and_taking_step() {
+    for (step, expected) in [(forge::PanelStep::Taking, w::Step::Taking), (forge::PanelStep::Opening, w::Step::Opening)]
+    {
+        for kept in [None, Some([9; 32])] {
+            for at in [None, Some([8; 32])] {
+                let mut value = panel();
+                value.step = step.clone();
+                value.source = Some(forge::PanelSource { branch: b"docs/x".as_slice().into(), at, kept });
+                let got = decoded_panel(value, &crate::forges::Forges::with_capacity(0));
+                assert_eq!(got.step(), &expected);
+                let source = got.source().as_ref().expect("opened source");
+                assert_eq!(source.branch(), b"docs/x");
+                assert_eq!(*source.at(), at);
+                assert_eq!(*source.kept(), kept);
+            }
+        }
+    }
+    assert_eq!(*decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source(), None);
 }

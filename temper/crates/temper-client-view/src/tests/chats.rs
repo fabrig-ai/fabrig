@@ -672,12 +672,18 @@ struct DraftsPage {
 }
 
 impl DraftsPage {
-    #[expect(clippy::too_many_lines, reason = "the fixture answers Chats through the public client events")]
     fn new(offered: bool, asking: bool, linked: bool) -> Self {
+        Self::named(offered, asking, linked, None)
+    }
+    #[expect(clippy::too_many_lines, reason = "the fixture answers Chats through the public client events")]
+    fn named(offered: bool, asking: bool, linked: bool, title: Option<&[u8]>) -> Self {
         use jig_client::{Down, Readable, Up, Watchable};
         use temper_client_domain::{Address, Event};
         use temper_client_protocol_wire::{self as wire, v1 as w};
-        let limits = fixtures::domain_limits();
+        let mut limits = fixtures::domain_limits();
+        limits.client.domain.text = 256;
+        limits.client.domain.long_text = 256;
+        limits.client.domain.turn_text = 256;
         let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
         let source = fixtures::chat::messaging_root();
         let mut me = source.pages().me(source.client()).unwrap().clone();
@@ -720,6 +726,9 @@ impl DraftsPage {
                 Down::Open { watch, subject: Watchable::Jig(Subject::Tasks { .. }) } => {
                     let mut rows = List::with_capacity(2);
                     let mut chat = line();
+                    if let Some(title) = title {
+                        chat.chip.title = DocumentText::complete(Text::new(title.into(), 256).unwrap());
+                    }
                     chat.last_activity = Wall::from_nanos(1);
                     if asking {
                         chat.chip.executor = ChipExecutor::Agent { charter: 37 };
@@ -737,7 +746,8 @@ impl DraftsPage {
                     page.goal_watch = Some(watch);
                     let mut chip = line().chip;
                     chip.task = DRAFT_GOAL;
-                    chip.title = DocumentText::complete(Text::new(b"Keep working".as_slice().into(), TEXT).unwrap());
+                    chip.title =
+                        DocumentText::complete(Text::new(title.unwrap_or(b"Keep working").into(), 256).unwrap());
                     Up::Watched {
                         watch,
                         event: WatchEvent::Delivered(Delivery::Chips(List::from_boxed(Box::new([chip])))),
@@ -1003,5 +1013,23 @@ fn drafts_claims_no_empty_until_its_notes_answer() {
     );
     for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
         assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_some());
+    }
+}
+
+#[test]
+fn chats_rows_cut_the_chat_and_linked_goal_titles_in_both_shells() {
+    for (title, cut) in fixtures::row_titles() {
+        let page = DraftsPage::named(true, false, true, Some(title));
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            let tree = fixtures::build(&mut view, &page.root);
+            assert!(fixtures::find(tree, Role::Paragraph, cut).is_some());
+            let id = fixtures::find(tree, Role::Link, cut).expect("cut goal link name");
+            assert_eq!(skein_lib::bytes::count(&fixtures::text(tree), cut, 3), 2);
+            if title != cut {
+                assert!(skein_lib::bytes::find(&fixtures::text(tree), title).is_none());
+            }
+            assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/tasks/42".as_slice()));
+        }
     }
 }

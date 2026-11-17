@@ -381,6 +381,7 @@ impl Protocol {
             | engine::Request::Forge { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
+            | engine::Request::ChoosePlace { .. }
             | engine::Request::BoxGroup { .. }
             | engine::Request::PlaygroundActs { .. }
             | engine::Request::ResetAct { .. }
@@ -400,6 +401,7 @@ impl Protocol {
             | engine::Request::ToChild(_)
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
+            | engine::Request::Restarting { .. }
             | engine::Request::Drained
             | engine::Request::Stop) => Err(Box::new(other)),
         }

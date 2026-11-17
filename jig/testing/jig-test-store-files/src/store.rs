@@ -65,17 +65,16 @@ pub struct Store {
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
-    sets: protocol::PatchSets,
-    initial_sets: protocol::PatchSets,
-    patches: Vec<(usize, protocol::PatchSets)>,
-    /// Patch progress events received during the latest open.
-    patched: u32,
+    sets: protocol::OwnerSets,
+    initial_sets: protocol::OwnerSets,
+    patches: Vec<(usize, protocol::OwnerSets)>,
     turn_text: Option<TurnText>,
     files: Files,
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
     component_limits: Limits,
+    application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Box<[jig_domain_core::Model]>,
     inflight: BTreeMap<u64, Box<[root::Write]>>,
@@ -103,59 +102,74 @@ impl Store {
     /// The component under a configuration's `models`, in its order.
     #[must_use]
     pub fn new(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::with_patch_sets(limits, models, protocol::PatchSets::NONE)
+        Self::with_owner_sets(limits, models, protocol::OwnerSets::NONE)
     }
     /// Hand the binary's sets to the component before its first open.
     #[must_use]
-    pub fn with_patch_sets(
+    pub fn with_owner_sets(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
-        sets: protocol::PatchSets,
+        sets: protocol::OwnerSets,
     ) -> Store {
         Self::build(limits, models, sets, false)
     }
     /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
     pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::starting_with_patch_sets(limits, models, protocol::PatchSets::NONE)
+        Self::starting_with_owner_sets(limits, models, protocol::OwnerSets::NONE)
     }
     /// Open typed start pages with the binary's patch sets installed before open.
     #[must_use]
-    pub fn starting_with_patch_sets(
+    pub fn starting_with_owner_sets(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
-        sets: protocol::PatchSets,
+        sets: protocol::OwnerSets,
     ) -> Store {
         Self::build(limits, models, sets, false)
     }
     /// Use the directory-backed component even without patch sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::PatchSets::NONE, true)
+        Self::build(limits, models, protocol::OwnerSets::NONE, true)
     }
     fn build(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
-        sets: protocol::PatchSets,
+        sets: protocol::OwnerSets,
         on_disk: bool,
     ) -> Store {
-        let component_limits = component_limits(limits);
-        let disk =
-            if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(&component_limits)) };
-        let application = jig_test_store::application(&limits.connector);
+        Self::prepared(
+            limits,
+            models,
+            sets,
+            on_disk,
+            &component_limits(limits),
+            jig_test_store::application(&limits.connector),
+        )
+    }
+    // Forks keep these checked sizes: the source's configuration is immutable.
+    fn prepared(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        on_disk: bool,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
+    ) -> Store {
+        let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let mut component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&component_limits, application, models, disk.seeded())
+            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: skein_kv::Store::memory(&component_limits.store),
                 secrets: skein_kv::Store::memory(&component_limits.secrets),
             };
-            protocol::Store::over(&component_limits, application, models, stores)
+            protocol::Store::over(component_limits, application, models, stores)
         };
-        component.patch_sets(component_sets(sets));
+        component.owner_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
-        routes.configure_restore(&component_limits).expect("restart page bounds fit");
+        routes.configure_restore(component_limits).expect("restart page bounds fit");
         let mut store = Store {
             applied: 0,
             prefixes: BTreeMap::from([(0, BTreeMap::new())]),
@@ -173,13 +187,13 @@ impl Store {
             sets,
             initial_sets: sets,
             patches: Vec::new(),
-            patched: 0,
             turn_text: None,
             files: Files::new(),
             disk,
             routes,
             limits: *limits,
-            component_limits,
+            component_limits: *component_limits,
+            application,
             models: models.into(),
             inflight: BTreeMap::new(),
             durable: Vec::new(),
@@ -234,7 +248,7 @@ impl Store {
         self.turn_text = Some(render);
     }
     /// Select the next binary's sets; they take effect on the next open.
-    pub fn patch_sets(&mut self, sets: protocol::PatchSets) {
+    pub fn owner_sets(&mut self, sets: protocol::OwnerSets) {
         assert!(self.disk.is_some() || sets.sets.is_empty(), "construct with sets to use a directory store");
         self.sets = sets;
     }
@@ -337,7 +351,7 @@ impl Store {
     }
     pub fn crash(&mut self, seed: u64) -> Result<(), ReadbackFinding> {
         let component = self.component.take().expect("component exists");
-        let application = jig_test_store::application(&self.limits.connector);
+        let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
             disk.crash(&self.component_limits, seed);
@@ -347,7 +361,7 @@ impl Store {
             self.files.crash(seed);
             protocol::Store::over(&self.component_limits, application, &self.models, stores)
         });
-        self.component.as_mut().expect("rebuilt component").patch_sets(component_sets(self.sets));
+        self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
         self.routes = route::Routes::new(self.limits.routes);
         self.routes.configure(&self.limits);
@@ -406,11 +420,18 @@ impl Store {
     }
     /// Replay durable commits into fresh stores and a fresh filesystem.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.disk.is_some());
+        let mut fresh = Store::prepared(
+            &self.limits,
+            &self.models,
+            self.initial_sets,
+            self.disk.is_some(),
+            &self.component_limits,
+            self.application,
+        );
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
-                fresh.patch_sets(*sets);
+                fresh.owner_sets(*sets);
                 fresh.crash(0)?;
             }
             if let Some((number, writes)) = self.durable.get(index) {
@@ -422,7 +443,7 @@ impl Store {
                 assert_eq!(fresh.tick(false), Ok(Some(*number)));
             }
         }
-        fresh.patch_sets(self.sets);
+        fresh.owner_sets(self.sets);
         fresh.turn_text = self.turn_text;
         fresh.page_delay = self.page_delay;
         Ok(fresh)
@@ -503,7 +524,6 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
-        self.patched = 0;
         let root = match &self.disk {
             Some(disk) => disk.root(),
             None => self.files.root(),
@@ -516,7 +536,7 @@ impl Store {
         if !self.rows.is_empty() && !self.reached_kill() && (self.disk.is_none() || !self.sets.sets.is_empty()) {
             self.refresh_patched_rows();
         }
-        if self.patched > 0 {
+        if self.generation_pending {
             self.patches.push((self.durable.len(), self.sets));
         }
     }
@@ -621,7 +641,6 @@ impl Store {
             | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
-            Event::Patched { .. } => self.patched = self.patched.checked_add(1).expect("bounded patch count"),
             Event::Got { owner, row } if owner == Token::new(0) => {
                 let Some(protocol::Row::Jig(row)) = row else {
                     panic!("patched jig row remains at its key");
@@ -705,20 +724,19 @@ impl Store {
         self.drive(requests, Queue::uncapped());
     }
 }
-// The default memory worlds run the binary's jobs too; explicit sets describe upgrade fixtures.
-const HISTORY_SETS: protocol::PatchSets = protocol::PatchSets {
-    sets: &[protocol::PatchSet {
+// Default memory worlds keep history ranges without registry planning; explicit sets describe upgrade fixtures.
+const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
+    sets: &[protocol::OwnerSet {
         level: None,
-        patches: &[],
-        jobs: &[*protocol::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
+        jobs: &[],
         families: &[
-            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[3] },
-            protocol::KeptFamily { retired: &[], types: &[], texts: &[], ..protocol::STORE_FAMILIES[4] },
+            protocol::KeptFamily { retired: &[], types: &[], frames: None, ..protocol::STORE_FAMILIES[3] },
+            protocol::KeptFamily { retired: &[], types: &[], ..protocol::STORE_FAMILIES[4] },
         ],
-        ..protocol::JIG_STORE_PATCH_SET
+        ..protocol::JIG_STORE_SET
     }],
 };
-fn component_sets(sets: protocol::PatchSets) -> protocol::PatchSets {
+fn component_sets(sets: protocol::OwnerSets) -> protocol::OwnerSets {
     // Domain worlds exercise log storage without pricing layout planning;
     // explicit upgrade fixtures supply registered families themselves.
     if sets.sets.is_empty() { HISTORY_SETS } else { sets }

@@ -16,6 +16,7 @@ pub enum PanelStep {
     Ended,
     Ready { landing: Option<u64> },
     Preparing { landing: Option<u64> },
+    Taking,
     Producing,
     Opening,
     Recreating,
@@ -109,8 +110,17 @@ pub struct PanelApproval {
 pub enum PanelWait {
     OutboxRoom,
 }
+
+/// The pushed source and selected head (domain/forge/change/opened.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PanelSource {
+    pub branch: Box<[u8]>,
+    pub at: Option<[u8; 32]>,
+    pub kept: Option<[u8; 32]>,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Panel {
+    pub landing_held: bool,
     pub way: change::Way,
     pub in_landing: Option<u64>,
     pub task: u64,
@@ -120,6 +130,7 @@ pub struct Panel {
     pub branch: Box<[u8]>,
     pub landing: Box<[u8]>,
     pub head: Option<[u8; 32]>,
+    pub source: Option<PanelSource>,
     pub pull: Option<u64>,
     pub step: PanelStep,
     pub hold: Option<change::Hold>,
@@ -137,6 +148,12 @@ pub struct Panel {
     pub questions: PanelQuestions,
 }
 impl Panel {
+    /// The operator's run-wide waiting reason (domain/landing-settings.md, 1.3).
+    #[must_use]
+    pub fn landing_hold(&self) -> Option<&'static [u8]> {
+        if self.landing_held { Some(b"landing held until the engine starts without landing-held") } else { None }
+    }
+
     /// Heap bytes owned by the approval explanation, charged at document admission.
     #[must_use]
     pub fn approval_bytes(&self) -> usize {
@@ -154,6 +171,10 @@ impl Panel {
             && self.name.len() <= names
             && self.branch.len() <= names
             && self.landing.len() <= names
+            && match &self.source {
+                Some(source) => source.branch.len() <= names,
+                None => true,
+            }
             && self.gates.len() <= skein_lib::usize_of(PANEL_GATES)
             && approvals_within(&self.approvals)
             && self.unmapped_reviews.len() <= 256
@@ -166,6 +187,7 @@ impl Panel {
                 | PanelStep::Cleared { tiers, .. } => tiers.len() <= 32 && tier_lines_within(tiers),
                 PanelStep::Ready { .. }
                 | PanelStep::Preparing { .. }
+                | PanelStep::Taking
                 | PanelStep::Producing
                 | PanelStep::Opening
                 | PanelStep::Recreating

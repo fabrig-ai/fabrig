@@ -16,10 +16,9 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(scratch.path().join("config/temper.json")).expect("deployment"))
             .expect("deployment JSON");
+    assert!(document["application"].get("machine").is_none(), "a forge chooses its listener at set-up");
     for pointer in [
         "/application/clients/listener/socket",
-        "/application/machine/owned/listen/socket",
-        "/application/machine/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ] {

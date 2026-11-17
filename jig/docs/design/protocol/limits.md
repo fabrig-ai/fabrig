@@ -1,12 +1,48 @@
 # Limits
 
 - **Policy above, numbers below.** The design documents name limits and
-  what they bound; the numbers are in `jig-protocol-config`'s profiles,
+  what they bound; the numbers are in `jig-protocol-config`'s stock,
   as module documentation and constants, never in the design.
-- **A profile** is a named set of every limit jig's children and
-  components take, consistent with one another: a small one for one
-  person's machine, and a standard one for a project of fabrig's scale.
-  A deployment names a profile and overrides any limit by its name.
+- **The stock** is one set of every limit jig's children and components
+  take, consistent with one another, for a project of fabrig's scale
+  (temper's `draft/config.md`, 5.1). `jig-protocol-config`'s
+  `stock()` gives it. No document chooses a profile.
+  - **Over a base.** An application reads a document's limits over a
+    base of its own: `engine_over` and `worker_over` take it, and
+    `engine` and `worker` read over the stock. An application's base is
+    jig's stock with its own figures and derivations over it (temper's
+    `protocol/configuration/derived.md`, section 4).
+  - **A document's profile.** `limits.profile` may be absent or
+    `standard`, and either reads the base. Any other name refuses the
+    start at that member, and the rest of the document is checked
+    against the base.
+  - **Overrides.** A deployment overrides any limit by its name, as
+    before.
+  - **`small` is a test's.** Its figures are in the fixtures crate
+    `jig-protocol-config-fixtures`'s `small()` (temper's
+    `draft/cli.md`, 3.2), for tests alone.
+  - **Reading this document.** Below, "standard" means the stock and
+    "small" means the fixtures' figures.
+- **Sized from fabrig's development:** the stock sizes its counts,
+  times and other figures as temper's stock does (temper's
+  `protocol/configuration/limits.md`, sized from what): a
+  count at twice dev.fabrig.ai's figure of 2026-11-16 where that is above
+  the figure the stock had, rounded up to the least d × 10ⁿ, 2ⁿ or
+  3 × 2ⁿ. Its machine's concurrency is sized the same way: the hub's and
+  the fleet's slots, the workers, and the clients' streams. The fleet's
+  slots are the one exception: the engine's link to a worker carries a
+  u32 cap, slots times a slot's assignment, message frames and inbox, so
+  the stock's `fleet.slots` is the largest such figure at most 80 that the
+  cap holds at the stock's figures and at those temper's engine starts
+  with over them, and never below dev.fabrig.ai's 36: 40 on 2026-11-17,
+  where the stock's figures alone hold 64.
+- **Derived in the reader:**
+  - **The stream carriers.** Where `clients.exchanges` or
+    `clients_http.calls` isn't overridden, it follows the stream bounds
+    after the overrides, the least the stream rule below takes.
+  - **A worker's hub slots.** Where a worker's `hub.slots` isn't
+    overridden, it is its `slots`. One overridden below its `slots` is
+    refused, as before.
   Small's store page byte ceiling admits an application's page floor
   derived from the largest shipped ordinary transcript's full frame
   (`store/records.md`, 4); standard's admits the frame of smith's largest
@@ -38,11 +74,11 @@
   the live tasks; and a batch's bytes, which hold five times the largest
   plan seen, every task of it at the largest spec seen. Its store's
   value, page and chunk are what those limits make of the largest row
-  (`store/records.md`, 4), since the store's formats change in place before
-  the first release (`store/records.md`); its map's budget, journal
+  (`store/records.md`, 4); its map's budget, journal
   and routes are a team's as they were. Its machine's concurrency (hub,
-  fleet and worker slots, workers, clients' streams and calls) is a
-  team's, which a deployment sets for its own machine.
+  fleet and worker slots, workers, clients' streams and calls) covers
+  fabrig's development (above), and a worker's hub slots follow its
+  `slots`.
 - **Standard's first deliveries fit together.** Its stream watch count
   covers a full web client. Its queue holds that many deliveries at the
   wire's largest owned record, with the owner, version, length, watch
@@ -72,11 +108,9 @@
   `memory_bytes` is the application's byte budget, handed to it
   unchecked (skein's ../foundation/programming-model.md, 6.1 and 6.3), and a worker's
   is optional, since no worker reads one.
-- **A document that resolves no profile.** Its `limits` are refused at
+- **A document whose profile names another.** Its `limits` are refused at
   that member, and the rest of the document is checked against the
-  largest shipped profile, so that the refusal adds no bound the
-  operator did not choose. Named profiles keep their own bounds, whatever
-  else their `limits` get wrong.
+  base, so that the refusal adds no bound the operator did not choose.
 - **Made projects count too.** Authority's and people's
   `projects` bound every project the deployment holds, seeded and made
   after the first start (`../domain/model.md`, 6.1): a deployment that

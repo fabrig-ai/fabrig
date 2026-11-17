@@ -1,18 +1,6 @@
 # checks: status
 
-2026-11-14. Where the tree's code lags or departs from [checks.md](checks.md).
-
-
-- **Departs:** 1: temper's measured focused request-world sum is
-  81.892959 CPU s, and the real-loop focused median
-  is 31.769481 CPU s against its standing 15 s ceiling.
-  The focused measurements, their load and accounting limits, retained
-  causes and next decisions are in
-  [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
-  focused suite was 832 CPU s on the development machine at main of 11-14
-  11:42Z, within section 1's 1250; package sums include warm nextest
-  overhead. The 15 s ceiling has not been raised.
-
+2026-11-16. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -26,17 +14,9 @@
   the closest lower-story candidates. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
 
-Section 1's fuzzy suite has no known gap against its 180 CPU s, the
-strategy's 120 raised by half by the user's word of 11-08, for now, to be
-revisited (`README.md`, section 7): the whole-temper fuzzy median is 125.579032 CPU s
-in three warm serial runs including the driver (119.288299–127.664356
-CPU s), all 81 tests passing in each, though two runs and the median
-exceed the 120. The request's roughly 15 CPU s reduction and reliable
-headroom, which `README.md`, section 7 keeps, are not achieved. The gate's own CPU
-result is unknown from these serial samples, whose driver and feature
-unions differ from the request's gate baseline.
-[`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
-their accounting limits, retained causes and next decisions.
+Section 1's budgets by layer start at the CI builder's gate figures of
+11-16 (`tools/tiers/budgets.md`, 6); where the code doesn't yet sum or judge
+them is `tools/tiers/budgets.status.md`'s.
 
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

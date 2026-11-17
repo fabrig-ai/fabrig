@@ -3,9 +3,9 @@ mod copy;
 mod core_after_project;
 mod github;
 mod golden;
+mod held_program;
 mod m15;
 mod one_process;
-mod paging;
 mod public;
 mod push;
 mod ready_copies;
@@ -15,4 +15,5 @@ mod upgrade;
 
 mod fuzzy {
     mod one_process;
+    mod upgrade;
 }

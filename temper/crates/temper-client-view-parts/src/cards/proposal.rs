@@ -61,13 +61,12 @@ fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Word
     for task in tasks {
         let written = task.spec.specification.words.bytes();
         let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
-        text(b, Role::Heading { level }, written.get(..end).expect("title prefix"));
-        if end < written.len() {
-            skein_ui::markdown::read(
-                written.get(end..).expect("spec body"),
-                level.checked_add(1).expect("proposal heading fits"),
-                b,
-            );
+        let first = written.get(..end).expect("title prefix");
+        let heading = crate::common::chat::row_title(first);
+        text(b, Role::Heading { level }, &heading);
+        let body = if heading.as_ref() == first { written.get(end..).expect("spec body") } else { written };
+        if !body.is_empty() {
+            skein_ui::markdown::read(body, level.checked_add(1).expect("proposal heading fits"), b);
         }
     }
 }
@@ -223,13 +222,63 @@ fn owns(page: &c::ReadValue) -> bool {
     }
     false
 }
+/// A dependency hold names held facts only; absent ending facts stay unknown.
+#[must_use]
+pub fn dependency_question(task: &c::Task, words: &Words) -> Option<Box<[u8]>> {
+    let c::HoldCategory::Dependency { task: dependency } = task.hold.as_ref()?.reason else { return None };
+    let mut chip = None;
+    for link in &task.dependencies {
+        match link {
+            c::TaskLink::Live(value) | c::TaskLink::Retained { chip: value, .. } if value.task == dependency => {
+                chip = Some(value);
+                break;
+            }
+            c::TaskLink::Live(_) | c::TaskLink::Retained { .. } | c::TaskLink::Stored { .. } => {}
+        }
+    }
+    let ending = match chip {
+        Some(chip) => match &chip.details.details.ending {
+            Some(c::ChipEnding::Failed(_)) => Word::GoalFailed,
+            Some(c::ChipEnding::Cancelled { .. }) => Word::DependencyClosed,
+            Some(c::ChipEnding::Done(_)) | None => Word::PublicEnded,
+        },
+        None => Word::PublicEnded,
+    };
+    Some(words.say(
+        Word::NeedsDependency,
+        &[
+            Hole::Name(held_name(Some(&task.chip), task.chip.task, words)),
+            Hole::Name(held_name(chip, dependency, words)),
+            Hole::Name(words.say(ending, &[])),
+        ],
+    ))
+}
+fn held_name(chip: Option<&c::Chip>, number: u64, words: &Words) -> Box<[u8]> {
+    if let Some(chip) = chip
+        && !chip.title.bytes().is_empty()
+    {
+        return match temper_client_domain::pages::goals::id(chip.title.bytes()) {
+            Some(id) => id.into(),
+            None => crate::common::chat::cut_title(chip.title.bytes(), 40, false),
+        };
+    }
+    words.say(Word::PublicTask, &[Hole::Name(skein_lib::Decimal::of(number).as_bytes().into())])
+}
 fn task_hold(b: &mut Builder, task: &c::Task, words: &Words, rows: u32) {
-    if let Some(hold) = &task.hold {
+    if let Some(question) = dependency_question(task, words) {
+        text(b, Role::Paragraph, &question);
+        if let Some(hold) = &task.hold {
+            hold_details(b, hold, words);
+        }
+    } else if let Some(hold) = &task.hold {
         held(b, task.chip.task, hold, words, rows);
     }
 }
 fn held(b: &mut Builder, task: u64, hold: &c::ChipHold, words: &Words, _rows: u32) {
     super::hold(b, task, &hold.reason, words);
+    hold_details(b, hold, words);
+}
+fn hold_details(b: &mut Builder, hold: &c::ChipHold, words: &Words) {
     if let Some(account) = &hold.words {
         text(b, Role::Paragraph, account.bytes());
         if account.cut {
@@ -1034,8 +1083,11 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 8, scope, .. } => (b"project-classes".as_slice(), Some(scope)),
         c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
         c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 4, scope, .. } => (b"project-landing".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 5, scope, .. } => (b"project-gates".as_slice(), Some(scope)),
         c::Setting::Application { kind: 14, scope, .. } => (b"project-areas".as_slice(), Some(scope)),
         c::Setting::Application { kind: 15, scope, .. } => (b"project-triager".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 20, .. } => (b"welcome".as_slice(), None),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",
@@ -1120,7 +1172,9 @@ pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Wor
     let title = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
-        task.spec.specification.words.bytes()
+        let written = task.spec.specification.words.bytes();
+        let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
+        return Some(crate::common::chat::row_title(written.get(..end).expect("proposal first line")));
     } else if let c::ReadValue::Proposal(proposal) = page {
         proposal.reason.bytes()
     } else {

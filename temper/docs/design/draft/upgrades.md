@@ -5,19 +5,19 @@ its history: its people, projects and accounts, its tasks and goals,
 live and ended, its landings and what agents wrote. It comes from the
 investigation of 2026-10-23 (Codex, read-only) and a session with the
 user that day, whose turns shaped it: the records before the formats on
-disk, and a patch landed with each change, as an application migrates
+disk, and changes carried with the build, as an application migrates
 its database. It crosses skein, smith, jig and temper on purpose; an
-owner splits it. The baseline is the store `main` wrote at
-`bc23255eb7`, no longer the first release (4.1). Commands' spellings
-are placeholders.
+owner splits it. The oldest store a build opens is dev.fabrig.ai's,
+settled at the floor (`store-floor.md`, section 3; 4.1 below).
+Commands' spellings are placeholders.
 
 ## 1. In one page
 
-- **Patches, as an application migrates its database** (section 4).
-  Every landing that changes what is stored brings a patch beside it.
-  The store records each owner's patch level, as a table of applied
-  patches does; a start that finds the store behind applies the patches
-  between, in order, before anything else (section 3).
+- **The registry and jobs** (section 4). A registered family's schema
+  changes in place: an added field takes a default (`= value`), a
+  renamed part its former name (`was`), and a change no plan derives
+  brings its owner's written job. No version or level moves and no
+  map patch is kept.
 - **The records first, the formats on disk later.** As PostgreSQL's own
   upgrade between versions of its files (`pg_upgrade`) is apart from an
   application's migrations, an upgrade here has two layers: the formats
@@ -25,47 +25,46 @@ are placeholders.
   and jig's and temper's records in them. This draft is the second; the
   first is left as it is (6.5).
 - **Cheap, because schemas are read at run time** (section 5).
-  skein-codec decodes the bytes of any kept schema into generic values,
-  so an old version is kept as its schema's text, not as code. Most
-  patches are operations a tool derives from two schemas: a field added
-  with its value, a field dropped, an integer widened. A change every old
-  value survives byte for byte needs none, until a landed patch names
-  the family's version (4.3).
-- **Any store from the baseline on upgrades to any later `main`,** so a
-  deployment may follow `main`. The baseline is the store `main` wrote
-  at `bc23255eb7`; from it, every change of a stored layout moves its
-  version and brings its patch (4.1).
-- **A copy is patched, never the store in use** (section 6): a start
-  copies the records' and the secrets' maps into a new generation,
-  patches the copy, opens it as any start does, and switches to it by
-  one atomic replacement. The previous generation is kept, and going back is
-  supported until the new one's first commit of its own (3.2).
-- **Transcripts are never rewritten** (section 7): their turns are
-  patched as they are read. An agent resumes its conversation across a
-  change, unless a patch says the change breaks it; then its next
-  attempt starts from a fresh brief.
-- **An effect in flight stays with the version that started it**
-  (section 8): every stop settles first, and a start refuses only when a
-  pending patch changes a family that holds an effect still in flight.
+  The store holds the texts of the layouts its values use in its
+  registry. Plans derived from those texts convert each value as it is
+  read, without a rewrite at open. Current writers write the build's
+  layout.
+- **The floor is dev.fabrig.ai's settled store** (4.1). A store without
+  the floor or below it is refused before any upgrade is planned or
+  written, naming bridge build `3d1c717d379e` to open it through.
+- **A copy is upgraded, never the store in use** (section 6): when a
+  layout needs registering or a job is pending, a start makes a new
+  generation of the records' and the secrets' maps, registers the
+  layouts, runs the jobs, opens the copy as any start does, and switches
+  to it by one atomic replacement. The previous generation is kept,
+  and going back is supported until the new one's first commit of its
+  own (3.2).
+- **Transcripts are never rewritten** (section 7): their frames are
+  patched as they are read. An agent resumes its conversation across
+  a compatible change; a breaking change of the turns' wire follows
+  `redeploys.md`'s bridges and breaking declarations.
+- **Every stop settles effects first** (section 8). Their identities,
+  keyed outcomes and recovery survive the store's changes.
 - **The engine alone may be upgraded while workers keep their runs**
-  (section 9), when their wire is unchanged and the window fits their
-  grace. Built second.
+  (section 9), when their wire is compatible and the window fits their
+  restart wait or grace.
 - **The configuration is never rewritten** (section 10): each release
   reads its own members and the previous release's.
-- **The gate holds the policy** (section 12): a stored change with no
-  patch fails it, and so does a landed patch or a kept schema edited;
-  golden stores of the baseline and of the last release are patched
-  into the candidate.
+- **The gate holds the policy** (section 12): registered changes use
+  defaults, former names or jobs, not repository-kept store history.
+  The floor's fixture opens and serves; an older store is refused.
+  Wires keep their patches and bridges, and formats outside the
+  registry stay fixed at their versions.
 
 ## 2. What an upgrade carries
 
 | Part | Where | Its formats' owners | Across an upgrade |
 |---|---|---|---|
-| the records | the deployment's `store/` | jig's component and families; temper's families | patched in a copy (section 6) |
-| the secrets | the deployment's `secrets/` | jig's records; temper's forge records; skein's OAuth records | patched in the copy, every number kept (6.3) |
+| the records | the deployment's `store/` | jig's component and families; temper's families | layouts registered and jobs run in a copy; values converted as read (section 6) |
+| the secrets | the deployment's `secrets/` | jig's records; temper's forge records; skein's OAuth records | copied at their fixed versions, every number kept (6.3) |
 | the transcripts | the deployment's `transcripts/` | jig's frames, smith's turns in them | kept as written, shared by the generations, patched as read (section 7) |
 | the configuration | the configuration directory: `temper.json`, `agent.json`, charters' instructions | the operator's | read as written (section 10) |
-| small files | the data directory: each forge's setup `state`, the box's records, the demo's, a worker's secret and digest | temper | read in any version from the baseline on (section 10) |
+| small files | the data directory: each forge's setup `state`, the box's records, the demo's, a worker's secret and digest | temper | read as section 10 says |
 | an owned Forgejo | its forge's directory | Forgejo, and temper's preparation | its own upgrade, at its preparation (section 11) |
 | program logins | each worker's programs directory | each program's | kept as they are; a login a program no longer reads is signed in again |
 | a worker's root | each worker's data directory | temper | rebuilt at will: checkouts and workspaces |
@@ -82,44 +81,65 @@ branches and keys' markers on the forge (`../protocol/forge/README.md`, section
 3); the installation's id; every number the domain gives (tasks,
 attempts, messages, sources, accounts, issued program names), so that
 none is given twice; and the commit position, which the deployment's
-header and projections name, and which patches carry on, being ordinary
-commits (6.2). A worker holds no authoritative state of its own: what it
+header and projections name, and which the upgrade carries on through
+ordinary commits (6.2). A worker holds no authoritative state of its own: what it
 acknowledged is in the engine or on the forge.
 
 ## 3. At start
 
 ### 3.1 Every start
 
-- **It reads the levels first.** jig's store, as it opens (jig's
-  `protocol/store/opening.md`), reads the patch levels in the format
-  row and compares them with the binary's (4.2). Equal, it opens as
-  today. Behind, it patches a copy (`upgrades.md`, section 6), printing a line per patch
-  and what it counted, then opens the new generation as today.
+- **It reads the levels and the floor first.** jig's store, as it
+  opens (jig's `protocol/store/opening.md`, 1), compares the format
+  row with the binary's levels and versions (4.2), then checks the
+  floor before reading the registry or planning any upgrade (4.1).
+- **At the binary's levels,** it reads the registry and plans every
+  layout the store holds to the binary's. A new layout to register
+  or a pending job upgrades a copy (section 6), printing a line per
+  job with its counts. Otherwise it opens in place, converting values
+  as they are read (jig's `protocol/store/layouts.md`, 4 and 5).
 - **Every shape with a store:** `temper serve`, an engine alone and
   `temper box` (`../protocol/cluster.md`). A worker alone
-  keeps no store; its small files are read as `upgrades.md`, section 10 says.
-- **Refused before anything is written,** naming why:
-  - a store ahead of the binary: there are no patches backwards;
-  - a store from before the baseline, which is made again, as today
-    (4.1);
-  - an effect in flight in a family a pending patch changes (section 8).
-- **A patch that refuses a record, or a copy that does not open** (6.4), stops
-  the start with the old generation active, saying why, and exits
+  keeps no store; its small files are read as section 10 says.
+- **Refused before any upgrade is written,** naming why (jig's
+  `protocol/store/opening.md`, 1.8):
+  - a store ahead of the binary: nothing runs backwards;
+  - a store without the floor or below it, behind the binary's
+    levels, or holding values without a registry: start bridge build
+    `3d1c717d379e` on it and let it open, then this build;
+  - a store from before generations, with an older format, an
+    undecodable component row or no levels: refused by name, naming
+    `3d1c717d379e` too, but not promising it translates forms it also
+    refuses (4.1);
+  - a layout a value may still hold with no derived plan or written
+    job, naming its family, value type, layout and why.
+  Opening the maps may already have run skein-kv's recovery; no
+  refusal makes a generation or seeds a registry.
+- **A job that refuses a record, or a copy that does not open** (6.4),
+  stops the start with the old generation active, saying why, and exits
   non-zero; the next start begins again from a fresh copy.
 - **Rehearsed:** `temper upgrade --check`, by the new binary, on a copy
-  such as last night's backup, patches into a scratch directory and
-  switches nothing. It reports how long patching took, what it refused
-  and whether the workers may stay (section 9), so an operator knows
-  beforehand whether a service manager's start timeout needs raising.
+  such as last night's backup, works in a scratch directory and
+  switches nothing. After the same floor and format checks, it decodes
+  every record of every family before planning: registered values by
+  their layout's text in the store, other records by their current
+  format, and frames by the frames' texts. It reports the first that
+  does not decode, with its key or transcript and offset, or the count
+  decoded; the jobs and their counts and time, the whole time, a
+  refusal or the restores whole, and whether the workers may stay
+  (section 9). What follows the switch is not rehearsed (jig's
+  `protocol/store/opening.md`, 5). Its measurements tell the operator
+  whether the service manager's start timeout covers the upgrade.
 
 ### 3.2 Going back
 
 - **Before the new generation's first commit of its own:** `temper
   upgrade --back` makes the previous generation active again, and the old
   binary starts on it. Nothing has happened since the stop, so nothing is
-  lost or made twice. This is for a new binary that patched and then
-  failed to start. The manifest records the commit position patching
-  ended at; the generation's own first commit moves past it: every start
+  lost or made twice. This is for a new binary that upgraded and then
+  failed to start. The manifest records the commit position at the end
+  of the restores, before the switch; the generation's own first
+  commit moves past it: every start
   commits, the wire versions it speaks first (section 9), and every
   effect is committed before it is made.
 - **Transcripts are shared** (section 6): a frame the new version wrote
@@ -139,86 +159,89 @@ A backup is a copy of the data directory with the deployment stopped
 transcripts, the forge or the programs' logins. Online backups stay open
 (section 15).
 
-## 4. Patches
+## 4. Layout changes
 
-### 4.1 Before the baseline
+### 4.1 The floor
 
-The baseline was to be the first release (skein's
-`data/codec/README.md`, section 5). It moved: it is the store `main`
-wrote at `bc23255eb7` (`staged-upgrades.md`, section 2), and from it the
-store and the wires upgrade, heading to v0.1.0, and dev.fabrig.ai
-exercises both (the user, 2026-11-11 and 11-12). A change of a stored
-layout moves its family's version at its landing and brings its patch
-(`staged-upgrades.md`, section 3); a change of a wire's layout moves
-its version and brings its bridge, or is declared per-build in the
-bridge inventory (`redeploys.md`, sections 3 and 4.2). Where
-this draft says the first release for the baseline, read that store.
-Before it, each encoding kept its version and changed in place
-(`../protocol/README.md`, section 7), so a store from a build before
-the baseline is started afresh: no patch could tell those layouts apart
-(`../protocol/store.md`, section 4). No promise reaches back before it.
+The floor is dev.fabrig.ai's store as store-floor's F0 settled it
+(`store-floor.md`, section 3): the oldest store a build opens. The
+store's floor row carries its number and the build that wrote it;
+its first commit writes it, and a reopen leaves it alone (jig's
+`protocol/store/records.md`, 3). A store without that row or below the
+build's floor is refused before planning, registration, jobs or the
+rehearsal's decoding, naming bridge build `3d1c717d379e`: start that
+build on it and let it open, then this one. A store behind the binary's
+levels or holding values without a registry gets the same way forward.
+
+Nothing keeps code, texts or fixtures to upgrade stores below the
+floor. The floor moves only when a landing drops a whole older form;
+that landing designs how its upgrade writes the new floor and names
+its bridge. After dev.fabrig.ai runs a job, a small landing drops its
+code; its done row stays inert and its name is never reused
+(`store-floor.md`, section 6; jig's `protocol/store/jobs.md`, 1).
+
+A store from before generations, with an older format, an undecodable
+component row or no levels is refused by name too. Its refusal names
+`3d1c717d379e` without claiming that build translates it: those forms
+are refused there too (jig's `protocol/store/opening.md`, 1.8).
+Starting afresh is the operator's choice, moving the store aside, not
+an upgrade deleting it.
+
+The wires keep their own rule: a changed layout moves its version and
+brings its bridge, or is declared per-build in the bridge inventory
+(`redeploys.md`, sections 3 and 4.2). A format outside the registry
+stays fixed at its version; a change designs and brings, in the same
+landing, how dev.fabrig.ai's store gets there (`store-floor.md`, 5).
 
 ### 4.2 Levels
 
-- **Each owner keeps a sequence:** jig's patches numbered from the
-  baseline, temper's likewise, and smith's and skein's for what of
-  theirs is kept (turns, results, OAuth records). A patch changes one or
-  more of its owner's families and prepares each one's next released
-  version.
-- **The format row is the table of applied patches:** each owner's level
-  beside each family's version (jig's `protocol/store/records.md`, 3), written
-  by the patching's last commit.
-- **Versions move at the landing that changes a layout,** from the
-  baseline (4.1), so a version names one layout. Before it, schema
-  changes kept the current number (`../protocol/README.md`, section 7;
-  skein's `data/codec/README.md`, section 5).
-- **A landed patch never changes.** Until it lands, its author edits it
-  with the schema; once on `main`, deployments may have run it. Two
-  branches that each add jig's patch 41 meet at `land`, whose rebase and
-  gate refuse the second until the tool renumbers it (4.5).
+- **Each owner holds its level explicitly:** jig 6 and temper 14.
+  These are comparisons at open, not lengths of patch arrays and not
+  a sequence of pending work. A store behind them is refused (4.1).
+- **The format row** names the levels beside the families' versions
+  (jig's `protocol/store/records.md`, 3), written by the first commit
+  and by an upgrade's last commit. Neither a registry change nor a
+  job moves them.
+- **Registered families keep their versions.** A value's head names
+  its value type's layout id in the store's registry; its texts and
+  fingerprint say what it holds (jig's `protocol/store/layouts.md`,
+  3 and 4). There is no landed store patch to renumber or keep.
+- **Outside the registry,** the component's own rows, the secrets'
+  store and the transcripts' frames stay at their current versions
+  (4.1). Wires keep their version moves, patches and bridges.
 
-### 4.3 What a patch is
+### 4.3 What a change is
 
-Operations over generic values (section 5), for each family it changes,
-in its owner's crate beside the schemas. By kind:
+- **Derived:** a registered family's added field takes a default
+  (`= value`); a renamed declaration or field names its former name
+  (`was`). The open derives plans from the store's layout texts to
+  the binary's text; each value is converted as it is read. No patch
+  is written, no version moves and no eager walk rewrites the map
+  (jig's `protocol/store/layouts.md`, 4 and 5).
+- **Written:** a change no plan derives, a change of meaning, a field
+  computed from others, or a change of keys is its owner's job at
+  open (jig's `protocol/store/layouts.md`, 6; `jig/docs/design/protocol/store/jobs.md`,
+  4). A written conversion receives the values at that layout as
+  stored, with their texts from the registry, and puts them at the
+  binary's layout. It keeps no old generated codec.
+- **Wires:** operations over generic values (section 5), derived by
+  the patch command or written where derivation cannot supply the
+  meaning. They keep their texts, patches and bridges, not the store's
+  jobs (`redeploys.md`, 3 and 4).
 
-- **None needed:** a change every old value survives byte for byte. A
-  field or variant renamed, a variant appended, a bound widened, a
-  variant marked `boxed` (skein's `data/codec/README.md`, section 3). The family
-  keeps its version and no level moves, while its kept text is not
-  frozen. Once a landed patch names the family's version, its kept text
-  is frozen: an appended variant, a widened bound or an added
-  declaration also takes a patch the command writes, and a version move.
-  A rename or a dropped declaration stays none needed. This is the
-  user's rule (skein's `data/codec/command.md`, 2 step 3), and it applies from
-  the baseline on (4.1).
-- **Derived:** a field added, with the value every old record takes; a
-  field dropped; an integer widened; a type wrapped in `option`;
-  variants reordered. The tool writes these from the two schemas, asking
-  the author only for an added field's value.
-- **Written:** a change of meaning, or a field whose value is computed
-  from others, as a function over the generic values; and a change of
-  keys, since jig's keys are written out by hand, not generated from
-  schemas (jig's `protocol/store/README.md`, 4.1).
-  The catch-up's jig patch 1 narrows retained project ceilings and every
-  policy role's delegation executors to their intersection with the
-  deployment's configured executors (`../protocol/baseline.md`, 9). No
-  executor is added; all other policy fields are kept. The application
-  supplies these configured executors before the store opens.
-
-What every patch keeps:
+What every change keeps:
 
 - **No invention.** An added field's value must be true of every old
   record: a field old records hold no evidence for is an `option`, and
   none for them. Unknown is not zero: smith's usage became optional so
-  that a turn with none is not one that cost nothing. A written patch may
+  that a turn with none is not one that cost nothing. A written job may
   refuse a record, naming it, which stops the start (3.1).
 - **No number given twice.** Every number and counter is kept; the next
   number given after the upgrade is one no record holds.
 - **No outcome repeated or forgotten.** Keyed requests' answers,
   connectors' keyed outcomes and decisions are kept, so a request sent
   again after the upgrade is answered as before.
-- **Indexes follow their records:** a patch that changes what an index
+- **Indexes follow their records:** a job that changes what an index
   derives from rebuilds it from its records (jig's `protocol/store/loads.md`,
   4).
 
@@ -228,38 +251,39 @@ What every patch keeps:
   `bytes N` field, decoded by its own family's code (skein's `data/codec/README.md`,
   section 3): temper keeps jig's refusals as `refusal: bytes 517`. Its
   schema says what such a field holds, another family's type or pieces of
-  a type of its own, so a patch of that type reaches it wherever it is
-  kept.
-- **In the order the pins made.** Each of temper's patches records jig's
-  level when it was written, which temper's pin of jig fixed; patching
-  runs jig's patches up to that level before it, and jig's remaining ones
-  after temper's last. jig's patches record smith's and skein's levels
-  likewise.
-- **A nested type that grows** widens its holder's bound at the repin
-  that brings it, which moves no bytes and needs no patch.
+  a type of its own, so conversion reaches it wherever it is held.
+- **Part of the holder's layout.** Its fingerprint resolves each
+  held record's layout by that family's text in the registry. A held record's
+  change converts with its holder; the held record's head stays its
+  family's version (jig's `protocol/store/layouts.md`, 1 and 3).
+  There are no upstream patch levels to interleave. Jobs run in the
+  sets' order, upstream first, and within each set its own (jig's
+  `protocol/store/jobs.md`, 1).
+- **A nested type that grows** widens its holder's bound in the landing
+  that brings it. The holder's registered layout is planned as any
+  other; it brings no store patch.
 
 ### 4.5 The tooling
 
-- **The gate finds the change** (section 12): a schema whose layout
-  differs from its latest kept version's with no patch fails it, naming
-  the command.
-- **The command** (`cargo xtask patch`, a placeholder) diffs the schema
-  against the latest kept one. A change that needs no patch replaces the
-  kept text. Otherwise it keeps the old schema's text as its version,
-  writes the next patch with the derived operations and a skeleton for
-  the written ones, and writes its test: the family's old golden bytes
-  through the patch, its result reviewed once and kept as a golden of
-  its own.
-- **Renumbering:** the same command renumbers a patch that `land` found
-  taken.
+- **For registered families,** generation writes the current schema's
+  code and golden bytes. The open's layout derivation uses the store's
+  texts; the author supplies defaults, former names or a written job
+  (4.3). It keeps no schema history in the repository.
+- **For wires,** `cargo run -p skein-codegen -- patch <crate>` writes
+  the forward patch and its tests and keeps the version's text; their
+  bridges follow `redeploys.md`, section 3. Formats outside the
+  registry are fixed at their versions (4.1).
+- **The gate holds each rule** (section 12), not a pending map patch
+  or a frozen registered text.
 - **Its aim:** the common change, a field added, costs its author the
-  field's value and a review of one golden: minutes.
+  field's default and a review of the current golden bytes: minutes.
 
 ## 5. Schemas at run time
 
-- **Kept as text.** Each family's schema at every version from the
-  baseline on is kept as its text in its owner's crate; only the current
-  one is generated into code, as today (skein's `data/codec/README.md`, section 4).
+- **Texts in the store.** The registry holds each layout a value may
+  use, its text and its held texts. Only the current schema is
+  generated into code; no repository-kept registered history is
+  needed (jig's `protocol/store/layouts.md`, 3).
 - **Generic values.** skein-codec reads a schema and decodes bytes of it
   into a tree of generic values (records, variants, integers, bytes,
   lists, options), and encodes a tree back, with the generated code's
@@ -267,19 +291,27 @@ What every patch keeps:
   tags it knows, no bytes left over. A `secret` stays one, its bytes
   never printed.
 - **Fingerprints of the layout:** a digest of what the bytes are (types,
-  order, tags, bounds), not of names or comments, so a rename moves none.
-  The gate compares them (section 12).
-- **The diff** compares two schemas' layouts into 4.3's kinds: none
-  needed, derived operations, or a written patch, naming each field.
-- **Where it runs:** in the store's open, over the copy (section 6), and
-  in jig's transcripts' reads (section 7). It is step code: a value's
-  work is bounded by its schema's ceilings, and a patch's by its
-  operations (`programming-model.md`, 6.3).
+  order, tags, bounds), not of names or comments. Former names let a plan match
+  a renamed part. The registry names each value type's layouts by
+  fingerprint, and each layout its texts by digest.
+- **Plans** derive from the stored layout to the binary's. A layout
+  with no plan needs a written job or refuses the open before any
+  upgrade is written, naming what cannot convert (4.3), unless no
+  value holds it and it retires.
+- **Where it runs:** at open to plan the layouts; at the store's read
+  edges to convert each value, and in a written job over the copy
+  (section 6). Frames keep their read-time patcher (section 7).
+  It is step code: a value's work is bounded by its schema's ceilings
+  (`skein/docs/foundation/programming-model.md`, 6.3).
+- **Retirement:** a layout no value holds retires at an open that
+  writes, with each text no other row names. A log-held layout is
+  not retired by the map's census (jig's `protocol/store/layouts.md`,
+  5.4). Code for a job goes after dev.fabrig.ai has run it (4.1).
 - **Small:** about 1,750 lines of jig's store schemas and 190 of
   temper's at 2026-10-23, in a language of a handful of types (skein's
   `data/codec/README.md`, section 3).
 
-## 6. Patching a copy
+## 6. Upgrading a copy
 
 ```
 <deployment>/
@@ -292,38 +324,56 @@ What every patch keeps:
 
 - **jig's deployment directory holds them** (jig's `protocol/store/README.md`,
   section 2): its open reads `active` and opens that generation's maps,
-  and a first start makes generation 1. The layout is the baseline's
-  from the start, so no upgrade ever moves today's.
-- **The manifest** names the generation patched from, the levels before
+  and a first start makes generation 1. The generations keep that
+  layout across upgrades.
+- **The manifest** names the generation upgraded from, the levels before
   and after, each family's count before and after, and the commit
-  position patching ended at.
+  position at the end of the restores, before the switch.
 
 ### 6.1 The steps
 
-1. **Plan:** the levels, the patches between them and their order
-   across owners (4.4). What section 3.1 refuses is refused here, before
-   anything is written.
-2. **Copy** the active generation's `store/` and `secrets/` whole into
-   the next one's, synced.
+When a layout needs registering or a job is pending, from the active
+`A` to `A + 1` (jig's `protocol/store/opening.md`, 2):
+
+1. **Plan:** after the format and floor checks, the registry's held
+   layouts to the binary's, the sets and bounds checked, and the
+   pending jobs found. A refusal comes before any upgrade is written.
+   `A` closes; a generation before `A` is dropped, since going back
+   from the new one is to `A`.
+2. **Link and copy** the active generation's `store/` and `secrets/`
+   into the next one's, synced. Snapshots, older log segments and task
+   logs may be linked; the newest segment, other map files and all
+   secrets are copied. A file system that refuses hard links copies
+   those files instead; other faults stop the start. Nothing writes
+   a shared map file again; a task log is appended only past
+   `A`'s extent, which `A` reads as garbage. Transcripts stay shared.
 3. **Open the copy** as any start opens a store (6.2).
-4. **Patch:** for each patch in order, walk its families' ranges; decode
-   each record by the schema of its version, apply the operations, encode
-   it by the next, and write it back. A record whose key moves is put at
-   its new key and erased at its old in the same commit. Each versioned
-   record names its family's version, so one already patched is passed
-   over. The levels and the format row are the last commit's.
-5. **Open** the copy as any start does (6.4).
-6. **Switch:** `active` replaced by io's replacement sequence: written
-   beside, synced, renamed over, the directory synced (skein's
+4. **Register and run jobs:** commit the binary's new layouts and the
+   retirements; then run each pending job in order, in pages within
+   the commit bounds. A job puts and erases a moved key together.
+   Its last page commits its done row. No eager patch walk rewrites
+   other values. The seal, the upgrade's last commit, writes the
+   format row's levels and versions, the layouts and the deployment's
+   header at that commit. It leaves the floor row alone (4.1).
+5. **Open** and restore the copy as any start does (6.4), making no
+   effect and writing no transcript before the switch.
+6. **The manifest and switch:** once the restores are whole and their
+   commits durable, write the manifest, then replace `active` by io's
+   durable replace, expecting the digest read from `A` (skein's
    `runtime/io/README.md`). One rename, never two standing for one.
-7. **Drop** the generation before the previous one.
+   The restart goes on over the copy, still open; its wires are its
+   first commit after the switch, before anything leaves the process.
 
 - **A crash before the switch** leaves the old generation active and
-  untouched; the next start removes the partial one and begins again
-  from a fresh copy. After the switch, the new one is whole.
-- **Room:** on disk, the maps twice, not the transcripts. In memory, one
-  map, where a record whose key moves is held twice until its old key is
-  erased: at most about twice the map's budget, before the engine serves.
+  untouched by the upgrade; the next start removes the partial one
+  and begins again from a fresh copy. After the switch, the new one
+  is whole. Map recovery at open is still skein-kv's (3.1).
+- **Room:** on disk, what the generations do not share: the copied
+  newest segment and secrets, and the registry's and jobs' commits.
+  As the new generation snapshots and writes, the maps may stand
+  twice; without hard links they do from the start. In memory, one
+  map at a time, and a job's page and answer within its room (jig's
+  `protocol/store/jobs.md`, 3), before the engine serves.
 
 ### 6.2 skein-kv as it is
 
@@ -331,35 +381,40 @@ What every patch keeps:
   and the log's longest valid prefix (skein's `data/kv.md`, section 3), and
   jig's store checks its format row and the deployment's header (jig's
   `protocol/store/opening.md`).
-- **Patches are ordinary commits** through jig's store, each within
-  skein-kv's bounds and each writing the deployment's header, as every
-  commit does. So the commit numbering carries on from the old
-  generation's, the header's check holds at the next open, and every
-  reference to an earlier commit still names it.
+- **The registry and jobs use ordinary commits** through jig's store,
+  each within skein-kv's bounds. The upgrade's last commit seals the
+  header at its commit position (6.1). Numbering carries on from the
+  old generation's, the header's check holds at the next open, and
+  every reference to an earlier commit still names it.
 - **Nothing new of skein-kv.**
 
 ### 6.3 Secrets
 
-- **Patched as the records are,** in their own map with its own commits
-  (jig's `protocol/store/secrets.md`): jig's credentials' digests and
-  LLM accounts' records, temper's forge records, and skein's OAuth
-  records by skein-oauth's patches.
+- **Copied whole,** in their own map (jig's `protocol/store/secrets.md`):
+  jig's credentials' digests and LLM accounts' records, temper's forge
+  records, and skein's OAuth records. These formats are outside the
+  registry, fixed at their current versions (`store-floor.md`, 5).
+  A change brings how dev.fabrig.ai's store gets there in its landing,
+  not a promise to read older stores.
 - **Their numbers kept:** sources', accounts' and the carried values'
   counter, so that the start's sweep, which erases the secrets no record
   names, erases nothing it should keep.
 
 ### 6.4 Opened before the switch
 
-No check runs before the switch, as the user decided. The copy is
-opened as any start opens a store, decoding each record under its codec
-and fitting the deployment's limits, and the start links what it loaded
-(jig's `domain/engine/restart.md`): nothing is judged, and a link
-that cannot be made, a writer's bug, panics. The checks
-are tests, written when a schema changes: each patch proved over sample
-stores (13), and the cross-record rules as oracles over every writer, a
-cold restart closing every world story (jig's `domain/engine/README.md`,
-section 9). The counts per family, before and after, stay in the
-manifest.
+The check opens the upgraded copy before the switch (jig's
+`protocol/store/opening.md`, 2): the live ranges and the ended read
+positions decode under the binary's codecs within the deployment's
+limits; the secrets' files are private to the service's user. The
+restart restores and links what it loaded before asking for the switch
+(jig's `domain/engine/restart.md`). A link it cannot make refuses the
+start, naming the record and what it links to; no effect leaves before
+the switch. Nothing judges a writer's domain rules again.
+
+The cross-record rules are oracles over every writer, a cold restart
+closing every world story (jig's `domain/engine/README.md`, section 9).
+Registry changes and jobs are proved over sample stores (13); the
+counts per family, before and after, stay in the manifest.
 
 ### 6.5 The formats on disk
 
@@ -367,9 +422,10 @@ skein-kv's frames and snapshot, at version 1 since it was written (skein
 288c5423), and the transcripts' framing, a frame's length at both ends
 and its checksum (jig's `protocol/store/transcripts.md`, 1), are left as they are.
 The gate fingerprints them as it does every kept format (`upgrades.md`, section 12), so
-a change is seen. Changing one after the baseline waits for an upgrade of
-its own, a tool of its owner's, as `pg_upgrade` is PostgreSQL's (`upgrades.md`, section 15
-).
+a change is seen. Changing one needs an upgrade of its own, a tool of
+its owner's, as `pg_upgrade` is PostgreSQL's (section 15). The
+transcripts' frame patcher stays; no map patch or fresh-window mark
+is part of it (`store-floor.md`, 5).
 
 ## 7. What survives
 
@@ -391,12 +447,6 @@ outcomes; the deployment's and installation's ids.
   current version, to a client or a run. Old frames are never rewritten,
   so the places the map keeps for them stay true.
 - **Agents resume** their windows across a change of smith's turns.
-- **Unless a patch says otherwise.** A smith patch that changes what a
-  conversation means to an agent says that windows across it start
-  fresh. Patching then closes each live window, and the next attempt
-  starts from a brief carrying the transcript's tail, as jig starts one
-  past the resume limit (jig's `domain/engine/executors.md`, 2): a transition,
-  not a failed attempt.
 - **Every live task keeps its definition,** its inbox, its holds and its
   place in its queue.
 - **Runs end with a full upgrade,** as at any stop: the workers stop
@@ -429,7 +479,9 @@ outcomes; the deployment's and installation's ids.
   deployment that keeps history long sets its retention first.
 - A run's unsaved state on its worker, in a full upgrade, as at any
   stop.
-- A store from before the baseline, whole: it is made again (4.1).
+- Nothing from a refused store is erased: a store below the floor
+  stays as it was, to open through the named bridge or move aside
+  before starting afresh (4.1).
 
 ## 8. Effects in flight
 
@@ -443,13 +495,13 @@ outcomes; the deployment's and installation's ids.
 - **Every stop, not only an upgrade's,** since an operator does not
   always know beforehand, and the box's person never does. Its cost is a
   stop that waits up to an effect's deadline.
-- **A start patches an unsettled store,** unless a pending patch changes
-  a family that holds an effect in flight: then it refuses, naming each
-  effect and its task, and saying to start the previous version and stop
-  it again. An entry no patch touches is recovered by the new version as
-  after any stop (jig's `domain/engine/restart.md`, step 5), by a key
-  whose version every later version reads (`upgrades.md`, section 11). So no patch has
-  to keep a reshaped effect recoverable, and most starts never refuse.
+- **An unsettled store recovers as after any stop.** Its registered
+  records pass through the same read-edge conversion, and a job keeps
+  the in-flight effects recoverable, with their keyed outcomes and
+  identities (4.3). There is no pending map patch or effect-family
+  patch admission. The new version recovers each effect by its key
+  (jig's `domain/engine/restart.md`, step 5), whose version the
+  connector reads (section 11).
 
 ## 9. The engine alone
 
@@ -457,8 +509,9 @@ Replaced by `redeploys.md` (the user, 2026-11-12): when the workers may
 stay, judged by each wire's fingerprints and floor rather than its
 number (`redeploys.md`, 5.1); the settled stop and the window within
 the workers' grace (5.2, 5.3); and the workers following in turn
-(section 7). A pending patch marked fresh is a breaking change of the
-turns' wire there (4.5), so an upgrade across it is still a full one.
+(section 7). A breaking change of the turns' wire is declared there
+(4.5); it is not a pending store patch or a fresh-window mark in the
+store.
 
 ## 10. Configuration and small files
 
@@ -470,11 +523,12 @@ turns' wire there (4.5), so an upgrade across it is still a full one.
   (`../protocol/configuration/README.md`, section 2). A deployment that skips a
   release may find a removed member refused, by name.
 - **Settings in the store shrink it** (`configuring.md`, section 3):
-  charters, templates, policies and rules in the store, where patches
-  carry them; the configuration keeps what a start fixes.
+  charters, templates, policies and rules in the store, where the
+  registry and jobs carry their changes; the configuration keeps what
+  a start fixes.
 - **Small files outside the generation,** a forge's setup `state`, the
   box's records, the demo's, a worker's secret and digest: each carries
-  its version, is read in any version from the baseline on, and is
+  its version, is read in every version it has, and is
   written in the current at its next write. None is written before the
   new generation's first commit, so going back (3.2) finds them as they
   were.
@@ -489,39 +543,36 @@ turns' wire there (4.5), so an upgrade across it is still a full one.
 - **What temper wrote on the forge outlives every version:** its keys'
   markers in what it creates, the key's first byte its version
   (`../protocol/forge/README.md`, section 3), and the branches in the
-  deployment's namespace. From the baseline the connector reads every
-  version of a marker, and the deployment's id is kept, so the
-  namespace and the markers stay its own.
+  deployment's namespace. The connector reads every version of a
+  marker, and the deployment's id is kept, so the namespace and the
+  markers stay its own.
 - **The forge is no backup.** Its issues and pull requests cannot rebuild
   the engine's records; the generations are the record.
 
 ## 12. The policy and the gate
 
-From the baseline:
-
-- **A stored change brings its patch,** in the landing that makes it
-  (4.5).
+- **Registered changes use the registry or a job** (4.3), in the
+  landing that changes the schema: an added field's default, a
+  renamed part's former name, or the written conversion. Versions
+  and levels stay. No map patch, old registered text or old generated
+  codec is kept in the repository (`AGENTS.md`, 2).
 - **The gate checks:**
-  - each family's schema against its latest kept version's layout: a
-    change with no patch fails, naming the command;
-  - the kept schemas' and the landed patches' texts: an edit fails;
-  - each patch's golden: the old goldens through it equal their kept
-    results;
-  - the golden stores of the baseline and of the last release, patched
-    into the candidate and asserted (section 13), their expectations
-    never regenerated from today's encoders;
-  - the formats on disk (6.5): a changed fingerprint fails;
-  - mutations that must fail it: a patch deleted, a kept schema edited.
-- **Meaning is reviewed.** A change of what a value means moves no
-  layout: its review and a scenario hold it.
-- **Its cost:** most changes cost minutes (4.5). The investigation
-  guessed 2 to 6 hours for an additive change and 4 to 12 for one of
-  meaning, for translators written against frozen code; generic values
-  leave a change of meaning its written patch and its scenario. The
-  churn it would meet: 26 moves of the engine's stored families in the
-  four weeks to 2026-10-23 (20 jig's, 6 temper's; 21 mostly additive, 2
-  repackings, 3 that reshape concepts), some of the 21 needing no patch
-  at all under 4.3.
+  - current generated code and golden bytes; the registry's generic
+    conversions and the jobs' outcomes in their owners' focused tests;
+  - the floor's fixture opening and serving, and the named refusal
+    of a store without the floor (section 13);
+  - the wires' kept texts, patches and bridges, by their own rule;
+    the boundary's patches check covers wires and formats outside the
+    registry, not registered map families (`store-floor.md`, 4.4);
+  - the formats outside the registry, fixed at their current versions,
+    and the formats on disk (6.5): a changed fingerprint fails unless
+    its landing brings the designed way for dev's store to reach it.
+- **Meaning is reviewed.** A change of what a value means may move no
+  layout: its review, its written job and a scenario hold it.
+- **The floor keeps the cost bounded:** there is no chain to squash,
+  baseline to catch up or frozen store text to mutate. A job's code
+  goes after dev.fabrig.ai runs it (`store-floor.md`, 6); generic
+  conversion at read stays for the next change.
 
 ## 13. Proving it
 
@@ -529,31 +580,34 @@ On the existing tiers (skein's `testing-strategy.md`, section 2;
 `../testing/README.md`, section 2), storage mechanics tested once, below
 the domains:
 
-- **Step tests:** each patch over golden records, old in, expected new
-  out. Generic values against the generated code: any value of a current
-  schema decodes to the same tree by both, and encodes back to the same
-  bytes.
-- **A golden store at the baseline and at each release,** whole:
-  records, secrets, transcripts, the configuration and the small files,
-  made by that binary from a story and kept for good. Patched into the
-  candidate, then asserted: identities and counters, policies, outcomes,
-  old turns read in the current version.
+- **Step tests:** a registry change's default and former name read at
+  the binary's layout, and a written job's conversion, refusal and
+  done row. Generic values against the generated code: any value of a
+  current schema decodes to the same tree by both, and encodes back to
+  the same bytes. The frames' patcher keeps its own fixtures.
+- **A fixture at the floor,** which opens and serves, its identities,
+  counters, policies, outcomes and turns kept. A store without the
+  floor is refused by name, naming bridge build `3d1c717d379e`;
+  nothing upgrades it (`store-floor.md`, 4.4). No golden store below
+  the floor is promised an upgrade.
 - **A story through an upgrade,** in the one-process world
   (`../testing/README.md`, 2.5): a project, a person and an account; a
   goal and a change through a landing; a chat paused and a task
-  mid-run; settle, stop, start the new binary, and go on. The referee:
-  the promised history equal before and after, no effect made twice,
-  kept requests answered as before, the next numbers colliding with
-  none, and the task going on, resumed or fresh as its patches say.
+  mid-run; settle, stop, start the new binary with a registry change
+  and a job, and go on. The referee: the promised history equal before
+  and after, no effect made twice, kept requests answered as before,
+  the next numbers colliding with none, and the task going on. No
+  owner's level moves.
 - **Power loss** on skein's crashing disk at every step of the copy,
-  every commit of the patching, the manifest and the switch: the active
-  generation is wholly the old or wholly the checked new, and the next
-  start begins again from a fresh copy.
+  the registry's and jobs' commits, the seal, the check, the manifest
+  and the switch: the active generation is wholly the old or wholly
+  the checked new, and the next start begins again from a fresh copy.
 - **Faults:** a full disk, a short write, a failed sync, a malformed
-  record, a patch refusing a record, a limit too small, an effect in
-  flight in a patched family.
+  record, a job refusing a record, a layout with no plan, a limit too
+  small, and recovery after an unsettled stop.
 - **The engine alone:** the engine upgraded while a worker's run goes on,
-  adopted at its hello; a window past the grace ending the run.
+  adopted at its hello; a window past its restart wait or grace ending
+  the run.
 - **The process tier** (`../testing/process-tier.md`): stop, start the new
   binary and go back, on fakes, with an owned Forgejo's migration as its
   tests have it.
@@ -562,41 +616,26 @@ the domains:
 
 | Owner | What |
 |---|---|
-| skein | skein-codec: schemas read at run time into generic values and encoded back; layouts' fingerprints; the diff and its derived operations; what a `bytes` field holds; the patch command and the gate's checks. skein-oauth's patches. Nothing of skein-kv |
-| smith | its turns' and results' kept schemas and patches; a patch's mark that windows across it start fresh |
-| jig | the levels in the format row; patching at open: the plan, the copy, the patches, the checks, the switch; generations and `active`; the order across owners; transcripts patched as read; closing windows where a patch says; the settled stop's core; the engine's wire versions kept; its families' patches |
-| temper | its families' patches; `temper upgrade --check` and `--back`, `temper versions`; the configuration's previous release; small files; every marker's version read; the settled stop's connector |
-| all | the golden stores; the story through an upgrade; power loss; the process drill; the gate's mutation checks |
+| skein | skein-codec: schemas read at run time into generic values and encoded back; layouts' fingerprints and derived plans; what a `bytes` field holds; the wires' patch command and checks. Nothing of skein-kv |
+| smith | its turns' current format, and the turns' wire's kept texts, patches and bridges |
+| jig | the explicit levels and floor; registry planning and conversion at read; the jobs' runner; the copy, seal, check and switch; generations and `active`; transcripts patched as read; the settled stop's core; the engine's wire versions kept; its families' current schemas and jobs |
+| temper | its families' current schemas and jobs; `temper upgrade --check` and `--back`, `temper versions`; the configuration's previous release; small files; every marker's version read; the settled stop's connector |
+| all | the floor's fixture and refusal; the story through a registry and job upgrade; power loss; the process drill; removal of jobs once dev.fabrig.ai runs them |
 
-A guess, not measured: the investigation's 32 to 48 hours. skein-codec's
-run-time schemas and the tooling, about 8 to 12 hours, take the place of
-its 4 to 6 hours of skein-kv, its frozen codecs' registries and its
-rewrite of the transcripts. Then about 4 to 6 hours for the engine
-alone. Built as the baseline approaches: the full
-upgrade, then the engine alone.
+The full upgrade and the engine alone share the store's mechanism;
+the wires and workers' lifecycle are `redeploys.md`'s.
 
 ## 15. Open questions
 
-- **When the first release is.** Its date is open; the baseline no
-  longer waits for it (4.1).
-- **A bug in a landed patch,** found after deployments ran it. Default:
-  fixed in place for those yet to run it, its fix declared to the gate;
-  a later patch repairs those that ran it, where the old evidence allows.
-- **A long chain,** squashed as Django squashes migrations. Default:
-  kept whole from the baseline; squashed once patching from the baseline
-  grows slow, with stores older than the squash upgraded through a
-  release before it.
+- **When the first release is.** Its date is open; the floor does not
+  wait for it (4.1).
 - **Old turns patched on every read.** Default: as read; a task's file
   rewritten once if reading old turns proves slow.
 - **The client's kept requests,** patched by the same patches, which
   the client's binary holds. Default: dropped with a notice (7.4).
-- **Effects in flight in a patched family.** Default: refused (section
-  8).
 - **Online backups.** Default: a copy with the deployment stopped (3.3).
-- **Stores larger than twice the map's budget.** Default: one map,
-  patched in the copy; a streaming patch if a deployment outgrows it.
 - **The formats on disk** (6.5). Default: unchanged; a tool of their
-  owner's when one first changes, run before the records' patches, as
+  owner's when one first changes, run before the records' upgrade, as
   `pg_upgrade` runs before an application migrates.
 - **Rolling upgrades,** an engine and workers of different wires:
   `redeploys.md`, from 2026-11-12.

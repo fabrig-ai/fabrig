@@ -115,6 +115,8 @@ pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         room: None,
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -146,6 +148,7 @@ pub fn opening_row() -> ChangeRow {
             owns_turn: false,
             last_head: Some(HEAD),
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: Some(OPEN),
@@ -153,6 +156,7 @@ pub fn opening_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

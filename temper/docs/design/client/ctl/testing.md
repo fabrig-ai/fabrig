@@ -64,7 +64,10 @@
 beside the fake person, as a scripted agent making calls (`../testing.md`
 ; `../../testing/checks.md`, 3). Area 1's stories: a chat started, its
 reply waited for, a message, a turn too large for a page read whole,
-the chat closed; a repository adopted; a held task released. The
+the chat closed; a message answered after the chat's first reply, then
+`chat show --before` at the cursor `task activity TASK --json` gives
+reading the older page, the first reply once and not the second, and
+`chat show` both, each once; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
 `task show TASK --until ended` begins, checking the matching terminal
 answer (`tools.md`, 4). A turn too large for a page exists only where the engine's
@@ -81,7 +84,12 @@ deadline, each meeting `account list --until settled`; a limited
 notice, the next task waiting for its account and `task show TASK`
 saying why, then `account retry` and the run started; `account rank`
 and `account forget`; a program source declared, and `account verify`
-answered as each host reports; a program account forgotten, its name
+answered as each host reports; Anthropic's keys
+(`../../draft/claude-api.md`, 6), provider 2 named `anthropic` in every
+answer: a key-only account, then a Claude Code program declared and a
+key put after it with `--account`, the account keeping its holder and
+its program first, then the deployment's with `--deployment`, held by
+the deployment and listed with its accounts; a program account forgotten, its name
 declared again by its holder, its host-check dispatch observed, then a
 declaration of that live name refused at exit 2 with its reason and next
 step (`areas.md`). Area 6's, over the engine root's forge
@@ -111,6 +119,16 @@ without FORGE each making a forge, numbered next; `forge remove`
 answered `removed`, the forge gone from `forge list`, and refused for
 the playground's forge. After each, no pasted value in
 DIRECTORY's store or in any document the tools print.
+
+One story reads at `temper-box init`'s template's bounds, its documents'
+rows below the tools' 32-row window: a goal with more delegates than
+those rows, one of them ended with an ended dependency, and `task show
+TASK --tree` answering within a second, cut and saying so, and `task
+activity TASK --json` of the ended one answering its rows, newest
+first, and reading on to its first; the tree's `cut:` line's call
+followed, page by page, to the last delegate. Its fixture sets that
+bound itself, whatever the others' fixtures raise. Paging is a tool's
+behaviour, so the story is this world's, not a composed one's (3).
 
 ## 3. The real loop
 
@@ -213,15 +231,6 @@ teardown on the real kernel; the harness checks memory ownership,
 outstanding operations and release between iterations.
 A real-loop failure is kept with its trace and reproduced lower down
 where possible; its seed does not replay the kernel's schedule.
-
-One story reads at `temper-box init`'s template's bounds, its documents'
-rows below the tools' 32-row window: a goal with more delegates than
-those rows, one of them ended with an ended dependency, and `task show
-TASK --tree` answering within a second, cut and saying so, and `task
-activity TASK --json` of the ended one answering its rows, newest
-first, and reading on to its first; the tree's `cut:` line's call
-followed, page by page, to the last delegate. Its fixture sets that
-bound itself, whatever the others' fixtures raise.
 
 ## 4. The process tier
 

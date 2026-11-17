@@ -7,9 +7,10 @@ use jig_client::contract as c;
 use skein_lib::{Duration, List, Map, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
-/// The four lists read for Work.
+/// The lists and drawn milestones read for Work.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
+    pub milestones: List<Milestone>,
     pub goals: List<Goal>,
     pub changes: List<Change>,
     pub chats: List<Chat>,
@@ -49,6 +50,15 @@ pub struct Goal {
     pub task: u64,
     pub live: bool,
     pub activity: Wall,
+    pub milestone: Option<u64>,
+}
+
+/// A drawn milestone, live or recently ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Milestone {
+    pub task: u64,
+    pub live: bool,
+    pub activity: Wall,
 }
 
 /// A change on its way or landed, and where it came from.
@@ -83,9 +93,10 @@ pub struct Chat {
     pub draft: bool,
 }
 
-/// The live goal, change, chat or draft a card opens.
+/// The live milestone, goal, change, chat or draft a card opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Item {
+    Milestone(u64),
     Goal(u64),
     Change(u64),
     Chat(u64),
@@ -93,10 +104,18 @@ pub enum Item {
     Landed(u32),
 }
 
-/// An item's card, with changes on their way by place, then landed newest first.
+/// A card's changes by queue place then newest landing, or a milestone's live goal lines.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Card {
     pub item: Item,
+    pub changes: List<Row>,
+    pub goals: List<GoalLine>,
+}
+
+/// A live goal placed on a milestone, with only its changes on their way.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GoalLine {
+    pub task: u64,
     pub changes: List<Row>,
 }
 
@@ -115,6 +134,15 @@ pub struct Landing {
     pub at: Wall,
     pub belongs: Belongs,
     pub signed: Option<Box<[u8]>>,
+    pub milestone: Option<LandedMilestone>,
+}
+
+/// The lineage name on a goal landing and whether it completes its milestone.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LandedMilestone {
+    pub name: Box<[u8]>,
+    /// Set only on its completing change; placement keeps the completion within the week.
+    pub completed: Option<Wall>,
 }
 
 /// A week's goal or independent change at its newest default-branch landing.
@@ -125,6 +153,7 @@ pub struct Landed {
     pub commit: [u8; 32],
     pub at: Wall,
     pub signed: Option<Box<[u8]>>,
+    pub milestone: Option<LandedMilestone>,
 }
 
 /// Work's In flight, Drafts and Landed this week sections and its filters' counts.
@@ -149,6 +178,7 @@ pub struct Filters {
 impl Default for Facts {
     fn default() -> Self {
         Self {
+            milestones: List::uncapped(),
             goals: List::uncapped(),
             changes: List::uncapped(),
             chats: List::uncapped(),
@@ -194,6 +224,7 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
     work.filters.changes = changes.len();
     let mut in_flight = List::uncapped();
     let mut drafts = List::uncapped();
+    milestone_cards(facts, &changes, &mut in_flight);
     let mut goals = Set::with_capacity(facts.goals.len());
     let mut live_goals = Set::with_capacity(facts.goals.len());
     for goal in &facts.goals {
@@ -202,7 +233,14 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         }
         if goal.live {
             live_goals.insert(goal.task).expect("no more live goals than goal rows");
-            let card = Card { item: Item::Goal(goal.task), changes: belonging(&changes, Belongs::Goal(goal.task)) };
+            if on_milestone(facts, goal) {
+                continue;
+            }
+            let card = Card {
+                item: Item::Goal(goal.task),
+                changes: belonging(&changes, Belongs::Goal(goal.task)),
+                goals: List::with_capacity(0),
+            };
             insert_card(facts, &mut in_flight, ActiveCard { activity: goal.activity, task: goal.task, card });
         }
     }
@@ -217,11 +255,12 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
             work.filters.chats = work.filters.chats.saturating_add(1);
         }
         if has_queued(&changes, Belongs::Chat(chat.task)) {
-            let card = Card { item: Item::Chat(chat.task), changes: held };
+            let card = Card { item: Item::Chat(chat.task), changes: held, goals: List::with_capacity(0) };
             insert_card(facts, &mut in_flight, ActiveCard { activity: chat.activity, task: chat.task, card });
         }
         if chat.draft {
-            let card = Card { item: Item::Draft(chat.task), changes: List::with_capacity(0) };
+            let card =
+                Card { item: Item::Draft(chat.task), changes: List::with_capacity(0), goals: List::with_capacity(0) };
             insert_card(facts, &mut drafts, ActiveCard { activity: chat.activity, task: chat.task, card });
         }
     }
@@ -233,7 +272,8 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         }
         if draft.listed {
             let index = u32::try_from(index).expect("landed facts fit");
-            let card = Card { item: Item::Landed(index), changes: List::with_capacity(0) };
+            let card =
+                Card { item: Item::Landed(index), changes: List::with_capacity(0), goals: List::with_capacity(0) };
             insert_card(facts, &mut drafts, ActiveCard { activity: draft.at, task: 0, card });
         }
     }
@@ -247,7 +287,11 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
                     Belongs::Nothing => false,
                 };
                 if !held {
-                    let card = Card { item: Item::Change(change.task), changes: List::with_capacity(0) };
+                    let card = Card {
+                        item: Item::Change(change.task),
+                        changes: List::with_capacity(0),
+                        goals: List::with_capacity(0),
+                    };
                     insert_card(facts, &mut in_flight, ActiveCard { activity: since, task: change.task, card });
                 }
             }
@@ -264,6 +308,54 @@ pub fn place(facts: &Facts, wall: Wall) -> Work {
         work.drafts.push(active.card).expect("one card per draft");
     }
     work
+}
+
+fn milestone_cards(facts: &Facts, changes: &List<Change>, in_flight: &mut List<ActiveCard>) {
+    let mut milestones = Set::with_capacity(facts.milestones.len());
+    for milestone in &facts.milestones {
+        if !milestones.insert(milestone.task).expect("one key per milestone") || !milestone.live {
+            continue;
+        }
+        let mut activity = milestone.activity;
+        let mut lines = Map::uncapped();
+        let mut seen = Set::with_capacity(facts.goals.len());
+        for goal in &facts.goals {
+            if !seen.insert(goal.task).expect("one key per goal") || goal.milestone != Some(milestone.task) {
+                continue;
+            }
+            activity = activity.max(goal.activity);
+            if goal.live {
+                let mut held = List::uncapped();
+                for change in changes {
+                    if change.belongs == Belongs::Goal(goal.task) {
+                        match change.at {
+                            Where::Queued { .. } => {
+                                held.push(Row { task: change.task, signed: change.signed.clone() })
+                                    .expect("queued changes fit");
+                            }
+                            Where::Landed { .. } => {}
+                        }
+                    }
+                }
+                lines.insert(goal.task, GoalLine { task: goal.task, changes: held }).expect("one line per live goal");
+            }
+        }
+        let mut goals = List::uncapped();
+        for (_, line) in &lines {
+            goals.push(line.clone()).expect("one line per live goal");
+        }
+        let card = Card { item: Item::Milestone(milestone.task), changes: List::with_capacity(0), goals };
+        insert_card(facts, in_flight, ActiveCard { activity, task: milestone.task, card });
+    }
+}
+
+fn on_milestone(facts: &Facts, goal: &Goal) -> bool {
+    for milestone in &facts.milestones {
+        if Some(milestone.task) == goal.milestone {
+            return milestone.live;
+        }
+    }
+    false
 }
 
 fn goal_branches(changes: &List<Change>, start: Wall, wall: Wall) -> u32 {
@@ -306,10 +398,27 @@ fn landed_this_week(rows: &List<Landing>, start: Wall, wall: Wall) -> List<Lande
             Belongs::Chat(_) | Belongs::Nothing => Item::Change(row.task),
         };
         landed
-            .push(Landed { item, change: row.task, commit: row.commit, at: row.at, signed: row.signed.clone() })
+            .push(Landed {
+                item,
+                change: row.task,
+                commit: row.commit,
+                at: row.at,
+                signed: row.signed.clone(),
+                milestone: recent_milestone(row.milestone.as_ref(), start, wall),
+            })
             .expect("no more rows than landings");
     }
     landed
+}
+
+fn recent_milestone(milestone: Option<&LandedMilestone>, start: Wall, wall: Wall) -> Option<LandedMilestone> {
+    let mut milestone = milestone?.clone();
+    if let Some(at) = milestone.completed
+        && (at < start || at > wall)
+    {
+        milestone.completed = None;
+    }
+    Some(milestone)
 }
 
 fn newer(left: Wall, left_task: u64, right: Wall, right_task: u64) -> bool {
@@ -341,7 +450,7 @@ fn card_before(facts: &Facts, left: &ActiveCard, right: &ActiveCard) -> bool {
 fn landed_card(facts: &Facts, item: Item) -> Option<&LandedDraft> {
     match item {
         Item::Landed(index) => facts.landed.get(index),
-        Item::Goal(_) | Item::Change(_) | Item::Chat(_) | Item::Draft(_) => None,
+        Item::Milestone(_) | Item::Goal(_) | Item::Change(_) | Item::Chat(_) | Item::Draft(_) => None,
     }
 }
 fn ordered_changes(changes: &List<Change>) -> List<Change> {
@@ -505,11 +614,13 @@ fn row_signed(reader: u64, row: &w::ChangesLanded, people: Option<&c::Project>) 
 pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     use super::changes::State;
     let goals = root.pages().goals()?;
+    let milestones = root.pages().milestones()?;
     let changes = root.pages().changes()?;
     let chats = root.pages().chats()?;
     let drafts = root.pages().drafts()?;
     if root.pages().project() != Some(project)
         || changes.project != project
+        || !milestones.known(root.client())
         || !goals.known(root.client())
         || !chats.known(root.client())
         || !chats.documents_known()
@@ -534,16 +645,27 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
         super::drafts::State::Ended => {}
     }
     for line in &goals.live(root.client())?.rows {
-        facts
-            .goals
-            .push(Goal { task: line.chip.task, live: !super::chats::ended(&line.chip), activity: line.last_activity })
-            .expect("one fact per goal row");
+        gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
     }
     for line in goals.ended() {
-        facts
-            .goals
-            .push(Goal { task: line.chip.task, live: false, activity: line.last_activity })
-            .expect("one fact per goal row");
+        gather_goal(&mut facts, milestones, line, false);
+    }
+    for milestone in milestones.drawn() {
+        for line in milestones.lines() {
+            if line.chip.task == milestone.task {
+                facts
+                    .milestones
+                    .push(Milestone {
+                        task: milestone.task,
+                        live: !super::chats::ended(&line.chip),
+                        activity: line.last_activity,
+                    })
+                    .expect("one fact per drawn milestone");
+            }
+        }
+        for line in &milestone.goals {
+            gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+        }
     }
     if let Some(panel) = panel {
         for queue in panel.queues() {
@@ -598,6 +720,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
                     at: Wall::from_nanos(row.at()),
                     belongs: belongs(root, row.task()),
                     signed: row_signed(reader, row, people),
+                    milestone: landed_milestone(root, row.task()),
                 })
                 .expect("one fact per default-branch landing");
         }
@@ -619,6 +742,57 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
         }
     }
     Some(facts)
+}
+
+fn gather_goal(facts: &mut Facts, milestones: &super::milestones::Milestones, row: &c::TaskLine, live: bool) {
+    for goal in facts.goals.iter_mut() {
+        if goal.task == row.chip.task {
+            if !goal.live && live {
+                *goal = Goal {
+                    task: row.chip.task,
+                    live: true,
+                    activity: row.last_activity,
+                    milestone: milestones.of(row),
+                };
+            }
+            return;
+        }
+    }
+    facts
+        .goals
+        .push(Goal { task: row.chip.task, live, activity: row.last_activity, milestone: milestones.of(row) })
+        .expect("one fact per goal");
+}
+
+fn landed_milestone(root: &dyn Root, task: u64) -> Option<LandedMilestone> {
+    let document = root.pages().changes()?.document(task)?;
+    document.goal?;
+    let lineage = temper_client_domain_forge::milestones::lineage(document)?;
+    let mut completed = None;
+    if let Some(milestone) = root.pages().milestones()?.milestone(lineage.milestone.task)
+        && let Some(totals) = &milestone.totals
+        && let Some(ended) = totals.ended()
+        && let Some(landing) = totals.last_landing()
+        && let Some(line) = milestone_line(root, milestone.task)
+    {
+        let complete = super::milestones::state(line, milestone.goals.as_slice(), Some(totals), false)
+            == super::milestones::State::Complete
+            && landing.change() == task;
+        if complete {
+            completed = Some(Wall::from_nanos(*ended));
+        }
+    }
+    Some(LandedMilestone { name: lineage.milestone.title.bytes().into(), completed })
+}
+
+#[expect(clippy::manual_find, reason = "step code uses no closures")]
+fn milestone_line(root: &dyn Root, task: u64) -> Option<&c::TaskLine> {
+    for line in root.pages().milestones()?.lines() {
+        if line.chip.task == task {
+            return Some(line);
+        }
+    }
+    None
 }
 
 fn gather_chat(facts: &mut Facts, chats: &super::chats::Chats, line: &jig_client::contract::TaskLine) {

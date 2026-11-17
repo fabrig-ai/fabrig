@@ -204,8 +204,8 @@ be read from:
   only scheme, host and port, never a signed path, query or
   credentials; no member adds an origin (section 12).
 - **No document, example or test of temper's calls github.com:** GitHub's
-  addresses are the machine's GitHub place, github.com's when it names
-  none (../configuration/engine.md), and every test names skein's fake
+  addresses are github.com's unless `application.test.github` names a
+  place (../setup/place.md, 7), and every test names skein's fake
   there (`README.md`, section 9).
 
 ## 3. The engine's marks
@@ -605,7 +605,7 @@ The tiers, the fakes and the layout are `../../testing/README.md`'s (`../../test
     reads aside.
 - **The real Forgejo check,** its transcripts, its facts and the
   throwaway Forgejo it runs against (`../../testing/process-tier.md`): skein's
-  `testing/fakes/forge.md`, sections 6 and 7.
+  `testing/fakes/throwaway.md`, sections 1 and 2.
 - **The pin** is skein's (skein's `forge/README.md`, 4.3): one patch release of Forgejo
   v17.0 and one of forgejo-runner v13.2, constants the throwaway
   Forgejo, the conformance and owned mode share (../setup/owned.md, 1); a
@@ -664,7 +664,7 @@ forwards to jig's clients' component to erase.
 Held by skein's `forge/forgejo.md`, section 2: what the component and the forge
 connector rely on of Forgejo, on the pinned release (`README.md`, section 9), each
 named by its fact in the conformance's `facts.txt` (skein's
-`testing/fakes/forge.md`, section 7). What no fact records yet is open: the kit's
+`testing/fakes/throwaway.md`, section 2). What no fact records yet is open: the kit's
 in skein's `forge/forgejo.md`, section 2, and skein's `forge/README.md`, section 10, temper's own in `README.md`, section 12.
 temper's part:
 

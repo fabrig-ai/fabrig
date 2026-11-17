@@ -441,12 +441,20 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     .expect(FITS)
 }
 fn encode_run(run: top::LandingRun) -> w::LandingRun {
-    w::LandingRun::new(&w::CEILINGS, w::LandingRunParts { id: run.id, attempt: run.attempt, ended: run.ended })
-        .expect(FITS)
+    w::LandingRun::new(
+        &w::CEILINGS,
+        w::LandingRunParts {
+            id: run.id,
+            attempt: run.attempt,
+            ended: run.ended,
+            clock: super::change::encode_clock(run.clock),
+        },
+    )
+    .expect(FITS)
 }
 fn decode_run(run: w::LandingRun) -> top::LandingRun {
-    let w::LandingRunParts { id, attempt, ended } = run.into_parts();
-    top::LandingRun { id, attempt, ended }
+    let w::LandingRunParts { id, attempt, ended, clock } = run.into_parts();
+    top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
     let w::LandingRowParts { landing, asks, entries, job, room } = row.into_parts();

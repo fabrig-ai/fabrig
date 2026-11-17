@@ -8,7 +8,7 @@ mod command;
 mod reader;
 mod walk;
 pub(crate) use command::{Mode, run};
-use reader::{CommitFiles, Reader};
+use reader::{Reader, RecipeFiles};
 pub use walk::{Action, Event, Walk};
 
 pub const SETUPS: &str = "temper/docs/development/qa/setups";
@@ -72,10 +72,18 @@ struct Recipe {
     after: Option<String>,
     bytes: Vec<u8>,
     scripts: Option<Vec<u8>>,
-    files: CommitFiles,
+    files: RecipeFiles,
+    config: RecipeFiles,
     steps: Vec<RecipeLine>,
     check: Vec<RecipeLine>,
 }
+/// The root's configuration chooses the chain's session (client/recipe.md, 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Box,
+    Deployment,
+}
+
 /// A checked recipe and at most eight parents, stored root first.
 #[derive(Debug)]
 pub struct Chain {
@@ -112,7 +120,40 @@ impl Chain {
             next = after;
         }
         recipes.reverse();
-        Ok(Self { recipes })
+        let chain = Self { recipes };
+        for recipe in &chain.recipes {
+            for line in recipe.steps.iter().chain(&recipe.check) {
+                let why = match (chain.kind(), line.line.record()) {
+                    (Kind::Box, Record::Deployment(_)) => Some("a box recipe takes no deployment line"),
+                    _ => None,
+                };
+                if let Some(why) = why {
+                    return Err(Refusal::line(&recipe.name, line.number, why));
+                }
+            }
+        }
+        for recipe in &chain.recipes {
+            recipe.check_files()?;
+        }
+        Ok(chain)
+    }
+    #[must_use]
+    pub fn kind(&self) -> Kind {
+        if self.recipes.first().expect("read chain is nonempty").config.is_empty() {
+            Kind::Box
+        } else {
+            Kind::Deployment
+        }
+    }
+    /// The deployment root's documents under the caller's setups directory.
+    #[must_use]
+    pub fn config_dir(&self, setups: &Path) -> Option<std::path::PathBuf> {
+        match self.kind() {
+            Kind::Box => None,
+            Kind::Deployment => {
+                Some(setups.join(&self.recipes.first().expect("read chain is nonempty").name).join("config"))
+            }
+        }
     }
     #[must_use]
     pub fn hash(&self) -> [u8; 32] {
@@ -122,11 +163,13 @@ impl Chain {
                 hash.update(u64::try_from(bytes.len()).expect("file length fits u64").to_be_bytes());
                 hash.update(bytes);
             }
-            hash.update(u64::try_from(recipe.files.len()).expect("file count").to_be_bytes());
-            for (path, bytes) in &recipe.files {
-                for bytes in [path.as_ref(), bytes.as_slice()] {
-                    hash.update(u64::try_from(bytes.len()).expect("file length").to_be_bytes());
-                    hash.update(bytes);
+            for files in [&recipe.files, &recipe.config] {
+                hash.update(u64::try_from(files.len()).expect("file count").to_be_bytes());
+                for (path, bytes) in files {
+                    for bytes in [path.as_ref(), bytes.as_slice()] {
+                        hash.update(u64::try_from(bytes.len()).expect("file length").to_be_bytes());
+                        hash.update(bytes);
+                    }
                 }
             }
         }
@@ -134,6 +177,15 @@ impl Chain {
     }
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.recipes.iter().map(|recipe| recipe.name.as_str())
+    }
+    fn ctl_only(&self) -> bool {
+        !self.recipes.iter().any(|recipe| {
+            recipe
+                .steps
+                .iter()
+                .chain(&recipe.check)
+                .any(|line| matches!(line.line.record(), Record::Web(_) | Record::Tui(_)))
+        })
     }
     /// Lines from a fresh box, or from a named member's restored copy.
     pub fn lines(&self, from: Option<&str>) -> Result<Vec<WalkLine>, Refusal> {
@@ -145,14 +197,17 @@ impl Chain {
                 .ok_or_else(|| Refusal::file(name, "recipe", "--from is not the recipe or one of its ancestors"))?,
             None => 0,
         };
+        let ctl_only = self.ctl_only();
         let mut lines = vec![];
         for (index, recipe) in self.recipes.iter().enumerate().skip(start) {
             if from.is_none() || index != start {
                 lines.extend(recipe.steps.iter().map(|line| recipe.walk_line(line)));
-                lines.extend(
-                    [br#"web reload "/""#.as_slice(), b"tui stop"]
-                        .map(|line| WalkLine { source: Source::Walk, line: line.into() }),
-                );
+                if !ctl_only {
+                    lines.extend(
+                        [br#"web reload "/""#.as_slice(), b"tui stop"]
+                            .map(|line| WalkLine { source: Source::Walk, line: line.into() }),
+                    );
+                }
             }
             lines.extend(recipe.check.iter().map(|line| recipe.walk_line(line)));
         }
@@ -169,7 +224,8 @@ impl Recipe {
     fn read(reader: &Reader<'_>, name: &str) -> Result<Self, Refusal> {
         let files = reader.files(name).map_err(|why| Refusal::file(name, "recipe", why))?;
         for file in &files {
-            if file != "recipe" && file != "scripts.json" && file != "README.md" && file != "files" {
+            if file != "recipe" && file != "scripts.json" && file != "README.md" && file != "files" && file != "config"
+            {
                 return Err(Refusal::file(name, &file.to_string_lossy(), "unexpected file"));
             }
         }
@@ -183,6 +239,7 @@ impl Recipe {
         };
         let mut after = None;
         let mut steps = vec![];
+        let mut explicit_check = None;
         for (index, source) in records {
             let number = index + 1;
             let refuse = |why| Refusal::line(name, number, why);
@@ -201,17 +258,45 @@ impl Recipe {
                 after = Some(parent.to_owned());
                 continue;
             }
+            if source == b"check" {
+                if explicit_check.is_some() {
+                    return Err(refuse("repeated check".into()));
+                }
+                explicit_check = Some((steps.len(), number));
+                continue;
+            }
+            if source.starts_with(b"check ") {
+                return Err(refuse("check takes no fields".into()));
+            }
             let line = Line::parse(source).map_err(refuse)?;
             if !line.kept() || matches!(line.record(), Record::Tui(Tui::Stop)) {
                 return Err(refuse("empty lines, looks, end and tui stop are not recipe acts".into()));
             }
+            if explicit_check.is_some() && !is_check(&line) && !matches!(line.record(), Record::Ctl(_)) {
+                return Err(refuse("only ctl, web see or tui see may follow check".into()));
+            }
             steps.push(RecipeLine { number, line });
         }
-        let check_at = steps.iter().rposition(|line| !is_check(&line.line)).map_or(0, |index| index + 1);
+        let check_at = if let Some((index, number)) = explicit_check {
+            if index == steps.len() {
+                return Err(Refusal::line(name, number, "check must have at least one line after it"));
+            }
+            index
+        } else {
+            steps.iter().rposition(|line| !is_check(&line.line)).map_or(0, |index| index + 1)
+        };
         if steps.is_empty() || check_at == steps.len() {
             let last = bytes.strip_suffix(b"\n").unwrap_or(&bytes).split(|byte| *byte == b'\n').count().max(1);
             return Err(Refusal::line(name, last, "recipe must end with at least one web see or tui see"));
         }
+        let config = if files.iter().any(|file| file == "config") {
+            if after.is_some() {
+                return Err(Refusal::file(name, "config", "a recipe with after cannot hold config/"));
+            }
+            reader.config_files(name)?
+        } else {
+            RecipeFiles::new()
+        };
         let check = steps.split_off(check_at);
         let scripts = if files.iter().any(|file| file == "scripts.json") {
             Some(reader.bytes(name, "scripts.json").map_err(|why| Refusal::file(name, "scripts.json", why))?)
@@ -219,20 +304,29 @@ impl Recipe {
             None
         };
         let files = reader.commit_files(name)?;
-        let named: std::collections::BTreeSet<_> = steps
+        Ok(Self { name: name.into(), after, bytes, scripts, files, config, steps, check })
+    }
+    fn check_files(&self) -> Result<(), Refusal> {
+        let name = &self.name;
+        let files = &self.files;
+        let named: std::collections::BTreeSet<_> = self
+            .steps
             .iter()
-            .filter_map(|line| match line.line.record() {
-                Record::Forge(crate::line::Forge::Commit { paths, .. }) => Some(paths.iter().map(AsRef::as_ref)),
-                _ => None,
+            .flat_map(|line| match line.line.record() {
+                Record::Forge(crate::line::Forge::Commit { paths, .. }) => {
+                    paths.iter().map(AsRef::as_ref).collect::<Vec<_>>()
+                }
+                Record::Deployment(crate::line::Deployment::Patch { path, .. }) => vec![path.as_ref()],
+                Record::Ctl(args) => crate::line::settings_paths(args),
+                _ => vec![],
             })
-            .flatten()
             .collect();
         for path in &named {
             if !files.contains_key(*path) {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "missing forge commit file",
+                    "missing forge commit, push, deployment patch or ctl settings file",
                 ));
             }
         }
@@ -241,11 +335,11 @@ impl Recipe {
                 return Err(Refusal::file(
                     name,
                     &format!("files/{}", String::from_utf8_lossy(path)),
-                    "no forge commit line names this file",
+                    "no forge commit, push, deployment patch or ctl settings line names this file",
                 ));
             }
         }
-        Ok(Self { name: name.into(), after, bytes, scripts, files, steps, check })
+        Ok(())
     }
 }
 fn check_name(name: &str) -> Result<(), &'static str> {

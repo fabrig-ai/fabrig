@@ -120,7 +120,7 @@ impl GitChild {
                     });
                 }
                 if self.timed_out {
-                    self.stop(below);
+                    self.stop(kernel::Reason::Deadline, below);
                 }
             }
             io::Event::Stream { owner, up } => match up {
@@ -162,7 +162,7 @@ impl GitChild {
             io::Event::Exited { exit, .. } => self.exit = Some(exit),
             io::Event::Failed { .. } => {
                 self.failed = true;
-                self.stop(below);
+                self.stop(kernel::Reason::Closed, below);
             }
             io::Event::Closed { owner } => {
                 if owner == self.io_owner {
@@ -192,7 +192,7 @@ impl GitChild {
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
         if self.life != Life::Done && !self.timed_out && now >= self.deadline {
             self.timed_out = true;
-            self.stop(below);
+            self.stop(kernel::Reason::Deadline, below);
         }
     }
 
@@ -223,9 +223,9 @@ impl GitChild {
         });
     }
 
-    fn stop(&self, below: &mut Queue<io::Request>) {
+    fn stop(&self, reason: kernel::Reason, below: &mut Queue<io::Request>) {
         if let Some(child) = self.child {
-            below.push(io::Request::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill });
+            below.push(io::Request::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill, reason });
         }
         for pipe in self.pipes.into_iter().flatten() {
             below.push(io::Request::Abort { entity: pipe });
@@ -428,8 +428,12 @@ mod tests {
         );
         while below.pop().is_some() {}
         child.fire(Time::from_nanos(100), &mut below);
-        let Some(io::Request::Signal { child: CHILD, to: kernel::Target::Child, signal: kernel::Signal::Kill }) =
-            below.pop()
+        let Some(io::Request::Signal {
+            child: CHILD,
+            to: kernel::Target::Child,
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Deadline,
+        }) = below.pop()
         else {
             panic!("deadline signals git child");
         };

@@ -37,6 +37,57 @@ fn an_engine_restarted_within_the_bound_keeps_the_same_attempt() {
 }
 
 #[test]
+fn a_said_restart_keeps_the_attempt_past_grace_while_its_turns_go_on() {
+    let mut script = interrupted_script();
+    let mut meanwhile = script.turns[0].clone();
+    meanwhile.lines = Box::new([
+        Line::Text { text: b"A turn while the engine is away".as_slice().into() },
+        Line::Call { name: b"list".as_slice().into(), arguments: br#"{"path":"."}"#.as_slice().into() },
+    ]);
+    script.turns = Box::new([script.turns[0].clone(), meanwhile, script.turns[1].clone()]);
+    let mut world = World::absence_chat_with_grace(944, script, WORDS, 2, Duration::from_secs(300));
+    world.until_model_held();
+    let attempt = world.assignment().attempt;
+    world.settle_engine();
+    assert_eq!(world.restart_word(), Some(Duration::from_secs(1200)));
+    world.cut_link();
+    world.stop_engine();
+    let turns = world.observed.turns;
+    world.elapse_absence(Duration::from_secs(301));
+    assert_eq!(world.observed.cancels, 0, "the grace cancels nothing after the word");
+    world.continue_until_model(3);
+    for _ in 0..1000 {
+        world.tick();
+        if world.observed.turns > turns {
+            break;
+        }
+    }
+    assert!(
+        world.observed.turns > turns,
+        "the worker sends the next turn while its engine is away: {:?}",
+        world.observed
+    );
+    world.elapse_absence(Duration::from_secs(299));
+    assert_eq!(world.observed.cancels, 0, "600 seconds is within the restart wait");
+    world.reopen_engine();
+    world.join_link();
+    let [_, hello] = world.absence_hellos() else { panic!("the initial and returning hello") };
+    let [hosted] = hello.as_slice() else { panic!("one surviving attempt") };
+    assert_eq!((hosted.run.raw(), hosted.attempt.raw()), (world.assignment().task, attempt));
+    assert_eq!(hosted.phase, jig_domain_link::Phase::Active);
+    world.until_model_held();
+    world.watch_absence_reply();
+    finish_reply(&mut world);
+    assert_eq!(committed_occurrences(&world, b"A turn while the engine is away"), 1);
+    assert_eq!(committed_occurrences(&world, REPLY), 1);
+    assert_eq!(world.absence_assignments().len(), 1);
+    assert_eq!(attempt_rows(&world).len(), 1);
+    assert_eq!(world.observed.spawns, 1);
+    assert_eq!(world.observed.cancels, 0);
+    assert_no_tries(&world);
+}
+
+#[test]
 fn two_refused_engine_starts_within_the_bound_keep_the_same_attempt() {
     same_attempt_after_starts(2);
 }

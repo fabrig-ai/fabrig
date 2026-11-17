@@ -230,6 +230,45 @@ fn a_run_of_calls_takes_its_first_turns_key() {
 }
 
 #[test]
+fn an_activity_delivery_keeps_the_nodes_of_sent_words() {
+    const MESSAGE: u64 = 7;
+    const WORDS: &[u8] = b"First line\nSecond line";
+    let limits = fixtures::tree_limits();
+    // A turn may read the message before its activity reaches the page.
+    for read_first in [false, true] {
+        let mut thread = reading_thread();
+        thread.lines.edges.before = jig_client::thread::window::Edge::End;
+        let request = jig_client::Key { asker: jig_client::Asker::JIG, number: 1 };
+        assert!(thread.words.begin(request, None, fixtures::first_run::text(WORDS)));
+        assert!(thread.words.sent(request, MESSAGE));
+        if read_first {
+            thread.words.read(MESSAGE);
+        }
+        let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+        let mut next = 0;
+        let mut before = reading_tree(&thread, true).0;
+        skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+        while patches.pop().is_some() {}
+        let says = styled(&before, crate::look::SAYS);
+        let mut page = page_words(&[2]);
+        let c::Activity::Words { message, words, .. } = &mut page.rows.get_mut(0).unwrap().source.line else {
+            panic!("words activity")
+        };
+        *message = MESSAGE;
+        *words = fixtures::first_run::text(WORDS);
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        thread.page(page);
+        let mut after = reading_tree(&thread, true).0;
+        skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+        for word in subtree(&before, says) {
+            let kept = after.find(word.id).expect("a delivered message keeps its words' nodes");
+            assert_eq!(kept.role, word.role);
+            assert_eq!(kept.text, word.text);
+        }
+    }
+}
+
+#[test]
 fn a_provisional_turn_and_its_committed_one_share_a_key() {
     let live = tree(&provisional());
     let committed = tree(&conversation_turn(

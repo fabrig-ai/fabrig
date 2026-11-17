@@ -1,5 +1,6 @@
 """Opt-in CPU collector and evaluator (tools/tiers/design.md, 7)."""
 
+from collections import Counter
 import contextlib
 import io
 import json
@@ -10,6 +11,7 @@ import re
 import runpy
 import selectors
 import signal
+import statistics
 import subprocess
 import sys
 import time
@@ -17,6 +19,7 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 
+GROUPS = ("skein", "smith", "jig", "temper", "hearth", "repository")
 KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 # nextest's abort message for the signals of cancellation (tools/tiers/design.md, 7.3).
 CANCELLED = re.compile(r'\baborted with signal (?:9|15)\b')
@@ -78,9 +81,26 @@ def stop(process, deadline):
     process.wait()
 
 
-def budgets(path, pairs=None):
+def gate_ceilings(profile):
+    """Map (tree, layer) to its ceiling (tools/tiers/budgets.md, 10)."""
+    ceilings = {(tree, layer): row['cpu_s']
+                for tree in GROUPS for layer, row in profile.get(tree, {}).items()
+                if layer != 'ideal_s'}
+    for move in profile.get('moves', []):
+        source, target = tuple(move['from'].split('.')), tuple(move['to'].split('.'))
+        ceilings[source] = ceilings.get(source, 0) - move['cpu_s']
+        ceilings[target] = ceilings.get(target, 0) + move['cpu_s']
+    return ceilings
+
+
+def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
     with Path(path).open("rb") as source:
         data = tomllib.load(source)
+
+    def seconds(name, value):
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} must be finite positive seconds")
+
     def validate(name, values, *, pair=False):
         keys = KEYS | {"auto_reap"} if pair else KEYS
         if not isinstance(values, dict) or values.keys() - keys:
@@ -90,8 +110,7 @@ def budgets(path, pairs=None):
                 if not isinstance(value, list) or any(not isinstance(test, str) or not test for test in value):
                     raise ValueError(f"{name}.auto_reap must be a list of nonempty test names")
                 continue
-            if (type(value) not in (int, float) or not math.isfinite(value) or value <= 0):
-                raise ValueError(f"{name}.{key} must be finite positive seconds")
+            seconds(f"{name}.{key}", value)
     for pair, values in data.items():
         if pair == "tools":
             if not isinstance(values, dict):
@@ -101,21 +120,166 @@ def budgets(path, pairs=None):
                     raise ValueError("empty tools suite ID")
                 validate(f"tools.{suite}", limits)
         elif pair == "gate":
-            if not isinstance(values, dict):
-                raise ValueError("gate budgets must be a table keyed by tree")
-            for tree, profiles in values.items():
-                if not tree:
-                    raise ValueError("empty gate tree name")
-                if not isinstance(profiles, dict):
-                    raise ValueError(f"gate.{tree} must be a table keyed by profile")
-                for profile, limits in profiles.items():
-                    if not profile:
-                        raise ValueError(f"empty gate.{tree} profile name")
-                    validate(f"gate.{tree}.{profile}", limits)
+            with Path(layers).open('rb') as source:
+                layer_order = tomllib.load(source)['layers']
+                layer_names = set(layer_order)
+            if not isinstance(values, dict) or values.keys() - {'default', 'fuzzy'}:
+                raise ValueError("gate budgets must be a table keyed by default or fuzzy")
+            for profile, groups in values.items():
+                name = f'gate.{profile}'
+                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references', 'moves', 'reasons'}:
+                    raise ValueError(f'invalid budget groups for {name}')
+                references = groups.get('references')
+                if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
+                    raise ValueError(f'invalid references for {name}')
+                for layer, value in references.items():
+                    seconds(f'{name}.references.{layer}', value)
+                for group, table in groups.items():
+                    if group in ('references', 'moves', 'reasons'):
+                        continue
+                    allowed = {'checks'} if group == 'repository' else layer_names
+                    if (not isinstance(table, dict) or 'ideal_s' not in table
+                            or table.keys() - (allowed | {'ideal_s'})):
+                        raise ValueError(f'invalid budget keys for {name}.{group}')
+                    seconds(f'{name}.{group}.ideal_s', table['ideal_s'])
+                    for layer, row in table.items():
+                        if layer == 'ideal_s':
+                            continue
+                        if (not isinstance(row, dict) or 'cpu_s' not in row
+                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s'}):
+                            raise ValueError(f'invalid budget keys for {name}.{group}.{layer}')
+                        for key, value in row.items():
+                            seconds(f'{name}.{group}.{layer}.{key}', value)
+                        if 'reference_s' not in row and layer not in references:
+                            raise ValueError(f'no reference for {name}.{group}.{layer}')
+                reasons = groups.get('reasons', [])
+                if not isinstance(reasons, list):
+                    raise ValueError(f'{name}.reasons must be an array of tables')
+                seen = set()
+                for index, line in enumerate(reasons):
+                    label = f'{name}.reasons[{index}]'
+                    if not isinstance(line, dict) or line.keys() != {'binary', 'test', 'cpu_s', 'why'}:
+                        raise ValueError(f'invalid reason keys for {label}')
+                    for key in ('binary', 'test', 'why'):
+                        if not isinstance(line[key], str) or not line[key]:
+                            raise ValueError(f'{label}.{key} must be a nonempty string')
+                    seconds(f'{label}.cpu_s', line['cpu_s'])
+                    key = line['binary'], line['test']
+                    if key in seen:
+                        raise ValueError(f'duplicate reason for {key}')
+                    seen.add(key)
+                moves = groups.get('moves', [])
+                if not isinstance(moves, list):
+                    raise ValueError(f'{name}.moves must be an array of tables')
+                for index, move in enumerate(moves):
+                    label = f'{name}.moves[{index}]'
+                    if not isinstance(move, dict) or move.keys() != {'from', 'to', 'cpu_s', 'why'}:
+                        raise ValueError(f'invalid move keys for {label}')
+                    endpoints = {}
+                    for key in ('from', 'to'):
+                        value = move[key]
+                        parts = value.split('.') if isinstance(value, str) else []
+                        if len(parts) != 2 or parts[0] not in GROUPS[:-1] or parts[1] not in layer_names:
+                            raise ValueError(f'{label}.{key} must be TREE.LAYER of a tree and layer')
+                        endpoints[key] = parts
+                    if layer_order.index(endpoints['to'][1]) >= layer_order.index(endpoints['from'][1]):
+                        raise ValueError(f'{label}.to must be below from in the layers list')
+                    seconds(f'{label}.cpu_s', move['cpu_s'])
+                    if not isinstance(move['why'], str) or not move['why']:
+                        raise ValueError(f'{label}.why must be a nonempty string')
+                    if endpoints['to'][0] not in groups:
+                        raise ValueError(f'{label}.to tree has no table for {name}')
+                for (tree, layer), ceiling in gate_ceilings(groups).items():
+                    if ceiling < 0:
+                        raise ValueError(f'{name}.{tree}.{layer} ceiling below 0 after moves')
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
             validate(pair, values, pair=True)
+    return data
+
+
+def ledger(path):
+    """Read main's suite ledger (tools/tiers/budgets.md, 7)."""
+    data = json.loads(Path(path).read_text())
+
+    def keys(value, expected, label):
+        if not isinstance(value, dict) or value.keys() != expected:
+            raise ValueError(f'invalid ledger keys for {label}')
+
+    def name(value, label, nullable=False):
+        if not (nullable and value is None) and (not isinstance(value, str) or not value):
+            raise ValueError(f'{label} must be a nonempty name')
+
+    def figure(value, label, positive=False):
+        if (type(value) not in (int, float) or not math.isfinite(value)
+                or value < 0 or (positive and value == 0)):
+            raise ValueError(f'{label} must be finite nonnegative seconds' if not positive
+                             else f'{label} must be finite positive seconds')
+
+    def groups(value, label):
+        if not isinstance(value, dict) or value.keys() - set(GROUPS):
+            raise ValueError(f'invalid ledger groups for {label}')
+
+    keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
+    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3):
+        raise ValueError('ledger version must be 1, 2 or 3')
+    if data['profile'] not in ('default', 'fuzzy'):
+        raise ValueError('ledger profile must be default or fuzzy')
+    if not isinstance(data['binaries'], dict):
+        raise ValueError('ledger binaries must be an object')
+    for binary, entry in data['binaries'].items():
+        name(binary, 'binary id')
+        cpu_key = 'cpu' if data['ledger'] == 3 else 'cpu_s'
+        keys(entry, {'tree', 'layer', cpu_key, 'tests'} | ({'alone'} if data['ledger'] != 1 else set()), binary)
+        if entry['tree'] not in GROUPS:
+            raise ValueError(f'invalid ledger group for {binary}')
+        name(entry['layer'], f'{binary}.layer', nullable=True)
+        if data['ledger'] != 3:
+            figure(entry['cpu_s'], f'{binary}.cpu_s')
+            entry['cpu'] = [entry.pop('cpu_s')]
+        if not isinstance(entry['cpu'], list) or not 1 <= len(entry['cpu']) <= 3:
+            raise ValueError(f'{binary}.cpu must have one to three figures')
+        for cpu in entry['cpu']:
+            figure(cpu, f'{binary}.cpu')
+        if not isinstance(entry['tests'], dict):
+            raise ValueError(f'{binary}.tests must be an object')
+        for test, walls in entry['tests'].items():
+            name(test, 'test name')
+            if not isinstance(walls, list) or not 1 <= len(walls) <= 3:
+                raise ValueError(f'{binary} {test} must have one to three walls')
+            for wall in walls:
+                figure(wall, f'{binary} {test} wall')
+        if data['ledger'] == 1:
+            entry['alone'] = {}
+        if not isinstance(entry['alone'], dict):
+            raise ValueError(f'{binary}.alone must be an object')
+        for test, figures in entry['alone'].items():
+            if test not in entry['tests']:
+                raise ValueError(f'{binary} {test} alone name not in tests')
+            if not isinstance(figures, list) or not 1 <= len(figures) <= 3:
+                raise ValueError(f'{binary} {test} must have one to three alone figures')
+            for cpu in figures:
+                figure(cpu, f'{binary} {test} alone')
+    groups(data['budgets'], 'budgets')
+    for tree, layers in data['budgets'].items():
+        if not isinstance(layers, dict):
+            raise ValueError(f'ledger budgets for {tree} must be an object')
+        for layer, entry in layers.items():
+            name(layer, f'{tree} layer')
+            keys(entry, {'ceiling_s', 'lowest_s'}, f'{tree}.{layer}')
+            for key, value in entry.items():
+                figure(value, f'{tree}.{layer}.{key}')
+    if not isinstance(data['moves'], list):
+        raise ValueError('ledger moves must be an array')
+    for move in data['moves']:
+        keys(move, {'from', 'to', 'cpu_s', 'why'}, 'move')
+        for key in ('from', 'to'):
+            parts = move[key].split('.') if isinstance(move[key], str) else []
+            if len(parts) != 2 or parts[0] not in GROUPS[:-1] or not parts[1]:
+                raise ValueError(f'ledger move {key} must be TREE.LAYER')
+        figure(move['cpu_s'], 'move cpu_s', positive=True)
+        name(move['why'], 'move why')
     return data
 
 
@@ -269,9 +433,13 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def summary(directory, limits=None, pair=None, expected=None):
+def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None):
     directory = Path(directory)
     if pair == "tools":
+        if base is not None:
+            raise ValueError('base requires a one-process run, not tools')
+        if ledger is not None:
+            raise ValueError('ledger requires a one-process run, not tools')
         return tools_summary(directory, limits, expected)
     if expected is not None:
         raise ValueError("--expect requires --pair tools")
@@ -286,7 +454,11 @@ def summary(directory, limits=None, pair=None, expected=None):
     if pair != profile:
         raise ValueError(f"pair {pair} does not match run profile {profile}")
     if run.get('mode') == 'one-process':
-        return one_process_summary(directory, limits, pair, run)
+        return one_process_summary(directory, limits, pair, run, gate, ledger, base)
+    if base is not None:
+        raise ValueError('base requires a one-process run, not nextest')
+    if ledger is not None:
+        raise ValueError('ledger requires a one-process run, not nextest')
     if 'mode' in run:
         raise ValueError(f"invalid run mode: {run['mode']}")
     if timed_out(directory):
@@ -355,12 +527,18 @@ def summary(directory, limits=None, pair=None, expected=None):
     return result
 
 
-def one_process_summary(directory, limits, pair, run):
+def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, base=None):
     """Read process CPU and test outcomes (tools/tiers/design.md, 10.2 and 11.8)."""
+    gate_limits = (limits or {}).get('gate', {}).get(run['profile'], {})
     limits = (limits or {}).get(pair, {})
     if 'cpu_test_s' in limits:
         raise ValueError('one-process runs cannot measure cpu_test_s')
     data = json.loads((directory / 'results.json').read_text())
+    if ledger is not None:
+        if ledger['profile'] != run['profile']:
+            raise ValueError('ledger profile does not match run')
+        if 'workspace' not in data:
+            raise ValueError('ledger requires results workspace')
     if data['profile'] != run['profile']:
         raise ValueError('results profile does not match run')
     if (type(data['selected']) is not int or data['selected'] < 0
@@ -387,7 +565,7 @@ def one_process_summary(directory, limits, pair, run):
     processes = []
     for item in data['processes']:
         if (not isinstance(item['binary_id'], str) or not item['binary_id']
-                or item['kind'] not in ('tests', 'fresh', 'alone') or not names(item['tests'])
+                or item['kind'] not in ('tests', 'fresh', 'alone', 'reference', 'empty') or not names(item['tests'])
                 or type(item['leaked']) is not bool):
             raise ValueError('invalid process identity, kind, tests or leaked')
         for field in ('user_s', 'system_s', 'wall_s', 'start_s'):
@@ -399,6 +577,7 @@ def one_process_summary(directory, limits, pair, run):
             raise ValueError('invalid process exit status')
         process = {key: item[key] for key in ('binary_id', 'tests', 'user_s', 'system_s',
                    'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
+        process.update(tree=item.get('tree'), layer=item.get('layer'))
         process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
@@ -460,15 +639,318 @@ def one_process_summary(directory, limits, pair, run):
                  starved=sum(test['starved'] for test in tests),
                  starved_run=run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s']),
                  unobserved=len(unobserved), leaked=None, incomplete=None, cpu_by='process')
+    suite_processes = [p for p in processes if p['kind'] in ('tests', 'fresh', 'alone')]
     for field in ('cpu_s', 'user_s', 'system_s'):
-        suite[field] = figure(sum(process[field] for process in processes), field)
+        suite[field] = figure(sum(process[field] for process in suite_processes), field)
     over = []
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
+    # The layer comparison and ordering are tools/tiers/budgets.md, 4 and 8.
+    head = head_binaries(processes, data.get('workspace', []), ledger)
+    measured, main = {}, {}
+    for process in suite_processes:
+        key = process['tree'], process['layer']
+        measured[key] = measured.get(key, 0.0) + process['cpu_s']
+    grouped = dict(measured)
+    ran = {process['binary_id'] for process in suite_processes}
+    for binary, entry in head.items():
+        if binary not in ran:
+            key = entry['tree'], entry['layer']
+            grouped[key] = grouped.get(key, 0.0) + entry['cpu_s']
+    if ledger is not None:
+        main = ledger_figures(ledger['binaries'])
+    layer_order = {name: index for index, name in enumerate(data.get('layers', []))}
+
+    def row_order(key):
+        tree, layer = key
+        tree_index = GROUPS.index(tree) if tree in GROUPS else len(GROUPS)
+        if layer is None:
+            order = len(layer_order) + 2
+        elif layer == 'checks':
+            order = len(layer_order) + 1
+        else:
+            order = layer_order.get(layer, len(layer_order))
+        return tree_index, tree or '', order, layer or ''
+
+    ceilings = gate_ceilings(gate_limits)
+    binaries = fold_binaries(data, head, tests, unobserved, ledger)
+    held = held_budgets(gate_limits, ledger, ledger_figures(binaries))
+    layers, trees, layer_over = [], {}, []
+    for tree, layer in sorted(grouped.keys() | main.keys(), key=row_order):
+        key = tree, layer
+        table = gate_limits.get(tree)
+        budget = (table or {}).get(layer, {})
+        ceiling = ceilings.get(key)
+        state = held.get(key, {})
+        limit = state.get('budget_s')
+        main_limit = main_budget(ledger, key)
+        cpu = grouped.get(key, 0.0)
+        main_cpu = main.get(key, 0.0) if ledger is not None else None
+        main_over = main_limit is not None and main_cpu > main_limit
+        is_over = layer is not None and (cpu > limit if limit is not None else table is not None)
+        if main_over and is_over and cpu - main_cpu <= max(main_cpu / 20, 1):
+            is_over = False
+            warnings.append(f'layer over budget at main: {tree} {pair} {layer}: '
+                            f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
+        grew = growing_binaries(key, head, tests, ledger) if is_over and ledger is not None else []
+        layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, measured_s=measured.get(key, 0.0),
+                           main_s=main_cpu, ceiling_s=ceiling, budget_s=limit, main_budget_s=main_limit,
+                           lowest_s=state.get('lowest_s'), main_over=main_over, grew=grew,
+                           ideal_s=budget.get('ideal_s'),
+                           reference_s=budget.get('reference_s', gate_limits.get('references', {}).get(layer)),
+                           over=is_over))
+        if tree not in trees:
+            total = None if table is None else sum(
+                value for (group, _), value in ceilings.items() if group == tree)
+            held_total = None if table is None else sum(
+                value['budget_s'] for (group, _), value in held.items() if group == tree)
+            trees[tree] = dict(tree=tree, cpu_s=0.0, main_s=None if ledger is None else 0.0,
+                               ceiling_s=total, budget_s=held_total, ideal_s=(table or {}).get('ideal_s'))
+        trees[tree]['cpu_s'] += cpu
+        if ledger is not None:
+            trees[tree]['main_s'] += main_cpu
+        if is_over:
+            label = 'no budget' if limit is None else f'budget {limit} s'
+            line = f'layer over budget: {tree} {pair} {layer}: {cpu:.2f} CPU s, {label}'
+            if ledger is not None:
+                if ceiling is not None:
+                    line += f', ceiling {ceiling} s'
+                line += f', at main {main_cpu:.2f} CPU s'
+                line += growth_lines(grew)
+            layer_over.append(line)
+    warnings.extend(f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
+                    for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
+    (over if gate else warnings).extend(layer_over)
+    references = reference_rows(data, gate_limits, ledger, base, warnings, over if gate else warnings)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
-               else 'within budget' if limits else 'no budget set')
+               else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
+                layers=layers, trees=list(trees.values()), references=references,
                 unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
+
+
+def reference_rows(data, profile, ledger, base, warnings, over):
+    """Each test's reference and figure at main (tools/tiers/references.md, 6)."""
+    at_base = {}
+    if base is not None:
+        base_data = json.loads((Path(base) / 'results.json').read_text())
+        if 'references' not in base_data:
+            raise ValueError('base results require references')
+        at_base = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
+                   for entry in base_data['references']}
+    placements = {entry['binary_id']: (entry.get('tree'), entry.get('layer'))
+                  for entry in data.get('workspace', [])}
+    for process in data['processes']:
+        if process['kind'] in ('tests', 'fresh', 'alone'):
+            placements[process['binary_id']] = process.get('tree'), process.get('layer')
+    walls = {(entry['binary_id'], entry['test_name']): entry['wall_s'] for entry in data['tests']}
+    lines = {(line['binary'], line['test']): line['cpu_s'] for line in profile.get('reasons', [])}
+    rows = []
+    for entry in data.get('references', []):
+        why = entry['why']
+        if why not in ('new', 'flagged'):
+            continue
+        binary, name = key = entry['binary_id'], entry['test_name']
+        tree, layer = placements.get(binary, (None, None))
+        reference = (profile.get(tree, {}).get(layer, {}).get(
+            'reference_s', profile.get('references', {}).get(layer)) if layer is not None else None)
+        line = lines.get(key)
+        reference_limit = line if line is not None else reference
+        if reference_limit is None:
+            continue
+        old = (ledger or {}).get('binaries', {}).get(binary, {})
+        main_cpu, main_from, main_wall = None, None, None
+        if why == 'flagged':
+            history = old.get('tests', {}).get(name, [])
+            main_wall = statistics.median(history) if history else None
+            main_cpu = at_base.get(key)
+            if main_cpu is not None:
+                main_from = 'base'
+            else:
+                history = old.get('alone', {}).get(name, [])
+                if history:
+                    main_cpu, main_from = statistics.median(history), 'ledger'
+        limit = (reference_limit if why == 'new' else
+                 max(reference_limit, 1.5 * main_cpu) if main_cpu is not None else line)
+        cpu = entry['cpu_s']
+        is_over = cpu is not None and limit is not None and cpu > limit
+        label = f'{binary} {name}'
+        if cpu is None:
+            warnings.append(f"test not measured alone: {label}: {entry['outcome']}")
+        elif is_over:
+            over.append(f'test over its reference: {label}: {cpu:.3f} CPU s alone, limit {limit:.3f} s')
+        elif why == 'flagged' and line is None and main_cpu is None and cpu > reference:
+            warnings.append(f'test flagged without its figure at main: {label}: '
+                            f'{cpu:.3f} CPU s alone, reference {reference:.3f} s')
+        rows.append(dict(binary_id=binary, test_name=name, tree=tree, layer=layer, why=why,
+                         wall_s=walls.get(key), main_wall_s=main_wall, cpu_s=cpu,
+                         main_cpu_s=main_cpu, main_from=main_from, reference_s=reference,
+                         line_s=line, limit_s=limit, over=is_over))
+    return rows
+
+
+def binary_median(entry):
+    """A binary's figure at main (tools/tiers/budgets.md, 8)."""
+    return statistics.median(entry['cpu'])
+
+
+def ledger_figures(binaries):
+    """Layer figures by the ledger's placements (tools/tiers/budgets.md, 9)."""
+    figures = {}
+    for entry in binaries.values():
+        key = entry['tree'], entry['layer']
+        figures[key] = figures.get(key, 0.0) + binary_median(entry)
+    return figures
+
+
+def head_binaries(processes, workspace, ledger):
+    """The head's whole figures, including unlisted targets (budgets.md, 8)."""
+    head = {}
+    for process in processes:
+        if process['kind'] not in ('tests', 'fresh', 'alone'):
+            continue
+        binary = process['binary_id']
+        if binary not in head:
+            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0)
+        head[binary]['cpu_s'] += process['cpu_s']
+    if ledger is not None:
+        for entry in workspace:
+            binary = entry['binary_id']
+            if binary not in head and not entry['listed'] and binary in ledger['binaries']:
+                head[binary] = dict(tree=entry['tree'], layer=entry['layer'],
+                                    cpu_s=binary_median(ledger['binaries'][binary]))
+    return head
+
+
+def main_budget(ledger, key):
+    entry = (ledger or {}).get('budgets', {}).get(key[0], {}).get(key[1])
+    if entry is None:
+        return None
+    lowest = entry['lowest_s']
+    return min(entry['ceiling_s'], math.ceil(round(lowest + max(lowest / 10, 1), 3)))
+
+
+def held_budgets(profile, ledger, figures):
+    """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
+    def moves(items):
+        return Counter((m['from'], m['to'], m['cpu_s'], m['why']) for m in items)
+
+    net = {}
+    if ledger is not None:
+        new = moves(profile.get('moves', [])) - moves(ledger['moves'])
+        for (source, target, seconds, _), count in new.items():
+            for endpoint, sign in ((source, -1), (target, 1)):
+                key = tuple(endpoint.split('.'))
+                net[key] = net.get(key, 0) + sign * seconds * count
+    held = {}
+    for key, ceiling in gate_ceilings(profile).items():
+        entry = (ledger or {}).get('budgets', {}).get(key[0], {}).get(key[1])
+        shift = net.get(key, 0)
+        cpu = figures.get(key, 0.0)
+        if entry is not None and round(ceiling - shift, 3) == round(entry['ceiling_s'], 3):
+            limit = min(ceiling, main_budget(ledger, key) + shift)
+            lowest = max(0, min(entry['lowest_s'] + shift, cpu))
+        else:
+            limit, lowest = ceiling, cpu
+        held[key] = dict(ceiling_s=ceiling, budget_s=limit, lowest_s=lowest)
+    return held
+
+
+def growing_binaries(key, head, tests, ledger):
+    """Uncut causes, ordered by CPU growth then wall growth (budgets.md, 8)."""
+    by_binary = {}
+    for test in tests:
+        by_binary.setdefault(test['binary_id'], []).append(test)
+    grew = []
+    for binary, entry in head.items():
+        if (entry['tree'], entry['layer']) != key:
+            continue
+        old = ledger['binaries'].get(binary)
+        main = binary_median(old) if old is not None and (old['tree'], old['layer']) == key else None
+        if entry['cpu_s'] <= (main or 0):
+            continue
+        walls = (old or {}).get('tests', {})
+        grown_tests = []
+        for test in by_binary.get(binary, []):
+            name = test['test_name']
+            median = statistics.median(walls[name]) if name in walls else None
+            if test['wall_s'] > (median or 0):
+                grown_tests.append(dict(test_name=name, wall_s=test['wall_s'], main_wall_s=median))
+        grown_tests.sort(key=lambda test: (-(test['wall_s'] - (test['main_wall_s'] or 0)), test['test_name']))
+        grew.append(dict(binary_id=binary, cpu_s=entry['cpu_s'], main_s=main, tests=grown_tests))
+    grew.sort(key=lambda entry: (-(entry['cpu_s'] - (entry['main_s'] or 0)), entry['binary_id']))
+    return grew
+
+
+def growth_lines(grew):
+    lines = []
+    for binary in grew[:10]:
+        main = binary['main_s']
+        detail = 'new' if main is None else f"+{binary['cpu_s'] - main:.2f} CPU s, at main {main:.2f} CPU s"
+        lines.append(f"  {binary['binary_id']}: {binary['cpu_s']:.2f} CPU s, {detail}")
+        for test in binary['tests'][:5]:
+            median = test['main_wall_s']
+            detail = 'new' if median is None else f'main median {median:.6f} wall s'
+            lines.append(f"    {test['test_name']}: {test['wall_s']:.6f} wall s, {detail}")
+        if len(binary['tests']) > 5:
+            lines.append(f"    {len(binary['tests']) - 5} more tests")
+    if len(grew) > 10:
+        lines.append(f'  {len(grew) - 10} more binaries')
+    return ''.join('\n' + line for line in lines)
+
+
+def fold_binaries(data, head, tests, unobserved, ledger):
+    """Keep whole measurements and their histories (tools/tiers/budgets.md, 7)."""
+    old = (ledger or {}).get('binaries', {})
+    alone = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
+             for entry in data.get('references', []) if entry['cpu_s'] is not None}
+    by_binary = {}
+    for test in tests:
+        by_binary.setdefault(test['binary_id'], []).append(test)
+    partial = {t['binary_id'] for t in unobserved}
+    partial.update(t['binary_id'] for t in data['tests'] if t['process'] is None)
+    binaries = {}
+    for binary, entry in head.items():
+        ran = by_binary.get(binary, [])
+        if ran and binary not in partial and not any(t['starved'] for t in ran):
+            history = old.get(binary, {}).get('tests', {})
+            walls = {t['test_name']: [*history.get(t['test_name'], [])[-2:], t['wall_s']] for t in ran}
+            history = old.get(binary, {}).get('alone', {})
+            figures = {}
+            for name in walls:
+                cpu = alone.get((binary, name))
+                if cpu is not None:
+                    figures[name] = [*history.get(name, [])[-2:], cpu]
+                elif name in history:
+                    figures[name] = history[name]
+            cpu = [*old.get(binary, {}).get('cpu', [])[-2:], entry['cpu_s']]
+            binaries[binary] = dict(tree=entry['tree'], layer=entry['layer'], cpu=cpu,
+                                    tests=walls, alone=figures)
+        elif binary in old:
+            binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
+                                    alone=old[binary].get('alone', {}))
+    # An unobserved binary may have no process and still keeps its last whole CPU.
+    workspace = {entry['binary_id']: entry for entry in data.get('workspace', [])}
+    for binary in partial - head.keys():
+        if binary in old and binary in workspace:
+            entry = workspace[binary]
+            binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
+                                    alone=old[binary].get('alone', {}))
+    return binaries
+
+
+def fold_ledger(directory, result, limits, ledger=None):
+    """The ledger should this candidate land (tools/tiers/budgets.md, 7 and 9)."""
+    data = json.loads((Path(directory) / 'results.json').read_text())
+    head = head_binaries(result['processes'], data.get('workspace', []), ledger)
+    binaries = fold_binaries(data, head, result['tests'], result['unobserved'], ledger)
+    figures = ledger_figures(binaries)
+    profile = (limits or {}).get('gate', {}).get(result['pair'], {})
+    folded_budgets = {}
+    for (tree, layer), state in held_budgets(profile, ledger, figures).items():
+        folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
+    return dict(ledger=3, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+                moves=profile.get('moves', []))
 
 
 def tools_summary(directory, limits, expected):
@@ -536,7 +1018,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
     warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
-                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], failures=failures, unobserved=[], over_budget=over,
+                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], layers=[], trees=[], references=[], failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
 
@@ -560,18 +1042,30 @@ def print_summary(result, as_json=False):
           f"wall {suite['wall_s']:.6f}s; starved {suite['starved']} "
           f"starved_run {suite['starved_run']} unobserved {suite['unobserved']} "
           f"leaked {suite['leaked']} incomplete {suite['incomplete']}; {result['verdict']}")
+    for kind, rows in (('layer', result['layers']), ('tree', result['trees'])):
+        for row in rows:
+            label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
+            figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                                for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else []),
+                                            *(['main_s'] if row['main_s'] is not None else [])))
+            print(f'{kind} {label}: {figures}')
+    for row in result['references']:
+        figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                            for key in ('cpu_s', 'reference_s', 'line_s', 'main_cpu_s', 'limit_s'))
+        print(f"reference {row['binary_id']} {row['test_name']} ({row['why']}): {figures}; over {row['over']}")
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config)
-    result = summary(directory, limits, profile)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger)
+    result = summary(directory, limits, profile, gate=gate, ledger=ledger)
+    save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         print_summary(result)

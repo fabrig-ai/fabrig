@@ -81,6 +81,10 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             return;
         }
         c::Decision::Make(kind) => {
+            if kind == c::Step::Land && domain.forge.landing_held() {
+                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+                return;
+            }
             let branch = branch.expect("only a held goal branch makes a step");
             let delegate = match delegate(domain, env, &row, &repository, &branch, &goal_words, kind) {
                 Ok(delegate) => delegate,
@@ -220,7 +224,8 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
             line: c::first_line(row.producer_failure.as_deref().unwrap_or(b"change ended without an ending account"))
                 .into(),
         }),
-        super::forge_change::State::Producing { .. }
+        super::forge_change::State::Taking { .. }
+        | super::forge_change::State::Producing { .. }
         | super::forge_change::State::Opening { .. }
         | super::forge_change::State::Recreating { .. }
         | super::forge_change::State::Reopening { .. }
@@ -263,7 +268,7 @@ fn child(domain: &Domain, task: u64) -> c::Child {
 
 fn attempt_bound(domain: &Domain, task: u64) -> u8 {
     let project = domain.core.tasks.task(task).expect("live closer").project;
-    match domain.config.landings.get(&project) {
+    match domain.forge.landing_settings(project) {
         Some(landing) => landing.landing_attempts,
         None => crate::LANDING_ATTEMPTS,
     }
@@ -503,7 +508,9 @@ fn delegate(
     };
     let mut change = crate::ChangeCall::words(words, None);
     change.questions = Some(crate::ChangeQuestions::Up);
-    let mut delegate = match super::chat_change(domain, env, &context, &change, repository, base, own, spend) {
+    let origin =
+        super::ChangeOrigin { authority: context.authority.clone(), tasks_left: context.tasks_left, source: None };
+    let mut delegate = match super::chat_change(domain, env, &origin, &change, repository, base, own, spend) {
         Ok(delegate) => delegate,
         Err(why) => return Err(short_refusal(why, available, minimum, room)),
     };
@@ -545,7 +552,8 @@ fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
         forge::Ending::NoChange => {
             let words = match &row.change.state {
                 super::forge_change::State::NoChange { words } => words.as_ref(),
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }
@@ -623,7 +631,8 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                     repairs: row.repair_tasks.clone(),
                     resolutions: row.resolution_tasks.clone(),
                 },
-                super::forge_change::State::Producing { .. }
+                super::forge_change::State::Taking { .. }
+                | super::forge_change::State::Producing { .. }
                 | super::forge_change::State::Opening { .. }
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }

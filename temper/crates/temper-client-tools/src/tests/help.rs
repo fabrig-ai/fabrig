@@ -2,6 +2,10 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::MILESTONE_NEW_AT), "help_milestone_new"),
+    (Some(jig::rows::MILESTONE_WHOLE_AT), "help_milestone_whole"),
+    (Some(jig::rows::MILESTONE_LIST_AT), "help_milestone_list"),
+    (Some(jig::rows::MILESTONE_SHOW_AT), "help_milestone_show"),
     (Some(jig::rows::FINDING_LIST_AT), "help_finding_list"),
     (Some(jig::rows::FINDING_SHOW_AT), "help_finding_show"),
     (Some(jig::rows::FINDING_FILE_AT), "help_finding_file"),
@@ -275,7 +279,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
-    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show welcome [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

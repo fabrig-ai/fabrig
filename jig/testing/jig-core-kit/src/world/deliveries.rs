@@ -41,6 +41,7 @@ impl World {
             root::Delivery::Core(core::Held::Acted { to, outcome }) => {
                 self.act_answers.push((to.into_token(), outcome));
             }
+            root::Delivery::Core(core::Held::Sources { .. }) if self.hold_logins => {}
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
                     channel,
@@ -107,6 +108,7 @@ impl World {
             }
             root::Delivery::Core(
                 held @ (core::Held::Drained
+                | core::Held::Restarting { .. }
                 | core::Held::WatchEnded { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::AcknowledgeTurn { .. }),

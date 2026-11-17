@@ -16,6 +16,7 @@ mod devices;
 mod dismissed;
 mod drafts;
 mod early;
+mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
@@ -31,6 +32,7 @@ mod limits;
 mod link;
 mod make;
 mod making;
+mod milestones;
 mod outbox_room;
 mod panel;
 mod playground;
@@ -161,6 +163,8 @@ pub(crate) const LIMITS: Limits = Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -295,7 +299,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                preparation: Some(temper_engine_domain_forge_landing::Preparation::Idle),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -603,6 +607,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -704,6 +709,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
@@ -798,6 +804,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
+        | Request::ChoosePlace { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }

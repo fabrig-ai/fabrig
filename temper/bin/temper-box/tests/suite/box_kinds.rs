@@ -105,12 +105,16 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
     fs::create_dir(&cache).expect("cache");
     let [listen] = support::free_addresses::<1>(&[]);
     let (_, document) = support::configuration::documents(root, "/fixture/temper");
-    let mut document: serde_json::Value = serde_json::from_slice(&document).expect("fixture document");
-    document["application"]["machine"] = serde_json::json!({"owned":{
-        "listen":{"socket":listen.to_string()}, "remote":format!("http://{listen}"),
-        "person":{"login":"ada","email":"ada@example.invalid"},
-        "forgejo":"fetched", "runner":null
-    }});
+    let document: serde_json::Value = serde_json::from_slice(&document).expect("fixture document");
+    support::configuration::setup(
+        root,
+        17,
+        serde_json::json!({"kind":"owned",
+            "listen":{"socket":listen.to_string()}, "remote":format!("http://{listen}"),
+            "person":{"login":"ada","email":"ada@example.invalid"},
+            "forgejo":"fetched", "runner":null
+        }),
+    );
     let bytes = serde_json::to_vec(&document).expect("document JSON");
     fs::write(root.join("temper.json"), &bytes).expect("document");
     let mut directories = support::configuration::directories(root);

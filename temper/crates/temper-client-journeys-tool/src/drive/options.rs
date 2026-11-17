@@ -3,7 +3,6 @@ use crate::EnvironmentEntry;
 use std::{
     ffi::{OsStr, OsString},
     fs,
-    io::Write,
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -13,10 +12,12 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Options {
     pub bin: PathBuf,
-    pub bundle: PathBuf,
+    pub bundle: Option<PathBuf>,
+    pub deployment: Option<PathBuf>,
     pub scratch: PathBuf,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
+    pub ctl: bool,
     pub ports: Option<String>,
     pub files: Option<PathBuf>,
 }
@@ -25,11 +26,17 @@ impl Options {
         let (mut bin, mut bundle, mut scratch) = (None, None, None);
         let mut scripts = vec![];
         let mut strict = false;
+        let mut ctl = false;
         let mut ports = None;
         let mut files = None;
+        let mut deployment = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
+                b"--ctl" if !ctl => {
+                    ctl = true;
+                    continue;
+                }
                 b"--strict" if !strict => {
                     strict = true;
                     continue;
@@ -37,17 +44,11 @@ impl Options {
                 b"--ports" if ports.is_none() => {
                     let value = args.next().ok_or("missing --ports LIST")?;
                     let list = String::from_utf8_lossy(value);
-                    let parsed = list.split(',').map(str::parse::<u16>).collect::<Result<Vec<_>, _>>();
-                    if !parsed.as_ref().is_ok_and(|values| {
-                        values.len() == 9
-                            && !values.contains(&0)
-                            && values.iter().collect::<std::collections::BTreeSet<_>>().len() == 9
-                    }) {
-                        return Err(format!("--ports {list}: expected nine distinct nonzero ports"));
-                    }
+                    parse_ports(&list)?;
                     ports = Some(list.into_owned());
                     continue;
                 }
+                b"--deployment" => &mut deployment,
                 b"--files" => &mut files,
                 b"--bin" => &mut bin,
                 b"--bundle" => &mut bundle,
@@ -63,16 +64,34 @@ impl Options {
             }
             *target = Some(path_arg(&mut args, &format!("{} DIR", String::from_utf8_lossy(argument)))?);
         }
+        let bin = bin.ok_or("missing --bin DIR")?;
+        if deployment.is_some() {
+            if ports.is_none() {
+                return Err("--deployment requires --ports LIST".into());
+            }
+        } else if bundle.is_none() {
+            return Err("missing --bundle DIR".into());
+        }
         Ok(Self {
-            bin: bin.ok_or("missing --bin DIR")?,
-            bundle: bundle.ok_or("missing --bundle DIR")?,
+            bin,
+            bundle,
+            deployment,
             scratch: scratch.ok_or("missing --scratch DIR")?,
             scripts,
             strict,
+            ctl,
             ports,
             files,
         })
     }
+}
+pub(super) fn parse_ports(list: &str) -> Result<[u16; 9], String> {
+    let why = || format!("--ports {list}: expected nine distinct nonzero ports");
+    let values = list.split(',').map(str::parse::<u16>).collect::<Result<Vec<_>, _>>().map_err(|_| why())?;
+    if values.contains(&0) || values.iter().collect::<std::collections::BTreeSet<_>>().len() != 9 {
+        return Err(why());
+    }
+    values.try_into().map_err(|_| why())
 }
 fn path_arg(args: &mut std::slice::Iter<'_, Box<[u8]>>, flag: &str) -> Result<PathBuf, String> {
     let value = args
@@ -120,7 +139,11 @@ impl Plan {
     }
     #[must_use]
     pub fn box_program(&self) -> Program {
-        let mut args = vec!["--fake-backends".into(), "--bundle".into(), self.options.bundle.clone().into_os_string()];
+        let mut args = vec![
+            "--fake-backends".into(),
+            "--bundle".into(),
+            self.options.bundle.as_ref().expect("a box takes a bundle").clone().into_os_string(),
+        ];
         for (flag, dir) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
             args.extend([flag.into(), self.options.scratch.join(dir).into_os_string()]);
         }
@@ -132,7 +155,10 @@ impl Plan {
         }
         let mut program = self.program("temper-box", args, Input::Null);
         if let Some(ports) = &self.options.ports {
-            program.environment.push(("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into()));
+            program.environment.push((
+                "TEMPER_INTERNAL_FAKE_BOX_PORTS".into(),
+                super::place::Ports::parse(ports).expect("validated ports").list().into(),
+            ));
         }
         program
     }
@@ -164,7 +190,7 @@ impl Plan {
         program.environment = environment;
         Ok(program)
     }
-    fn program(&self, name: &str, args: Vec<OsString>, input: Input) -> Program {
+    pub(super) fn program(&self, name: &str, args: Vec<OsString>, input: Input) -> Program {
         Program {
             program: self.options.bin.join(name),
             args,
@@ -235,9 +261,31 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
     for name in ["temper-box", "fake-claude", "temper"] {
         executable(&options.bin.join(name))?;
     }
-    options.bundle = absolute(&options.bundle)?;
-    if !options.bundle.join("index.html").is_file() {
-        return Err(format!("{} is not a file", options.bundle.join("index.html").display()));
+    if let Some(deployment) = &mut options.deployment {
+        if options.ports.is_none() {
+            return Err("--deployment requires --ports LIST".into());
+        }
+        for name in ["temper-engine", "temper-worker", "temper-agent"] {
+            executable(&options.bin.join(name))?;
+        }
+        let scratch = absolute(&options.scratch)?;
+        let held = scratch.join("config").exists() && scratch.join("data").exists();
+        *deployment = if held {
+            std::env::current_dir().map_err(|why| why.to_string())?.join(&*deployment)
+        } else {
+            absolute(deployment)?
+        };
+        if !held && !deployment.is_dir() {
+            return Err(format!("{}: --deployment needs a directory", deployment.display()));
+        }
+    } else if options.bundle.is_none() {
+        return Err("missing --bundle DIR".into());
+    }
+    if let Some(bundle) = &mut options.bundle {
+        *bundle = absolute(bundle)?;
+        if !bundle.join("index.html").is_file() {
+            return Err(format!("{} is not a file", bundle.join("index.html").display()));
+        }
     }
     options.scratch = absolute(&options.scratch)?;
     let metadata = fs::metadata(&options.scratch).map_err(|error| format!("{}: {error}", options.scratch.display()))?;
@@ -247,10 +295,15 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
     for script in &mut options.scripts {
         *script = absolute(script)?;
     }
-    let chromium =
-        crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
-    let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
-    executable(&chromium)?;
+    let chromium = if options.ctl {
+        PathBuf::new()
+    } else {
+        let chromium =
+            crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
+        let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
+        executable(&chromium)?;
+        chromium
+    };
     let mut plan =
         Plan::new(options, chromium, OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default()));
     plan.tui_display = environment
@@ -294,12 +347,14 @@ fn fresh_session(scratch: &Path) -> std::io::Result<()> {
         "looks",
     ] {
         fs::DirBuilder::new().mode(0o700).create(session.join(dir))?;
+        fs::set_permissions(session.join(dir), fs::Permissions::from_mode(0o700))?;
     }
     for name in ["xdg-open", "open"] {
         std::os::unix::fs::symlink("/usr/bin/true", session.join("bin").join(name))?;
     }
     for file in ["lines", "box.log"] {
-        fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(session.join(file))?.write_all(b"")?;
+        let made = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(session.join(file))?;
+        made.set_permissions(fs::Permissions::from_mode(0o600))?;
     }
     Ok(())
 }

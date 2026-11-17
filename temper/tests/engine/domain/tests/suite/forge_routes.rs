@@ -55,6 +55,7 @@ mod rules_by_path;
 mod context_projects;
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
+mod opened_panel;
 #[path = "forge_routes/resource_admission.rs"]
 mod resource_admission;
 
@@ -69,7 +70,7 @@ mod producer_words;
 mod questions;
 
 #[path = "forge_routes/goal_closer.rs"]
-mod goal_closer;
+pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
@@ -92,6 +93,7 @@ mod light_rules;
 
 #[path = "forge_routes/catch_up.rs"]
 mod catch_up;
+mod opened;
 
 #[path = "forge_routes/squash_in.rs"]
 mod squash_in;
@@ -106,7 +108,8 @@ mod contained_landing;
 #[path = "forge_routes/held_change.rs"]
 mod held_change;
 #[path = "forge_routes/landing.rs"]
-mod landing;
+pub(crate) mod landing;
+mod milestones;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
 mod question_target;
@@ -427,6 +430,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
 #[test]
 fn a_change_whose_ci_never_reports_is_stalled_and_held() {
     let (mut world, chat, producer, branch) = change_world(true, 1000, None);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change producer") };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -451,8 +455,21 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..450 {
+    for _ in 0..1000 {
         world.tick();
+        if questions::row(&world, change).change.clock.is_some() {
+            break;
+        }
+    }
+    world.until(Until::Ready);
+    let bound = world.env.limits.forge.change_policy.stall;
+    stall_hold::jump(&mut world, bound);
+    for _ in 0..1000 {
+        world.tick();
+        if matches!(questions::row(&world, change).change.state, temper_engine_domain_forge_change::State::Held { .. })
+        {
+            break;
+        }
     }
     assert!(
         world.store.rows.values().any(|stored| matches!(stored,
@@ -474,11 +491,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 
 #[test]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
-    let stall =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .forge
-            .change_policy
-            .stall;
+    let stall = temper_limits_fixtures::small().forge.change_policy.stall;
     let world = World::configured_limits(
         true,
         true,
@@ -1113,10 +1126,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1237,10 +1247,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
-    let brief =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
-            .root
-            .brief;
+    let brief = temper_limits_fixtures::small().root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -2150,8 +2157,7 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 
 #[test]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
-    let small =
-        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let small = temper_limits_fixtures::small();
     let mut world =
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);
@@ -3473,10 +3479,41 @@ fn issue_count(world: &mut World) -> usize {
     items.len()
 }
 
-// From the stop on, the engine takes nothing that would make a commit, and a
-// committed forge effect stays with the connector (jig's `domain/engine/restart.md`, 1).
 #[test]
-fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
+fn a_settled_stop_says_its_configured_restart_wait_after_commit_before_drained() {
+    let wait = Duration::from_secs(900);
+    let mut world = World::new().with_restart_wait(wait, false);
+    for _ in 0..80 {
+        world.tick();
+    }
+    let commits = world.store.header().commits;
+    world.send(engine::Event::Stop);
+    assert!(world.restarting.is_empty(), "the word waits for its decision");
+    assert!(world.drained.is_none());
+    drain_stop(&mut world);
+    assert_eq!(world.store.header().restart_wait_ms, Some(900_000));
+    assert_eq!(world.restarting.as_slice(), &[(wait, commits + 1)]);
+    assert_eq!(world.drained, Some(commits + 1));
+}
+
+#[test]
+fn a_zero_wait_or_in_process_workers_says_no_restart() {
+    for (wait, in_process) in [(Duration::ZERO, false), (Duration::from_secs(900), true)] {
+        let mut world = World::new().with_restart_wait(wait, in_process);
+        for _ in 0..80 {
+            world.tick();
+        }
+        world.send(engine::Event::Stop);
+        drain_stop(&mut world);
+        assert!(world.restarting.is_empty(), "wait {wait:?}, in process {in_process}");
+        assert_eq!(world.store.header().restart_wait_ms, None);
+    }
+}
+
+// A settled stop keeps its restart word; a committed forge effect stays
+// with the connector (jig's `domain/engine/restart.md`, 1).
+#[test]
+fn a_stop_with_a_committed_forge_effect_only_commits_the_restart_word_and_makes_no_write() {
     let (mut world, assignment) = pending_issue_effect();
     let calls = world.forge_calls;
     world.send(engine::Event::Stop);
@@ -3486,7 +3523,8 @@ fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
     for _ in 0..30 {
         world.tick();
     }
-    assert_eq!(world.store.header().commits, commits);
+    assert_eq!(world.store.header().commits, commits + 1, "the stop keeps its word in one decision");
+    assert_eq!(world.store.header().restart_wait_ms, Some(1_200_000));
     assert!(world.store.pending.is_empty());
     assert_eq!(world.forge_calls, calls, "no forge call after the stop");
     assert!(world.events.is_empty() && world.immediate.is_empty(), "the drain leaves no continuation to retry");
@@ -4095,6 +4133,16 @@ fn settling_places_no_run_and_answers_a_call_busy() {
         "the forge outcome commits before the drain"
     );
     world.restart_same();
+    for _ in 0..200 {
+        world.tick();
+        if world.root.ready() {
+            break;
+        }
+    }
+    assert!(world.root.ready());
+    assert!(!world.assigned.iter().any(|run| run.task == queued), "the restored claim waits for its hold");
+    world.env.now =
+        world.env.now.saturating_add(world.env.limits.fleet.restart_wait).saturating_add(world.env.limits.fleet.grace);
     for _ in 0..200 {
         world.tick();
         if world.assigned.iter().any(|run| run.task == queued) {

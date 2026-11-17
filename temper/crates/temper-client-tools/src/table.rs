@@ -21,11 +21,12 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"inbox", line: b"Read what waits on your party, then its updates" },
     Group { name: b"task", line: b"Tasks: read one and its parts, and act on it" },
     Group { name: b"chat", line: b"Chats: start one, read its conversation, close it" },
+    Group { name: b"milestone", line: b"Milestones: make one, say whole, list and show its goals" },
     Group { name: b"goal", line: b"Goals: start one from a project template" },
     Group { name: b"role", line: b"Standing roles: start, list, read their Now or report, and talk" },
     Group { name: b"proposal", line: b"Proposals: read one, decide it" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
-    Group { name: b"change", line: b"Changes: read a change's way to landing" },
+    Group { name: b"change", line: b"Changes: open one or read its way to landing" },
     Group { name: b"finding", line: b"Findings: file, read, hand on and triage them" },
     Group { name: b"need", line: b"Needs: ask a person with choices and why" },
     Group { name: b"tier", line: b"Tiers: hold or release a repository's after-landing tier" },
@@ -152,6 +153,11 @@ pub const TOOLS: &[&Tool] = &[
     &rows::DEPLOYMENT_CENSUS,
     &crate::tier::HOLD,
     &crate::tier::RELEASE,
+    &rows::MILESTONE_NEW,
+    &rows::MILESTONE_WHOLE,
+    &rows::MILESTONE_LIST,
+    &rows::MILESTONE_SHOW,
+    &crate::change::open::ROW,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;
@@ -240,6 +246,12 @@ fn argument_refusal(
     out: &mut skein_lib::Writer,
 ) -> Result<(), skein_lib::Overflow> {
     let row = TOOLS.get(usize::from(tool)).ok_or(skein_lib::Overflow)?;
+    if row.name == b"milestone new"
+        && argument == 1
+        && let ArgumentRule::Value { .. } = rule
+    {
+        return out.put(b"milestone new: NAME is 1 to 60 characters on one line");
+    }
     let args = row.forms.get(usize::from(form)).ok_or(skein_lib::Overflow)?;
     let spec = args.get(usize::from(argument)).ok_or(skein_lib::Overflow)?;
     // The prefix and final newline leave 227 of the error's 240 bytes.

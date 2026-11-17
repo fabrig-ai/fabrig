@@ -126,6 +126,8 @@ fn tier(repository: Repository) -> forge::Stored {
 // An ended change's panel outlives its task; the release must erase both parts.
 fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
+        source: None,
+        kept: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),
@@ -152,11 +154,13 @@ fn ended_change(repository: Repository) -> forge::Stored {
             owns_turn: false,
             last_head: None,
             last_checked: None,
+            clock: None,
         },
         room: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
+        milestone: None,
         goal: None,
         ending: Some(forge::Ending::NoChange),
         repair_tasks: Box::new([]),
@@ -357,6 +361,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Change(_)
+        | forge::Key::Milestone(_)
         | forge::Key::Issue(_)
         | forge::Key::Release(_)
         | forge::Key::Application(_)
@@ -405,7 +410,10 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::ProjectWords(_)
             | Value::Goal(_)
             | Value::Dependency(_)
+            | Value::Welcome(_)
             | Value::ProjectAreas(_)
+            | Value::Landing(_)
+            | Value::Gates(_)
             | Value::ProjectTriager(_) => false,
         },
         Edit::Remove | Edit::Reset => false,
@@ -448,6 +456,8 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
             | forge::ApplicationOutcome::CoreRefused(_)
             | forge::ApplicationOutcome::ForgeRefused(_)
             | forge::ApplicationOutcome::MakeKept
+            | forge::ApplicationOutcome::Opened { .. }
+            | forge::ApplicationOutcome::OpenRefused(_)
             | forge::ApplicationOutcome::MakeRefused(_) => false,
         },
         forge::Stored::Landing(row) => row.landing.members.iter().any(|member| {
@@ -486,6 +496,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         | forge::Stored::ForgeNumber { .. }
         | forge::Stored::Playground(_)
         | forge::Stored::Dismissed { .. }
+        | forge::Stored::Milestone(_)
         | forge::Stored::ProjectFacts(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)

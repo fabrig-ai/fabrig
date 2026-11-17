@@ -1,11 +1,11 @@
 //! Hosted commands observed through their pipes, exit and a service watch cue.
 //! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
+mod activity;
 use crate::fixtures;
 pub use temper_fixtures::browse::Browsed;
 use temper_fixtures::browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
 const SIGN_IN_HTTP: usize = usize::MAX - 2;
-const ISSUER_CLOSE: usize = usize::MAX - 3;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
@@ -20,6 +20,8 @@ use std::{
 pub struct Dir(pub u8);
 pub const D1: Dir = Dir(1);
 pub const D2: Dir = Dir(2);
+/// The welcome story's first task, created by its model check.
+pub(crate) const TRIAL_TASK: u64 = 1;
 pub enum Arg {
     Lit(&'static str),
     Task(usize),
@@ -46,10 +48,6 @@ impl Argv {
 #[macro_export]
 macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv::new(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
-    /// Wait for the fake program to accept its held turn before stopping serve.
-    ClaudeTurn {
-        source: &'static str,
-    },
     /// Declare the exact work this story intentionally leaves at its stop.
     EndsLeaving(&'static [crate::ending::Leftover]),
     /// Finish runtime fixture provisioning before recording the story calls.
@@ -60,12 +58,6 @@ pub enum Step {
     /// Approve the terminal's last sign-in address at the fake issuer, keeping
     /// its Location unfollowed and secret in the world's memory.
     Authorize,
-    /// Authorize without asking the issuer to close; keep the browser's socket.
-    AuthorizeHeld,
-    /// Open an idle issuer socket and retain it until the caller drains.
-    HoldIssuerSocket,
-    /// Wait for the issuer's own admission counter before releasing held sockets.
-    IssuerRejected,
     /// GET the kept redirect on the real loopback listener; keep it for later acts.
     Return,
     /// A person at the hosted terminal.
@@ -91,6 +83,8 @@ pub enum Step {
     WorkerCancelled {
         name: &'static str,
     },
+    /// Wait for the welcome story's trial task to commit its end in the engine.
+    TrialEnded,
     /// Drain a named worker while retaining its root for a restart.
     StopWorker {
         name: &'static str,
@@ -151,8 +145,19 @@ struct Bounds {
     timeout: Option<Duration>,
     success: bool,
     last_activity: bool,
+    whole_activity: bool,
 }
 impl Step {
+    /// A case observes whole history, independent of the stock's page sizes.
+    pub(super) fn whole_activity(mut self) -> Self {
+        let (Self::Call { argv, .. } | Self::Until { argv, .. }) = &mut self else {
+            panic!("activity observation must be a call")
+        };
+        argv.1.whole_activity = matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("show" | "activity"), ..])
+            && argv.0.iter().any(|arg| matches!(arg, Arg::Lit("--json")));
+        self
+    }
+
     /// Read the last observation page only if its source supplies a cursor.
     /// This must be the final step so an absent call cannot shift later indices.
     #[must_use]
@@ -300,6 +305,11 @@ pub fn start_engine_after_failures(failures: u32) -> Step {
 #[must_use]
 pub fn worker_cancelled(name: &'static str) -> Step {
     Step::WorkerCancelled { name }
+}
+/// Join the welcome story's trial after the terminal has read Ready and closed.
+#[must_use]
+pub fn trial_ended() -> Step {
+    Step::TrialEnded
 }
 /// Terminate one worker and wait until its service and ring I/O settle.
 #[must_use]
@@ -544,9 +554,6 @@ pub(crate) struct Caller {
     pub(crate) browsed: Vec<Browsed>,
     browser: Option<Browser>,
     visit: Option<crate::issuer::Visit>,
-    held_issuer: Vec<Fd>,
-    pub(crate) issuer_accepted: Cell<usize>,
-    pub(crate) issuer_rejected: Cell<u64>,
     kept: Option<skein_lib::Secret>,
     pub(crate) returned: Vec<crate::issuer::Returned>,
     pub(crate) released: bool,
@@ -558,6 +565,7 @@ pub(crate) struct Caller {
     pub(crate) worker_ready: Cell<bool>,
     pub(crate) engine_ready: Cell<bool>,
     pub(crate) contact_cancelled: Cell<bool>,
+    pub(crate) trial_ended: Cell<bool>,
     pub(crate) held_queries: Cell<usize>,
     pub(crate) llm_queries: Cell<usize>,
     pub(crate) held: Cell<bool>,
@@ -570,6 +578,8 @@ pub(crate) struct Caller {
     scratch: PathBuf,
     root: Option<Fd>,
     current: Option<usize>,
+    activity: Option<(activity::Pages, Vec<Box<[u8]>>)>,
+    whole_activity: std::collections::BTreeSet<usize>,
     probe: Option<(Dir, Fd)>,
     probing: bool,
     running: Vec<Option<Running>>,
@@ -610,7 +620,6 @@ impl Caller {
         );
         let step = self.steps.get(self.next);
         match step {
-            Some(Step::ClaudeTurn { .. }) => out.push_str("caller waits_for=held Claude turn\n"),
             Some(Step::Call { argv, .. } | Step::Start { argv, .. } | Step::Until { argv, .. }) => {
                 let words = self.diagnostic_argv(argv);
                 writeln!(out, "caller script argv={words:?}").expect("string writer");
@@ -660,10 +669,10 @@ impl Caller {
                 writeln!(out, "caller waits_for=kill call {call}").expect("string writer");
             }
             Some(Step::Terminal(_)) => out.push_str("caller waits_for=terminal act (input omitted)\n"),
-            Some(Step::Authorize | Step::AuthorizeHeld | Step::HoldIssuerSocket | Step::Return) => {
+            Some(Step::Authorize | Step::Return) => {
                 out.push_str("caller waits_for=issuer visit\n");
             }
-            Some(Step::IssuerRejected) => out.push_str("caller waits_for=issuer connection rejection\n"),
+            Some(Step::TrialEnded) => out.push_str("caller waits_for=welcome trial's committed end\n"),
             Some(Step::Probe { .. } | Step::Release { .. }) => out.push_str("caller waits_for=directory lock\n"),
             Some(Step::Advance | Step::Push { .. }) => out.push_str("caller waits_for=forge advance\n"),
             Some(Step::FixtureReady) => out.push_str("caller waits_for=fixture provisioning\n"),
@@ -743,24 +752,11 @@ impl Caller {
         if let Some(Step::EndsLeaving(leftovers)) = self.steps.last() { leftovers } else { &[] }
     }
 
-    pub(crate) fn check_program_stop(&self) -> Result<(), String> {
-        for step in &self.steps {
-            if let Step::ClaudeTurn { source } = step {
-                crate::claude::check_interrupted(&self.scratch, source)?;
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn held_names(&self) -> impl Iterator<Item = &[u8]> {
         self.steps.iter().filter_map(|step| match step {
             Step::Held { name } => Some(*name),
             Step::Browse { .. }
-            | Step::ClaudeTurn { .. }
             | Step::Authorize
-            | Step::AuthorizeHeld
-            | Step::HoldIssuerSocket
-            | Step::IssuerRejected
             | Step::Return
             | Step::FixtureReady
             | Step::EndsLeaving(_)
@@ -769,6 +765,7 @@ impl Caller {
             | Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
+            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -792,6 +789,10 @@ impl Caller {
             Some(Step::AddWorker { name }) => Some(*name),
             _ => None,
         }
+    }
+    pub(crate) fn cancelling_run(&self) -> bool {
+        matches!(self.steps.get(self.next), Some(Step::Call { argv, .. })
+            if matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("cancel"), ..]))
     }
     pub(crate) fn stopping_engine(&self) -> bool {
         matches!(self.steps.get(self.next), Some(Step::StopEngine))
@@ -827,6 +828,10 @@ impl Caller {
         self.steps.iter().filter(|step| matches!(step, Step::Kill { .. })).count()
     }
     pub(crate) fn provisioned(mut steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
+        // A welcome trial provisions its own account through the native form.
+        if steps.iter().any(|step| matches!(step, Step::TrialEnded)) {
+            return Self::new(steps, scratch, root);
+        }
         let Some((position, at)) = steps.iter().enumerate().find_map(|(index, step)| {
             if let Step::SignIn { at } | Step::SameParty { at } = step { Some((index, *at)) } else { None }
         }) else {
@@ -859,9 +864,6 @@ impl Caller {
             browsed: Vec::with_capacity(browsers),
             browser: None,
             visit: None,
-            held_issuer: Vec::new(),
-            issuer_accepted: Cell::new(0),
-            issuer_rejected: Cell::new(0),
             kept: None,
             returned: Vec::with_capacity(visits),
             released: false,
@@ -873,6 +875,7 @@ impl Caller {
             worker_ready: Cell::new(false),
             engine_ready: Cell::new(false),
             contact_cancelled: Cell::new(false),
+            trial_ended: Cell::new(false),
             held_queries: Cell::new(0),
             llm_queries: Cell::new(0),
             held: Cell::new(false),
@@ -885,6 +888,8 @@ impl Caller {
             scratch,
             root: Some(root),
             current: None,
+            activity: None,
+            whole_activity: std::collections::BTreeSet::new(),
             probe: None,
             probing: false,
             running: Vec::with_capacity(count),
@@ -900,7 +905,7 @@ impl Caller {
     }
     fn submit(&mut self, call: usize, kind: Op) {
         self.serial += 1;
-        if call < ISSUER_CLOSE {
+        if call < SIGN_IN_HTTP {
             self.running[call].as_mut().expect("running command").pending += 1;
         }
         self.owners.insert(Token::new(self.serial), call);
@@ -910,6 +915,10 @@ impl Caller {
         self.submit(call, Op::PipeRead { fd, buf: vec![0; 4096].into_boxed_slice() });
     }
     fn words(&self) -> Vec<Box<[u8]>> {
+        if let Some((_, words)) = &self.activity {
+            return words.clone();
+        }
+
         let (at, argv) = match &self.steps[self.next] {
             Step::SignIn { at } | Step::SameParty { at } => {
                 return vec![
@@ -920,11 +929,7 @@ impl Caller {
             }
             Step::Call { at, argv } | Step::Start { at, argv } | Step::Until { at, argv, .. } => (at, argv),
             Step::Browse { .. }
-            | Step::ClaudeTurn { .. }
             | Step::Authorize
-            | Step::AuthorizeHeld
-            | Step::HoldIssuerSocket
-            | Step::IssuerRejected
             | Step::Return
             | Step::FixtureReady
             | Step::EndsLeaving(_)
@@ -933,6 +938,7 @@ impl Caller {
             | Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
+            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -970,9 +976,17 @@ impl Caller {
                         serde_json::from_slice(&self.calls[*call].stdout).expect("task JSON");
                     value["task"]["digest"].as_str().expect("task digest").as_bytes().into()
                 }
-                Arg::ActivityBefore(call) => {
-                    activity_cursor(&self.calls[*call].stdout).expect("previous activity page").into_bytes().into()
-                }
+                Arg::ActivityBefore(call) => activity_cursor(&self.calls[*call].stdout)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "previous activity page: exit {:?}, stdout {}, stderr {}",
+                            self.calls[*call].exit,
+                            String::from_utf8_lossy(&self.calls[*call].stdout),
+                            String::from_utf8_lossy(&self.calls[*call].stderr)
+                        )
+                    })
+                    .into_bytes()
+                    .into(),
                 Arg::InboxAfter(call) => {
                     let value: serde_json::Value =
                         serde_json::from_slice(&self.calls[*call].stdout).expect("inbox JSON");
@@ -1058,13 +1072,6 @@ impl Caller {
             return;
         }
         let index = self.owners.remove(&complete.op).expect("operation owner");
-        if index == ISSUER_CLOSE {
-            assert!(
-                matches!((complete.kind, complete.result), (Op::Close { .. }, Ok(Done::Nothing))),
-                "held issuer socket closed"
-            );
-            return;
-        }
         if index == SIGN_IN_HTTP {
             if let Some(op) = self.visit.as_mut().expect("sign-in GET").complete(complete) {
                 self.submit(SIGN_IN_HTTP, op);
@@ -1198,9 +1205,6 @@ impl Caller {
         true
     }
     fn finish(&mut self) {
-        while let Some(fd) = self.held_issuer.pop() {
-            self.submit(ISSUER_CLOSE, Op::Close { fd });
-        }
         if !self.terminal.finish(&mut self.submissions) {
             return;
         }
@@ -1246,7 +1250,15 @@ impl Caller {
     fn kill_call(&mut self, index: usize) -> bool {
         if self.current.is_none() {
             let pidfd = self.running[index].as_ref().expect("kill running call").pidfd.expect("spawned call");
-            self.submit(index, Op::Signal { pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Child });
+            self.submit(
+                index,
+                Op::Signal {
+                    pidfd,
+                    signal: Signal::Kill,
+                    to: skein_io::kernel::Target::Child,
+                    reason: skein_io::kernel::Reason::Asked,
+                },
+            );
             self.current = Some(index);
             return false;
         }
@@ -1257,10 +1269,7 @@ impl Caller {
         true
     }
     fn interactive_act(&mut self) -> bool {
-        if matches!(
-            self.steps[self.next],
-            Step::Authorize | Step::AuthorizeHeld | Step::HoldIssuerSocket | Step::Return
-        ) {
+        if matches!(self.steps[self.next], Step::Authorize | Step::Return) {
             return self.sign_in_http();
         }
         if let Step::Browse { call } = self.steps[self.next] {
@@ -1287,19 +1296,14 @@ impl Caller {
         true
     }
     fn sign_in_http(&mut self) -> bool {
-        let authorize = matches!(self.steps[self.next], Step::Authorize | Step::AuthorizeHeld);
-        let idle = matches!(self.steps[self.next], Step::HoldIssuerSocket);
+        let authorize = matches!(self.steps[self.next], Step::Authorize);
         if self.visit.is_none() {
-            let url = if authorize || idle {
+            let url = if authorize {
                 self.terminal.sign_in_address()
             } else {
                 self.kept.as_ref().expect("kept redirect before Return").expose()
             };
-            let visit = if matches!(self.steps[self.next], Step::AuthorizeHeld | Step::HoldIssuerSocket) {
-                crate::issuer::Visit::held(url, idle)
-            } else {
-                crate::issuer::Visit::new(url, authorize)
-            };
+            let visit = crate::issuer::Visit::new(url, authorize);
             let op = visit.start();
             self.visit = Some(visit);
             self.submit(SIGN_IN_HTTP, op);
@@ -1308,16 +1312,10 @@ impl Caller {
         if !self.visit.as_ref().expect("sign-in GET").done {
             return false;
         }
-        if idle && self.issuer_accepted.get() < self.held_issuer.len() + 1 {
-            return false;
-        }
         let visit = self.visit.take().expect("settled sign-in GET");
-        if let Some(fd) = visit.held {
-            self.held_issuer.push(fd);
-        }
         if authorize {
             self.kept = Some(visit.redirect.expect("unfollowed issuer redirect"));
-        } else if !idle {
+        } else {
             self.returned.push(visit.answer);
         }
         true
@@ -1337,10 +1335,45 @@ impl Caller {
         self.browsed.push(self.browser.take().expect("finished browser").seen);
         true
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the command lifecycle retains one step while collecting its activity pages"
+    )]
     fn command_act(&mut self, now: Time) -> Result<bool, String> {
         let step = &self.steps[self.next];
         let Some(index) = self.current else {
             assert!(self.running.iter().flatten().count() < fixtures::CALLS_AT_ONCE as usize);
+            if let Step::Call { argv, .. } = step
+                && argv.1.whole_activity
+                && let Some(source) = argv
+                    .0
+                    .iter()
+                    .find_map(|arg| if let Arg::ActivityBefore(source) = arg { Some(*source) } else { None })
+                && self.whole_activity.contains(&source)
+            {
+                // Fixed first-edition page names alias the real, complete observation;
+                // they do not issue a request after its cursor is absent.
+                let source = &self.calls[source];
+                self.calls.push(Called {
+                    locked: None,
+                    released: None,
+                    busy: 0,
+                    exit: source.exit,
+                    stdout: source.stdout.clone(),
+                    stderr: source.stderr.clone(),
+                    spawned: now,
+                    ended: now,
+                    observed_at: source.observed_at,
+                    tries: 0,
+                    early: 0,
+                    answer: RefCell::new(None),
+                    timeout: RefCell::new(None),
+                });
+                self.running.push(None);
+                self.whole_activity.insert(self.calls.len() - 1);
+                return Ok(true);
+            }
+
             if let Step::Call { argv, .. } = step
                 && argv.1.last_activity
             {
@@ -1392,6 +1425,41 @@ impl Caller {
                 String::from_utf8_lossy(&call.stderr)
             );
         }
+        if let Step::Call { argv, .. } | Step::Until { argv, .. } = step
+            && (self.activity.is_some()
+                || !matches!(step, Step::Until { holds, .. } if !holds.matches(&self.calls[index].stdout)))
+            && argv.1.whole_activity
+            && self.calls[index].exit == Some(Exit::Code(0))
+        {
+            if self.activity.is_none() {
+                let words = self.words();
+                self.activity = Some((
+                    activity::Pages::default(),
+                    vec![
+                        words[0].clone(),
+                        b"task".as_slice().into(),
+                        b"activity".as_slice().into(),
+                        words[3].clone(),
+                        b"--before".as_slice().into(),
+                        Box::default(),
+                        b"--limit".as_slice().into(),
+                        b"32".as_slice().into(),
+                        b"--json".as_slice().into(),
+                    ],
+                ));
+            }
+            let (pages, words) = self.activity.as_mut().expect("activity collection");
+            if let Some(cursor) = pages.push(&self.calls[index].stdout) {
+                words[5] = cursor.into_bytes().into_boxed_slice();
+                self.spawn(now, index);
+                return Ok(false);
+            }
+            let (pages, _) = self.activity.take().expect("finished collection");
+            if let Some(stdout) = pages.finish() {
+                self.calls[index].stdout = stdout;
+                self.whole_activity.insert(index);
+            }
+        }
         let call = &mut self.calls[index];
         if matches!(step, Step::SameParty { .. }) && call.tries == 1 {
             let link = *self.retry_link.get_or_insert(self.links.get());
@@ -1442,38 +1510,28 @@ impl Caller {
             return;
         };
         match step {
-            Step::ClaudeTurn { source } => {
-                if !crate::claude::turn_started(&self.scratch, source) {
-                    return;
-                }
-            }
-            Step::Browse { .. }
-            | Step::Authorize
-            | Step::AuthorizeHeld
-            | Step::HoldIssuerSocket
-            | Step::Return
-            | Step::Terminal(_) => {
+            Step::Browse { .. } | Step::Authorize | Step::Return | Step::Terminal(_) => {
                 if !self.interactive_act() {
                     return;
                 }
             }
-            Step::IssuerRejected if self.issuer_rejected.get() == 0 => return,
             Step::FixtureReady if self.running.iter().any(Option::is_some) => return,
             Step::FixtureReady => self.fixture_ready(),
             Step::EndsLeaving(_) => unreachable!("ending declaration was skipped"),
             Step::AddWorker { .. } if !self.added.replace(false) => return,
             Step::StopEngine | Step::StartEngine { .. } if !self.engine_ready.replace(false) => return,
             Step::WorkerCancelled { .. } if !self.contact_cancelled.get() => return,
+            Step::TrialEnded if !self.trial_ended.get() => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
             Step::Advance | Step::Push { .. } if !self.advanced.get() => return,
             Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
+            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
             | Step::Advance
-            | Step::IssuerRejected
             | Step::Push { .. } => {}
             Step::ReleaseHold { .. } => {
                 if !self.hold_released.replace(false) {
@@ -1531,21 +1589,14 @@ impl Caller {
             return false;
         }
         match self.steps.get(self.next) {
-            Some(Step::ClaudeTurn { source }) => crate::claude::turn_started(&self.scratch, source),
-            Some(Step::Authorize | Step::AuthorizeHeld | Step::Return) => {
-                self.visit.as_ref().is_none_or(|visit| visit.done)
-            }
-            Some(Step::HoldIssuerSocket) => self
-                .visit
-                .as_ref()
-                .is_none_or(|visit| visit.done && self.issuer_accepted.get() > self.held_issuer.len()),
-            Some(Step::IssuerRejected) => self.issuer_rejected.get() > 0,
+            Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
             Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
             Some(Step::EndsLeaving(_)) | None => self.can_finish(),
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
             Some(Step::StopEngine | Step::StartEngine { .. }) => self.engine_ready.get(),
             Some(Step::WorkerCancelled { .. }) => self.contact_cancelled.get(),
+            Some(Step::TrialEnded) => self.trial_ended.get(),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
             Some(Step::Advance | Step::Push { .. }) => self.advanced.get(),
             Some(Step::ReleaseHold { .. }) => self.hold_released.get(),
@@ -1600,7 +1651,6 @@ impl Host for Caller {
             && self.owners.is_empty()
             && self.browser.is_none()
             && self.visit.is_none()
-            && self.held_issuer.is_empty()
             && self.terminal.is_empty()
     }
     fn operations(&self) -> u32 {

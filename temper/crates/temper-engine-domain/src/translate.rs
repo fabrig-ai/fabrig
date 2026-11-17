@@ -15,8 +15,8 @@ use temper_engine_domain_forge as forge;
 /// the core's whole, as jig's applications hold it, and temper's own.
 #[derive(Debug)]
 pub struct Config {
-    /// Charter brief-room costs, absent when no agent is configured (temper/docs/design/domain/agent/tools.md).
-    pub host_part: Option<crate::room::HostPart>,
+    /// Measured charter costs, including without an agent (temper/docs/design/domain/agent/room.md, 4.4).
+    pub host_part: crate::room::HostPart,
     /// Deployment funding span (domain/routing.md, 7).
     pub period_span: skein_lib::Duration,
     /// The core's rules, charters, owners and projects; its one connector is
@@ -24,8 +24,8 @@ pub struct Config {
     /// configuration too, set by an in-process hosts' listener: standalone,
     /// they do (domain/root.md, 2).
     pub core: jig_domain_core::Config,
-    /// Each project's landing way and repository checks.
-    pub landings: Map<u32, ProjectLanding>,
+    /// Operator hold taken once at start (domain/landing-settings.md, 1.3).
+    pub landing_held: bool,
     /// The forge's kind defaults at this start (temper/docs/design/domain/routing.md, 6).
     pub kinds_stock: Box<[forge::settings::Stock]>,
     /// The stock ways, in their order (temper/docs/design/protocol/configuration/settings.md, 8).
@@ -47,10 +47,11 @@ pub struct Config {
 pub(crate) struct RootConfig {
     pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     pub(crate) prepare_kind: Option<JobBound>,
+    pub(crate) prepare_capacity: (u32, u32),
+    pub(crate) turn_capacity: Option<&'static [u8]>,
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) close_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
-    pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
 /// Landing rules for test worlds' builders alone (domain/root.md, 5).
@@ -62,138 +63,6 @@ pub struct LandingRules {
 
 /// The goal closer's attempts (temper/docs/design/protocol/configuration/engine.md).
 pub const LANDING_ATTEMPTS: u8 = 3;
-
-/// A project's landing way and repository checks (protocol/configuration/engine.md).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProjectLanding {
-    pub gate_retries: u8,
-    pub gate_timeout: skein_lib::Duration,
-    pub check_timeout: Option<skein_lib::Duration>,
-    pub by: Way,
-    pub batch: u16,
-    pub combine_main: temper_engine_domain_forge_landing::Combine,
-    pub combine_other: temper_engine_domain_forge_landing::Combine,
-    pub merge_job: Option<Box<[u8]>>,
-    pub close_job: Option<Box<[u8]>>,
-    pub landing_attempts: u8,
-    pub repositories: Box<[RepositoryChecks]>,
-    pub after: AfterLandingCheck,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Way {
-    Queue,
-    Turn,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct RepositoryChecks {
-    pub repository: skein_forge::api::Repository,
-    pub gates: Box<[GateCheck]>,
-    pub tiers: Box<[TierCheck]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct GateCheck {
-    pub report: Option<temper_engine_domain_forge_landing::GateReport>,
-    pub base: bool,
-    pub name: Box<[u8]>,
-    pub workflow: Box<[u8]>,
-    pub ignored: Box<[Box<[u8]>]>,
-    pub blocking: bool,
-}
-/// A repository's tier and the branch it follows (domain/after-landing.md, 2).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TierCheck {
-    pub name: Box<[u8]>,
-    pub workflow: Box<[u8]>,
-    pub ignored: Box<[Box<[u8]>]>,
-    pub artifact: Box<[u8]>,
-    pub format: temper_engine_domain_forge_tiers::Format,
-    pub follows: forge::Follows,
-    pub span_ms: u64,
-    pub description: Box<[u8]>,
-}
-/// A project's verification settings (protocol/configuration/engine.md).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct AfterLandingCheck {
-    pub tier_retries: u8,
-    pub verification_bound_ms: u64,
-}
-pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: &ProjectLanding) -> bool {
-    let mut repositories =
-        skein_lib::List::with_capacity(u32::try_from(landing.repositories.len()).expect("repositories"));
-    for repository in &landing.repositories {
-        let mut gates = skein_lib::List::with_capacity(u32::try_from(repository.gates.len()).expect("gates"));
-        for gate in &repository.gates {
-            gates
-                .push(temper_engine_domain_forge_landing::Gate {
-                    name: gate.name.clone(),
-                    workflow: gate.workflow.clone(),
-                    ignored: gate.ignored.clone(),
-                    blocking: gate.blocking,
-                    base: gate.base,
-                    report: gate.report.clone(),
-                })
-                .expect("counted gates");
-        }
-        let mut tiers = skein_lib::List::with_capacity(u32::try_from(repository.tiers.len()).expect("tiers"));
-        for tier in &repository.tiers {
-            tiers
-                .push(forge::Tier {
-                    name: tier.name.clone(),
-                    workflow: tier.workflow.clone(),
-                    ignored: tier.ignored.clone(),
-                    artifact: tier.artifact.clone(),
-                    format: tier.format,
-                    follows: tier.follows.clone(),
-                    span: match tier.span_ms {
-                        0 => None,
-                        millis => Some(skein_lib::Duration::from_millis(millis)),
-                    },
-                    description: tier.description.clone(),
-                })
-                .expect("counted tiers");
-        }
-        repositories
-            .push(forge::RepositoryGates {
-                repository: repository.repository,
-                gates: gates.into_boxed(),
-                tiers: tiers.into_boxed(),
-            })
-            .expect("counted repositories");
-    }
-    if !forge.project_landing(
-        project,
-        match landing.by {
-            Way::Queue => temper_engine_domain_forge_change::Way::Queue,
-            Way::Turn => temper_engine_domain_forge_change::Way::Turn,
-        },
-        repositories.into_boxed(),
-        temper_engine_domain_forge_landing::Project {
-            gate_retries: u32::from(landing.gate_retries),
-            gate_timeout: landing.gate_timeout,
-        },
-        forge::AfterLanding {
-            verdict: temper_engine_domain_forge_tiers::Settings {
-                retries: u32::from(landing.after.tier_retries),
-                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
-            },
-            bound: skein_lib::Duration::from_millis(landing.after.verification_bound_ms),
-        },
-    ) {
-        return false;
-    }
-    if landing.batch != 1 && !forge.project_batch(project, landing.batch) {
-        return false;
-    }
-    if let Some(command) = &landing.merge_job
-        && !forge.project_merge_job(project, command.clone())
-    {
-        return false;
-    }
-    match &landing.close_job {
-        Some(command) => forge.project_close_job(project, command.clone()),
-        None => true,
-    }
-}
 
 pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
     env.with(env.limits.forge)

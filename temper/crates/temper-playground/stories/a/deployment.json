@@ -1,6 +1,5 @@
 {
   "application": {
-    "welcome": true,
     "clients": {
       "bundle": null,
       "listener": {
@@ -44,17 +43,10 @@
         "root.loads.bytes": 998292,
         "root.loads.read_bytes": 1996088,
         "root.loads.reply_bytes": 998292,
-        "root.loads.transcript_bytes": 998044
-      },
-      "profile": "small"
-    },
-    "machine": {
-      "fake": {
-        "git": "/usr/bin/git",
-        "listen": {
-          "socket": "127.0.0.1:3000"
-        },
-        "remote": "http://127.0.0.1:3000"
+        "root.loads.transcript_bytes": 998044,
+        "forge.client.answer_bytes": 65536,
+        "forge.client.op_bytes": 512,
+        "forge_component.body_bytes": 16384
       }
     },
     "sign_in": null,
@@ -62,26 +54,10 @@
       "listener": {
         "socket": "127.0.0.1:0"
       }
-    },
-    "workers": [
-      {
-        "git": "/usr/bin/git",
-        "root": "worker"
-      }
-    ]
+    }
   },
   "engine": {
-    "clients": {
-      "heartbeat_ms": 10000,
-      "link": true
-    },
-    "connectors": [
-      1
-    ],
-    "deployment": {
-      "directory": "state",
-      "seed": 7
-    },
+    "clients": {},
     "hosts": {
       "listener": [
         {
@@ -109,7 +85,7 @@
         "core.policy_bytes": 8192,
         "core.resume_bytes": 998048,
         "core.run_bytes": 32768,
-        "core.templates": 6,
+        "core.templates": 7,
         "documents.chips": 1,
         "documents.lines": 12,
         "documents.rows": 2,
@@ -155,9 +131,10 @@
         "tasks.tasks": 4,
         "tasks.tree_tasks": 6,
         "views.runs": 1,
-        "views.text_bytes": 1024
-      },
-      "profile": "small"
+        "views.text_bytes": 1024,
+        "tasks.inbox_bytes": 4096,
+        "tasks.run_inbox": 8
+      }
     },
     "llm": {
       "endpoints": [
@@ -192,17 +169,6 @@
         "provider": 1,
         "subject": "owner-a"
       }
-    ],
-    "projects": [],
-    "providers": [
-      {
-        "kind": "link",
-        "number": 1
-      },
-      {
-        "kind": "deployment",
-        "number": 2
-      }
     ]
   },
   "workers": [
@@ -219,12 +185,6 @@
       "engine": {
         "in_process": "workers"
       },
-      "graces": {
-        "agent_stop_ms": 5000,
-        "delivery_ms": 1000,
-        "grace_ms": 300000,
-        "save_ms": 1000
-      },
       "limits": {
         "overrides": {
           "core.call_answer_bytes": 2048,
@@ -236,15 +196,15 @@
           "hub.turn_bytes": 998044,
           "hub.turn_queue_bytes": 7984352,
           "people.words": 512,
-          "tasks.message_bytes": 512
-        },
-        "profile": "small"
+          "tasks.message_bytes": 512,
+          "tasks.result_bytes": 512,
+          "hub.inbox": 8,
+          "hub.held": 8,
+          "tasks.run_inbox": 8
+        }
       },
       "memory_bytes": 1152921504606846976,
       "name": "worker-a",
-      "programs": {
-        "check_interval_ms": 60000
-      },
       "secret": "worker.secret",
       "slots": 1
     }

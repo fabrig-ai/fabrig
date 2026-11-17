@@ -38,10 +38,7 @@ fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv:
             store.registry.write(key, value).or(Err(CommitCheck::Encoding))?;
         }
     }
-    if crate::logs::write::enabled(store, &ops)? {
-        ops = crate::logs::write::route(store, ops)?;
-        store.history_routing = true;
-    }
+    let ops = crate::logs::write::route(store, ops)?;
     crate::logs::write::bounds(store, &ops)?;
     Ok(ops)
 }
@@ -75,7 +72,7 @@ pub(crate) fn operations(
     for write in writes {
         match write {
             Write::Wires => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 if let Err(check) = crate::openings::clear(store, &mut ops) {
@@ -98,7 +95,7 @@ pub(crate) fn operations(
                 ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
             Write::DropTranscript { task } => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 if let Err(check) = crate::transcripts::drop::queue(store, task, number) {
@@ -118,7 +115,7 @@ pub(crate) fn operations(
                 drops.push(task);
             }
             Write::Save(Record::Core(CoreRecord::Turn(turn))) => {
-                if crate::patching::switch::pending(store) {
+                if crate::upgrade::switch::pending(store) {
                     return Err(Refusal::Check(CommitCheck::Switching));
                 }
                 let file = match crate::transcripts::log::file(store, turn.task) {
@@ -184,7 +181,7 @@ pub(crate) fn operations(
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Floor, store.limits.store.key)
                 .ok_or(Refusal::Check(CommitCheck::Encoding))?,
-            value: codec::component::floor(store.build_name),
+            value: crate::rows::floor(store.build_name),
         })
         .ok()
         .ok_or(Refusal::Check(CommitCheck::Capacity))?;
@@ -192,7 +189,7 @@ pub(crate) fn operations(
         crate::jobs::kept::first(store, &mut ops, number).ok_or(Refusal::Check(CommitCheck::Encoding))?;
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);
-        row.levels = crate::patching::plan::binary(&store.patch_sets);
+        row.levels = crate::upgrade::admission::binary(&store.owner_sets);
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, store.limits.store.key)
                 .ok_or(Refusal::Check(CommitCheck::Encoding))?,
@@ -239,12 +236,12 @@ fn operation(store: &mut Store, write: Write) -> Result<skein_kv::Op, CommitChec
     match write {
         Write::Wires => Ok(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Wires, limit).ok_or(CommitCheck::Encoding)?,
-            value: codec::component::wires(store.wires),
+            value: crate::rows::wires(store.wires),
         }),
         Write::Opening(opening) => {
             let key =
                 keys::encode_own(&keys::Own::Opening(opening.worker.clone()), limit).ok_or(CommitCheck::Encoding)?;
-            let value = codec::openings::encode(opening).ok_or(CommitCheck::Encoding)?;
+            let value = crate::rows::openings::encode(opening).ok_or(CommitCheck::Encoding)?;
             store.opening_keys.insert(key.clone(), ()).or(Err(CommitCheck::Capacity))?;
             Ok(skein_kv::Op::Put { key, value })
         }

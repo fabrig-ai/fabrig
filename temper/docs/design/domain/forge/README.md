@@ -293,12 +293,10 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   restart's settlement (section 9); erased in the decision that
   settles the entry for good or holds it for a person, and saved again
   before a held entry is made again. So the store shows which writes a
-  stop left unsettled without decoding an entry. temper's patch set
-  names its range (jig's `protocol/store/opening.md`, 3). temper keeps one
-  schema family for all its records, so any patch of temper's refuses
-  while one is there, whichever record it changes: a crash or a stop
-  past its bound is rare, and the remedy is one more settled stop. The
-  forge's restore links a `Flight` row to its entry, and one whose entry
+  stop left unsettled without decoding an entry. temper's owner set
+  names its range (jig's `protocol/store/opening.md`, 3). The registered
+  family converts at read; an in-flight write is not an upgrade
+  refusal. The forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which
   refuses the start (`../root.md`, 8.1; jig's `domain/engine/restart.md`
   ).
@@ -822,7 +820,7 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people/README.md`, section 11).
-- A gate's live run past the stall: `change/repairs.md`, section 1.
+- A gate's live run past the stall: `change/stalls.md`, section 6.
 - A green head no wake reaches: `change/repairs.md`, section 1.
 - A retry before the read: `change/repairs.md`, section 1.
 - A hold at gating at a green head: `change/repairs.md`, section 1.

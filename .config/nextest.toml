@@ -64,8 +64,8 @@ default-filter = """
   & not binary(/^(conformance|recorded)_/)
 ) | package(=fabrig-boundary)
 """
-# 300 s, a band-aid by the user's word of 11-15 (230 s on 11-14), until the default suite is back under 200 s by the testing strategy's order of repairs (skein/docs/foundation/testing-strategy.md, 8.1).
-global-timeout = "300s"
+# Three times the gate's wall in .config/gate/walls.toml: a backstop for every run but the gate's, its expiry starved (skein/docs/foundation/testing-strategy.md, 8.1; the user, 11-16).
+global-timeout = "810s"
 slow-timeout = { period = "6s" }
 
 [[profile.default.overrides]]
@@ -115,7 +115,8 @@ default-filter = """
   package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
 )
 """
-global-timeout = "600s"
+# Three times the gate's wall in .config/gate/walls.toml: a backstop for every run but the gate's, its expiry starved (skein/docs/foundation/testing-strategy.md, 8.1; the user, 11-16).
+global-timeout = "645s"
 slow-timeout = { period = "40s" }
 
 [[profile.fuzzy.overrides]]

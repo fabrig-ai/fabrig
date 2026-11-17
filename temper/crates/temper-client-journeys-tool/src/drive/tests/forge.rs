@@ -375,6 +375,39 @@ fn ctl_box_values_resolve_newest_opening_lines_without_changing_kept_bytes() {
 }
 
 #[test]
+fn ctl_model_key_resolves_newest_opening_line_without_changing_kept_bytes() {
+    let (scratch, mut m) = fixture();
+    fs::write(
+        scratch.path().join("session/box.log"),
+        b"box: model key /scratch/a.key\n1970-01-01T00:00:01Z box: model key /scratch/b.key\n",
+    )
+    .expect("model opening lines");
+    let source = "ctl account add-key 1 {model.key} --key qa-model";
+    let actions = begin(&mut m, source);
+    let [Action::Start { process: crate::drive::Process::Ctl, program }] = actions.as_slice() else {
+        panic!("{actions:?}")
+    };
+    let expected: Vec<std::ffi::OsString> = [
+        "ctl",
+        &scratch.path().join("session/ctl").to_string_lossy(),
+        "account",
+        "add-key",
+        "1",
+        "/scratch/b.key",
+        "--key",
+        "qa-model",
+    ]
+    .map(Into::into)
+    .into();
+    assert_eq!(program.args, expected);
+    assert_eq!(program.input, crate::drive::Input::Null);
+    let actions = m.step(super::exited(crate::drive::Process::Ctl, 0), Time::ZERO);
+    assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+        if kept.as_ref() == source.as_bytes() && answer.failed.is_none()));
+    assert!(m.ready());
+}
+
+#[test]
 fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
     let (scratch, mut m) = fixture();
     for (name, expected) in [
@@ -382,6 +415,7 @@ fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
         ("{forgejo.git}", "box: fake forgejo"),
         ("{forgejo.admin}", "box: Forgejo elsewhere admin token file"),
         ("{git}", "box: effective data"),
+        ("{model.key}", "box: model key"),
     ] {
         fs::write(scratch.path().join("session/box.log"), b"unrelated\n").expect("log");
         let source = format!("ctl show {name}");
@@ -398,4 +432,147 @@ fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
 
 pub(crate) fn select_files(machine: &mut Machine, directory: Option<std::path::PathBuf>) {
     machine.plan.options.files = directory;
+}
+
+#[test]
+fn forge_push_uses_the_target_or_creates_it_from_default_in_one_contents_batch() {
+    let source = r#"forge push forgejo playground/widget work/topic "msg" "a.txt" "b.txt""#;
+    for exists in [false, true] {
+        let (_scratch, mut m) = fixture();
+        let actions = begin(&mut m, source);
+        let actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
+        let actions = response(
+            &mut m,
+            &actions,
+            "/repos/playground/widget/branches/work%2Ftopic",
+            if exists { 200 } else { 404 },
+            if exists { b"{}" } else { b"absent" },
+            0,
+        );
+        let branch = if exists { "work%2Ftopic" } else { "main" };
+        let actions = response(
+            &mut m,
+            &actions,
+            &format!("/repos/playground/widget/contents/a.txt?ref={branch}"),
+            404,
+            b"absent",
+            0,
+        );
+        let actions = response(
+            &mut m,
+            &actions,
+            &format!("/repos/playground/widget/contents/b.txt?ref={branch}"),
+            200,
+            br#"{"sha":"blob"}"#,
+            0,
+        );
+        let [Action::ForgeRequest { body, .. }] = actions.as_slice() else { panic!("POST") };
+        let expected = if exists {
+            r#"{"branch":"work/topic","message":"msg","files":[{"operation":"create","path":"a.txt","content":"eAo="},{"operation":"update","path":"b.txt","sha":"blob","content":"eQ=="}]}"#
+        } else {
+            r#"{"branch":"main","new_branch":"work/topic","message":"msg","files":[{"operation":"create","path":"a.txt","content":"eAo="},{"operation":"update","path":"b.txt","sha":"blob","content":"eQ=="}]}"#
+        };
+        assert_eq!(body.as_ref(), expected.as_bytes());
+        let actions = response(
+            &mut m,
+            &actions,
+            "/repos/playground/widget/contents",
+            201,
+            format!(r#"{{"commit":{{"sha":"{SHA}"}}}}"#).as_bytes(),
+            0,
+        );
+        assert_eq!(answer(&actions).print(), format!("| {SHA}\nok\n"));
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == source.as_bytes())
+        );
+        assert!(m.ready());
+    }
+}
+
+#[test]
+fn forge_push_refusals_fail_only_the_line_and_keep_its_bytes() {
+    let source = r#"forge push forgejo playground/widget topic "msg" "a.txt""#;
+    for refused in ["branch", "post", "files"] {
+        let (scratch, mut m) = fixture();
+        if refused == "files" {
+            fs::write(scratch.path().join("files/a.txt"), vec![b'x'; 65537]).expect("large file");
+        }
+        let mut actions = begin(&mut m, source);
+        if refused != "files" {
+            actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
+            actions = response(
+                &mut m,
+                &actions,
+                "/repos/playground/widget/branches/topic",
+                if refused == "branch" { 403 } else { 404 },
+                b"refused",
+                0,
+            );
+            if refused == "post" {
+                actions = response(&mut m, &actions, "/repos/playground/widget/contents/a.txt?ref=main", 404, b"", 0);
+                actions = response(&mut m, &actions, "/repos/playground/widget/contents", 422, b"branch exists", 0);
+            }
+        }
+        let why = answer(&actions).failed.as_deref().expect("failed push");
+        assert!(
+            why.contains(match refused {
+                "branch" => "HTTP 403",
+                "post" => "HTTP 422",
+                _ => "64 KiB",
+            }),
+            "{why}"
+        );
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == source.as_bytes())
+        );
+        assert!(m.ready());
+    }
+}
+
+#[test]
+fn settings_inputs_resolve_before_ctl_and_keep_the_given_line() {
+    let (scratch, mut machine) = fixture();
+    for verb in ["apply", "propose"] {
+        let source = format!("ctl settings {verb} a.txt - b.txt --against 1 --key a.txt");
+        let actions = line(&mut machine, &source);
+        let [Action::ReadSettingsFiles { directory, args }] = actions.as_slice() else { panic!("{actions:?}") };
+        let resolved = crate::drive::io::deployment::settings_files(directory.as_deref(), args.clone());
+        let actions = machine.step(Event::SettingsFiles(resolved), Time::ZERO);
+        let [Action::Start { process: crate::drive::Process::Ctl, program }] = actions.as_slice() else {
+            panic!("{actions:?}")
+        };
+        let expected: Vec<std::ffi::OsString> = [
+            "ctl".into(),
+            scratch.path().join("session/ctl").into_os_string(),
+            "settings".into(),
+            verb.into(),
+            scratch.path().join("files/a.txt").into_os_string(),
+            "-".into(),
+            scratch.path().join("files/b.txt").into_os_string(),
+            "--against".into(),
+            "1".into(),
+            "--key".into(),
+            "a.txt".into(),
+        ]
+        .into();
+        assert_eq!(program.args, expected);
+        assert_eq!(program.input, crate::drive::Input::Null);
+        let actions = machine.step(super::exited(crate::drive::Process::Ctl, 0), Time::ZERO);
+        assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+            if kept.as_ref() == source.as_bytes() && answer.failed.is_none()));
+    }
+}
+
+#[test]
+fn missing_settings_input_fails_by_name_before_ctl_starts() {
+    let (_scratch, mut machine) = fixture();
+    let source = "ctl settings apply missing.json --against 1 --key missing";
+    let actions = line(&mut machine, source);
+    let [Action::ReadSettingsFiles { directory, args }] = actions.as_slice() else { panic!("{actions:?}") };
+    let resolved = crate::drive::io::deployment::settings_files(directory.as_deref(), args.clone());
+    let actions = machine.step(Event::SettingsFiles(resolved), Time::ZERO);
+    assert!(matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(answer)]
+        if kept.as_ref() == source.as_bytes() && answer.failed.as_ref().is_some_and(|why| why.contains("missing.json"))));
+    assert!(machine.ready());
+    assert_eq!(answer(&line(&mut machine, "")).print(), "ok\n");
 }

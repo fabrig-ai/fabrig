@@ -47,7 +47,7 @@ pub enum StartStop {
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
 )]
 pub struct Domain {
-    pub(crate) host_part: Option<crate::room::HostPart>,
+    pub(crate) host_part: crate::room::HostPart,
     revision: u64,
     held_bytes: u64,
     pub(crate) public_reads: u32,
@@ -164,6 +164,15 @@ impl RunDiagnostics {
 }
 
 impl Domain {
+    /// Supply the shell's start fact before the first input (domain/landing-settings.md, 1.3).
+    pub fn hold_landings(&mut self, held: bool) {
+        self.forge.hold_landings(held);
+    }
+    #[must_use]
+    pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
+        self.forge.landing_way(project)
+    }
+
     /// The phase the start is in, none before the start and once decisions open.
     #[must_use]
     pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
@@ -305,6 +314,11 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        self.forge.welcome()
+    }
     /// The playground row as the service reads it (temper/docs/design/protocol/setup/playground.md).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {
@@ -387,7 +401,6 @@ impl Domain {
                 && limits.forge.judge_criteria >= limits.authority.requirements,
             "forge judge table covers authority policy bounds"
         );
-        assert!(config.landings.capacity() <= limits.authority.projects, "landing project table fits the policy bound");
         assert!(
             config.core.seed_projects.len() <= usize::try_from(limits.authority.projects).expect("project bound"),
             "permission policy project bound"
@@ -454,12 +467,7 @@ impl Domain {
             ),
             "standing landing requirements fit authority configuration"
         );
-        for (&project, landing) in &config.landings {
-            assert!(
-                crate::translate::project_landing(&mut forge, project, landing),
-                "project landing configuration bounded and supported"
-            );
-        }
+        forge.hold_landings(config.landing_held);
         let mut declares_forge_kinds = false;
         for kind in &config.core.kinds {
             declares_forge_kinds |= kind.connector == forge_connector;
@@ -492,11 +500,12 @@ impl Domain {
             forge.close_kind(bound.spec, bound.result);
         }
         let root_config = RootConfig {
+            prepare_capacity: (limits.tasks.spec_bytes, limits.tasks.result_bytes),
+            turn_capacity: turn_capacity(limits),
             prepare_kind,
             merge_kind,
             close_kind,
             forge_connector,
-            landings: config.landings,
             ways_stock: config.ways_stock,
         };
         let link_rng = skein_lib::Rng::new(config.core.seed);
@@ -703,7 +712,7 @@ impl Domain {
     /// (temper/docs/design/domain/agent/tools.md).
     pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
         use jig_domain_core::settings::{Setting, Value, overlaid};
-        let Some(host) = self.host_part else { return Ok(()) };
+        let host = self.host_part;
         for setting in self.core.current.offered().into_boxed() {
             if let Setting::Charter(number) = setting {
                 if let Some(overlay) = self.core.current.overlay(setting) {
@@ -711,9 +720,9 @@ impl Domain {
                         // Jig refuses a stored overlay whose supplied default is absent.
                         continue;
                     };
-                    host.check(&overlaid(default, overlay))?;
+                    host.check_rendered(&overlaid(default, overlay))?;
                 } else if let Some(charter) = self.core.current.charter(number) {
-                    host.check(charter)?;
+                    host.check_rendered(charter)?;
                 }
             }
         }
@@ -1012,6 +1021,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Setup { .. }
             | Request::ForgeKept(_)
             | Request::ForgeGone { .. }
+            | Request::ChoosePlace { .. }
             | Request::BoxGroup { .. }
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }
@@ -1029,6 +1039,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::ToChild(_)
             | Request::Busy(_)
             | Request::Unsettled(_)
+            | Request::Restarting { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1385,6 +1396,7 @@ fn released_into(
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
+        | Delivery::Restarting { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }
@@ -1455,7 +1467,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     let room = u32::try_from(config.core.defaults.charters.len().saturating_add(config.core.owners.len()))
         .expect("bounded configuration")
         .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
-        .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
     if let Err(problem) =
@@ -1523,7 +1534,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         temper_engine_domain_forge::Config { push: None, namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
-    let Ok(mut forge) = forge::Domain::new(
+    let Ok(_forge) = forge::Domain::new(
         &limits.forge,
         config.core.seed,
         forge_config,
@@ -1540,14 +1551,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         &limits.authority,
     ) {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    if config.landings.capacity() > limits.authority.projects {
-        refused.push(Refused::Landing { project: None }).expect("counted refusals");
-    }
-    for (&project, landing) in &config.landings {
-        if !crate::translate::project_landing(&mut forge, project, landing) {
-            refused.push(Refused::Landing { project: Some(project) }).expect("counted refusals");
-        }
     }
     for seed in &config.core.seed_projects {
         let bytes = match jig_domain_core::policy_snapshot(
@@ -1600,4 +1603,20 @@ fn brief_connector_capacity(limits: &Limits) -> u32 {
         .expect("validated brief count")
         .checked_mul(2)
         .expect("validated brief connector room")
+}
+
+// A turn needs its carriers and resource slots before it may be selected by settings.
+fn turn_capacity(limits: &Limits) -> Option<&'static [u8]> {
+    let members = limits.forge.landing_members;
+    if limits.authority.writes < members {
+        Some(b"batch: forge.landing_members passes authority.writes")
+    } else if limits.forge.resources_per_task <= members {
+        Some(b"batch: forge.resources_per_task must hold forge.landing_members + 1")
+    } else if limits.forge.holds < limits.forge.landings.saturating_mul(members) {
+        Some(b"batch: forge.holds must hold forge.landings * forge.landing_members")
+    } else if limits.tasks.holdings < members {
+        Some(b"batch: forge.landing_members passes tasks.holdings")
+    } else {
+        None
+    }
 }

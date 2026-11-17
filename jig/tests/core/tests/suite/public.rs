@@ -40,16 +40,31 @@ fn an_owner_makes_a_project_public_and_the_public_party_reads_its_board_and_a_de
 #[test]
 fn a_members_set_visibility_is_refused() {
     let mut world = story::world(story::SEEDS[0], false);
-    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
-        project: 1,
-        holdings: Box::new([people::Holding { person: 1, role: people::Role::Member }]),
-    })));
-    let answer = story::ask(&mut world, 51, people::Ask::SetVisibility { project: 1, public: true });
+    story::visibility(&mut world, 50, true);
+    story::visibility(&mut world, 51, false);
+    assert_eq!(
+        story::ask(
+            &mut world,
+            52,
+            people::Ask::SetRoles {
+                project: 1,
+                holdings: Box::new([people::Holding { person: 1, role: people::Role::Member }]),
+            }
+        ),
+        people::Reply::Outcome(people::Outcome::RolesSet { project: 1 })
+    );
+    let answer = story::ask(&mut world, 53, people::Ask::SetVisibility { project: 1, public: true });
     assert!(
         matches!(answer, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { .. }))),
         "{answer:?}"
     );
     assert_eq!(story::answer(&mut world, 500, story::read(2, None)), PublicAnswer::Unknown);
+    let PublicDocument::Projects(projects) =
+        story::document(story::answer(&mut world, 501, core::PublicRead { project: None, ..story::read(1, None) }))
+    else {
+        panic!("public projects")
+    };
+    assert!(projects.projects.is_empty());
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: 1,
         holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
@@ -111,6 +126,75 @@ fn private_never_made_and_deleted_projects_answer_unknown_with_the_same_work() {
     assert_eq!(private, PublicAnswer::Unknown);
     assert_eq!(private, never);
     assert_eq!(private, deleted);
+}
+
+#[test]
+fn a_delegate_outside_every_goals_tree_is_unknown_as_a_private_projects_is() {
+    let mut world = story::world(story::SEEDS[0], false);
+    let goal = world.assignments[0].0;
+    let child = story::delegate(&mut world, false);
+    let private = story::answer(&mut world, 500, story::read(3, Some(child)));
+    assert_eq!(private, PublicAnswer::Unknown);
+    story::visibility(&mut world, 51, true);
+    assert!(matches!(story::answer(&mut world, 501, story::read(3, Some(child))), PublicAnswer::Document { .. }));
+    story::untrack(&mut world, goal);
+    let PublicDocument::Board(board) = story::document(story::answer(&mut world, 503, story::read(2, None))) else {
+        panic!("untracked goal's board")
+    };
+    assert!(board.live.is_empty());
+    assert!(board.ended.is_empty());
+    assert_eq!(story::answer(&mut world, 502, story::read(3, Some(child))), private);
+}
+
+#[test]
+fn another_public_projects_task_is_unknown_under_this_projects_identifier() {
+    use jig_core_world::{
+        faults,
+        world::{Setup, World},
+    };
+    let seed = story::SEEDS[0];
+    let (mut config, mut limits) = faults::plan_fixture(seed);
+    limits.core.public = core::PublicIndexLimits { goals: 2, ended: 2, lines: 4, depth: 2 };
+    limits.core.authority.projects = 2;
+    limits.core.people.projects = 3;
+    limits.core.people.initial_owners = 2;
+    limits.public_reads = 2;
+    limits.public_watermark = 4;
+    let first = config.core.seed_projects.into_vec().pop().expect("seed project");
+    let second = core::SeedProject { number: 2, name: "Another public project".into(), policy: first.policy.clone() };
+    config.core.seed_projects = Box::new([first, second]);
+    let mut owner = config.core.owners[0].clone();
+    owner.project = 2;
+    config.core.owners = Box::new([config.core.owners[0].clone(), owner]);
+    let creating = jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks);
+    let people::Ask::Create { project, mut batch } =
+        jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"Public goal".as_slice().into())
+    else {
+        unreachable!()
+    };
+    batch[0].flags.conversation = false;
+    batch[0].flags.listed = true;
+    batch[0].tracked = Some(17);
+    let mut world = World::new(Setup {
+        seed,
+        configuration: Some(config),
+        limits,
+        initial: Some(people::Ask::Create { project, batch }),
+        ..Setup::default()
+    });
+    let task = world.assignments[0].0;
+    let private = story::answer(&mut world, 500, story::read(3, Some(task)));
+    assert_eq!(private, PublicAnswer::Unknown);
+    story::visibility(&mut world, 51, true);
+    assert_eq!(
+        story::ask(&mut world, 52, people::Ask::SetVisibility { project: 2, public: true }),
+        people::Reply::Outcome(people::Outcome::VisibilitySet { project: 2, public: true })
+    );
+    assert!(matches!(story::answer(&mut world, 501, story::read(3, Some(task))), PublicAnswer::Document { .. }));
+    assert_eq!(
+        story::answer(&mut world, 502, core::PublicRead { project: Some(2), ..story::read(3, Some(task)) }),
+        private
+    );
 }
 
 #[test]

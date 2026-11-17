@@ -38,9 +38,9 @@ sections 2 and 4). The policy's types it adds are section 10's.
 
 ## 2. A gate's report
 
-- **The setting:** a repository's gate (`landing.md`, 13.1) gains its
+- **The setting:** a repository's gate (`landing-settings.md`, 1.1) gains its
   report, the artifact its run uploads and its format, `junit` or
-  `lines`, written in the gate's `report` object (`landing.md`, 13.1):
+  `lines`, written in the gate's `report` object (`landing-settings.md`, 1.1):
   `artifact` and `format`, both required there, the artifact's name 1 to
   32 bytes with no `/` (`after-landing.md`, 2). Its optional `fuzzy`
   prefix classifies repair names, not probe ids (`landing.md`, 7.3).
@@ -269,16 +269,16 @@ sections 2 and 4). The policy's types it adds are section 10's.
 
 - **Settings:** a gate's `artifact` and `format` in the document's
   `landing` member (`../protocol/configuration/engine.md`), as kind 5's
-  until it is a setting (`landing.md`, 13.1).
-- **Adoption** under `turn` (`landing.md`, 13.2): for a gate with a
+  until it is a setting (`landing-settings.md`, 1.1).
+- **Adoption** under `turn` (`landing-settings.md`, 1.2): for a gate with a
   report, whether its workflow declares `temper_tests`, or says
   otherwise in words: a workflow that does not runs its probes whole,
   since Forgejo passes a workflow only the inputs it declares
   (`landing-search.md`, 3).
 - **The store,** in the registered family `temper-store`
   (`../protocol/store.md`, section 2): fields added in place with their
-  defaults, no version moved and no patch (`../protocol/baseline.md`,
-  7):
+  defaults, no version moved and no patch (`../protocol/floor.md`,
+  6):
   - a gate's failed receipt keeps its `failures`, ids or many, which
     the `Receipt` row holds already for tiers;
   - the round's search keeps how it probes (whole, by test, or whole

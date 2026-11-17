@@ -9,7 +9,6 @@ publish.workspace = true
 
 [dependencies]
 temper-protocol-store-codec.workspace = true
-temper-protocol-store-patches.workspace = true
 temper-protocol-records.workspace = true
 temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true
@@ -30,6 +29,7 @@ temper-engine-domain-forge-issues.workspace = true
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 jig-protocol-config.workspace = true
 skein-fake-machine.workspace = true
 skein-io.workspace = true

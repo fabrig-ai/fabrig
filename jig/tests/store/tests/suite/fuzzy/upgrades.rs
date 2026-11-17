@@ -1,4 +1,4 @@
-use crate::upgrades::{check, frames, patching};
+use crate::upgrades::{check, frames, patching, rehearsal};
 use jig_store_world::patches;
 
 #[test]
@@ -18,9 +18,9 @@ fn drop_copy_and_switch_recover_after_every_mutation() {
 fn cuts_across_check_and_switch_recover_whole_maps() {
     let records = patches::Records::story();
     let mut complete = records.committed(check::SEED, patches::BASE);
-    complete.patch_sets(patches::SETS);
+    complete.owner_sets(patches::SETS);
     complete.trace_writes();
-    complete.open_switched().expect("complete patch to enumerate its cuts");
+    complete.open_switched().expect("complete job upgrade to enumerate its cuts");
     let (first, after_switch, _) = check::seal_and_switch(&complete);
     let mut source_opened = false;
     let mut switched = false;
@@ -31,6 +31,20 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
         switched |= !source_active;
     }
     assert!(source_opened && switched, "cuts reached each whole generation");
+}
+
+#[test]
+fn every_wires_commit_cut_keeps_back_open_or_refuses_as_committed() {
+    let (first, sync) = rehearsal::wires_commit_cuts();
+    let mut lost = false;
+    let mut durable = false;
+    for cut in first..=sync + 1 {
+        let outcome = rehearsal::a_wires_cut_recovers(cut);
+        eprintln!("wires cut {cut}: {outcome:?}");
+        lost |= outcome == rehearsal::WiresOutcome::Lost;
+        durable |= outcome == rehearsal::WiresOutcome::Durable;
+    }
+    assert!(lost && durable, "sweep reached both a lost and a durable wires commit");
 }
 
 #[test]

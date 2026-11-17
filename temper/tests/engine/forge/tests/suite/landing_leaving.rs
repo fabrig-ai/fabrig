@@ -133,7 +133,7 @@ fn a_held_member_leaves_and_keeps_its_place_ahead_of_a_later_waiter() {
             dependencies: Box::new([]),
             held: Box::new([CHANGE]),
             failure: Box::new([]),
-            preparation: landing::Preparation::Idle,
+            preparation: Some(landing::Preparation::Idle),
             kept: Box::new([]),
             released: false,
             cancelled: false,
@@ -301,6 +301,11 @@ fn a_run_past_the_projects_timeout_holds_naming_its_run() {
                 break;
             }
         }
+        if waiting {
+            assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Proving);
+            world.run_for(240);
+            assert!(matches!(landings::step_landing(&mut world, LANDING, 240), landing::Decision::Hold(_)));
+        }
         let landing::Phase::Held { why: landing::Hold::Timeout { run, .. }, .. } = world.landing(LANDING).landing.phase
         else {
             panic!("timeout hold: {:?}", world.landing(LANDING))
@@ -310,11 +315,12 @@ fn a_run_past_the_projects_timeout_holds_naming_its_run() {
             world.landing_hold_words(LANDING).as_deref(),
             Some(
                 format!(
-                    "gate gate of org/repo: run {run} running past its bound{}",
+                    "gate gate of org/repo: run {run} {} past its bound; {}",
+                    if waiting { "waiting for a runner" } else { "running" },
                     if waiting {
-                        "; test: waiting for a runner labelled docker"
+                        "test: waiting for a runner labelled docker"
                     } else {
-                        "; test: running at step 1, test; lint: running at step 1, lint"
+                        "test: running at step 1, test; lint: running at step 1, lint"
                     }
                 )
                 .as_bytes()
@@ -352,7 +358,7 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                     dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
-                    preparation: landing::Preparation::Idle,
+                    preparation: Some(landing::Preparation::Idle),
                     kept: Box::new([]),
                     released: false,
                     cancelled: false,
@@ -386,7 +392,7 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: landing::Preparation::Idle,
+                preparation: Some(landing::Preparation::Idle),
                 kept: Box::new([]),
                 released: true,
                 cancelled: false,

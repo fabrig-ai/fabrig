@@ -43,18 +43,22 @@ acts on it as its document offers (4).
   those parts around its log, in the same order.
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
-  after an arrow; then the task itself, "Task M" and its title. With no
+  after an arrow; then the task itself, "Task M" and its title, each
+  title cut past 80 characters (`README.md`, 2, *A task's title on a
+  line*). With no
   lineage supplied, the parent is its requester's "Task N" link when a
   task asked it, and there is none otherwise. The arrow and the slash
   between them are the look's.
 - **The taskbar:** its level-1 heading "TN ·
-  TITLE", as a chat's; its state, in `goal.md`, 2's words, from the same
+  TITLE", as a chat's, TITLE its whole first line, uncut; its state, in `goal.md`, 2's words, from the same
   function (`pages::task::header_state`), with its status token; then
   its executor, "Agent", and its own spend, "N spent", its `budget.spent`
   as a plan row's (`goal.md`, 2); on a closed task, then what it ran on (`chat/composer.md`, 1, *The
   work's account and model*).
 - **"Task brief":** a region, the mockup's "TASK BRIEF", whose capitals
-  are the look's: its specification as written (`spec`, read as Markdown); who asked, in `goal.md`, 2's words ("Asked by
+  are the look's: its specification as written (`spec`, read as
+  Markdown), left out where its words are only the title the taskbar
+  draws (`README.md`, 2, *A task's words after its title*); who asked, in `goal.md`, 2's words ("Asked by
   task N"); then its dependency line, as a plan row's (`goal.md`, 2): the list
   "Dependencies of task N", one item per dependency of its document
   (`dependencies`), in order, keyed by its task, with its "Task M"

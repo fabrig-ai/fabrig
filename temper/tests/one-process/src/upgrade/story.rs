@@ -1,18 +1,18 @@
-//! History through a fresh-window start (temper/docs/design/testing/README.md, 2.5).
+//! History through a registry and job upgrade (temper/docs/design/testing/README.md, 2.5).
 mod cuts;
 mod history;
 mod image;
 mod judge;
 mod runner;
 mod scenario;
-use super::{FIXTURE_SETS, maps::Maps};
+use super::{CURRENT_SETS, first_sets, maps::Maps};
 use crate::{
     ctl, fixtures, golden, referee, stories,
     world::{self, HarnessProcess, Person, ServiceObserver, Story},
 };
 use history::history;
 use jig_domain_core::{CoreRecord, Record};
-pub use runner::{drawn_power_loss, power_loss, settled, unsettled};
+pub use runner::{drawn_power_loss, power_loss, settled, settled_image, unsettled};
 use scenario::{continued, forge_peer, mutations, provider};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::{Time, Wall};
@@ -29,8 +29,8 @@ type Proc = programs::Process<Upgrade>;
 impl Harness for Upgrade {
     type Service = Observer;
     type Process = HarnessProcess;
-    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
-        Some(STATE.with(|s| if s.borrow().upgrade { FIXTURE_SETS } else { temper_engine_service::store::PATCH_SETS }))
+    fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
+        Some(STATE.with(|s| if s.borrow().upgrade { CURRENT_SETS } else { first_sets() }))
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
@@ -43,6 +43,11 @@ impl Harness for Upgrade {
     }
     fn files() -> temper_service::settings::Files {
         fixtures::files()
+    }
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, _: &serde_json::Value) {
+        // The history world holds the playground reset while its work is inspected.
+        engine.acts = Box::new([]);
+        engine.limits.core.people.act_grants = 0;
     }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         let temper_service::stock::Given::Own { mut jig, forge, ways } = temper_playground::documents::given(document)
@@ -66,6 +71,9 @@ impl Harness for Upgrade {
 struct State {
     upgrade: bool,
     before: Option<Maps>,
+    before_files: std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    seal_cut: bool,
+    ran: Vec<u32>,
     checked: bool,
     starts: u32,
     issue: bool,
@@ -85,6 +93,8 @@ struct State {
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
+    capture_image: bool,
+    forge_image: Option<Box<[u8]>>,
     kill_told: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
@@ -99,6 +109,14 @@ impl Observe for Observer {
             s.starts += 1;
             s.epoch += 1;
             if s.epoch > 1 {
+                if s.seal_cut {
+                    assert_eq!(s.ran, [1], "the cut follows the job's last page");
+                    assert!(s.points.seal.is_some(), "seal completed before the cut");
+                    let mut disk = s.disk.as_ref().expect("disk").borrow_mut();
+                    let before = s.before.as_ref().expect("source generation");
+                    assert_eq!(Maps::read(&mut disk), *before, "seal cut leaves the source active and unchanged");
+                    image::unchanged(&s.before_files, &mut disk, before.active);
+                }
                 STORE.with(|store| {
                     let store = store.borrow();
                     let mut store = store.as_ref().expect("store").borrow_mut();
@@ -127,6 +145,20 @@ impl Observe for Observer {
         self.inner.complete(complete, service)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: Wall) -> bool {
+        for note in service.notes().iter() {
+            if let temper_service::Note::Engine(temper_engine_service::Note::Ran { of, job, .. }) = note {
+                assert_eq!(
+                    (*of, job.as_ref()),
+                    (jig_protocol_store::Owner::Application, crate::upgrade::JOB),
+                    "only the omitted production job runs"
+                );
+                STATE.with(|s| {
+                    let mut s = s.borrow_mut();
+                    let epoch = s.epoch;
+                    s.ran.push(epoch);
+                });
+            }
+        }
         let pending = self.inner.before_iterate(service, now, wall);
         STATE.with(|state| {
             let mut state = state.borrow_mut();
@@ -152,6 +184,11 @@ impl Observe for Observer {
                     let before = state.before.as_ref().expect("stop snapshot");
                     let source = Maps::generation(&mut state.disk.as_ref().expect("disk").borrow_mut(), before.active);
                     assert_eq!(&source, before, "patching the copy leaves its source generation untouched");
+                    image::unchanged(
+                        &state.before_files,
+                        &mut state.disk.as_ref().expect("disk").borrow_mut(),
+                        before.active,
+                    );
                     history(before, &after);
                     state.points.wires.get_or_insert(self.inner.submitted);
                     state.checked = true;

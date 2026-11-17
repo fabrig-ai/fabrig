@@ -96,6 +96,7 @@ fn select(d: &Domain, next: &mut Option<(u64, Waiter)>, order: u64, waiter: Wait
         return;
     }
     let held = match waiter {
+        Waiter::Landing(_) if d.landing.held => true,
         Waiter::Landing(task) => match d.landing.rows.get(&task) {
             Some(row) => match row.landing.phase {
                 Phase::Held { .. } => true,

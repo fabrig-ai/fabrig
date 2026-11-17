@@ -214,7 +214,7 @@ part:
   deciding; an irrelevant hint adds no restart. Gate results, task
   dependencies and queue changes keep their existing wake routes. Each
   decision still uses the rules held then (`change/gates.md`, 2, and `change/README.md`, 5, and `change/gates.md`, 3); hints do not replace
-  polling, settling or stall deadlines (`change/gates.md`, section 1 and `change/repairs.md` and `queues.md`).
+  polling, settling or stall deadlines (`change/gates.md`, section 1 and `change/stalls.md` and `queues.md`).
 - **temper's own polls fall back too.** A landing's or a tier's flight
   polling its runs in flight (`../landing.md`, 7.1; `../after-landing.md`,
   section 3), a landing waiting on a fact it lacks (`../landing.md`, 5.2)
@@ -391,7 +391,7 @@ for it, never a read of another kind or another party's.
   names one as required keeps it. They fold to one verdict: failed
   when any of them failed; else pending when any is pending or a
   required context has no row; else passed when any is there; else
-  unknown, which the change waits on as pending (`change/repairs.md`, stalls). The
+  unknown, which the change waits on as pending (`change/stalls.md`, 2). The
   head's, the base tip's and the CI a topic publishes (`README.md`, 5.1) are read
   and folded alike, on every forge: on Forgejo the checks are
   its statuses, each context's latest, so its CI reads as before.
@@ -467,7 +467,7 @@ back. The forge stays connected throughout: connected is its access
   is set back by an answer. Meanwhile the change, the landing, the
   goal's branch or the lost writer whose read it is stays where it was:
   no `ResourceUnavailable` or `EffectFailed` hold is made for it, and
-  the wait counts toward no stall (`change/repairs.md`). A refusal for its inputs
+  the wait counts toward no stall (`change/stalls.md`, 1). A refusal for its inputs
   (`TooLarge`, `Forbidden`, `Refused`) and `Missing` keep their own
   rules.
 - **Writes are never sent blind.** One the client holds uncertain is

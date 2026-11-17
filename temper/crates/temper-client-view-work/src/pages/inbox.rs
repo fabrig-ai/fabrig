@@ -151,7 +151,20 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
     project_filter(b, root, filter, words, bindings);
     b.open(Role::Disclosure);
     b.style(look::KIND_MENU);
+    let milestone = match root.pages().inbox() {
+        Some(inbox) => match &inbox.goal {
+            Some(read) => match &read.document {
+                Some(task) if temper_client_domain::milestones::is(&task.chip) => Some(task.chip.title.bytes()),
+                Some(_) | None => None,
+            },
+            None => None,
+        },
+        None => None,
+    };
     let chosen = match filter.goal {
+        Some(_) if milestone.is_some() => {
+            words.say(Word::MilestoneFilter, &[Hole::Name(milestone.expect("milestone title").into())])
+        }
         Some(goal) => words.say(
             Word::ModelEffort,
             &[Hole::Name(words.say(Word::Goal, &[])), Hole::Name(words.say(Word::TaskWho, &[Hole::Number(goal)]))],
@@ -297,6 +310,14 @@ fn entry(
             b.run(Run::Plain, " › ".as_bytes());
             b.close();
         }
+        if let Some(task) = card.document()
+            && let Some(lineage) = temper_client_domain::milestones::lineage(task)
+        {
+            b.open(Role::Text);
+            b.run(Run::Plain, &crate::common::chat::row_title(lineage.milestone.title.bytes()));
+            b.run(Run::Plain, " › ".as_bytes());
+            b.close();
+        }
         if let Some(task) = source_task(card.object) {
             control(
                 b,
@@ -311,7 +332,7 @@ fn entry(
         {
             b.open(Role::Text);
             b.run(Run::Plain, b" ");
-            b.run(Run::Plain, title);
+            b.run(Run::Plain, &crate::common::chat::row_title(title));
             b.close();
         }
         b.close();
@@ -451,8 +472,9 @@ fn has_facts(page: &ReadValue) -> bool {
 fn title(b: &mut Builder, value: &[u8]) {
     b.open(Role::Heading { level: 3 });
     b.style(look::TITLE);
-    b.name(value);
-    b.text(Run::Plain, value);
+    let value = crate::common::chat::row_title(value);
+    b.name(&value);
+    b.text(Run::Plain, &value);
     b.close();
 }
 fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
@@ -466,16 +488,16 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
 
         ReadValue::Escalation(held) => {
             title(b, held.task.chip.title.bytes());
-            crate::cards::specification(b, &held.task.spec, words);
+            crate::cards::specification_after_title(b, &held.task.spec, words);
         }
 
         ReadValue::PersonTask(task) => {
             title(b, task.task.title.bytes());
-            crate::cards::specification(b, &task.spec, words);
+            crate::cards::specification_after_title(b, &task.spec, words);
         }
         ReadValue::Task(task) => {
             title(b, task.chip.title.bytes());
-            crate::cards::specification(b, &task.spec, words);
+            crate::cards::specification_after_title(b, &task.spec, words);
         }
         ReadValue::Ended(_)
         | ReadValue::Result(_)
@@ -645,7 +667,7 @@ fn update_body(b: &mut Builder, card: &Card, page: &ReadValue, words: &Words, bi
     let task = words.say(Word::TaskWho, &[Hole::Number(chip.task)]);
     b.open(Role::Heading { level: 3 });
     b.style(look::TITLE);
-    let name = words.say(word, &[Hole::Name(task), Hole::Name(skein_lib::bytes::copy_of(chip.title.bytes()))]);
+    let name = words.say(word, &[Hole::Name(task), Hole::Name(crate::common::chat::row_title(chip.title.bytes()))]);
     b.name(&name);
     control(b, bindings, Role::Link, &name, update_act(card, chip.task));
     b.close();

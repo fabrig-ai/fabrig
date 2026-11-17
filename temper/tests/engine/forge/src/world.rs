@@ -105,6 +105,8 @@ pub const LIMITS: top::Limits = top::Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -125,6 +127,7 @@ mod follows;
 mod history_reads;
 
 struct ReadScript {
+    branch_error: Option<(Box<[u8]>, skein_forge::api::Error)>,
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
     files_excess: Option<skein_forge::api::Excess>,
@@ -230,6 +233,7 @@ impl World {
             config,
             None,
             4,
+            None,
         )
     }
     /// Three simultaneous trains, with one spare branch per prepared member.
@@ -251,6 +255,7 @@ impl World {
             config,
             None,
             4,
+            None,
         );
         world.env.limits.landings = 3;
         world.restart();
@@ -279,6 +284,7 @@ impl World {
             config,
             None,
             5,
+            None,
         )
     }
     /// Enable the owned repository's manual-merge detection for a turn.
@@ -484,6 +490,7 @@ impl World {
             fake_config(),
             Some(passes),
             LIMITS.landing_members,
+            None,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -544,6 +551,27 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
+        )
+    }
+
+    /// Judge head checks by a cue in the repository's checked tree.
+    #[must_use]
+    pub fn with_check_cue(seed: u64, cue: raw::Cue) -> World {
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            false,
+            None,
+            fake_config(),
+            None,
+            LIMITS.landing_members,
+            Some(cue),
         )
     }
 
@@ -567,6 +595,7 @@ impl World {
             config,
             None,
             LIMITS.landing_members,
+            None,
         )
     }
 
@@ -591,6 +620,10 @@ impl World {
         skein_forge_client::measure::answer_rows(&answer, self.env.limits.client.rows)
             && skein_forge::measure::answer(&answer).expect("bounded comparison")
                 <= u64::from(self.env.limits.client.answer_bytes)
+    }
+
+    pub fn script_branch_error(&mut self, branch: &[u8], error: Option<skein_forge::api::Error>) {
+        self.read_script.branch_error = error.map(|error| (branch.into(), error));
     }
 
     /// Script each ancestry range's terminal result until the script is cleared.
@@ -656,6 +689,7 @@ impl World {
             fake_config(),
             None,
             LIMITS.landing_members,
+            None,
         )
     }
     #[expect(
@@ -676,6 +710,7 @@ impl World {
         config: forge::Config,
         passes: Option<u32>,
         members: u32,
+        cue: Option<raw::Cue>,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
@@ -712,7 +747,7 @@ impl World {
                     silent: 0,
                     passes: passes.unwrap_or(1000),
                     reruns: 0,
-                    cue: None,
+                    cue,
                 },
                 protection,
                 hooked,
@@ -773,6 +808,7 @@ impl World {
             pull_snapshot: None,
             held_compares: None,
             read_script: ReadScript {
+                branch_error: None,
                 ancestry: None,
                 comparisons_too_large: false,
                 files_excess: None,
@@ -936,6 +972,7 @@ impl World {
             repository_config(2),
             None,
             LIMITS.landing_members,
+            None,
         );
         forge::repository(
             &mut world.forge,
@@ -1052,6 +1089,10 @@ impl World {
 
     /// Set the project's CI rule for a landing branch through durable settings.
     pub fn landing_ci(&mut self, branch: &[u8], required: bool) {
+        self.landing_requirements(branch, required, false);
+    }
+
+    pub fn landing_requirements(&mut self, branch: &[u8], ci: bool, up_to_date: bool) {
         let item = top::settings::Asked {
             kind: top::settings::Kind::ProjectRules.number(),
             scope: 5,
@@ -1067,8 +1108,8 @@ impl World {
                         last: top::GateLast::Exact(branch.into()),
                     },
                     enforce: true,
-                    ci: required,
-                    up_to_date: false,
+                    ci,
+                    up_to_date,
                     gates: Box::new([]),
                     approvals: Box::new([]),
                 }),
@@ -1622,6 +1663,23 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::ChoosePlace { request, kind, .. } => {
+                    let port = match kind {
+                        top::BoxKind::Owned => 8372,
+                        top::BoxKind::Fake => 8369,
+                    };
+                    let place = top::Place {
+                        api: top::Address { host: b"127.0.0.1".as_slice().into(), port, tls: None },
+                        git: format!("http://127.0.0.1:{port}").into_bytes().into_boxed_slice(),
+                        web: None,
+                    };
+                    top::step(
+                        &mut self.top,
+                        &self.env,
+                        top::Event::PlaceChosen { request, place: Some(place), git_program: None },
+                        &mut self.top_out,
+                    );
+                }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {
                     self.seen.push(page).expect("world output room");
@@ -1835,6 +1893,11 @@ impl World {
         op: &skein_forge::api::Op,
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch })
+                if self.read_script.branch_error.as_ref().is_some_and(|(named, _)| named == branch) =>
+            {
+                Some(Err(self.read_script.branch_error.as_ref().expect("scripted branch error").1))
+            }
             skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { page, .. })
                 if self.read_script.files_excess.is_some()
                     && self.read_script.files_page.is_none_or(|refused| refused == *page) =>
@@ -2026,6 +2089,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Finding(row) => top::Key::Finding { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
+        top::Stored::Milestone(row) => top::Key::Milestone(row.task),
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

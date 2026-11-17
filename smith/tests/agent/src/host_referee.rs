@@ -133,7 +133,7 @@ impl History {
             }
             run::HostReply::Unanswered(_) | run::HostReply::Withdrawn => self.uncertain = true,
             run::HostReply::TooLarge => self.reported_too_large = true,
-            run::HostReply::Busy => {}
+            run::HostReply::Busy | run::HostReply::Unsent => {}
         }
         self.live = None;
         self.previous_terminal = Some(at);

@@ -1,4 +1,6 @@
 //! Work's head, filters and cards (temper/docs/design/client/pages/README.md; client/web/look.md).
+mod milestone;
+
 use crate::{
     bindings::Bindings,
     look,
@@ -95,7 +97,13 @@ pub(crate) fn head(
     if let Some(placed) = &placed {
         text(b, Role::Heading { level: 1 }, look::WORK_HEADLINE, &heading(placed, words));
     }
-    text(b, Role::Paragraph, look::WORK_LEDE, &words.say(Word::WorkLede, &[Hole::Name(name)]));
+    let mut lede = Word::WorkLede;
+    if let Some(milestones) = root.pages().milestones()
+        && !milestones.lines().is_empty()
+    {
+        lede = Word::WorkMilestoneLede;
+    }
+    text(b, Role::Paragraph, look::WORK_LEDE, &words.say(lede, &[Hole::Name(name)]));
     if let Some(page) = root.pages().changes() {
         match page.state() {
             State::Shown(panel) => {
@@ -258,6 +266,7 @@ fn card_view(
     b.open(Role::Slot);
     b.style(look::WORK_CARD);
     match card.item {
+        Item::Milestone(task) => milestone::card(b, root, words, bindings, times, task, card),
         Item::Goal(task) => goal(b, root, words, bindings, project, task),
         Item::Change(task) => change(b, root, words, bindings, task),
         Item::Chat(task) => chat(b, root, words, bindings, times, task, false),
@@ -268,7 +277,7 @@ fn card_view(
         b.open(Role::List);
         b.style(look::WORK_ROWS);
         for row in &card.changes {
-            change_row(b, root, words, bindings, times, row);
+            change_row(b, root, words, bindings, times, row, look::WORK_ROW);
         }
         b.close();
     }
@@ -321,7 +330,8 @@ fn goal(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             report.is_some(),
             line.delegates_total,
         );
-        text(b, Role::Paragraph, look::WORK_QUOTE, &super::goals::headline(words, line, state, report));
+        let names = super::goals::Names::of(root);
+        text(b, Role::Paragraph, look::WORK_QUOTE, &super::goals::headline(words, line, state, report, &names));
         if line.delegates_total > 0 {
             let label = words.say(
                 Word::GoalCount,
@@ -393,6 +403,7 @@ fn chat(
     let Some(page) = root.pages().chats() else { return };
     let Some(line) = chat_line(root, task) else { return };
     if draft {
+        let title = crate::common::chat::row_title(line.chip.title.bytes());
         from(b, words, Word::WorkDraftTag, look::WORK_PERSON);
         if let Some(document) = page.documents.get(&task) {
             let name = words.say(
@@ -404,17 +415,21 @@ fn chat(
         separated(b, words, &words.say(Word::WorkAChatWithYou, &[]));
         separated(b, words, &times.say(words, TimeForm::Clock, line.last_activity));
         b.close();
-        text(b, Role::Paragraph, look::WORK_QUOTE, line.chip.title.bytes());
+        text(b, Role::Paragraph, look::WORK_QUOTE, &title);
         link(b, words, bindings, &words.say(Word::WorkOpenDraft, &[]), Address::Chat { task });
         b.close();
     } else {
         // The chat list carries no creation time; activity and phase times do not name its start.
-        let label = crate::accounts::words::join(&[
-            &words.say(Word::WorkWithYou, &[]),
-            &words.say(Word::ToolSeparator, &[]),
-            &words.say(Word::WorkChatTitle, &[Hole::Name(line.chip.title.bytes().into())]),
-        ]);
-        linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
+        linked_from(
+            b,
+            words,
+            bindings,
+            Word::WorkChatTag,
+            look::WORK_PERSON,
+            line.chip.title.bytes(),
+            Address::Chat { task },
+            &[],
+        );
     }
 }
 fn landed_draft(
@@ -444,7 +459,7 @@ fn landed_draft(
     );
     b.close();
     if !row.title().is_empty() {
-        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+        text(b, Role::Paragraph, look::WORK_QUOTE, &crate::common::chat::row_title(row.title()));
     }
     let Some(me) = root.pages().me(root.client()) else { return };
     let ways = super::goals::ways(me, project, words);
@@ -555,6 +570,7 @@ fn change_row(
     bindings: &mut Bindings,
     times: &mut Times,
     row: &work::Row,
+    style: Style,
 ) {
     let task = row.task;
     let Some(panel) = panel(root) else { return };
@@ -563,12 +579,22 @@ fn change_row(
             && flight.member() == task
         {
             let status = super::change::say(words, super::changes::step_word(flight.step()), &[]);
-            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status, None);
+            work_row(b, words, bindings, task, b"\xc2\xb7", flight.title(), &status, None, style);
             return;
         }
         for (index, row) in queue.changes().iter().enumerate() {
             if row.task() == task {
-                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_label(queue, index, words), None);
+                work_row(
+                    b,
+                    words,
+                    bindings,
+                    task,
+                    b"\xc2\xb7",
+                    row.title(),
+                    &queue_label(queue, index, words),
+                    None,
+                    style,
+                );
                 return;
             }
         }
@@ -577,7 +603,7 @@ fn change_row(
         if change.task() == task {
             let when = words
                 .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at())))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref());
+            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref(), style);
             return;
         }
     }
@@ -602,7 +628,9 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
                 (goal, title)
             }
             Item::Change(task) => (task, change.title()),
-            Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => unreachable!("landed rows are goals or changes"),
+            Item::Milestone(_) | Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => {
+                unreachable!("landed rows are goals or changes")
+            }
         };
         let commit = crate::public::short(&row.commit);
         let status = match origin {
@@ -619,12 +647,13 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
             )
             | None => commit.as_slice().into(),
         };
-        work_row(b, words, bindings, task, &when, title, &status, row.signed.as_deref());
+        let byline = milestone::byline(words, row);
+        work_row(b, words, bindings, task, &when, title, &status, byline.as_deref(), look::WORK_ROW);
         return;
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "a work row carries its title, status and optional signers")]
+#[expect(clippy::too_many_arguments, reason = "a row carries its mark, link, status, byline and row token")]
 pub(crate) fn work_row(
     b: &mut Builder,
     words: &Words,
@@ -633,20 +662,31 @@ pub(crate) fn work_row(
     mark: &[u8],
     title: &[u8],
     status: &[u8],
-    signed: Option<&[u8]>,
+    byline: Option<&[u8]>,
+    style: Style,
 ) {
     b.open(Role::Item);
     b.style(look::WORK_ROW);
-    text(b, Role::Paragraph, look::WORK_MONO, mark);
+    if style != look::WORK_ROW {
+        b.style(style);
+    }
     b.open(Role::Paragraph);
-    link(b, words, bindings, title, Address::Task { task });
+    b.style(look::WORK_MONO);
+    if style != look::WORK_ROW {
+        b.style(look::MS_MARK);
+    }
+    b.name(mark);
+    b.text(Run::Plain, mark);
     b.close();
-    if let Some(signed) = signed {
+    b.open(Role::Paragraph);
+    link(b, words, bindings, &crate::common::chat::row_title(title), Address::Task { task });
+    b.close();
+    if let Some(byline) = byline {
         text(
             b,
             Role::Text,
             look::WORK_BYLINE,
-            &crate::accounts::words::join(&[&words.say(Word::ToolSeparator, &[]), signed]),
+            &crate::accounts::words::join(&[&words.say(Word::ToolSeparator, &[]), byline]),
         );
     }
     b.close();
@@ -683,7 +723,8 @@ fn goal_way(root: &Domain, project: u32, label: u32, words: &Words) -> Option<Bo
             continue;
         }
         for template in &member.templates {
-            if template.tracked.is_some() && template.label == label {
+            if template.tracked.is_some() && template.flags.ended_by != c::EndedBy::Requester && template.label == label
+            {
                 return Some(super::goals::way_name(template.name.bytes(), words));
             }
         }
@@ -702,10 +743,20 @@ fn linked_from(
     address: Address,
     parts: &[Box<[u8]>],
 ) {
+    let title = crate::common::chat::row_title(title);
+    let title = if tag == Word::WorkChatTag {
+        crate::accounts::words::join(&[
+            &words.say(Word::WorkWithYou, &[]),
+            &words.say(Word::ToolSeparator, &[]),
+            &words.say(Word::WorkChatTitle, &[Hole::Name(title)]),
+        ])
+    } else {
+        title
+    };
     match words.shell {
         Shell::Browser => {
             from(b, words, tag, style);
-            link(b, words, bindings, title, address);
+            link(b, words, bindings, &title, address);
             b.close();
             for part in parts {
                 separated(b, words, part);
@@ -713,7 +764,12 @@ fn linked_from(
             b.close();
         }
         Shell::Terminal => {
-            let mut label = crate::accounts::words::join(&[&words.say(tag, &[]), b" ", title]);
+            let prefix = if tag == Word::MsTag {
+                words.say(Word::MsTagTerminal, &[])
+            } else {
+                crate::accounts::words::join(&[&words.say(tag, &[]), b" "])
+            };
+            let mut label = crate::accounts::words::join(&[&prefix, &title]);
             for part in parts {
                 label = crate::accounts::words::join(&[&label, &words.say(Word::ToolSeparator, &[]), part]);
             }

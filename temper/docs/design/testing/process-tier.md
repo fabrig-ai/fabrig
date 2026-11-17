@@ -232,7 +232,9 @@
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
-  `temper-worker` and `temper-agent`, and nine free ports; the
+  `temper-worker` and `temper-agent`, a fixture bundle as its
+  `bundle/`, which every walk and session there is given as `--bundle`
+  (`qa/deployment.md`, 2), and nine free ports; the
   catalogue's `turn-landing` walked there from a fresh place by the
   copied `temper-client-journeys recipe walk` (`../client/recipe.md`,
   5.1; `qa/setups.md`, 5), its engine, worker and agent started from the
@@ -243,11 +245,13 @@
   and removed, then unpacked again, as a place restores a copy
   (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; the
   setup's check walked again from that copy (`--from turn-landing`), and
-  a drive session (`--deployment`) opened on it. ctl reads the project,
+  a ctl drive session (`--ctl --deployment`) opened on it, so that the
+  story needs no Chromium. ctl reads the project,
   its forge, its repository and its landing by `turn` as they were; the
   fake Forgejo's API reads `work/hello` and its gate workflow as they
-  were; the engine's store opened by the newer build, patched forward
-  where it has a patch, refused by name where it has none; every
+  were; the engine's store opened by the newer build, converted at
+  read by its registry and upgraded by pending registrations and jobs,
+  or refused by name when below the floor (`../protocol/floor.md`, 4); every
   process of the deployment, read once ctl has signed in, runs a file of
   the new `bin/`, by device and inode, none an old or deleted file, and
   none a Forgejo or a runner; no stdout or log of the story holds the
@@ -255,16 +259,17 @@
   stops, so it is this profile's, written and compiled in Q6 and run
   after landing.
 
-- **The upgrade's commands,** through the real binary, whose patch sets
-  are empty until the first release: `temper-box versions`' lines; `temper-box
-  upgrade --check` over a stopped deployment's copy, saying the restores
-  pass, nothing patched, the workers may stay, the copy left as it was;
-  `temper-box upgrade --back` refused, with no previous generation, in its
-  words; and a start's exit and words when the store refuses. The drill
-  with a binary that patches, stop, start the new one, go back, with an
-  owned Forgejo's migration, waits for a release to pair with
-  (`../draft/upgrades.md`, section 13); the one-process world runs its
-  steps on fixture sets until then (`README.md`, 2.5).
+- **The upgrade's commands,** through the real binary and its production
+  owner sets: `temper-box versions`' levels and version lines;
+  `temper-box upgrade --check` over a stopped deployment's copy,
+  reporting the registry commit, jobs and restores and whether workers
+  may stay, with the source unchanged; `temper-box upgrade --back`
+  refused with no previous generation, in its words; and a start's
+  exit and words when the store refuses. The one-process world's
+  registry-and-job fixture checks a pending upgrade, a failed start
+  before the wires' commit and going back (`README.md`, 2.5). A drill
+  with two released builds and an owned Forgejo's migration needs
+  that pair of builds (`../draft/upgrades.md`, section 13).
 
 - **What runs:**
   - the real `temper-box` binary: `temper-box forge prepare`, `temper-box forge run`
@@ -392,8 +397,8 @@
   and about 0.5 s is temper's part; being past its aim, it waits on the
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
-- **The throwaway Forgejo** is the one in skein's `testing/fakes/forge.md`,
-  section 6, never an existing Forgejo: temper's `temper-git-transcripts`
+- **The throwaway Forgejo** is the one in skein's `testing/fakes/throwaway.md`,
+  section 1, never an existing Forgejo: temper's `temper-git-transcripts`
   records real git against it (../protocol/git.md, section 9). temper's
   users give it the binaries `TEMPER_TEST_FORGEJO` and
   `TEMPER_TEST_FORGEJO_RUNNER` name, and refuse to run without
@@ -595,8 +600,8 @@
   - **A sign-in's usable model,** `suite::connect_model::a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account`:
     the account the sign-in makes reads usable from the engine, where
     before it read not.
-  - **The fake issuer's held sockets,** in the real loop (`real-loop.md`),
-    `tests/real-loop`'s `suite::sign_in::a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away`,
+  - **The fake issuer's held sockets,** in temper-fake's own tests on
+    skein's simulator (`../protocol/setup/box.md`, 5),
     on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;

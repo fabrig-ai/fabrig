@@ -707,6 +707,7 @@ impl Protocol {
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
+                | top::Request::ChoosePlace { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
@@ -930,6 +931,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Finding(row) => top::Key::Finding { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },
         top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
+        top::Stored::Milestone(row) => top::Key::Milestone(row.task),
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

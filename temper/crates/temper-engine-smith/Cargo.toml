@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-charter.workspace = true
+smith-protocol-translate.workspace = true
 temper-protocol-reaches.workspace = true
 temper-protocol-brief.workspace = true
 temper-engine-domain-ways.workspace = true
@@ -39,6 +41,10 @@ smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 
 [dev-dependencies]
+temper-engine-service-stock.workspace = true
+jig-protocol-config.workspace = true
+serde_json.workspace = true
+skein-codec.workspace = true
 skein-scratch.workspace = true
 smith-transcript.workspace = true
 temper-engine-domain-forge-landing.workspace = true

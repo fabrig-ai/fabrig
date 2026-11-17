@@ -35,16 +35,6 @@ pub(super) fn run(
     assert!(journal.record.lines.iter().all(|line| line.line.starts_with("temper-redeploy run: ")));
     (outcome, journal.record)
 }
-pub(super) fn grace(hosts: &mut Deployment, index: usize, ms: u64) {
-    hosts.documents[index] = output(
-        0,
-        &serde_json::json!({"workers": [
-            {"name": "not-this-worker", "graces": {"grace_ms": 1}},
-            {"name": hosts.description.workers[index].name, "graces": {"grace_ms": ms}}
-        ]})
-        .to_string(),
-    );
-}
 fn staged(count: usize) -> Deployment {
     let mut hosts = Deployment::new(description(count));
     hosts.stage_all(NEW);
@@ -68,11 +58,18 @@ fn last(record: &Record) -> &str {
 }
 
 #[test]
+fn the_worker_grace_journal_needs_no_document_read() {
+    let mut hosts = staged(2);
+    hosts.documents.fill(output(1, "not a readable worker document"));
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.graces.iter().map(|grace| grace.grace_ms).collect::<Vec<_>>(), [300_000, 300_000]);
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("document ")));
+}
+
+#[test]
 fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
     let mut hosts = staged(2);
-    for index in 0..2 {
-        grace(&mut hosts, index, 300_000);
-    }
     hosts.opening(0, Opening::After { nanoseconds: 3 * SECOND, wires: WIRES.into() });
     hosts.opening(1, Opening::After { nanoseconds: 5 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
@@ -103,6 +100,118 @@ fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
     assert_eq!(hosts.lines.iter().filter(|call| call.line.starts_with("check ")).count(), 1);
     assert_eq!(record.outages, []);
     assert_eq!(record.lines.last().unwrap().line, "temper-redeploy run: done");
+}
+
+#[test]
+fn settled_stop_keeps_who_was_told_and_waits_the_largest_wait_given() {
+    let mut d = description(3);
+    for (worker, name) in d.workers.iter_mut().zip(["a", "b", "c"]) {
+        worker.name = name.into();
+    }
+    let mut hosts = Deployment::new(d);
+    hosts.stage_all(NEW);
+    for index in 0..3 {
+        hosts.opening(index, Opening::After { nanoseconds: 900 * SECOND, wires: WIRES.into() });
+    }
+    hosts.stop_logs.push_back(vec![
+        "Nov 16 host temper-engine serve: worker a told the engine restarts: wait 1200000 ms".into(),
+        "temper-engine serve: worker b not told the engine restarts: jig-worker-wire 13; it keeps its grace".into(),
+        "temper-engine serve: worker outside told the engine restarts: wait 9999999 ms".into(),
+    ]);
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(hosts.at, 901 * SECOND);
+    assert_eq!(
+        serde_json::to_value(&record.told).unwrap(),
+        serde_json::json!([
+            {"worker": "a", "wait_ms": 1_200_000},
+            {"worker": "b", "wait_ms": null},
+            {"worker": "c", "wait_ms": null}
+        ])
+    );
+    for line in [
+        "worker a told: restart wait 1200.0 s",
+        "worker b keeps its grace: not told",
+        "worker c keeps its grace: not told",
+    ] {
+        assert!(record.lines.iter().any(|kept| kept.line == format!("temper-redeploy run: {line}")), "{line}");
+    }
+    assert!(record.openings.iter().all(|opening| opening.at == 901 * SECOND));
+    let stop = position(&hosts, "stop engine");
+    assert_eq!(hosts.lines[stop + 1].line, "log engine '0'");
+    assert!(hosts.lines[stop + 2].line.starts_with("check "));
+}
+
+struct SlowStop(Deployment);
+impl Hosts for SlowStop {
+    fn run(&mut self, part: Part, line: &str) -> Output {
+        let answer = self.0.run(part, line);
+        if part == Part::Engine && line == "stop engine" {
+            self.0.sleep(4 * SECOND);
+        }
+        answer
+    }
+    fn run_each(&mut self, lines: &[(Part, String)]) -> Vec<Output> {
+        self.0.run_each(lines)
+    }
+    fn now(&mut self) -> u64 {
+        self.0.now()
+    }
+    fn sleep(&mut self, ns: u64) {
+        self.0.sleep(ns);
+    }
+}
+
+#[test]
+fn only_the_windows_stop_reads_told_since_before_the_stop_began() {
+    let mut hosts = staged(2);
+    hosts.at = 10 * SECOND;
+    hosts.log.push((8 * SECOND, "temper-engine serve: worker w2 told the engine restarts: wait 99999 ms".into()));
+    hosts.stop_logs.push_back(vec!["temper-engine serve: worker w1 told the engine restarts: wait 1200000 ms".into()]);
+    hosts.stop_logs.push_back(vec!["temper-engine serve: worker w2 told the engine restarts: wait 77777 ms".into()]);
+    hosts.check_answer(0, "workers may stay: no");
+    let d = hosts.description.clone();
+    let mut hosts = SlowStop(hosts);
+    let (outcome, record) = run(&d, &mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.told_wait_ms("w1"), Some(1_200_000));
+    assert_eq!(record.told_wait_ms("w2"), None);
+    let first = position(&hosts.0, "stop engine");
+    assert_eq!((hosts.0.lines[first + 1].at, hosts.0.lines[first + 1].line.as_str()), (14 * SECOND, "log engine '9'"));
+    let second = hosts.0.lines.iter().rposition(|call| call.line == "stop engine").unwrap();
+    assert!(!hosts.0.lines[second + 1].line.starts_with("log "));
+    assert_eq!(record.lines.iter().filter(|line| line.line.contains("keeps its grace: not told")).count(), 1);
+}
+
+#[test]
+fn unreadable_stop_log_refuses_and_restores_before_any_check_or_swap() {
+    let mut hosts = staged(2);
+    hosts.fail_line(Part::Engine, "log engine '0'", 1);
+    let d = hosts.description.clone();
+    let mut hosts = SlowStop(hosts);
+    let (outcome, record) = run(&d, &mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Refused);
+    all_old(&hosts.0);
+    assert_eq!(record.told, None);
+    assert!(hosts.0.lines.iter().all(|call| !call.line.starts_with("check ")));
+    assert!(last(&record).contains("refused: who was told: engine log"));
+    assert_eq!(record.openings.len(), 2);
+}
+
+#[test]
+fn openings_stop_at_the_longer_of_told_wait_and_grace() {
+    for (wait, bound) in [(100_000, 300), (400_000, 400)] {
+        let mut hosts = staged(1);
+        hosts
+            .stop_logs
+            .push_back(vec![format!("temper-engine serve: worker w1 told the engine restarts: wait {wait} ms")]);
+        hosts.opening(0, Opening::After { nanoseconds: (bound + 1) * SECOND, wires: WIRES.into() });
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Failed);
+        assert_eq!(hosts.at, (bound + 1) * SECOND);
+        assert_eq!(record.openings, []);
+        assert!(last(&record).contains("workers did not open within the largest wait given: w1"));
+    }
 }
 
 #[test]
@@ -225,11 +334,11 @@ fn together_drains_in_one_batch_before_the_engine_and_starts_engine_first() {
 }
 
 #[test]
-fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
+fn job_checks_back_up_at_the_seam_clock_before_any_swap() {
     let mut hosts = staged(1);
     hosts.at = 1_700_000_000 * SECOND;
     hosts
-        .check_answer(0, "temper-engine upgrade: patched generation 3\ntemper-engine upgrade: workers may stay: yes\n");
+        .check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\ntemper-engine upgrade: workers may stay: yes\n");
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
     let backup = format!("{NEW}-20231114T221320Z");
@@ -237,12 +346,36 @@ fn patched_checks_back_up_at_the_seam_clock_before_any_swap() {
     let backup_at = position(&hosts, &format!("backup '{backup}'"));
     let swap_at = hosts.lines.iter().position(|call| call.line.starts_with("swap ")).unwrap();
     assert!(backup_at < swap_at);
+    assert!(hosts.lines.iter().filter(|call| call.line.starts_with("swap ")).all(|call| call.part == Part::Engine));
+    assert!(hosts.workers.iter().all(|worker| worker.running && worker.installed.values().all(|build| build == OLD)));
+}
+
+#[test]
+fn checks_without_jobs_take_no_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: workers may stay: yes\n");
+    let (outcome, record) = execute(&mut hosts, Mode::Engine);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(record.backup, None);
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
+}
+
+#[test]
+fn job_checks_keep_the_journals_existing_backup() {
+    let mut hosts = staged(1);
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
+    let mut journal = super::journal();
+    journal.record.backup = Some("existing-backup".into());
+    let outcome = redeploy(&hosts.description.clone(), NEW, Mode::Engine, &mut journal, &mut hosts);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(journal.record.backup.as_deref(), Some("existing-backup"));
+    assert!(hosts.lines.iter().all(|call| !call.line.starts_with("backup ")));
 }
 
 #[test]
 fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
     let mut hosts = staged(2);
-    hosts.check_answer(0, "temper-engine upgrade: patched generation 3\nworkers may stay: yes");
+    hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
     hosts.opening(1, Opening::Refused { nanoseconds: SECOND, text: "temper-worker-wire too old".into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Failed);
@@ -257,15 +390,14 @@ fn an_opening_refusal_is_kept_and_failed_with_recovery_information() {
 }
 
 #[test]
-fn an_unopened_worker_waits_for_the_largest_not_smallest_grace() {
+fn an_unopened_worker_waits_for_the_constant_grace() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 1000);
-    grace(&mut hosts, 1, 4000);
+
     hosts.opening(0, Opening::Never);
     hosts.opening(1, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 5 * SECOND);
+    assert_eq!(hosts.at, 301 * SECOND);
     assert_eq!(record.openings.len(), 1);
     assert!(last(&record).contains("w1"));
 }
@@ -288,7 +420,7 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
                 Mode::Together
             }
             "backup" => {
-                hosts.check_answer(0, "upgrade: patched store\nworkers may stay: yes");
+                hosts.check_answer(0, "temper-engine upgrade: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; time unavailable\nworkers may stay: yes");
                 hosts.fail_line(Part::Engine, &format!("backup '{NEW}-19700101T000001Z'"), 1);
                 Mode::Engine
             }
@@ -317,8 +449,8 @@ fn failures_before_a_swap_restart_all_stopped_parts_without_installing_anything(
 }
 
 #[test]
-fn unreadable_versions_or_graces_refuse_before_stopping() {
-    for failure in ["version", "inconsistent", "document", "grace"] {
+fn unreadable_versions_refuse_before_stopping() {
+    for failure in ["version", "inconsistent"] {
         let mut hosts = staged(2);
         match failure {
             "version" => {
@@ -329,8 +461,6 @@ fn unreadable_versions_or_graces_refuse_before_stopping() {
                     .versions
                     .insert((Part::Engine, "/bin/temper".into()), output(0, &format!("temper 0.1.0 ({NEW})")));
             }
-            "document" => hosts.documents[1] = output(1, ""),
-            "grace" => hosts.documents[1] = output(0, "{\"workers\": []}"),
             _ => unreachable!(),
         }
         let (outcome, record) = execute(&mut hosts, Mode::Together);
@@ -384,11 +514,11 @@ fn preserving_previous_binaries_skips_only_a_matching_build_and_swaps_even_at_co
 #[test]
 fn an_old_identical_opening_in_the_overlap_does_not_open_a_restarted_worker() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 2000);
+
     hosts.opening_rounds.insert(0, [Opening::default(), Opening::Never].into());
     let (outcome, record) = execute(&mut hosts, Mode::Workers);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 3 * SECOND);
+    assert_eq!(hosts.at, 301 * SECOND);
     assert!(record.openings.iter().all(|opening| opening.worker != "w1"));
     assert!(hosts.lines.iter().all(|call| call.line != "stop w2"));
     assert!(last(&record).contains("w1"));
@@ -397,12 +527,12 @@ fn an_old_identical_opening_in_the_overlap_does_not_open_a_restarted_worker() {
 #[test]
 fn logins_share_the_opening_deadline_and_fail_before_the_next_worker() {
     let mut hosts = staged(2);
-    grace(&mut hosts, 0, 3000);
+
     hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() });
     accounts(&mut hosts, false, false);
     let (outcome, record) = execute(&mut hosts, Mode::Workers);
     assert_eq!(outcome, Outcome::Failed);
-    assert_eq!(hosts.at, 6 * SECOND, "opening and logins share w1's three seconds from its start at 3 s");
+    assert_eq!(hosts.at, 303 * SECOND, "opening and logins share the constant grace from w1's start at 3 s");
     assert!(hosts.lines.iter().all(|call| call.line != "stop w2"));
     assert!(last(&record).contains("failed at w1 logins"));
 }
@@ -440,13 +570,16 @@ fn a_second_binary_swap_failure_is_failed_not_rolled_back() {
 fn openings_and_logins_cannot_succeed_at_a_poll_past_the_bound() {
     for mode in [Mode::Engine, Mode::Workers] {
         let mut hosts = staged(1);
-        grace(&mut hosts, 0, 1500);
+        hosts.sleep_lag = 1_001_000_000;
+
         match mode {
-            Mode::Engine => hosts.opening(0, Opening::After { nanoseconds: 2 * SECOND, wires: WIRES.into() }),
+            Mode::Engine => {
+                hosts.opening(0, Opening::After { nanoseconds: 300 * SECOND + 100_000_000, wires: WIRES.into() });
+            }
             Mode::Workers => {
                 hosts.opening_rounds.insert(
                     0,
-                    [Opening::default(), Opening::After { nanoseconds: SECOND, wires: WIRES.into() }].into(),
+                    [Opening::default(), Opening::After { nanoseconds: 298 * SECOND, wires: WIRES.into() }].into(),
                 );
                 accounts(&mut hosts, false, false);
                 accounts(&mut hosts, true, false);
@@ -455,7 +588,7 @@ fn openings_and_logins_cannot_succeed_at_a_poll_past_the_bound() {
         }
         let (outcome, record) = execute(&mut hosts, mode);
         assert_eq!(outcome, Outcome::Failed, "{mode:?}: an answer after the grace cannot succeed");
-        assert_eq!(hosts.at, 3 * SECOND);
+        assert_eq!(hosts.at, 301 * SECOND + 150_000_000);
         match mode {
             Mode::Engine => {
                 assert_eq!(record.openings, []);

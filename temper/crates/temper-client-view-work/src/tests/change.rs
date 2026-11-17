@@ -611,3 +611,27 @@ fn no_ci_rule_draws_not_required_for_a_retained_pending_verdict() {
     let rows = styled(&tree, look::GATE);
     assert_eq!(f::node_text(&tree, rows[0]).as_ref(), joined(&[b"CI at its head", b"Not required"]).as_ref());
 }
+
+#[test]
+fn taking_names_the_source_and_its_kept_head_in_the_panel() {
+    let mut kept_head = [0xab; 32];
+    kept_head.get_mut(20..).unwrap().fill(0);
+    for (kept, expected) in [
+        (None, "taking docs/x"),
+        (Some(kept_head), "taking docs/x abababababababababababababababababababab"),
+        (Some([0xab; 32]), "taking docs/x abababababababababababababababababababababababababababababababab"),
+    ] {
+        let mut parts = parts(w::Step::Taking);
+        parts.source = Some(
+            w::PanelSource::new(
+                &w::CEILINGS,
+                w::PanelSourceParts { branch: b"docs/x".as_slice().into(), at: None, kept },
+            )
+            .unwrap(),
+        );
+        let tree = draw(parts);
+        assert!(contains(&tree, expected));
+        assert_eq!(styled(&tree, look::STEP_CURRENT).len(), 1);
+        assert_eq!(styled(&tree, look::STEP_DONE).len(), 0);
+    }
+}

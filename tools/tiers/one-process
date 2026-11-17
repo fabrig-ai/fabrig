@@ -17,10 +17,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path)
     parser.add_argument('--budgets', type=Path)
-    parser.add_argument('--again', type=Path, metavar='RUN_DIR')
-    parser.add_argument('profile', help='profile, or BINARY_ID with --again')
-    parser.add_argument('arguments', nargs=argparse.REMAINDER)
-    args = parser.parse_args()
+    parser.add_argument('--walls', type=Path)
+    parser.add_argument('--ledger', type=Path)
+    parser.add_argument('--gate', action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--again', type=Path, metavar='RUN_DIR')
+    mode.add_argument('--alone', type=Path, metavar='HEAD_DIR')
+    args, extra = parser.parse_known_args()
+    if args.alone is not None:
+        args.arguments = extra
+    else:
+        parser.add_argument('profile', help='profile, or BINARY_ID with --again')
+        parser.add_argument('arguments', nargs=argparse.REMAINDER)
+        args = parser.parse_args()
     runner = runpy.run_path(str(Path(__file__).with_name('run')))
     cpu = runpy.run_path(str(Path(__file__).with_name('cpu.py')))
     env = dict(os.environ)
@@ -31,9 +40,32 @@ def main():
 
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
+        if args.alone is not None:
+            for option in ('budgets', 'walls', 'ledger', 'gate'):
+                if getattr(args, option):
+                    raise ValueError(f'--{option} is not supported with --alone')
+            directory = args.out
+            if directory is not None and directory.exists():
+                raise ValueError('base run directory must be fresh')
+            with runner['hold'](prefix, 'one-process', Path.cwd(), env):
+                if directory is None:
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        target = runner['target_directory'](env)
+                    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+                    directory = target / 'tiers-one-process' / 'runs' / f'{stamp}-{os.getpid()}'
+                print(directory, flush=True)
+                one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
+                command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run', *args.arguments]
+                return one['alone_at_base'](args.alone, command, env, directory)
         if args.again is not None:
+            if args.gate:
+                raise ValueError('--gate is not supported with --again')
             if args.budgets is not None:
                 raise ValueError('--budgets is not supported with --again')
+            if args.walls is not None:
+                raise ValueError('--walls is not supported with --again')
+            if args.ledger is not None:
+                raise ValueError('--ledger is not supported with --again')
             one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
             plan = one['again_plan'](args.again, args.profile, args.arguments)
             directory = args.out
@@ -45,8 +77,17 @@ def main():
             print(directory, flush=True)
             with runner['hold'](prefix, 'one-process', Path.cwd(), env):
                 return one['again'](plan, runner['command_prefix'](env), env, directory)
+        ledger = cpu['ledger'](args.ledger) if args.ledger is not None else None
+        if ledger is not None and ledger['profile'] != args.profile:
+            raise ValueError('ledger profile does not match run')
+        if args.walls is not None:
+            one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
+            one['profile_wall'](args.walls, args.profile)
         with runner['hold'](prefix, 'one-process', Path.cwd(), env):
-            limits = cpu['budgets'](args.budgets) if args.budgets else {}
+            budget_path = args.budgets
+            if budget_path is None and Path('tools/tiers/budgets.toml').exists():
+                budget_path = Path('tools/tiers/budgets.toml')
+            limits = cpu['budgets'](budget_path) if budget_path else {}
             directory = args.out
             if directory is None:
                 with contextlib.redirect_stdout(io.StringIO()):
@@ -60,7 +101,7 @@ def main():
             command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run',
                        '--profile', args.profile, '--no-fail-fast',
                        *([] if packages else ['--workspace']), *extra]
-            code = cpu['execute_one_process'](command, env, directory, args.profile, limits)
+            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls, gate=args.gate, ledger=ledger)
             sys.stdout.flush()
             return code
     except (OSError, ValueError, KeyError, TypeError, runner['FailedStep']) as error:

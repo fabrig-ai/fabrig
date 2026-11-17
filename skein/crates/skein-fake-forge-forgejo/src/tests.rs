@@ -28,3 +28,5 @@ mod creation;
 mod migrate;
 
 mod image;
+
+mod contents;

@@ -854,7 +854,13 @@ pub(crate) fn line_key(line: &Line<'_>) -> Option<Key> {
             WordState::Sent { message } | WordState::Read { message } => (41, *message, 0),
             WordState::BeingSent => return None,
         },
-        Line::Activity { line } => (42, line.source.position, 0),
+        Line::Activity { line } => {
+            if let c::Activity::Words { message, .. } = &line.source.line {
+                (41, *message, 0)
+            } else {
+                (42, line.source.position, 0)
+            }
+        }
     };
     Some(Key { owner: look::owner(), kind, a, b })
 }

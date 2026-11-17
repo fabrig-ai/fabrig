@@ -342,3 +342,146 @@ fn shared_finding_refusal_says_full_and_context_free_owners_and_areas() {
     );
     assert_eq!(shared::finding_refusal(&words, &held).as_ref(), b"Not yours: its owner is task 41");
 }
+
+#[test]
+fn findings_reach_words_name_the_triager_and_the_work() {
+    use d::pages::needs::Why;
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Offer, Reach, Reason, Subject};
+    let w = f::browser_words();
+    let root = d::unlinked(&f::domain_limits(), f::SEED);
+    let subject = Subject::Kind(Kind::Findings);
+    let classes = Classes {
+        items: Box::new([Item { subject, words: b"small repairs".as_slice().into(), class: Class::Ask }]),
+        sets: Box::default(),
+    };
+    let reach = Reach {
+        kind: Kind::Findings,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    for (plural, expected) in [
+        (false, "Reached you because it starts work on findings, which asks you unless you’re away."),
+        (true, "These reached you because they start work on findings, which asks you unless you’re away."),
+    ] {
+        assert_eq!(
+            shared::why_words(&root, &w, &Why::Reach { project: f::PROJECT, reach }, plural).as_deref(),
+            Some(expected.as_bytes())
+        );
+    }
+    for (under, object, allowed, offer, rule) in [
+        (
+            0,
+            "starting work on findings",
+            "Allowed: starting work on findings.",
+            "Let the triager start goals for findings, then tell you.",
+            "Stop asking: let the triager start goals for findings",
+        ),
+        (
+            1,
+            "starting work on findings under “small repairs”",
+            "Allowed: starting work on findings under “small repairs”.",
+            "Let the triager start goals for findings under “small repairs”, then tell you.",
+            "Stop asking: let the triager start goals for findings under “small repairs”",
+        ),
+    ] {
+        let reach = Reach { under, ..reach };
+        assert_eq!(shared::object(&w, subject, under, Some(&classes)).as_ref(), object.as_bytes());
+        assert_eq!(
+            shared::allowed(&w, &Reach { class: Class::Decide, ..reach }, Some(&classes)).as_ref(),
+            allowed.as_bytes()
+        );
+        assert_eq!(shared::offer(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), offer.as_bytes());
+        assert_eq!(shared::rule(&w, &classes, &reach, Offer::Decide(subject)).as_ref(), rule.as_bytes());
+    }
+}
+
+#[test]
+fn delegation_headings_and_shared_lines_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        for words in [f::browser_words(), f::words()] {
+            assert_eq!(shared::delegation_line(&task, &words).title.as_ref(), cut);
+            for terminal in [false, true] {
+                let mut b = Builder::new(&f::tree_limits());
+                let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+                if terminal {
+                    crate::cards::delegation::terminal_card(&mut b, &task, &words, &mut bindings);
+                } else {
+                    crate::cards::delegation::card(&mut b, &task, &words, &mut bindings);
+                }
+                let tree = b.finish();
+                let heading = tree.nodes().iter().find(|node| node.role == Role::Heading { level: 3 }).unwrap();
+                assert_eq!(heading.name.as_deref(), Some(cut));
+                assert_eq!(f::text(&tree).windows(cut.len()).filter(|bytes| *bytes == cut).count(), 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn result_cards_and_close_delegate_rows_cut_titles_in_both_shells() {
+    use skein_ui::{Builder, Role};
+    for (title, cut) in f::row_titles() {
+        let mut task = f::delegation::change();
+        task.chip.title = f::delegation::document(title);
+        let result = c::Result {
+            task: task.chip.clone(),
+            ending: c::Ending::Done,
+            value: None,
+            at: None,
+            details: None,
+            acts: List::uncapped(),
+        };
+        let mut parent = f::task::document();
+        parent.delegates =
+            List::from_boxed(Box::new([c::LiveDelegate { chip: task.chip.clone(), takeover_budget: 0 }]));
+        for words in [f::browser_words(), f::words()] {
+            let mut b = Builder::new(&f::tree_limits());
+            crate::cards::result(&mut b, &result, &words);
+            let tree = b.finish();
+            assert!(f::find(&tree, Role::Heading { level: 3 }, cut).is_some());
+            assert!(skein_lib::bytes::find(&f::text(&tree), cut).is_some());
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = crate::bindings::Bindings::new(f::tree_limits().bindings);
+            crate::confirm::fates(
+                &mut b,
+                &parent,
+                &[c::Operation::Cancel {
+                    project: f::PROJECT,
+                    task: task.chip.task,
+                    reason: f::delegation::text(b"closed"),
+                    grace: None,
+                }],
+                crate::words::Word::CloseTitle,
+                &words,
+                &mut bindings,
+            );
+            let tree = b.finish();
+            let fate = skein_lib::bytes::concat(&[b"T2 ", cut, b" is cancelled."]);
+            assert!(skein_lib::bytes::find(&f::text(&tree), &fate).is_some());
+        }
+    }
+}
+
+#[test]
+fn the_chat_switcher_cuts_titles_without_changing_its_destinations() {
+    for (title, cut) in f::row_titles() {
+        let mut row = f::chats::line();
+        row.chip.title = f::delegation::document(title);
+        let root = f::chats::listed(&[row], &[], false);
+        for words in [f::browser_words(), f::words()] {
+            let choices = shared::chats(&root, &words);
+            let choice = choices
+                .iter()
+                .find(|choice| choice.act == Act::Go { address: d::Address::Chat { task: f::chats::TASK } })
+                .unwrap();
+            assert_eq!(choice.words.as_ref(), cut);
+        }
+    }
+}

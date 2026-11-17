@@ -11,12 +11,13 @@ pub const HOOK_SECRET: &[u8] = b"real-loop-hook-secret";
 #[derive(Clone, Copy)]
 pub struct Fixture {
     pub setup: fn() -> api::Setup,
+    pub manual_merges: api::ManualMerges,
     pub extra_setups: fn() -> Box<[api::Setup]>,
     pub configure: fn(&mut serde_json::Value, &mut serde_json::Value, SocketAddr),
 }
 #[must_use]
 pub fn fixture() -> Fixture {
-    Fixture { setup, extra_setups: || Box::new([]), configure: |_, _, _| {} }
+    Fixture { setup, manual_merges: api::ManualMerges::OFF, extra_setups: || Box::new([]), configure: |_, _, _| {} }
 }
 fn setup() -> api::Setup {
     api::Setup {
@@ -58,8 +59,16 @@ pub struct Snapshot {
     pub branches: Box<[(Box<[u8]>, u64)]>,
     pub pulls: Box<[u64]>,
 }
+/// The first completed attempt of a dispatch, before a rerun can replace it.
+pub struct Dispatched {
+    pub run: api::Run,
+    pub jobs: Box<[api::Job]>,
+    pub tree: Box<[api::File]>,
+}
 #[derive(Default)]
 pub struct Seen {
+    handle: Option<Rc<RefCell<Forge>>>,
+    dispatched: std::collections::BTreeMap<u64, Dispatched>,
     snapshots: Vec<Snapshot>,
     deliveries: Vec<Delivery>,
     peer_records: usize,
@@ -69,6 +78,60 @@ pub struct Seen {
     main: std::collections::BTreeMap<Vec<u8>, Vec<u8>>,
 }
 impl Seen {
+    /// Referee reads of completed dispatches; subsequent reruns do not erase evidence.
+    pub fn dispatched(&self) -> impl Iterator<Item = &Dispatched> {
+        self.dispatched.values()
+    }
+    fn read_dispatches(&mut self, repository: &[u8]) -> Result<(), String> {
+        let forge = self.handle.as_ref().ok_or("story forge")?.borrow();
+        if forge.config.limits.workflows == 0 {
+            return Ok(());
+        }
+        let api::Answer::Runs(runs) = forge
+            .domain
+            .inspect(
+                &forge.config,
+                repository,
+                &api::Read::Runs { workflow: None, commit: None, number: None, page: 1, limit: 32 },
+            )
+            .map_err(|why| format!("outside runs: {why:?}"))?
+        else {
+            return Err("runs".into());
+        };
+        for run in runs {
+            if run.event != api::RunEvent::Dispatch
+                || run.state != api::RunState::Completed
+                || self.dispatched.contains_key(&run.id)
+            {
+                continue;
+            }
+            let api::Answer::Jobs(jobs) = forge
+                .domain
+                .inspect(&forge.config, repository, &api::Read::Jobs { run: run.id })
+                .map_err(|why| format!("outside jobs: {why:?}"))?
+            else {
+                return Err("jobs".into());
+            };
+            let api::Answer::Tree(tree) = forge
+                .domain
+                .inspect(&forge.config, repository, &api::Read::Tree { commit: run.commit })
+                .map_err(|why| format!("outside dispatched tree: {why:?}"))?
+            else {
+                return Err("tree".into());
+            };
+            if self.dispatched.len() >= usize::try_from(STORY_OBSERVATIONS).expect("observation bound") {
+                return Err("bounded dispatch reads".into());
+            }
+            self.dispatched.insert(run.id, Dispatched { run, jobs, tree });
+        }
+        Ok(())
+    }
+    /// Outside reads use the same API as the referee, including closed pulls and runs.
+    #[must_use]
+    pub fn read(&self, repository: &[u8], read: &api::Read) -> api::Answer {
+        let forge = self.handle.as_ref().expect("story forge").borrow();
+        forge.domain.inspect(&forge.config, repository, read).expect("outside forge API read")
+    }
     #[must_use]
     pub fn snapshots(&self) -> &[Snapshot] {
         &self.snapshots
@@ -126,6 +189,7 @@ impl Seen {
         handle: &Rc<RefCell<Forge>>,
         repository: &[u8],
     ) -> Result<(), String> {
+        self.handle.get_or_insert_with(|| handle.clone());
         let previous = self.observations.len();
         loop {
             let Some(observed) = handle.borrow_mut().domain.pop_observation() else { break };
@@ -185,6 +249,7 @@ impl Seen {
                 self.snapshots.push(Snapshot { at: now, branches, pulls });
             }
         }
+        self.read_dispatches(repository)?;
         self.collect_deliveries(peer.observations())
     }
     fn collect_deliveries(&mut self, records: &[Observation]) -> Result<(), String> {
@@ -254,6 +319,16 @@ impl State {
             config.limits.contexts =
                 config.limits.contexts.max(u32::try_from(setup.checks.contexts.len()).expect("story check contexts"));
         }
+        if setups.iter().any(|setup| !setup.workflows.is_empty()) {
+            // Two members and their round pull, prefixes, dispatches and statuses.
+            config.limits.workflows = 1;
+            config.limits.workflow_runs = 8;
+            config.limits.items = 8;
+            config.limits.branches = 16;
+            config.limits.commits = 64;
+            config.limits.files = 8;
+            config.limits.statuses = 16;
+        }
         // Forgejo timestamps are wall times; this peer runs on the real monotonic clock.
         let now = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(
@@ -263,6 +338,7 @@ impl State {
         for setup in setups {
             let name = setup.name.clone();
             domain::repository(&mut domain, &config, setup);
+            domain::manual_merges(&mut domain, &name, fixture.manual_merges);
             domain::grant(&mut domain, &name, 1, api::Permission::Write);
         }
         let handle = Rc::new(RefCell::new(Forge::new(domain, config)));

@@ -39,19 +39,28 @@ enum Outcome {
     CannotEncode,
 }
 
-fn settings(profile: config::Profile) -> settings::Engine {
+#[derive(Clone, Copy, Debug)]
+enum Base {
+    Fixture,
+    Stock,
+}
+
+fn settings(profile: Base) -> settings::Engine {
     let mut settings = fixtures::engine();
-    settings.jig.limits = config::profile(profile);
-    settings.limits = limits::profile(match profile {
-        config::Profile::Small => limits::Profile::Small,
-        config::Profile::Standard => limits::Profile::Standard,
-    });
+    settings.jig.limits = match profile {
+        Base::Fixture => jig_protocol_config_fixtures::small(),
+        Base::Stock => config::stock(),
+    };
+    settings.limits = match profile {
+        Base::Fixture => temper_limits_fixtures::small(),
+        Base::Stock => limits::stock(),
+    };
     settings
 }
 
 #[test]
 fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
-    for profile in [config::Profile::Small, config::Profile::Standard] {
+    for profile in [Base::Fixture, Base::Stock] {
         let settings = settings(profile);
         let engine = crate::workers::limits(&settings).expect("stock engine link limits");
         let mut worker = fixtures::worker_settings();
@@ -91,6 +100,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::SignedOut
                 | Kind::JobAnswer
                 | Kind::Ask
+                | Kind::Restarting
                 | Kind::Asked
                 | Kind::Wires => false,
             };
@@ -110,10 +120,10 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
 #[test]
 fn the_checkout_and_its_raise_fit_both_stock_links() {
     for (profile, conflicts, saved, answer) in [
-        (config::Profile::Small, 512, 265_248, 269_708),
-        (config::Profile::Small, 1024, 530_464, 534_924),
-        (config::Profile::Standard, 512, 265_248, 397_208),
-        (config::Profile::Standard, 1024, 530_464, 662_424),
+        (Base::Fixture, 512, 265_248, 269_708),
+        (Base::Fixture, 1024, 530_464, 534_924),
+        (Base::Stock, 512, 265_248, 397_208),
+        (Base::Stock, 1024, 530_464, 662_424),
     ] {
         let mut settings = settings(profile);
         assert_eq!(settings.limits.checkout.conflicts, 512);
@@ -140,11 +150,11 @@ fn the_checkout_and_its_raise_fit_both_stock_links() {
 
 #[test]
 fn a_stock_start_crosses_the_link_or_fails_with_its_numbers() {
-    for profile in [config::Profile::Small, config::Profile::Standard] {
+    for profile in [Base::Fixture, Base::Stock] {
         let inbox = match profile {
-            config::Profile::Small => Outcome::Crosses,
+            Base::Fixture => Outcome::Crosses,
             // 82 messages of 262,144 bytes exceed the 1 MiB room alone.
-            config::Profile::Standard => Outcome::Past,
+            Base::Stock => Outcome::Past,
         };
         for (part, extra, outcome) in [
             (Part::Charter, 0, Outcome::Crosses),
@@ -235,6 +245,7 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Told { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
@@ -295,7 +306,7 @@ impl Joint {
         }
         panic!("the socket joint settles");
     }
-    fn keep_live(&mut self, settings: &settings::Engine, profile: config::Profile, part: Part, extra: usize) {
+    fn keep_live(&mut self, settings: &settings::Engine, profile: Base, part: Part, extra: usize) {
         let mut pings = (self.peer.engine_pings, self.peer.worker_pings);
         let ping_seconds = settings.jig.limits.link.ping.as_millis().checked_div(1000).unwrap();
         for second in 1..=SECONDS {
@@ -340,7 +351,7 @@ fn workers(settings: &settings::Engine) -> Workers {
 }
 
 #[expect(clippy::disallowed_macros, reason = "the past-the-room refusal names the measured frame bytes and room")]
-fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outcome) {
+fn check_start(profile: Base, part: Part, extra: usize, outcome: Outcome) {
     let settings = settings(profile);
     let mut workers = workers(&settings);
     let values = Values::new(settings.jig.limits.core.accounts.accounts, settings.jig.limits.token);
@@ -350,7 +361,7 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     let mut joint = Joint::new(&settings);
     let sent = joint.peer.sent;
     match workers.encoded_assignment(Time::ZERO, CHANNEL, assignment.clone(), &values) {
-        Some(event) => {
+        Ok(event) => {
             let kit::Event::Down { down: hub::LinkDown::Assign { assignment }, parts, .. } = &event else {
                 panic!("assignment event")
             };
@@ -370,7 +381,7 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
             };
             joint.peer.component.down(Time::ZERO, event, &mut joint.peer.out);
         }
-        None => {
+        Err(_) => {
             let mut events = Queue::uncapped();
             workers.assignment(Time::ZERO, CHANNEL, assignment.clone(), &values, &mut events);
             let Some(root::Event::Worker(root::WorkerInput::Link {
@@ -427,7 +438,8 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
             assert!(joint.assignments.is_empty(), "{profile:?} {part:?}+{extra}");
             assert!(joint.unsent.is_empty());
             assert_eq!(bytes, 0, "an unencodable assignment sends no frame");
-            assert_refusal(joint.answers.as_slice(), b"assignment cannot encode");
+            let words = cannot_encode_words(&settings, &workers, &assignment, part, extra);
+            assert_refusal(joint.answers.as_slice(), &words);
         }
     }
     let mut small = fixtures::assignment_with_settings(fixtures::repository(8, b"acme", b"shop"), &settings);
@@ -439,6 +451,55 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     joint.settle();
     assert_eq!(joint.assignments.len(), previous.checked_add(1).unwrap(), "the next run crosses");
     assert_eq!(joint.assignments.last().unwrap().assignment.run, Token::new(SMALL_RUN));
+}
+
+fn cannot_encode_words(
+    settings: &settings::Engine,
+    workers: &Workers,
+    assignment: &root::Assignment,
+    part: Part,
+    extra: usize,
+) -> Box<[u8]> {
+    match part {
+        Part::Window => kit::Unencoded {
+            field: "Assignment.transcript",
+            reason: None,
+            figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
+            bound: Some(settings.jig.limits.hub.transcript_bytes),
+            ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_transcript)),
+        }
+        .words(b"assignment"),
+        Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
+        Part::Calls => Box::from(b"assignment cannot encode: HostAnswer.body too large".as_slice()),
+        // These fail in temper's translation, before jig's component.
+        Part::FixedCharter => {
+            let mut charter = temper_engine_smith::charter(assignment);
+            charter.brief.sections = Box::new([]);
+            let owned = charter.owned_bytes().unwrap();
+            let encoded = smith_protocol_translate::encode_charter(
+                &charter,
+                &smith_charter::CEILINGS,
+                &workers.encoding().endpoints,
+            )
+            .unwrap();
+            let bound = workers.encoding().charter_bytes;
+            let (field, figure) = if owned > bound {
+                ("charter.fixed_owned", owned)
+            } else {
+                ("charter.fixed_encoded", skein_lib::len_u64(encoded.len()))
+            };
+            kit::Unencoded {
+                field,
+                reason: None,
+                figure: Some(figure),
+                bound: Some(bound),
+                ceiling: Some(u64::from(wire::v15::CEILINGS.assignment_charter)),
+            }
+            .words(b"assignment")
+        }
+        Part::Tree => Box::from(b"assignment cannot encode: Repository.remote too large".as_slice()),
+        Part::Charter | Part::All => panic!("these starts encode"),
+    }
 }
 
 fn assert_assignment(

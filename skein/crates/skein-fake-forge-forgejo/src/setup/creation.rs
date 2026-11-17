@@ -22,6 +22,9 @@ impl Store {
         env: &Env<Limits>,
         hosted: &mut Hosted<'_>,
     ) -> Option<Reply> {
+        if let Some(reply) = contents(request, user, env, hosted) {
+            return Some(reply);
+        }
         if let Request::CreateRepository { org, name, private } = request {
             let limits = &env.limits;
             if !self.resolve_user(config, user).is_admin {
@@ -118,4 +121,51 @@ pub(super) fn repository_name(name: &[u8]) -> bool {
 fn failed(error: Error, limits: &Limits) -> Reply {
     let failure = crate::errors::answer(error, crate::Route::CreateFile, skein_lib::Time::ZERO);
     crate::response::failure(limits, failure)
+}
+
+fn contents(request: &Request, user: u64, env: &Env<Limits>, hosted: &mut Hosted<'_>) -> Option<Reply> {
+    if let Request::ChangeFiles { at, branch, new_branch, message, files } = request {
+        let limits = &env.limits;
+        let mut changes = skein_lib::List::with_capacity(limits.documents.inner);
+        for file in files {
+            let expected = match &file.sha {
+                Some(sha) => {
+                    let Some(id) = skein_forge::forgejo::id::read(sha) else {
+                        return Some(refusal(422, b"invalid blob sha", limits));
+                    };
+                    if id.format != skein_forge::forgejo::id::ObjectFormat::Sha1 {
+                        return Some(refusal(422, b"invalid blob sha", limits));
+                    }
+                    let mut bytes = [0; 20];
+                    for (out, byte) in bytes.iter_mut().zip(id.bytes) {
+                        *out = byte;
+                    }
+                    Some(bytes)
+                }
+                None => None,
+            };
+            if changes
+                .push(domain::ContentsChange { path: file.path.clone(), content: file.content.clone(), expected })
+                .is_err()
+            {
+                return Some(full(limits));
+            }
+        }
+        let result = domain::change_files(
+            hosted.domain,
+            &env.with(hosted.config.clone()),
+            &path_of(at),
+            branch,
+            new_branch.as_deref(),
+            message,
+            changes.as_slice(),
+            user,
+        );
+        return Some(match result {
+            Ok(commit) => encoded(201, Answer::CreatedFile { commit: crate::routes::object(commit) }, limits),
+            Err(Error::Exists) => refusal(422, b"file already exists", limits),
+            Err(error) => failed(error, limits),
+        });
+    }
+    None
 }

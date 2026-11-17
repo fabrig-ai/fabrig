@@ -43,6 +43,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         // Tier controls check project or deployment ownership after authenticating the party.
+        Application::OpenChange(call) => people::ApplicationScope::Project(call.project),
         Application::Tier(_) => people::ApplicationScope::Own,
         Application::Forge(forge::Ask::SetDraft(call)) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::Adopt(_)) => scope,
@@ -80,7 +81,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             }
             None
         }
-        Application::Tier(_)
+        Application::OpenChange(_)
+        | Application::Tier(_)
         | Application::Follow { .. }
         | Application::Forge(_)
         | Application::Dismiss { .. }
@@ -130,6 +132,9 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::OpenChange(call) => {
+            super::opened::admitted(domain, env, decision, request, token, retention, person, call);
+        }
         Application::Tier(call) => {
             if let Some(carried) = carried {
                 assert!(
@@ -232,6 +237,11 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::SetDraft { request, token, party: person, call }));
         }
         Application::Forge(ask) => {
+            if let forge::Ask::SetUp { forge: forge::Making::New(forge::ForgeAsk::Owned), .. } = &ask
+                && let Some(identity) = domain.core.people.identity(person)
+            {
+                domain.forge.setup_person(request, identity.login.clone());
+            }
             if let Some(context) = domain.application_playground.take() {
                 if domain.playground_contexts.len() == domain.playground_contexts.capacity() {
                     finished(domain, request, Err(people::Again::Busy));

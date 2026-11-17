@@ -1,59 +1,46 @@
-//! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
+//! Temper's map rows (temper/docs/design/protocol/floor.md, 3;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, Retired, ValueType};
+use jig_protocol_store::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 #[expect(
     clippy::disallowed_macros,
     reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
 )]
-pub const PATCH_SET: PatchSet = PatchSet {
-    jobs: &[
-        Job {
-            settles: false,
-            name: "deleted-repository-forge-rows",
-            keys: &[
-                KeyRange { from: &[1], to: &[2] },
-                KeyRange { from: &[3], to: &[9] },
-                KeyRange { from: &[10], to: &[12] },
-                KeyRange { from: &[13], to: &[16] },
-                KeyRange { from: &[23], to: &[25] },
-                KeyRange { from: &[28], to: &[31] },
-                KeyRange { from: &[42], to: &[43] },
-                KeyRange { from: &[47], to: &[48] },
-            ],
-            converts: None,
-            counts: &[
-                "dropped",
-                "BranchHead",
-                "PullState",
-                "Ci",
-                "Client",
-                "Receipt",
-                "Tier",
-                "Verification",
-                "LandingLog",
-                "Application",
-                "Names",
-            ],
-        },
-        Job { name: "settle-layouts", keys: &[], converts: None, settles: true, counts: &[] },
-        Job {
-            name: "round-branches",
-            keys: &[KeyRange { from: &[23], to: &[24] }],
-            converts: None,
-            settles: false,
-            counts: &["empty", "named"],
-        },
-    ],
+pub const OWNER_SET: OwnerSet = OwnerSet {
+    jobs: &[Job {
+        name: "deleted-repository-forge-rows",
+        keys: &[
+            KeyRange { from: &[1], to: &[2] },
+            KeyRange { from: &[3], to: &[9] },
+            KeyRange { from: &[10], to: &[12] },
+            KeyRange { from: &[13], to: &[16] },
+            KeyRange { from: &[23], to: &[25] },
+            KeyRange { from: &[28], to: &[31] },
+            KeyRange { from: &[42], to: &[43] },
+            KeyRange { from: &[47], to: &[48] },
+        ],
+        converts: None,
+        counts: &[
+            "dropped",
+            "BranchHead",
+            "PullState",
+            "Ci",
+            "Client",
+            "Receipt",
+            "Tier",
+            "Verification",
+            "LandingLog",
+            "Application",
+            "Names",
+        ],
+    }],
     owner: Owner::Application,
     name: "temper",
     level: Some(14),
-    patches: crate::patches::PATCHES,
-    fresh: None,
     families: &[
         KeptFamily {
-            retired: &[Retired { number: 12, keys: &[KeyRange { from: &[12], to: &[13] }] }],
+            retired: &[],
             current: include_str!("../schema/store-v25.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
@@ -331,7 +318,6 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 },
             ],
             name: "temper-store",
-            texts: crate::patches::kept::temper_store::TEXTS,
             map: KeptMap::Store,
             keys: &[
                 Keys { from: &[0], to: &[1], root: "Row" },
@@ -346,7 +332,6 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[9], to: &[10], root: "Row" },
                 Keys { from: &[10], to: &[11], root: "Row" },
                 Keys { from: &[11], to: &[12], root: "Row" },
-                Keys { from: &[12], to: &[13], root: "Row" },
                 Keys { from: &[13], to: &[14], root: "Row" },
                 Keys { from: &[14], to: &[15], root: "Row" },
                 Keys { from: &[15], to: &[16], root: "Row" },
@@ -385,18 +370,15 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[131], to: &[132], root: "Row" },
             ],
             frames: None,
-            flights: &[Keys { from: &[crate::keys::FLIGHT], to: &[22], root: "Row" }],
         },
         KeptFamily {
             retired: &[],
             current: temper_protocol_records::patches::kept::temper_secrets::TEXTS.last().expect("kept text"),
             types: &[],
             name: "temper-secrets",
-            texts: temper_protocol_records::patches::kept::temper_secrets::TEXTS,
             map: KeptMap::Secrets,
             keys: &[Keys { from: &[], to: &[0x80], root: "Stored" }],
             frames: None,
-            flights: &[],
         },
     ],
 };

@@ -58,8 +58,15 @@ impl Run {
             .iter()
             .filter_map(|(read, position)| Some((*read, self.observed_at.get(*position).copied().flatten()?)))
             .collect();
-        Observed { documents, observed_at, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
-            .with_commands(&self.steps)
+        Observed {
+            activity_aliases: std::collections::BTreeSet::new(),
+            documents,
+            observed_at,
+            told: self.told.clone(),
+            commands: Vec::new(),
+            kit: self.kit.clone(),
+        }
+        .with_commands(&self.steps)
     }
     #[must_use]
     pub fn first_placed(&self) -> &BTreeMap<u64, String> {
@@ -179,14 +186,13 @@ fn process_settings(value: &mut Value) -> Value {
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
     // Fixture records supply credentials without adopting a project before sign-in.
-    value["engine"]["projects"] = json!([]);
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
     for (name, minimum) in [
         // Nine slots hold the stock charters.
         ("tasks.charters", 16),
-        ("core.templates", 6),
+        ("core.templates", 7),
         ("authority.grants", 16),
         ("notes.scopes", 32),
         ("core.policy_bytes", 8192),
@@ -553,7 +559,6 @@ impl Judge {
         value["engine"]["llm"]["endpoints"][0]["address"] = json!({"socket":llm.to_string()});
         agent["endpoints"][0]["address"] = llm.to_string().into();
         value["workers"] = ws["workers"].clone();
-        value["application"]["workers"] = ws["application"]["workers"].clone();
         base(&mut value);
         let forge = self
             .members
@@ -619,12 +624,12 @@ impl Judge {
             shaped["agent"] = worker["workers"][0]["agent"].clone();
             worker["workers"] = json!([shaped]);
             worker["application"]["limits"] = value["application"]["limits"].clone();
-            worker["application"]["workers"][0]["git"] = self.git.to_str().ok_or("git path")?.into();
+            self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
             write(&dir.join("config/temper.json"), &worker);
             write(&dir.join("config/agent.json"), &agent);
         }
         value["workers"] = json!([]);
-        value["application"]["workers"] = json!([]);
+
         write(&engine_dir.join("config/temper.json"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
@@ -904,11 +909,8 @@ impl Judge {
             Step::Terminal(_) => return Err("Terminal unsupported".into()),
             Step::Browse { .. } => return Err("Browse unsupported".into()),
             Step::Authorize => return Err("Authorize unsupported".into()),
-            Step::AuthorizeHeld => return Err("AuthorizeHeld unsupported".into()),
-            Step::HoldIssuerSocket => return Err("HoldIssuerSocket unsupported".into()),
-            Step::IssuerRejected => return Err("IssuerRejected unsupported".into()),
+            Step::TrialEnded => return Err("TrialEnded unsupported".into()),
             Step::Return => return Err("Return unsupported".into()),
-            Step::ClaudeTurn { .. } => return Err("ClaudeTurn unsupported".into()),
         }
         // The oracle's commands are the acts' verbs (Observed::with_commands).
         self.ran.push(step);
@@ -1146,14 +1148,11 @@ impl Referee<cluster::Root> for Judge {
 fn describe(step: &calls::Step) -> String {
     use calls::Step;
     match step {
-        Step::ClaudeTurn { source } => format!("ClaudeTurn {source}"),
         Step::EndsLeaving(leftovers) => format!("EndsLeaving {leftovers:?}"),
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),
-        Step::AuthorizeHeld => "AuthorizeHeld".into(),
-        Step::HoldIssuerSocket => "HoldIssuerSocket".into(),
-        Step::IssuerRejected => "IssuerRejected".into(),
+        Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
@@ -1343,8 +1342,7 @@ impl Judge {
         use temper_real_loop_world::case;
         let workspaces = |worker| -> Result<PathBuf, String> {
             let directory = self.members.dir(worker);
-            let document = read_document(&directory.join("config/temper.json"))?;
-            let root = document["application"]["workers"][0]["root"].as_str().ok_or("worker root")?;
+            let root = "workspaces";
             Ok(directory.join("data").join(root).join("workspaces"))
         };
         if fs::read_dir(workspaces("ws")?).map_err(|why| format!("ws workspaces: {why:?}"))?.next().is_some() {

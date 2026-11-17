@@ -73,6 +73,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::RemoveForge(_) => false,
                 w::Request::DismissMaking(_)
                 | w::Request::MakeRepository(_)
+                | w::Request::OpenChange(_)
                 | w::Request::TierAct(_)
                 | w::Request::FollowAct(_)
                 | w::Request::Adopt(_)
@@ -276,6 +277,8 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::Opened(_)
+        | w::Outcome::OpenRefused(_)
         | w::Outcome::Tier(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned

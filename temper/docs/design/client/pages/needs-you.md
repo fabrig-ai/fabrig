@@ -16,7 +16,11 @@
   focused: no act of its own), then
   its filters as folded menus, in order: projects (only with two or more),
   goals, then Kind. Each menu names its choice: "All projects" or the
-  project's name; "All goals" or "Goal · TN"; "Kind" or "Kind · Question".
+  project's name; "All goals" or "Goal · TN", or "Milestone · Store shape"
+  where the filter's task is a milestone (`../../draft/milestones.md`, 5.3),
+  its document read once by number and `milestones::is` of its chip
+  (`milestone.md`, 1); "Kind" or "Kind · Question". The goal filter takes a
+  root, so a milestone's holds every need under its goals.
   The project menu holds All projects and each project; the goal menu holds
   All goals and the Goal field; Kind holds All kinds and each kind. A choice
   moves to the filtered inbox's address and folds its menu (`../web/README.md`, 2.3).
@@ -24,6 +28,9 @@
   "PROJECT › TN TITLE", for its own task alone, and its wait at the right
   (`../view.md`, 6). A proposal holds no proposing task's title, so its line stops at
   TN; questions, held tasks and person tasks use their documents' titles.
+  Every TITLE a card draws, on this page, on Home and in the inbox, its
+  milestone's and goal's in the from line among them, is cut past 80
+  characters (`README.md`, 2, *A task's title on a line*).
   A batch proposal keeps the mockup's Why, Goal, Landing and Budget rows:
   its reason quoted, its executor and specification, its landing resources
   and grants with priority, and its funding once. Template and charter
@@ -183,7 +190,20 @@
       "held", "a person task", "an approval", or "funds" for a held task
       whose reason is `HoldReason::Budget`. The goal or the role a need
       comes from and who asked it join the line as their reads come
-      (`../../draft/surfaces.md`, 4);
+      (`../../draft/surfaces.md`, 4). *Its milestone* (`../../draft/milestones.md`,
+      5.3): where the card's task is under a milestone, the milestone and
+      the goal come before TITLE, after the chip: the milestone's name, a
+      link to its `Task` (`temper-ms-from`), " › ", the goal's title, a link
+      to its `Task`, and, where the card's task is not that goal, " › " and
+      TITLE: "fabrig · Store shape › S7 history in task logs · a question ·
+      16 min". They are its task's document's lineage (`milestones::lineage`,
+      `milestone.md`, 1): the document the card holds where it is that
+      task's, else that task's read once by number while the card shows, as
+      Decided for you reads its rows' tasks (`home.md`, 1, **Decided for
+      you**); until it is read, and for a proposal, which names no task's
+      title, the line is as without one. Home's cards and the terminal's
+      inbox name them the same, the terminal's "PROJECT › Store shape › TN
+      TITLE";
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 19px on a
       phone;
     - `.ctx`, `--gf-ink-2`, if it has a context;
@@ -219,7 +239,16 @@
     the terminal's card), through the confirmation they have (`../README.md`, 3.6). A
     held task: its title and its words, its facts as the terminal's card
     has them, then Release (primary) and Leave held (plain, its reason's
-    textarea as Reject's). A funds card: "S of L used." as the
+    textarea as Reject's); words that are only the title are left out
+    (`README.md`, 2, *A task's words after its title*), as on the funds
+    and person task cards and the terminal's inbox cards. A task held because a task it waits on failed or
+    was cancelled (jig's `HoldReason::Dependency { task, how }`) says which
+    and what releasing needs as its question (`../../draft/milestones.md`,
+    5.3): "S6 is held: S5, which it waits on, failed. Drop or replace that
+    dependency, then release it.", "was closed" for a cancelled one, and
+    "ended" where the card holds no ending; each named by its id or title
+    as a wait names it (`work.md`, 1, *A wait's names*), "task N" where its
+    title is not held. A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
     owner, then Release and Leave held; there is no "Add $10". Its hold's
     words say what a person can do: accept a proposal for more budget, if one
@@ -249,7 +278,8 @@
     first, in its order, then the rows in theirs, and those marked later last,
     then ordered by severity as *What the client keeps* says (1).
     A filter by project takes the project's rows, one by goal the rows of the
-    changes under that goal, and one by kind none, since no kind of the
+    changes under that goal, one by a milestone the rows whose goal is one of
+    its goals, as its `Milestone` reads them (`milestone.md`, 1), and one by kind none, since no kind of the
     inbox's is theirs. They join once the inbox has answered, and until the
     `approvals` watch has delivered there are none. On the terminal's inbox
     there are none either.
@@ -271,8 +301,9 @@
   - *SHORT,* what a closed row or a Home line says of a card: a
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
-    sentence; a held task's or another person task's title, a funds card's
-    "S of L used"; an approval's question.
+    sentence; a held task's or another person task's title, cut past 80
+    characters as TITLE is, a funds card's "S of L used"; an approval's
+    question.
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
   - *Only you,* after them, and in the done state after "Home", while an
@@ -310,13 +341,16 @@
       task", "it is an implementation choice", "it changes only tests", "it
       adds a dependency", "it departs from a landed design", "it spends
       money past a budget", "it can’t be undone", "it changes what reaches
-      you" (`rules`), "no kind of decision names it" (`other`); for a reason
+      you" (`rules`), "no kind of decision names it" (`other`), "it starts
+      work on findings" (`findings`, `../../draft/home-for-a-person.md`,
+      5); for a reason
       `set`, "it changes NAME", NAME the set's name in the project's classes
       (`settings.md`, 2), or "one of PROJECT’s path sets" until they are read. With
       `under` an item with words, " under “WORDS”" follows the subject. A
       reason `always` reads "Reached you because its goal always asks you."
       So: "Reached you because it changes vsr’s protocol core, which asks
-      you, even when away."
+      you, even when away.", and a triager's group's: "Reached you because
+      it starts work on findings, which asks you unless you’re away."
     - *A question with no row,* its project's document delivered and not
       `cut`: "Reached you because it was asked of you directly.": no call
       judged it, so it came by its route (kind 6,
@@ -361,7 +395,8 @@
       money past a budget", "they spend money past a budget"; "it can’t be
       undone", "they can’t be undone"; "it changes what reaches you",
       "they change what reaches you"; "no kind of decision names it", "no
-      kind of decision names them"; "it changes NAME", "they change NAME";
+      kind of decision names them"; "it starts work on findings", "they
+      start work on findings"; "it changes NAME", "they change NAME";
       " under “WORDS”" and CLASS as they are. Then "These reached you
       because their goals always ask you.", "These reached you because
       they were asked of you directly.", "These reached you because
@@ -419,8 +454,20 @@
       rest of NAME.", PATTERNS the matched patterns joined by ", ". OBJECT
       is the subject's plural: "wording choices", "retries and splits",
       "implementation choices", "test-only changes", "new dependencies",
-      "departures from a landed design", "changes to NAME", with `under`'s
-      words after it as in CLAUSE.
+      "departures from a landed design", "starting work on findings",
+      "changes to NAME", with `under`'s words after it as in CLAUSE; so
+      Decided for you's "Allowed: starting work on findings." (`home.md`,
+      1).
+    - *Starting work on findings,* `Decide(Kind(Findings))`, names who
+      asks it, as `../../draft/home-for-a-person.md`, 5 words it: its
+      offer reads "Let the triager start goals for findings, then tell
+      you.", and its narrower rule on this page "Stop asking: let the
+      triager start goals for findings", each with `under`'s words after
+      "findings" as in CLAUSE. Only the triager's charter names the kind
+      (`../../domain/areas.md`, 6, *Its groups*), so the words name it
+      whoever asked; the offer moves the project's item, as any
+      `Decide`'s. A Stop asking proposal's reason (*Its act*) says it as
+      any kind's, by OBJECT.
     - *Its act:* an owner of the card's project (`me`'s row for it `Owner`)
       has "Apply": jig's `ChangeSettings` of one item, kind 8 of that
       project (`../../protocol/configuration/settings.md`, 2), set to the offer's

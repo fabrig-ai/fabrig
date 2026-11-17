@@ -263,6 +263,7 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
             dropped = Some(7);
             RecordKind::Verification
         }
+        Stored::Milestone(_) => RecordKind::Milestone,
         Stored::LandingLog(value) => {
             repositories.push(value.repository).expect("uncapped");
             dropped = Some(8);
@@ -274,7 +275,9 @@ fn judge(row: &JobRow, present: &Present, bounds: &Bounds) -> Result<Judged, Job
                     repositories.push(value.repository).expect("uncapped");
                     dropped = Some(9);
                 }
-                ApplicationOutcome::CoreRefused(_)
+                ApplicationOutcome::Opened { .. }
+                | ApplicationOutcome::OpenRefused(_)
+                | ApplicationOutcome::CoreRefused(_)
                 | ApplicationOutcome::ForgeRefused(_)
                 | ApplicationOutcome::MakeKept
                 | ApplicationOutcome::Follow(_)

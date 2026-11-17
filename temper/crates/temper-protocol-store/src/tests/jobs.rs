@@ -9,14 +9,6 @@ use crate::{jobs, keys, records};
 use jig_protocol_store::{JobPage, JobRoom, JobRow, JobWrite};
 use temper_engine_domain_forge_vocabulary::Stored;
 
-fn dispatch(job: &str, page: &JobPage) -> Result<jig_protocol_store::JobAnswer, jig_protocol_store::JobRefusal> {
-    jobs::page(
-        job,
-        page,
-        &jobs::Present::default(),
-        &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap(),
-    )
-}
 fn page(rows: Box<[JobRow]>, writes: u32, bytes: u32) -> JobPage {
     JobPage { end: rows.is_empty(), rows, layout: None, room: JobRoom { writes, bytes: u64::from(bytes) } }
 }
@@ -366,48 +358,8 @@ fn deleted_repository_job_refuses_unreadable_rows_and_keys() {
     }
 }
 
-pub(super) fn landing(task: u64, branch: &[u8]) -> Stored {
-    use temper_engine_domain_forge_landing as l;
-    Stored::Landing(d::LandingRow {
-        room: None,
-        job: None,
-        asks: Box::new([]),
-        entries: Box::new([]),
-        landing: l::Landing {
-            task,
-            searched: None,
-            project: 1,
-            phase: l::Phase::Waiting,
-            preparation: 0,
-            stale_proofs: 0,
-            last_left: None,
-            branch: b"main".as_slice().into(),
-            members: Box::new([]),
-            round: l::Round::new(branch.into()),
-        },
-    })
-}
-
 #[test]
-fn round_branches_counts_empty_then_named_without_writes_and_consumes_every_row() {
-    for (rows, counts) in [
-        (vec![landing(1, b""), landing(2, b""), landing(3, b"round")], [2, 1]),
-        (vec![landing(4, b"round")], [0, 1]),
-        (vec![], [0, 0]),
-    ] {
-        let answer = dispatch("round-branches", &page(rows.iter().map(encoded).collect(), 0, 0)).unwrap();
-        assert_eq!(answer.counts.as_ref(), counts);
-        assert!(answer.writes.is_empty());
-        assert_eq!(answer.through, None);
-    }
-}
-
-#[test]
-fn round_branches_refuses_an_unreadable_landing_naming_its_key() {
-    let mut bad = encoded(&landing(2, b""));
-    bad.value = Box::new([0]);
-    let input = page(Box::new([encoded(&landing(1, b"round")), bad]), 0, 0);
-    let refusal = dispatch("round-branches", &input).unwrap_err();
-    assert_eq!(refusal.key, Some(input.rows[1].key.clone()));
-    assert_eq!(refusal.why.as_ref(), "unreadable landing row");
+fn declared_job_names_are_pinned() {
+    let names: Vec<_> = crate::OWNER_SET.jobs.iter().map(|job| job.name).collect();
+    assert_eq!(names, ["deleted-repository-forge-rows"]);
 }

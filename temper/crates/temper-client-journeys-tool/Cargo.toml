@@ -11,6 +11,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-fake.workspace = true
 sha2.workspace = true
 temper-client-shell-tui.workspace = true
 temper-shell.workspace = true

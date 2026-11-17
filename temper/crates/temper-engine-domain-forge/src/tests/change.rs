@@ -1,6 +1,7 @@
 use super::*;
 
 mod empty_repair;
+mod execution;
 mod fence;
 mod released_resolution;
 
@@ -23,6 +24,7 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
         row.pending = None;
         row.effect = c::EffectResult::None;
         row.pull = Some(1);
+        let checking = matches!(state, c::State::Checking { .. });
         row.change.state = state;
         row.change.ready_since = since;
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
@@ -45,10 +47,13 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
         fixtures::step_change(&mut d);
         let mut pull = fixtures::open_pull();
         pull.ci = skein_forge::api::Ci::Pending;
+        for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(pull)] {
+            fixtures::answer_next(&mut d, Ok(answer));
+        }
+        if checking {
+            fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+        }
         for answer in [
-            Answer::Commit(fixtures::HEAD),
-            Answer::Commit(fixtures::BASE),
-            Answer::Pull(pull),
             fixtures::checks(skein_forge::api::Check::Pending),
             Answer::Commits { commits: Box::new([]), more: false },
             Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
@@ -220,6 +225,7 @@ fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
                 Answer::Commit(fixtures::HEAD),
                 Answer::Commit(tip),
                 Answer::Pull(pull),
+                fixtures::checks(skein_forge::api::Check::Pending),
                 fixtures::checks(skein_forge::api::Check::Passed),
             ] {
                 let (call, _) = fixtures::next_at(&mut d, &env);
@@ -348,13 +354,14 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     // The pull and checks agree that CI is pending.
     for answer in [
         fixtures::checks(skein_forge::api::Check::Pending),
+        fixtures::checks(skein_forge::api::Check::Passed),
         Answer::Commits { commits: Box::new([]), more: false },
         Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
     ] {
         let (call, _) = fixtures::next_at(&mut d, &env);
         out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
     }
-    let until = Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(20).as_nanos());
+    let until = Wall::from_nanos(env.wall.as_nanos() + env.limits.client.poll_max.as_nanos());
     let mut waiting = false;
     for request in &out {
         assert!(
@@ -365,7 +372,7 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
             waiting |= *deadline == until;
         }
     }
-    assert!(waiting, "twenty answered seconds remain before the stall: {out:?}");
+    assert!(waiting, "execution starts with this reading and polls within poll_max: {out:?}");
     assert_eq!(d.change(fixtures::CHANGE).expect("still waiting").change.since, since);
 }
 
@@ -422,17 +429,36 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
         assert!(saved, "the excluded wait is saved: {out:?}");
         let remaining = 30 - counted;
         let until = Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(remaining).as_nanos());
-        for (elapsed, decision) in
-            [(remaining - 1, c::Decision::Wait { until: Some(until) }), (1, c::Decision::Hold(c::Hold::Stalled))]
-        {
+        let waits: Box<[(u64, c::Decision)]> = if titled {
+            Box::new([
+                (remaining - 1, c::Decision::Wait { until: Some(until) }),
+                (1, c::Decision::Hold(c::Hold::Stalled)),
+            ])
+        } else {
+            // The first execution reading after the exemption starts its own clock.
+            let execution = env.limits.change_policy.stall.saturating_add(env.limits.change_policy.unknown_grace);
+            let due = Wall::from_nanos(env.wall.as_nanos() + execution.as_nanos());
+            let poll = Wall::from_nanos(env.wall.as_nanos() + env.limits.client.poll_max.as_nanos());
+            Box::new([
+                (0, c::Decision::Wait { until: Some(poll) }),
+                (execution.as_nanos() / 1_000_000_000 - 1, c::Decision::Wait { until: Some(due) }),
+                (1, c::Decision::Hold(c::Hold::Stalled)),
+            ])
+        };
+        for (elapsed, decision) in waits {
             fixtures::advance(&mut d, &mut env, Duration::from_secs(elapsed));
             step(&mut d, &env, fixtures::change_step(), &mut out);
             let mut pull = fixtures::open_pull();
             pull.ci = Ci::Pending;
+            for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(pull)] {
+                let (call, _) = fixtures::next_at(&mut d, &env);
+                fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            }
+            if !titled {
+                let (call, _) = fixtures::next_at(&mut d, &env);
+                fixtures::answer_at(&mut d, &env, call, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+            }
             for answer in [
-                Answer::Commit(fixtures::HEAD),
-                Answer::Commit(fixtures::BASE),
-                Answer::Pull(pull),
                 fixtures::checks(skein_forge::api::Check::Passed),
                 Answer::Commits { commits: Box::new([]), more: false },
                 Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
@@ -2430,13 +2456,10 @@ fn ci_protection(required: bool) -> Protection {
 fn head_ci_contexts_are_read_once_per_gather() {
     use skein_forge::api::{Answer, Check, Ci, Op, Read};
     use temper_engine_domain_forge_change as change;
-    for (name, (required, numbered, at_head, same_base, head_checks)) in [
-        ("known pull serves head", (false, true, true, false, false)),
-        ("required context reads head", (true, true, true, false, true)),
-        ("found by branches reads head", (false, false, true, false, true)),
-        ("pull at another commit reads head", (false, true, false, false, true)),
-        ("head is base uses pull once", (false, true, true, true, false)),
-        ("required head is base reads checks once", (true, true, true, true, true)),
+    for (name, required, same_base) in [
+        ("pending pull needs job links", false, false),
+        ("required context rows serve execution", true, false),
+        ("equal base reuses head checks", false, true),
     ] {
         let mut d = fixtures::connected_domain();
         let mut repository = adopted();
@@ -2448,7 +2471,7 @@ fn head_ci_contexts_are_read_once_per_gather() {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::None;
-        row.pull = if numbered { Some(1) } else { None };
+        row.pull = Some(1);
         row.change.state = change::State::Checking { head: fixtures::HEAD };
         outputs(&mut d, Event::Change { row });
         if same_base {
@@ -2459,23 +2482,14 @@ fn head_ci_contexts_are_read_once_per_gather() {
         let base = if same_base { fixtures::HEAD } else { fixtures::BASE };
         fixtures::answer_next(&mut d, Ok(Answer::Commit(base)));
         let (call, op) = fixtures::next_call(&mut d);
-        let expected = if numbered {
-            Read::Pull { number: 1, ci: !required }
-        } else {
-            Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }
-        };
+        let expected = Read::Pull { number: 1, ci: !required };
         assert_eq!(op, Op::Read(expected), "{name}");
         let mut pull = fixtures::open_pull();
-        pull.ci = if numbered && !required { Ci::Pending } else { Ci::None };
-        if !at_head {
-            pull.commit = [8; 32];
-        }
+        pull.ci = if required { Ci::None } else { Ci::Pending };
         fixtures::answer(&mut d, call, Ok(Answer::Pull(pull)));
-        if head_checks {
-            let (call, op) = fixtures::next_call(&mut d);
-            assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::HEAD }));
-            fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Pending)));
-        }
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::HEAD }));
+        fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Pending)));
         if !same_base {
             let (call, op) = fixtures::next_call(&mut d);
             assert_eq!(op, Op::Read(Read::Checks { commit: base }));
@@ -2653,7 +2667,7 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
         }
         assert_eq!(
             runs,
-            u32::from(check_state == Check::Failed && !missing) + u32::from(name == "distinct runs"),
+            u32::from(check_state != Check::Passed && !missing) + u32::from(name == "distinct runs"),
             "{name}"
         );
         let decision = decision.expect("gather decided");

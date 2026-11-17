@@ -10,15 +10,15 @@ use skein_lib::List;
 #[test]
 fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
     let directories = config::Directories::working();
-    for (bound, expected) in [(None, 69_632), (Some(40_960), 40_960)] {
+    for (bound, expected) in [(None, 135_168), (Some(40_960), 40_960)] {
         let input = worker_document(bound);
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = 40_960;
-        let part = worker_part(&input, &directories).unwrap();
+        let part = worker_part(&input, &directories, None).unwrap();
         let service = worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
         check(&input, &directories, &fixtures::files(), &agent).unwrap();
         fixtures::assert_worker_only(&service);
-        let mut part = worker_part(&input, &directories).unwrap();
+        let mut part = worker_part(&input, &directories, None).unwrap();
         check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
         assert_eq!(part.worker.jig.limits.core.call_answer_bytes, expected);
         let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
@@ -39,7 +39,7 @@ fn explicit_short_call_inputs_refuse_every_worker_only_entrance() {
             call_input_lines("workers[0].limits.overrides.core.call_answer_bytes", bound, payload, 4096, 65_536);
         let found = [
             worker_alone(
-                worker_part(&input, &directories).unwrap(),
+                worker_part(&input, &directories, None).unwrap(),
                 &fixtures::files(),
                 &agent,
                 fixtures::worker_runtime(),
@@ -101,7 +101,7 @@ fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 2] {
     let directories = config::Directories::working();
     [
         worker_alone(
-            worker_part(input, &directories).unwrap(),
+            worker_part(input, &directories, None).unwrap(),
             &fixtures::files(),
             agent,
             fixtures::worker_runtime(),
@@ -132,7 +132,7 @@ fn a_workers_call_answer_bound_must_hold_the_documentation_answer() {
         assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
     }
     let service = worker_alone(
-        worker_part(&worker_document(Some(2048)), &config::Directories::working()).unwrap(),
+        worker_part(&worker_document(Some(2048)), &config::Directories::working(), None).unwrap(),
         &fixtures::files(),
         &agent,
         fixtures::worker_runtime(),
@@ -153,7 +153,7 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
     agent.tool_payload = 2048;
     let directories = config::Directories::working();
     worker_alone(
-        worker_part(&worker_document(Some(2048)), &directories).unwrap(),
+        worker_part(&worker_document(Some(2048)), &directories, None).unwrap(),
         &fixtures::files(),
         &agent,
         fixtures::worker_runtime(),

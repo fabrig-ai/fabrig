@@ -117,6 +117,19 @@ fn the_meta_says_title_state_count_spend_and_since() {
 }
 
 #[test]
+fn a_goals_own_long_title_stays_whole() {
+    let (title, _) = row_titles().into_iter().next().unwrap();
+    let mut task = document();
+    task.chip.title = text(title.as_bytes());
+    let root = root(task, DONE, TOTAL, None, false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let tree = draw(&root, &words).0;
+        let meta = styled_text(&tree, look::GOAL_META);
+        assert!(meta.starts_with(title.as_bytes()));
+    }
+}
+
+#[test]
 fn no_count_with_no_tasks() {
     let root = root(document(), 0, 0, None, false);
     for words in [fixtures::browser_words(), fixtures::words()] {
@@ -213,6 +226,60 @@ fn a_planning_goal_with_no_draft() {
 }
 
 #[test]
+fn a_waiting_goals_heading_and_state_use_its_document_dependencies() {
+    for (link, expected) in [
+        (c::TaskLink::Live(dependency(b"S6 retention by horizon")), "waits on S6"),
+        (c::TaskLink::Retained { chip: dependency(b"Fast service tests"), at: None }, "waits on Fast service tests"),
+        (c::TaskLink::Stored { number: 12, status: None }, "waits on task 12"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Party(fixtures::chat::PARTY))), "waits for you"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Party(999))), "waits on S6"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Role(0))), "waits on S6"),
+        (c::TaskLink::Live(person_dependency(c::PersonAddress::Role(1))), "waits for you"),
+    ] {
+        let mut task = document();
+        f::phase(
+            &mut task,
+            c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([12])), more: false, holds: false },
+        );
+        task.dependencies = List::from_boxed(Box::new([link]));
+        let mut sentence = crate::accounts::words::join(&[expected.as_bytes(), b"."]);
+        sentence[0].make_ascii_uppercase();
+        for report in [None, Some(note(b"A report still wins."))] {
+            let has_report = report.is_some();
+            let root = root(task.clone(), 0, 0, report, false);
+            for words in [fixtures::browser_words(), fixtures::words()] {
+                let tree = draw(&root, &words).0;
+                assert_eq!(
+                    heading(&tree).as_ref(),
+                    if has_report { b"The report's headline." } else { sentence.as_ref() }
+                );
+                if words.shell == crate::words::Shell::Browser {
+                    assert_eq!(styled_text(&tree, look::GOALS_STATE_WAITS).as_ref(), expected.as_bytes());
+                }
+            }
+        }
+    }
+    let mut task = document();
+    f::phase(&mut task, c::ChipPhase::Waiting { dependencies: List::uncapped(), more: false, holds: true });
+    assert_heading(task.clone(), 0, 0, b"Waits for its resources.");
+    assert_state(task, 0, false, b"waits for its resources", look::GOALS_STATE_WAITS);
+}
+
+fn dependency(title: &[u8]) -> c::Chip {
+    let mut chip = document().chip;
+    chip.task = 12;
+    chip.title = text(title);
+    chip
+}
+
+fn person_dependency(address: c::PersonAddress) -> c::Chip {
+    let mut chip = dependency(b"S6 retention by horizon");
+    chip.details.phase = c::ChipPhase::Person { address, taken_by: None, since: None };
+    chip.phase = c::Phase::Active;
+    chip
+}
+
+#[test]
 fn a_closed_goals_heading() {
     let mut task = document();
     let by = task.requester;
@@ -269,7 +336,21 @@ fn draft_and_chat_links() {
         let mut task = document();
         task.spec.specification.words = text(spec);
         task.requester = requester;
-        let root = root(task, DONE, TOTAL, None, false);
+        let baseline = root(task.clone(), DONE, TOTAL, None, false);
+        let mut side = Side::empty();
+        if let c::Requester::Task(number) = requester {
+            let mut chat = document();
+            chat.chip.task = number;
+            chat.label = jig_client::shapes::template(
+                baseline.pages().me(baseline.client()).unwrap(),
+                chat.project,
+                jig_client::shapes::CHAT,
+            )
+            .unwrap()
+            .label;
+            side.requester = Some(chat);
+        }
+        let root = root_with_side(task, DONE, TOTAL, None, false, side);
         for words in [fixtures::browser_words(), fixtures::words()] {
             let (tree, bindings, _) = draw(&root, &words);
             let mut links = List::uncapped();
@@ -288,6 +369,105 @@ fn draft_and_chat_links() {
                     Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Chat { task: *task } }))
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn acts_name_a_milestone_but_only_a_read_chat_is_a_chat_link() {
+    for kind in [0_u8, 1, 2, 3] {
+        let mut task = document();
+        task.spec.specification.words = text(b"Build it.");
+        task.requester = c::Requester::Task(2);
+        let mut requester = document();
+        requester.chip.task = 2;
+        requester.chip.title = text(b"Store shape");
+        let baseline = root(task.clone(), DONE, TOTAL, None, false);
+        let template = jig_client::shapes::template(
+            baseline.pages().me(baseline.client()).unwrap(),
+            task.project,
+            jig_client::shapes::CHAT,
+        )
+        .unwrap();
+        requester.label = if kind == 1 { template.label } else { template.label.checked_add(1).unwrap() };
+        if kind == 0 {
+            requester.chip.details.details.executor = c::Executor::Procedure {
+                connector: jig_client::shapes::RECURRING,
+                code: jig_client::shapes::GATHERING,
+            };
+            task.lineage_chips = List::from_boxed(Box::new([requester.chip.clone()]));
+        }
+        let mut side = Side::empty();
+        if kind != 3 {
+            side.requester = Some(requester);
+        }
+        let root = root_with_side(task, DONE, TOTAL, None, false, side);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings, _) = draw(&root, &words);
+            let mut links = List::uncapped();
+            for node in tree.nodes() {
+                if node.role == Role::Link {
+                    links.push(node).unwrap();
+                }
+            }
+            if kind >= 2 {
+                assert_eq!(links.len(), 0);
+                continue;
+            }
+            assert_eq!(links.len(), 1);
+            let link = links.get(0).unwrap();
+            assert_eq!(link.name.as_deref(), Some(if kind == 0 { b"in Store shape".as_slice() } else { b"Chat T2" }));
+            assert_eq!(
+                bindings.decode(link.binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(Act::Go {
+                    address: if kind == 0 { Address::Task { task: 2 } } else { Address::Chat { task: 2 } }
+                }))
+            );
+        }
+    }
+}
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests construct the long and boundary title cases"
+)]
+fn row_titles() -> [(String, String); 2] {
+    [
+        ("abcd ".repeat(20).trim_end().to_owned(), format!("{}…", ["abcd"; 16].join(" "))),
+        ("x".repeat(80), "x".repeat(80)),
+    ]
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary tests format link names and locate semantic nodes"
+)]
+fn a_milestones_link_cuts_its_title_past_eighty_characters() {
+    for (title, cut) in row_titles() {
+        let mut task = document();
+        task.requester = c::Requester::Task(2);
+        task.spec.specification.words = text(b"Build it.");
+        let mut milestone = task.chip.clone();
+        milestone.task = 2;
+        milestone.title = text(title.as_bytes());
+        milestone.details.details.executor =
+            c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+        task.lineage_chips = List::from_boxed(Box::new([milestone]));
+        let root = root(task, DONE, TOTAL, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings, _) = draw(&root, &words);
+            let name = format!("in {cut}");
+            let link = tree.nodes().iter().position(|node| node.role == Role::Link).unwrap();
+            assert_eq!(tree.nodes()[link].name.as_deref(), Some(name.as_bytes()));
+            assert_eq!(fixtures::node_text(&tree, link).as_ref(), name.as_bytes());
+            assert_eq!(
+                bindings.decode(tree.nodes()[link].binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task: 2 } }))
+            );
         }
     }
 }
@@ -564,6 +744,41 @@ fn tasks_merge_the_trees_rows_and_the_ended_page_by_number() {
         assert_eq!(children.len(), expected.len());
         for (node, landed) in children.iter().zip(expected) {
             assert_eq!(node.styles.as_slice().contains(&look::GOAL_BAR_LANDED), landed);
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary tests format wait names and locate the landed fold"
+)]
+fn task_rows_and_waits_on_names_cut_titles_past_eighty_characters() {
+    for (title, cut) in row_titles() {
+        let mut done = delegate(13, title.as_bytes(), c::ChipPhase::Ended);
+        done.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+        let root = side_root(with_rows(
+            &[
+                waiting(&[12], false),
+                delegate(12, title.as_bytes(), c::ChipPhase::Active(c::RunStage::Running { attempt: 1 })),
+            ],
+            &[ended_line(done), ended_line(landed(14, title.as_bytes()))],
+        ));
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(task_links(&tree), row_words(&[b"The task", cut.as_bytes(), cut.as_bytes(), cut.as_bytes()]));
+            let rows = lines(&tree);
+            assert_eq!(rows.len(), 4);
+            for row in &rows[1..] {
+                assert_eq!(row[0].as_ref(), cut.as_bytes());
+            }
+            assert_eq!(rows[0].last().unwrap().as_ref(), format!("waits on {cut}").as_bytes());
+            assert_eq!(rows[1].last().unwrap().as_ref(), b"running");
+            assert!(rows[2].last().unwrap().starts_with(b"done"));
+            let fold = tree.nodes().iter().position(|node| node.role == Role::Disclosure).unwrap();
+            assert_eq!(tree.nodes()[fold].name.as_deref(), Some(b"1 landed".as_slice()));
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, fold), cut.as_bytes()).is_some());
         }
     }
 }
@@ -1340,7 +1555,7 @@ fn the_acts_in_order_by_offer() {
     let root = root(task, DONE, TOTAL, None, false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         let (tree, bindings, _) = draw(&root, &words);
-        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Chat T2", b"Amend", b"Pause", b"Close"]);
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Amend", b"Pause", b"Close"]);
         for (name, act) in [(b"Amend".as_slice(), Act::Amend), (b"Pause", Act::Pause), (b"Close", Act::Close)] {
             let node = tree.nodes().get(named_index(&tree, Role::Button, name)).unwrap();
             assert!(node.styles.as_slice().contains(&look::GOAL_BTN));

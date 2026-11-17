@@ -107,7 +107,10 @@ pub use crate::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
         Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
     },
-    translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
+    translate::{
+        authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
+        tasks_authority,
+    },
     vocabulary::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
@@ -143,6 +146,7 @@ pub struct Core {
     pub(crate) workers_in_process: bool,
     pub(crate) stopping: bool,
     pub(crate) settling: bool,
+    pub(crate) restart_said: bool,
     pub(crate) draining: Option<bool>,
     pub(crate) question_activity: Map<(u64, u64), tasks::ActivityLine>,
     pub(crate) census_progress: Map<u64, inbox::Progress>,
@@ -392,6 +396,7 @@ impl Core {
             workers_in_process: config.workers_in_process,
             stopping: false,
             settling: false,
+            restart_said: false,
             draining: None,
             question_activity: Map::with_capacity(inbox::question_capacity(limits).expect("validated question bound")),
             census_progress: Map::with_capacity(limits.people.people),

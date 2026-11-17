@@ -16,6 +16,7 @@ pub(crate) fn case_state(word: &str) -> Result<CaseState, Refusal> {
         "passed" => Ok(CaseState::Passed),
         "failed" => Ok(CaseState::Failed),
         "blocked" => Ok(CaseState::Blocked),
+        "gap" => Ok(CaseState::Gap),
         other => Err(refused(format!("unknown case state {other}"))),
     }
 }
@@ -44,19 +45,25 @@ pub(crate) fn outcome(value: &Value) -> Result<Outcome, Refusal> {
     Ok(Outcome {
         session: integer(object, "session")?,
         time: integer(object, "time")?,
-        result: OutcomeResult::parse(&text(object, "result")?)?,
+        result: match text(object, "result")?.as_str() {
+            "gap" => OutcomeResult::Gap,
+            word => OutcomeResult::parse(word)?,
+        },
         notes: text(object, "notes")?,
         findings: d::numbers(required(object, "findings")?)?,
     })
 }
 pub(crate) fn pass_document(pass: &Pass) -> Value {
-    json!({"number":pass.number,"place":pass.place,"build":pass.build,"state":pass.state.name(),"started":pass.started,"ended":pass.ended,
+    json!({"number":pass.number,"place":pass.place,"kind":pass.kind.stored(),"build":pass.build,"state":pass.state.name(),"started":pass.started,"ended":pass.ended,
         "cases":pass.cases,"sessions":pass.sessions,"requests":pass.requests.iter().map(request_document).collect::<Vec<_>>()})
 }
 pub(crate) fn pass(value: &Value) -> Result<Pass, Refusal> {
-    let object =
-        d::object(value, &["number", "place", "build", "state", "started", "ended", "cases", "sessions", "requests"])?;
+    let object = d::object(
+        value,
+        &["number", "kind", "place", "build", "state", "started", "ended", "cases", "sessions", "requests"],
+    )?;
     Ok(Pass {
+        kind: d::stored_kind(object)?,
         number: integer(object, "number")?,
         place: text(object, "place")?,
         build: text(object, "build")?,
@@ -146,7 +153,7 @@ pub(crate) fn finding(value: &Value) -> Result<Finding, Refusal> {
         return Err(refused(format!("unknown finding severity {severity}")));
     }
     let surface = text(object, "surface")?;
-    if surface != "web" && surface != "tui" {
+    if surface != "ctl" && surface != "web" && surface != "tui" {
         return Err(refused(format!("unknown finding surface {surface}")));
     }
     Ok(Finding {

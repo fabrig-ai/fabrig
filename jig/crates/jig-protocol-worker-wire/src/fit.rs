@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 
-use crate::v14;
+use crate::v15;
 
 /// What fitting did to an assignment.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -32,34 +32,34 @@ pub fn cut_words(bytes: u32) -> Box<[u8]> {
     writer.finish()
 }
 
-fn saving(answer: &v14::SettledAnswer) -> u32 {
+fn saving(answer: &v15::SettledAnswer) -> u32 {
     match answer {
-        v14::SettledAnswer::Host(host) => {
+        v15::SettledAnswer::Host(host) => {
             let bytes = u32::try_from(host.body().len()).expect("the body's ceiling fits u32");
             bytes.saturating_sub(cut_length(bytes))
         }
-        v14::SettledAnswer::Delivery(_) => 0,
+        v15::SettledAnswer::Delivery(_) => 0,
     }
 }
 
-fn cut_call(call: v14::AnsweredCall, limits: &v14::Limits) -> v14::AnsweredCall {
+fn cut_call(call: v15::AnsweredCall, limits: &v15::Limits) -> v15::AnsweredCall {
     let mut parts = call.into_parts();
     parts.answer = match parts.answer {
-        v14::SettledAnswer::Host(host) => {
+        v15::SettledAnswer::Host(host) => {
             let mut host = host.into_parts();
             let bytes = u32::try_from(host.body.len()).expect("the body's ceiling fits u32");
             host.body = cut_words(bytes);
-            let host = v14::HostAnswer::new(limits, host).expect("a cut body is shorter than the body it replaces");
-            v14::SettledAnswer::Host(host)
+            let host = v15::HostAnswer::new(limits, host).expect("a cut body is shorter than the body it replaces");
+            v15::SettledAnswer::Host(host)
         }
-        v14::SettledAnswer::Delivery(delivery) => v14::SettledAnswer::Delivery(delivery),
+        v15::SettledAnswer::Delivery(delivery) => v15::SettledAnswer::Delivery(delivery),
     };
-    v14::AnsweredCall::new(limits, parts).expect("only a shorter answer body changed")
+    v15::AnsweredCall::new(limits, parts).expect("only a shorter answer body changed")
 }
 
 /// `assignment` with its committed calls fitted to `room`, a frame's bytes.
 #[must_use]
-pub fn fit(assignment: v14::Assignment, limits: &v14::Limits, room: u32) -> (v14::Assignment, Fitted) {
+pub fn fit(assignment: v15::Assignment, limits: &v15::Limits, room: u32) -> (v15::Assignment, Fitted) {
     let mut bytes = u64::from(assignment.measure()).checked_add(8).expect("a u32 body and its header fit u64");
     if bytes <= u64::from(room) {
         return (assignment, Fitted::Whole);
@@ -105,6 +105,6 @@ pub fn fit(assignment: v14::Assignment, limits: &v14::Limits, room: u32) -> (v14
         answered.push(call).expect("the calls keep their count and capacity");
     }
     parts.answered = answered;
-    let assignment = v14::Assignment::new(limits, parts).expect("only shorter answer bodies changed");
+    let assignment = v15::Assignment::new(limits, parts).expect("only shorter answer bodies changed");
     (assignment, fitted)
 }

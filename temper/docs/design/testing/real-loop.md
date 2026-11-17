@@ -33,15 +33,21 @@ in the lower world that owns it, never here.
   the one-process world wherever they apply. Backend setup supplies
   real descriptors, directories and time here. The real loop replays
   neither the simulator's schedule nor its crashes and power losses.
-- **The stories,** one end-to-end path each: sign-in, a scripted chat
-  and reply, a wait satisfied by another client, and a drained shutdown;
-  a service restarted on the same directory that retains the work; a
-  call whose answer was lost, asked again under its named key and made
-  once; two acts on one DIRECTORY taking `temper ctl`'s lock in turn,
-  and a signed-in DIRECTORY private to its user (../client/ctl/testing.md,
-  3); a repository adopted, a hooked repository's webhook delivered,
-  and a chat's change cloned, pushed and landed on the fake git program
-  (below); a chat's document written, and rewritten whole once its
+- **The stories,** one end-to-end path each: sign-in (`suite::sign_in`,
+  below), a scripted chat and reply, a signed-in DIRECTORY private to
+  its user, and a wait satisfied by another client, `me` and a second
+  wait answered beside it on connections of their own (`suite::tools`),
+  and a drained shutdown (`suite::lifecycle`); a service restarted on
+  the same directory that retains the work, its chat's reply and its
+  settings (`suite::restart`); a call whose answer was lost, asked again
+  under its named key and made once (`suite::lost`); two acts on one
+  DIRECTORY taking `temper ctl`'s lock in turn (`suite::lock`;
+  ../client/ctl/testing.md, 3); a repository adopted and a hooked
+  repository's webhook delivered (`suite::forge`), and a chat's change
+  cloned, pushed and landed on the fake git program (below); a
+  welcome's model check answered on a program's source through the
+  worker and read on its Ready (`suite::model_check`;
+  `../domain/trial.md`); a case's step (`suite::case_5_3`, below); a chat's document written, and rewritten whole once its
   person's follow-up reaches its run (`suite::notes`;
   `../domain/agent/agents.md`, 3), a long one built in parts and found
   by a fresh run being the system world's; a chat adding a landing dependency to its live report delegate,
@@ -51,6 +57,18 @@ in the lower world that owns it, never here.
   repair, a change whose first head fails CI for its content, repaired
   and landed (`suite::fuzzy::repair`, below); and GitHub's, one per feature of a
   GitHub forge (below).
+- **Their behaviours are the lower worlds'.** A person's words during
+  a chat's turn, answered once in its next call, and a goal's design
+  delivered straight to its goal branch are the system world's
+  (`../domain/agent/README.md`, 7); `chat show`'s older page at an activity cursor is
+  `tests/client`'s (../client/ctl/testing.md, 2); a stop while a
+  program's turn runs is the one-process world's (`README.md`, 2.5);
+  the welcome's pages past its Ready, its project made, To begin
+  skipped and the empty Home and Work, are the joint world's
+  (../client/testing.md); and the fake issuer's admission beside a
+  browser's held sockets, and past its cap, is temper-fake's, on
+  skein's simulator (`process-tier.md`, *The fake box keeps two walks*;
+  `../protocol/setup/box.md`, 5).
 - **The first run's green light,** one story (`suite::fuzzy::green_light`), on
   the first run's cast (`../client/web/mockups/README.md`, "The first
   run"): the person asks their chat T1 "Add CSV export to widget"; T1
@@ -216,7 +234,9 @@ in the lower world that owns it, never here.
     listener on a port the kernel assigns, and the redirect driven by
     the test, as a browser would; the account usable, then a run whose
     credential the fake LLM peer observes as that account's, by its
-    scheme, never its value;
+    scheme, never its value; begun from the terminal's Accounts
+    (`suite::sign_in`), the issuer's admission beside a browser's held
+    sockets being temper-fake's (above);
   - **a program's source:** declared from the client, smith's fake
     `claude` scripted signed in, the source verified, and a run through
     smith's program backend calling host tools the engine decides as a
@@ -280,7 +300,59 @@ in the lower world that owns it, never here.
   undeclared obligation fails the story, and so does a declared leftover
   whose task has ended.
   Teardown's own check stays beside it: no child is killed but those a
-  story asks for.
+  story asks for, no more strict and no less. A story asks for a kill by
+  a `Kill` step, and by a cancel the kill follows (the next item): every
+  kill is a `Signal(9)`, and those no cancel accounts for number exactly
+  the story's `Kill` steps.
+- **A cancel's kill is asked for.** git kills its child when a cancel
+  wins the race with the child's end (`../protocol/git.md`, 7), and
+  whether the child still runs then is timing; so a kill a story's
+  cancel causes is asked for as the cancel is. The world keeps, from the
+  service's observations and on the clock the kills' records read:
+  - each root's `Cancelling` notes (`../protocol/services.md`, 5), with
+    the iteration's `now` each was taken at, whichever root took them:
+    the standalone service or a cluster's worker;
+  - each task's requester, read from the engine's live tasks while the
+    task lives, so that a delegate's ancestry outlives its end;
+  - each cancellation the engine decides: its task, the party that
+    decided it (jig's `Ending::Cancelled`, its `by`), and the
+    iteration's `now` it was first seen at.
+
+  The story cancelled a task when a person decided its cancellation (a
+  story's `task cancel` step) or a task whose executor is an agent did
+  (a scripted agent's `cancel` tool); the deployment's own cancels, and
+  a procedure's or a job's, are not the story's. A kill whose reason is
+  `Cancelled` and whose requester is a root stands for the attempts that
+  root noted `Cancelling` at the latest instant at or before the kill,
+  every one of them where several share that instant (a cancel's
+  cascade). The check accepts it when it is a `Signal(9)`, it stands
+  for at least one attempt, and each of those attempts' tasks is one the
+  story cancelled, or a delegate below one, whose cancellation was first
+  seen at or before the kill. Every other kill needs a `Kill` step: a
+  `Cancelled` kill with no `Cancelling` note at or before it, or one
+  standing for work the story didn't cancel (a root's own cancel), a
+  `Deadline` kill, a `Grace` kill (supervision's forced kill of an
+  agent), a `Closed` kill, and any kill a hosted child requests. On a
+  refusal, the finding's line for each `Cancelled` kill goes on, after
+  its time, with `; stands for run R attempt A, cancelled with task C`
+  for each attempt it stands for whose cancel the story asked, `; stands
+  for run R attempt A, not the story's cancel` for each other, or `; no
+  cancel noted`.
+- **A kill no story asked for names its cause.** The check's finding
+  prints every kill the world recorded, one line each as skein's
+  `testing/README.md`, section 5 writes it, then each one's time from the run's
+  start in milliseconds, and then the service's notes from the run's
+  last 5 seconds: each note the service root took, kept with the
+  iteration's `now` it was taken at, those taken no more than 5 seconds
+  before the run's end, the latest 100 at most, oldest first, each as
+  its time from the run's start in milliseconds and its `Debug`. A
+  story's checks are `check(&Ran) -> Result<(), String>`, the finding
+  as a value (`README.md`, 4.2), which `checked` panics on, so a test
+  that runs a story to its end without them reads the finding itself.
+  A focused story whose agent ignores its cancellation and its grace
+  holds it: smith's supervision kills the agent, and the finding names
+  the agent's program, the service root as its killer and `forced after
+  its grace`.
 - **The forge and git:** skein's forge peer (skein's `testing/fakes/forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake
@@ -370,7 +442,7 @@ in the lower world that owns it, never here.
   loopback beside its Forgejo face (skein's `testing/fakes/github.md`, section
   1), over the same forge as the fake git program. No story calls
   github.com or holds a real credential.
-  - **The configuration** points `application.machine.github`'s `api`,
+  - **The configuration** points `application.test.github`'s `api`,
     `transport`, `remote` and `web` at the peer
     (../protocol/configuration/engine.md), which the GitHub forge's
     record takes as its place at its connect (../protocol/forge/engine.md,

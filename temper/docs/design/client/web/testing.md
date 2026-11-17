@@ -233,6 +233,25 @@ real key in that restored form.
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that
   can't fit them is two tests, never a longer run.
+- **A loaded machine:** the tier runs after landing on machines whose other
+  work keeps their load past their cores, where a page settles later than
+  on an idle one, and a story holds there as it does idle. Each step waits on
+  the page's own state for what it reads or acts on, never on the page having
+  been fast: a press waits until its target stands where a person meets it,
+  nothing covering it and no later member of its row still to arrive and
+  move it (skein's `testing/browser.md`, 6: a cover is the test's to wait
+  out); a read waits for the words, status or box the page shows for it;
+  and a step resting on a scroll position, an earlier page of messages, a
+  reply or a disclosure first sees that the page shows it. Where only a
+  slow page breaks the product's own rule (a read never triggered, a node
+  replaced under its reader, a run of calls folded by when its parts
+  arrived), the product is repaired, and pinned in the lowest world that
+  shows it. A failure only a loaded machine shows is reproduced on one: the
+  story alone by name, its box and Chromium confined to two cores that busy
+  loops share with them; busy loops spread over every core of a larger
+  machine don't reproduce it. No `WITHIN`, `ABSENT`, run deadline, budget or
+  cap rises for it, and no story is skipped, ignored, retried or moved to
+  escape it.
 - **Chromium** is the machine's, at the path its owner configures
   (skein's `testing/browser.md`), which skein's, jig's and temper's browser
   tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
@@ -362,9 +381,11 @@ setup across desktop and phone widths. The twelve test functions in
     before and after a reload (`../README.md`, 2). Before that chat, at
     420 px, Home's To begin and its Start open Ask temper's page, whose
     composer and model picker end above the three tabs' top (`look.md`, *The
-    project's frame*), and whose ways show their tabs, Agents review
-    current; "Draft first" pressed shows its line, its path and "Use this"
-    (`../pages/README.md`).
+    project's frame*), and whose ways show their head, the way the
+    project runs, Agents review, shown; "Draft first" chosen from the
+    head's "Stock ways" menu, as a person chooses it, shows its path and
+    "Use this" and "Back" (`../pages/ask-temper.md`, 1, *Ask temper's
+    page*).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../../playground.md`, 9).
 13. **Reading a public project** (`public.md`, 4), with no sign-in, its board and task

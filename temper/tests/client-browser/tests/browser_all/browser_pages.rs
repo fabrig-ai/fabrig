@@ -105,7 +105,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let mut stories = Stories::of_person(0);
     stories.begin("phone ask", &steps);
     let ask = || Find::exactly_named(Role::TextArea, b"Ask temper, or tell it how you work");
-    let tabs = || Find::exactly_named(Role::Navigation, b"Sections");
+    let tab_bar = || Find::exactly_named(Role::Navigation, b"Sections");
     steps.extend([
         Step::Viewport { width: 420, height: 900 },
         // NewChat hides its tab bar on a phone; open the project's Home by address.
@@ -115,13 +115,16 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         press(Role::Button, b"Start"),
         Step::Address(b"/projects/1/ask".as_slice().into()),
         see(ask()),
-        see(Find::exactly_named(Role::Tabs, b"Ways of working")),
-        press(Role::Tab, b"Draft first"),
+        see(Find::exactly_named(Role::Button, b"Stock ways")),
+        press(Role::Button, b"Stock ways"),
+        see(Find::exactly_named(Role::MenuItem, b"Draft first")),
+        press(Role::MenuItem, b"Draft first"),
         see(Find::exactly_named(Role::Button, b"Use this")),
-        see(tabs()),
+        see(Find::exactly_named(Role::Button, b"Back")),
+        see(tab_bar()),
         keep_box(ask(), "phone-ask/composer"),
         keep_box(Find::named(Role::Disclosure, b"Model"), "phone-ask/picker"),
-        keep_box(tabs(), "phone-ask/tabs"),
+        keep_box(tab_bar(), "phone-ask/tab-bar"),
         Step::Viewport { width: 1280, height: 800 },
         // Start adds an entry: Back through Home to the ready playground's NewChat.
         Step::Back,
@@ -148,10 +151,14 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     steps.extend(reload_chats(&tier));
     stories.begin("night across a reload", &steps);
     steps.extend([
+        // Away adds a button before the rail's other children when its project facts arrive.
+        // Wait for that frame before finding Night mode, whose old node can become the hidden phone chip.
+        see(Find::exactly_named(Role::Button, b"Away")),
         press(Role::Button, b"Night mode"),
         pressed(b"Night mode"),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats") }),
         pressed(b"Night mode"),
+        see(Find::exactly_named(Role::Button, b"Away")),
         press(Role::Button, b"Night mode"),
     ]);
     stories.begin("history", &steps);
@@ -180,6 +187,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         // This chat read docs without starting work; its Work filter is empty.
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(Find::exactly_named(Role::Button, b"Closed")),
+        // This project's ways offer drafts; their filter arrives before Closed and moves it.
+        see(Find::exactly_named(Role::Button, b"Drafts")),
         press(Role::Button, b"Closed"),
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats?state=closed") }),
@@ -202,14 +211,14 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     stories.assert_done(harness.run(&mut [&mut script]));
     let (composer_y, composer_height) = box_of(&harness, "phone-ask", "composer");
     let (picker_y, picker_height) = box_of(&harness, "phone-ask", "picker");
-    let (tabs_y, _) = box_of(&harness, "phone-ask", "tabs");
+    let (tab_bar_y, _) = box_of(&harness, "phone-ask", "tab-bar");
     assert!(
-        composer_y + composer_height <= tabs_y,
-        "phone ask: composer {composer_y} + {composer_height} overlaps tabs at {tabs_y}"
+        composer_y + composer_height <= tab_bar_y,
+        "phone ask: composer {composer_y} + {composer_height} overlaps the tab bar at {tab_bar_y}"
     );
     assert!(
-        picker_y + picker_height <= tabs_y,
-        "phone ask: picker {picker_y} + {picker_height} overlaps tabs at {tabs_y}"
+        picker_y + picker_height <= tab_bar_y,
+        "phone ask: picker {picker_y} + {picker_height} overlaps the tab bar at {tab_bar_y}"
     );
     let lines: Vec<_> = harness.kept().iter().filter(|kept| kept.name.as_ref() == b"call-line").collect();
     let [before, after] = lines.as_slice() else {
@@ -468,6 +477,8 @@ fn latest_steps(tier: &Tier) -> Vec<Step> {
         Step::Person(PersonStep::Type { find: composer(), words: SENT.into() }),
         Step::Key(Key::Enter),
         see(paragraph(SENT)),
+        // The pending line gets its message number when the send answers.
+        gone(Find::exactly_named(Role::Status, b"Being sent")),
         gone(latest()),
         keep_box(paragraph(SENT), "latest/sent-words"),
     ]);
@@ -521,6 +532,8 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
     read_to_start(tier, &mut steps, messages - 2);
     steps.extend([gone(reply_end(messages)), see(Find::exactly_named(Role::Button, b"Latest"))]);
     // Hold the later read while PageDown reaches the retained window's foot.
+    // An earlier read can still be out after the first message is drawn.
+    steps.push(gone(loading_earlier()));
     steps.extend(serve_signal(tier, "-STOP"));
     for _ in 0..6 {
         steps.push(Step::Key(Key::PageDown));
@@ -557,7 +570,7 @@ fn reading_back_steps(
 ) -> Vec<Step> {
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
     let anchor = || paragraph(&words(messages - 1));
-    let loading = || Find::exactly_named(Role::Status, b"Loading earlier messages");
+    let loading = loading_earlier;
     let keep = |find, name: &str| keep_box(find, &format!("{story}/{name}"));
     let mut steps = Vec::new();
     steps.extend([
@@ -566,6 +579,8 @@ fn reading_back_steps(
         keep(anchor(), "head"),
         Step::Person(PersonStep::Press { find: composer() }),
     ]);
+    // Opening and the viewport change must finish reading before this read is held.
+    steps.push(gone(loading()));
     steps.extend(serve_signal(tier, "-STOP"));
     steps.extend([Step::Key(Key::PageUp), Step::Focused(composer()), keep(reply_end(messages), "up")]);
     for _ in 0..5 {
@@ -640,7 +655,12 @@ fn read_to_start(tier: &Tier, steps: &mut Vec<Step>, from: u32) {
     read_earlier(tier, steps, reply_end(1));
     read_earlier(tier, steps, paragraph(&reading::long_words(1)));
 }
+fn loading_earlier() -> Find {
+    Find::exactly_named(Role::Status, b"Loading earlier messages")
+}
 fn read_earlier(tier: &Tier, steps: &mut Vec<Step>, next: Find) {
+    // Finish reading the retained head before holding the next read.
+    steps.push(gone(loading_earlier()));
     steps.extend(serve_signal(tier, "-STOP"));
     for _ in 0..4 {
         steps.push(Step::Key(Key::PageUp));

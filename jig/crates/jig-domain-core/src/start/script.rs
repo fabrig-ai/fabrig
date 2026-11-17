@@ -90,6 +90,18 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
+                if let Some(wait) = self.counters.deployment.restart_wait_ms {
+                    let mut child = crate::step(
+                        self,
+                        env,
+                        crate::Event::Fleet(crate::fleet::Event::Restarting {
+                            wait: skein_lib::Duration::from_millis(wait),
+                        }),
+                    );
+                    for _ in 0..child.len() {
+                        out.push(child.pop().expect("restart hold output count"));
+                    }
+                }
                 // Each restored claim is delivered once before the fleet opens placement.
                 for _ in 0..self.adopted.len() {
                     let event = self.adopted.pop().expect("restored claims are bounded by live tasks");

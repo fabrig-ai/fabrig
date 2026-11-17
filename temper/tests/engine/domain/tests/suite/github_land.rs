@@ -83,9 +83,11 @@ fn silent_change() -> (World, u64) {
     world.fake_env.limits.latency_max = Duration::ZERO;
     let (mut world, requester, producer, branch) = change_world_in(world, Change::default());
     pushed(&mut world, &producer, &branch);
-    for _ in 0..200 {
+    for _ in 0..1000 {
         world.tick();
-        if matches!(change_row(&world).change.state, change::State::Checking { .. }) {
+        if matches!(change_row(&world).change.state, change::State::Checking { .. })
+            && change_row(&world).change.clock.is_some()
+        {
             return (world, requester.task);
         }
     }
@@ -112,24 +114,33 @@ fn at(world: &mut World, when: Wall) {
 fn silent_ci_at_shipped_stall_boundary() {
     // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md; Q2. Exercise the actual procedure's wake.
     let (mut world, _) = silent_change();
-    let since = change_row(&world).change.since.as_nanos();
-    let deadline = since + STALL.as_nanos();
+    let observed = change_row(&world).change.clock.expect("first execution reading").at.as_nanos();
+    let deadline = observed + STALL.as_nanos();
     at(&mut world, Wall::from_nanos(deadline - TICK.as_nanos()));
     assert!(
         matches!(change_row(&world).change.state, change::State::Checking { .. }),
-        "QA: silent CI must not stall before 1800 s: {:?}",
+        "QA: silent CI must not stall before 1800 s of observed running: {:?}",
         change_row(&world)
     );
-    at(&mut world, Wall::from_nanos(deadline));
+    // The bound wakes a gather; its run reads may retry for client capacity.
+    let latest = deadline + world.env.limits.forge.client.poll_max.as_nanos();
+    for _ in 0..1000 {
+        world.tick();
+        if matches!(change_row(&world).change.state, change::State::Held { .. }) {
+            break;
+        }
+        assert!(world.env.wall.as_nanos() <= latest, "execution hold within one poll");
+    }
     assert!(
         matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
-        "QA: silent CI must be Held(Stalled) at 1800 s: {:?}",
+        "QA: silent CI must be Held(Stalled) within one poll of 1800 s of observed running: {:?}",
         change_row(&world)
     );
-    at(&mut world, Wall::from_nanos(deadline + TICK.as_nanos()));
+    let held = world.env.wall;
+    at(&mut world, Wall::from_nanos(held.as_nanos() + TICK.as_nanos()));
     assert!(
         matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
-        "QA: silent CI must remain held just after 1800 s: {:?}",
+        "QA: silent CI must remain held just after 1800 s of observed running: {:?}",
         change_row(&world)
     );
     assert_eq!(world.merges, 0, "QA: silent CI never permits a merge");
@@ -166,7 +177,7 @@ fn stalled_change_notifies_its_requester() {
     world.send(event);
     world.until(temper_engine_domain_world::forge_routes::Until::Ready);
     let change = change_row(&world).task;
-    let deadline = change_row(&world).change.since.as_nanos() + STALL.as_nanos();
+    let deadline = change_row(&world).change.clock.expect("first execution reading").at.as_nanos() + STALL.as_nanos();
     // Jump to the stall, then advance through any one-second Busy retries.
     // Unlike the boundary snapshots, this story must settle the requester notice.
     world.env.now = Time::from_nanos(deadline - TICK.as_nanos());
@@ -210,7 +221,7 @@ fn slow_required_brief_reaches_shipped_gather_limit() {
     let mut brief = World::configured(true, true).env.limits.brief;
     brief.gather = GATHER;
     // Keep the shipped infrastructure backoff so this deadline observation precedes its retry.
-    let retry = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.retries.infrastructure;
+    let retry = jig_protocol_config_fixtures::small().core.tasks.retries.infrastructure;
     let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief))
         .with_infrastructure_retry(retry);
     let (mut world, _requester, producer, branch) = change_world_in(world, Change::default());

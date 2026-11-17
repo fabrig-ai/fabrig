@@ -42,6 +42,9 @@ all. Then temper's:
      cases the top's gates report failed, one run per workflow and
      commit, and nothing landed on such a probe: the next round proves
      the green prefix whole.
+   - `landing-preparing.md`: a round at preparing reading at each step
+     whether its prepare lives, has answered or is absent, and
+     recovering across a restart, a worker's loss and a release.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.
@@ -56,6 +59,9 @@ all. Then temper's:
    triaged and closed when their fix clears; QA after landing.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
+10. **milestones.md:** a milestone, a set of goals on jig's gathering:
+    its template and identity, its goals asking its maker, its totals
+    and the forge's row of it, and the status agent's milestones.
 
 ## 2. Structure
 
@@ -108,7 +114,7 @@ temper-worker-domain                       the worker's root (worker/README.md)
   path from `docs/design/`: `forge/change/README.md, 2`; jig's as
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
-  the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
+  the conformance's `facts.txt` (skein's `testing/fakes/throwaway.md`, section 2) and
   `crates/temper-git-transcripts-tool/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
@@ -135,7 +141,7 @@ smith's are smith's.
 | queue repair | the one change made into a landing branch whose own CI fails, first in its queue (forge/queues.md) |
 | follow, follow change | a project's setting following a branch of a repository it adopts as context, and the change its follow task makes for each landing there in the paths it names (forge/follows.md) |
 | dependency | a project's setting naming another project of the deployment it builds on, shown beside its follows and acted on by nothing (forge/dependencies.md) |
-| stall | a change's wait past its bound, which holds it (forge/change/repairs.md) |
+| stall | a change's wait past its bound, which holds it (forge/change/stalls.md) |
 | a change's, a task's, a saved-work branch | `temper/<root>/c<task>`, `temper/<root>/r<task>`, `temper/<root>/s<task>`: branches named after the task tree (forge/branches.md) |
 | goal's issue | one issue per goal, a projection temper writes on the forge and never reads back (forge/issues.md) |
 | hint | a webhook delivery's word that something changed: the forge reads sooner, and believes only what it reads (forge/keeping-up.md, 2) |

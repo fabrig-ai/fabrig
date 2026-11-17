@@ -147,6 +147,7 @@ pub enum Request {
     ChangeFiles {
         at: Repo,
         branch: Box<[u8]>,
+        new_branch: Option<Box<[u8]>>,
         message: Box<[u8]>,
         files: Box<[FileChange]>,
     },

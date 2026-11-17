@@ -19,32 +19,14 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
     let input = fixtures::worker_alone_document();
     for (member, value, path, what) in [
         (
-            b"application.workers[0].root".as_slice(),
-            b"12".as_slice(),
-            Path::root().member(b"application").member(b"workers").child(Segment::Index(0)).member(b"root"),
-            What::Jig(config::What::Kind),
-        ),
-        (
-            b"application.workers[0].root",
-            br#""../escape""#,
-            Path::root().member(b"application").member(b"workers").child(Segment::Index(0)).member(b"root"),
-            What::Jig(config::What::Relative),
-        ),
-        (
-            b"application.workers[0].git",
-            br#""git""#,
-            Path::root().member(b"application").member(b"workers").child(Segment::Index(0)).member(b"git"),
-            What::Absolute,
-        ),
-        (
-            b"workers[0].agent.configuration",
-            br#""temper""#,
+            b"workers[0].agent.configuration".as_slice(),
+            br#""temper""#.as_slice(),
             Path::root().member(b"workers").child(Segment::Index(0)).member(b"agent").member(b"configuration"),
             What::Absolute,
         ),
         (
             b"application.limits.overrides",
-            br#"{"git_component.operations":1}"#,
+            br#"{"git_component.operations":0}"#,
             Path::root()
                 .member(b"application")
                 .member(b"limits")
@@ -78,7 +60,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let mut agent = fixtures::owned_worker_agent();
     agent.host_limits.message_bytes = 10_662;
     agent.host_limits.messages = 82;
-    let part = crate::startup::worker_part(&input, &directories).unwrap();
+    let part = crate::startup::worker_part(&input, &directories, None).unwrap();
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(
@@ -111,7 +93,7 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
     );
     let directories = config::Directories::working();
     assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
-    let part = crate::startup::worker_part(&input, &directories).unwrap();
+    let part = crate::startup::worker_part(&input, &directories, None).unwrap();
     assert_eq!(part.limits.checkout.conflicts, 7);
     let service = crate::startup::worker_alone(
         part,
@@ -122,4 +104,33 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
     )
     .unwrap();
     assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
+}
+
+#[test]
+fn the_worker_uses_constant_deadlines_workspaces_and_the_shells_git() {
+    use skein_lib::Duration;
+    let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    for git in [Some(b"/tools/git".as_slice()), None] {
+        let part = crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, git).unwrap();
+        let worker = &part.worker;
+        assert_eq!(worker.root.as_ref(), b"/data/workspaces");
+        assert_eq!(part.named.root, worker.root);
+        assert_eq!(worker.git.as_deref(), git);
+        assert_eq!(
+            worker.jig.graces,
+            config::Graces {
+                grace: Duration::from_millis(300_000),
+                drain: Duration::from_millis(180_000),
+                agent_stop: Duration::from_millis(5_000),
+                delivery: Duration::from_millis(1_000),
+                save: Duration::from_millis(1_000)
+            }
+        );
+        assert_eq!(worker.jig.stop_bound, Duration::from_secs(326));
+        assert_eq!(worker.jig.check_interval, Duration::from_secs(60));
+        assert_eq!(worker.jig.limits.hub.source_interval, worker.jig.check_interval);
+    }
+    let found =
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &directories, Some(b"git")).unwrap_err();
+    assert_eq!(found.problems.get(0).unwrap().what, What::Absolute);
 }

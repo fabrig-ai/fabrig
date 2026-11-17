@@ -72,6 +72,34 @@ impl Domain {
         let (step, hold) = self.panel_step(row, now, limits);
         let head = row.change.last_head;
         let panel = Panel {
+            landing_held: self.landing.held
+                && match row.change.state {
+                    change::State::Ready { .. }
+                    | change::State::Queued { .. }
+                    | change::State::First { .. }
+                    | change::State::Landing { .. } => true,
+                    change::State::Ended
+                    | change::State::NoChange { .. }
+                    | change::State::Taking { .. }
+                    | change::State::Producing { .. }
+                    | change::State::WaitingProducer { .. }
+                    | change::State::Opening { .. }
+                    | change::State::Recreating { .. }
+                    | change::State::Reopening { .. }
+                    | change::State::Checking { .. }
+                    | change::State::Judging { .. }
+                    | change::State::Gating { .. }
+                    | change::State::CancellingGates { .. }
+                    | change::State::Preparing { .. }
+                    | change::State::Updating { .. }
+                    | change::State::Resolving { .. }
+                    | change::State::Repairing { .. }
+                    | change::State::Landed { .. }
+                    | change::State::Red { .. }
+                    | change::State::Cleared { .. }
+                    | change::State::Uncleared { .. }
+                    | change::State::Held { .. } => false,
+                },
             way: row.change.way,
             in_landing: if row.change.way == change::Way::Turn {
                 match row.change.landing {
@@ -91,6 +119,10 @@ impl Domain {
             branch: row.branch.clone(),
             landing: row.base.clone(),
             head,
+            source: match &row.source {
+                Some(source) => Some(PanelSource { branch: source.branch.clone(), at: source.at, kept: row.kept }),
+                None => None,
+            },
             pull: row.pull,
             step,
             hold,
@@ -121,6 +153,7 @@ impl Domain {
         }
         let step = match state {
             change::State::NoChange { .. } | change::State::Ended => PanelStep::Ended,
+            change::State::Taking { .. } => PanelStep::Taking,
             change::State::Producing { .. } | change::State::WaitingProducer { .. } => PanelStep::Producing,
             change::State::Opening { .. } => PanelStep::Opening,
             change::State::Recreating { .. } => PanelStep::Recreating,

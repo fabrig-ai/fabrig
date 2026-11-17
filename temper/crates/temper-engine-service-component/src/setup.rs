@@ -859,3 +859,7 @@ fn read_item(
 #[cfg(test)]
 #[path = "tests/forge_gone.rs"]
 mod gone_tests;
+
+pub(crate) fn set_file(layer: &mut Layer, forge: u16, file: temper_forge_setup::setup_file::SetupFile) {
+    runtime::set_file(layer, forge, file);
+}

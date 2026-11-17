@@ -103,6 +103,8 @@ pub const LIMITS: top::Limits = top::Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -891,6 +893,8 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
     };
     top::ChangeRow {
         room: None,
+        source: None,
+        kept: None,
         task_release: Some(top::TaskRelease { revision: 3, at: skein_lib::Wall::from_nanos(7) }),
         job: None,
         signed: Box::new([]),
@@ -928,6 +932,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             owns_turn: true,
             last_head: Some([15; 32]),
             last_checked: None,
+            clock: None,
         },
         pull: Some(16),
         pending: Some(17),
@@ -935,6 +940,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate: Some((18, Delegate::Gate { number: 19, head: [20; 32] })),
         delegate_status: Status::Passed,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -975,8 +981,9 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
-    let mut states = List::with_capacity(24);
+    let mut states = List::with_capacity(25);
     for state in [
+        State::Taking { requested: true },
         State::Producing { requested: true },
         State::Opening { requested: false },
         State::Recreating { head: [1; 32] },

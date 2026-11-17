@@ -124,6 +124,8 @@ const LIMITS: Limits = Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -219,6 +221,8 @@ fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         room: None,
+        source: None,
+        kept: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
@@ -250,6 +254,7 @@ fn change_row() -> ChangeRow {
             owns_turn: false,
             last_head: Some(HEAD),
             last_checked: None,
+            clock: None,
         },
         pull: None,
         pending: Some(OPEN),
@@ -257,6 +262,7 @@ fn change_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         verdicts: Box::new([]),
+        milestone: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

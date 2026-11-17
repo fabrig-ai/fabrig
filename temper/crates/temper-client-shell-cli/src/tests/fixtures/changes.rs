@@ -21,6 +21,7 @@ impl Frame {
             &f::CEILINGS,
             f::ChangePanelParts {
                 wait: None,
+                source: None,
                 way: f::Way::Queue,
                 in_landing: None,
                 task: TASK,

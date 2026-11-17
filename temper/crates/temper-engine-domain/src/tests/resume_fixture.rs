@@ -123,6 +123,7 @@ pub fn limits() -> engine::Limits {
         progress_bytes: 0,
         turns: 2,
         grace: Duration::from_secs(5),
+        restart_wait: Duration::from_millis(1_200_000),
         facts: 2,
         history: 2,
     };
@@ -137,10 +138,10 @@ pub fn limits() -> engine::Limits {
     };
     engine::Limits {
         streams: 1,
-        routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
+        routes: jig_protocol_config_fixtures::small().routes,
         // The same configured core byte budgets as the engine world fixture.
-        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
-        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        policy_bytes: jig_protocol_config_fixtures::small().core.policy_bytes,
+        call_answer_bytes: jig_protocol_config_fixtures::small().core.call_answer_bytes,
         host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
@@ -305,7 +306,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        host_part: None,
+        host_part: crate::room::HostPart { allowance: u64::MAX, ..crate::room::HostPart::EMPTY },
         kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
@@ -370,7 +371,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),
@@ -561,6 +562,8 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
         questions: 4,
         tasks: 6,
         stall: Duration::from_secs(30),
+        unknown_grace: Duration::from_secs(30),
+        runner_wait: Duration::from_secs(240),
         gates: 8,
         clean_heads: 8,
     },
@@ -824,6 +827,7 @@ impl StartStore {
                     request @ (engine::Request::Unsettled(_)
                     | engine::Request::Bound { .. }
                     | engine::Request::BoxRemove { .. }
+                    | engine::Request::ChoosePlace { .. }
                     | engine::Request::BoxGroup { .. }
                     | engine::Request::ForgeGone { .. }
                     | engine::Request::PlaygroundActs { .. }
@@ -845,6 +849,7 @@ impl StartStore {
                     | engine::Request::Forge { .. }
                     | engine::Request::Account(_)
                     | engine::Request::Busy(_)
+                    | engine::Request::Restarting { .. }
                     | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
                 }
             } else if root.ready() {

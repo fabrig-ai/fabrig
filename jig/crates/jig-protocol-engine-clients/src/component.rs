@@ -6,7 +6,7 @@ use crate::{
     sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v26 as w;
+use jig_client_protocol_wire::v27 as w;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
@@ -302,6 +302,10 @@ impl Component {
             }
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
                 self.application_delivery(env, watcher, family, record, out);
+            }
+            Event::ProviderClient { reply, change } => {
+                let result = self.provider_client(env, change);
+                out.push(Request::Application(crate::ToApplication::ProviderClientChanged { reply, result }));
             }
             Event::Redeem { exchange, authorization, content_type, body } => {
                 let answer = self.redeem(env, authorization.as_ref(), content_type.as_deref(), body.expose());

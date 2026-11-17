@@ -14,6 +14,66 @@ use temper_client_domain::{
     pages::{Act, inbox::Card, needs},
 };
 
+pub(crate) fn from_name(need: needs::Need<'_>, title: &[u8]) -> Box<[u8]> {
+    let title = crate::common::chat::row_title(title);
+    if let needs::Need::Card(card) = need
+        && let Some(task) = card.document()
+        && let Some(lineage) = temper_client_domain::milestones::lineage(task)
+    {
+        let milestone = crate::common::chat::row_title(lineage.milestone.title.bytes());
+        let goal = crate::common::chat::row_title(lineage.goal.title.bytes());
+        let prefix = skein_lib::bytes::concat(&[&milestone, " › ".as_bytes(), &goal]);
+        return if task.chip.task == lineage.goal.task {
+            prefix
+        } else {
+            skein_lib::bytes::concat(&[&prefix, " › ".as_bytes(), &title])
+        };
+    }
+    title
+}
+pub(crate) fn from_title(
+    b: &mut Builder,
+    need: needs::Need<'_>,
+    title: &[u8],
+    source: Option<u64>,
+    bindings: &mut Bindings,
+    linked: bool,
+) {
+    if let needs::Need::Card(card) = need
+        && let Some(task) = card.document()
+        && let Some(lineage) = temper_client_domain::milestones::lineage(task)
+    {
+        from_link(b, lineage.milestone.title.bytes(), Some(lineage.milestone.task), bindings, linked, true);
+        b.text(Run::Plain, " › ".as_bytes());
+        from_link(b, lineage.goal.title.bytes(), Some(lineage.goal.task), bindings, linked, false);
+        if task.chip.task == lineage.goal.task {
+            return;
+        }
+        b.text(Run::Plain, " › ".as_bytes());
+    }
+    from_link(b, title, source, bindings, linked, false);
+}
+fn from_link(
+    b: &mut Builder,
+    title: &[u8],
+    source: Option<u64>,
+    bindings: &mut Bindings,
+    linked: bool,
+    milestone: bool,
+) {
+    let title = crate::common::chat::row_title(title);
+    if linked && let Some(task) = source {
+        crate::bindings::link(b, &title, bindings.insert(Act::Go { address: Address::Task { task } }));
+        if milestone {
+            b.style(look::MS_FROM);
+        }
+    } else {
+        b.open(Role::Text);
+    }
+    b.text(Run::Plain, &title);
+    b.close();
+}
+
 pub(crate) fn bounded<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     read_parts(card, w, false)
 }
@@ -103,7 +163,7 @@ pub(crate) fn answered_lines(
                 None => w.say(Word::HomeQuestion, &[]),
             }
         } else {
-            line.title.clone()
+            crate::common::chat::row_title(&line.title)
         };
         if w.shell == Shell::Terminal {
             b.open(Role::Paragraph);

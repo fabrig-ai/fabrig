@@ -134,6 +134,9 @@ fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper
                 | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)
                 | settings::Value::ProjectAreas(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_) => {}
             },
         }
@@ -205,6 +208,9 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
                 | settings::Value::ProjectAreas(_)
+                | settings::Value::Landing(_)
+                | settings::Value::Gates(_)
+                | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_)
                 | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)
@@ -223,13 +229,14 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
     let templates = domain.core.project_templates(project);
     let mut chosen: Option<&jig_domain_core::Template> = None;
     for template in &templates {
-        if (value.way != 0 && template.number == value.way)
-            || (value.way == 0
-                && template.tracked.is_some()
-                && match chosen {
-                    Some(previous) => template.number < previous.number,
-                    None => true,
-                })
+        if template.tracked.is_some()
+            && template.flags.ended_by != jig_domain_tasks::EndedBy::Requester
+            && ((value.way != 0 && template.number == value.way)
+                || (value.way == 0
+                    && match chosen {
+                        Some(previous) => template.number < previous.number,
+                        None => true,
+                    }))
         {
             chosen = Some(template);
         }
@@ -405,6 +412,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Playground
         | forge::Key::Tier { .. }
         | forge::Key::Verification { .. }
+        | forge::Key::Milestone(_)
         | forge::Key::LandingLog { .. }
         | forge::Key::Dismissed { .. }
         | forge::Key::Making(_)

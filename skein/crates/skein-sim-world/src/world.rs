@@ -247,6 +247,15 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
         self.cuts.push(PlannedCut { host, before, cut, done: false });
     }
 
+    /// Cuts and restarts `host` between iterations, using the fixed cut's settlement.
+    /// Its factory must be restartable; a host is cut once, as with `cut`.
+    pub fn cut_now(&mut self, host: usize, cut: Cut) {
+        let before = *self.submissions.get(host).expect("a counter per process");
+        self.cut(host, before, cut);
+        let planned = self.cuts.len().checked_sub(1).expect("the cut just added");
+        self.perform_cut(planned);
+    }
+
     /// Adds a process with an append file the scenario's machine opened at startup.
     pub fn spawn_append<F: FnOnce(Fd) -> P>(&mut self, file: Handle, make: F) -> usize {
         let pid = self.sim.spawn_process();

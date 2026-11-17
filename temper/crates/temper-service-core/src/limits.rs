@@ -83,7 +83,7 @@ pub const CLOSE_RESULT_BYTES: u32 = 512;
 pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
 const CHECKOUT: Checkout = Checkout {
-    // Cached or held checkout workspaces, from the checkout world fixture.
+    // Cached workspaces before the worker’s slots derive its places (configuration/derived.md, 5.2).
     workspaces: 3,
     // One preparation at a time per worker: redeploys.md, 6.4.
     preparations: 1,
@@ -97,13 +97,13 @@ const CHECKOUT: Checkout = Checkout {
     conflicts: 512,
     // Bytes per conflicted path, with its NUL in the git component's stdout.
     path_bytes: 255,
-    // Time for an operation reaching a forge, from the checkout world fixture.
+    // A remote git operation gets one minute for the forge to answer.
     remote_timeout: Duration::from_secs(60),
-    // Time for a local checkout operation, from the checkout world fixture.
-    local_timeout: Duration::from_secs(10),
+    // A local git operation gets dev’s 60 seconds (2026-11-16).
+    local_timeout: Duration::from_secs(60),
     reds_read_ms: 5_000,
     rerun_processes: 4,
-    // Facts awaiting drain, from the checkout world fixture.
+    // Facts from a full checkout pass, bounded by its 256 cached names.
     facts: 256,
 };
 const GIT: GitComponent = GitComponent {
@@ -121,12 +121,6 @@ const GIT: GitComponent = GitComponent {
     sweep_bytes: 4080,
 };
 
-/// Shared profile parts and peer scalars (protocol/services.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Profile {
-    Small,
-    Standard,
-}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Peer {
     pub forges: u32,
@@ -147,13 +141,11 @@ pub enum Refused {
 pub const FORGE_INSTALLATIONS: u32 = 8;
 pub const FORGE_TOKEN_BYTES: u32 = 512;
 #[must_use]
-pub const fn profile(profile: Profile) -> Shared {
-    match profile {
-        Profile::Small | Profile::Standard => Shared {
-            checkout: CHECKOUT,
-            git_component: GIT,
-            peer: Peer { forges: 3, installations: FORGE_INSTALLATIONS, token_bytes: FORGE_TOKEN_BYTES },
-        },
+pub const fn stock() -> Shared {
+    Shared {
+        checkout: CHECKOUT,
+        git_component: GIT,
+        peer: Peer { forges: 3, installations: FORGE_INSTALLATIONS, token_bytes: FORGE_TOKEN_BYTES },
     }
 }
 /// Every override known to a document, including the other owners' names.
@@ -279,6 +271,8 @@ pub const NAMES: &[&str] = &[
     "forge.change_policy.questions",
     "forge.change_policy.tasks",
     "forge.change_policy.stall_ms",
+    "forge.change_policy.unknown_grace_ms",
+    "forge.change_policy.runner_wait_ms",
     "forge.change_policy.gates",
     "forge.change_policy.clean_heads",
     "forge.issue_policy.plan_items",

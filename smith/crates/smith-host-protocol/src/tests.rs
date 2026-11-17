@@ -364,13 +364,26 @@ fn host_stop_signals_keep_the_child_identity() {
         &mut below,
     );
     below.pop();
-    process.signal(kernel::Signal::Terminate, &mut below);
-    process.signal(kernel::Signal::Kill, &mut below);
+    process.signal(kernel::Signal::Terminate, kernel::Reason::Unknown, &mut below);
+    process.signal(kernel::Signal::Kill, kernel::Reason::Grace, &mut below);
     assert_eq!(
         below.pop(),
-        Some(IoRequest::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Terminate })
+        Some(IoRequest::Signal {
+            child,
+            to: kernel::Target::Child,
+            signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown
+        })
     );
-    assert_eq!(below.pop(), Some(IoRequest::Signal { child, to: kernel::Target::Child, signal: kernel::Signal::Kill }));
+    assert_eq!(
+        below.pop(),
+        Some(IoRequest::Signal {
+            child,
+            to: kernel::Target::Child,
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Grace
+        })
+    );
 }
 
 pub(super) fn endpoints() -> smith_protocol_translate::Endpoints {

@@ -71,7 +71,6 @@ pub fn fixture_classes(
 }
 
 #[expect(clippy::too_many_arguments, reason = "the card fixture carries independent document and role rows")]
-#[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
 #[must_use]
 pub fn fixture_classes_role(
     words: &str,
@@ -83,6 +82,35 @@ pub fn fixture_classes_role(
     classes: Option<&temper_protocol_reaches::Classes>,
     owner: bool,
     projects: u32,
+) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    fixture_with_task(words, cut, count, more, filter, title, classes, owner, projects, None)
+}
+
+#[must_use]
+pub fn with_task(task: c::Task, filter: d::address::Filter) -> d::Domain {
+    let title = task.chip.title.clone();
+    let (mut root, _, decided) =
+        fixture_with_task(QUESTION, false, 1, false, filter, Some(title.bytes()), None, false, 2, Some(&task));
+    deliver_asked(&mut root, decided, None);
+    root
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the fixture delivers independent question, task and class documents"
+)]
+fn fixture_with_task(
+    words: &str,
+    cut: bool,
+    count: u32,
+    more: bool,
+    filter: d::address::Filter,
+    title: Option<&[u8]>,
+    classes: Option<&temper_protocol_reaches::Classes>,
+    owner: bool,
+    projects: u32,
+    document: Option<&c::Task>,
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
     let (mut root, me_watch, _, _, _, _, _, standing, _) = f::root_at_with_classes(
         Address::Settings { project: f::PROJECT },
@@ -147,6 +175,9 @@ pub fn fixture_classes_role(
         entries.push(documents::entry(object(message), project, message, Wall::EPOCH, None)).unwrap();
     }
     let mut out = Queue::uncapped();
+    while let Some(request) = opening.pop() {
+        out.push(request);
+    }
     event(
         &mut root,
         Event::Client {
@@ -166,6 +197,30 @@ pub fn fixture_classes_role(
         &mut out,
     );
     while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
+                },
+        } = &request
+            && let Some(document) = document
+            && *task == document.chip.task
+        {
+            event(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read: *read,
+                            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(
+                                document.clone(),
+                            )))),
+                        },
+                    },
+                },
+                &mut out,
+            );
+        }
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -205,7 +260,7 @@ pub fn fixture_classes_role(
                 _ => b"third",
             });
             if let Some(title) = title {
-                task.title = f::task::document_words(title);
+                task.title = c::DocumentText::complete(c::Text::new(title.into(), 4096).expect("fixture title"));
             }
             let q = c::Question {
                 task,

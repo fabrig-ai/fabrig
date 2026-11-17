@@ -986,7 +986,7 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire::v27 as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
@@ -2124,7 +2124,7 @@ fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documen
 
 #[test]
 fn a_small_profile_s_whole_room_of_answers_holds_and_restarts() {
-    support::whole_room_of_answers(jig_protocol_config::Profile::Small);
+    support::whole_room_of_answers(&jig_protocol_config_fixtures::small());
 }
 
 fn request_world(config: root::Config, limits: &root::Limits) -> World {
