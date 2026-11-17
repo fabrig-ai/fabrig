@@ -392,6 +392,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             | link::Request::Dropped
             | link::Request::Exchange { .. }
             | link::Request::NotKept { .. }
+            | link::Request::NotWritten { .. }
             | link::Request::ServiceCredential { .. }
             | link::Request::OpenStream { .. }
             | link::Request::Signing { .. }

@@ -953,6 +953,7 @@ impl Composition {
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
+            | link::Request::NotWritten { .. }
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
         };
         self.callbacks.push(Incoming::Callback {

@@ -54,6 +54,54 @@ fn a_failed_write_withholds_the_step_s_exchanges() {
     assert_eq!(harness.terminals(), 1);
 }
 #[test]
+fn an_unwritable_record_retires_only_its_key_and_preserves_the_pending_write() {
+    let first = fixtures::saved_table(fixtures::message());
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits {
+        document_bytes: u64::try_from(fixtures::store_read(first.clone()).bytes.len()).unwrap(),
+        ..*base.client()
+    };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    let mut harness = fixtures::Harness::new(&limits);
+    harness.save(first);
+    harness.send_kept(fixtures::ATTEMPT);
+    assert_eq!(harness.exchanges(), 0);
+    harness.clear();
+    let ask = c::Ask::Message {
+        project: 7,
+        task: 8,
+        words: c::Text::new(Box::from(b"longer than hello".as_slice()), 32).unwrap(),
+    };
+    let mut second = fixtures::saved_table(ask.clone());
+    second.record.key = [8; 16];
+    harness.save(second);
+    assert!(!harness.has(&Request::NotKept { attempt: fixtures::ATTEMPT }), "the encoded request stays held");
+    assert!(!harness.has(&Request::Fact { fact: Fact::UndecodableStore }));
+    assert_eq!(harness.out.len(), 1, "only the unwritten key, no save");
+    assert!(harness.has(&Request::NotWritten { key: [8; 16] }));
+    harness.link.step(
+        Time::ZERO,
+        Event::Send { attempt: Token::new(18), key: [8; 16], ask: Ask::Jig(Box::new(ask)), value: None },
+        &mut harness.out,
+    );
+    assert_eq!(harness.exchanges(), 0);
+    assert_eq!(harness.out.len(), 1, "the following exchange retires silently");
+    assert_eq!(harness.link.attempts.len(), 1, "only A still owns exchange credit");
+    harness.written();
+    assert_eq!(harness.exchanges(), 1);
+    assert_eq!(harness.out.len(), 2, "B is named once and A leaves once");
+    for request in &harness.out {
+        if let Request::Exchange { message: Message::Request(bytes), .. } = request {
+            let keyed = w::Keyed::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
+            assert_eq!(keyed.key(), &fixtures::KEY);
+        }
+    }
+    assert!(!harness.has(&Request::NotKept { attempt: fixtures::ATTEMPT }));
+    harness.clear();
+    harness.written();
+    assert_eq!(harness.out.len(), 0, "nothing leaves twice");
+}
+#[test]
 fn a_table_entry_restores_family_bytes_and_their_wire_version() {
     let expected = Saved {
         version: fixtures::TABLE_VERSION,

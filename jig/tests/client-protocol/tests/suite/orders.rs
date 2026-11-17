@@ -102,6 +102,7 @@ impl World {
                 | Request::Authorized(_)
                 | Request::Erase { .. }
                 | Request::Kept { .. }
+                | Request::NotWritten { .. }
                 | Request::Dropped
                 | Request::ServiceCredential { .. }
                 | Request::OpenStream { .. }

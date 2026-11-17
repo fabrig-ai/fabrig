@@ -121,6 +121,7 @@ impl Harness {
         match self.out.iter().next().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
@@ -159,6 +160,7 @@ impl Harness {
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
@@ -193,7 +195,9 @@ impl Harness {
         let mut count: u32 = 0;
         for value in &self.out {
             match value {
-                Request::Answer { .. } | Request::NotKept { .. } => count = count.saturating_add(1),
+                Request::Answer { .. } | Request::NotKept { .. } | Request::NotWritten { .. } => {
+                    count = count.saturating_add(1);
+                }
                 Request::Exchange { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }

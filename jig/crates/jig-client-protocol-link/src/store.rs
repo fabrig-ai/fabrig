@@ -2,7 +2,7 @@
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v26 as w;
-use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
+use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
     exchange: Token,
@@ -12,12 +12,12 @@ struct Held {
 #[derive(Debug)]
 pub(super) struct Store {
     waiting: bool,
-    failed: bool,
     held: Queue<Held>,
+    unwritten: Map<RequestKey, ()>,
 }
 impl Store {
     pub(super) fn new() -> Self {
-        Self { waiting: false, failed: false, held: Queue::uncapped() }
+        Self { waiting: false, held: Queue::uncapped(), unwritten: Map::uncapped() }
     }
 }
 /// Whether these limits are representable: every edge bound they size
@@ -95,11 +95,14 @@ impl Link {
             self.emit_exchange(exchange, self.credential.clone(), message, out);
             return;
         }
-        if self.store.failed {
-            if let Some(attempt) = self.attempts.remove(&exchange) {
-                out.push(Request::NotKept { attempt: attempt.token });
-            }
-        } else if self.store.waiting {
+        if let Some(attempt) = self.attempts.get(&exchange)
+            && let crate::component::ExchangeKind::Attempt { key, .. } = attempt.kind
+            && self.store.unwritten.remove(&key).is_some()
+        {
+            self.attempts.remove(&exchange);
+            return;
+        }
+        if self.store.waiting {
             self.store.held.push(Held { exchange, message, credential: self.credential.clone() });
         } else {
             self.emit_exchange(exchange, self.credential.clone(), message, out);
@@ -134,6 +137,7 @@ impl Link {
                 | Request::Dropped
                 | Request::Answer { .. }
                 | Request::NotKept { .. }
+                | Request::NotWritten { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
                 | Request::StreamsFull { .. }
@@ -156,19 +160,18 @@ impl Link {
         match encoded(&record, &self.limits) {
             Ok(bytes) => out.push(Request::Save { record: Record { key, bytes } }),
             Err(_) => {
-                self.write_failed(out);
-                self.store.failed = true;
-                out.push(Request::Fact { fact: Fact::UndecodableStore });
+                self.store.unwritten.insert(record.record.key, ()).expect("uncapped unwritten keys");
+                out.push(Request::NotWritten { key: record.record.key });
             }
         }
     }
     pub(super) fn erase(&mut self, key: RequestKey, out: &mut Queue<Request>) {
         self.gather(out);
+        self.store.unwritten.remove(&key);
         out.push(Request::Erase { key: bytes::copy_of(&key) });
     }
     pub(super) fn written(&mut self, out: &mut Queue<Request>) {
         self.store.waiting = false;
-        self.store.failed = false;
         // Durability releases held exchanges in FIFO order, skipping stale attempts.
         while let Some(value) = self.store.held.pop() {
             if self.attempts.contains_key(&value.exchange) {
@@ -178,7 +181,6 @@ impl Link {
     }
     pub(super) fn write_failed(&mut self, out: &mut Queue<Request>) {
         self.store.waiting = false;
-        self.store.failed = false;
         while let Some(value) = self.store.held.pop() {
             if let Some(attempt) = self.attempts.remove(&value.exchange) {
                 out.push(Request::NotKept { attempt: attempt.token });
