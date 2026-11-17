@@ -690,7 +690,8 @@ reprint carries, since its acts are events, not controls.
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
   FILE`). The README changes with it, and its new pages are read as new.
-- **A new recording's times** are its walk's
+- **Two walks' prints** are the same bytes but where a page draws a
+  time; their recordings differ in clocks and seed
   (`../journey-placeholders.md`, 2.4).
 
 ### 8.1 Again

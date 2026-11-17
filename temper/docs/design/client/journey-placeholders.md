@@ -32,8 +32,10 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   recordings are normalised once, by `normalise`, and the print's test
   holds every committed recording to its own normalisation (4.3).
 - **What stays:** times, the seed and the turns, which the replay needs
-  as they were (2.4). So two walks of one journey still make two
-  recordings; their prints differ only where a page draws a time.
+  as they were (2.4). So two walks' prints are the same bytes except
+  where a page draws a time; their recordings still differ in their
+  clocks and seed. A print reads the recording's clocks, never the
+  printing host's, so one recording prints the same bytes on any day.
 - **A print's ids:** skein-ui's ids follow the order the page's nodes
   were made, which the walk's turns decide; the browser's print numbers
   them afresh on each page (section 5).
@@ -87,9 +89,19 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   draws a time in forms no substitution maps back ("Tuesday, 16:06",
   "today 16:07"), and the engine's times sit in wire bytes as bare
   numbers that nothing marks, so a shifted clock could neither be found
-  whole nor proved (`web/journeys.md`, 4.3). A print that draws a time
-  changes with the walk. This departs from the draft, which names a
-  wall time, and waits on the user (`../draft/journey-placeholders.status.md`).
+  whole nor proved (`web/journeys.md`, 4.3). So two walks' prints are
+  the same bytes except where a page draws a time, and their recordings
+  still differ in their clocks and seed. This departs from the draft,
+  whose two recordings of one journey are byte-identical, prints
+  included; the user agreed on 2026-11-17
+  (`../draft/journey-placeholders.status.md`). A fixed clock and seed
+  for `again`'s walks would close it (section 8).
+- **A print reads no host's clock:** the replay that prints takes each
+  turn's clocks and the browser's `zone` from the recording
+  (`web/journeys.md`, 4.1; `tui/journeys.md`, 4.1), and the print adds
+  none, so one recording printed on another day, or on another host,
+  gives the same bytes. The print's test holds it, reprinting every
+  committed recording on whatever day it runs (4.3).
 - **The seed and the turns** stand: the host draws from the seed, and
   the turns' clocks, deadlines and a stream's pieces are when things
   happened, which the replay gives back as they were. Two walks never
@@ -136,11 +148,14 @@ know where they are.
   the field keeps its length.
 - **Of another width,** it can't: that original stands, in every field
   and form, so the recording stays consistent and its replay holds.
-  `add` counts it as stood (4.1).
+  `add` names its kind and counts it as stood, so whoever adds sees why
+  that recording will still change with the walk (4.1).
 - **In the committed journeys none stands:** their framed ports have
   five digits and every code eight letters, and the build is only in a
-  text field. This departs from the draft, whose framed field's length
-  would follow the placeholder, and waits on the user
+  text field. Ephemeral loopback ports have five digits on Linux and
+  macOS alike, so a port that stands is a case no committed journey has.
+  This departs from the draft, whose framed field's length would follow
+  the placeholder; the user agreed on 2026-11-17
   (`../draft/journey-placeholders.status.md`).
 
 ### 3.4 After redaction
@@ -188,13 +203,18 @@ In this order, everything in memory until the scan has passed
   with a value's length, so a build placeholder of another width can't be
   put into the live frames by substitution. The proof shows the replay
   draws what the person saw; a consistent substitution keeps that, and
-  step 4 refuses any ask it changed. This departs from the draft, whose
-  proof passes on the normalised recording, and waits on the user
-  (`../draft/journey-placeholders.status.md`).
+  step 4 refuses any ask it changed, and nothing is written unless it
+  holds. The build's placeholder is one string for dirty and clean
+  builds alike, so their prints don't differ. This departs from the
+  draft, whose proof passes on the normalised recording; the user agreed
+  on 2026-11-17 (`../draft/journey-placeholders.status.md`).
 - **Its counts:** after redaction's line, `add` prints `placeholders:
-  build: B; port: P; code: C; places replaced: N; stood: S`, the
-  distinct originals replaced of each kind, the places replaced, and the
-  distinct originals that stood (3.3).
+  build: B; port: P; code: C; places replaced: N`, the distinct
+  originals replaced of each kind and the places replaced. When an
+  original stood (3.3), a second line names each kind that kept one and
+  counts its distinct originals, in the order build, port, code, kinds
+  with none left out: `stood as recorded, so this recording still
+  changes with the walk: port: 1`.
 
 ### 4.2 `again`
 
@@ -253,11 +273,13 @@ generated ids afresh on each page, as it drops `data-node`:
   to the shells and the tool:
   - `pub enum Varying { Build, Port, Code }`;
   - `pub struct Normalised { pub recording: Box<[u8]>, pub build: u32,
-    pub port: u32, pub code: u32, pub places: u32, pub stood: u32 }`: the
-    distinct originals replaced of each kind, the places replaced and the
-    distinct originals that stood.
+    pub port: u32, pub code: u32, pub places: u32, pub stood: Stood }`:
+    the distinct originals replaced of each kind, the places replaced and
+    the distinct originals that stood;
+  - `pub struct Stood { pub build: u32, pub port: u32, pub code: u32 }`:
+    the distinct originals that stood, by kind.
 - **Each shell's `journey` module** finds its own originals, from its
-  lines and fields as `redact` does, and re-exports both types:
+  lines and fields as `redact` does, and re-exports the three types:
   - `temper_client_shell_web::journey::normalise(recording: &[u8]) ->
     Result<Normalised, Unredacted>`, refusing what `redact` refuses;
   - `temper_client_shell_tui::journey::normalise(recording: &[u8]) ->
@@ -294,9 +316,11 @@ no fuzzy test, no browser, terminal or box.
 
 ## 8. Open questions
 
-- **A fixed clock** for the fake box `again` starts and the browser it
-  drives, so that a walk's times are the same each time and need no
-  placeholder (2.4; `web/journeys.md`, 10).
+- **A fixed clock and seed** for the fake box `again` starts and the
+  browser it drives: what would make two walks' recordings the same
+  bytes, and their prints that draw a time too, with no placeholder for
+  a time (2.4; `web/journeys.md`, 10). The user takes it up as its own
+  follow-up.
 - **Keeping a recording that still holds:** `again` could keep the
   committed recording when it still replays and the new walk prints the
   same pages, so that a recording changes only when its exchange does.
