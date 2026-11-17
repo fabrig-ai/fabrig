@@ -87,6 +87,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "smith::live_configuration" = "end-to-end" # step + end-to-end: offline controls and the shipped smith check.
 
 [jig]
+"jig-protocol-config-fixtures::overrides" = "step" # Named limits round trips through the fixture consumer.
 "jig-accounts-world::suite" = "domain" # step + domain: direct memory fixtures and account stories.
 "jig-brief-world::suite" = "domain" # step + domain: budget-referee controls and brief stories.
 "jig-channel-world::suite" = "simulated" # step + simulated: referee controls; documented protocol world runs whole services on simulated io.
@@ -128,6 +129,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-worker-wire-world::suite" = "step" # Schema drift and bounded record decoders.
 
 [temper]
+"temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
 "temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
 "temper-box-kit::parent" = "real-loop" # step and real-loop: observe() cases and real /bin/cat process identities.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.

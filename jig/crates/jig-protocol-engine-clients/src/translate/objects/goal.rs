@@ -128,7 +128,7 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
             limits,
             w::TaskContractDocumentReportParts { words: *words },
         )?),
-        t::Contract::Change { connector, kind, words } => {
+        t::Contract::Change { connector, kind, words, .. } => {
             w::TaskContractDocument::Change(w::TaskContractDocumentChange::new(
                 limits,
                 w::TaskContractDocumentChangeParts { connector: *connector, kind: *kind, words: *words },

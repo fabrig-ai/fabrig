@@ -50,7 +50,7 @@ impl LinkPeer {
     ) -> Self {
         let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
-            room: settings.jig.limits.io.largest_room(),
+            room: settings.jig.limits.as_ref().expect("checked worker limits").io.largest_room(),
             sizes: prepared.link.sizes,
             names: 1,
             workers: 1,
@@ -85,8 +85,13 @@ impl LinkPeer {
             component: engine_link::Component::new(
                 limits,
                 Box::new([engine_link::Worker {
+                    number: 1,
+                    places: 1,
+                    withdrawn: false,
                     name: settings.jig.name.clone(),
-                    digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
+                    digest: Some(skein_lib::sha256::digest(
+                        fixtures::worker_files().contents(b"worker-secret").unwrap(),
+                    )),
                 }]),
                 jig_protocol_worker_wire::spoken(),
                 {
@@ -114,7 +119,11 @@ impl LinkPeer {
         worker.iterate(self.now, Wall::EPOCH);
         worker.up(self.now, io::Event::Connecting { owner: self.owner, socket: Token::new(44) });
         worker.up(self.now, io::Event::Connected { owner: self.owner });
-        self.component.down(self.now, engine_link::Event::Accepted { connection: Token::new(1) }, &mut self.out);
+        self.component.down(
+            self.now,
+            engine_link::Event::Accepted { connection: Token::new(1), in_process: false },
+            &mut self.out,
+        );
         for _ in 0_u16..1000 {
             if let Some(engine_link::Request::Hello { .. }) = self.turn(worker) {
                 return;
@@ -222,6 +231,7 @@ impl LinkPeer {
                 }
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
+                | engine_link::Request::FiguresTaken { .. }
                 | engine_link::Request::Told { .. }
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }
@@ -676,9 +686,10 @@ impl AskingChat {
     pub(crate) fn new() -> Self {
         let setup = fixtures::engine();
         let mut limits = crate::limits::engine_candidate(&setup.jig.limits, &setup.limits);
-        let mut core = jig_protocol_config::core(&setup.jig, [31; 16], 91);
+        let mut core = temper_engine_service::startup::core(&setup.jig, [31; 16], 91);
         core.kinds = crate::stock::kinds(&limits, 1);
         core.workers_in_process = false;
+        core.defaults.workers[0].digest = Some([7; 32]);
         core.settings.resume_bytes = 1_048_576;
         core.settings.tail_bytes = 1024;
         core.hub_turns = HISTORY_TURNS;
@@ -992,9 +1003,9 @@ fn question_reaches(start: &smith_protocol_channel::DecodedStart) -> bool {
 fn asking_worker_settings() -> (crate::settings::Worker, crate::settings::Agent) {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    settings.jig.limits.hub.transcript_bytes = 2_097_152;
-    settings.jig.limits.hub.turns = SAVED_TURNS;
-    settings.jig.limits.hub.turn_queue_bytes = 1_048_576;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.transcript_bytes = 2_097_152;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turns = SAVED_TURNS;
+    settings.jig.limits.as_mut().expect("checked worker limits").hub.turn_queue_bytes = 1_048_576;
     let mut agent = fixtures::worker_agent();
     agent.host_limits.transcript_bytes = 2_097_152;
     agent.host_limits.turns = SAVED_TURNS;

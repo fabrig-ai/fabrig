@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
@@ -7,8 +7,11 @@ fn read() -> Box<[u8]> {
     let read = w::Read::Me;
     let mut record = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut record).expect("me read");
-    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 27, record: record.finish() })
-        .expect("frame read");
+    let value = w::Owned::new(
+        &limits,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
+    )
+    .expect("frame read");
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("read envelope");
     bytes.finish()
@@ -38,7 +41,14 @@ fn a_family_read_hands_its_scope_and_window_to_the_application() {
     use jig_protocol_engine_clients::{Served, ToApplication};
     let mut settings = fixtures::settings();
     settings.served = skein_lib::List::with_capacity(2);
-    settings.served.push(Served { family: None, first: 27, last: 27 }).expect("jig");
+    settings
+        .served
+        .push(Served {
+            family: None,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
+        .expect("jig");
     settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);

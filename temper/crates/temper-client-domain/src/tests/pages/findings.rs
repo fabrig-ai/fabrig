@@ -379,7 +379,7 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     super::welcome::deliver(
         &mut root,
         goals.unwrap(),
-        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([goal])), more: false })),
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([goal])), more: false })),
     );
     act(&mut root, Act::Goal { id: ID, task: 41 });
     let w::Request::TriageFinding(route) = sent(act(&mut root, Act::Route { id: ID })) else { panic!("triage") };

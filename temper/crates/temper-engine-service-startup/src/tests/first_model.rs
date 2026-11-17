@@ -6,7 +6,7 @@
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
 use super::{fixtures, stock};
-use jig_client_protocol_wire::v27 as wire;
+use jig_client_protocol_wire as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -67,7 +67,7 @@ fn stock_box(account: OneAccount) -> StockBox {
     assert!(problems.is_empty());
     let mut limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
     limits.memory_bytes = parsed.memory;
-    let mut core = jig_protocol_config::core(&parsed, [31; 16], 91);
+    let mut core = crate::startup::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
     let config = engine::Config {
         host_part: temper_engine_domain::room::HostPart {
@@ -269,7 +269,7 @@ impl StockBox {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(801)),
             sign_in: self.driver.session(),
-            read: core::reads::Read::Frame,
+            read: Box::new(core::reads::Read::Frame),
         }));
         self.pump();
         self.driver
@@ -464,7 +464,7 @@ impl StockBox {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(800)),
             sign_in: self.driver.session(),
-            read: core::reads::Read::Task { task },
+            read: Box::new(core::reads::Read::Task { task }),
         }));
         self.pump();
         self.driver

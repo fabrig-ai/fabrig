@@ -13,10 +13,9 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   `actions/upload-artifact@v3`. Put it on
   `application.machine.owned.runner.path` (default
   `/usr/local/bin:/usr/bin:/bin`); restart after edits.
-  Availability in an interactive shell is insufficient.
-- **Host delivery checks:** `.temper/pre-pr` tools inherit the
-  box process's `PATH` captured at startup: the box unit's `PATH` in a
-  service. Install there before step 2.
+  A shell's PATH alone is insufficient.
+- **Host delivery checks:** `.temper/pre-pr` tools inherit the box's
+  startup `PATH` (its unit's `PATH` in a service). Install there before step 2.
   For fabrig: `cargo`, rustfmt (`cargo fmt` and `rustfmt`), `python3`.
   Kit PATH: `W/bin:/usr/local/bin:/usr/bin:/bin`.
   Unit example:
@@ -25,12 +24,11 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   Stop (step 8); restart the box unit after changing its environment.
   `application.machine.owned.runner.path` configures the runner alone.
 - **Capacity:** CI and tiers on `temper-host` share
-  `application.machine.owned.runner.capacity`, which defaults to 1,
-  its minimum. Slow tiers block CI and landings. Use 2
+  `application.machine.owned.runner.capacity` (default and minimum 1). Slow tiers block CI and landings. Use 2
   for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count concurrent jobs in multi-job workflows and other repositories
   too (temper help tier). Stop real backends with Ctrl-C or SIGTERM;
-  closing the terminal stops the box too. Then wait for it to exit.
+  closing the terminal stops the box too. Wait for exit.
   Edit only this setting in `CONFIG/temper.json`; restart (step 2) with the
   same `CONFIG`, `DATA` and `CACHE`, keeping runners' registration and secrets.
 - **Backends:** choose before step 2; never mix. Real: account required,
@@ -66,20 +64,20 @@ Plain `temper-box init` then `temper box` has no playground; `--fake-backends`
 refuses it.
 
 Expect: `init: wrote DATA/worker.secret`; last line: box command.
+Default worker: `local`, 4 places, no digest. Init writes no `worker.digest` or `engine.hosts.workers`.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
-OpenAI's, using `claude` on `PATH` when init runs, else fetching its pinned
+OpenAI's, using the worker entry’s `claude`, else `claude` on `PATH` at start, else fetching its pinned
 build on first use. Logins: `DATA/programs`, apart from your Claude Code configuration.
-`PROGRAMS`: that directory or an existing login's parent;
-`CONFIG/agent.json`'s `programs.claude_code.directory` (step 5).
+`PROGRAMS`: `DATA/programs` or an existing login’s parent (step 5).
 
 Expect: `me` lists provider 2, Anthropic, `claude_code`.
 Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
 
-**Coding runs:** edit `CONFIG/agent.json`'s `environment` before step 2;
-preserve the rest of the document. Init's array is empty. Commands and
+**Coding runs:** edit `application.workers[0].environment` in `CONFIG/temper.json` before step 2;
+preserve the rest of the document. Absent, the array is empty. Commands and
 checks get exactly the configured environment, independent of unit and
 runner PATHs. Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
 
@@ -317,7 +315,7 @@ If not: `account export: not signed in` (exit 2): add a key.
 `temper ctl: the engine holds its N answers of the last day; room again
 at TIME` (exit 2): no room for move's answers; nothing moved. Keep running;
 export after TIME. `temper ctl: unsent` (exit 1): engine busy, nothing moved;
-export later. Other failures: keep running; account stays; export after its deadline.
+export later. Other failures: keep running; export later.
 
 ## Clean up
 

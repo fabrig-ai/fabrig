@@ -135,7 +135,7 @@ with the part that makes it true of `main`.
 | Noun | Concept | ctl groups | Covers |
 |---|---|---|---|
 | ctl | `ctl` | the client's: `sign-in`, `sign-out`, `pending`, `help` | a call's loop (read, act, wait), the wait conditions, keys and kept requests, acts and the revisions they name, the exit classes, JSON; the forge read with tools of the agent's choosing, and what temper owns there changed only through temper |
-| deployment | `deployment` | `deployment` | the engine, the worker, a box, a server, the three directories, the configuration document |
+| deployment | `deployment` | `deployment`, `worker` | the engine, the workers as settings, a box, a server, the three directories, the configuration document |
 | party | `party` | `me`, `party` | people and services, roles, pools, signing in to temper, credentials as files |
 | project | `project` | `project` | projects, their home, their members |
 | forge | `forge` | `forge` | kinds, modes (connected, managed, owned), GitHub's App and installations, the repositories a forge reaches |
@@ -308,28 +308,40 @@ in section 2.3's voice.
 | `commands` | the binaries' tables, as the page is compiled (8.1; `temper_shell::table::commands_reference`), and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, under each binary that runs it, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
-| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, whether it reads or writes, when a run is offered it, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
+| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`; `../domain/agent/declarations.md`) | a host tool: its name, its description, whether it reads or writes, when a run is offered it, then each member of its input's whole form at every depth, a nested member indented under its parent, with its type, bound, whether it is required and its description, and, for a tool taking a `what`, each `what` with the members it requires and takes; in the one order the run's tool list has |
 | `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the stock's value (`configuration/limits.md`, one stock), a line |
 | `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper-box init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
-  description a run reads beside each tool, at most 160 bytes, and a
-  member's, at most 120, each present, never empty: bounds and presence
-  that `temper-engine-smith`'s step tests hold; so a run's tool and its
-  page never differ, and a tool added without its words fails the gate.
+  description a run reads beside each tool, at most 160 bytes, and each
+  member's, at most 120, a top-level member's present, never empty, a
+  nested one's where the whole form gives one: bounds and presence that
+  `temper-engine-smith`'s step tests hold; so a run's tool and its page
+  never differ, and a tool added without its words fails the gate. The
+  page gives the whole form, where the run's list carries the declared one
+  (`../domain/agent/declarations.md`, 2): a run that needs a member its
+  list leaves out reads it here.
+- **`host-tools` keeps within its page bound by shared forms:** a
+  subtree that two or more members anywhere on the page carry the same
+  (an object's members, or an enum's set of values) is rendered once, in a
+  `## Shared forms` section at the page's end, under the name of a member
+  that carries it (`wake`, `authority`); each member carrying it reads its
+  type, requiredness and description as any member's, then `the \`wake\`
+  form, under Shared forms.` in place of its members or values. The
+  renderer finds the repeats in the whole forms themselves, never from a
+  list written beside them, so every member, type, requiredness, value
+  and description is on the page once at least, and the page and the
+  decoders never differ.
 - **`host-tools` says who holds each tool,** since a run reads one page
   for every run: its lead says `A run calls only the tools in its own
   list: a tool here that your list lacks is not yours.`, and each tool's
   line after `A read.` or `A write.` says when a run is offered it, read
-  from the one rule that offers it (`../domain/agent/tools.md`), never
-  written beside it: `Offered to every run but an asking one.`; `Offered
-  where the run's charter names the delegate family.`; `Offered where
-  the run's authority holds the message family.`; `Offered where the
-  run's authority holds the read family.`; `Offered where the run's
-  charter names the settings family and its authority holds it.`;
-  `Offered to an asking run, where its authority holds the asking
-  family.`
+  from the one rule that offers it (`../domain/agent/declarations.md`, 1),
+  never written beside it: `Offered to every run but an asking one.`;
+  `Offered where the run's charter names the F family and its authority
+  holds it.`, F the tool's family; `Offered to an asking run, where its
+  authority holds the asking family.`
 - **`limits` and `limits-engine`:** each parser of overrides looks a
   name up in its names table before anything else, refusing a name the
   table lacks as unknown, so that a name the parser takes is a row; a

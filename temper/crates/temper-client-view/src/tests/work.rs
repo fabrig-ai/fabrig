@@ -61,25 +61,6 @@ fn limits() -> temper_client_domain::Limits {
     limits
 }
 
-fn note(task: u64, description: &[u8]) -> c::Note {
-    c::Note {
-        number: task,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: f::PROJECT, task },
-        description: text(description),
-        body: text(b""),
-        writer: c::NoteAuthor::Task { task, attempt: 1 },
-        tasks: List::uncapped(),
-        changed: Some(Wall::from_nanos(RECENT)),
-        acts: List::uncapped(),
-        cut: false,
-    }
-}
-
-fn notes(rows: &[c::Note]) -> c::ReadValue {
-    c::ReadValue::Notes(Box::new(c::NotePage { rows: list(rows), before: None, after: None, cut: false }))
-}
-
 struct Fixture {
     root: Domain,
     out: Queue<Request>,
@@ -174,7 +155,11 @@ impl Fixture {
     fn live(&mut self, watch: Token, rows: &[c::TaskLine]) {
         self.up(Up::Watched {
             watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: list(rows), more: false }))),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
+                rows: list(rows),
+                more: false,
+            }))),
         });
     }
     fn reads(&mut self) -> Box<[(Token, c::Read)]> {
@@ -199,24 +184,28 @@ impl Fixture {
         goal.delegates_total = 9;
         goal.budget.numbers.spent = 31;
         goal.budget.numbers.budget = 50;
+        goal.parts = list(&[temper_fixtures::client_documents::goal_part(
+            Some((b"Six of nine tasks landed.", Wall::from_nanos(RECENT))),
+            None,
+        )]);
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
-        let chat_lines = [line(CHAT, b"The comment is stale"), line(DRAFT, b"Read barriers")];
+        let mut draft = line(DRAFT, b"Read barriers");
+        draft.parts = list(&[temper_fixtures::client_documents::chat_part(Some(b"Read barriers"))]);
+        let chat_lines = [line(CHAT, b"The comment is stale"), draft];
         self.live(self.chats, if full { &chat_lines } else { &[] });
-        let draft_notes = [note(DRAFT, b"Read barriers")];
         for (read, what) in self.reads() {
             if let c::Read::Tasks { .. } = what {
                 self.answer(
                     read,
                     c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        ended_mark: 0,
                         live: List::uncapped(),
                         live_after: None,
                         ended: c::EndedGroup::None,
                     })),
                 );
-            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
-                self.answer(read, notes(if full { &draft_notes } else { &[] }));
-            } else if let c::Read::Notes { scope: c::NoteScope::Task { task: GOAL, .. }, .. } = what {
-                self.answer(read, notes(&[note(GOAL, b"report: Six of nine tasks landed.")]));
+            } else if let c::Read::Notes { .. } = what {
+                panic!("Work rows read no notes");
             }
         }
         let mut queued = List::with_capacity(3);
@@ -231,6 +220,9 @@ impl Fixture {
                         w::ChangesQueued::new(
                             &w::CEILINGS,
                             w::ChangesQueuedParts {
+                                goal: if task == QUEUED_GOAL { Some(origin(GOAL)) } else { None },
+                                chat: if task == QUEUED_CHAT { Some(origin(CHAT)) } else { None },
+                                milestone: None,
                                 task,
                                 title: title.into(),
                                 ready_since: RECENT,
@@ -246,7 +238,25 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    signed: List::with_capacity(8),
+                    goal: Some(origin(GOAL)),
+                    chat: None,
+                    milestone: Some(
+                        w::ChangeFrom::new(
+                            &w::CEILINGS,
+                            w::ChangeFromParts { task: 100, title: b"Store shape".as_slice().into() },
+                        )
+                        .unwrap(),
+                    ),
+                    signed: list(&[w::ChangesSigned::new(
+                        &w::CEILINGS,
+                        w::ChangesSignedParts {
+                            party: 5,
+                            name: Some(b"Sam".as_slice().into()),
+                            head: [0; 32],
+                            at: RECENT,
+                        },
+                    )
+                    .unwrap()]),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
@@ -291,26 +301,6 @@ impl Fixture {
                 bytes: wire::changes_panel(&panel),
             },
         });
-        for (read, what) in self.reads() {
-            if let c::Read::Task { task } = what {
-                let mut document = f::task::document();
-                document.chip.task = task;
-                document.goal = if task == QUEUED_GOAL || task == LANDED { Some(GOAL) } else { None };
-                document.lineage_chips = List::with_capacity(1);
-                if task == QUEUED_CHAT {
-                    let mut chip = document.chip.clone();
-                    chip.task = CHAT;
-                    chip.executor = c::ChipExecutor::Agent { charter: 1 };
-                    document.lineage_chips.push(chip).unwrap();
-                } else if document.goal.is_some() {
-                    let mut chip = document.chip.clone();
-                    chip.task = GOAL;
-                    chip.title = text(b"membership-handoff");
-                    document.lineage_chips.push(chip).unwrap();
-                }
-                self.answer(read, c::ReadValue::Task(Box::new(document)));
-            }
-        }
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
@@ -398,6 +388,8 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
             "Read barriers",
             "Open the draft",
             "Landed this week · 1",
+            "signed by Sam",
+            "in Store shape",
         ] {
             assert!(has(&tree, value), "missing {value}");
         }
@@ -434,4 +426,9 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
         assert!(has(&tree, "Open the draft"));
         assert!(!has(&tree, "In flight · 3"));
     }
+}
+
+fn origin(task: u64) -> w::ChangeFrom {
+    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"membership-handoff".as_slice().into() })
+        .unwrap()
 }

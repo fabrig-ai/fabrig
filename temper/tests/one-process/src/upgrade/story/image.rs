@@ -139,7 +139,7 @@ pub(super) fn load(directory: &Path) -> World {
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     World {
         disk,
-        configuration: std::fs::read(directory.join("configuration.json")).expect("settled configuration"),
+        configuration: golden::read_configuration(directory),
         transport: start.fakes.forge,
         store: Rc::new(RefCell::new(store)),
         ledger: Rc::new(RefCell::new(ledger)),

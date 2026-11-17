@@ -48,6 +48,7 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
         files: profile.files,
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks)?,
         fetch: profile.fetch,
+        checkpoints: profile.checkpoints,
         orphan_erases: profile.orphan_erases,
         held: profile.held,
     };
@@ -231,7 +232,11 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                 }));
             }
             // This shell never hands patch sets; routing answers Site with NoSite.
-            other @ (protocol::Event::Page { .. }
+            other @ (protocol::Event::Checkpointed { .. }
+            | protocol::Event::CheckpointRefused { .. }
+            | protocol::Event::CheckpointHeld { .. }
+            | protocol::Event::CheckpointRemoved { .. }
+            | protocol::Event::Page { .. }
             | protocol::Event::Job { .. }
             | protocol::Event::Ran { .. }
             | protocol::Event::Site { .. }

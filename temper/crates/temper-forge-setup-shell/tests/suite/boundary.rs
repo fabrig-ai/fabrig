@@ -38,6 +38,10 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // Terminal sign-in execs smith's command (protocol/credentials.md, 3).
         // Other process types and every lock operation retain the same guard.
         source.replace("std::process::Command", "TerminalCommand").replace("process::CommandExt", "TerminalExec")
+    } else if path.ends_with("temper-box-shell/src/program_login.rs") {
+        // The machine adapter returns the worker shell's prepared command.
+        // Process creation, exec and locks remain guarded.
+        source.replace("Result<std::process::Command, String>", "PreparedLoginCommand")
     } else if path.ends_with("temper-fetch-shell/src/fetch.rs") {
         // Claude Code's missing build is fetched under an exclusive file lock
         // (protocol/setup/owned.md, 6); process operations stay in process.rs.

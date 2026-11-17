@@ -186,6 +186,7 @@ impl Owner {
                 store: Queue::uncapped(),
                 secrets: Queue::uncapped(),
                 transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
             },
             paste: [0; 1024],
             paste_len: 0,
@@ -339,7 +340,16 @@ impl Owner {
     fn open(&mut self, drawn: [u8; 16]) -> [u8; 16] {
         // Memory stores open no file: the root is never read.
         let root = store::Root { token: OPEN, fd: kernel::Fd::new(3) };
-        self.ask(Time::ZERO, Wall::EPOCH, store::Request::Open { owner: OPEN, root, installation: drawn });
+        self.ask(
+            Time::ZERO,
+            Wall::EPOCH,
+            store::Request::Open {
+                purpose: jig_protocol_store::Purpose::Serve,
+                owner: OPEN,
+                root,
+                installation: drawn,
+            },
+        );
         let Some(store::Event::Opened { owner: OPEN, last, installation, pending }) = self.store_above.pop() else {
             panic!("the memory store opens at once");
         };
@@ -455,8 +465,12 @@ impl Owner {
     fn inspect_secret(&mut self, owner: store::SecretOwner, number: u64) -> Option<store::SecretValue> {
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.store_limits };
         let mut above = Queue::uncapped();
-        let mut below =
-            store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = store::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         store::down(
             &mut self.store,
             &env,

@@ -468,7 +468,7 @@ fn admin_record_files_and_directories_are_owner_only() {
     std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let (root, _, profile) = fixtures::store_limits();
     let limits = crate::store::limits(&root, &root.forge, &profile).unwrap();
-    let mut store = crate::store::Store::new(&root, &limits, &[], fixtures::seeds().installation);
+    let mut store = crate::store::Store::new(&root, &limits, &[], &fixtures::seeds());
     let fd = skein_shell::open_root(scratch.path()).unwrap();
     store.adopt(fd, skein_shell::effective_user()).unwrap();
     let mut kernel =

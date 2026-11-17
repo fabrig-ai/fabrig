@@ -846,8 +846,43 @@ impl Caller {
                 crate::argv!["account", "add-key", "1", file("fixture.key"), "--deployment", "--key", "fixture-llm"],
             ),
         );
-        steps.insert(position + 2, Step::FixtureReady);
-        let calls = 1;
+        let mut calls = 1;
+        let workers = scratch.join("worker-settings.json");
+        if workers.exists() {
+            let workers: serde_json::Value = serde_json::from_slice(&std::fs::read(workers).expect("worker settings"))
+                .expect("worker settings JSON");
+            let key = steps.iter().find_map(|step| {
+                let Step::Call { argv, .. } = step else { return None };
+                if !matches!(argv.0.first(), Some(Arg::Lit("settings")))
+                    || !matches!(argv.0.get(1), Some(Arg::Lit("apply")))
+                {
+                    return None;
+                }
+                argv.0.windows(2).find_map(|pair| match pair {
+                    [Arg::Lit("--key"), Arg::Lit(key)] => Some(*key),
+                    _ => None,
+                })
+            });
+            if !key.is_some_and(|key| fixtures::extend_settings(key, &workers)) {
+                steps.insert(
+                    position + 2,
+                    call(
+                        at,
+                        crate::argv![
+                            "settings",
+                            "apply",
+                            file("worker-settings.json"),
+                            "--against",
+                            "1",
+                            "--key",
+                            "fixture-workers"
+                        ],
+                    ),
+                );
+                calls += 1;
+            }
+        }
+        steps.insert(position + 1 + calls, Step::FixtureReady);
         let mut caller = Self::new(steps, scratch, root);
         caller.recording = Recording::Fixture;
         caller.fixture_calls = calls;
@@ -1246,6 +1281,8 @@ impl Caller {
         }
         self.fixture_calls = 0;
         self.recording = Recording::Story;
+        // Settings setup needs no worker; the story waits for its started workers to link.
+        self.released = false;
     }
     fn kill_call(&mut self, index: usize) -> bool {
         if self.current.is_none() {

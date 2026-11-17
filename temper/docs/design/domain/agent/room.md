@@ -64,9 +64,8 @@ both the encoded charter, including framing, and its decoded ownership.
   core's order, at UTF-8 boundaries, keeping each cut section's title and
   ending its body with its own line: `[cut N bytes; whole: READ]`. `N`
   counts original body bytes removed, excluding the added separator and
-  cut line. `READ` is `read_job/read_checks` for `CI`,
-  `read_pull/read_pull_files` for `Pull request`, `read_reviews/read_remarks`
-  for `Reviews`, `read_docs` for `Home`, `recall` for `Notes`, `the task's
+  cut line. `READ` is `read_ci` for `CI`, `read_issues` for `Pull request`
+  and for `Reviews` (`tools.md`, *The forge's reads*), `read_docs` for `Home`, `recall` for `Notes`, `the task's
   plan` for `Plan`, and `the task's activity` for the other core sections;
   other titles use `read_docs or the task's activity`.
   - When a title and its minimum cut line cannot fit, whole trailing
@@ -206,10 +205,17 @@ allowance (2), in decoded ownership or in encoded bytes: the comparison
 - **A run woken by several reasons at once** joins every part any of them
   meets, which can pass where each alone doesn't; such a run is refused at
   its start, naming the field (3), and section 5 keeps it open.
-- **The brief's floor** joins this check with `../../draft/tools-by-role.md`'s
-  second milestone: a fixed part that leaves the brief less than its floor
-  is refused the same way. Until then a fixed part that fits leaves a run
-  whatever brief is left.
+- **The brief's floor:** a fixed part that fits its allowance but leaves
+  the brief less than its floor, on some wake and in either measure, is
+  refused the same way (`../../draft/tools-by-role.md`, 6). The floor is
+  what a goal's brief fills: its task, transcript tail, dependencies,
+  attempts, plan and notes, each at its budget in the engine's profile
+  (jig's `CoreBriefBudgets`), 13,312 bytes of body in the shipped
+  profiles, whose standard profile takes the small one's budgets, with
+  those six sections' titles, ownership and framing counted beside them.
+  The allowance is checked first, then the floor, each in ownership first.
+  A fixed part within its floor leaves a run whatever brief is left, and
+  its brief is cut as section 2 says.
 
 ### 4.4 The costs, as facts
 
@@ -255,6 +261,9 @@ pub struct HostPart {
     pub modify: u64,
     pub shell: u64,
     pub agents: u64,
+    /// The brief's floor (4.3): its six sections at their budgets, owned and
+    /// encoded, with their titles and framing; rendered zero.
+    pub floor: Cost,
 }
 ```
 
@@ -265,15 +274,11 @@ pub struct HostPart {
   asking charter, `asking` and, with settings, `asking_settings`. The
   rendered room's sum keeps its own rules (4.2): every part joined, smith's
   closing blank line and the alternative-model offer's words.
-- **Today's offer fills the slots** (`tools.md`): `always` holds every
-  host tool declared to a charter that isn't asking whatever its families,
-  `message` and `read_task` among them at the widest authority; the
-  delegate family's slot holds `delegate`, `goal`, `change` in its plan
-  form, `finding`, `red` and `follow`; the settings family's holds
-  `settings` and `propose_settings`; the other families' slots are zero.
-  When the offer follows the charter's families
-  (`../../draft/tools-by-role.md`, 2), the service fills each family's slot
-  and `always` keeps `read_docs` alone; the table's shape doesn't change.
+- **The offer fills the slots** (`declarations.md`, 1): `always` holds
+  `read_docs` alone, the one tool declared to a charter that isn't asking
+  whatever its families; each family's slot holds its tools at the widest
+  authority, the delegate family's `change` in its plan form; the asking
+  slots hold an asking charter's own.
 - **What the domain can't read is taken at its largest.** A model's
   encoded cost includes its endpoint's name, which the domain doesn't read:
   `fixed` and `model` are measured at the longest name of the encoding's
@@ -293,19 +298,34 @@ pub struct HostPart {
 - **Without a local agent** the service still measures the owned and
   encoded costs, which need no agent's limits; `bound` is none, the
   rendered costs are zero, and the rendered check is skipped (4.2).
+- **The floor is measured as the declarations are:** the service builds,
+  in smith's encoding, a brief of the six sections at their budgets from
+  the engine's profile and measures what it adds to a charter in each
+  measure; the domain adds `floor` to a fixed part where it judges the
+  floor (4.3).
 
 ### 4.5 The refusals' words
 
 - **The rendered room:** `charter N leaves its brief R bytes of its host
   part's B; it needs at least 2,048`, with thousands' commas in the
   figures and room zero when the non-brief part consumes the bound.
-- **The fixed part:** `charter N on a W wake is F bytes M before its brief,
-  past its allowance of A; trim its text, parts or tool families`, where
+- **The fixed part past its allowance:** `charter N on a W wake is F bytes
+  M before its brief, past its allowance of A; trim its text, parts or
+  tool families`, where
   `W` is the wake as a part's `on` spells it (`first`,
   `question_answered`) and `M` is `owned` or `encoded`, with thousands'
   commas in the figures: `charter 5 on a first wake is 66,012 bytes owned
   before its brief, past its allowance of 65,536; trim its text, parts or
   tool families`.
+- **The fixed part within its allowance but short of the floor:** `charter
+  N on a W wake is F bytes M before its brief, leaving its brief L of the
+  B its floor needs; trim its text, parts or tool families`, `L` the
+  allowance less `F` and `B` the floor in that measure: `charter 5 on a
+  first wake is 54,320 bytes owned before its brief, leaving its brief
+  11,216 of the 13,880 its floor needs; trim its text, parts or tool
+  families`. The refusal (`temper-engine-domain`'s `room::Unfit`) carries
+  the floor's figure beside the allowance, zero where the allowance itself
+  was passed, and its words follow from which was.
 
 ## 5. Open questions
 

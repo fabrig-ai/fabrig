@@ -798,12 +798,21 @@ impl Referee {
                 .find_map(|proc| if let Proc::Probe(peer) = proc { Some(peer) } else { None })
                 .ok_or("probe")?;
             let expected = match case {
-                crate::stories::Opening::Secret => Some(256),
+                crate::stories::Opening::Figures => None,
+                crate::stories::Opening::Secret => Some(260),
                 crate::stories::Opening::Wires => Some(257),
                 crate::stories::Opening::Version => Some(1),
                 crate::stories::Opening::Terms => Some(2),
                 crate::stories::Opening::Family | crate::stories::Opening::Garbage => Some(3),
             };
+            if matches!(case, crate::stories::Opening::Figures) {
+                self.passed = probe.figures_taken();
+                let engine =
+                    procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e) } else { None }).ok_or("engine")?;
+                if engine.wire.admitted_hellos != 0 {
+                    return Err("figures open no fleet channel".into());
+                }
+            }
             if let Some(reason) = probe.refused {
                 {
                     let (observed_value, wanted) = (&(Some(reason)), &(expected));
@@ -1173,7 +1182,7 @@ impl Referee {
                             ));
                         }
                     }
-                    host.service = jig_test_service::startup(
+                    host.service = jig_test_service::startup_with_workers(
                         &if matches!(self.story, crate::stories::Story::Providers) {
                             crate::fixtures::providers_document()
                         } else {
@@ -1184,6 +1193,7 @@ impl Referee {
                         &crate::fixtures::seeds(),
                         None,
                         None,
+                        crate::fixtures::workers(),
                     )
                     .map_err(|why| format!("restart after drained: {why:?}"))?;
                     let root = host.restart_root.take().ok_or("independent directory for the drained restart")?;

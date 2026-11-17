@@ -94,6 +94,7 @@ const QUERY_ROWS: u32 = 2;
 
 fn project_query() -> core::documents::TaskQuery {
     core::documents::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
         project: Some(PROJECT),
         requester: None,
         root: None,

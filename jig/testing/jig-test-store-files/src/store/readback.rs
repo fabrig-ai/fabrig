@@ -96,8 +96,12 @@ impl Store {
         self.readback_boundary()?;
         let mut requests = VecDeque::from([request]);
         let mut above = Queue::uncapped();
-        let mut below =
-            protocol::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = protocol::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         let mut captured = None;
         loop {
             if self.reached_kill() {

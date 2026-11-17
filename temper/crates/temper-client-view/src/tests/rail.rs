@@ -705,6 +705,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     jig_client::Up::Watched {
                         watch,
                         event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            ended_mark: 0,
                             rows: List::with_capacity(0),
                             more: false,
                         }))),
@@ -715,6 +716,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         read,
                         result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
                             c::TaskPage {
+                                ended_mark: 0,
                                 live: List::with_capacity(0),
                                 live_after: None,
                                 ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },

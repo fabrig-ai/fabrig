@@ -6,7 +6,7 @@ use temper_engine_domain_forge_landing as policy;
 mod landing;
 pub use landing::{LandingRound, LandingSearch, LandingSearchTests, SearchPass, SearchSelection};
 pub mod changes;
-pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, TrainLanding};
+pub use changes::{ChangeFrom, ChangesLanded, ChangesQueue, ChangesQueued, ChangesSigned, ChangesView, TrainLanding};
 pub mod follows;
 pub use follows::{DependencyView, FollowLagEntry, FollowView, FollowsView, follows_subject};
 
@@ -171,19 +171,45 @@ impl Document {
                         .saturating_add(queue.branch.len())
                         .saturating_add(size_of_val(queue.changes.as_ref()));
                     if let Some(flight) = &queue.in_flight {
-                        size = size.saturating_add(flight.title.len());
+                        size = size.saturating_add(flight.title.len()).saturating_add(from_bytes(
+                            flight.goal.as_ref(),
+                            flight.chat.as_ref(),
+                            flight.milestone.as_ref(),
+                        ));
                     }
                     for change in &queue.changes {
-                        size = size.saturating_add(change.title.len());
+                        size = size.saturating_add(change.title.len()).saturating_add(from_bytes(
+                            change.goal.as_ref(),
+                            change.chat.as_ref(),
+                            change.milestone.as_ref(),
+                        ));
                     }
                 }
                 for change in &view.landed {
-                    size = size.saturating_add(change.title.len());
-                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
+                    size = size.saturating_add(change.title.len()).saturating_add(from_bytes(
+                        change.goal.as_ref(),
+                        change.chat.as_ref(),
+                        change.milestone.as_ref(),
+                    ));
+                    size = size.saturating_add(size_of_val(change.signed.as_ref()));
+                    for sign in &change.signed {
+                        if let Some(name) = &sign.name {
+                            size = size.saturating_add(name.len());
+                        }
+                    }
                 }
                 for change in &view.landed_default {
-                    size = size.saturating_add(change.title.len());
-                    size = size.saturating_add(change.signed.len().saturating_mul(size_of::<crate::SignOff>()));
+                    size = size.saturating_add(change.title.len()).saturating_add(from_bytes(
+                        change.goal.as_ref(),
+                        change.chat.as_ref(),
+                        change.milestone.as_ref(),
+                    ));
+                    size = size.saturating_add(size_of_val(change.signed.as_ref()));
+                    for sign in &change.signed {
+                        if let Some(name) = &sign.name {
+                            size = size.saturating_add(name.len());
+                        }
+                    }
                 }
             }
             Self::Devices(view) => {
@@ -293,6 +319,14 @@ fn findings_bytes(view: &crate::Findings) -> usize {
     }
     size
 }
+fn from_bytes(goal: Option<&ChangeFrom>, chat: Option<&ChangeFrom>, milestone: Option<&ChangeFrom>) -> usize {
+    let mut size = 0usize;
+    for value in [goal, chat, milestone].into_iter().flatten() {
+        size = size.saturating_add(value.title.len());
+    }
+    size
+}
+
 fn phase_bytes(phase: &policy::Phase) -> usize {
     match phase {
         policy::Phase::Held { was, .. } => size_of::<policy::Phase>().saturating_add(phase_bytes(was)),

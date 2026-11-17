@@ -11,8 +11,8 @@ impl Core {
         self.start_failure()
     }
 
-    pub(crate) fn start_settings_finish(&mut self, env: &Env<Limits>) -> Option<Failure> {
-        let _finished = self.finish_restored_settings(env);
+    pub(crate) fn start_settings_finish(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> Option<Failure> {
+        let _finished = self.finish_restored_settings(env, out);
         self.start_collect_failure();
         self.start_failure()
     }

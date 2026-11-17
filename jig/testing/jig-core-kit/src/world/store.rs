@@ -235,7 +235,10 @@ impl World {
         self.restart_with(config);
     }
 
-    pub fn restart_with(&mut self, config: root::Config) {
+    pub fn restart_with(&mut self, mut config: root::Config) {
+        for worker in &mut config.core.defaults.workers {
+            worker.places = self.limits.core.fleet.slots;
+        }
         self.restart_config = (crate::oracle::configuration(&config), self.limits);
         self.restart_configured(config).unwrap_or_else(|finding| self.fail(&finding));
     }

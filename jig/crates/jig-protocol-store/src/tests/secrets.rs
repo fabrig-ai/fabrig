@@ -80,7 +80,12 @@ fn the_public_names_secret_is_kept_read_and_erased() {
     let mut store = fixtures::over(store.into_stores());
     let events = fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     let [Event::Opened { last: 1, pending: false, .. }, Event::Census { .. }] = &*events else {
         panic!("public names reopen")
@@ -527,7 +532,12 @@ fn reopening_the_store_loses_held_addresses() {
     let mut store = Store::over(&limits, fixtures::APPLICATION, &[], store.into_stores());
     fixtures::run(
         &mut store,
-        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+        Request::Open {
+            purpose: crate::Purpose::Serve,
+            owner: OWNER,
+            root: fixtures::ROOT,
+            installation: fixtures::INSTALLATION,
+        },
     );
     fixtures::committed(&mut store, Box::new([fixtures::header(2), crate::Write::Wires]));
     assert_eq!(get(&mut store, SecretOwner::Application, number), None);

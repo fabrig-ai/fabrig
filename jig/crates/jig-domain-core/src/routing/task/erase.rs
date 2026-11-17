@@ -301,7 +301,7 @@ fn erase_indexes(
 ) {
     out.push(Request::Write(Write::DropTranscript { task: record.number }));
     if whole {
-        erase_ended_indexes(record, out);
+        erase_ended_indexes(core, record, out);
     }
     match record.requester {
         tasks::Party::Person(party) => {
@@ -325,7 +325,8 @@ fn erase_indexes(
         tasks::Party::Deployment { .. } => {}
     }
 }
-fn erase_ended_indexes(record: &tasks::TaskSummary, out: &mut Queue<Request>) {
+fn erase_ended_indexes(core: &mut Core, record: &tasks::TaskSummary, out: &mut Queue<Request>) {
+    core.ended_index_changed(record.requester, record.project, record.label, record.flags.listed);
     match record.requester {
         tasks::Party::Person(party) => {
             let index =

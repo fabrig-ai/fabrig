@@ -13,7 +13,7 @@ fn signing_core() -> (Core, Env<Limits>) {
     let mut limits = limits();
     limits.accounts.accounts = 2;
     let mut config = config(73);
-    config.worker_names = Box::new([]);
+    config.defaults.workers = Box::new([]);
     let offers = accounts::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
@@ -243,7 +243,12 @@ fn program_sign_out_routes_the_offline_member_result() {
     providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
     core.accounts = accounts::Domain::new(&env.limits.accounts, providers);
     let membership = Membership::new(
-        Box::new([b"offline".as_slice().into()]),
+        Box::new([jig_domain_link::Member {
+            number: 1,
+            name: Box::from(b"offline".as_slice()),
+            places: 4,
+            withdrawn: false,
+        }]),
         env.limits.fleet.configured_workers,
         env.limits.fleet.worker_name_bytes,
     )

@@ -52,12 +52,14 @@ fn changes_setup(state: change::State, second_since: Wall) -> Domain {
 }
 fn pending(task: u64) -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task,
         entry: 100,
         follow_tree: List::with_capacity(env().limits.key_entries),
         stage: StepStage::Reviews(1),
         heard: change::Heard {
             delegate_running: false,
+            flake: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -76,6 +78,7 @@ fn pending(task: u64) -> PendingStep {
         branch: Some(HEAD),
         branch_fresh: true,
         base_tip: Some(BASE),
+        base_read: Some(BASE),
         pull: Some(fixtures::open_pull()),
         pull_ci: true,
         ci: change::Status::Passed,
@@ -262,6 +265,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     child: REVIEWER,
                     status: change::Status::Failed,
                     no_change: false,
+                    flake: false,
                     failed: true,
                     cancelled: false,
                     words: Box::from(b"review failed".as_slice()),

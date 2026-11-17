@@ -185,6 +185,7 @@ pub(crate) fn answered(
             | api::Error::NothingToMerge
             | api::Error::Closed
             | api::Error::Stale
+            | api::Error::BaseMoved { .. }
             | api::Error::Protected
             | api::Error::NotConnected
             | api::Error::NotInstalled

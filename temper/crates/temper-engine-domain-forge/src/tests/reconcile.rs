@@ -80,6 +80,7 @@ fn closing_history(
 
 fn release() -> Stored {
     Stored::Release(ReleaseRow {
+        room: None,
         task: TASK,
         root: TASK,
         ending: ReleaseEnding::Done,

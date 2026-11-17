@@ -851,7 +851,11 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.pending_generation = false;
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
-            event @ (jig_protocol_store::Event::Census { .. }
+            event @ (jig_protocol_store::Event::Checkpointed { .. }
+            | jig_protocol_store::Event::CheckpointRefused { .. }
+            | jig_protocol_store::Event::CheckpointHeld { .. }
+            | jig_protocol_store::Event::CheckpointRemoved { .. }
+            | jig_protocol_store::Event::Census { .. }
             | jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
@@ -929,6 +933,7 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Check { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Unready { .. } => stop::open(engine, &why),
     }
 }
 

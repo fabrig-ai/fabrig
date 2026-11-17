@@ -842,8 +842,10 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            room: None,
             source: None,
             kept: None,
+            regate: None,
             task_release: None,
             job: None,
             signed: Box::new([]),
@@ -876,6 +878,7 @@ mod tests {
                 repairs: 0,
                 resolutions: 0,
                 updates: 0,
+                stale: None,
                 since: skein_lib::Wall::EPOCH,
                 ready_since: None,
                 owns_turn: false,
@@ -888,6 +891,8 @@ mod tests {
             effect: change::EffectResult::None,
             delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
             delegate_status: change::Status::Unknown,
+            delegate_flake: false,
+            delegate_head: None,
             verdicts: Box::new([]),
             milestone: None,
             goal: None,

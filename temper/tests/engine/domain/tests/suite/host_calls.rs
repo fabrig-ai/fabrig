@@ -1383,7 +1383,7 @@ fn person_read(world: &mut PersonWorld, read: jig_domain_core::reads::Read) -> j
     world.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: skein_lib::ReplyTo::new(Token::new(501)),
         sign_in: world.signed_in.expect("owner"),
-        read,
+        read: Box::new(read),
     }));
     for _ in 0..200 {
         world.tick();

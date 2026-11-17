@@ -82,7 +82,7 @@ impl<'a> Borrowed<'a> {
             if let jig_client::contract::Subject::Tasks { query, .. } = &watch.subject
                 && self.ui.shown_conversations() == Some(query.project)
                 && let Some(me) = self.frame().document
-                && crate::state::queries::chats(me, query.project) == Some(*query)
+                && crate::state::queries::chats(me, query.project) == Some(query.clone())
                 && self.ui.chats.show_live
                 && let Some(document) = self.client.document(*handle)
                 && let Some(Latest::Jig(Delivery::Tasks(value))) = document.latest

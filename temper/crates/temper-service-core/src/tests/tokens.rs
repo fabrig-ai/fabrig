@@ -14,6 +14,7 @@ fn no_two_component_prefixes_meet() {
         tokens::STORE[0],
         tokens::STORE[1],
         tokens::STORE[2],
+        tokens::STORE[3],
     ];
     for (index, owner) in owners.iter().enumerate() {
         for other in owners.iter().skip(index + 1) {

@@ -106,6 +106,7 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
         SettingValue::Overlay(value) => values::encode_overlay(value, out),
+        SettingValue::Worker(value) => values::encode_worker(value, out),
         SettingValue::Model(value) => values::encode_catalogue(value, out),
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),

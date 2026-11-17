@@ -195,14 +195,17 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   its number as their parent; both groups come in task number, the
   order they joined, and merge so, the live row winning a number both
   hold, as a goal's page merges its tasks (`../client/pages/goal.md`,
-  section 2). The ended group is read again on a change of the live
-  one and after the milestone has ended.
+  section 2). The ended group is read again as its mark grows.
+- **On a list's rows:** the pages draw a listed milestone's facts, goals
+  and totals from its row's milestone part, and a goal's milestone from
+  its row's goal part, with no read of their own
+  (`../client/forge/parts.md`, 3 and 5); a milestone's page reads them as
+  above (`../client/pages/milestone.md`, 3).
 - **A goal's milestone:** `milestones::of`, one pure function of the
-  client domain, from a goal's task line and the milestones read: the
-  goal's requester, `Requester::Task(M)`, where M is among them. A goal
-  whose milestone is outside the read reads M's task line once, by
-  number, and holds it; a requester that is not a milestone gives none.
-  A goal's requester alone groups it, with no read of its tree.
+  client domain, from a goal's task line: its goal part's `milestone`,
+  the goal's requester where that is a milestone, which the engine names
+  (`../client/forge/parts.md`, 3). A goal's requester alone groups it,
+  with no read of its tree.
 - **Its totals,** the forge family's read `Milestone`
   (`../client/forge/records.md`): `MilestoneRead { project, task }`, in
   the project's scope by a party with a role there, answered with

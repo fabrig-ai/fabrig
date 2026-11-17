@@ -24,12 +24,13 @@ mod store;
 mod tests;
 
 pub use boundary::{
-    Direction, Event, Exhausted, Failure, Large, LogRecord, LogRule, Op, Page, Range, Refusal, Request, Row,
+    Direction, Event, Exhausted, Failure, HELD_REMOVALS, HeldSegment, Large, LogRecord, LogRule, Op, Page, Range,
+    Refusal, Request, Row,
 };
 pub use census::{CENSUS_HEADS, CENSUS_KEYSPACES, CENSUS_PREFIX, Census, CensusRule, Head, Keyspace};
 pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};
 pub use key::{KeyReader, KeyWriter};
 pub use limits::{CHUNK_TARGET, Limits, SNAPSHOT_FLOOR, SNAPSHOT_MULTIPLE};
-pub use logs::LogFrame;
+pub use logs::{LogFrame, directory as log_directory, path as log_path};
 pub use snapshot::chunk_bytes;
 pub use store::{Store, down, fire, is_ready, up};

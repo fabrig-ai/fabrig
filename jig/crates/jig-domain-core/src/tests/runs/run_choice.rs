@@ -7,8 +7,8 @@
 )]
 use crate::tests::*;
 use jig_domain_link::{
-    Bounds, CountKind, EndpointBound, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Membership,
-    Phase, Scheme, SourceFailure, SourceName,
+    Bounds, CountKind, EndpointBound, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Phase, Scheme,
+    SourceFailure, SourceName,
 };
 const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
@@ -586,9 +586,7 @@ pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();
     let mut fleet = fixtures::restored_fleet(limits, fleet_needs::configured(&config, limits));
-    fleet.configure_workers(
-        Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes).unwrap(),
-    );
+    fleet.configure_workers(crate::limits::problems(&config.defaults.workers, limits).unwrap());
     fleet
 }
 pub(in crate::tests) fn placement_fixture(

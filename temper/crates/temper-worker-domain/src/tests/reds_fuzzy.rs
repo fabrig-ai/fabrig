@@ -213,7 +213,7 @@ fn random_checks_use_only_their_answers_contained_heads_and_leave_no_file_at_end
                 }
                 4 => {
                     h.env.now = h.env.now.saturating_add(Duration::from_millis(5001));
-                    crate::reds::fire(&mut h.domain, h.env.now);
+                    crate::reds::fire(&mut h.domain, &h.env);
                 }
                 _ => unreachable!(),
             }

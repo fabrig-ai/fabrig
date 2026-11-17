@@ -12,7 +12,15 @@ const DESIGN: &str = concat!(
     include_str!("../../../../docs/design/protocol/store/records.md"),
     "\n",
     include_str!("../../../../docs/design/protocol/store/opening.md"),
+    "\n",
+    include_str!("../../../../docs/design/protocol/store/checkpoints.md"),
 );
+#[test]
+fn checkpoint_only_open_refusals_say_what_to_do_without_changing_the_deployment() {
+    says(OpenRefusal::Unready { why: crate::Unready::Empty }, "- `Empty`: \"", "\"");
+    says(OpenRefusal::Unready { why: crate::Unready::Upgrade }, "- `Upgrade`: \"", "\"");
+}
+
 pub(super) const FORMAT: &str = "putting the family's lower-case name in place of <family>:\n\n  > ";
 pub(super) const DEPLOYMENT: &str = "deployment than its header (`records.md`, 3):\n\n  > ";
 pub(super) const NUMBERS: &str = "the one the header records (section 5):\n\n  > ";
@@ -97,6 +105,10 @@ fn a_missing_refusal_says_to_restore_or_name_a_generation() {
 #[test]
 fn an_unnamed_refusal_says_to_name_its_generation() {
     says(OpenRefusal::Generations { why: Generations::Unnamed }, "- `Unnamed`: \"", "\"");
+}
+#[test]
+fn a_checkpoints_refusal_says_to_restore_or_move_the_checkpoints() {
+    says(OpenRefusal::Generations { why: Generations::Checkpoints }, "- `Checkpoints`: \"", "\"");
 }
 #[test]
 fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {

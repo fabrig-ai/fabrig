@@ -36,17 +36,17 @@
         "checkout.message_bytes": 4096,
         "checkout.name_bytes": 256,
         "checkout.repositories": 2,
-        "forge.name_bytes": 64,
-        "forge.resources_per_task": 3,
-        "git_component.stdout_bytes": 131072,
-        "root.journal.transcript_bytes": 998048,
-        "root.loads.bytes": 998292,
-        "root.loads.read_bytes": 1996088,
-        "root.loads.reply_bytes": 998292,
-        "root.loads.transcript_bytes": 998044,
         "forge.client.answer_bytes": 65536,
         "forge.client.op_bytes": 512,
-        "forge_component.body_bytes": 16384
+        "forge.name_bytes": 64,
+        "forge.resources_per_task": 3,
+        "forge_component.body_bytes": 16384,
+        "git_component.stdout_bytes": 131072,
+        "root.journal.transcript_bytes": 4194304,
+        "root.loads.bytes": 998446,
+        "root.loads.read_bytes": 1996396,
+        "root.loads.reply_bytes": 998446,
+        "root.loads.transcript_bytes": 998198
       }
     },
     "sign_in": null,
@@ -63,12 +63,6 @@
         {
           "in_process": "workers"
         }
-      ],
-      "workers": [
-        {
-          "digest": "secrets/worker-a.digest",
-          "name": "worker-a"
-        }
       ]
     },
     "limits": {
@@ -83,7 +77,7 @@
         "core.load_bytes": 8192,
         "core.load_slots": 8,
         "core.policy_bytes": 8192,
-        "core.resume_bytes": 998048,
+        "core.resume_bytes": 4194304,
         "core.run_bytes": 32768,
         "core.templates": 7,
         "documents.chips": 1,
@@ -92,10 +86,18 @@
         "documents.text_bytes": 128,
         "fleet.attempts": 1,
         "fleet.calls": 1,
+        "fleet.slots": 4,
         "fleet.turns": 8,
-        "hub.transcript_bytes": 3992192,
-        "hub.turn_bytes": 998044,
-        "hub.turn_queue_bytes": 7984352,
+        "hub.accounts": 4,
+        "hub.event_bytes": 1024,
+        "hub.held": 8,
+        "hub.inbox": 8,
+        "hub.run_calls": 1,
+        "hub.slots": 1,
+        "hub.transcript_bytes": 16777216,
+        "hub.turn_bytes": 998198,
+        "hub.turn_queue_bytes": 7985584,
+        "io.output": 1048576,
         "notes.entries_per_scope": 2,
         "notes.party_entries": 2,
         "notes.recalled": 2,
@@ -115,25 +117,25 @@
         "tasks.batch": 1,
         "tasks.charter_documents": 0,
         "tasks.charters": 16,
+        "tasks.contract_choices": 2,
         "tasks.delegates": 1,
         "tasks.dependencies": 2,
         "tasks.executor_kinds": 22,
         "tasks.exemptions": 2,
         "tasks.funders": 4,
         "tasks.hold_bytes": 256,
+        "tasks.inbox_bytes": 4096,
         "tasks.message_bytes": 512,
+        "tasks.parameters": 5,
         "tasks.project_goals": 1,
         "tasks.project_tasks": 4,
-        "tasks.parameters": 5,
-        "tasks.contract_choices": 2,
         "tasks.result_bytes": 128,
+        "tasks.run_inbox": 8,
         "tasks.spec_bytes": 187,
         "tasks.tasks": 4,
         "tasks.tree_tasks": 6,
         "views.runs": 1,
-        "views.text_bytes": 1024,
-        "tasks.inbox_bytes": 4096,
-        "tasks.run_inbox": 8
+        "views.text_bytes": 1024
       }
     },
     "llm": {
@@ -173,38 +175,11 @@
   },
   "workers": [
     {
-      "agent": {
-        "arguments": [
-          "internal",
-          "agent",
-          "/opt/temper/agent.json"
-        ],
-        "configuration": "/opt/temper/agent.json",
-        "program": "/opt/temper/bin/temper"
-      },
       "engine": {
         "in_process": "workers"
       },
-      "limits": {
-        "overrides": {
-          "core.call_answer_bytes": 2048,
-          "hub.accounts": 4,
-          "hub.event_bytes": 1024,
-          "hub.run_calls": 1,
-          "hub.slots": 1,
-          "hub.transcript_bytes": 3992192,
-          "hub.turn_bytes": 998044,
-          "hub.turn_queue_bytes": 7984352,
-          "people.words": 512,
-          "tasks.message_bytes": 512,
-          "tasks.result_bytes": 512,
-          "hub.inbox": 8,
-          "hub.held": 8,
-          "tasks.run_inbox": 8
-        }
-      },
       "memory_bytes": 1152921504606846976,
-      "name": "worker-a",
+      "name": "local",
       "secret": "worker.secret",
       "slots": 1
     }

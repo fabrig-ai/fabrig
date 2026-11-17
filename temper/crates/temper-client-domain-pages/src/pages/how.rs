@@ -510,6 +510,7 @@ impl Open {
         }
         let standing = handle(next);
         let query = c::TaskQuery {
+            parts: List::with_capacity(0),
             project: Some(project),
             label: Some(3),
             order: c::QueryOrder::Number,

@@ -24,6 +24,36 @@ fn a_keyed_request_waits_for_its_record_to_be_stored() {
     assert_eq!(fixtures::keyed_count(c.requests()), 1);
 }
 #[test]
+fn an_unwritable_record_answers_not_kept_once_without_poisoning_later_requests() {
+    let mut limits = fixtures::limits();
+    limits.domain.document_bytes = 1024;
+    limits.domain.long_text = 1024;
+    let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
+    c.sign_in();
+    assert_eq!(c.machine.link().state, Link::Live);
+    let request = Ask::Jig(Box::new(contract::Ask::Message {
+        project: PROJECT,
+        task: fixtures::SUBJECT_TASK,
+        words: contract::Text::new(Box::new([b'x'; 1024]), 1024).unwrap(),
+    }));
+    c.step(Event::Send { name: None, key: STOP, request });
+    assert_eq!(fixtures::answers(c.requests()).as_slice(), &[(STOP, Outcome::NotKept)]);
+    assert_eq!(c.machine.pending(STOP), None, "not a lost request waiting to retry");
+    assert!(fixtures::saved(c.requests()).is_empty());
+    assert_eq!(fixtures::keyed_count(c.requests()), 0);
+    c.step(Event::Stored); // The retirement's erase.
+    assert!(fixtures::answers(c.requests()).is_empty());
+    c.step(Event::Send { name: None, key: SECOND, request: fixtures::stop() });
+    assert_eq!(fixtures::saved(c.requests()).len(), 1);
+    assert_eq!(fixtures::keyed_count(c.requests()), 0);
+    assert!(fixtures::answers(c.requests()).is_empty());
+    c.step(Event::Stored);
+    assert_eq!(fixtures::keyed_count(c.requests()), 1);
+    assert_eq!(c.machine.pending(SECOND).unwrap().progress, Progress::InFlight);
+    assert_eq!(c.machine.pending(STOP), None);
+    assert!(fixtures::answers(c.requests()).is_empty());
+}
+#[test]
 fn a_read_leaves_while_a_record_is_being_stored() {
     let mut c = Client::signed_in();
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
@@ -192,16 +222,16 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     let mut c = Client::signed_in();
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     c.step(Event::Stored);
-    let record = jig_client_protocol_wire::v27::Owned::new(
-        &jig_client_protocol_wire::v27::CEILINGS,
-        jig_client_protocol_wire::v27::OwnedParts {
-            owner: jig_client_protocol_wire::v27::Owner::Jig,
+    let record = jig_client_protocol_wire::Owned::new(
+        &jig_client_protocol_wire::CEILINGS,
+        jig_client_protocol_wire::OwnedParts {
+            owner: jig_client_protocol_wire::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             record: Box::new([255]),
         },
     )
     .unwrap();
-    let message = fixtures::answer(&jig_client_protocol_wire::v27::KeyedAnswer::FinalAnswer(record));
+    let message = fixtures::answer(&jig_client_protocol_wire::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });
     assert_eq!(c.machine.link().state, Link::Live);
@@ -219,8 +249,8 @@ fn keyed_keys(requests: &[Request]) -> skein_lib::List<skein_lib::RequestKey> {
     let mut keys = skein_lib::List::with_capacity(fixtures::limits().exchanges);
     for request in requests {
         if let Request::Exchange { message: Message::Request(bytes), .. } = request {
-            let keyed = jig_client_protocol_wire::v27::Keyed::decode(
-                &jig_client_protocol_wire::v27::CEILINGS,
+            let keyed = jig_client_protocol_wire::Keyed::decode(
+                &jig_client_protocol_wire::CEILINGS,
                 &mut skein_lib::Reader::new(bytes),
             )
             .unwrap();

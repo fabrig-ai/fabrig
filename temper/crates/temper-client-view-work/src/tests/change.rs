@@ -346,6 +346,31 @@ fn each_hold_draws_its_step_and_exact_reason_as_a_notice() {
 }
 
 #[test]
+fn an_outbox_wait_draws_a_notice_after_the_step_line() {
+    let mut parts = parts(w::Step::Opening);
+    parts.wait = Some(w::ChangeWait::OutboxRoom);
+    let tree = draw(parts.clone());
+    let notices = styled(&tree, look::CHANGE_HOLD);
+    assert_eq!(notices.len(), 1);
+    let notice = b"Waiting for room in the forge outbox.";
+    assert_eq!(f::node_text(&tree, notices[0]).as_ref(), notice);
+    let text = f::text(&tree);
+    assert!(position(&text, b"Opening its pull request.").unwrap() < position(&text, notice).unwrap());
+    parts.wait = None;
+    assert!(styled(&draw(parts), look::CHANGE_HOLD).is_empty());
+}
+#[test]
+fn a_held_change_with_an_outbox_wait_draws_its_hold_alone() {
+    let mut parts = parts(w::Step::Opening);
+    parts.wait = Some(w::ChangeWait::OutboxRoom);
+    parts.hold = Some(w::Hold::Stalled);
+    let tree = draw(parts);
+    let notices = styled(&tree, look::CHANGE_HOLD);
+    assert_eq!(notices.len(), 1);
+    assert_eq!(f::node_text(&tree, notices[0]).as_ref(), b"Held while opening: its wait stalled.");
+    assert!(!contains(&tree, "Waiting for room in the forge outbox."));
+}
+#[test]
 fn ci_gates_and_bounds_draw_the_supplied_words_in_order() {
     for (ci, state) in
         [(w::Ci::Unknown, "Not yet"), (w::Ci::Pending, "Running"), (w::Ci::Passed, "Passed"), (w::Ci::Failed, "Failed")]

@@ -3,6 +3,7 @@ use super::*;
 mod empty_repair;
 mod execution;
 mod fence;
+mod flake;
 mod released_resolution;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
@@ -771,6 +772,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                flake: false,
                 delegate_live: false,
                 review_request: None,
                 start_conflict: None,
@@ -1531,6 +1533,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             child: 52,
             status: change::Status::Failed,
             no_change: false,
+            flake: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),
@@ -1654,6 +1657,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
                 child,
                 status,
                 no_change,
+                flake: false,
                 failed,
                 cancelled,
                 words: b"Adds changes/2.md".as_slice().into(),
@@ -1682,12 +1686,30 @@ fn delegate_waiting(
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.delegate = Some((52, kind));
+    row.delegate_head = row.change.last_head;
     row.delegate_status = change::Status::Pending;
     row.title = Box::new([]);
     row.change.state = state;
     row.change.since = Wall::EPOCH;
     outputs(&mut d, Event::Change { row });
     d
+}
+
+fn verdict_terminal(d: &mut Domain, child: u64, words: &[u8]) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::DelegateResult {
+            task: fixtures::CHANGE,
+            child,
+            ended_at: None,
+            status: temper_engine_domain_forge_change::Status::Passed,
+            no_change: false,
+            flake: true,
+            failed: false,
+            cancelled: false,
+            words: words.into(),
+        },
+    )
 }
 
 fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
@@ -1699,6 +1721,7 @@ fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
             child: 52,
             status: temper_engine_domain_forge_change::Status::Passed,
             no_change,
+            flake: false,
             failed: false,
             cancelled: false,
             words: b"Nothing applies".as_slice().into(),
@@ -1718,6 +1741,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
             spend: None,
             delegate: change::Status::Pending,
             delegate_running: false,
+            flake: false,
             delegate_live: live,
             effect: change::EffectResult::None,
             released,
@@ -2092,6 +2116,12 @@ fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     entry.effect.write =
         Write::Update { number: 1, style: if preparing { UpdateStyle::Rebase } else { UpdateStyle::Merge } };
     entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: fixtures::BASE };
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: env().now,
+        deadline: env().now,
+        wall: env().wall,
+        expires: env().wall,
+    });
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Enqueue { entry: entry.clone() });
     (d, entry)
@@ -2125,7 +2155,13 @@ fn an_update_lost_or_overtaken_is_let_go_with_its_account() {
     use skein_forge_client::Outcome;
     use temper_engine_domain_forge_change::EffectResult;
     for preparing in [false, true] {
-        for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
+        for error in [
+            Error::Timeout,
+            Error::Unavailable,
+            Error::Stale,
+            Error::BaseMoved { base: Some([6; 32]) },
+            Error::BaseMoved { base: None },
+        ] {
             let (mut d, entry) = updating_entry(preparing);
             settled_change(&mut d, Outcome::Failed(error));
             let row = d.change(fixtures::CHANGE).expect("settled update");
@@ -2237,15 +2273,21 @@ fn a_let_go_update_reads_the_base_it_asked_for_after_main_moves_on() {
 #[test]
 fn a_let_go_update_is_decided_again() {
     for preparing in [false, true] {
-        let (mut d, _) = updating_entry(preparing);
-        let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout));
-        assert!(settled.contains(&Request::ChangeDecision {
-            task: fixtures::CHANGE,
-            decision: temper_engine_domain_forge_change::Decision::None,
-            entry: None,
-            evidence: None,
-        }));
-        decide_update_again(&mut d, preparing, 2);
+        for error in [
+            skein_forge::api::Error::Timeout,
+            skein_forge::api::Error::BaseMoved { base: Some([6; 32]) },
+            skein_forge::api::Error::BaseMoved { base: None },
+        ] {
+            let (mut d, _) = updating_entry(preparing);
+            let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(error));
+            assert!(settled.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: temper_engine_domain_forge_change::Decision::None,
+                entry: None,
+                evidence: None,
+            }));
+            decide_update_again(&mut d, preparing, 2);
+        }
     }
 }
 
@@ -2331,6 +2373,7 @@ fn a_release_of_a_failed_update_drops_its_result() {
     for preparing in [false, true] {
         for (effect, update_state, expected) in [
             (change::EffectResult::Failed, true, change::EffectResult::None),
+            (change::EffectResult::Stale, true, change::EffectResult::None),
             (change::EffectResult::Conflict, true, change::EffectResult::Conflict),
             (change::EffectResult::Failed, false, change::EffectResult::Failed),
         ] {
@@ -2736,6 +2779,7 @@ fn a_containment_landing_withdraws_its_pending_merge() {
     let (mut d, mut entry) = updating_entry(false);
     entry.effect.write = Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style };
     entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
+    entry.attempt = None;
     d.entries.get_mut(&entry.number).expect("pending entry").entry = entry.clone();
     let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
     row.change.state = change::State::Landing { head: fixtures::HEAD };
@@ -3288,6 +3332,7 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
                     child: 52,
                     status: c::Status::Failed,
                     no_change: false,
+                    flake: false,
                     failed: true,
                     cancelled: false,
                     words: reason.into(),
@@ -3307,4 +3352,69 @@ fn failed_delegates_retain_their_task_ending_and_recovery_without_a_live_slot() 
             assert_eq!(restored.change(fixtures::CHANGE).unwrap().producer_failure.as_deref(), Some(words));
         }
     }
+}
+
+#[test]
+fn an_update_refused_before_sending_reports_stale_not_a_lost_write() {
+    use skein_forge::api::Error;
+    use skein_forge_client::Outcome;
+    use temper_engine_domain_forge_change::EffectResult;
+    for preparing in [false, true] {
+        for error in [Error::Stale, Error::BaseMoved { base: Some([6; 32]) }, Error::BaseMoved { base: None }] {
+            let (mut d, mut entry) = updating_entry(preparing);
+            entry.attempt = None;
+            d.entries.get_mut(&entry.number).unwrap().entry = entry.clone();
+            settled_change(&mut d, Outcome::Failed(error));
+            assert_eq!(d.change(fixtures::CHANGE).unwrap().effect, EffectResult::Stale);
+            assert_settled_account(&d, &entry, Outcome::Failed(error));
+        }
+    }
+}
+
+#[test]
+fn a_stale_preparation_reads_the_new_base_beside_its_pin_and_replans() {
+    use skein_forge::api::{Answer, CommitMessage, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    const NEW: skein_forge::api::Commit = [6; 32];
+    let (mut d, entry) = updating_entry(true);
+    d.entries.get_mut(&entry.number).unwrap().entry.attempt = None;
+    settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base: Some(NEW) }));
+    seen_base(&mut d, NEW);
+    fixtures::step_change(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(NEW)));
+    let mut pull = fixtures::open_pull();
+    pull.base_commit = Some(NEW);
+    fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
+    fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
+    fixtures::answer(
+        &mut d,
+        call,
+        Ok(Answer::Commits {
+            commits: Box::new([CommitMessage {
+                id: fixtures::BASE,
+                parents: Box::new([]),
+                message: b"pin ahead".as_slice().into(),
+            }]),
+            more: false,
+        }),
+    );
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())));
+    let decided = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    let mut replanned = false;
+    for request in &decided {
+        if let Request::ChangeDecision {
+            decision: change::Decision::Effect(change::Effect::Prepare { head: fixtures::HEAD, main: NEW }),
+            evidence: Some(evidence),
+            ..
+        } = request
+        {
+            assert_eq!(evidence.base_tip, fixtures::BASE);
+            replanned = true;
+        }
+    }
+    assert!(replanned, "new base observed beside the preparation's pin");
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.updates, 1);
 }

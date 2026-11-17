@@ -147,12 +147,35 @@ pub(crate) struct Removing {
     levels: List<Level>,
     step: Step,
     keep_root: bool,
+    owner: skein_lib::Token,
 }
 pub(crate) fn remove(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Request>) -> Removing {
-    let mut levels = List::with_capacity(DEPTH);
-    queue.push(file::Request::OpenDirectory { owner: OWNER, root: parent.fd, name: name.clone(), no_follow: true });
+    removing(parent, name, DEPTH, OWNER, queue)
+}
+/// Temporary, generations, generation, store, logs and shard (checkpoints.md, 7).
+pub(crate) fn remove_checkpoint(parent: Root, name: Box<[u8]>, queue: &mut Queue<file::Request>) -> Removing {
+    removing(parent, name, 6, OWNER, queue)
+}
+/// A caller's file lane can distinguish its removal from another checkpoint operation.
+pub(crate) fn remove_checkpoint_owned(
+    parent: Root,
+    name: Box<[u8]>,
+    owner: skein_lib::Token,
+    queue: &mut Queue<file::Request>,
+) -> Removing {
+    removing(parent, name, 6, owner, queue)
+}
+fn removing(
+    parent: Root,
+    name: Box<[u8]>,
+    depth: u32,
+    owner: skein_lib::Token,
+    queue: &mut Queue<file::Request>,
+) -> Removing {
+    let mut levels = List::with_capacity(depth);
+    queue.push(file::Request::OpenDirectory { owner, root: parent.fd, name: name.clone(), no_follow: true });
     levels.push(Level { parent, name, root: None, entries: Box::new([]), next: 0 }).expect("first level fits");
-    Removing { levels, step: Step::Opening, keep_root: false }
+    Removing { levels, step: Step::Opening, keep_root: false, owner }
 }
 /// Empty a caller-owned scratch root, without removing the root itself (opening.md 5).
 pub(crate) fn empty(root: Root, queue: &mut Queue<file::Request>) -> Removing {
@@ -160,18 +183,19 @@ pub(crate) fn empty(root: Root, queue: &mut Queue<file::Request>) -> Removing {
     let mut levels = List::with_capacity(DEPTH.checked_add(2).expect("scratch and generations levels"));
     queue.push(file::Request::OpenDirectory { owner: OWNER, root: root.fd, name: name.clone(), no_follow: true });
     levels.push(Level { parent: root, name, root: None, entries: Box::new([]), next: 0 }).expect("scratch root fits");
-    Removing { levels, step: Step::Opening, keep_root: true }
+    Removing { levels, step: Step::Opening, keep_root: true, owner: OWNER }
 }
 fn top(removing: &mut Removing) -> &mut Level {
     let index = removing.levels.len().checked_sub(1).expect("a removal has a level");
     removing.levels.get_mut(index).expect("last level exists")
 }
 fn next(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
+    let owner = removing.owner;
     let level = top(removing);
     let root = level.root.expect("listed directory is open");
     let Some(entry) = level.entries.get(level.next) else {
         let empty = level.entries.is_empty();
-        queue.push(file::Request::Close { owner: OWNER, file: root.token });
+        queue.push(file::Request::Close { owner, file: root.token });
         removing.step = Step::Closing { empty };
         return Progress::Pending;
     };
@@ -182,19 +206,20 @@ fn next(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
         if removing.levels.room() == 0 {
             return fail(removing, queue);
         }
-        queue.push(file::Request::OpenDirectory { owner: OWNER, root: root.fd, name: name.clone(), no_follow: true });
+        queue.push(file::Request::OpenDirectory { owner, root: root.fd, name: name.clone(), no_follow: true });
         removing
             .levels
             .push(Level { parent: root, name, root: None, entries: Box::new([]), next: 0 })
             .expect("room checked");
         removing.step = Step::Opening;
     } else {
-        queue.push(file::Request::Remove { owner: OWNER, root: root.fd, name, directory: false });
+        queue.push(file::Request::Remove { owner, root: root.fd, name, directory: false });
         removing.step = Step::File;
     }
     Progress::Pending
 }
 fn fail(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
+    let owner = removing.owner;
     removing.step = Step::Failing;
     // The bounded removal stack, with no work between the closes.
     let depth = removing.levels.len();
@@ -207,7 +232,7 @@ fn fail(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
         let length = removing.levels.len().checked_sub(1).expect("nonempty stack");
         removing.levels.truncate(length);
         if let Some(root) = root {
-            queue.push(file::Request::Close { owner: OWNER, file: root.token });
+            queue.push(file::Request::Close { owner, file: root.token });
             return Progress::Pending;
         }
     }
@@ -215,6 +240,7 @@ fn fail(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
     Progress::Failed
 }
 pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Queue<file::Request>) -> Progress {
+    let owner = removing.owner;
     match core::mem::replace(&mut removing.step, Step::Finished) {
         Step::Opening => {
             let file::Event::Opened { file, .. } = arrived.event else {
@@ -233,7 +259,7 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
                 return fail(removing, queue);
             };
             top(removing).root = Some(Root { token: file, fd });
-            queue.push(file::Request::ListPage { owner: OWNER, directory: file, max: PAGE });
+            queue.push(file::Request::ListPage { owner, directory: file, max: PAGE });
             removing.step = Step::Listing;
             Progress::Pending
         }
@@ -264,7 +290,7 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
             let level = top(removing);
             if empty {
                 queue.push(file::Request::Remove {
-                    owner: OWNER,
+                    owner,
                     root: level.parent.fd,
                     name: level.name.clone(),
                     directory: true,
@@ -273,7 +299,7 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
             } else {
                 level.entries = Box::new([]);
                 queue.push(file::Request::OpenDirectory {
-                    owner: OWNER,
+                    owner,
                     root: level.parent.fd,
                     name: level.name.clone(),
                     no_follow: true,

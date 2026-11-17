@@ -196,6 +196,7 @@ fn story_as_delegates_fit_the_result_contract_bound() {
                 connector: contract["connector"].as_u64().expect("connector").try_into().expect("connector fits"),
                 kind: contract["change_kind"].as_u64().expect("change kind").try_into().expect("kind fits"),
                 words: contract["words"].as_u64().expect("words").try_into().expect("words fit"),
+                choices: Box::new([])
             }
         ));
     }

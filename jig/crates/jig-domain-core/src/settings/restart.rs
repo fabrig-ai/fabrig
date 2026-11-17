@@ -244,16 +244,16 @@ impl Core {
 
     pub fn settings_restored(&mut self, env: &Env<Limits>) -> bool {
         self.start_input();
-        self.start_settings_finish(env).is_none()
+        self.start_settings_finish(env, &mut Queue::uncapped()).is_none()
     }
 
-    pub(crate) fn finish_restored_settings(&mut self, env: &Env<Limits>) -> bool {
+    pub(crate) fn finish_restored_settings(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
         if self.settings_restore.ready || self.restore_failure.is_some() {
             return self.restore_failure.is_none();
         }
         if self.counters.deployment().commits == 0 && !self.settings_restore.held {
             // A first start judges held hellos against the seeded settings too (domain/engine/fleet.md).
-            self.tell_settings(env);
+            self.tell_settings(env, out);
             return true;
         }
         for (&(proposer, proposal), value) in &self.settings_proposals {
@@ -271,6 +271,10 @@ impl Core {
             if !self.settings_restore.defaults.contains_key(&setting) {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
             }
+        }
+        if let Err(failure) = super::workers::check_defaults(&self.current, self.workers_in_process) {
+            let _request = self.refuse_settings(failure);
+            return false;
         }
         if let Err(failure) = super::check(&self.current, &self.settings, &self.connectors, &env.limits) {
             let _request = self.refuse_settings(failure);
@@ -298,7 +302,7 @@ impl Core {
         self.settings_restore.ready = true;
         self.settings.models = super::catalogue::table(&self.current);
         super::charters::rebuild(&mut self.current, &env.limits);
-        self.tell_settings(env);
+        self.tell_settings(env, out);
         true
     }
     /// The typed refusal is retained even when a later completion repeats it.
@@ -338,7 +342,24 @@ impl Core {
         }
     }
 
-    pub(crate) fn tell_settings(&mut self, env: &Env<Limits>) {
+    pub(crate) fn tell_workers(&mut self, limits: &Limits, out: &mut Queue<Request>) {
+        let mut workers = List::with_capacity(limits.fleet.configured_workers);
+        let mut admitted = List::with_capacity(limits.fleet.configured_workers);
+        for &setting in &self.current.offered() {
+            if let Some(worker) = super::workers::worker(self.current.value(setting)) {
+                workers.push(worker.clone()).expect("checked worker settings");
+                if !worker.withdrawn {
+                    admitted.push(worker.clone()).expect("checked worker settings");
+                }
+            }
+        }
+        self.fleet
+            .configure_workers(crate::limits::problems(workers.as_slice(), limits).expect("checked worker settings"));
+        out.push(Request::Ask { connector: 0, ask: crate::Ask::Workers(admitted.into_boxed()) });
+    }
+
+    pub(crate) fn tell_settings(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
+        self.tell_workers(&env.limits, out);
         self.tell_replaced_settings(env, true, true);
     }
     pub(crate) fn tell_replaced_settings(&mut self, env: &Env<Limits>, rules: bool, charters: bool) {
@@ -486,6 +507,19 @@ impl Core {
         let newest = if release { previous.checked_add(1).expect("release number preflighted") } else { previous };
         let reserve = if release { super::withdrawal_writes(&env.limits).expect("withdrawal room") } else { 0 };
         let items = self.restored_items();
+        let mut workers_changed = false;
+        for item in &items {
+            match item.setting {
+                Setting::Worker(_) => workers_changed = true,
+                Setting::Charter(_)
+                | Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::Application { .. }
+                | Setting::ProjectPolicy { .. }
+                | Setting::Model(_) => {}
+            }
+        }
         let mut after = Map::with_capacity(env.limits.settings.revisions.checked_add(1).expect("held names"));
         for (&revision, _) in &self.held.heads {
             if self.tasks.holders(revision) > 0 {
@@ -599,7 +633,10 @@ impl Core {
         }
         // Archive-only starts still save their changed history extent.
         self.finish_extent(oldest_before, &mut out);
-        self.tell_settings(env);
+        if workers_changed {
+            self.tell_workers(&env.limits, &mut out);
+        }
+        self.tell_replaced_settings(env, true, true);
         if release {
             crate::routing::settings::dispatch::withdraw_stale(self, env, &mut out, None);
         }

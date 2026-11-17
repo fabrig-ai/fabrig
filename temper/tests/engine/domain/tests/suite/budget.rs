@@ -196,7 +196,7 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
     driver.send(engine::Event::Party(engine::PartyInput::Read {
         reply_to: ReplyTo::new(READ),
         sign_in: driver.store.header().sign_ins,
-        read: reads::Read::Turn { task: run.task, attempt: run.attempt, turn: 1 },
+        read: Box::new(reads::Read::Turn { task: run.task, attempt: run.attempt, turn: 1 }),
     }));
     for _ in 0..STEPS {
         driver.advance(true);

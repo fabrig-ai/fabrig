@@ -802,6 +802,10 @@ impl Component {
             }
             // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
             store::Event::Census { .. }
+            | store::Event::Checkpointed { .. }
+            | store::Event::CheckpointRefused { .. }
+            | store::Event::CheckpointHeld { .. }
+            | store::Event::CheckpointRemoved { .. }
             | store::Event::Switched { .. }
             | store::Event::Opened { .. }
             | store::Event::OpenRefused { .. }
@@ -996,6 +1000,7 @@ impl Component {
     }
     /// The store's answers: the records it holds, and whether each write was
     /// kept (protocol/store/secrets.md).
+    #[expect(clippy::too_many_lines, reason = "secrets routing exhaustively excludes checkpoint terminals")]
     fn answers(&mut self, store: &mut StoreState, values: &mut table::Table, events: &mut Queue<domain::Event>) {
         for _ in 0..store.answers.len() {
             let answer = store.answers.pop().expect("source answers");
@@ -1070,6 +1075,10 @@ impl Component {
                 }
                 // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
                 store::Event::Census { .. }
+                | store::Event::Checkpointed { .. }
+                | store::Event::CheckpointRefused { .. }
+                | store::Event::CheckpointHeld { .. }
+                | store::Event::CheckpointRemoved { .. }
                 | store::Event::Switched { .. }
                 | store::Event::Opened { .. }
                 | store::Event::OpenRefused { .. }

@@ -3,6 +3,8 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 pub mod diagnostics;
+pub mod fetch;
+pub mod figures;
 pub mod identities;
 pub mod program_sources;
 pub mod settings;

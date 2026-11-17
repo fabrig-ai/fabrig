@@ -17,8 +17,6 @@ pub fn files(engine: &Engine) -> Box<[File]> {
         .len()
         .checked_add(engine.llm.endpoints.len())
         .expect("bounded endpoints")
-        .checked_add(engine.hosts.workers.len())
-        .expect("bounded workers")
         .checked_add(engine.charters.len())
         .expect("bounded charters");
     for charter in &engine.charters {
@@ -44,14 +42,6 @@ pub fn files(engine: &Engine) -> Box<[File]> {
                 push(&mut files, at, secret, 256, true);
             }
         }
-    }
-    for (index, worker) in engine.hosts.workers.iter().enumerate() {
-        let at = Path::root()
-            .member(b"hosts")
-            .member(b"workers")
-            .child(Segment::Index(u32::try_from(index).expect("bounded workers")))
-            .member(b"digest");
-        push(&mut files, at, &worker.digest, 65, true);
     }
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
         let at = Path::root()
@@ -87,14 +77,17 @@ fn trust(files: &mut List<File>, transport: &Transport, at: &Path) {
 #[must_use]
 pub fn worker_files(worker: &Worker) -> Box<[File]> {
     let mut files = List::with_capacity(2);
-    push(&mut files, Path::root().member(b"secret"), &worker.secret, worker.limits.link.secret.saturating_add(1), true);
-    push(
-        &mut files,
-        Path::root().member(b"agent").member(b"configuration"),
-        &worker.agent.configuration,
-        1_048_576,
-        false,
-    );
+    let limits = worker.limits.unwrap_or(crate::stock());
+    push(&mut files, Path::root().member(b"secret"), &worker.secret, limits.link.secret.saturating_add(1), true);
+    if let Some(agent) = &worker.agent {
+        push(
+            &mut files,
+            Path::root().member(b"agent").member(b"configuration"),
+            &agent.configuration,
+            1_048_576,
+            false,
+        );
+    }
     files.into_boxed()
 }
 pub(crate) fn push(files: &mut List<File>, at: Path, path: &[u8], max: u32, private: bool) {

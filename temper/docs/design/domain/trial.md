@@ -111,6 +111,10 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
   `AccountGone`.
 - **`Observed`:** while a row runs, each step reads `Core::run_past_starting` and the task's `kept_account`, and
   tells the child only what changed.
+- **Its wait:** while a row runs with a task, each step reads that task's run wait, as jig's Task document gives it
+  (its `run_wait`, made by jig's core from the task's row), and where it differs from the one the root last read,
+  keeps it and marks `TRIALS_SUBJECT`; the trials' document carries it on the row (6). The root holds it in memory
+  alone, a row's at a time, and a restart reads it again.
 - **`Cancel`:** `tasks::Event::Cancel`, by `Party::Deployment { project: 0 }`.
 - **Period 0** is no project's: the calendar takes no period of project 0.
 - **`run_workspace`** answers a trial's run as a status run's: none.
@@ -132,15 +136,20 @@ enum TrialStep { starts, answers }
 enum TrialClass { transient, permanent, run, agent, lost, invalid, refused }
 enum TrialWhy { ended: TrialEnded, refused, waited }  # record TrialEnded { class: TrialClass }
 enum TrialState { running, answered: TrialAnswered, failed: TrialFailed }
-record TrialRow { account: u32 task: option u64 took: option u32 step: TrialStep state: TrialState }
+record TrialRow { account: u32 task: option u64 took: option u32 step: TrialStep state: TrialState run_wait: option bytes 1024 }
 versioned record Trials { rows: list 64 TrialRow }    # Watch::trials
 ```
+
+- **`run_wait`,** from the forge family's version 29 (`../draft/page-round-trips.md`, section 4): jig-client-protocol-wire's
+  `TaskRunWait`, encoded at jig's `VERSION`, as `CoreRefused` carries jig's refusal (`../client/forge/records.md`): the
+  running row's task's wait (4, *Its wait*); none on a row not running, with no task, or whose task waits on nothing.
+  The client follows a running trial by its row alone and opens no watch of its task.
 
 - **The client starts one** when the `accounts` document shows an account of the person's usable that its last
   delivery in this session did not, while the page is the welcome's Model step or Ready, or `ConnectModel`. Two
   tabs ask twice, and the row stands for both. A reload in the gap asks nothing, and the line stays ticked.
 - **From the ask to its row** the line is `Running`: nothing goes ticked in between.
-- **Why it waits** is the Task document's `run_wait`, which the person who pays may watch (jig's
+- **Why it waits** is its row's `run_wait`, the Task document's, which the person who pays may see (jig's
   `domain/authority.md`, 6.1), in the words a chat's wait has (`../client/pages/accounts.md`, 2). A wait
   that a moment settles, a source `Asking`, `Refreshing`, `Granted` or `Moving`, isn't a stop; any other says so at
   once, on a row still running, and goes if the wait ends. Its row's `Waited` keeps those words where the client saw

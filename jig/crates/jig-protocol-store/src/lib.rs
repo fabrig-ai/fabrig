@@ -8,16 +8,20 @@ mod back;
 pub mod boundary;
 mod catalogue;
 mod census;
+pub mod checkpoints;
+pub use checkpoints::CheckpointName;
 pub use jig_protocol_store_records::codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
 
 /// The oldest store this build serves (protocol/store/records.md, 3).
 pub const FLOOR: u32 = 1;
+mod checkpoint_open;
 /// The build to open older stores with before this build (protocol/store/records.md, 3).
 pub const FLOOR_BRIDGE: &str = "3d1c717d379e";
 mod directory;
 pub mod ended;
+mod file_handles;
 pub mod format;
 mod generations;
 mod gets;
@@ -60,6 +64,7 @@ pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub checkpoints: checkpoints::Checkpoints,
     pub core: jig_domain_core_vocabulary::Limits,
     pub store: skein_kv::Limits,
     pub secrets: skein_kv::Limits,
@@ -129,9 +134,12 @@ pub struct Store {
     start_open_failure: Option<Box<restore::OpenFailure>>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
+    checkpoint_open: Option<checkpoint_open::State>,
+    named_checkpoints: Box<checkpoints::named::Named>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
     census: Box<census::State>,
     view: Box<view::State>,
+    checkpoint: Box<checkpoints::taking::Taking>,
 }
 
 #[derive(Debug)]
@@ -165,20 +173,20 @@ pub struct Wire {
     pub version: u32,
 }
 
-/// Proof that the store's three file drivers were seeded: io's `Store` names
+/// Proof that the store's four file drivers were seeded: io's `Store` names
 /// its temporaries from a driver's randomness and refuses unseeded (protocol/store/opening.md 1).
-/// It proves three drivers were seeded, not that they are the three the shell
+/// It proves four drivers were seeded, not that they are the four the shell
 /// serves the store with.
 #[derive(Clone, Copy, Debug)]
 pub struct Seeded(());
 
 /// Seeds each store driver from `seed` mixed with its index.
 #[must_use]
-pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 3], seed: u64) -> Seeded {
+pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 4], seed: u64) -> Seeded {
     for (index, driver) in drivers.into_iter().enumerate() {
-        let index = u64::try_from(index).expect("three driver indices");
+        let index = u64::try_from(index).expect("four driver indices");
         driver.seed_randomness(
-            seed ^ 0x9e37_79b9_7f4a_7c15_u64.wrapping_mul(index.checked_add(1).expect("three drivers")),
+            seed ^ 0x9e37_79b9_7f4a_7c15_u64.wrapping_mul(index.checked_add(1).expect("four drivers")),
         );
     }
     Seeded(())
@@ -238,6 +246,7 @@ impl Store {
         Store {
             census,
             view: Box::new(view::State::new()),
+            checkpoint: Box::new(checkpoints::taking::Taking::new()),
             limits: *limits,
             application,
             codec_limits,
@@ -259,6 +268,8 @@ impl Store {
             start_open_failure: None,
             rehearsal: None,
             back: None,
+            checkpoint_open: None,
+            named_checkpoints: Box::new(checkpoints::named::Named::new()),
         }
     }
 
@@ -365,6 +376,11 @@ impl Store {
     }
 
     #[must_use]
+    pub fn work_pending(&self) -> bool {
+        directory::ready(self)
+    }
+
+    #[must_use]
     pub fn into_stores(self) -> Stores {
         self.stores
     }
@@ -438,32 +454,64 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     let mut events = Queue::uncapped();
     down_inner(store, env, request, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
 }
-fn accounted(store: &mut Store, lengths: [u32; 3], above: &mut Queue<Event>, below: &mut Below) {
+fn fire_views(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    view::fire(store, env, above, below);
+    if checkpoints::taking::busy(store) {
+        checkpoints::taking::fire(store, env, above, below);
+        view::fire(store, env, above, below);
+    }
+}
+fn accounted(store: &mut Store, lengths: [u32; 4], above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::issued(store, below, lengths);
+    checkpoint_open::issued(store, below, lengths);
     let lengths = rehearsal::lengths(below);
     rehearsal::advance_close(store, above, below);
+    checkpoint_open::advance(store, above, below);
     rehearsal::issued(store, below, lengths);
+    checkpoint_open::issued(store, below, lengths);
 }
 fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
     if let Request::Close { owner } = request {
-        rehearsal::close(store, owner, above);
+        if checkpoints::named::close(store, owner, below) {
+            return;
+        }
+        if store.checkpoint_open.is_some() {
+            checkpoint_open::close(store, owner, above);
+        } else {
+            rehearsal::close(store, owner, above);
+        }
+        return;
+    }
+    if let Request::Checkpoint { owner, draw } = request {
+        checkpoints::taking::ask(store, env, owner, draw, above, below);
+        return;
+    }
+    if let Request::HoldCheckpoint { owner, root, name } = request {
+        checkpoints::named::ask(store, owner, root, name, false, above, below);
+        return;
+    }
+    if let Request::RemoveCheckpoint { owner, root, name } = request {
+        checkpoints::named::ask(store, owner, root, name, true, above, below);
         return;
     }
     if store.phase == Phase::Stopped {
         return;
     }
     match request {
+        Request::Checkpoint { .. } | Request::HoldCheckpoint { .. } | Request::RemoveCheckpoint { .. } => {
+            unreachable!("checkpoint routed before stopped guard")
+        }
         Request::Rehearse { owner, directory, scratch, installation } => {
             rehearsal::begin(store, owner, directory, scratch, installation, above, below);
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
         Request::Switch { owner } => upgrade::switch::ask(store, env, owner, above, below),
-        Request::Open { owner, root, installation } => {
-            directory::open(store, owner, root, installation, above, below);
+        Request::Open { owner, root, installation, purpose } => {
+            directory::open(store, owner, root, installation, purpose, above, below);
         }
         Request::Site { owner, patcher, result } => {
             transcripts::read::site(store, owner, patcher, result, above, below);
@@ -492,16 +540,27 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     let mut events = Queue::uncapped();
     up_routed(store, env, io, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn up_routed(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     rehearsal::arriving(store, &io);
+    checkpoint_open::arriving(store, &io);
+    if checkpoint_open::closing(store) {
+        return;
+    }
+    if let Io::Checkpoints(arrived) = &io
+        && arrived.event.owner() == checkpoints::named::OWNER
+    {
+        let Io::Checkpoints(arrived) = io else { unreachable!("checkpoint lane") };
+        checkpoints::named::up(store, arrived, above, below);
+        return;
+    }
     if rehearsal::closing(store) {
         rehearsal::closing_up(store, io, above, below);
     } else if rehearsal::preparing(store) {
         let arrived = match io {
-            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
         };
         rehearsal::up(store, arrived, above, below);
     } else if store.back.is_some() {
@@ -528,13 +587,15 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, belo
     let mut events = Queue::uncapped();
     fire_inner(store, env, &mut events, below);
     view::events(store, &mut events, above);
-    view::fire(store, env, above, below);
+    fire_views(store, env, above, below);
     accounted(store, lengths, above, below);
 }
 fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase != Phase::Stopped && !rehearsal::preparing(store) && store.back.is_none() {
         directory::fire(store, env, above, below);
-        secrets::sweep(store, env, above, below);
+        if store.directory.purpose == Purpose::Serve {
+            secrets::sweep(store, env, above, below);
+        }
         transcripts::read::fire(store, above, below);
         if !view::held(store) {
             transcripts::write::fire(store, env, above, below);
@@ -556,9 +617,10 @@ pub use jig_protocol_store_tasks::tasks_v13;
 pub mod keys;
 mod openings;
 pub use boundary::{
-    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CommitCheck, CommitFailure, Cursor, Event, Family,
-    Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root,
-    Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, WorkerOpening, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
+    CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
+    OpenedWire, Purpose, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead,
+    Undecoded, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]

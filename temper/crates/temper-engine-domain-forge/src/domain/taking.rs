@@ -117,6 +117,7 @@ fn read_error(
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::Refused
         | Error::NotConnected

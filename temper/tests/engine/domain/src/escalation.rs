@@ -652,6 +652,10 @@ impl World {
                         return;
                     }
                 }
+                engine::Request::Store(engine::StoreRequest::PartRead { waiter, range }) => {
+                    let result = self.store.read(range);
+                    self.queue(engine::Event::Store(engine::StoreInput::PartLoaded { waiter, result }), 0);
+                }
                 engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                     let result = self.store.read(range);
                     self.queue(engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }), 0);
@@ -669,6 +673,7 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                 engine::Request::Stop => panic!("escalation root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)
@@ -695,6 +700,7 @@ impl World {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
                 | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => panic!("unexpected escalation output {other:?}"),
             }
@@ -811,7 +817,7 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
             }
-            Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::WorkerFigures { .. } | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
@@ -841,6 +847,7 @@ impl World {
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
+            | Delivery::PartLoad { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }

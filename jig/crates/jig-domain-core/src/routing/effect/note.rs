@@ -84,11 +84,16 @@ pub(crate) fn tag_notes(
             notes::Request::Save { record } => {
                 match &record {
                     notes::Record::Entry(entry) => crate::routing::run::now::written(core, work, entry),
-                    notes::Record::Line(_) => {}
+                    notes::Record::Line(line) => crate::routing::view::part_marks::note(core, &line.scope),
                 }
                 out.push(Request::Write(Write::Save(Record::Notes(record))));
             }
-            notes::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Notes(key)))),
+            notes::Request::Erase { key } => {
+                if let notes::Key::Line { scope, .. } = &key {
+                    crate::routing::view::part_marks::note(core, scope);
+                }
+                out.push(Request::Write(Write::Erase(Key::Notes(key))));
+            }
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
             }

@@ -71,3 +71,30 @@ fn the_current_layout_has_no_whole_change_value_type() {
     assert!(current.root(b"Row", Some(b"change")).is_none());
     assert!(!family.types.iter().any(|ty| ty.number == 12));
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "registered layout fixture reads its committed codec golden")]
+fn a_change_layout_without_regate_defaults_it_to_none() {
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen("regate: option Regate = none ", "", 1);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"ChangeHot", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"ChangeHot", None).unwrap(),
+        &[],
+    )
+    .expect("an added regate has a default for stored change rows");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let current = include_bytes!("../../golden/v25/record_change_hot_smallest.bin");
+    // The earlier row lacks the first option's absent byte.
+    plan.convert(&current[1..], &mut out, &mut work).unwrap();
+    let row =
+        crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
+    assert!(row.regate().is_none());
+}

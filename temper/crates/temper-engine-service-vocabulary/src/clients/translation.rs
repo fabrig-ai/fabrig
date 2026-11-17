@@ -51,7 +51,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
             root::PartyInput::Key { reply_to, sign_in, key, ask, carried }
         }
         core::Event::PublicRead { reply, read } => root::PartyInput::PublicRead { reply, read },
-        core::Event::Read { reply, sign_in, read } => root::PartyInput::Read { reply_to: reply, sign_in, read },
+        core::Event::Read { reply, sign_in, read } => {
+            root::PartyInput::Read { reply_to: reply, sign_in, read: Box::new(read) }
+        }
         core::Event::Watch { watcher, sign_in, subject, window } => {
             root::PartyInput::Watch { watcher, sign_in, subject, window }
         }
@@ -67,6 +69,8 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
+        | core::Event::Parts { .. }
+        | core::Event::PartsMarked { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
@@ -191,6 +195,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         // Durable results are read through the core's existing documents and
         // watches, as in the reference's Held::Result routing.
         root::Delivery::Push(_)
+        | root::Delivery::WorkerFigures { .. }
         | root::Delivery::PlaygroundNote { .. }
         | root::Delivery::Forges { .. }
         | root::Delivery::Application { .. }
@@ -217,6 +222,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
+        | root::Delivery::PartLoad { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }

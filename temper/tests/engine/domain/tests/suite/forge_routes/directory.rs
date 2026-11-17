@@ -23,8 +23,10 @@ impl Model {
         }
         let turns = [".", "src", "src/main.rs"].map(|path| model::Turn {
             lines: Box::new([model::Line::Call {
-                name: b"read_file".as_slice().into(),
-                arguments: format!(r#"{{"head":"{digits}","path":"{path}"}}"#).into_bytes().into_boxed_slice(),
+                name: b"read_forge".as_slice().into(),
+                arguments: format!(r#"{{"what":"file","commit":"{digits}","path":"{path}"}}"#)
+                    .into_bytes()
+                    .into_boxed_slice(),
             }]),
             finish: model::Finish::ToolCalls,
             tokens: 1,
@@ -75,7 +77,7 @@ impl Model {
             model: b"fake".as_slice().into(),
             system: CUE.into(),
             tools: Box::new([model::ToolSpec {
-                name: b"read_file".as_slice().into(),
+                name: b"read_forge".as_slice().into(),
                 description: b"Read repository paths".as_slice().into(),
                 parameters: b"{}".as_slice().into(),
             }]),

@@ -16,6 +16,7 @@ public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none
                temper-box help [NAME | pages | --search WORDS...]
                temper-box versions
                temper-box upgrade --check DIRECTORY | --back
+               temper-box checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
 internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--record]
                temper-box [DIRECTORIES] [--fake-backends [--bundle DIR]] [--record] --front
                temper-box init [DIRECTORIES] --box
@@ -230,6 +231,12 @@ default; the document is `temper.json` in the configuration directory
   while a process holds the deployment, each in words that say so; past
   the first commit, going back is restoring a backup
   (`../draft/upgrades.md`, 3.2).
+- **`temper-box checkpoint`:** a checkpoint of the stopped deployment,
+  its state at its last commit in `checkpoints/`, mostly by hard links;
+  `--hold NAME -- COMMAND` runs a command under that checkpoint's lock,
+  and `--remove NAME` removes it (`checkpoints.md`, 2). While the engine
+  serves, an owner takes one with `temper ctl DIR deployment checkpoint`
+  (`checkpoints.md`, 3).
 - **A start that runs a job at open** prints a line per `Event::Ran`
   job as it ends,
   `temper-box serve: ran {owner} {job}: {rows} rows in {commits} commits`,
@@ -300,6 +307,7 @@ temper-box program-login NAME              run by hand on a host, replaced by th
 temper-box versions                        prints this binary's levels, versions and wires
 temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
 temper-box upgrade --back                  makes the previous generation active again, before the upgraded one's first commit
+temper-box checkpoint                      takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
 ```
 
 A box runs `temper-box serve` as one of its steps, after the forge's setup's
@@ -364,6 +372,7 @@ documentation  temper-engine help [NAME | pages | --search WORDS...]
 deployment     temper-engine serve [DIRECTORIES] [--record]
                temper-engine versions
                temper-engine upgrade --check DIRECTORY | --back
+               temper-engine checkpoint [DIRECTORIES] [--hold NAME -- COMMAND ARGS... | --remove NAME]
                temper-engine forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
                temper-engine forge run [DIRECTORIES] FORGE forgejo|runner
 spawned        temper-engine internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
@@ -403,7 +412,8 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, LOWEST its
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
     LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
-- **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.
+- **`upgrade`** and **`checkpoint`** are `binaries.md`'s `temper-box upgrade` and
+  `temper-box checkpoint`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command
   begins with them, and exit 2 (`../cli/README.md`, 4).

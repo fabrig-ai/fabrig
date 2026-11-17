@@ -109,13 +109,13 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
                 text = text.replace(&needle, &format!("\"{key}\":{after}"));
             }
             let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let overrides = &mut value["workers"][0]["limits"]["overrides"];
-            let bodies = jig_protocol_worker_wire::v15::Limits {
+            let overrides = &mut value["engine"]["limits"]["overrides"];
+            let bodies = jig_protocol_worker_wire::v16::Limits {
                 turn_body: turn,
                 turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
-                ..jig_protocol_worker_wire::v15::CEILINGS
+                ..jig_protocol_worker_wire::v16::CEILINGS
             };
-            overrides["io.output"] = (jig_protocol_worker_wire::v15::Turn::encoded_bound(&bodies).unwrap() + 8).into();
+            overrides["io.output"] = (jig_protocol_worker_wire::v16::Turn::encoded_bound(&bodies).unwrap() + 8).into();
             document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         }
         let store =
@@ -547,27 +547,25 @@ fn jig_refusals_print_words() {
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
-    assert_eq!(named.files.len(), 3, "all files listed");
-    for (name, path, max, private) in [
-        (b"secrets/worker-a.digest".as_slice(), b"engine.hosts.workers[0].digest".as_slice(), 65, true),
-        (b"worker-secret", b"workers[0].secret", 257, true),
-        (fixtures::AGENT_JSON, b"workers[0].agent.configuration", 1_048_576, false),
-    ] {
-        let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
-        assert_eq!(file.max, max, "bound {name:?}");
-        assert_eq!(file.private, private, "privacy {name:?}");
-        let mut problems = Problems::empty();
-        problems.push(file.at.clone(), What::Jig(config::What::Missing));
-        let expected = [path, b": missing\n"].concat();
-        assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
-    }
+    assert_eq!(named.files.len(), 1, "all files listed");
+    let (name, path, max, private) = (b"worker-secret".as_slice(), b"workers[0].secret".as_slice(), 257, true);
+    let file = named.files.iter().find(|file| file.path.as_ref() == name).expect("listed file");
+    assert_eq!(file.max, max, "bound {name:?}");
+    assert_eq!(file.private, private, "privacy {name:?}");
+    let mut problems = Problems::empty();
+    problems.push(file.at.clone(), What::Jig(config::What::Missing));
+    let expected = [path, b": missing\n"].concat();
+    assert_eq!(&*lines(&problems), expected.as_slice(), "path {name:?}");
+    let document = fixtures::with(&fixtures::document(), b"workers[0].secret", br#""agent.json""#);
+    let named = crate::named(&document, &config::Directories::working()).unwrap();
+    assert!(named.files.iter().any(|file| file.private && file.path.as_ref() == b"agent.json"));
 }
 #[test]
 fn named_returns_the_worker_root_and_the_agent_configuration() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.deployment.as_ref(), b"state");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
-    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), fixtures::AGENT_JSON);
+    assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"agent.json");
 }
 #[test]
 fn a_file_named_but_not_given_refuses_the_start_naming_it() {
@@ -668,7 +666,7 @@ fn a_workers_missing_or_oversized_secret_keeps_its_absolute_path() {
 #[test]
 fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
     let mut worker = fixtures::worker_settings();
-    worker.jig.limits.link.secret = 4;
+    worker.jig.limits.as_mut().expect("checked worker limits").link.secret = 4;
     let mut entries = List::with_capacity(1);
     entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(b"four\n".as_slice().into()))).unwrap();
     let made = crate::Worker::new(
@@ -774,32 +772,13 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
 }
 
 #[test]
-fn an_old_agent_command_is_refused_with_its_fix() {
-    let document =
-        fixtures::with(&fixtures::document(), b"workers[0].agent.arguments", br#"["agent", "/c/agent.json"]"#);
-    let refused = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        lines(&refused).as_ref(),
-        b"workers[0].agent.arguments: \"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's\n"
-    );
-    let document =
-        fixtures::with(&document, b"workers[0].agent.arguments", br#"["internal", "agent", "/c/agent.json"]"#);
-    crate::named(&document, &config::Directories::working()).expect("the replacement agent command passes");
-}
-
-#[test]
 fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values() {
     let directories = config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
     for (member, input, expected, refused) in [
         (b"workers[0].secret".as_slice(), br#""secret""#.as_slice(), b"/data/secret".as_slice(), false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
-        (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),
-        (b"engine.hosts.workers[0].digest", br#""/kept/digest""#, b"/kept/digest", false),
         (b"application.clients.bundle", br#""bundle""#, b"", true),
         (b"application.clients.bundle", br#""/kept/bundle""#, b"/kept/bundle", false),
-        (b"workers[0].agent.program", br#""temper""#, b"", true),
-        (b"workers[0].agent.configuration", br#""agent.json""#, b"", true),
-        (b"workers[0].agent.arguments", br#"["internal", "agent","agent.json"]"#, b"", true),
     ] {
         let document = fixtures::with(&fixtures::document(), member, input);
         let result = crate::named(&document, &directories);

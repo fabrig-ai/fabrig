@@ -133,6 +133,7 @@ impl Operation {
             },
             other @ (git::Done::Results { .. }
             | git::Done::Paths { .. }
+            | git::Done::ParentUnreachable { .. }
             | git::Done::Looked { .. }
             | git::Done::IsAncestor { .. }
             | git::Done::Brings { .. }
@@ -290,6 +291,7 @@ impl Operation {
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -422,6 +424,7 @@ impl Operation {
                         | git::Op::Make { .. }
                         | git::Op::Clone { .. }
                         | git::Op::Reds { .. }
+                        | git::Op::Reset { .. }
                         | git::Op::Point { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
@@ -709,6 +712,7 @@ fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
         }
         git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
         git::Op::Reds { at, .. }
+        | git::Op::Reset { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
