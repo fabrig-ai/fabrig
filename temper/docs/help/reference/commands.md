@@ -43,7 +43,7 @@ Reads no directory and no configuration, so it works before temper init. A name 
 
 `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper ctl DIR --call FILE [--json]`
 
@@ -386,7 +386,7 @@ As temper-engine forge sign-in, above.
 
 `temper-box ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper-box ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper-box ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper-box ctl DIR --call FILE [--json]`
 

@@ -316,10 +316,10 @@ pub(crate) fn route_client(
     while let Some(request) = child.pop() {
         match request {
             jig_client::Request::Told { told: value } => told(root, env, value, out),
-            jig_client::Request::AskedLink(_) => {}
             jig_client::Request::Approval(answer) => approval(root, env, answer, out),
             jig_client::Request::Authorized(answer) => crate::authorize::answered(root, answer, out),
-            request @ (jig_client::Request::Save { .. }
+            request @ (jig_client::Request::AskedLink(_)
+            | jig_client::Request::Save { .. }
             | jig_client::Request::Erase { .. }
             | jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }

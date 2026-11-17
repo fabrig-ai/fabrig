@@ -89,6 +89,7 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "open-change",
 ];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["link", "--out", "record"],
     &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
     &["milestone", "whole", "812", "--key", "whole"],
     &["milestone", "list", "--project", "1"],
@@ -921,7 +922,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 128;
+pub(super) const TOOL_FORMS: u32 = 129;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

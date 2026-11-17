@@ -21,6 +21,7 @@ use skein_lib::{
 use skein_shell::Host;
 use temper_client_tools::{jig::call::Parsed, root};
 mod input;
+mod link;
 mod service;
 mod settings_input;
 mod sign_in;
@@ -66,6 +67,7 @@ pub struct OneShot {
     signing: Option<Signing>,
     service_sign_in: Option<()>,
     service_file: Option<service::ServiceFile>,
+    link_file: Option<link::LinkFile>,
     recovery: Recovery,
     startup: Startup,
     until: Option<Time>,
@@ -137,6 +139,7 @@ impl OneShot {
             Parsed::Call { .. } | Parsed::File { .. } => (false, None),
         };
         let service_file = service::ServiceFile::for_call(&call.parsed);
+        let link_file = link::LinkFile::for_call(&call.parsed);
         let mut host = Self {
             exporting,
             move_file,
@@ -162,6 +165,7 @@ impl OneShot {
             signing: None,
             service_sign_in: None,
             service_file,
+            link_file,
             recovery: Recovery::new(),
             startup,
             until: None,
@@ -366,9 +370,9 @@ impl OneShot {
                             b"the service credential was refused"
                         } else {
                             match reason {
-                                Some(NotSignedIn::LinkUsed) => b"the sign-in link was refused: it was already used; temper-box serve prints a fresh one",
-                                Some(NotSignedIn::LinkExpired) => b"the sign-in link was refused: it has expired; temper-box serve prints a fresh one",
-                                Some(NotSignedIn::LinkUnknown) => b"the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one",
+                                Some(NotSignedIn::LinkUsed) => b"the sign-in link was refused: it was already used; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE",
+                                Some(NotSignedIn::LinkExpired) => b"the sign-in link was refused: it has expired; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE",
+                                Some(NotSignedIn::LinkUnknown) => b"the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one, and a signed-in client asks one with temper ctl DIRECTORY link --out FILE",
                                 Some(NotSignedIn::Approval(_)) | None => b"the sign-in link was refused",
                                 Some(NotSignedIn::Busy | NotSignedIn::NotReady | NotSignedIn::Full { .. }) => unreachable!("transient sign-in answer handled"),
                             }
@@ -384,7 +388,7 @@ impl OneShot {
             return;
         }
         if self.transport.is_none()
-            && matches!(self.class, Class::Read | Class::Wait)
+            && matches!(self.class, Class::Read | Class::Wait | Class::Link)
             && let Some(token) = self.directory.token.take()
         {
             let connections = self.connections;
@@ -421,6 +425,7 @@ impl OneShot {
             root::fire(&mut self.root, &self.root_env, &mut self.requests);
         }
         self.signing_retry();
+        self.link_retry();
         self.root_requests();
         if self.status.is_some() {
             return;
@@ -503,6 +508,10 @@ impl OneShot {
                     {
                         signing.exchange = Some(*exchange);
                     }
+                    if let jig_client::Request::AskedLink(answer) = request {
+                        self.link_answer(answer);
+                        continue;
+                    }
                     if let jig_client::Request::ServiceCredential { party, credential } = request {
                         if self.call.is_none()
                             && let Some(service) = &mut self.service_file
@@ -527,6 +536,13 @@ impl OneShot {
                 root::Request::Ready => {
                     self.recovery.ready = true;
                     if self.class == Class::Act {
+                        continue;
+                    }
+                    if self.class == Class::Link {
+                        if self.call.take().is_some() {
+                            self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
+                            self.root_event(jig_client::Event::AskLink);
+                        }
                         continue;
                     }
                     if self.class == Class::SignOut {
@@ -643,6 +659,10 @@ impl OneShot {
                 .expect("numeric address");
             if refused {
                 self.fail(format!("nothing listens at {address}; is temper running?").as_bytes());
+                return;
+            }
+            if let Some(line) = self.link_deadline() {
+                self.fail(line);
                 return;
             }
             if self.signing.as_ref().is_some_and(|signing| signing.last == Some(jig_client::NotSignedIn::Busy)) {
@@ -806,7 +826,11 @@ impl Host for OneShot {
             self.directory.progress(now);
         }
         if let Some(result) = self.directory.recorded.take() {
-            if self.service_file.is_some() {
+            if self.link_file.is_some() {
+                if self.status.is_none() {
+                    self.link_recorded(result);
+                }
+            } else if self.service_file.is_some() {
                 if self.status.is_none() {
                     self.service_recorded(&result);
                 }
@@ -882,6 +906,7 @@ impl Host for OneShot {
             || self.status.is_none()
                 && (!self.requests.is_empty()
                     || self.signing.as_ref().and_then(|s| s.retry).is_some_and(|at| now >= at)
+                    || self.link_file.as_ref().and_then(|s| s.retry).is_some_and(|at| now >= at)
                     || self.until.is_some_and(|at| now >= at)
                     || root::next_deadline(&self.root).is_some_and(|at| now >= at))
     }
@@ -901,6 +926,7 @@ impl Host for OneShot {
             self.directory.retry(),
             self.until,
             self.signing.as_ref().and_then(|s| s.retry),
+            self.link_file.as_ref().and_then(|s| s.retry),
             self.status.is_none().then(|| root::next_deadline(&self.root)).flatten(),
         ]
         .into_iter()

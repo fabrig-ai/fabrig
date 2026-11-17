@@ -37,6 +37,9 @@ pub const PARTIAL: usize = 3; // More than one short write is needed for every h
 pub const FULL_STREAMS: u32 = 2; // A small engine bound shared by the full-stream stories.
 #[expect(clippy::struct_excessive_bools, reason = "independent scripted file and network facts")]
 pub struct Frame {
+    pub asked_answers: VecDeque<w::LinkAskAnswer>,
+    pub asked_attempts: Vec<Time>,
+    pub asked_bearers: Vec<Box<[u8]>>,
     pub service_mode: bool,
     pub service_replay: bool,
     pub hold_service_erase: bool,
@@ -143,7 +146,7 @@ impl Frame {
     pub fn act(words: &[&[u8]]) -> Self {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
-        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::PARTY_MAKE_AT);
+        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::PARTY_MAKE_AT || arguments::class(call) == crate::arguments::Class::Link);
         let file_parent = arguments::file_root(&parsed).map(|_| FILE_PARENT);
         let files = arguments::text_files(&parsed)
             .into_iter()
@@ -165,6 +168,9 @@ impl Frame {
         )
         .expect("native limits");
         Self {
+            asked_answers: VecDeque::new(),
+            asked_attempts: Vec::new(),
+            asked_bearers: Vec::new(),
             service_mode,
             service_replay: false,
             hold_service_erase: false,
@@ -736,6 +742,32 @@ impl Frame {
                 let body = writer.finish();
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
+            }
+            b"/jig/v1/link/ask" => {
+                w::LinkAsk::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
+                    .expect("link ask record");
+                let bearer = head
+                    .lines()
+                    .find_map(|line| line.strip_prefix("Authorization: Bearer "))
+                    .expect("asked link uses the held credential");
+                self.asked_bearers.push(
+                    skein_lib::base64::decode(skein_lib::base64::Alphabet::Url, bearer.as_bytes(), 40)
+                        .expect("native bearer encoding"),
+                );
+                self.asked_attempts.push(self.now);
+                let answer = self.asked_answers.pop_front().unwrap_or_else(|| {
+                    w::LinkAskAnswer::Asked(
+                        w::LinkAsked::new(
+                            &w::CEILINGS,
+                            w::LinkAskedParts {
+                                secret: skein_lib::Secret::new(Box::new([255; 32])),
+                                expires: 951_827_696_999_999_999,
+                            },
+                        )
+                        .expect("asked link"),
+                    )
+                });
+                self.reply(fd, &encode!(answer));
             }
             b"/jig/v1/stream" => self.hello(fd),
             b"/jig/v1/watch" => {

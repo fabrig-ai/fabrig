@@ -146,7 +146,7 @@ impl Observed {
                 && let Some(calls::Arg::Lit(command)) = argv.0.first()
             {
                 let name = if let Some(calls::Arg::Lit(verb)) = argv.0.get(1)
-                    && !matches!(*command, "me" | "inbox" | "sign-in" | "sign-out" | "pending" | "help")
+                    && !matches!(*command, "me" | "inbox" | "sign-in" | "sign-out" | "link" | "pending" | "help")
                 {
                     format!("{command} {verb}")
                 } else {
