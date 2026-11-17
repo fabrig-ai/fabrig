@@ -11,9 +11,11 @@ const RAPID_RELOADS: usize = 5;
 #[test]
 fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() {
     let tier = Tier::reserved("sign-in-cookie").with_model();
-    let mut setup = tier.setup();
+    let mut owner = tier.project_face();
+    let mut setup = tier.held_setup();
     setup.expected = vec![
         b"net::ERR_CONNECTION_REFUSED".as_slice().into(),
+        b"net::ERR_CONNECTION_RESET".as_slice().into(),
         b"net::ERR_INCOMPLETE_CHUNKED_ENCODING".as_slice().into(),
         b"401".as_slice().into(),
     ];
@@ -22,7 +24,8 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
     let item = |name: &[u8]| Find::exactly_named(Role::MenuItem, name);
     let press = |find| Step::Person(PersonStep::Press { find });
     let gone = |find| Step::Person(PersonStep::Gone { find, within: WITHIN });
-    let mut steps = temper_client_browser_world::first_chat_steps(b"Hello");
+    let mut steps = temper_client_browser_world::page_opens();
+    steps.extend(temper_client_browser_world::first_chat_steps(b"Hello"));
     steps.extend([
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS) }),
         see(first_chat(b"Hello")),
@@ -68,10 +71,13 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         see(tier.states().signed_out),
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS) }),
         see(tier.states().signed_out),
-        Step::Reopen,
+    ]);
+    // The page started from a held link, not the harness's about:blank first URL.
+    steps.extend(temper_client_browser_world::page_opens());
+    steps.extend([
         see(Find::text(b"This link isn't from this temper. Use the one its terminal printed.")),
         Step::Address(b"/welcome".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut owner, &mut script]), Outcome::Done);
 }

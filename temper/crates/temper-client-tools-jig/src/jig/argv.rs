@@ -706,8 +706,8 @@ fn present(call: &Call, index: usize) -> bool {
 }
 fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     check_choice(call, 10, 11, limits)?;
-    let mut change = present(call, 13);
-    let mut needs_revision = change;
+    let mut needs_revision = present(call, 13);
+    let mut change = needs_revision || present(call, 14) || present(call, 15);
     for index in 2..12 {
         if present(call, index) {
             change = true;
@@ -720,7 +720,7 @@ fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     if !change {
         return Err(Usage::Missing { tool: 0, form: 0, argument: 2 });
     }
-    for (first, second) in [(2, 3), (4, 5), (8, 9)] {
+    for (first, second) in [(2, 3), (4, 5), (8, 9), (14, 15)] {
         if present(call, first) && present(call, second) {
             return Err(Usage::Twice { tool: 0, form: 0, argument: u8::try_from(second).expect("amend argument") });
         }

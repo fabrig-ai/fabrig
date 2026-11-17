@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 pub(super) type RecipeFiles = BTreeMap<Box<[u8]>, Vec<u8>>;
-const DOCUMENTS: [&[u8]; 5] = [b"agent.json", b"engine.json", b"forgejo.json", b"model.json", b"worker.json"];
+const DOCUMENTS: [&[u8]; 4] = [b"engine.json", b"forgejo.json", b"model.json", b"worker.json"];
 
 pub(super) enum Reader<'a> {
     Directory(&'a Path),

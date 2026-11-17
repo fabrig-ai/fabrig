@@ -88,7 +88,7 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   the service's work run on its holder's subscription once a use names
   it. Each `--party N` or `--project N` repeats, up to 16 uses together;
   the named uses replace the whole list. `account uses ACCOUNT --default`
-  restores jig's defaults. A person's plan may pay for its holder's
+  restores the default uses. A person's plan may pay for its holder's
   services and projects whose other members are services. Another person,
   or a project with another person, is refused by the engine.
 - **The binary:** `temper-box program-login` signs a program in on this

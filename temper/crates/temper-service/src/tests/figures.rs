@@ -5,7 +5,7 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     let document = fixtures::stock_document();
     let directories = jig_protocol_config::Directories::working();
     let files = fixtures::stock_files();
-    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let seeds = fixtures::seeds();
     let given = crate::stock::Given::Stock;
     let agents = crate::stock::agents();

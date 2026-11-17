@@ -60,17 +60,15 @@ fn documents_are_exact_bounded_json_at_prepared_paths() {
     let files = [
         ("engine.json", b"{}".as_slice()),
         ("worker.json", b"{}".as_slice()),
-        ("agent.json", b"{}".as_slice()),
         ("forgejo.json", b"{}".as_slice()),
         ("model.json", b"{}".as_slice()),
     ];
-    let rendered = documents(&files, &place).expect("five documents");
+    let rendered = documents(&files, &place).expect("four documents");
     assert_eq!(
         rendered.iter().map(|(path, _)| path.to_str().expect("fixture path")).collect::<Vec<_>>(),
         [
             "/scratch/config/engine/temper.json",
             "/scratch/config/worker/temper.json",
-            "/scratch/config/worker/agent.json",
             "/scratch/config/forgejo.json",
             "/scratch/config/model.json",
         ]
@@ -82,8 +80,8 @@ fn documents_are_exact_bounded_json_at_prepared_paths() {
         assert!(why.contains(name) && why.contains("missing"), "{why}");
     }
     let mut extra = files.to_vec();
-    extra.push(("extra.json", b"{}"));
-    assert!(documents(&extra, &place).expect_err("extra file").contains("extra.json"));
+    extra.push(("agent.json", b"{}"));
+    assert!(documents(&extra, &place).expect_err("extra file").contains("agent.json"));
     let limit = usize::try_from(DOCUMENT_BYTES).expect("byte bound");
     let mut full = b"{}".to_vec();
     full.resize(limit, b' ');

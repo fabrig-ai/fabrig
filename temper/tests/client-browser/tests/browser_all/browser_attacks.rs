@@ -11,7 +11,8 @@ use temper_client_browser_world::{ABSENT, Tier, WITHIN};
 fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
     let tier = Tier::new("origin-and-frame-policies");
     let target = tier.target();
-    let mut setup = tier.setup();
+    let mut owner = tier.project_face();
+    let mut setup = tier.held_setup();
     setup.expected.push(b"Failed to load resource".as_slice().into());
     setup.expected.push(b"blocked by CORS policy".as_slice().into());
     // One port on the service's host and one other host name exercise both origin boundaries.
@@ -21,7 +22,8 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         .collect();
     let row = Find::exactly_named(Role::Button, b"Owner");
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let mut steps = vec![
+    let mut steps = temper_client_browser_world::page_opens();
+    steps.extend([
         // The printed link signs in at the welcome, whose frame holds its steps and the top bar's end.
         see(Find::exactly_named(Role::List, b"Steps")),
         Step::Visit { origin: 1, path: b"/framing".as_slice().into() },
@@ -34,7 +36,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         Step::Person(PersonStep::Press { find: row.clone() }),
         see(Find::exactly_named(Role::MenuItem, b"Sign out")),
         Step::Key(Key::Escape),
-    ];
+    ]);
     for origin in [0, 1] {
         steps.extend([
             Step::Visit { origin, path: b"/forging".as_slice().into() },
@@ -50,5 +52,5 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         ]);
     }
     let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut owner, &mut script]), Outcome::Done);
 }

@@ -108,8 +108,8 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
 
 For the configuration members that need a restart, read `temper help configuration`.
 
-- temper does not let ctl make a party, invite a person, give a role
-  or make a service.
+- ctl makes no person's party, invites no person and gives no role;
+  `party make` makes a service.
 - A box made by `temper-box init --box` has one person, its owner, and signs in
   no other.
 - A `DIR` holds one party's sign-in; several parties take several

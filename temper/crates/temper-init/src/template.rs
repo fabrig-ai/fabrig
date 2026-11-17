@@ -2,6 +2,8 @@
 //! (temper/docs/design/protocol/setup/init.md, 3), with whole JSON string placeholders.
 //! The pinned jig and smith parsers require positive prices, so demo uses their
 //! minimum (one per million) until they admit protocol/setup/init.md 3's zero prices.
+//! The templates' carriers use fabrig's own development's 63,740-byte payload
+//! and 48,000-token output (protocol/configuration/derived.md, 3 and 5.1).
 //! Embedding these fixed templates is init's job (protocol/setup/init.md, 2); they are not runtime inputs.
 #![expect(
     clippy::disallowed_macros,

@@ -552,7 +552,10 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   `pulls/{base}/{head}` names the oldest of several; a pull request whose
   head adds nothing is opened (`201`); an issue's edit, close or reopen
   answers `201`, as a reviewer's request does, and a reviewer's removal and
-  a branch's deletion answer `204` with no body; deleting a branch that is
+  a branch's deletion answer `204` with no body; a close or reopen of a
+  merged pull request answers `412`, `cannot change state of this pull
+  request, it was already merged`, before the domain is called, and changes
+  nothing (the GitHub layer still closes it, `200`); deleting a branch that is
   not there answers `500`; a failed job's completion step reports
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists

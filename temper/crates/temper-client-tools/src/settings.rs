@@ -201,6 +201,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
                 3 => 10,
                 4 => 14,
                 5 => 15,
+                6 => 4,
+                7 => 5,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,
@@ -290,10 +292,10 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions|project-classes|project-words|project-areas|project-triager",
-                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words", b"project-areas", b"project-triager"] },
+                b"project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words", b"project-areas", b"project-triager", b"project-landing", b"project-gates"] },
                 Required,
-                b"A project's ways, questions, classes or words",
+                b"A project's ways, questions, classes, words, areas, triager, landing or gates",
             ),
             positional(
                 b"project",
@@ -373,6 +375,8 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     }
     out.put(match kind {
         3 => b"forge-charter ",
+        4 => b"project-landing ",
+        5 => b"project-gates ",
         11 => b"template-goal ",
         12 => b"follow ",
         13 => b"dependency ",
@@ -385,11 +389,13 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         15 => b"project-triager ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 14 || kind == 15 {
-        scope
-    } else {
-        number
-    }));
+    out.number(u64::from(
+        if kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 14 || kind == 15 {
+            scope
+        } else {
+            number
+        },
+    ));
     if kind == 2 || kind == 12 || kind == 13 {
         out.put(b" --project ");
         out.number(u64::from(scope));
@@ -401,7 +407,7 @@ mod value;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 | 13 | 20 | 21 => return settings_form::render::application_value(kind, bytes, out),
+        4 | 5 | 12 | 13 | 20 | 21 => return settings_form::render::application_value(kind, bytes, out),
         9 => {
             let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

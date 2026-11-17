@@ -306,7 +306,9 @@ fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String>
 
 #[test]
 fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("forge-not-owned");
+    std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).expect("private deployment root");
     let document = configuration::check_document(scratch.path());
     std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");

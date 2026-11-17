@@ -23,6 +23,11 @@ pub struct Drafted {
     pub revision: Option<c::Revision>,
     pub change: c::Amendment,
 }
+#[must_use]
+pub fn address(task: &c::Task, address: c::PersonAddress) -> Option<c::AddressChange> {
+    Some(c::AddressChange { revision: task.person_revision?, address })
+}
+
 impl Draft {
     #[must_use]
     pub fn of(task: &c::Task) -> Self {
@@ -61,6 +66,9 @@ impl Draft {
     #[must_use]
     pub fn moved(&self, task: &c::Task) -> bool {
         task.spec_revision != self.revision
+    }
+    pub fn address(&mut self, change: c::AddressChange) {
+        self.change.addressed = Some(change);
     }
     pub fn track(&mut self, tracking: c::Tracking) {
         self.change.tracked = if tracking == self.tracked { None } else { Some(tracking) };
@@ -115,7 +123,8 @@ impl Draft {
     }
     #[must_use]
     pub fn amendment(&self) -> Option<Drafted> {
-        let other = self.change.spec.is_some()
+        let other = self.change.addressed.is_some()
+            || self.change.spec.is_some()
             || self.change.authority.is_some()
             || self.change.instructions.is_some()
             || self.change.dependencies.is_some()
