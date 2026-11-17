@@ -22,7 +22,6 @@ pub struct Members {
     pub machine: temper_forge_setup::machine::Machine,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub demo: Option<settings::Demo>,
-    pub welcome: bool,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     /// The landing's projects in the document's order, which names a refused one's path.
     pub landing_projects: Box<[u32]>,
@@ -221,7 +220,6 @@ fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Pr
     let value = clients(document, at, &path.member(b"webhooks"), false, problems)?;
     Some(Webhooks { listener: value.listener })
 }
-#[expect(clippy::too_many_lines, reason = "the application decoder keeps its member reads and cross-checks together")]
 pub fn parse(
     document: &Document,
     at: u32,
@@ -257,16 +255,9 @@ pub fn parse(
     let push_at = object.member(document, b"push");
     let push = push::parse(document, push_at, directories, problems);
     let landing_at = object.member(document, b"landing");
-    let welcome = match object.member(document, b"welcome") {
-        Some(at) => match config::read::boolean(document, at) {
-            Ok(value) => value,
-            Err(what) => {
-                problems.push(path.member(b"welcome"), What::Jig(what));
-                false
-            }
-        },
-        None => false,
-    };
+    if object.member(document, b"welcome").is_some() {
+        problems.push(path.member(b"welcome"), What::Jig(config::What::Fixed));
+    }
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
@@ -327,7 +318,6 @@ pub fn parse(
         machine: machine?,
         test_github,
         demo,
-        welcome,
         workers: workers.into_boxed(),
         limits: limits?,
         overrides: overrides.into_boxed(),

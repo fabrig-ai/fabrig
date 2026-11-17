@@ -52,7 +52,7 @@ impl engine::Engine {
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,
-            welcome: settings.welcome,
+            welcome: false,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
             push: match &settings.push {
                 Some(push) => Some(*push.key.public()),
@@ -75,7 +75,10 @@ impl engine::Engine {
         core.jobs = limits::jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
-            kinds_stock: settings.kinds_stock,
+            kinds_stock: temper_engine_service_stock::stock::with_welcome(
+                settings.kinds_stock,
+                box_line_bytes.is_some(),
+            ),
             ways_stock: settings.ways_stock,
             period_span: settings.period_span,
             core,
@@ -85,7 +88,7 @@ impl engine::Engine {
             machine: Some(machine_config(&settings.machine, settings.test_github.as_ref())),
             forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
+            playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
         let demo = settings.demo;

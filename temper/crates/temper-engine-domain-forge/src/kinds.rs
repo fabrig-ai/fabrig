@@ -387,6 +387,31 @@ impl Domain {
         self.held_rules.projects.remove(&project);
     }
 
+    /// The current welcome, read without a restart (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        match self.setting(20, 0, 1) {
+            Some(settings::SizedValue { value: Value::Welcome(value), .. }) => value.shown,
+            None => false,
+            Some(settings::SizedValue {
+                value:
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
+                ..
+            }) => unreachable!("welcome setting type"),
+        }
+    }
+
     /// Kind 6 of a project, or no route with none stored
     /// (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
@@ -405,6 +430,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -430,6 +456,7 @@ impl Domain {
                     | Value::Goal(_)
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -455,6 +482,7 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -480,6 +508,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ..
             })
@@ -504,6 +533,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -735,6 +765,7 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
@@ -792,6 +823,7 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             size,

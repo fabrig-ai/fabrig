@@ -609,6 +609,7 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
+    engine.clients.deployment.welcome = engine.domain.welcome();
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     if engine.end.is_none() && engine.store.host.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);

@@ -196,7 +196,6 @@
     }
   ],
   "application": {
-    "welcome": true,
     "machine": {
       "owned": {
         "forgejo": "fetched",

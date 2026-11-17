@@ -15,7 +15,22 @@ fn place() -> forge::Place {
     }
 }
 fn config(granted: bool) -> engine::Config {
+    configured(granted, true)
+}
+fn configured(granted: bool, under_box: bool) -> engine::Config {
     let mut config = walking::config(71);
+    config.under_box = under_box;
+    config.kinds_stock = temper_engine_service_stock::stock::with_welcome(
+        engine::landing_stock(&[], &Map::with_capacity(0), 1, 1),
+        under_box,
+    );
+    config.core.kinds = temper_engine_service_stock::stock::kinds(&fixtures::forge_limits(), config.core.connectors[0])
+        .into_iter()
+        .filter(|kind| [1, 2, 3, 20].contains(&kind.number))
+        .collect();
+    let mut owner = config.core.owners[0].clone();
+    owner.project = people::DEPLOYMENT;
+    config.core.owners = config.core.owners.into_vec().into_iter().chain([owner]).collect();
     config.forges = Box::new([]);
     config.machine = Some(forge::Machine {
         owned_person: Box::new([]),
@@ -50,21 +65,25 @@ fn config(granted: bool) -> engine::Config {
     config
 }
 fn driver(granted: bool) -> (Driver, u64) {
+    driver_under_box(granted, true)
+}
+fn driver_under_box(granted: bool, under_box: bool) -> (Driver, u64) {
     let mut limits = fixtures::forge_limits();
+    limits.people.initial_owners = 2;
     limits.authority.projects = 2;
     limits.people.projects = 3;
     limits.people.act_grants = 1;
     limits.people.pending = 8;
-    limits.people.requests = 8;
+    limits.people.requests = 16;
     limits.journal.writes = 2140;
     limits.journal.deliveries += 4;
     limits.journal.held += 12;
-    let mut bootstrap = Driver::cold(Store::new(), config(granted), &limits);
+    let mut bootstrap = Driver::cold(Store::new(), configured(granted, under_box), &limits);
     bootstrap.period_sent = true;
     bootstrap.pump();
     assert!(!bootstrap.stopped, "bootstrap: {:?}", bootstrap.root.start_stop());
     let store = bootstrap.take_store();
-    let mut d = Driver::cold(store, config(granted), &limits);
+    let mut d = Driver::cold(store, configured(granted, under_box), &limits);
     d.forge = Some(ForgeStand::with(&[(b"playground", b"widget", 2)]));
     d.pump();
     assert!(!d.stopped, "restore: {:?}", d.root.start_stop());
@@ -138,6 +157,45 @@ fn end(d: &mut Driver, sign_in: u64) {
     finish_forge_removal(d);
     assert!(row(d).is_none(), "playground reset before cold readback");
 }
+#[test]
+fn welcome_changes_and_resets_the_live_playground_offer() {
+    use core::settings as s;
+    use temper_engine_domain_world::kinds;
+    for (under_box, reset) in [(true, true), (false, true), (true, false), (false, false)] {
+        let (mut d, sign_in) = driver_under_box(true, under_box);
+        assert_eq!(d.root.welcome(), under_box, "the box flag supplies the default");
+        let setting = s::Setting::Application { kind: 20, scope: 0, number: 1 };
+        let welcome =
+            |shown| kinds::item(20, 0, 1, &forge::settings::Value::Welcome(forge::settings::Welcome { shown })).edit;
+        let last = if reset { (s::Edit::Reset, under_box) } else { (welcome(true), true) };
+        for (key, edit, shown) in [(91, welcome(false), false), (92, last.0, last.1)] {
+            let revision = kinds::revision(&d.store.rows);
+            d.send(kinds::change(sign_in, revision, key, Box::new([s::Item { setting, edit }])));
+            d.settle();
+            assert_eq!(kinds::revision(&d.store.rows), revision + 1, "the owner's edit is accepted");
+            assert_eq!(d.root.welcome(), shown, "changed without a restart");
+            if !shown {
+                application(&mut d, sign_in, key + 10, forge::Ask::StartPlayground, true);
+                d.settle();
+                assert!(d.delivered.iter().any(|delivery| matches!(delivery,
+                    Delivery::Application { to, outcome: Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered)) }
+                    if *to == ReplyTo::new(Token::new(u64::from(key + 10)))
+                )), "the hidden welcome refuses the playground");
+                assert!(row(&d).is_none());
+            }
+        }
+        if !reset || under_box {
+            start(&mut d, sign_in);
+            assert_eq!(
+                row(&d).unwrap().state,
+                forge::PlaygroundState::Running,
+                "setting or resetting the welcome on offers the configured playground"
+            );
+            end(&mut d, sign_in);
+        }
+    }
+}
+
 #[test]
 fn a_start_adds_the_account_makes_the_project_sets_its_uses_and_adopts() {
     let (mut d, sign_in) = driver(true);

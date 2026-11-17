@@ -275,7 +275,7 @@ pub fn strip_models(deployment: &mut Value) {
     deployment["engine"]["llm"].as_object_mut().expect("llm").remove("models");
 }
 
-/// Remove members fixed by temper from imported jig fixture documents.
+/// Remove moved members from imported fixture documents.
 pub fn strip_fixed(deployment: &mut Value) {
     if let Some(workers) = deployment.get_mut("workers").and_then(Value::as_array_mut) {
         for worker in workers {
@@ -286,6 +286,7 @@ pub fn strip_fixed(deployment: &mut Value) {
     }
     if let Some(application) = deployment.get_mut("application").and_then(Value::as_object_mut) {
         application.remove("workers");
+        application.remove("welcome");
     }
     let engine = deployment["engine"].as_object_mut().expect("engine");
     for member in ["deployment", "providers", "connectors", "acts", "projects"] {

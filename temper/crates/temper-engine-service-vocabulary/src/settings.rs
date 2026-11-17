@@ -116,7 +116,6 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
-    pub welcome: bool,
     pub program_environment: Box<[u8]>,
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Core kinds carried by startup at the start's limits and first connector (protocol/services.md, 4.2).

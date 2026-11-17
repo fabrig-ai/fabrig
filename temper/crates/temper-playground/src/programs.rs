@@ -303,7 +303,8 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
             path: b"/worker".as_slice().into(),
             agent: documents::pinned_agent(),
         }),
-        None,
+        // Demo compositions model the box's welcome and use its default.
+        (!typed_document["application"]["demo"].is_null()).then_some(256),
         None,
         Box::new([]),
     )

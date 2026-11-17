@@ -2,6 +2,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect their captured request stream")]
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns keep matches out of step crates")]
 use super::*;
+use crate::settings;
 
 fn place() -> Place {
     Place {
@@ -28,6 +29,12 @@ fn configured() -> Domain {
         github: place(),
         github_git_program: None,
     });
+    d.give_settings_defaults(Box::new([settings::Stock {
+        kind: 20,
+        scope: 0,
+        number: 1,
+        value: settings::SizedValue { size: 1, value: settings::Value::Welcome(settings::Welcome { shown: true }) },
+    }]));
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
 }

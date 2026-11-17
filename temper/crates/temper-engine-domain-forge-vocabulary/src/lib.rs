@@ -574,6 +574,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     | settings::Value::Charter(_)
                     | settings::Value::Questions(_)
                     | settings::Value::Ways(_)
+                    | settings::Value::Welcome(_)
                     | settings::Value::ProjectTriager(_)
                     | settings::Value::Goal(_),
                 ..

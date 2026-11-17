@@ -779,7 +779,6 @@ pub fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
-        welcome: parsed.application.welcome,
         program_environment: Box::new([]),
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,

@@ -24,7 +24,6 @@ const APPLICATION: &[u8] = br#"{
  "test":{"github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
  "remote":"https://git.example.test","web":"https://web.example.test","git":"demo/bin/github-git"}},
 "clients":{"listener":{"socket":"127.0.0.1:8367"},"bundle":"/bundle","public":"https://temper.example.test"},
-"welcome":true,
 "push":{"key":"push.key","subject":"mailto:operator@example.test","services":null},
 "webhooks":{"listener":{"socket":"127.0.0.1:8371"}},
 "sign_in":{"google":{"provider":3,"client":"client-a","secret":"sign-in.secret",
@@ -143,6 +142,7 @@ fn every_row_is_a_member_its_decoder_takes() {
     for (parent, what, shape, name) in [
         ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
         ("application", What::Jig(config::What::Fixed), "application", "workers"),
+        ("application", What::Jig(config::What::Fixed), "application", "welcome"),
         ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
         (
             "application.landing.projects[]",

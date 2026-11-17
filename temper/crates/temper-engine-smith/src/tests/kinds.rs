@@ -144,6 +144,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Goal(_) => 11,
             settings::Value::ProjectAreas(_) => 14,
             settings::Value::ProjectTriager(_) => 15,
+            settings::Value::Welcome(_) => 20,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);

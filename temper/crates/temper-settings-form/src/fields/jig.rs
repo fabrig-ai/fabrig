@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 76] = [
+pub static FORMS: [Form; 77] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -106,11 +106,12 @@ pub static FORMS: [Form; 76] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"Charter purpose: 1 to 120 UTF-8 bytes, no controls. Defaults to instructions' first sentence. Select by charter number." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"How work runs headline and lede; absent uses the way's words." },
     Form { shape: Shape::ProjectAreas, name: b"project-areas", choice: Choice::Every, line: b"A project's areas, at most 16." },
+    Form { shape: Shape::Welcome, name: b"welcome", choice: Choice::Every, line: b"The deployment's welcome. Default: shown under the box, not shown otherwise." },
     Form { shape: Shape::ProjectTriager, name: b"project-triager", choice: Choice::Every, line: b"A project's triager." },
     Form { shape: Shape::Area, name: b"area", choice: Choice::Every, line: b"A named scope of project work and its owner." },
     Form { shape: Shape::AreaOwner, name: b"area-owner", choice: Choice::One { words: &[] }, line: b"One owner: task, party, role or charter." },
 ];
-pub static FIELDS: [Field; 261] = [
+pub static FIELDS: [Field; 262] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -159,6 +160,7 @@ pub static FIELDS: [Field; 261] = [
             Word { word: b"project-words", line: b"" },
             Word { word: b"project-areas", line: b"" },
             Word { word: b"project-triager", line: b"" },
+            Word { word: b"welcome", line: b"" },
         ]),
         list: None,
         null: false,
@@ -170,9 +172,9 @@ pub static FIELDS: [Field; 261] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"Setting number, from 1; omit for rules and unnumbered project settings.",
+        line: b"Setting number, from 1; omit for rules, welcome and unnumbered project settings.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project settings, follow and dependency; absent for charter-words. Landing rule: from 1, or deployment-wide if absent." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project settings, follow and dependency; absent for charter-words and welcome. Landing rule: from 1, or deployment-wide if absent." },
     Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Offer remaining catalogue models after named choices; default false." },
     Field {
         shape: Shape::Charter,
@@ -1333,6 +1335,7 @@ pub static FIELDS: [Field; 261] = [
     Field { shape: Shape::ProjectWords, name: b"headline", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required: 1 to 120 UTF-8 bytes holding no control character." },
     Field { shape: Shape::ProjectWords, name: b"lede", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes holding no control character." },
     Field { shape: Shape::ProjectAreas, name: b"areas", value: Value::Shape(Shape::Area), list: Some(Bound::Most(16)), null: false, line: b"Required; order is kept; names are unique." },
+    Field { shape: Shape::Welcome, name: b"shown", value: Value::Boolean, list: None, null: false, line: b"Required. Shows the welcome and offers the playground." },
     Field { shape: Shape::ProjectTriager, name: b"owner", value: Value::Shape(Shape::AreaOwner), list: None, null: false, line: b"Required." },
     Field { shape: Shape::Area, name: b"name", value: Value::Text(Bound::Most(32)), list: None, null: false, line: b"Required: 1 to 32 ASCII lowercase letters, digits or -, starting with a letter." },
     Field { shape: Shape::Area, name: b"words", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes with no control character." },

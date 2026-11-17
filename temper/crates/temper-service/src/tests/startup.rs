@@ -312,35 +312,16 @@ fn the_template_shaped_demo_reads_into_its_public_fields() {
     assert!(demo.key_file.ends_with(b"llm.key"));
 }
 #[test]
-fn the_welcome_member_reads_as_the_document_says() {
-    let document = fixtures::document();
-    let input = fixtures::value(&document, b"application");
-    for (member, expected) in [("\"welcome\":true,", true), ("\"welcome\":false,", false), ("", false)] {
-        let input = format!("{{{member}{}", &core::str::from_utf8(&input).unwrap()[1..]);
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(lines(&problems).as_ref(), b"", "{member}");
-        assert_eq!(members.unwrap().welcome, expected, "{member}");
-        let document = fixtures::with(&fixtures::document(), b"application", input.as_bytes());
-        fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        )
-        .expect("a boolean or absent welcome starts");
-    }
-}
-#[test]
-fn a_welcome_that_is_no_boolean_is_refused_at_its_path() {
-    for value in ["\"yes\"", "1", "null", "{}", "[]"] {
+fn the_welcome_member_is_refused_with_its_moved_words() {
+    for value in ["true", "false", "\"yes\"", "1", "null", "{}", "[]"] {
         let input = format!("{{\"welcome\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
         let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
         assert!(members.is_none(), "{value}");
-        assert_eq!(lines(&problems).as_ref(), b"application.welcome: wrong value kind\n", "{value}");
+        assert_eq!(
+            lines(&problems).as_ref(),
+            b"application.welcome: moved: the welcome is a setting; change it with temper ctl settings\n",
+            "{value}"
+        );
     }
 }
 #[test]

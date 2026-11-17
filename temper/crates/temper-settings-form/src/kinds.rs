@@ -43,6 +43,15 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
     }
 }
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+    if kind == b"welcome" {
+        if optional(fields, b"number").is_some() {
+            return Err(error(b"number", b"welcome has no number"));
+        }
+        if optional(fields, b"project").is_some() {
+            return Err(error(b"project", b"unknown member"));
+        }
+        return Ok(c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    }
     if [
         b"project-ways".as_slice(),
         b"project-questions",
@@ -118,6 +127,14 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 20 {
+        let fields = d.object(at, &[b"shown"])?;
+        let record = w::Welcome::new(&d.kinds, w::WelcomeParts { shown: boolean(d, &fields, b"shown")? })
+            .or(Err(error(b"welcome", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
     if kind == 14 || kind == 15 {
         return area_value(d, at, kind);
     }
@@ -426,6 +443,16 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
+        20 => {
+            let Ok(value) = w::Welcome::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"shown");
+            out.boolean(value.shown());
+            out.object_end();
+        }
         14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

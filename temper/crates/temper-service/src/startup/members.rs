@@ -185,8 +185,8 @@ pub static MEMBERS: [Member; 127] = [
         kind: "boolean",
         bound: "",
         required: false,
-        line: "Whether the document shows the welcome and offers the playground.",
-        gone: None,
+        line: "The deployment’s welcome is a setting.",
+        gone: Some("moved: the welcome is a setting; change it with temper ctl settings"),
     },
     Member {
         shape: "application",

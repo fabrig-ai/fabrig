@@ -1710,6 +1710,16 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0
             },
+            Kind {
+                number: 20,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Welcome(settings::Welcome {
+                    shown: true
+                })),
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;

@@ -332,6 +332,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && field.name == b"number"
                         && [
                             b"rules".as_slice(),
+                            b"welcome",
                             b"project-policy",
                             b"project-ways",
                             b"project-questions",

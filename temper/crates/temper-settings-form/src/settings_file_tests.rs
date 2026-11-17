@@ -189,6 +189,38 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+#[test]
+fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
+    use temper_client_protocol_wire::v1 as w;
+    let setting = br#"{"kind":"welcome"}"#;
+    let items = file::decode(&kind_file(setting, br#"{"shown":true}"#), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set welcome") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("welcome bytes") };
+    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown());
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document).as_ref(), br#"{"setting":{"kind":"welcome"},"revision":1,"value":{"shown":true}}"#);
+    let reset =
+        file::decode(br#"{"items":[{"setting":{"kind":"welcome"},"edit":"reset"}]}"#, &Limits::standard()).unwrap();
+    assert_eq!(reset.get(0).unwrap().setting, item.setting);
+    assert_eq!(reset.get(0).unwrap().edit, c::SettingEdit::Reset);
+    for bad in [
+        br#"{"items":[{"setting":{"kind":"welcome","project":1},"set":{"shown":true}}]}"#.as_slice(),
+        br#"{"items":[{"setting":{"kind":"welcome","number":1},"set":{"shown":true}}]}"#,
+        br#"{"items":[{"setting":{"kind":"welcome"},"set":{"shown":"true"}}]}"#,
+    ] {
+        file::decode(bad, &Limits::standard()).expect_err("invalid welcome");
+    }
+}
+
 fn landing_sets(member: &[u8]) -> Box<[u8]> {
     joined(&[LANDING.strip_suffix(b"}").expect("rule object"), member, b"}"])
 }

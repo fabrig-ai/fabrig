@@ -2563,6 +2563,69 @@ fn project_area_owners_are_judged_from_the_core() {
 }
 
 #[test]
+fn an_owner_can_change_and_reset_welcome_through_the_runs_named_tools() {
+    use serde_json::json;
+    for under_box in [true, false] {
+        let mut config = config();
+        config.under_box = under_box;
+        config.kinds_stock = temper_engine_service_stock::stock::with_welcome(config.kinds_stock, under_box);
+        let mut world = World::new(config);
+        let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+        assert_eq!(world.driver.root.welcome(), under_box);
+        assert_eq!(
+            settings_value(&mut world.driver, &run, 1, json!({"setting":{"kind":"welcome"}})),
+            json!({"shown":under_box})
+        );
+        assert_eq!(see_value(&mut world.driver, &run, 2, "settings welcome"), json!({"shown":under_box}));
+        let items = json!([{"setting":{"kind":"welcome"},"set":{"shown":!under_box}}]);
+        let proposal = propose(&mut world.driver, &run, 3, 1, &items);
+        assert_eq!(world.driver.root.welcome(), under_box, "a proposal changes nothing");
+        let core::documents::ProposalAction::Settings { review: Some(review), .. } =
+            world.review(&run, proposal).action
+        else {
+            panic!("welcome review")
+        };
+        assert_eq!(review.items.get(0).unwrap().setting, s::Setting::Application { kind: 20, scope: 0, number: 1 });
+        world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 2);
+        assert_eq!(world.driver.root.welcome(), !under_box);
+        assert_eq!(see_value(&mut world.driver, &run, 4, "settings welcome"), json!({"shown":!under_box}));
+        let reset = json!([{"setting":{"kind":"welcome"},"edit":"reset"}]);
+        let proposal = propose(&mut world.driver, &run, 5, 2, &reset);
+        world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 3);
+        assert_eq!(world.driver.root.welcome(), under_box);
+        assert_eq!(
+            settings_value(&mut world.driver, &run, 6, json!({"setting":{"kind":"welcome"}})),
+            json!({"shown":under_box})
+        );
+
+        let setting = s::Setting::Application { kind: 20, scope: 0, number: 1 };
+        world.driver.send(Event::Party(PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(23)),
+            sign_in: world.owner,
+            key: [23; 16],
+            digest: [23; 32],
+            kinds: Box::new([]),
+            change: Box::new(s::Change {
+                against: 3,
+                running: s::Running::Stays,
+                items: Box::new([s::Item { setting, edit: s::Edit::Set(s::Value::Application(Box::new([255]))) }]),
+            }),
+        }));
+        world.driver.settle();
+        assert!(matches!(
+            world.reply(23),
+            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { .. }))
+        ));
+        assert_eq!(world.head().number, 3, "a nondecoding value cannot be accepted");
+        for (key, edit) in [(24, s::Edit::Removed), (25, s::Edit::Reset)] {
+            world.change(world.head().number, key, Box::new([s::Item { setting, edit }]));
+        }
+    }
+}
+
+#[test]
 fn an_owners_follow_proposal_is_accepted_kept_and_read_after_restart() {
     use serde_json::json;
     use temper_engine_domain_forge as forge;

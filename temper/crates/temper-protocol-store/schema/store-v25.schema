@@ -576,8 +576,9 @@ record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 
 record ProjectTriager { owner: AreaOwner }
+record Welcome { shown: bool }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }

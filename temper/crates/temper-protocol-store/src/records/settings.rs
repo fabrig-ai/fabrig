@@ -202,6 +202,9 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::Welcome(value) => w::SettingValue::Welcome(
+                    w::Welcome::new(&w::CEILINGS, w::WelcomeParts { shown: value.shown }).expect("fixed welcome field"),
+                ),
                 d::Value::ProjectAreas(value) => w::SettingValue::Areas(wire_areas(value)),
                 d::Value::ProjectTriager(value) => w::SettingValue::Triager(wire_triager(value)),
                 d::Value::Charter(number) => w::SettingValue::Charter(
@@ -290,6 +293,7 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     }
                     d::Value::ProjectWords(d::ProjectWords { headline, lede })
                 }
+                w::SettingValue::Welcome(value) => d::Value::Welcome(d::Welcome { shown: value.shown() }),
                 w::SettingValue::Areas(value) => d::Value::ProjectAreas(areas_from(value)),
                 w::SettingValue::Triager(value) => {
                     d::Value::ProjectTriager(d::ProjectTriager { owner: owner_from(value.into_parts().owner) })

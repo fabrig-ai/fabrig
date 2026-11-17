@@ -23,7 +23,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 
 - `machine`: machine, engine shapes only; required; init writes object. The machine places offered when a forge is made.
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
-- `welcome`: boolean; optional; init writes true. Whether the document shows the welcome and offers the playground.
+- `welcome`: refused: moved: the welcome is a setting; change it with temper ctl settings
 - `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
 - `workers`: refused: moved: a worker's workspaces are the data directory's; its git is found on PATH
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.

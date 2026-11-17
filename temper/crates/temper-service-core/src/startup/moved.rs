@@ -8,6 +8,10 @@ pub struct Member {
     pub words: &'static str,
 }
 pub const MEMBERS: &[Member] = &[
+    Member {
+        path: "application.welcome",
+        words: "moved: the welcome is a setting; change it with temper ctl settings",
+    },
     Member { path: "workers[].graces", words: "moved: temper fixes a worker's graces (temper help server)" },
     Member { path: "workers[].programs", words: "moved: temper fixes the login checks' interval" },
     Member {

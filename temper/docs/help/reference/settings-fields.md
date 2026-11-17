@@ -18,16 +18,16 @@ A `setting` and exactly one of `set`, `edit` and `overlay`.
 
 - `setting`: `setting`. The setting the item changes.
 - `overlay`: `overlay`. A charter overlay, instead of set or edit.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`. Whole replacement value.
+- `set`: the selected setting kind's value (sections below). Whole replacement value.
 - `edit`: `"removed"` or `"reset"`. An edit instead of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Erase its change; follow its default again.
 
 ## setting
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-areas"` or `"project-triager"`. The setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings.
-- `number`: integer, 0 to 4,294,967,295. Setting number, from 1; omit for rules and unnumbered project settings.
-- `project`: integer, 0 to 4,294,967,295. Required for project settings, follow and dependency; absent for charter-words. Landing rule: from 1, or deployment-wide if absent.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"`, `"project-words"`, `"project-areas"`, `"project-triager"` or `"welcome"`. The setting's kind. `"project-policy"`: Project policy: `set` only, once per file alongside other settings.
+- `number`: integer, 0 to 4,294,967,295. Setting number, from 1; omit for rules, welcome and unnumbered project settings.
+- `project`: integer, 0 to 4,294,967,295. Required for project settings, follow and dependency; absent for charter-words and welcome. Landing rule: from 1, or deployment-wide if absent.
 
 ## charter
 
@@ -636,6 +636,12 @@ How work runs headline and lede; absent uses the way's words.
 A project's areas, at most 16.
 
 - `areas`: list of at most 16, each `area`. Required; order is kept; names are unique.
+
+## welcome
+
+The deployment's welcome. Default: shown under the box, not shown otherwise.
+
+- `shown`: true or false. Required. Shows the welcome and offers the playground.
 
 ## project-triager
 

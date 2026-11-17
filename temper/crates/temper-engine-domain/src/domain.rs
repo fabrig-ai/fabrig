@@ -305,6 +305,11 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    #[must_use]
+    pub fn welcome(&self) -> bool {
+        self.forge.welcome()
+    }
     /// The playground row as the service reads it (temper/docs/design/protocol/setup/playground.md).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {

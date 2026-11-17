@@ -200,6 +200,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_) => return None,
     };
@@ -261,6 +262,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Ways(_) => return None,
@@ -528,6 +530,8 @@ fn read_refusal(
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
+                    crate::ForgeRead::Setting { kind: 20, scope: 0, number: 1 }
+                    | crate::ForgeRead::RevisionSetting { kind: 20, scope: 0, number: 1, .. } => true,
                     crate::ForgeRead::Setting { .. }
                     | crate::ForgeRead::RevisionSetting { .. }
                     | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
@@ -712,6 +716,7 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Dependency(_)
+        | settings::Value::Welcome(_)
         | settings::Value::Follow(_) => None,
     }
 }

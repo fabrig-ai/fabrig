@@ -83,6 +83,7 @@ pub enum Shape {
     ProjectWords,
     ProjectAreas,
     ProjectTriager,
+    Welcome,
     Area,
     AreaOwner,
 }
@@ -320,6 +321,7 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"project-words" => Some(Shape::ProjectWords),
         b"project-areas" => Some(Shape::ProjectAreas),
         b"project-triager" => Some(Shape::ProjectTriager),
+        b"welcome" => Some(Shape::Welcome),
         b"template-goal" => Some(Shape::TemplateGoal),
         b"follow" => Some(Shape::Follow),
         b"dependency" => Some(Shape::Dependency),

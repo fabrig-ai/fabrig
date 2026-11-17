@@ -36,6 +36,10 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(scope));
             return;
         }
+        c::Setting::Application { kind: 20, .. } => {
+            out.put(b"welcome");
+            return;
+        }
         c::Setting::Application { kind: 11, number, .. } => {
             out.put(b"template-goal ");
             out.number(u64::from(number));
@@ -111,6 +115,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 10 => out.string(b"project-words"),
                 14 => out.string(b"project-areas"),
                 15 => out.string(b"project-triager"),
+                20 => out.string(b"welcome"),
                 _ => out.unsigned(u64::from(kind)),
             }
             if kind == 2
@@ -125,11 +130,11 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
+            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 && kind != 20 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 {
+            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 && kind != 20 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }

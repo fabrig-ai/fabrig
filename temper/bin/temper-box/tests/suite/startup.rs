@@ -1591,7 +1591,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
                 .expect("JSON");
         assert!(document["application"].get("workers").is_none());
-        assert_eq!(document["application"]["welcome"].as_bool(), if boxed { Some(true) } else { None });
+        assert!(document["application"].get("welcome").is_none());
         assert_eq!(scratch.path().join("demo").exists(), boxed);
         if !boxed {
             assert!(!lines.contains("person is person"), "bare init has no person diagnostic");

@@ -93,7 +93,6 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        welcome: false,
         program_environment: Box::new([]),
         host_part: None,
         ways_stock: crate::stock::ways(),

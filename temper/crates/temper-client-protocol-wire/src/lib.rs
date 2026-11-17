@@ -26,6 +26,7 @@ pub const fn settings_kind(kind: u32) -> bool {
         || kind == 13
         || kind == 14
         || kind == 15
+        || kind == 20
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
@@ -84,7 +85,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 27;
+pub const CLIENT_VERSION: u32 = 29;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

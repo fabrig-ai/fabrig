@@ -4438,6 +4438,10 @@ pub enum Path {
     ProjectTriagerOwner,
     /// Bytes after `ProjectTriager`.
     ProjectTriagerTail,
+    /// The `shown` field of `Welcome`.
+    WelcomeShown,
+    /// Bytes after `Welcome`.
+    WelcomeTail,
     /// The tag of `SettingValue`.
     SettingValueTag,
     /// The `value` field of `SizedValue`.
@@ -27162,6 +27166,37 @@ impl ProjectTriager {
 
 }
 
+/// Movable fields of `Welcome`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WelcomeParts {
+    /// The `shown` field.
+    pub shown: bool,
+}
+
+/// `Welcome` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Welcome {
+    shown: bool,
+}
+
+impl Welcome {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: WelcomeParts) -> Result<Self, Problem> {
+        let WelcomeParts { shown } = parts;
+        let value = Self { shown };
+        Ok(value)
+    }
+
+    /// Reads the `shown` field.
+    #[must_use]
+    pub fn shown(&self) -> bool { self.shown }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> WelcomeParts { WelcomeParts { shown: self.shown } }
+
+}
+
 /// `SettingValue` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
@@ -27189,6 +27224,8 @@ pub enum SettingValue {
     Areas(ProjectAreas),
     /// `triager` carrying `ProjectTriager`.
     Triager(ProjectTriager),
+    /// `welcome` carrying `Welcome`.
+    Welcome(Welcome),
 }
 
 impl SettingValue {
@@ -27206,7 +27243,7 @@ impl SettingValue {
             Self::Classes(record) => ProjectClasses::check(record, limits),
             Self::Follow(record) => Follow::check(record, limits),
             Self::Areas(record) => ProjectAreas::check(record, limits),
-            Self::Charter(_) | Self::Questions(_) | Self::Ways(_) | Self::Goal(_) | Self::Dependency(_) | Self::Triager(_) => Ok(()),
+            Self::Charter(_) | Self::Questions(_) | Self::Ways(_) | Self::Goal(_) | Self::Dependency(_) | Self::Triager(_) | Self::Welcome(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -50998,6 +51035,35 @@ impl ProjectTriager {
     }
 }
 
+impl Welcome {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_shown = &self.shown;
+        writer.put(&[u8::from(*field_shown)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::WelcomeTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_shown = match reader.u8().ok_or(Problem { path: Path::WelcomeShown, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::WelcomeShown, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { shown: decoded_shown })
+    }
+}
+
 impl SettingValue {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -51015,6 +51081,7 @@ impl SettingValue {
             Self::Dependency(record) => 1_u32.checked_add(Dependency::measure(record)).expect("schema ceilings fit u32"),
             Self::Areas(record) => 1_u32.checked_add(ProjectAreas::measure(record)).expect("schema ceilings fit u32"),
             Self::Triager(record) => 1_u32.checked_add(ProjectTriager::measure(record)).expect("schema ceilings fit u32"),
+            Self::Welcome(record) => 1_u32.checked_add(Welcome::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -51033,6 +51100,7 @@ impl SettingValue {
             Self::Dependency(record) => { writer.put(&[9_u8])?; record.encode(writer)?; }
             Self::Areas(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
             Self::Triager(record) => { writer.put(&[11_u8])?; record.encode(writer)?; }
+            Self::Welcome(record) => { writer.put(&[12_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -51059,6 +51127,7 @@ impl SettingValue {
             9 => Self::Dependency(Dependency::decode_from(limits, reader)?),
             10 => Self::Areas(ProjectAreas::decode_from(limits, reader)?),
             11 => Self::Triager(ProjectTriager::decode_from(limits, reader)?),
+            12 => Self::Welcome(Welcome::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::SettingValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -66653,6 +66722,34 @@ impl ProjectTriager {
     }
 }
 
+impl Welcome {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl SettingValue {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -66669,6 +66766,7 @@ impl SettingValue {
         biggest = biggest.max(ProjectWords::encoded_bound_within(limits)?).max(ProjectClasses::encoded_bound_within(limits)?);
         biggest = biggest.max(Follow::encoded_bound_within(limits)?).max(Dependency::encoded_bound_within(limits)?);
         biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?).max(ProjectTriager::encoded_bound_within(limits)?);
+        biggest = biggest.max(Welcome::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -66687,6 +66785,7 @@ impl SettingValue {
         biggest = biggest.max(ProjectWords::decoded_bound_within(limits)?).max(ProjectClasses::decoded_bound_within(limits)?);
         biggest = biggest.max(Follow::decoded_bound_within(limits)?).max(Dependency::decoded_bound_within(limits)?);
         biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?).max(ProjectTriager::decoded_bound_within(limits)?);
+        biggest = biggest.max(Welcome::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -67631,6 +67730,7 @@ fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Area::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectAreas::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::encoded_bound_within(limits)?);
+    biggest = biggest.max(Welcome::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingValue::encoded_bound_within(limits)?);
     biggest = biggest.max(SizedValue::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingEdit::encoded_bound_within(limits)?);
@@ -68185,6 +68285,7 @@ fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Area::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectAreas::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectTriager::decoded_bound_within(limits)?);
+    biggest = biggest.max(Welcome::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingValue::decoded_bound_within(limits)?);
     biggest = biggest.max(SizedValue::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingEdit::decoded_bound_within(limits)?);

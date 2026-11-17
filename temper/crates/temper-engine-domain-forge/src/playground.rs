@@ -67,7 +67,7 @@ pub(crate) fn start(d: &mut Domain, now: Time, request: Token, token: Token, out
         return;
     }
     d.playground_answers = Map::with_capacity(d.playground_answers.capacity());
-    if d.real_forge_kept() {
+    if !d.welcome() || d.real_forge_kept() {
         answer_starts(d, StartAnswer::NotOffered, out);
         return;
     }

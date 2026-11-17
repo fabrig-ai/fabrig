@@ -1,4 +1,4 @@
-family temper-client-wire 27
+family temper-client-wire 29
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -498,6 +498,7 @@ enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: Area
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }
+record Welcome { shown: bool }
 
 record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
 versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }

@@ -221,7 +221,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         expected["application"]["limits"]["overrides"]["forge.client.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
-        expected["application"]["welcome"] = json!(true);
         expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
         expected["engine"]["clients"]["provider"] = json!({
             "key": "provider.key", "addresses": [1_u32],
@@ -647,6 +646,7 @@ fn the_template_seeds_no_project_and_no_settings_members() {
             assert!(document["engine"].get(member).is_none());
         }
         assert!(document["application"].get("landing").is_none());
+        assert!(document["application"].get("welcome").is_none());
         assert!(document["application"].get("charter").is_none());
         for member in ["heartbeat_ms", "link", "approval"] {
             assert!(document["engine"]["clients"].get(member).is_none());
@@ -660,8 +660,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("boxed files");
         let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).expect("bare files");
         let mut expected = parse(content(&boxed, b"temper.json"));
-        assert_eq!(expected["application"]["welcome"], true, "{row}");
-        expected["application"].as_object_mut().unwrap().remove("welcome");
+        assert!(expected["application"].get("welcome").is_none(), "{row}");
         expected["application"]["machine"] = json!({});
         expected["application"]["demo"] = Value::Null;
         expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");

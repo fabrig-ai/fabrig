@@ -16,6 +16,8 @@ fn place() -> forge::Place {
 }
 fn config(granted: bool) -> engine::Config {
     let mut config = walking::config(71);
+    config.under_box = true;
+    config.kinds_stock = temper_engine_service_stock::stock::with_welcome(config.kinds_stock, true);
     config.forges = Box::new([]);
     config.machine = Some(forge::Machine {
         owned_person: Box::new([]),

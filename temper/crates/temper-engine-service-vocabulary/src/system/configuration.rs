@@ -5,12 +5,8 @@ use alloc::boxed::Box;
 #[must_use]
 pub fn playground_config(
     demo: Option<&settings::Demo>,
-    welcome: bool,
     deadline: skein_lib::Duration,
 ) -> Option<temper_engine_domain_forge::PlaygroundConfig> {
-    if !welcome {
-        return None;
-    }
     match demo {
         Some(demo) => Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline }),
         None => None,
