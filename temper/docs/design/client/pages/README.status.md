@@ -6,6 +6,20 @@
 
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
   not read, and no landed draft's card starts a goal [in flight: change 664].
+- **Not yet:** 2, *A task's title on a line*: no `row_title` or `only_title`
+  in the shared parts; Work's goal row alone cuts [in flight: change 6216].
+- **Not yet:** 2, *A task's title on a line* and *A task's words after its
+  title*: Needs you's from line and cards, Home's lines, the inbox, the
+  answered lines and Decided for you draw titles whole, and a card repeats
+  one-line words after its title [in flight: change 6220].
+- **Not yet:** 2, *A task's title on a line* and *A task's words after its
+  title*: a goal's and a task's rows and the lineage bar draw titles
+  whole, and an agent's task's brief repeats one-line words [in flight:
+  change 6221].
+- **Not yet:** 2, *A task's title on a line*: Work's other rows, the
+  chats' rows and switcher, a chat's goal bar, delegation cards, Changes,
+  a close's rows, a result's card, How it runs, Tell, the public rows and
+  the TUI's notice and quit line draw titles whole [in flight: change 6222].
 
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 
