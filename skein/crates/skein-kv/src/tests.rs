@@ -141,6 +141,59 @@ fn memory_commits_reads_and_pages() {
 }
 
 #[test]
+fn memory_forks_keep_the_map_census_logs_and_independent_writes() {
+    let mut env = env();
+    env.limits.record = 64;
+    let owner = Token::new(1);
+    let mut source = Store::memory(&env.limits);
+    source.count(crate::CensusRule { prefix: [1; 256] });
+    source.logs(crate::LogRule { prefix: Box::from(&b"extent/"[..]) });
+    let frame = source.frame(b"kept payload").expect("frame");
+    let end = frame.len();
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    down(
+        &mut source,
+        &env,
+        Request::Commit { owner, ops: Box::new([put(b"a", b"kept value"), Op::Append { log: 7, frame }]) },
+        &mut above,
+        &mut below,
+    );
+    assert_eq!(above.pop(), Some(Event::Committed { owner, number: 1 }));
+    let mut copy = source.fork_memory(&env.limits).expect("memory fork");
+    assert_eq!(copy.last(), source.last());
+    assert_eq!(copy.used(), source.used());
+    assert_eq!(copy.census(), source.census());
+    assert_eq!(copy.log_end(7), end);
+    down(
+        &mut source,
+        &env,
+        Request::Commit { owner, ops: Box::new([put(b"a", b"source"), Op::Drop { log: 7 }]) },
+        &mut above,
+        &mut below,
+    );
+    assert_eq!(above.pop(), Some(Event::Committed { owner, number: 2 }));
+    down(&mut copy, &env, Request::Get { owner, key: Box::from(&b"a"[..]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Got { owner, value: Some(Box::from(&b"kept value"[..])) }));
+    down(
+        &mut copy,
+        &env,
+        Request::ReadLog { owner, log: 7, at: 0, direction: crate::Direction::Forward, max: 64 },
+        &mut above,
+        &mut below,
+    );
+    let Some(Event::LogRead { records, next: None, .. }) = above.pop() else { panic!("copied payload log") };
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].record.as_deref(), Some(b"kept payload".as_slice()));
+    down(&mut copy, &env, Request::Commit { owner, ops: Box::new([put(b"a", b"copy")]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Committed { owner, number: 2 }));
+    down(&mut source, &env, Request::Get { owner, key: Box::from(&b"a"[..]) }, &mut above, &mut below);
+    assert_eq!(above.pop(), Some(Event::Got { owner, value: Some(Box::from(&b"source"[..])) }));
+    assert!(below.is_empty());
+    assert!(Store::new(&env.limits).fork_memory(&env.limits).is_none());
+}
+
+#[test]
 fn a_page_too_small_for_one_row_is_refused() {
     let env = env();
     let mut store = Store::memory(&env.limits);

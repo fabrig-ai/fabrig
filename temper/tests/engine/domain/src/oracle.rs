@@ -256,18 +256,7 @@ impl Driver {
                 self.collect();
             }
             self.advance(true);
-            // Domain::quiescent also rejects future fleet deadlines. This
-            // boundary drains immediate commits, deliveries and loads only.
-            if self.root.ready()
-                && !self.root.forge_work_ready()
-                && self.root.held_bytes() == 0
-                && self.events.is_empty()
-                && self.out.is_empty()
-                && self.store.idle()
-                && self.store.held.is_empty()
-                && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
-                && self.store.applied == commit
-            {
+            if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
                     return;

@@ -364,6 +364,17 @@ impl Store {
         }
     }
 
+    /// Independent durable memory maps and payload logs for a domain world's
+    /// fork. The caller opens a fresh component over the result.
+    /// Directory-backed stores have no in-memory fork.
+    #[must_use]
+    pub fn fork_memory(&self) -> Option<Stores> {
+        Some(Stores {
+            store: self.stores.store.fork_memory(&self.limits.store)?,
+            secrets: self.stores.secrets.fork_memory(&self.limits.secrets)?,
+        })
+    }
+
     #[must_use]
     pub fn into_stores(self) -> Stores {
         self.stores

@@ -62,7 +62,6 @@ pub struct Store {
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
     inflight: BTreeMap<u64, Box<[Write]>>,
-    durable: Vec<(u64, Box<[Write]>)>,
     replies: Vec<engine::StoreInput>,
     missing: Vec<(jig_domain_core::Key, jig_domain_core::Key)>,
     delayed: VecDeque<Delayed>,
@@ -163,16 +162,8 @@ impl Store {
         };
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let models = crate::walking::models();
-        let mut component = protocol::Store::over(
-            &component_limits,
-            temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
-            &models,
-            stores,
-        );
-        assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         let mut store = Self::empty(limits, &component_limits, models);
-        store.component = Some(component);
-        store.open();
+        store.reopen(stores);
         store
     }
 
@@ -192,7 +183,6 @@ impl Store {
             models,
             catalogue: None,
             inflight: BTreeMap::new(),
-            durable: Vec::new(),
             replies: Vec::new(),
             missing: Vec::new(),
             delayed: VecDeque::new(),
@@ -269,19 +259,6 @@ impl Store {
     pub fn crash(&mut self, seed: u64) {
         let stores = self.component.take().expect("component exists").into_stores();
         self.files.crash(seed);
-        self.component = Some(protocol::Store::over(
-            &self.component_limits,
-            temper_protocol_store::application(&self.limits.forge, self.limits.tasks.spec_bytes)
-                .expect("checked family sizes"),
-            &self.models,
-            stores,
-        ));
-        assert!(
-            self.component.as_mut().expect("live component").wires(&temper_engine_service_vocabulary::store::WIRES)
-        );
-        if let Some(names) = &self.catalogue {
-            self.component.as_mut().expect("live component").catalogue(names.clone());
-        }
         self.routes = routes(&self.limits);
         self.pending.clear();
         self.delays.clear();
@@ -294,18 +271,16 @@ impl Store {
         self.failed = false;
         self.hold_next = 0;
         self.fail_at = None;
-        self.open();
+        self.reopen(stores);
     }
+    /// Open independent memory maps and payload logs, not the history of their writes.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::with_limits(&self.limits);
-        if let Some(names) = &self.catalogue {
-            fresh.catalogue(names.clone());
-        }
-        for (number, writes) in &self.durable {
-            fresh.submit(*number, writes.clone(), 0);
-            assert_eq!(fresh.tick(false), Ok(Some(*number)));
-        }
+        let stores = self.component.as_ref().expect("live component").fork_memory().expect("world memory stores");
+        let mut fresh = Self::empty(&self.limits, &self.component_limits, self.models.clone());
+        fresh.catalogue.clone_from(&self.catalogue);
+        fresh.rows.clone_from(&self.rows);
+        fresh.reopen(stores);
         fresh.page_delay = self.page_delay;
         fresh
     }
@@ -506,6 +481,22 @@ impl Store {
         let request = route::down(&mut self.routes, request).expect("root store request admitted");
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
+    fn reopen(&mut self, stores: Stores) {
+        let mut component = protocol::Store::over(
+            &self.component_limits,
+            temper_protocol_store::application(&self.limits.forge, self.limits.tasks.spec_bytes)
+                .expect("checked family sizes"),
+            &self.models,
+            stores,
+        );
+        assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
+        if let Some(names) = &self.catalogue {
+            component.catalogue(names.clone());
+        }
+        self.component = Some(component);
+        self.open();
+    }
+
     fn open(&mut self) {
         let root = self.files.root();
         self.drive(
@@ -609,7 +600,6 @@ impl Store {
                     }
                 }
                 self.applied = number;
-                self.durable.push((number, writes));
                 if self.holding {
                     self.held.push_back(number);
                 }
@@ -752,18 +742,20 @@ pub fn widest() -> engine::Limits {
     limits
 }
 fn component_limits(limits: &engine::Limits) -> Limits {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
-    let mut profile = profile.store;
-    profile.store.budget = 4 * 1024 * 1024;
-    profile.store.key = u32::MAX;
-    profile.store.value = u32::MAX;
-    profile.store.ops = u32::MAX;
-    profile.store.commit = u32::MAX;
-    profile.store.queued_bytes = u64::MAX;
-    profile.store.page.bytes = u32::MAX;
-    profile.store.page.rows = 8;
-    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, &profile)
-        .expect("world sizes fit real store")
+    static PROFILE: std::sync::OnceLock<Limits> = std::sync::OnceLock::new();
+    let profile = PROFILE.get_or_init(|| {
+        let mut profile = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).store;
+        profile.store.budget = 4 * 1024 * 1024;
+        profile.store.key = u32::MAX;
+        profile.store.value = u32::MAX;
+        profile.store.ops = u32::MAX;
+        profile.store.commit = u32::MAX;
+        profile.store.queued_bytes = u64::MAX;
+        profile.store.page.bytes = u32::MAX;
+        profile.store.page.rows = 8;
+        profile
+    });
+    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, profile).expect("world sizes fit real store")
 }
 
 /// The only mirrored row changed by a write-free restart's required start mark.

@@ -44,6 +44,8 @@ pub struct Driver {
     pub immediate: Vec<engine::Request>,
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
+    /// Outputs collected, including deliveries that need no reply or commit.
+    collected: u64,
 }
 
 impl Driver {
@@ -69,7 +71,7 @@ impl Driver {
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
         self.broken("cold-cut fixture transfers its store to the receiving root");
-        std::mem::take(&mut self.store)
+        self.store.take_for_drop()
     }
     /// Consume a cold-cut driver without opening a replacement store for its destructor.
     pub(crate) fn into_store(mut self) -> Store {
@@ -136,6 +138,7 @@ impl Driver {
             returned: 0,
             immediate: Vec::new(),
             period_sent: false,
+            collected: 0,
         }
     }
     #[must_use]
@@ -195,6 +198,7 @@ impl Driver {
 
     #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
+        self.collected += u64::from(self.out.len());
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
             let request = if let engine::Request::Store(engine::StoreRequest::Read { load, range }) = request {
@@ -339,11 +343,42 @@ impl Driver {
 
     /// Drive immediate work while a story deliberately keeps a fleet deadline armed.
     pub fn pump(&mut self) {
-        const STEPS: usize = 200; // The direct fixture's settlement step budget.
-        for _ in 0..STEPS {
-            self.advance(true);
-        }
+        self.drain(200);
         assert!(self.events.is_empty() && self.store.pending.is_empty(), "immediate work drained: {:?}", self.root);
+    }
+
+    /// Drain without firing timers or changing either injected clock. Even an
+    /// already due timer waits for the story's explicit `fire_at` or `settle`.
+    pub(crate) fn drain(&mut self, steps: usize) {
+        let mut quiet = 0;
+        for _ in 0..steps {
+            let commit = self.store.applied;
+            // A delivery-only pass still makes progress even without a commit.
+            let collected = self.collected;
+            self.advance(true);
+            if self.collected == collected && self.idle_since(commit) {
+                quiet += 1;
+                if quiet == 2 {
+                    return;
+                }
+            } else {
+                quiet = 0;
+            }
+        }
+    }
+
+    /// The restart oracle's immediate-work fence. Quiescent also waits for
+    /// fleet alarms; this fence leaves firing and advancing clocks to the caller.
+    pub(crate) fn idle_since(&self, commit: u64) -> bool {
+        self.root.ready()
+            && !self.root.forge_work_ready()
+            && self.root.held_bytes() == 0
+            && self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.store.held.is_empty()
+            && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
+            && self.store.applied == commit
     }
 
     /// Fire timers at an absolute simulated time; the caller drives their outputs.

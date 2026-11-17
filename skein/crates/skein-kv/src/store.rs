@@ -272,6 +272,27 @@ impl Store {
         store
     }
 
+    /// Copy an in-memory store's durable map, census and payload logs, with no
+    /// pending operations or read cache. Later writes belong to the copy alone.
+    /// Directory-backed stores cannot be copied through this test fixture face.
+    #[must_use]
+    pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
+        match self.state {
+            State::Memory => {}
+            State::Closed | State::Open { .. } => return None,
+        }
+        assert!(
+            self.queue.is_empty() && self.reads.is_empty() && self.drops.is_empty(),
+            "memory operations finish inline"
+        );
+        let mut copy = Store::memory(limits);
+        copy.last = self.last;
+        copy.map = self.map.clone();
+        copy.rule.clone_from(&self.rule);
+        copy.logs = self.logs.clone();
+        Some(copy)
+    }
+
     /// Enable the census before opening, or before the first in-memory commit
     /// (skein/docs/design/data/kv.md, 2.2). Prefix lengths are clamped to `1..=CENSUS_PREFIX`.
     pub fn count(&mut self, rule: CensusRule) {

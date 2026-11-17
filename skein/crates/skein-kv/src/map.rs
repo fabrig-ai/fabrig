@@ -19,7 +19,7 @@ pub(crate) struct PageRows {
     pub(crate) next: Option<Box<[u8]>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct KvMap {
     entries: Map<Box<[u8]>, Box<[u8]>>,
     used: u64,

@@ -14,6 +14,7 @@ mod applications;
 mod budget;
 mod configuring;
 mod deleted_project;
+mod direct_driver;
 mod document_limits;
 mod drafts;
 mod escalation;
