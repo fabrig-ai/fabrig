@@ -62,7 +62,10 @@ fn a_lost_sign_out_keeps_the_credential() {
         let exchange = h.sign_out();
         match body {
             Some(body) => h.answer(exchange, body),
-            None => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
+            None => {
+                h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+                h.link.settle(&mut h.out);
+            }
         }
         assert!(
             h.has(&Request::Signing { signing: if *expected { Signing::Again } else { Signing::Lost } }),
@@ -74,6 +77,7 @@ fn a_lost_sign_out_keeps_the_credential() {
     assert_eq!(h.sign_in(held()), None);
     let exchange = h.sign_out();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+    h.link.settle(&mut h.out);
     assert!(h.has(&Request::Signing { signing: Signing::Lost }));
     assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
 }
@@ -97,9 +101,11 @@ fn an_old_sign_out_cannot_end_a_new_held_credential() {
         assert_eq!(h.sign_in(held()), None);
         let exchange = h.sign_out();
         h.link.step(Time::ZERO, Event::SignIn { with: With::Held(Secret::new(Box::new(NEW_CREDENTIAL))) }, &mut h.out);
+        h.link.settle(&mut h.out);
         h.out = Queue::uncapped();
         if lost {
             h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+            h.link.settle(&mut h.out);
         } else {
             h.answer(exchange, &[0]);
         }
@@ -185,7 +191,10 @@ fn a_refused_not_ready_or_lost_link_installs_none_of_its_held_credential() {
             .expect("link exchange");
         match body {
             Some(body) => h.answer(exchange, body),
-            None => h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out),
+            None => {
+                h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+                h.link.settle(&mut h.out);
+            }
         }
         assert!(h.has(&Request::Signing { signing: expected }));
         assert_eq!(h.link.credential(), None);

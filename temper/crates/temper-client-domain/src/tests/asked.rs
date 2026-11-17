@@ -9,6 +9,7 @@ fn code() -> ApprovalCode {
 fn step(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::step(root, &fixtures::env(&fixtures::limits()), event, &mut out);
+    crate::settle(root, &fixtures::env(&fixtures::limits()), &mut out);
     out
 }
 fn signed_out(unlinked: bool) -> Domain {

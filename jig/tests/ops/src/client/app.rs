@@ -131,6 +131,9 @@ impl App for Ops {
     fn fire(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
         domain::fire(root, env, out);
     }
+    fn settle(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
+        domain::settle(root, env, out);
+    }
     fn take(root: &mut Self::Root, _env: &Env<Self::Limits>, _out: &mut Queue<Request>) {
         domain::take(root);
     }

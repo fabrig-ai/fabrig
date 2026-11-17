@@ -478,6 +478,7 @@ fn settings_change_survives_the_small_store_and_carried_transport() {
         Event::Send { attempt: fixtures::ATTEMPT, key: fixtures::KEY, ask: Ask::Jig(Box::new(ask)), value: None },
         &mut h.out,
     );
+    h.link.settle(&mut h.out);
     assert_eq!(h.exchanges(), 1);
 }
 #[test]

@@ -306,6 +306,14 @@ impl Client {
         }
         self.drain(&env, out);
     }
+    /// Hand out transport work once the root's iteration is routed (client/domain/root.md, 3).
+    pub fn settle(&mut self, now: Time, wall: Wall, out: &mut Queue<Request>) {
+        if let Some(link) = &mut self.link {
+            link.settle(&mut self.link_out);
+            let env = Env { now, wall, limits: self.limits.domain };
+            self.drain(&env, out);
+        }
+    }
     /// Step an unlinked client (client/domain/client/README.md, 4.4).
     pub fn step_unlinked(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<UnlinkedRequest>) {
         assert!(self.link.is_none(), "a linked client steps with step");

@@ -554,6 +554,18 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.client.reclaim();
     root.changed();
 }
+/// Settle once after routing the iteration (jig/docs/design/client/domain/root.md, 3).
+pub fn settle(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut requests = Queue::uncapped();
+    root.client.settle(env.now, env.wall, &mut requests);
+    let mut client = Queue::uncapped();
+    while let Some(request) = requests.pop() {
+        client.push(ClientOutput::Linked(request));
+    }
+    let mut child = Queue::uncapped();
+    drain(root, env, &mut client, &mut child, out);
+    root.changed();
+}
 #[must_use]
 pub fn next_deadline(root: &Root) -> Option<Time> {
     root.deadline

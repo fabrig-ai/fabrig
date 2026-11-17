@@ -98,6 +98,8 @@ fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
     assert_eq!(host.credential, Some(fixtures::credential()));
     assert!(host.saving_signing.is_none());
     host.sign_in(fixtures::LINK).expect("same printed link");
+    fixtures::settle(&mut host);
+    host.outputs();
     let mut retry = None;
     for (exchange, out) in &host.authentication {
         assert!(!out, "retry signs in");
@@ -424,6 +426,7 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
                 read: Readable::Jig(c::Read::Project { project: 1 }),
             },
         });
+        fixtures::settle(&mut host);
         let Some(domain::Request::Client { request: Request::Exchange { .. } }) = host.out.pop() else {
             panic!("fill one native exchange slot")
         };

@@ -115,6 +115,7 @@ pub struct NativeClient {
     person: Person<client::Address>,
     env: Env<client::Limits>,
     out: Queue<Request>,
+    gathered: Queue<jig_client::Request>,
     address: client::Address,
     started: bool,
     person_done: bool,
@@ -154,6 +155,7 @@ impl NativeClient {
             person: Person::new(script.steps),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
+            gathered: Queue::uncapped(),
             address: jig_client_kit::stories::conversation(),
             started: false,
             person_done: false,
@@ -249,12 +251,12 @@ impl NativeClient {
         while let Some(request) = self.out.pop() {
             match request {
                 Request::Save { record } => {
-                    self.shell.down(jig_client::Request::Save {
+                    self.gathered.push(jig_client::Request::Save {
                         records: jig_client_kit::test::list([crate::front::persistence::encode_one(record)]),
                     });
                 }
                 Request::Erase { key } => {
-                    self.shell.down(jig_client::Request::Erase {
+                    self.gathered.push(jig_client::Request::Erase {
                         records: jig_client_kit::test::list([crate::front::persistence::erased(key)]),
                     });
                 }
@@ -267,8 +269,7 @@ impl NativeClient {
                 Request::SignOut => self.callback(client::Event::Client { event: jig_client::Event::SignOut }),
                 Request::SignIn { .. } => panic!("printed link supplied by caller"),
                 Request::Client { request } => {
-                    self.received.extend(self.wire.sent(&request));
-                    self.shell.down(request);
+                    self.gathered.push(request);
                 }
                 Request::Unlinked { .. } => {
                     unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
@@ -393,6 +394,14 @@ impl Host for NativeClient {
             self.outputs();
         }
         self.text_step(now, changed);
+        // Route the last generated shows/sign-out before settling this iteration once.
+        self.outputs();
+        Test::settle(&mut self.root, &self.env, &mut self.out);
+        self.outputs();
+        while let Some(request) = self.gathered.pop() {
+            self.received.extend(self.wire.sent(&request));
+            self.shell.down(request);
+        }
         if !self.closing && !self.hold_after_script && self.person_done && self.root.jig().chats().starting.is_none() {
             self.closing = true;
             self.shell.close();

@@ -165,6 +165,7 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::SignIn { with: jig_client::With::Held(Secret::new(Box::new(AUTH))) },
         &mut out,
     );
+    client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     let served = w::Served::new(
         &w::CEILINGS,
         w::ServedParts {
@@ -188,6 +189,7 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes.finish()) },
         &mut out,
     );
+    client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     let mut watch = None;
     while let Some(request) = out.pop() {
         if let jig_client::Request::Exchange { message: jig_client::Message::Watch(bytes), .. } = request {
@@ -250,6 +252,7 @@ pub fn live_client() -> jig_client::Client {
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes.finish()) },
         &mut out,
     );
+    client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     assert_eq!(client.link().state, jig_client::Link::Live);
     client
 }

@@ -54,6 +54,7 @@ impl World {
         for number in FIRST..=LAST {
             world.link.step(world.now, send(number), &mut world.out);
         }
+        world.link.settle(&mut world.out);
         let mut cancelled = None;
         for request in &world.out {
             if let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request {
@@ -66,12 +67,14 @@ impl World {
         for number in FIRST..=LAST {
             world.link.step(world.now, Event::Save { record: saved(number) }, &mut world.out);
         }
+        world.link.settle(&mut world.out);
         world.drain();
         world.event(Event::Lost { exchange: cancelled.expect("issued cancelled exchange") });
         world.event(Event::Save { record: saved(REPLACEMENT) });
         world.event(send(REPLACEMENT));
         world.now = world.now.saturating_add(STORE_DELAY);
         world.link.fire(world.now, &mut world.out);
+        world.link.settle(&mut world.out);
         world.drain();
         world.loads.push((world.link.in_flight(), world.pending.len()));
         world
@@ -79,6 +82,7 @@ impl World {
 
     fn event(&mut self, event: Event) {
         self.link.step(self.now, event, &mut self.out);
+        self.link.settle(&mut self.out);
         self.drain();
     }
 

@@ -190,6 +190,7 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     link.step(Time::ZERO, event, &mut out);
+    link.settle(&mut out);
     for print in [format!("{link:?}"), format!("{link:#?}"), format!("{out:?}"), format!("{out:#?}")] {
         prints.push(print).unwrap();
     }
@@ -198,6 +199,7 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     link.step(Time::ZERO, wire_reply, &mut out);
+    link.settle(&mut out);
     for print in [format!("{link:?}"), format!("{link:#?}"), format!("{out:?}"), format!("{out:#?}")] {
         prints.push(print).unwrap();
     }

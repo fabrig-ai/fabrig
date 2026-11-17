@@ -313,9 +313,6 @@ impl Host {
         {
             self.event(event, &mut duties);
         }
-        if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
-            self.end_local();
-        }
         let link = self.root.client().link();
         let state = link.state;
         let live = state == Link::Live && link.party.is_some();
@@ -354,6 +351,12 @@ impl Host {
             terminal::Theme::Dark => tui::Scheme::Dark,
             terminal::Theme::Light => tui::Scheme::Light,
         };
+        root::settle(&mut self.root, &self.env, &mut self.out);
+        self.route(&mut duties);
+        if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
+            self.end_local();
+        }
+
         self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,

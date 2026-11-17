@@ -23,14 +23,13 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
     assert_eq!(c.requests.len(), 3);
-    let Request::Save { records } = c.requests.last().expect("hello saves its stream") else {
+    let Request::Save { records } = c.requests.as_slice().first().expect("hello saves its stream") else {
         panic!("hello saves its stream");
     };
     assert_eq!(records.len(), 1);
     assert_eq!(records.as_slice().first().unwrap().key.as_ref(), STREAM_KEY);
-    c.requests.truncate(HELD_WATCHES);
-    assert_eq!(c.requests().len(), 2);
-    for request in c.requests() {
+    assert_eq!(c.requests.len().saturating_sub(1), HELD_WATCHES);
+    for request in c.requests.iter().skip(1) {
         let Request::Exchange { credential, message: Message::Watch(_), .. } = request else {
             panic!("one exchange for each held watch: {request:?}");
         };
@@ -314,6 +313,7 @@ fn a_lost_sign_in_is_sent_again_then_signs_in() {
     ] {
         let mut c = Client::new();
         c.machine.step(Time::ZERO, skein_lib::Wall::EPOCH, Event::SignIn { with }, &mut c.out);
+        c.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut c.out);
         let Some(Request::Exchange { exchange: first, credential, message }) = c.out.pop() else {
             panic!("initial sign-in exchange");
         };
@@ -573,10 +573,12 @@ fn independent_reads_refuse_cancel_once_and_reuse_room() {
         exchanges: INDEPENDENT_READS,
     };
     let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
+    let mut exchanges = skein_lib::List::with_capacity(INDEPENDENT_READS);
     let mut expected = skein_lib::List::with_capacity(INDEPENDENT_READS);
     for number in 0..u64::from(INDEPENDENT_READS) {
         let handle = Handle { asker: Asker::JIG, number };
-        c.read(handle);
+        let exchange = c.read(handle);
+        exchanges.push(exchange).expect("bounded reads");
         expected.push((handle, signed_out_page())).unwrap();
     }
     let extra = Handle { asker: Asker::JIG, number: u64::from(INDEPENDENT_READS) };
@@ -585,7 +587,9 @@ fn independent_reads_refuse_cancel_once_and_reuse_room() {
     c.step(Event::SignIn { with: With::Held(fixtures::credential(&NEW_CREDENTIAL)) });
     assert_eq!(fixtures::pages(c.requests()).as_slice(), expected.as_slice());
     assert_no_read_exchange(&c);
-    c.read(TASK);
+    c.step(Event::Read { handle: TASK, read: Readable::Jig(contract::Read::Project { project: PROJECT }) });
+    assert_no_read_exchange(&c);
+    c.step(Event::Lost { exchange: *exchanges.as_slice().first().expect("old HTTP read") });
     assert_read_credential(&c, Some(&fixtures::credential(&NEW_CREDENTIAL)));
 }
 

@@ -291,6 +291,7 @@ fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[
         },
         &mut out,
     );
+    temper_client_domain::settle(&mut root, &env, &mut out);
     let mut exchange = None;
     while let Some(request) = out.pop() {
         if let Request::Client {

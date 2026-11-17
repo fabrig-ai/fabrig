@@ -72,6 +72,7 @@ impl World {
     fn step(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         root::step(&mut self.root, &self.env, event, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }
@@ -79,6 +80,7 @@ impl World {
     fn fire(&mut self) {
         let mut out = Queue::uncapped();
         root::fire(&mut self.root, &self.env, &mut out);
+        root::settle(&mut self.root, &self.env, &mut out);
         root::take(&mut self.root);
         self.drain(out);
     }

@@ -71,6 +71,7 @@ impl Harness {
     }
     pub fn open(&mut self, watch: Token, subject: Watchable) -> Token {
         self.link.step(Time::ZERO, Event::Open { watch, subject }, &mut self.out);
+        self.link.settle(&mut self.out);
         watch
     }
     pub fn streaming(subject: Watchable) -> Self {
@@ -81,12 +82,14 @@ impl Harness {
     }
     pub fn stream_at(&mut self, now: Time, bytes: &[u8]) {
         self.link.step(now, Event::Streamed { message: Streamed::Record(Box::from(bytes)) }, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn stream_record(&mut self, bytes: &[u8]) {
         self.stream_at(Time::ZERO, bytes);
     }
     pub fn advance(&mut self, now: Time) {
         self.link.fire(now, &mut self.out);
+        self.link.settle(&mut self.out);
     }
     pub fn opening(&self) -> (Token, u64) {
         for request in &self.out {
@@ -177,6 +180,7 @@ impl Harness {
     }
     pub fn close(&mut self) -> Token {
         self.link.step(Time::ZERO, Event::Close { watch: WATCH }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().unwrap() {
             Request::Exchange { exchange, message: Message::Unwatch(_), .. } => *exchange,
             other @ (Request::Exchange { .. }
@@ -303,6 +307,7 @@ impl Harness {
                 Event::Read { read: Token::new(100), what: Readable::Jig(history_read()) },
                 &mut self.out,
             );
+            self.link.settle(&mut self.out);
             let Some(Request::Exchange { exchange, message: Message::Read(_), .. }) = self.out.pop() else {
                 panic!("one read fills one exchange");
             };

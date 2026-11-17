@@ -22,6 +22,7 @@ pub const READ: Token = Token::new(29);
 impl Harness {
     pub fn read(&mut self, what: Readable) -> Token {
         self.link.step(Time::ZERO, Event::Read { read: READ, what }, &mut self.out);
+        self.link.settle(&mut self.out);
         match self.out.iter().last().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }

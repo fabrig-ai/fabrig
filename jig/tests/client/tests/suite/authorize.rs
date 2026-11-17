@@ -9,6 +9,7 @@ fn client() -> (Client, Queue<Request>) {
 }
 fn step(client: &mut Client, event: Event, out: &mut Queue<Request>) {
     client.step(Time::ZERO, Wall::EPOCH, event, out);
+    client.settle(Time::ZERO, Wall::EPOCH, out);
 }
 fn authorize(client: &mut Client, out: &mut Queue<Request>) -> Token {
     step(client, Event::Authorize { query: bytes::copy_of(b"client_id=app") }, out);

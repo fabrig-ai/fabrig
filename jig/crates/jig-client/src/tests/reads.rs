@@ -240,17 +240,17 @@ fn link_consequences_precede_the_next_domain_request() {
     }
     client.step(Event::SignIn { with: With::Held(fixtures::credential(&fixtures::NEW_CREDENTIAL)) });
     let [
-        Request::CloseStream,
         Request::Told { told: crate::Told::Page { handle: first, .. } },
         Request::Told { told: crate::Told::Page { handle: second, .. } },
         Request::Told { told: crate::Told::Ended { handle: watch_a, .. } },
         Request::Told { told: crate::Told::Ended { handle: watch_b, .. } },
         Request::Told { told: crate::Told::Link { link: crate::Link::SignedOut } },
         Request::Told { told: crate::Told::Link { link: crate::Link::Starting } },
+        Request::CloseStream,
         Request::OpenStream { .. },
     ] = client.requests()
     else {
-        panic!("close the old stream before dispatching the credential boundary: {:?}", client.requests())
+        panic!("route the credential boundary before settling the old stream: {:?}", client.requests())
     };
     assert_eq!([*first, *second], [TASK, fixtures::ME]);
     assert_eq!([watch_a.number, watch_b.number], [20, 21]);
@@ -293,5 +293,124 @@ fn link_consequences_precede_the_next_domain_request() {
         if let Request::Exchange { message: Message::Read(_), .. } = request {
             panic!("releasing another exchange sends no read twice");
         }
+    }
+}
+
+#[test]
+fn reads_leave_in_asked_order_only_at_the_iterations_settle() {
+    let mut client = Client::signed_in();
+    for (number, project) in [(40, 2), (41, 1)] {
+        client.machine.step(
+            Time::ZERO,
+            skein_lib::Wall::EPOCH,
+            Event::Read { handle: Handle { number, ..TASK }, read: Readable::Jig(c::Read::Project { project }) },
+            &mut client.out,
+        );
+    }
+    assert!(client.out.is_empty(), "steps gather reads without handing out exchanges");
+    client.machine.fire(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    assert!(client.out.is_empty(), "fire does not hand out gathered work");
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    let mut projects = List::with_capacity(2);
+    while let Some(request) = client.out.pop() {
+        let Request::Exchange { credential: Some(credential), message: Message::Read(bytes), .. } = request else {
+            panic!("one exchange per gathered read");
+        };
+        assert_eq!(credential.expose(), &[7; 40]);
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("fixture record");
+        let w::Read::Project(project) =
+            w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("fixture record")
+        else {
+            panic!("project read");
+        };
+        projects.push(project.project()).expect("two reads");
+    }
+    assert_eq!(projects.as_slice(), [2, 1]);
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    assert!(client.out.is_empty(), "a second settle sends nothing twice");
+}
+
+#[test]
+fn a_keyed_sends_save_leaves_at_step_and_exchange_at_settle_after_storage() {
+    let mut client = Client::signed_in();
+    client.machine.step(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Send { key: fixtures::STOP, name: None, request: fixtures::stop() },
+        &mut client.out,
+    );
+    let mut saved = false;
+    for request in &client.out {
+        if let Request::Save { .. } = request {
+            saved = true;
+        }
+        assert_no_exchange(request);
+    }
+    assert!(saved, "the keyed request saves at step");
+    client.out.clear();
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    assert!(client.out.is_empty(), "the record must be stored first");
+    client.machine.step(Time::ZERO, skein_lib::Wall::EPOCH, Event::Stored, &mut client.out);
+    for request in &client.out {
+        assert_no_exchange(request);
+    }
+    client.out.clear();
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    let Some(Request::Exchange { message: Message::Request(_), .. }) = client.out.pop() else {
+        panic!("a stored keyed request leaves at settle");
+    };
+    assert!(client.out.is_empty());
+}
+
+#[test]
+fn an_unlinked_clients_settle_is_empty() {
+    let mut client = crate::Client::unlinked(&fixtures::limits(), 7).expect("fixture record");
+    let mut unlinked = skein_lib::Queue::uncapped();
+    client.step_unlinked(Time::ZERO, skein_lib::Wall::EPOCH, Event::SignIn { with: With::Transport }, &mut unlinked);
+    let mut out = skein_lib::Queue::uncapped();
+    client.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut out);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn a_full_links_read_waits_for_the_first_settle_after_a_terminal() {
+    let mut client = client();
+    let occupied = client.read(Handle { number: 100, ..TASK });
+    client.machine.step(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Read { handle: TASK, read: Readable::Jig(c::Read::Project { project: 2 }) },
+        &mut client.out,
+    );
+    assert!(client.out.is_empty());
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    assert!(client.out.is_empty(), "full link retains the demand");
+    client.machine.step(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Reply { exchange: occupied, message: fixtures::unknown_read() },
+        &mut client.out,
+    );
+    for request in &client.out {
+        assert_no_exchange(request);
+    }
+    client.out.clear();
+    client.machine.settle(Time::ZERO, skein_lib::Wall::EPOCH, &mut client.out);
+    let Some(Request::Exchange { message: Message::Read(bytes), .. }) = client.out.pop() else {
+        panic!("the waiting read leaves at this settle");
+    };
+    let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("fixture record");
+    let w::Read::Project(project) =
+        w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("fixture record")
+    else {
+        panic!("project read");
+    };
+    assert_eq!(project.project(), 2);
+    assert!(client.out.is_empty());
+}
+
+fn assert_no_exchange(request: &Request) {
+    if let Request::Exchange { .. } | Request::OpenStream { .. } | Request::CloseStream = request {
+        panic!("transport work leaves only at settle: {request:?}");
     }
 }

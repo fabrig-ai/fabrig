@@ -65,6 +65,7 @@ pub enum Command {
     AdmitMe,
     ReplyRead(u32),
     ReleaseReads,
+    ReleaseWatchExchanges,
     Stored(bool),
     AckAll,
     Fire(Time),
@@ -274,6 +275,19 @@ impl World {
                 let token = self.read_exchange(project);
                 self.complete_read(token);
             }
+            Command::ReleaseWatchExchanges => {
+                let tokens: Vec<_> = self
+                    .exchanges
+                    .iter()
+                    .filter_map(|exchange| {
+                        matches!(exchange.kind, ExchangeKind::Me(_) | ExchangeKind::Watch).then_some(exchange.token)
+                    })
+                    .collect();
+                for exchange in tokens {
+                    self.deliver(Event::Lost { exchange });
+                    self.remove(exchange);
+                }
+            }
             Command::ReleaseReads => {
                 let mut tokens = self.completed_reads.clone();
                 for exchange in &self.exchanges {
@@ -297,12 +311,14 @@ impl World {
                             machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked);
                         } else {
                             machine.fire(now, Wall::EPOCH, &mut out);
+                            machine.settle(now, Wall::EPOCH, &mut out);
                         }
                     }
                     Machine::Root(machine, limits) => {
                         let env = Env { now, wall: Wall::EPOCH, limits: **limits };
                         let mut root_out = Queue::uncapped();
                         root::fire(machine, &env, &mut root_out);
+                        root::settle(machine, &env, &mut root_out);
                         self.root_outputs(&mut root_out);
                     }
                 }
@@ -343,6 +359,7 @@ impl World {
                     machine.step_unlinked(self.now, Wall::EPOCH, event, &mut unlinked);
                 } else {
                     machine.step(self.now, Wall::EPOCH, event, &mut out);
+                    machine.settle(self.now, Wall::EPOCH, &mut out);
                 }
                 self.outputs(&mut out);
                 self.unlinked_outputs(&mut unlinked);
@@ -358,6 +375,7 @@ impl World {
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: **limits };
         let mut out = Queue::uncapped();
         root::step(machine, &env, event, &mut out);
+        root::settle(machine, &env, &mut out);
         root::take(machine, &env, &mut out);
         self.root_outputs(&mut out);
     }
@@ -891,4 +909,103 @@ fn child_key(record: &root::store::Record) -> root::store::Key {
 
 pub fn stop() -> client::Ask {
     client::Ask::Jig(Box::new(c::Ask::Stop { project: super::PROJECT, task: super::TASK }))
+}
+
+/// The list's object demands finish routing inside the report, before the shell settles.
+#[test]
+fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
+    let mut world = World::run(Mode::root(), vec![("admit_me", Command::AdmitMe)]);
+    let Machine::Root(machine, limits) = &mut world.machine else { unreachable!("root fixture") };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: **limits };
+    let mut out = Queue::uncapped();
+    root::step(
+        machine,
+        &env,
+        root::Event::Went {
+            place: root::Place::Address(root::Address::Jig(jig_client_view::address::Address::Inbox { project: None })),
+        },
+        &mut out,
+    );
+    root::settle(machine, &env, &mut out);
+    let mut needs = None;
+    while let Some(request) = out.pop() {
+        if let root::Request::Client {
+            request: client::Request::Exchange { exchange, message: Message::Read(bytes), .. },
+        } = request
+        {
+            let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("owned read");
+            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+            if let w::Read::Inbox(read) = read
+                && *read.group() == w::InboxReadGroup::Needs
+            {
+                needs = Some(exchange);
+            }
+        }
+    }
+    let source = jig_client_test_records::inbox_both_groups_record().into_parts();
+    let page = w::InboxPage::new(
+        &w::CEILINGS,
+        w::InboxPageParts { selection: None, cut: false, rows: source.needs, before: None, after: None },
+    )
+    .expect("list answer");
+    let page = w::ReadValue::Inbox(page);
+    let mut bytes = Writer::new(skein_lib::length::usize_of(page.measure()));
+    page.encode(&mut bytes).expect("list bytes");
+    let owned = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+    )
+    .expect("owned list");
+    let answer = w::ReadAnswer::Value(owned);
+    let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut bytes).expect("answer bytes");
+    root::step(
+        machine,
+        &env,
+        root::Event::Client {
+            event: Event::Reply { exchange: needs.expect("needs list read"), message: bytes.finish() },
+        },
+        &mut out,
+    );
+    // A second demand from the same platform report follows the list's own object demand.
+    root::step(
+        machine,
+        &env,
+        root::Event::Client {
+            event: Event::Read {
+                handle: client::Handle { asker: client::Asker::JIG, number: 100 },
+                read: client::Readable::Jig(c::Read::Project { project: 7 }),
+            },
+        },
+        &mut out,
+    );
+    root::fire(machine, &env, &mut out);
+    for request in &out {
+        assert!(
+            !matches!(
+                request,
+                root::Request::Client {
+                    request: client::Request::Exchange { .. }
+                        | client::Request::OpenStream { .. }
+                        | client::Request::CloseStream
+                }
+            ),
+            "the report only gathers transport work"
+        );
+    }
+    out.clear();
+    root::settle(machine, &env, &mut out);
+    let mut reads = Vec::new();
+    while let Some(request) = out.pop() {
+        let root::Request::Client { request: client::Request::Exchange { message: Message::Read(bytes), .. } } =
+            request
+        else {
+            panic!("settling hands out gathered exchanges: {request:?}");
+        };
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("owned demand");
+        reads.push(w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("demand"));
+    }
+    assert_eq!(reads.len(), 2, "the list's object demand and the report's next demand leave together: {reads:?}");
+    assert!(matches!(reads.first(), Some(w::Read::PersonTask(_))));
+    assert!(matches!(reads.last(), Some(w::Read::Project(_))));
 }

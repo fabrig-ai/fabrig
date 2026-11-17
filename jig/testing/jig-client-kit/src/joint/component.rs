@@ -215,6 +215,7 @@ impl Composition {
         let link = self.links.entry(client).or_insert_with(|| link::Link::new(&self.limits).expect("joint link"));
         let out = self.link_out.entry(client).or_insert_with(|| Queue::with_capacity(256));
         link.step(self.env.now, event, out);
+        link.settle(out);
     }
 
     pub(super) fn event(&mut self, event: Event) {

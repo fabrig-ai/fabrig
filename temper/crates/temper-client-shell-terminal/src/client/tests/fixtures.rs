@@ -18,6 +18,7 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
     host.address = domain::Address::Chat { task: TASK };
     host.sign_in(LINK).expect("fixture link to the configured engine");
     host.loaded(stored, Vec::new());
+    settle(&mut host);
     assert!(host.with.is_none(), "the queued explicit link was consumed once");
     assert!(host.root.client().link().credential.is_none(), "stored Held must not precede the explicit Link");
     let mut signing = None;
@@ -79,6 +80,7 @@ pub(super) fn loaded_chat() -> NativeClient {
     let mut host = common::native();
     host.address = domain::Address::Chat { task: TASK };
     host.loaded(Some(credential()), Vec::new());
+    settle(&mut host);
     host
 }
 
@@ -89,6 +91,7 @@ pub(super) fn activity_read(host: &mut NativeClient) -> (skein_lib::Token, Optio
 }
 
 pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, Option<skein_lib::Secret>)> {
+    settle(host);
     let mut found = Vec::new();
     while let Some(request) = host.out.pop() {
         if let domain::Request::Client {
@@ -189,6 +192,7 @@ pub(super) fn lost_sign_out(host: &mut NativeClient) {
     assert_eq!(host.root.client().link().state, jig_client::Link::Starting);
     assert!(!host.root.client().link().sign_out_lost);
     host.event(domain::Event::Act { action: domain::Action::Pages(domain::pages::Act::SignOut) });
+    settle(host);
     let mut signing = None;
     while let Some(request) = host.out.pop() {
         if let domain::Request::Client {
@@ -363,6 +367,7 @@ pub(super) fn committed_chat() -> NativeClient {
         .expect("stream hello"),
     );
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&hello)) });
+    settle(&mut host);
     let mut work = Queue::with_capacity(host.out.capacity());
     let mut task_watch = None;
     while let Some(request) = host.out.pop() {
@@ -397,4 +402,8 @@ pub(super) fn committed_chat() -> NativeClient {
     );
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&delivery)) });
     host
+}
+
+pub(super) fn settle(host: &mut NativeClient) {
+    domain::settle(&mut host.root, &host.env, &mut host.out);
 }

@@ -276,6 +276,7 @@ impl skein_shell::Host for Disk {
                     if let Some(client) = &mut self.client {
                         let mut out = Queue::uncapped();
                         client.step(now, wall, client::Event::Stored, &mut out);
+                        client.settle(now, wall, &mut out);
                         while let Some(request) = out.pop() {
                             if matches!(request, client::Request::Exchange { message: client::Message::Request(_), .. })
                             {

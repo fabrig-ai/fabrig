@@ -154,6 +154,7 @@ impl Client {
     pub fn step_at(&mut self, now: Time, event: Event) {
         self.requests.clear();
         self.machine.step(now, Wall::EPOCH, event, &mut self.out);
+        self.machine.settle(now, Wall::EPOCH, &mut self.out);
         self.requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             self.requests.push(request).unwrap();
@@ -162,6 +163,7 @@ impl Client {
     pub fn fire(&mut self, now: Time) {
         self.requests.clear();
         self.machine.fire(now, Wall::EPOCH, &mut self.out);
+        self.machine.settle(now, Wall::EPOCH, &mut self.out);
         self.requests = List::with_capacity(self.out.len());
         while let Some(request) = self.out.pop() {
             self.requests.push(request).unwrap();

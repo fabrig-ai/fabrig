@@ -1,4 +1,5 @@
 //! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
+use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v28 as w;
@@ -56,6 +57,15 @@ impl Link {
         self.store.waiting = true;
     }
     pub(super) fn exchange(&mut self, exchange: Token, message: Message, out: &mut Queue<Request>) {
+        self.gather_exchange(exchange, self.credential.clone(), message, out);
+    }
+    fn gather_exchange(
+        &mut self,
+        exchange: Token,
+        credential: Option<skein_lib::Secret>,
+        message: Message,
+        out: &mut Queue<Request>,
+    ) {
         let tracked = match &message {
             Message::Batch(_) => unreachable!("the link sends no batch"),
             Message::Request(_) | Message::Read(_) | Message::Watch(_) => true,
@@ -94,7 +104,7 @@ impl Link {
             | Message::SignInApproval(_) => false,
         };
         if !keyed {
-            self.emit_exchange(exchange, self.credential.clone(), message, out);
+            self.emit_exchange(exchange, credential, message);
             return;
         }
         if self.store.failed {
@@ -102,35 +112,21 @@ impl Link {
                 out.push(Request::NotKept { attempt: attempt.token });
             }
         } else if self.store.waiting {
-            self.store.held.push(Held { exchange, message, credential: self.credential.clone() });
+            self.store.held.push(Held { exchange, message, credential });
         } else {
-            self.emit_exchange(exchange, self.credential.clone(), message, out);
+            self.emit_exchange(exchange, credential, message);
         }
     }
     fn gather(&mut self, out: &mut Queue<Request>) {
         self.store.waiting = true;
+        let mut pending = core::mem::replace(&mut self.gathered, Queue::uncapped());
         let count = out.len();
         for _ in 0..count {
             match out.pop().expect("counted step outputs") {
-                Request::Exchange { exchange, message, credential } => match message {
-                    Message::Batch(_) => unreachable!("the link sends no batch"),
-                    message @ (Message::ApprovalAsk(_)
-                    | Message::ApprovalRead(_)
-                    | Message::ApprovalDecide(_)
-                    | Message::SignInApproval(_)) => out.push(Request::Exchange { exchange, message, credential }),
-                    message @ (Message::Authorize(_)
-                    | Message::Request(_)
-                    | Message::Read(_)
-                    | Message::Watch(_)
-                    | Message::Unwatch(_)
-                    | Message::StreamGone(_)
-                    | Message::SignInLink(_)
-                    | Message::SignInService
-                    | Message::SignOut) => {
-                        self.transport.remove(&exchange);
-                        self.exchange(exchange, message, out);
-                    }
-                },
+                Request::Exchange { exchange, message, credential } => {
+                    self.transport.remove(&exchange);
+                    self.gathered.push(Gathered::Exchange { exchange, message, credential });
+                }
                 value @ (Request::Save { .. }
                 | Request::Erase { .. }
                 | Request::Kept { .. }
@@ -152,7 +148,33 @@ impl Link {
                 | Request::Fact { .. }) => out.push(value),
             }
         }
+        while let Some(value) = pending.pop() {
+            self.gathered.push(value);
+        }
+        let count = self.gathered.len();
+        for _ in 0..count {
+            match self.gathered.pop().expect("counted gathered transport") {
+                Gathered::Exchange { exchange, message, credential } => match message {
+                    Message::Batch(_) => unreachable!("the link sends no batch"),
+                    message @ (Message::ApprovalAsk(_)
+                    | Message::ApprovalRead(_)
+                    | Message::ApprovalDecide(_)
+                    | Message::SignInApproval(_)) => self.emit_exchange(exchange, credential, message),
+                    message @ (Message::Authorize(_)
+                    | Message::Request(_)
+                    | Message::Read(_)
+                    | Message::Watch(_)
+                    | Message::Unwatch(_)
+                    | Message::StreamGone(_)
+                    | Message::SignInLink(_)
+                    | Message::SignInService
+                    | Message::SignOut) => self.gather_exchange(exchange, credential, message, out),
+                },
+                value @ (Gathered::OpenStream { .. } | Gathered::CloseStream) => self.gathered.push(value),
+            }
+        }
     }
+
     pub(super) fn save(&mut self, record: Saved, out: &mut Queue<Request>) {
         self.gather(out);
         let key = key(&record);
@@ -169,13 +191,13 @@ impl Link {
         self.gather(out);
         out.push(Request::Erase { key: bytes::copy_of(&key) });
     }
-    pub(super) fn written(&mut self, out: &mut Queue<Request>) {
+    pub(super) fn written(&mut self) {
         self.store.waiting = false;
         self.store.failed = false;
         // Durability releases held exchanges in FIFO order, skipping stale attempts.
         while let Some(value) = self.store.held.pop() {
             if self.attempts.contains_key(&value.exchange) {
-                self.emit_exchange(value.exchange, value.credential, value.message, out);
+                self.emit_exchange(value.exchange, value.credential, value.message);
             }
         }
     }

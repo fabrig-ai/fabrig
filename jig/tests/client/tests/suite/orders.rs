@@ -62,6 +62,7 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
             ("read_b", read(B, PROJECT)),
             ("credentials", Command::credentials()),
             ("next", read(C, PROJECT)),
+            ("http_terminals", Command::ReleaseWatchExchanges),
             ("next_done", Command::ReplyRead(PROJECT)),
             ("stale", Command::ReleaseReads),
         ],
@@ -69,17 +70,18 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
     assert_eq!(
         world.at("credentials"),
         &[
-            Edge::CloseStream,
             page(A, c::ReadNone::SignedOut),
             page(B, c::ReadNone::SignedOut),
             Edge::Told(Told::Ended { handle: A, why: jig_client::Why::SignedOut }),
             Edge::Told(Told::Ended { handle: B, why: jig_client::Why::SignedOut }),
             Edge::Told(Told::Link { link: Link::SignedOut }),
             Edge::Told(Told::Link { link: Link::Starting }),
+            Edge::CloseStream,
             Edge::OpenStream,
         ]
     );
-    assert_eq!(world.at("next"), &[Edge::Read(PROJECT)]);
+    assert!(world.at("next").is_empty(), "cancelled HTTP attempts still hold credit");
+    assert_eq!(world.at("http_terminals"), &[Edge::Read(PROJECT)]);
     assert_eq!(world.at("next_done"), &[page(C, c::ReadNone::Unknown)]);
     assert_eq!(world.at("stale").len(), 0);
 }

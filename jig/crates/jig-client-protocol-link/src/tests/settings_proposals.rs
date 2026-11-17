@@ -233,6 +233,7 @@ fn proposed_settings_and_running_choices_survive_the_small_store() {
             Event::Send { attempt: fixtures::ATTEMPT, key: fixtures::KEY, ask: Ask::Jig(Box::new(ask)), value: None },
             &mut h.out,
         );
+        h.link.settle(&mut h.out);
         assert_eq!(h.exchanges(), 1);
     }
 }

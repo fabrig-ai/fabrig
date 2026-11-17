@@ -1,6 +1,7 @@
 //! One bounded exchange per request-table attempt (protocol/client/README.md, 3).
 //! A family's admission refusal uses jig's wire (client/domain/contract/requests.md, 3).
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
+//! The link gathers transport work until settling (protocol/client/wire.md, 2.3).
 //! Stream bounds and order refusals differ from unreadable records (protocol/client/README.md, 6).
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
@@ -50,11 +51,18 @@ enum StreamRefusal {
     Order,
 }
 #[derive(Debug)]
+pub(super) enum Gathered {
+    Exchange { exchange: Token, credential: Option<Secret>, message: Message },
+    OpenStream { credential: Option<Secret> },
+    CloseStream,
+}
+#[derive(Debug)]
 pub struct Link {
     pub(super) limits: Limits,
     pub(super) attempts: Map<Token, Attempt>,
     // Cancellation ends the logical attempt; transport credit ends with its HTTP terminal.
     pub(super) transport: Map<Token, ()>,
+    pub(super) gathered: Queue<Gathered>,
     pub(super) next: u64,
     pub(super) credential: Option<Secret>,
     pub(super) expires: Option<Wall>,
@@ -72,6 +80,7 @@ impl Link {
             store: crate::store::Store::new(),
             attempts: Map::with_capacity(limits.exchanges()),
             transport: Map::uncapped(),
+            gathered: Queue::uncapped(),
             next: 1,
             credential: None,
             expires: None,
@@ -97,15 +106,24 @@ impl Link {
     pub fn in_flight(&self) -> u32 {
         self.attempts.len().max(self.transport.len())
     }
-    pub(super) fn emit_exchange(
-        &mut self,
-        exchange: Token,
-        credential: Option<Secret>,
-        message: Message,
-        out: &mut Queue<Request>,
-    ) {
-        self.transport.insert(exchange, ()).expect("internal exchange accounting is uncapped");
-        out.push(Request::Exchange { exchange, credential, message });
+    pub(super) fn emit_exchange(&mut self, exchange: Token, credential: Option<Secret>, message: Message) {
+        self.gathered.push(Gathered::Exchange { exchange, credential, message });
+    }
+    pub fn settle(&mut self, out: &mut Queue<Request>) {
+        for _ in 0..self.gathered.len() {
+            match self.gathered.iter().next().expect("counted gathered transport") {
+                Gathered::Exchange { .. } if self.transport.len() >= self.limits.exchanges() => break,
+                Gathered::Exchange { .. } | Gathered::OpenStream { .. } | Gathered::CloseStream => {}
+            }
+            match self.gathered.pop().expect("counted gathered transport") {
+                Gathered::Exchange { exchange, credential, message } => {
+                    self.transport.insert(exchange, ()).expect("internal exchange accounting is uncapped");
+                    out.push(Request::Exchange { exchange, credential, message });
+                }
+                Gathered::OpenStream { credential } => out.push(Request::OpenStream { credential, replaces: None }),
+                Gathered::CloseStream => out.push(Request::CloseStream),
+            }
+        }
     }
     pub fn step(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Reply { exchange, .. } | Event::Lost { exchange } = &event
@@ -114,7 +132,7 @@ impl Link {
             self.transport.remove(exchange);
             self.retiring = None;
             if !self.watches.0.is_empty() {
-                self.begin_stream(now, out);
+                self.begin_stream(now);
             }
             return;
         }
@@ -128,7 +146,7 @@ impl Link {
             Event::Start { kept } => self.start_store(kept, out),
             Event::Save { record } => self.save(record, out),
             Event::Erase { key } => self.erase(key, out),
-            Event::Stored => self.written(out),
+            Event::Stored => self.written(),
             Event::NotStored => self.write_failed(out),
             Event::Open { watch, subject } => self.open(now, watch, subject, out),
             Event::Continue { watch, subject } => {
@@ -503,16 +521,16 @@ impl Link {
                     self.retiring = Some(name);
                     self.gone(name, stream, out);
                 } else {
-                    self.begin_stream(now, out);
+                    self.begin_stream(now);
                 }
             }
             Some(stream) if stream.name.is_some() => self.send_open(watch, out),
             None | Some(_) => {}
         }
     }
-    fn begin_stream(&mut self, now: Time, out: &mut Queue<Request>) {
+    fn begin_stream(&mut self, now: Time) {
         self.stream = Some(crate::silence::Silence::new(self.limits.client().heartbeat, now));
-        out.push(Request::OpenStream { credential: self.credential.clone(), replaces: None });
+        self.gathered.push(Gathered::OpenStream { credential: self.credential.clone() });
     }
     fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };
@@ -871,7 +889,7 @@ impl Link {
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::SignedOut, out);
         }
         if self.stream.take().is_some() {
-            out.push(Request::CloseStream);
+            self.gathered.push(Gathered::CloseStream);
         }
     }
     fn drop_stream(&mut self, out: &mut Queue<Request>) {
@@ -890,7 +908,7 @@ impl Link {
         {
             self.gone(exchange, stream, out);
         }
-        out.push(Request::CloseStream);
+        self.gathered.push(Gathered::CloseStream);
         out.push(Request::Fact { fact: Fact::StreamDropped });
     }
     fn gone(&mut self, exchange: Token, stream: [u8; 16], out: &mut Queue<Request>) {

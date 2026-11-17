@@ -378,6 +378,13 @@ impl Host {
                 Request::Unlinked { .. } | Request::Dropped { .. } | Request::Fact { .. } => {}
             }
         }
+        root::settle(&mut self.root, &self.env, &mut self.out);
+        while let Some(request) = self.out.pop() {
+            let Request::Client { request } = request else {
+                unreachable!("settling only hands out client transport");
+            };
+            self.carry(request, &mut asked);
+        }
         root::take(&mut self.root, &self.env, &mut self.out);
         (asked, writes, tab)
     }

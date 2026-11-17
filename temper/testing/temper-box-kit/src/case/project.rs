@@ -125,6 +125,7 @@ impl Host for MakeProject {
             );
         }
         self.client.fire(now, wall, &mut self.out);
+        self.client.settle(now, wall, &mut self.out);
         self.client.reclaim();
         self.outputs();
         if self.made.is_some() && !self.closing {

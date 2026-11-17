@@ -143,51 +143,56 @@ impl Host {
     pub fn requests(&mut self) -> (Vec<Asked>, Vec<Secret>) {
         let mut asked = Vec::new();
         let mut credentials = Vec::new();
-        while let Some(request) = self.out.pop() {
-            match request {
-                Request::Save { record } => {
-                    let (key, value) = super::records::encode(record);
-                    asked.push(Asked::Save { key, value });
+        for settling in [false, true] {
+            if settling {
+                root::settle(&mut self.root, &self.env, &mut self.out);
+            }
+            while let Some(request) = self.out.pop() {
+                match request {
+                    Request::Save { record } => {
+                        let (key, value) = super::records::encode(record);
+                        asked.push(Asked::Save { key, value });
+                    }
+                    Request::Erase { key } => asked.push(Asked::Erase { key: super::records::key(key) }),
+                    Request::Show { address: Address::Jig(place), replace } => {
+                        self.show = Some((address::print(&self.codec, place), replace));
+                    }
+                    Request::Client { request: jig_client::Request::Exchange { exchange, credential, message } } => {
+                        self.next = self.next.checked_add(1).expect("fetch tickets fit");
+                        let batch = matches!(message, jig_client::Message::Batch(_));
+                        let frame_limits = jig_client_protocol_http::Limits { record: 65536, chunk: 4096 };
+                        self.tickets.insert(self.next, exchange, batch.then_some(&frame_limits));
+                        asked.push(Asked::Exchange {
+                            id: self.next,
+                            call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
+                            bound: 65536,
+                            pieces: batch.then_some(frame_limits.chunk),
+                            cache: skein_ui_web::fetch::Cache::Browser,
+                            keep: &[],
+                        });
+                    }
+                    Request::Client { request: jig_client::Request::OpenStream { credential, replaces } } => {
+                        self.stream = jig_client_protocol_http::Stream::new(&jig_client_protocol_http::Limits {
+                            record: 65536,
+                            chunk: 4096,
+                        });
+                        asked.push(Asked::OpenStream {
+                            call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), replaces),
+                            piece: 4096,
+                        });
+                    }
+                    Request::Client { request: jig_client::Request::CloseStream } => asked.push(Asked::CloseStream),
+                    Request::Client { request: jig_client::Request::ServiceCredential { credential, .. } } => {
+                        credentials.push(credential);
+                    }
+                    Request::SignOut => self.client(jig_client::Event::SignOut),
+                    Request::SignIn { .. }
+                    | Request::First(_)
+                    | Request::Fact { .. }
+                    | Request::Show { .. }
+                    | Request::Client { .. }
+                    | Request::Unlinked { .. } => {}
                 }
-                Request::Erase { key } => asked.push(Asked::Erase { key: super::records::key(key) }),
-                Request::Show { address: Address::Jig(place), replace } => {
-                    self.show = Some((address::print(&self.codec, place), replace));
-                }
-                Request::Client { request: jig_client::Request::Exchange { exchange, credential, message } } => {
-                    self.next = self.next.checked_add(1).expect("fetch tickets fit");
-                    let batch = matches!(message, jig_client::Message::Batch(_));
-                    let frame_limits = jig_client_protocol_http::Limits { record: 65536, chunk: 4096 };
-                    self.tickets.insert(self.next, exchange, batch.then_some(&frame_limits));
-                    asked.push(Asked::Exchange {
-                        id: self.next,
-                        call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
-                        bound: 65536,
-                        pieces: batch.then_some(frame_limits.chunk),
-                        cache: skein_ui_web::fetch::Cache::Browser,
-                        keep: &[],
-                    });
-                }
-                Request::Client { request: jig_client::Request::OpenStream { credential, replaces } } => {
-                    self.stream = jig_client_protocol_http::Stream::new(&jig_client_protocol_http::Limits {
-                        record: 65536,
-                        chunk: 4096,
-                    });
-                    asked.push(Asked::OpenStream {
-                        call: jig_client_protocol_http::stream(&self.mapping, credential.as_ref(), replaces),
-                        piece: 4096,
-                    });
-                }
-                Request::Client { request: jig_client::Request::CloseStream } => asked.push(Asked::CloseStream),
-                Request::Client { request: jig_client::Request::ServiceCredential { credential, .. } } => {
-                    credentials.push(credential);
-                }
-                Request::SignOut => self.client(jig_client::Event::SignOut),
-                Request::SignIn { .. }
-                | Request::First(_)
-                | Request::Fact { .. }
-                | Request::Show { .. }
-                | Request::Client { .. }
-                | Request::Unlinked { .. } => {}
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);

@@ -58,6 +58,7 @@ fn stream(machine: &mut client::Client, record: &w::StreamEvent, out: &mut Queue
     let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured stream record");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Streamed { message: client::Streamed::Record(writer.finish()) }, out);
+    machine.settle(Time::ZERO, Wall::EPOCH, out);
 }
 fn send(key: Key) -> Event {
     Event::Send { key, name: None, request: Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT, task: TASK })) }
@@ -74,6 +75,7 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         Event::SignIn { with: client::With::Held(Secret::new(Box::new(TOKEN))) },
     ] {
         machine.step(Time::ZERO, Wall::EPOCH, event, &mut out);
+        machine.settle(Time::ZERO, Wall::EPOCH, &mut out);
         discard(&mut out);
     }
     let mut served = List::with_capacity(1);
@@ -117,6 +119,7 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
     discard(&mut out);
     for event in [Event::Stored, send(FIRST), Event::Stored] {
         machine.step(Time::ZERO, Wall::EPOCH, event, &mut out);
+        machine.settle(Time::ZERO, Wall::EPOCH, &mut out);
     }
     let exchange = out
         .iter()
@@ -150,6 +153,8 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
     let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured reply");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Reply { exchange, message: writer.finish() }, &mut out);
+    machine.settle(Time::ZERO, Wall::EPOCH, &mut out);
     machine.step(Time::ZERO, Wall::EPOCH, send(NEXT), &mut out);
+    machine.settle(Time::ZERO, Wall::EPOCH, &mut out);
     (machine, out)
 }
