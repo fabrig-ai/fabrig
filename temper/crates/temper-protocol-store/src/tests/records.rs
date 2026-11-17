@@ -1516,6 +1516,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
         flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: l::Landing {
             task: 61,

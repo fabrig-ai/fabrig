@@ -95,6 +95,7 @@ impl Opening {
                     | Request::Take { .. }
                     | Request::TurnAway { .. }
                     | Request::Opened { .. }
+                    | Request::FiguresTaken { .. }
                     | Request::Lost { .. }
                     | Request::Up { .. }
                     | Request::Unsent { .. }

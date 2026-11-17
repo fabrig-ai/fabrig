@@ -15,7 +15,7 @@ fn endpoints() -> smith_protocol_translate::Endpoints {
     smith_protocol_translate::Endpoints::new(entries)
 }
 fn budgets() -> jig_domain_core::CoreBriefBudgets {
-    jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.brief_core_budgets
+    jig_protocol_config_fixtures::small().core.brief_core_budgets
 }
 
 fn host_part(limits: &run::Limits) -> temper_engine_domain::room::HostPart {
@@ -310,7 +310,6 @@ fn no_local_agent_keeps_the_owned_and_encoded_costs_and_skips_rendering() {
 
 #[test]
 fn the_floor_is_smiths_measure_of_the_six_profile_sections() {
-    use jig_protocol_config::{Profile, profile};
     let shipped = budgets();
     let varied = jig_domain_core::CoreBriefBudgets {
         task: 7,
@@ -322,7 +321,7 @@ fn the_floor_is_smiths_measure_of_the_six_profile_sections() {
         preferences: 10_000,
         now: 10_000,
     };
-    for budgets in [shipped, profile(Profile::Standard).core.brief_core_budgets, varied] {
+    for budgets in [shipped, jig_protocol_config::stock().core.brief_core_budgets, varied] {
         for limits in [Some(measured_limits()), None] {
             let endpoints = endpoints();
             let table = measure_host_part(limits.as_ref(), 65_536, &endpoints, &budgets);

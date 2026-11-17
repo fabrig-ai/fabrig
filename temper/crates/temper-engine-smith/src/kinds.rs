@@ -203,11 +203,7 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
-        settings::Value::AgentFigures(record) => {
-            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
-            writer.finish()
-        }
+        settings::Value::AgentFigures(record) => record.measure(),
         settings::Value::Gates(v) => settings::gates_record(v).measure(),
         settings::Value::Landing(v) => settings::landing_record(v).measure(),
         settings::Value::Rule(rule) => wire_rule(rule).measure(),
@@ -274,11 +270,6 @@ fn rule(record: v1::LandingRule) -> settings::LandingRule {
 
 fn freshness(value: &v1::RuleFreshness) -> JudgeFreshness {
     match value {
-        settings::Value::AgentFigures(record) => {
-            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
-            writer.finish()
-        }
         v1::RuleFreshness::Exact => JudgeFreshness::Exact,
         v1::RuleFreshness::Clean => JudgeFreshness::Clean,
     }
@@ -286,11 +277,6 @@ fn freshness(value: &v1::RuleFreshness) -> JudgeFreshness {
 
 fn wire_freshness(value: JudgeFreshness) -> v1::RuleFreshness {
     match value {
-        settings::Value::AgentFigures(record) => {
-            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
-            writer.finish()
-        }
         JudgeFreshness::Exact => v1::RuleFreshness::Exact,
         JudgeFreshness::Clean => v1::RuleFreshness::Clean,
     }
@@ -396,11 +382,6 @@ fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
 
 fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
     match value {
-        settings::Value::AgentFigures(record) => {
-            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
-            writer.finish()
-        }
         settings::AreaOwner::Task(number) => v1::AreaOwner::Task(
             v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number"),
         ),
@@ -417,11 +398,6 @@ fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
 }
 fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
     match value {
-        settings::Value::AgentFigures(record) => {
-            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured room");
-            writer.finish()
-        }
         v1::AreaOwner::Task(number) => settings::AreaOwner::Task(number.number()),
         v1::AreaOwner::Party(number) => settings::AreaOwner::Party(number.number()),
         v1::AreaOwner::Role(number) => settings::AreaOwner::Role(number.number()),

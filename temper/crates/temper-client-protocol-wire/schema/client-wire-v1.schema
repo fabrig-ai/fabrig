@@ -410,7 +410,8 @@ record Red { merge: fixed 32 tiers: list 32 bytes 8192 }
 record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
 enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared, taking }
 record AuthorityHold { reason: bytes 512 }
-enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
+enum ChangeWait { outbox_room }
+enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions, flake }
 enum GateKind { review, approval, check }
 enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
@@ -426,7 +427,7 @@ record CountedReview { person: u64 head: fixed 32 }
 record UnmappedReview { account: u64 head: fixed 32 verdict: Verdict }
 record Approval { scope: u32 number: u32 role: u32 freshness: RuleFreshness required: u32 read: ReviewRead counted: list 256 CountedReview remaining: option u32 refused: bool }
 record PanelSource { branch: bytes 1024 at: option fixed 32 kept: option fixed 32 }
-versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions ci_required: bool source: option PanelSource }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold wait: option ChangeWait runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions ci_required: bool source: option PanelSource }
 
 # Its outcome (client/forge/records.md and client/forge/family.md, 6).
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
@@ -536,3 +537,9 @@ record Welcome { shown: bool }
 record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
 versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }
 
+# The agents setting (protocol/configuration/figures.md, 5).
+record AgentFigure { name: text 64 value: u64 }
+enum Oversized { fail, drop }
+record AgentLimits { window: u32 output: u32 reasoning_item: u32 head_ms: u64 idle_ms: u64 oversized: Oversized }
+record AgentEndpointLimits { endpoint: text 64 limits: AgentLimits }
+record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndpointLimits fallback: AgentLimits }

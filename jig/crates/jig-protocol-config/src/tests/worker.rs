@@ -175,14 +175,14 @@ fn a_workers_hub_slots_follow_its_places_unless_overridden() {
         let bytes = fixtures::with(&bytes, br#""profile": "standard""#, br#""overrides": {}"#);
         let parsed = worker(&bytes).unwrap();
         assert_eq!(parsed.slots, slots);
-        assert_eq!(parsed.limits.hub.slots, slots);
+        assert_eq!(parsed.limits.expect("configured limits").hub.slots, slots);
         let explicit = fixtures::with(
             br#""overrides": {"hub.slots": SLOTS}"#,
             b"SLOTS",
             skein_lib::Decimal::of(u64::from(slots)).as_bytes(),
         );
         let at = fixtures::with(&bytes, br#""overrides": {}"#, &explicit);
-        assert_eq!(worker(&at).unwrap().limits.hub.slots, slots);
+        assert_eq!(worker(&at).unwrap().limits.expect("configured limits").hub.slots, slots);
         let below = fixtures::with(&bytes, br#""overrides": {}"#, br#""overrides": {"hub.slots": 8}"#);
         let errors = worker(&below).unwrap_err();
         assert_eq!(

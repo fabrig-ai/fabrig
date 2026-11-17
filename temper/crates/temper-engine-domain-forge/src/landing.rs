@@ -262,6 +262,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
                 },
                 None => crate::settings::ProjectLanding::default(),
@@ -282,6 +283,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
                 },
                 None => Box::new([]),

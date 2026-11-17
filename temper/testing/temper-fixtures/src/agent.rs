@@ -35,6 +35,7 @@ fn given(document: &Value, agents: &temper_client_protocol_wire::v1::AgentFigure
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("engine configuration");
     let own =

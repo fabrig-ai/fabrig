@@ -72,7 +72,7 @@ fn worker_limits_read_over_the_base() {
     for (limits, expected) in CASES {
         let worker = config::worker_over(&worker(limits), 0, &Directories::working(), &FixedWorker::NONE, &base)
             .expect("worker limits");
-        assert_eq!(worker.limits.core.tasks.tasks, expected);
+        assert_eq!(worker.limits.expect("configured limits").core.tasks.tasks, expected);
     }
 }
 #[test]
@@ -137,5 +137,5 @@ fn default_readers_use_jigs_stock() {
     let default = config::worker(&worker, 0, &directories, &FixedWorker::NONE).expect("stock worker");
     let over = config::worker_over(&worker, 0, &directories, &FixedWorker::NONE, &stock).expect("worker over stock");
     assert_eq!(default.limits, over.limits);
-    assert_eq!(default.limits.core.tasks.tasks, stock.core.tasks.tasks);
+    assert_eq!(default.limits.expect("configured limits").core.tasks.tasks, stock.core.tasks.tasks);
 }

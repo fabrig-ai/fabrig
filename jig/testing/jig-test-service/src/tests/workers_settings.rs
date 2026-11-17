@@ -40,7 +40,7 @@ fn component(driven: &mut Driven) -> &mut engine::Component {
 fn lower(driven: &mut Driven, connection: Token, event: LowerEvent, out: &mut Queue<engine::Request>) {
     component(driven).down(Time::ZERO, engine::Event::Lower { connection, event }, out);
 }
-fn hello(codec: &wire::v15::Limits) -> skein_channel::Frame {
+fn hello(codec: &wire::v16::Limits) -> skein_channel::Frame {
     let mut bounds = fixtures::agent().bounds;
     bounds.inbox = u32::MAX;
     bounds.unacknowledged = u32::MAX;
@@ -98,7 +98,7 @@ fn hello(codec: &wire::v15::Limits) -> skein_channel::Frame {
 )]
 fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16>, Option<Token>) {
     let config = fixtures::config();
-    let limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers;
+    let limits = crate::limits::small(&config.limits).workers;
     let codec = wire::sizes::limits(&limits.sizes).unwrap();
     let mut wires = List::with_capacity(codec.credential_wires);
     for spoken in wire::spoken().into_boxed() {
@@ -118,7 +118,13 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
     }
     let credential = wire::Credential::new(
         &codec,
-        wire::CredentialParts { name: NAME.into(), secret: Secret::new(secret.into()), wires, output: limits.room },
+        wire::CredentialParts {
+            opening: wire::Opening::Link,
+            name: NAME.into(),
+            secret: Secret::new(secret.into()),
+            wires,
+            output: limits.room,
+        },
     )
     .unwrap();
     let mut bytes = Writer::new(usize::try_from(credential.measure()).unwrap());
@@ -187,6 +193,7 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 | engine::Request::Take { .. }
                 | engine::Request::TurnAway { .. }
                 | engine::Request::Opened { .. }
+                | engine::Request::FiguresTaken { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Up { .. }
                 | engine::Request::Unsent { .. }

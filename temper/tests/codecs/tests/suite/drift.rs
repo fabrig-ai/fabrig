@@ -1,5 +1,3 @@
-/home/free/src/fabrig/temper-worker/byhand-1117/stack/temper/tests/codecs/tests/suite/drift.rs:
-
 //! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
 use skein_codegen::{generate, parse, tests_main};
 use std::fs;

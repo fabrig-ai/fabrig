@@ -47,7 +47,7 @@ record Landed { commit: fixed 32 task: u64 }
 # 04.2: family 14, Release.
 enum ReleaseEnding { done, failed, cancelled }
 record PendingRelease { entry: u64 name: option Name }
-record ReleaseRow { task: u64 root: u64 ending: ReleaseEnding close_pull: option u64 comment: option bytes 1048576 pending_release: option PendingRelease failed: bool effects_settled: bool releasing: bool }
+record ReleaseRow { task: u64 root: u64 ending: ReleaseEnding close_pull: option u64 comment: option bytes 1048576 pending_release: option PendingRelease failed: bool effects_settled: bool releasing: bool room: option u64 = none }
 
 # 04.3a: writes, conditions, proposed effects and outbox entries.
 enum Verdict { approve, request_changes, comment }
@@ -598,7 +598,13 @@ record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }
 record Welcome { shown: bool }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates }
+record AgentFigure { name: text 64 value: u64 }
+enum Oversized { fail, drop }
+record AgentLimits { window: u32 output: u32 reasoning_item: u32 head_ms: u64 idle_ms: u64 oversized: Oversized }
+record AgentEndpointLimits { endpoint: text 64 limits: AgentLimits }
+record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndpointLimits fallback: AgentLimits }
+
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates, agents: AgentFigures }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }

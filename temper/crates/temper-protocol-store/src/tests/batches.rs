@@ -8,6 +8,7 @@ use temper_engine_domain_forge_landing as landing;
 fn seed() -> forge::LandingRow {
     forge::LandingRow {
         flake_reruns: Box::new([]),
+        room: None,
         job: None,
         landing: landing::Landing {
             task: 61,

@@ -380,6 +380,7 @@ fn a_figures_opening_takes_the_reference_engines_named_limits_without_admission(
         document.member(0, b"engine").expect("figures fixture"),
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config::Fixed::NONE,
     )
     .expect("figures fixture");
     assert_eq!(figures.places(), engine.limits.core.fleet.slots);

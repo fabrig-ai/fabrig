@@ -439,6 +439,7 @@ const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
     reads: 48,
     queue: 3,
     files: 8,
+    checkpoints: jig_protocol_store::checkpoints::Checkpoints { keep: 2 },
     orphan_erases: 1,
 };
 
