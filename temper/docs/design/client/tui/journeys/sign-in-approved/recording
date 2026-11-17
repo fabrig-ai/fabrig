@@ -2,16 +2,16 @@ journey 2
 seed 16739157622562244450
 clocks 0 0
 screen 24 80 none
-version "0.0.0 (aa699a65adfb-dirty)"
-address "127.0.0.1:35223"
+version "0.0.0 (000000000000)"
+address "127.0.0.1:10001"
 turn 765388264540242 1794931485953274444
 start
 send 1 approval-ask "" none
 deadline none
 turn 765388283300752 1794931485972033084
-reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxZGGWNGNP\x18\xE8\xE18\xE4A\x9F\xA8"
+reply 1 "\x00\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxBBBBBBBB\x18\xE8\xE18\xE4A\x9F\xA8"
 send 2 sign-in-approval "\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" none
-browse "http://127.0.0.1:35223/terminal?code=ZGGW-NGNP"
+browse "http://127.0.0.1:10001/terminal?code=BBBB-BBBB"
 deadline 765448282334461
 turn 765388292684123 1794931485981416435
 opened done
@@ -52,7 +52,7 @@ send 13 watch "\xAA\xF2\xC6\xCC\xCE\xDA\xD3[9I|<\xF0A)/\x00\x00\x00\x00\x00\x00\
 send 15 watch "\xAA\xF2\xC6\xCC\xCE\xDA\xD3[9I|<\xF0A)/\x00\x00\x00\x00\x00\x00\x00\x0E\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x01" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 send 17 watch "\xAA\xF2\xC6\xCC\xCE\xDA\xD3[9I|<\xF0A)/\x00\x00\x00\x00\x00\x00\x00\x10\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x07" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 note until 1795017886995918067
-signed "127.0.0.1:35223"
+signed "127.0.0.1:10001"
 reply 7 "\x01"
 send 21 watch "\xAA\xF2\xC6\xCC\xCE\xDA\xD3[9I|<\xF0A)/\x00\x00\x00\x00\x00\x00\x00\x12\x01\x00\x01\x00\x00\x00\"\x00\x00\x00\x0D\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\"\x04" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 deadline 765409359594857
