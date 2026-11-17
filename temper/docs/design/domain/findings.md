@@ -148,9 +148,14 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   section 4) matches an open flake finding, its failed jobs are rerun
   once (skein's `Write::Rerun`). Passing, the receipt is made as a pass
   and the flake counted; failing again, it is a real failure, and a
-  repair.
+  repair. A test matches a flake finding of the gate's repository whose
+  source is the gate or `check`, by its key; the rerun is kept on the
+  landing's row and made once per landing (`landing-regate.md`, 2).
 - **A gate that reports no tests** is never treated so: its failure is
   a repair, as ever.
+- **A repair that finds only flakes** says so with its verdict, and a
+  release then supersedes the failed receipt with one fresh run
+  (`landing-regate.md`, 3).
 
 ## 6. Triage
 
