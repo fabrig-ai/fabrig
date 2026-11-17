@@ -493,14 +493,27 @@ The acts of both, each one act and one request (`README.md`, 3.6):
   policy: 1 }` in the deployment's scope, on the stock policy
   (`../protocol/configuration/stock.md`); an empty name sends nothing.
   Answered made, the field empties and the client opens the project
-  once `me` lists it, on its `Home`, with no repository (`pages/README.md`).
+  once `me` lists it, on its `Home`, with no repository (`pages/README.md`),
+  while the person is still where they asked it
+  (`../draft/project-open-superseded.md`, 2). A later move supersedes
+  that opening: once "Create" has sent, a navigation to an address other
+  than the one shown, asked (the pages' `Act::Go`) or applied (a `Went`,
+  or any return), or a project chosen (the pages' `Act::Project` and
+  `Act::OpenProject`), cancels it, whether the answer has come or not and
+  whether `me` lists the project yet or not. The creation still
+  finishes: the field empties on the answer, `me` brings the project into
+  the switcher's rows, and the page the person went to stays. Staying
+  put, a `Went` to the address already shown among it, keeps the opening,
+  in either order of the answer and `me`'s listing.
   Offered whatever the person's role, as above: jig judges it (an owner
   of the deployment), and a refusal says why under the field.
 - **Its state:** the rename's form, at most one, with its project and
   words; the new project's words; each within jig's name bound; at most
-  one request out of either, with its key; and the refusal, with the
-  form it answers. Choosing another project, or a page of no project,
-  closes the rename's form.
+  one request out of either, with its key; the new project's opening,
+  armed when its request goes out, cancelled by a later move, and spent
+  when it opens `Home`; and the refusal, with the form it answers.
+  Choosing another project, or a page of no project, closes the rename's
+  form.
 
 ## 4. Limits
 

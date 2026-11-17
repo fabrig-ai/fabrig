@@ -169,6 +169,11 @@ fn a_judge_keeps_an_action_finding_for_watch() {
 }
 
 #[test]
+fn person_a_new_project_waits_for_its_applied_home() {
+    support::person::a_new_project_waits_for_its_applied_home();
+}
+
+#[test]
 fn person_a_chat_waits_for_the_model_watch_before_pressing_start() {
     support::person::a_chat_waits_for_the_model_watch_before_pressing_start();
 }

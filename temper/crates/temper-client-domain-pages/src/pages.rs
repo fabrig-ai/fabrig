@@ -1232,10 +1232,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::OpenProject { project } } => {
+            pages.switcher.supersede();
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All } });
         }
         Event::Act { act: Act::Project { project } } => {
+            pages.switcher.supersede();
             choose_project(pages, client, project);
             #[expect(clippy::match_same_arms, reason = "AllHome's project choice shows Home, as Home's does")]
             match &pages.address {
@@ -1284,6 +1286,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::SignOut } => out.push(Request::Client(jig_client::Event::SignOut)),
         Event::Act { act: Act::Go { address } } => {
+            if address != pages.address {
+                pages.switcher.supersede();
+            }
             if address == (Address::NewChat { draft: true })
                 && let Address::NewChat { .. } = pages.address
             {
@@ -1833,6 +1838,7 @@ fn went(
     }
     let changing = returned || pages.address != address;
     if changing {
+        pages.switcher.supersede();
         tell::remember(pages, client);
         if returned || !tell::showing(&address) {
             pages.tell_words = Box::default();
@@ -2760,7 +2766,7 @@ fn switcher_chosen(pages: &mut Pages, client: &Client, out: &mut Queue<Request>)
     if let Some(project) = pages.switcher.opening {
         choose_project(pages, client, project);
         if pages.project == Some(project) {
-            pages.switcher.opening = None;
+            pages.switcher.supersede();
             out.push(Request::Show { address: Address::Home { project } });
         }
     }

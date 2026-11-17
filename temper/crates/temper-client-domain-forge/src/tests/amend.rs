@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::amend::{Cut, Draft, Drafted};
+use crate::amend::{Cut, Draft, Drafted, address};
 use fixtures::acts::text;
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
@@ -134,6 +134,29 @@ fn restore_controls(draft: &mut Draft) {
     draft.llm(choice(b"first"));
 }
 
+#[test]
+fn an_address_uses_only_a_person_revision() {
+    let mut task = goal();
+    assert_eq!(address(&task, c::PersonAddress::Party(1)), None);
+    task.person_revision = Some(c::Revision { value: 23 });
+    assert_eq!(
+        address(&task, c::PersonAddress::Party(1)),
+        Some(c::AddressChange { revision: c::Revision { value: 23 }, address: c::PersonAddress::Party(1) })
+    );
+}
+#[test]
+fn an_address_always_changes_at_the_base_spec_revision() {
+    let mut task = goal();
+    task.person_revision = Some(c::Revision { value: 23 });
+    task.chip.executor = c::ChipExecutor::Party { party: 1 };
+    let change = c::AddressChange { revision: c::Revision { value: 23 }, address: c::PersonAddress::Party(1) };
+    let mut draft = Draft::of(&task);
+    draft.address(change);
+    assert_eq!(
+        draft.amendment(),
+        Some(Drafted { revision: Some(REVISION), change: c::Amendment { addressed: Some(change), ..no_change() } })
+    );
+}
 #[test]
 fn a_priority_alone_names_no_revision() {
     let draft = reprioritized(&goal());

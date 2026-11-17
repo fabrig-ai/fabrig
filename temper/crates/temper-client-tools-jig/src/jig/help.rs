@@ -10,7 +10,7 @@ pub fn usage(tool: &Tool, out: &mut Writer) -> Result<(), Overflow> {
 }
 fn form_usage(tool: &Tool, form: &[Argument], out: &mut Writer) -> Result<(), Overflow> {
     if tool.name == b"task amend" {
-        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n");
+        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] [--to-party PARTY | --to-role ROLE] REASON [--key KEY]\n");
     }
     if tool.name == b"change open" {
         return out.put(b"change open --project PROJECT [--repository OWNER/NAME] --branch BRANCH [--at COMMIT] [--into BRANCH] --title TEXT [--body TEXT] (--budget AMOUNT | --as-allowed) --key KEY\n");
