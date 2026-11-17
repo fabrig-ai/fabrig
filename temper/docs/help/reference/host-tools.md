@@ -17,18 +17,18 @@ file: kind severity title body [area]; hand: number area why; route: number goal
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
 
-- `act`: one of `file|hand|route|backlog|drop|list|show`; required.
-- `kind`: one of `qa|flake|red|review|feedback`.
-- `severity`: one of `low|medium|high`.
-- `area`: text.
-- `title`: text.
-- `body`: text.
-- `number`: integer.
-- `why`: text.
-- `goal`: integer.
-- `reason`: text.
-- `state`: text.
-- `mine`: boolean.
+- `act`: one of `file|hand|route|backlog|drop|list|show`; required. The act.
+- `kind`: one of `qa|flake|red|review|feedback`. Finding kind.
+- `severity`: one of `low|medium|high`. Severity.
+- `area`: text. Area name.
+- `title`: text. Finding title.
+- `body`: text. Finding body.
+- `number`: integer. Finding number.
+- `why`: text. Why hand it.
+- `goal`: integer. Goal task.
+- `reason`: text. Why drop it.
+- `state`: text. State filter.
+- `mine`: boolean. Only mine.
 
 ## red
 
@@ -37,23 +37,23 @@ A red is a failure a goal's branch carries that no live change owns. record: key
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
 
-- `act`: one of `record|end|list`; required.
-- `key`: text.
+- `act`: one of `record|end|list`; required. The act.
+- `key`: text. Failure key.
 - `at`: text. 40 or 64 lowercase hex digits of the check's base.
-- `why`: text.
+- `why`: text. Why record or end it.
 
 ## follow
 
-start: follow commit; hold/skip: follow commit reason; merge: follow commits (2+, queue order); list: project's follows; show: follow. Acts are owner's.
+Act on follows you own; list/show read the project's follows.
 
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
 
-- `act`: one of `start|hold|skip|merge|list|show`; required.
-- `follow`: integer [1, 4294967295].
-- `commit`: text.
-- `commits`: array.
-- `reason`: text.
+- `act`: one of `start|hold|skip|merge|list|show`; required. The act.
+- `follow`: integer [1, 4294967295]. Follow number.
+- `commit`: text. Commit after which to act.
+- `commits`: array. Commits, in queue order.
+- `reason`: text. Why hold or skip.
 
 ## decided
 
@@ -66,7 +66,7 @@ Offered where the run's charter names the control family and its authority holds
 - `options`: array; required. 2-6 options, each up to 120 bytes.
 - `took`: integer [0, 5]; required. Chosen index, from 0.
 - `why`: text; required. Why, up to 400 bytes.
-- `kind`: one of `wording|retry|implementation|tests|dependency|departure|money|irreversible|rules|other|findings`; required.
+- `kind`: one of `wording|retry|implementation|tests|dependency|departure|money|irreversible|rules|other|findings`; required. Kind of choice.
 - `paths`: array. Up to 16 repository-relative paths, each 1-256 bytes, no leading /.
 - `under`: integer [1, 20]. Covering item in the project's classes.
 
@@ -77,7 +77,7 @@ Have one goal tracked, only for work your person wants agreed first (set agree) 
 A write.
 Offered where the run's charter names the delegate family and its authority holds it.
 
-- `words`: text; required.
+- `words`: text; required. The goal's complete brief.
 - `advisor`: boolean. Set by a goal alone, for a survey that changes nothing.
 - `agree`: boolean. Set by the person's chat when they want the work agreed first: the goal asks its plan before any change.
 
@@ -259,7 +259,7 @@ Offered where the run's charter names the decide family and its authority holds 
 
 ## propose
 
-Ask the holder to act beyond authority; party-held releases await their owner.
+Ask holder beyond authority.
 
 A write.
 Offered where the run's charter names the propose family and its authority holds it.
@@ -267,7 +267,7 @@ Offered where the run's charter names the propose family and its authority holds
 - `action`: one of `batch|effect|amend|widen|release`; required. Act.
 - `task`: integer >=1. amend/widen/release: task.
 - `revision`: integer >=0. amend: spec; release: hold.
-- `hold`: integer >=1.
+- `hold`: integer >=1. release: party's hold; await its owner.
 - `batch`: array. delegate's batch.
 - `amendment`: object. amend's amendment.
 - `authority`: object. Whole authority.
@@ -345,9 +345,9 @@ Specs/results; from=next. For an answer: durable question numbers and answerers.
 A read.
 Offered where the run's charter names the read family and its authority holds it.
 
-- `task`: integer >=1; required.
-- `field`: one of `specification|result`.
-- `from`: integer >=0, 0 when absent.
+- `task`: integer >=1; required. Task number.
+- `field`: one of `specification|result`. Specification or result; omit for live state.
+- `from`: integer >=0, 0 when absent. Byte offset from next; default 0.
 
 ## settings
 
@@ -495,7 +495,7 @@ Keep a line about your person across their chats, only when they ask: add one, o
 A write.
 Offered to an asking run, where its authority holds the asking family.
 
-- `action`: one of `add|change|drop`; required.
+- `action`: one of `add|change|drop`; required. The memory act.
 - `line`: integer [1, 4294967295]. The line's number, for change and drop.
 - `text`: text. One line, at most 120 bytes.
 

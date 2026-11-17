@@ -2449,7 +2449,7 @@ mod brief_fit;
 mod docs;
 mod json;
 mod reference;
-mod room;
+pub(crate) mod room;
 
 #[test]
 fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {

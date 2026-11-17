@@ -30,7 +30,15 @@ fn every_declaration_is_within_its_bound() {
 }
 
 #[test]
-fn stock_roles_non_forge_shares_are_within_their_bounds() {
+#[expect(clippy::print_stderr, reason = "report the stock roles' declared UTF-8 byte totals")]
+fn stock_roles_offers_are_exact_and_within_their_bounds() {
+    use jig_domain_tasks::Tools;
+    let stock = crate::tests::room::stock_defaults();
+    let authority = Tools(stock.policies.get(&1).unwrap().policy.ceiling.tools.0);
+    assert_eq!(authority, Tools(4_007));
+    // Change producers retain their holder's families except settings; questions up keeps message
+    // (temper-engine-domain's route/forge_route.rs, change_delegate).
+    let producer = Tools(authority.0 & !jig_domain_core::ToolFamilies::JIG.settings);
     let goal = [
         "delegate",
         "goal",
@@ -51,25 +59,36 @@ fn stock_roles_non_forge_shares_are_within_their_bounds() {
         "recall",
         "read_task",
         "read_docs",
+        "read_forge",
+        "read_issues",
+        "read_ci",
     ];
-    let coder = ["message", "introduce", "read_task", "read_docs"];
-    let families = jig_domain_core::ToolFamilies::JIG;
-    let authority = jig_domain_tasks::Tools(!families.decide.0 & !families.propose.0 & !families.effect.0);
-    let charter = jig_domain_tasks::Tools(!families.settings & !families.ask.0);
-    let tools = super::tools_for(Duration::from_secs(1), charter, authority);
-    for (names, bound) in [(goal.as_slice(), 11_648), (coder.as_slice(), 1_408)] {
-        let mut count = 0_usize;
-        let mut sum = 0_usize;
-        for tool in &tools {
-            if names.contains(&core::str::from_utf8(&tool.name).unwrap()) {
-                count = count.checked_add(1).unwrap();
-                for bytes in [tool.name.len(), tool.description.len(), tool.schema.len()] {
-                    sum = sum.checked_add(bytes).unwrap();
-                }
+    let coder = ["message", "introduce", "read_task", "read_docs", "read_forge", "read_issues", "read_ci"];
+    let reviewer = ["read_task", "read_docs", "read_forge", "read_issues", "read_ci"];
+    for (number, families, authority, names, bound) in [
+        (5, Tools(1_023), authority, goal.as_slice(), 14_336),
+        (2, Tools(514), producer, coder.as_slice(), 4_096),
+        (4, Tools(512), authority, reviewer.as_slice(), usize::MAX),
+    ] {
+        let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
+        assert_eq!(charter.policy.tools, families);
+        let tools = super::tools_for(Duration::from_secs(1), charter.policy.tools, authority);
+        assert_eq!(tools.len(), names.len(), "charter {number}: tool count");
+        for name in names {
+            let mut present = false;
+            for tool in &tools {
+                present |= tool.name.as_ref() == name.as_bytes();
             }
+            assert!(present, "charter {number}: missing {name}");
         }
-        assert_eq!(count, names.len());
-        assert!(sum <= bound, "{} tools: {sum} bytes, bound {bound}", names.len());
+        let mut sum = 0;
+        for tool in &tools {
+            let name = core::str::from_utf8(&tool.name).unwrap();
+            assert!(names.contains(&name), "charter {number}: unexpected {name}");
+            sum += tool.name.len() + tool.description.len() + tool.schema.len();
+        }
+        std::eprintln!("stock role {number}: {} tools, {sum} bytes", tools.len());
+        assert!(sum <= bound, "charter {number}: {sum} bytes, bound {bound}");
     }
 }
 

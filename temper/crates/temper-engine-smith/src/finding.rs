@@ -7,7 +7,7 @@ use temper_engine_domain_forge as forge;
 pub(crate) const SPEC: Spec = Spec {
     name: b"finding",
     description: b"file: kind severity title body [area]; hand: number area why; route: number goal; backlog: number; drop: number reason; list: [state] [mine]; show: number",
-    schema: br#"{"type":"object","properties":{"act":{"enum":["file","hand","route","backlog","drop","list","show"]},"kind":{"enum":["qa","flake","red","review","feedback"]},"severity":{"enum":["low","medium","high"]},"area":{"type":"string"},"title":{"type":"string"},"body":{"type":"string"},"number":{"type":"integer"},"why":{"type":"string"},"goal":{"type":"integer"},"reason":{"type":"string"},"state":{"type":"string"},"mine":{"type":"boolean"}},"required":["act"]}"#,
+    schema: br#"{"type":"object","properties":{"act":{"enum":["file","hand","route","backlog","drop","list","show"],"description":"The act."},"kind":{"enum":["qa","flake","red","review","feedback"],"description":"Finding kind."},"severity":{"enum":["low","medium","high"],"description":"Severity."},"area":{"type":"string","description":"Area name."},"title":{"type":"string","description":"Finding title."},"body":{"type":"string","description":"Finding body."},"number":{"type":"integer","description":"Finding number."},"why":{"type":"string","description":"Why hand it."},"goal":{"type":"integer","description":"Goal task."},"reason":{"type":"string","description":"Why drop it."},"state":{"type":"string","description":"State filter."},"mine":{"type":"boolean","description":"Only mine."}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
     whole: None,
     offer: crate::calls::Offer::Family(jig_domain_core::ToolFamilies::JIG.delegate),

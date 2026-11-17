@@ -6,7 +6,7 @@ use temper_engine_domain_forge as forge;
 pub(crate) const SPEC: Spec = Spec {
     name: b"red",
     description: b"A red is a failure a goal's branch carries that no live change owns. record: key at why; end: key why; list",
-    schema: br#"{"type":"object","properties":{"act":{"enum":["record","end","list"]},"key":{"type":"string"},"at":{"type":"string","description":"40 or 64 lowercase hex digits of the check's base."},"why":{"type":"string"}},"required":["act"]}"#,
+    schema: br#"{"type":"object","properties":{"act":{"enum":["record","end","list"],"description":"The act."},"key":{"type":"string","description":"Failure key."},"at":{"type":"string","description":"40 or 64 lowercase hex digits of the check's base."},"why":{"type":"string","description":"Why record or end it."}},"required":["act"]}"#,
     effect: smith_domain_run::HostEffect::Write,
     whole: None,
     offer: crate::calls::Offer::Family(jig_domain_core::ToolFamilies::JIG.delegate),

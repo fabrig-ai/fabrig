@@ -9,7 +9,12 @@ use temper_engine_domain::room::{Cost, HostPart};
 
 /// Measure the frame, models and declarations independently of either receiving bound.
 #[must_use]
-pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpoints) -> HostPart {
+pub fn host_part(
+    limits: Option<&run::Limits>,
+    allowance: u64,
+    endpoints: &Endpoints,
+    budgets: &jig_domain_core::CoreBriefBudgets,
+) -> HostPart {
     let mut longest = b"".as_slice();
     for endpoint in endpoints.entries() {
         if endpoint.name.len() > longest.len() {
@@ -24,7 +29,28 @@ pub fn host_part(limits: Option<&run::Limits>, allowance: u64, endpoints: &Endpo
     charter.models = Box::new([charter.llm.clone()]);
     let model = difference(measure(&charter, limits, &endpoints), fixed);
     charter.models = Box::new([]);
-    let mut table = HostPart { allowance, fixed, model, ..HostPart::EMPTY };
+    let mut sections = List::with_capacity(6);
+    for (kind, budget) in [
+        (jig_domain_brief::Core::Task, budgets.task),
+        (jig_domain_brief::Core::TranscriptTail, budgets.tail),
+        (jig_domain_brief::Core::Results, budgets.dependencies),
+        (jig_domain_brief::Core::Attempts, budgets.attempts),
+        (jig_domain_brief::Core::Plan, budgets.plan),
+        (jig_domain_brief::Core::NotesIndex, budgets.notes),
+    ] {
+        let section = crate::section(&temper_engine_domain::BriefSection {
+            kind: temper_engine_domain::BriefKind::Core(kind),
+            body: temper_engine_domain::BriefBody::Text(skein_lib::bytes::zeroed(
+                usize::try_from(budget).expect("brief budget fits usize"),
+            )),
+        });
+        sections.push(section).expect("six floor sections");
+    }
+    charter.brief.sections = sections.into_boxed();
+    let mut floor = difference(measure(&charter, limits, &endpoints), fixed);
+    floor.rendered = 0;
+    charter.brief.sections = Box::new([]);
+    let mut table = HostPart { allowance, fixed, model, floor, ..HostPart::EMPTY };
     if let Some(limits) = limits {
         table.bound = Some(limits.host_part);
     }

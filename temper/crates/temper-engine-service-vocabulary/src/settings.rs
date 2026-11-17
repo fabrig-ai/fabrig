@@ -179,5 +179,6 @@ pub fn host_part(engine: &jig_protocol_config::Engine, agent: Option<&Agent>) ->
         limits,
         crate::assignment::charter_bound(engine.limits.hub.charter_bytes, allowance),
         &charter_endpoints(engine),
+        &engine.limits.core.brief_core_budgets,
     )
 }

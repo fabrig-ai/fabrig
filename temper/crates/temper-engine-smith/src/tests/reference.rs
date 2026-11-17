@@ -211,37 +211,6 @@ fn every_schema_root_is_an_object_with_no_alternatives() {
     }
 }
 
-// Existing schema-text gaps, held until Hold the brief's floor fills them.
-const DESCRIPTION_ALLOWANCE: &[(&str, &str)] = &[
-    ("finding", "act"),
-    ("finding", "kind"),
-    ("finding", "severity"),
-    ("finding", "area"),
-    ("finding", "title"),
-    ("finding", "body"),
-    ("finding", "number"),
-    ("finding", "why"),
-    ("finding", "goal"),
-    ("finding", "reason"),
-    ("finding", "state"),
-    ("finding", "mine"),
-    ("red", "act"),
-    ("red", "key"),
-    ("red", "why"),
-    ("follow", "act"),
-    ("follow", "follow"),
-    ("follow", "commit"),
-    ("follow", "commits"),
-    ("follow", "reason"),
-    ("remember", "action"),
-    ("decided", "kind"),
-    ("goal", "words"),
-    ("propose", "hold"),
-    ("read_task", "task"),
-    ("read_task", "field"),
-    ("read_task", "from"),
-];
-
 #[test]
 fn every_description_is_within_its_bound() {
     for spec in &SPECS {
@@ -255,22 +224,9 @@ fn every_description_is_within_its_bound() {
         let Value::Object(properties) = properties else { panic!("whole properties") };
         for (name, member) in properties {
             let name = core::str::from_utf8(name).unwrap();
-            if !DESCRIPTION_ALLOWANCE.contains(&(tool, name)) {
-                let description = member.required(b"description").unwrap().text(b"description").unwrap();
-                assert!(!description.is_empty(), "{tool}.{name}: top-level description present");
-            }
+            let description = member.required(b"description").unwrap().text(b"description").unwrap();
+            assert!(!description.is_empty(), "{tool}.{name}: top-level description present");
         }
-    }
-}
-
-#[test]
-fn every_description_allowance_still_names_a_gap() {
-    for &(tool, member) in DESCRIPTION_ALLOWANCE {
-        let spec = SPECS.iter().find(|spec| spec.name == tool.as_bytes()).expect("allowance's tool exists");
-        let whole = json::parse(spec.whole()).unwrap();
-        let property =
-            whole.required(b"properties").unwrap().required(member.as_bytes()).expect("allowance's member exists");
-        assert!(property.field(b"description").unwrap().is_none(), "remove stale {tool}.{member} allowance");
     }
 }
 
