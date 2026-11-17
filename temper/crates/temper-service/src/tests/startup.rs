@@ -590,6 +590,15 @@ fn jigs_problems_keep_their_paths_under_engine() {
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
+fn an_absent_byte_budget_refuses_the_box_start_naming_its_member() {
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::document()).unwrap();
+    document["engine"].as_object_mut().unwrap().remove("memory_bytes");
+    let bytes = serde_json::to_vec(&document).unwrap();
+    let problems = crate::named(&bytes, &config::Directories::working()).unwrap_err();
+    assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: missing\n");
+}
+
+#[test]
 fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
     let input = fixtures::document();
     let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");

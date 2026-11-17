@@ -81,7 +81,7 @@ pub fn worker_over(
     };
     let mut limits = *base;
     let mut hub_slots_overridden = false;
-    if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
+    if let Some(at) = object.member(document, b"limits") {
         let (parsed, overridden) = overrides::read_over(document, at, &path.member(b"limits"), base);
         hub_slots_overridden = overridden.hub_slots;
         limits = parsed.limits;

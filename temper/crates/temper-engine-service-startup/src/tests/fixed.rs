@@ -14,6 +14,16 @@ fn engine(value: &Value, directories: &config::Directories) -> Result<config::En
     startup::engine(&document, 0, directories)
 }
 #[test]
+fn temper_still_requires_engine_memory_in_engine_documents() {
+    let bytes = super::fixtures::engine_part(&super::fixtures::document());
+    let mut document: Value = serde_json::from_slice(&bytes).unwrap();
+    document["engine"].as_object_mut().unwrap().remove("memory_bytes");
+    let bytes = serde_json::to_vec(&document).unwrap();
+    let found = startup::named(&bytes, &config::Directories::working()).unwrap_err();
+    assert_eq!(startup::lines(&found).as_ref(), b"engine.memory_bytes: missing\n");
+}
+
+#[test]
 fn moved_engine_members_print_their_destinations() {
     let document: Value = serde_json::from_slice(&stock::generated()).unwrap();
     for (member, words) in [

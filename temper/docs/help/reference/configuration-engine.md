@@ -12,7 +12,7 @@ Objects and lists of objects name their shapes below; init values show objects a
 
 Shape: `engine`. Paths: `engine`. The engine's configuration, read before startup.
 
-- `limits`: limits; required; init writes object. Selects a limits profile and its named overrides.
+- `limits`: limits; optional; init writes object. Selects a limits profile and named overrides; absent, reads the application's base.
 - `llm`: llm; required; init writes object. Configures the LLM endpoints, models and providers.
 - `hosts`: hosts; required; init writes object. Names the workers and their listener addresses.
 - `clients`: clients; optional; init writes object. Configures the optional OpenID provider.
@@ -175,7 +175,7 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `graces`: refused: moved: temper fixes a worker's graces (temper help server)
 - `programs`: refused: moved: temper fixes the login checks' interval
 - `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.
-- `limits`: limits; required; init writes object. Selects the worker's limits profile and overrides.
+- `limits`: limits; optional; init writes object. Selects the worker's limits profile and overrides; absent, reads the application's base.
 - `memory_bytes`: integer, 0 to 18446744073709551615 bytes; optional; init leaves it out. States the worker's available memory when configured.
 
 ## workers[].agent

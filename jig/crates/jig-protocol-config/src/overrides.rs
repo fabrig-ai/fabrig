@@ -1,7 +1,9 @@
 //! Named limits and strict profile selection (jig/docs/design/protocol/limits.md).
 use crate::{Limits, Path, Problem, Problems, Segment, What, profile, read, stock};
+use alloc::boxed::Box;
+use jig_domain_core_vocabulary::settings::Override;
 use skein_json::{Document, document::Kind};
-use skein_lib::{Duration, bytes};
+use skein_lib::{Duration, List, bytes};
 
 /// Replace one whole scalar limit. The composed reader checks the resulting profile.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
@@ -729,6 +731,57 @@ pub fn parse_over(document: &Document, at: u32, path: &Path, base: &Limits) -> P
     read_over(document, at, path, base).0
 }
 
+/// Apply settings overrides by the document reader's names and checks (limits.md, limits as settings).
+pub fn with_overrides(base: &Limits, overrides: &[Override]) -> Result<Limits, Problems> {
+    if overrides.is_empty() {
+        return Ok(*base);
+    }
+    let capacity = u32::try_from(overrides.len()).expect("core-checked override count fits u32");
+    let path = Path::root();
+    let mut resolution = Resolution::new(base, capacity);
+    for given in overrides {
+        resolution.name(&given.name);
+        resolution.apply(&given.name, Ok(given.value), &path);
+    }
+    resolution.finish_members(&path);
+    resolution.finish(&path, &path);
+    let (parsed, _) = resolution.parsed();
+    if parsed.problems.is_empty() {
+        return Ok(parsed.limits);
+    }
+    let mut problems = Problems::empty();
+    for problem in &parsed.problems.problems {
+        let path = setting_path(&problem.path, overrides);
+        problems.push(path, problem.what);
+    }
+    problems.past = problems.past.saturating_add(parsed.problems.past);
+    Err(problems)
+}
+
+// Canonical checks may name an unoverridden dependent figure. Keep its dotted name
+// as one member too; a whole-set refusal names the first supplied setting.
+fn setting_path(path: &Path, overrides: &[Override]) -> Path {
+    let mut parts = List::with_capacity(path.segments.len().checked_mul(2).expect("limit path fits u32"));
+    for (index, segment) in path.segments.iter().enumerate() {
+        match segment {
+            Segment::Member(name) => {
+                if index == 0 && name.as_ref() == b"limits" {
+                    continue;
+                }
+                if !parts.is_empty() {
+                    parts.push(b".".as_slice()).expect("capacity includes separators");
+                }
+                parts.push(name.as_ref()).expect("capacity includes every member");
+            }
+            Segment::Index(_) => unreachable!("limit diagnostics name scalar members"),
+        }
+    }
+    if parts.is_empty() {
+        return Path::root().member(&overrides.first().expect("nonempty overrides").name);
+    }
+    Path::root().member(&bytes::concat(parts.as_slice()))
+}
+
 /// The reader alone keeps the names needed for document-derived limits.
 pub(crate) struct Overridden {
     calls: bool,
@@ -736,79 +789,132 @@ pub(crate) struct Overridden {
     pub(crate) hub_slots: bool,
 }
 
+// Both input forms apply, follow dependent figures and check through this resolution.
+struct Resolution {
+    limits: Limits,
+    problems: Problems,
+    names: List<Box<[u8]>>,
+    overridden: Overridden,
+    streams: bool,
+}
+impl Resolution {
+    fn new(base: &Limits, capacity: u32) -> Self {
+        Self {
+            limits: *base,
+            problems: Problems::empty(),
+            names: List::with_capacity(capacity),
+            overridden: Overridden { calls: false, exchanges: false, hub_slots: false },
+            streams: false,
+        }
+    }
+
+    fn name(&mut self, name: &[u8]) {
+        self.names.push(bytes::copy_of(name)).expect("capacity includes every supplied name");
+        self.overridden.calls |= name == b"clients_http.calls";
+        self.overridden.exchanges |= name == b"clients.exchanges";
+        self.overridden.hub_slots |= name == b"hub.slots";
+        self.streams |= name == b"clients.streams"
+            || name == b"clients.exchanges"
+            || name == b"clients_http.streams"
+            || name == b"clients_http.calls";
+    }
+
+    fn apply(&mut self, name: &[u8], value: Result<u64, What>, path: &Path) {
+        let result = match value {
+            Ok(value) => apply(&mut self.limits, name, value),
+            Err(what) => Err(what),
+        };
+        if let Err(what) = result {
+            self.problems.push(path.member(name), what);
+        }
+    }
+
+    fn finish_members(&mut self, path: &Path) {
+        self.overridden.derive_carriers(&mut self.limits);
+        if !self.problems.is_empty() {
+            return;
+        }
+        if let Some((member, what)) = crate::domain::capacity(&self.limits.core) {
+            self.problems.push(path.member(member), what);
+            return;
+        }
+        let mut fits = Fits { hub: None, core: None };
+        for name in &self.names {
+            if !valid(&self.limits, name, &mut fits) {
+                self.problems.push(path.member(name), What::Override);
+            }
+        }
+        if self.streams && self.problems.is_empty() {
+            check_carriers(&self.limits, path, &mut self.problems);
+        }
+    }
+
+    fn finish(&mut self, path: &Path, names_path: &Path) {
+        let limits = &mut self.limits;
+        limits.core.documents.segments = profile::name_segments(&limits.core.tasks, &limits.core.authority);
+        limits.core.documents.grants = profile::authority_grants(&limits.core.tasks, &limits.core.authority);
+        limits.core.documents.executors = profile::authority_executors(&limits.core.tasks, &limits.core.authority);
+        limits.core.documents.implications = limits.core.authority.implications;
+        let mut public = Problems::empty();
+        crate::clients::check_public(limits, &mut public);
+        for problem in &public.problems {
+            let problem = codec_problem(&self.names, path, names_path, problem.clone());
+            self.problems.push(problem.path, problem.what);
+        }
+        crate::clients::check_settings(limits, &mut self.problems);
+        if let Err(what) = crate::domain::check_message(&limits.core) {
+            self.problems.push(path.clone(), what);
+        }
+        if self.problems.is_empty()
+            && let Err(problem) = crate::check_effective_limits(&limits.core)
+        {
+            let problem = codec_problem(&self.names, path, names_path, problem);
+            self.problems.push(problem.path, problem.what);
+        }
+    }
+
+    fn parsed(self) -> (Parsed, Overridden) {
+        (Parsed { limits: self.limits, problems: self.problems }, self.overridden)
+    }
+}
+
 pub(crate) fn read_over(document: &Document, at: u32, path: &Path, base: &Limits) -> (Parsed, Overridden) {
-    let mut overridden = Overridden { calls: false, exchanges: false, hub_slots: false };
-    let mut limits = *base;
-    let mut problems = Problems::empty();
+    let mut resolution = Resolution::new(base, document.len());
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
         Err(what) => {
-            problems.push(path.clone(), what);
-            return (Parsed { limits, problems }, overridden);
+            resolution.problems.push(path.clone(), what);
+            return resolution.parsed();
         }
     };
     if let Some(at) = object.member(document, b"profile") {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
                 b"standard" => {}
-                _ => problems.push(path.member(b"profile"), What::Override),
+                _ => resolution.problems.push(path.member(b"profile"), What::Override),
             },
-            Err(what) => problems.push(path.member(b"profile"), what),
+            Err(what) => resolution.problems.push(path.member(b"profile"), what),
         }
     }
     let overrides_at = object.member(document, b"overrides");
     if let Some(at) = overrides_at {
         let path = path.member(b"overrides");
-        if let Err(what) = members(document, at, &path, &mut limits, &mut problems, &mut overridden) {
-            problems.push(path, what);
+        if let Err(what) = members(document, at, &path, &mut resolution) {
+            resolution.problems.push(path, what);
         }
     } else {
-        overridden.derive_carriers(&mut limits);
+        resolution.overridden.derive_carriers(&mut resolution.limits);
     }
-    limits.core.documents.segments = profile::name_segments(&limits.core.tasks, &limits.core.authority);
-    limits.core.documents.grants = profile::authority_grants(&limits.core.tasks, &limits.core.authority);
-    limits.core.documents.executors = profile::authority_executors(&limits.core.tasks, &limits.core.authority);
-    limits.core.documents.implications = limits.core.authority.implications;
-    object.finish(document, path, &mut problems);
-    let mut public = Problems::empty();
-    crate::clients::check_public(&limits, &mut public);
-    for problem in &public.problems {
-        let problem = codec_problem(document, overrides_at, path, problem.clone());
-        problems.push(problem.path, problem.what);
-    }
-    crate::clients::check_settings(&limits, &mut problems);
-    if let Err(what) = crate::domain::check_message(&limits.core) {
-        problems.push(path.clone(), what);
-    }
-    if problems.is_empty()
-        && let Err(problem) = crate::check_effective_limits(&limits.core)
-    {
-        let problem = codec_problem(document, overrides_at, path, problem);
-        problems.push(problem.path, problem.what);
-    }
-    (Parsed { limits, problems }, overridden)
+    object.finish(document, path, &mut resolution.problems);
+    resolution.finish(path, &path.member(b"overrides"));
+    resolution.parsed()
 }
 
-// A canonical effective-limit path is translated back to its spelling in the
-// override document when that member was present, including a caller's prefix.
-fn codec_problem(document: &Document, overrides_at: Option<u32>, path: &Path, problem: Problem) -> Problem {
-    if let Some(at) = overrides_at {
-        let end = read::after(document, at)
-            .expect("override object was checked")
-            .checked_sub(1)
-            .expect("object has an end token");
-        let mut next = at.checked_add(1).expect("checked document position");
-        for _ in at..end {
-            if next == end {
-                break;
-            }
-            let key = document.token(next).expect("checked override key");
-            let name = document.text(key).expect("checked override name");
-            if crate::domain::codec_path(name) == problem.path {
-                return Problem { path: path.member(b"overrides").member(name), what: problem.what };
-            }
-            let value = next.checked_add(1).expect("checked override value");
-            next = read::after(document, value).expect("override value was checked");
+// Translate an effective-limit path back to a supplied name, including a caller's prefix.
+fn codec_problem(names: &List<Box<[u8]>>, path: &Path, names_path: &Path, problem: Problem) -> Problem {
+    for name in names {
+        if crate::domain::codec_path(name) == problem.path {
+            return Problem { path: names_path.member(name), what: problem.what };
         }
     }
     let mut complete = path.clone();
@@ -823,18 +929,10 @@ fn codec_problem(document: &Document, overrides_at: Option<u32>, path: &Path, pr
     Problem { path: complete, what: problem.what }
 }
 
-fn members(
-    document: &Document,
-    at: u32,
-    path: &Path,
-    limits: &mut Limits,
-    problems: &mut Problems,
-    overridden: &mut Overridden,
-) -> Result<(), What> {
+fn members(document: &Document, at: u32, path: &Path, resolution: &mut Resolution) -> Result<(), What> {
     let mut object = read::Object::new(document, at)?;
     let end = read::after(document, at)?.checked_sub(1).ok_or(What::Kind)?;
     let mut next = at.checked_add(1).ok_or(What::Bound)?;
-    let mut stream_overrides = false;
     for _ in at..end {
         if next == end {
             break;
@@ -844,62 +942,16 @@ fn members(
             return Err(What::Kind);
         }
         let name = document.text(key).ok_or(What::Kind)?;
-        overridden.calls |= name == b"clients_http.calls";
-        overridden.exchanges |= name == b"clients.exchanges";
-        overridden.hub_slots |= name == b"hub.slots";
-        stream_overrides |= name == b"clients.streams"
-            || name == b"clients.exchanges"
-            || name == b"clients_http.streams"
-            || name == b"clients_http.calls";
+        resolution.name(name);
         let value_at = next.checked_add(1).ok_or(What::Bound)?;
         if object.member(document, name) == Some(value_at) {
             let value = read::integer(document, value_at, u64::MAX).or(Err(What::Override));
-            let result = match value {
-                Ok(value) => apply(limits, name, value),
-                Err(what) => Err(what),
-            };
-            if let Err(what) = result {
-                problems.push(path.member(name), what);
-            }
+            resolution.apply(name, value, path);
         }
         next = read::after(document, value_at)?;
     }
-    object.finish(document, path, problems);
-    overridden.derive_carriers(limits);
-    validate_members(document, at, end, path, limits, problems, stream_overrides)
-}
-
-fn validate_members(
-    document: &Document,
-    at: u32,
-    end: u32,
-    path: &Path,
-    limits: &Limits,
-    problems: &mut Problems,
-    stream_overrides: bool,
-) -> Result<(), What> {
-    if !problems.is_empty() {
-        return Ok(());
-    }
-    if let Some((member, what)) = crate::domain::capacity(&limits.core) {
-        problems.push(path.member(member), what);
-        return Ok(());
-    }
-    let mut next = at.checked_add(1).ok_or(What::Bound)?;
-    let mut fits = Fits { hub: None, core: None };
-    for _ in at..end {
-        if next == end {
-            break;
-        }
-        let name = document.text(document.token(next).ok_or(What::Kind)?).ok_or(What::Kind)?;
-        if !valid(limits, name, &mut fits) {
-            problems.push(path.member(name), What::Override);
-        }
-        next = read::after(document, next.checked_add(1).ok_or(What::Bound)?)?;
-    }
-    if stream_overrides && problems.is_empty() {
-        check_carriers(limits, path, problems);
-    }
+    object.finish(document, path, &mut resolution.problems);
+    resolution.finish_members(path);
     Ok(())
 }
 

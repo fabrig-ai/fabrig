@@ -184,15 +184,11 @@ fn limits_problems_without_a_profile_add_no_bound_of_base() {
 
     let bytes = with(ENGINE_SMALL, br#""connectors": [1]"#, br#""connectors": [1, 2, 3]"#);
     for (case, limits, expected) in [
-        ("unknown profile", Some(br#"{"profile":"standrd"}"#.as_slice()), path(&[b"limits", b"profile"])),
-        ("profile of the wrong kind", Some(br#"{"profile":7}"#.as_slice()), path(&[b"limits", b"profile"])),
-        ("limits of the wrong kind", Some(b"7".as_slice()), path(&[b"limits"])),
-        ("missing limits", None, path(&[b"limits"])),
+        ("unknown profile", br#"{"profile":"standrd"}"#.as_slice(), path(&[b"limits", b"profile"])),
+        ("profile of the wrong kind", br#"{"profile":7}"#.as_slice(), path(&[b"limits", b"profile"])),
+        ("limits of the wrong kind", b"7".as_slice(), path(&[b"limits"])),
     ] {
-        let bytes = match limits {
-            Some(limits) => with(&bytes, br#"{"profile": "standard"}"#, limits),
-            None => with(&bytes, br#""limits": {"profile": "standard"},"#, b""),
-        };
+        let bytes = with(&bytes, br#"{"profile": "standard"}"#, limits);
         let problems = engine(&bytes).unwrap_err();
         assert_eq!(problems.problems.len(), 1, "{case}: {problems:?}");
         assert_eq!(problems.past, 0, "{case}: {problems:?}");

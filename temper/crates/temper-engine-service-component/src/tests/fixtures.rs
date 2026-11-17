@@ -347,7 +347,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     let settings = start_settings(engine(), &[(1, 100)]);
     let seeds = seeds();
     let mut limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
-    limits.transcript_memory = settings.jig.memory;
+    limits.transcript_memory = settings.jig.memory.unwrap();
     limits.host_reply_bytes = settings.host_reply_bytes;
     let mut core = crate::system::core_config(&settings.jig, &seeds);
     core.kinds.clone_from(&settings.kinds);

@@ -704,9 +704,23 @@ fn nothing_leaves_before_the_mark() {
 }
 
 #[test]
+fn an_absent_byte_budget_refuses_direct_engine_startup() {
+    let mut settings = fixtures::engine();
+    settings.jig.memory = None;
+    fixtures::fill_files(&mut settings);
+    let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
+        .err()
+        .expect("an absent byte budget refuses direct startup");
+    assert_eq!(problems.problems.len(), 1);
+    let problem = problems.problems.get(0).unwrap();
+    assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"memory_bytes"));
+    assert_eq!(problem.what, jig_protocol_config::What::Missing);
+}
+
+#[test]
 fn a_zero_byte_budget_refuses_direct_engine_startup() {
     let mut settings = fixtures::engine();
-    settings.jig.memory = 0;
+    settings.jig.memory = Some(0);
     fixtures::fill_files(&mut settings);
     let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
         .err()
@@ -721,8 +735,8 @@ fn a_zero_byte_budget_refuses_direct_engine_startup() {
 fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
     let mut settings = fixtures::engine();
     // A distinct engine value: worker memory has a separate parsed document.
-    settings.jig.memory += 1;
-    let memory = settings.jig.memory;
+    let memory = settings.jig.memory.unwrap() + 1;
+    settings.jig.memory = Some(memory);
     fixtures::fill_files(&mut settings);
     let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     assert_eq!(service.engine.as_ref().expect("started engine").env.limits.transcript_memory, memory);

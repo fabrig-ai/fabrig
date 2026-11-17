@@ -185,7 +185,9 @@ pub fn store_limits(
     Ok(StoreLimits { store, forge: root.forge })
 }
 
-fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
+fn check_memory_bytes(memory_bytes: Option<u64>) -> Result<(), Problems> {
+    let memory_bytes = memory_bytes
+        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Missing)))?;
     if memory_bytes == 0 {
         return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Bound)));
     }

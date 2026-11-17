@@ -168,9 +168,9 @@ pub fn checked_store(
 pub fn engine_limits(
     jig: &mut config::Limits,
     own: &crate::limits::Limits,
-    memory_bytes: u64,
+    memory_bytes: Option<u64>,
 ) -> Result<temper_engine_domain::Limits, Problems> {
-    check_memory_bytes(memory_bytes)?;
+    let memory_bytes = check_memory_bytes(memory_bytes)?;
     jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
     let mut root = crate::limits::engine_candidate(jig, own);
     root.transcript_memory = memory_bytes;
@@ -185,11 +185,13 @@ pub fn engine_limits(
     }
     Ok(root)
 }
-fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
+fn check_memory_bytes(memory_bytes: Option<u64>) -> Result<u64, Problems> {
+    let memory_bytes = memory_bytes
+        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Missing)))?;
     if memory_bytes == 0 {
         return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Bound)));
     }
-    Ok(())
+    Ok(memory_bytes)
 }
 #[derive(Debug)]
 struct Parsed {
@@ -612,7 +614,7 @@ pub fn named_with(
     given: &crate::stock::Given,
 ) -> Result<Named, Problems> {
     let parsed = parse_with(document, directories, given)?;
-    check_memory_bytes(parsed.engine.memory)?;
+    let _memory_bytes = check_memory_bytes(parsed.engine.memory)?;
     let files = all_files(&parsed);
     Ok(Named {
         provider: parsed.engine.clients.provider.is_some(),
