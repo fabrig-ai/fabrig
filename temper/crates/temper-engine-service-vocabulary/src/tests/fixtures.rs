@@ -186,7 +186,12 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
 pub fn routes() -> crate::store::route::Routes {
     let (root, _, _) = store_limits();
     let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).expect("family bounds");
-    crate::store::route::Routes::new(2, &root, bounds)
+    crate::store::route::Routes::new(
+        2,
+        &root,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    )
 }
 
 #[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]

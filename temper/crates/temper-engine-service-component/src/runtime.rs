@@ -87,7 +87,7 @@ impl engine::Engine {
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
+        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(

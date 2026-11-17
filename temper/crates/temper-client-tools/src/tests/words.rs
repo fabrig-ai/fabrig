@@ -168,8 +168,11 @@ fn deployment_census_parses_and_help_lists_it() {
     assert_eq!(row.result, b"census");
     assert_eq!(row.keyed, jig::table::Keyed::Never);
     assert_eq!(row.area, 3);
-    let line = b"Read the store's census in the deployment's document";
-    for words in [&["help"][..], &["help", "deployment"], &["help", "deployment", "census"]] {
+    for (words, line) in [
+        (&["help"][..], b"Read the deployment's store census or take a checkpoint".as_slice()),
+        (&["help", "deployment"][..], b"Read the store's census in the deployment's document".as_slice()),
+        (&["help", "deployment", "census"][..], b"Read the store's census in the deployment's document".as_slice()),
+    ] {
         let call = fixtures::call(words);
         let selected = help::selection(&call).expect("census help selection");
         let text = fixtures::selected_help(selected);

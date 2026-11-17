@@ -418,7 +418,10 @@ impl Store {
                     }
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
+                    reply @ (engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::Switched
+                    | engine::StoreInput::ReadLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }
@@ -455,7 +458,9 @@ impl Store {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
-                    engine::StoreInput::MissingLink { .. }
+                    engine::StoreInput::Checkpointed { .. }
+                    | engine::StoreInput::CheckpointRefused { .. }
+                    | engine::StoreInput::MissingLink { .. }
                     | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
@@ -491,6 +496,12 @@ impl Store {
         self.catalogue = Some(names.clone());
         self.component.as_mut().expect("live component").catalogue(names);
     }
+    /// Take the act over this world's memory store (temper/docs/design/protocol/checkpoints.md, 5).
+    pub fn checkpoint(&mut self, token: Token) -> engine::StoreInput {
+        self.request(engine::StoreRequest::Checkpoint { token });
+        self.replies.pop().expect("checkpoint terminal")
+    }
+    #[must_use]
     pub fn switch(&mut self) -> engine::StoreInput {
         self.request(engine::StoreRequest::Switch);
         let answer = self.replies.pop().expect("switch terminal");
@@ -706,6 +717,7 @@ fn routes(limits: &engine::Limits) -> route::Routes {
         limits.loads.loads,
         limits,
         temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).expect("world cryptographic seed"),
     )
 }
 /// The largest journal, task and brief bounds used by the engine stories.

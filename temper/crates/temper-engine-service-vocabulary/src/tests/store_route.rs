@@ -652,7 +652,12 @@ fn window_turns_past_store_row_or_page_room_are_carried_cut() {
         let mut limits = limits;
         limits.loads.bytes = page_bound;
         let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-        let mut routes = route::Routes::new(2, &limits, bounds);
+        let mut routes = route::Routes::new(
+            2,
+            &limits,
+            bounds,
+            skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+        );
         let range = engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) });
         let mut after = None;
         let large = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
@@ -1034,7 +1039,12 @@ fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     // A smaller per-record entrance exercises the cut without raising any budget.
     limits.loads.transcript_bytes = 1;
     let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
-    let mut routes = route::Routes::new(2, &limits, bounds);
+    let mut routes = route::Routes::new(
+        2,
+        &limits,
+        bounds,
+        skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).unwrap(),
+    );
     let Some(store::Request::Restore { owner, .. }) =
         route::down(&mut routes, load(engine::Range::Forge, None, 4, 8192))
     else {

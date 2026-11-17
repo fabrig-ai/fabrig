@@ -184,7 +184,7 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
 
 fn refuse(directory: &Path, root: &temper_engine_domain::Limits, limits: &jig_protocol_store::Limits) {
     let models = jig_protocol_config::core(&fixtures::engine().jig, [7; 16], 7).settings.models;
-    let mut store = store::Store::new(root, limits, &models, fixtures::seeds().installation);
+    let mut store = store::Store::new(root, limits, &models, &fixtures::seeds());
     store.adopt(skein_shell::open_root(directory).unwrap(), skein_shell::effective_user()).unwrap();
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(store));
     let mut kernel = Kernel::open(Config { operations: 32 }).expect("file kernel");

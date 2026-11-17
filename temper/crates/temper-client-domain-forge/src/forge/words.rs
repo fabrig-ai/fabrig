@@ -1665,6 +1665,8 @@ pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<
         | Outcome::Removed
         | Outcome::RemoveRefused(_)
         | Outcome::Reset
+        | Outcome::Checkpointed(_)
+        | Outcome::CheckpointRefused(_)
         | Outcome::EndRefused(_)
         | Outcome::Dismissed
         | Outcome::MakeKept

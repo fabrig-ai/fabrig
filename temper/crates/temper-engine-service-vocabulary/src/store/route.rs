@@ -1,4 +1,5 @@
 //! Root store requests and terminals, with temper's decoded families.
+//! Checkpoints: temper/docs/design/protocol/checkpoints.md, 3.
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 use super::{UnreadableRow, ranges};
 use ::core::mem::size_of;
@@ -12,6 +13,7 @@ use temper_protocol_store as families;
 /// A bounded load table and transcript continuations, never decoded rows.
 #[derive(Debug)]
 pub struct Routes {
+    random: skein_lib::CryptoRng,
     pending: Map<Token, Flight>,
     reads: Map<Token, Token>,
     next: u64,
@@ -42,8 +44,14 @@ impl Routes {
 
     /// Size the continuation table from the root's admitted loads.
     #[must_use]
-    pub fn new(table: u32, limits: &engine::Limits, families: families::Bounds) -> Routes {
+    pub fn new(
+        table: u32,
+        limits: &engine::Limits,
+        families: families::Bounds,
+        random: skein_lib::CryptoRng,
+    ) -> Routes {
         Routes {
+            random,
             pending: Map::with_capacity(table),
             reads: Map::with_capacity(table),
             next: 0,
@@ -171,6 +179,11 @@ pub enum Up {
 #[must_use]
 pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store::Request> {
     Some(match request {
+        engine::StoreRequest::Checkpoint { token } => {
+            let mut draw = [0; 16];
+            routes.random.fill(&mut draw);
+            store::Request::Checkpoint { owner: token, draw }
+        }
         engine::StoreRequest::Catalogue { .. } => unreachable!("the store owner replaces its catalogue directly"),
         engine::StoreRequest::Switch => store::Request::Switch { owner: Token::new(u64::MAX - 2) },
         engine::StoreRequest::Commit { number, writes } => {
@@ -222,6 +235,10 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 }
 
 /// Every store terminal is accepted independently of journal room.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one exhaustive store-terminal dispatcher keeps each owner's terminal explicit"
+)]
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
         store::Event::Page { owner, items, next } => {
@@ -232,6 +249,12 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 routes.page_failure = Some(failure);
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
+        }
+        store::Event::Checkpointed { owner, checkpoint } => {
+            root(into, engine::StoreInput::Checkpointed { token: owner, checkpoint: checkpointed(checkpoint) });
+        }
+        store::Event::CheckpointRefused { owner, why } => {
+            root(into, engine::StoreInput::CheckpointRefused { token: owner, why: checkpoint_why(why) });
         }
         store::Event::Census { census } => root(into, engine::StoreInput::Census(census)),
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
@@ -302,8 +325,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
         store::Event::SecretsNotReady { .. } => stop(routes, RouteStop::Secrets, into),
         store::Event::Decoded { .. }
-        | store::Event::Checkpointed { .. }
-        | store::Event::CheckpointRefused { .. }
         | store::Event::CheckpointHeld { .. }
         | store::Event::CheckpointRemoved { .. }
         | store::Event::Undecodable { .. }
@@ -702,4 +723,36 @@ fn landing_branch(
         }
     }
     None
+}
+
+fn checkpointed(value: store::Checkpointed) -> engine::Checkpointed {
+    engine::Checkpointed {
+        name: value.name.bytes().as_slice().into(),
+        store: value.name.store,
+        secrets: value.secrets,
+        linked: value.linked,
+        copied: value.copied,
+        bytes: value.bytes,
+        paused: value.paused,
+        took: value.took,
+        held: value.held,
+        removed: value.removed,
+        skipped: value.skipped,
+    }
+}
+fn checkpoint_why(value: store::CheckpointRefusal) -> engine::CheckpointWhy {
+    match value {
+        store::CheckpointRefusal::InProgress => engine::CheckpointWhy::InProgress,
+        store::CheckpointRefusal::Unavailable => engine::CheckpointWhy::Unavailable,
+        store::CheckpointRefusal::Files => engine::CheckpointWhy::Files,
+        store::CheckpointRefusal::Unrecognized { path } => engine::CheckpointWhy::Unrecognized { path },
+        store::CheckpointRefusal::Vanished { path } => engine::CheckpointWhy::Vanished { path },
+        store::CheckpointRefusal::Failed { path, error } => engine::CheckpointWhy::Failed {
+            path,
+            error: alloc::fmt::format(format_args!("{error:?}")).into_boxed_str(),
+        },
+        store::CheckpointRefusal::InUse | store::CheckpointRefusal::Missing => {
+            unreachable!("taking a checkpoint cannot refuse a reader's lock or name")
+        }
+    }
 }

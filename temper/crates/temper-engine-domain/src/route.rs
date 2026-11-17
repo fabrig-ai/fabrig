@@ -3,6 +3,7 @@ mod applications;
 pub(crate) mod approvals;
 mod asks;
 pub(crate) mod calendar;
+pub(crate) mod checkpoints;
 mod diagnostics;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
@@ -245,6 +246,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::StreamDelivered { watcher }) => {
             domain.work.push(Work::Core(core::Event::StreamDelivered { watcher }));
+        }
+        Event::Store(crate::StoreInput::Checkpointed { token, checkpoint }) => {
+            checkpoints::terminal(domain, token, Ok(checkpoint));
+        }
+        Event::Store(crate::StoreInput::CheckpointRefused { token, why }) => {
+            checkpoints::terminal(domain, token, Err(why));
         }
         Event::Store(crate::StoreInput::Census(census)) => {
             if domain.start_runtime() {
@@ -764,7 +771,9 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Resume
         | Event::Stop
         | Event::Store(
-            crate::StoreInput::MissingLink { .. }
+            crate::StoreInput::Checkpointed { .. }
+            | crate::StoreInput::CheckpointRefused { .. }
+            | crate::StoreInput::MissingLink { .. }
             | crate::StoreInput::Switched
             | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }

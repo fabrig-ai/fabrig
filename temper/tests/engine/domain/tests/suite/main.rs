@@ -12,6 +12,7 @@ mod admission;
 mod agent_reads;
 mod applications;
 mod budget;
+mod checkpoints;
 mod configuring;
 mod deleted_project;
 mod document_limits;

@@ -1644,7 +1644,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::OpenChange(_)
+                        root::Application::Checkpoint
+                        | root::Application::OpenChange(_)
                         | root::Application::Tier(_)
                         | root::Application::Follow { .. }
                         | root::Application::Try { .. }
@@ -1783,7 +1784,7 @@ fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v26::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 26);
+    assert_eq!(wire::CLIENT_VERSION, 27);
 }
 
 #[test]

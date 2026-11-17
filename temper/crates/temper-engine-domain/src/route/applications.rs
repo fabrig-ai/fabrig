@@ -42,14 +42,15 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             Some(project) => people::ApplicationScope::Project(*project),
             None => people::ApplicationScope::Deployment,
         },
-        // Tier controls check project or deployment ownership after authenticating the party.
         Application::OpenChange(call) => people::ApplicationScope::Project(call.project),
-        Application::Tier(_) => people::ApplicationScope::Own,
         Application::Forge(forge::Ask::SetDraft(call)) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => {
-            people::ApplicationScope::Own
-        }
+        // Checkpoint and tier controls check ownership after authenticating the party.
+        Application::Checkpoint
+        | Application::Tier(_)
+        | Application::Try { .. }
+        | Application::AddDevice(_)
+        | Application::RemoveDevice { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what:
                 forge::PersonFact::ToBegin { project }
@@ -81,7 +82,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             }
             None
         }
-        Application::OpenChange(_)
+        Application::Checkpoint
+        | Application::OpenChange(_)
         | Application::Tier(_)
         | Application::Follow { .. }
         | Application::Forge(_)
@@ -132,6 +134,20 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Checkpoint => {
+            if let Some(carried) = carried {
+                assert!(
+                    super::now(
+                        domain,
+                        crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused {
+                            number: carried.number
+                        }))
+                    ),
+                    "carried value output door reserved"
+                );
+            }
+            super::checkpoints::admitted(domain, request, token, person);
+        }
         Application::OpenChange(call) => {
             super::opened::admitted(domain, env, decision, request, token, retention, person, call);
         }
@@ -306,6 +322,9 @@ pub(super) fn finished(domain: &mut Domain, request: Token, outcome: Result<Toke
 }
 
 pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer> {
+    if let Some(answer) = domain.checkpoints.answer(token) {
+        return Some(ApplicationAnswer::Checkpoint(answer));
+    }
     if let Some((answer, _, _)) = domain.try_answers.get(&token) {
         return Some(ApplicationAnswer::Try(*answer));
     }
