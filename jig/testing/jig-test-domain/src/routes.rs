@@ -93,6 +93,7 @@ pub(super) fn route_core(
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
+                | core::Held::Restarting { .. }
                 | core::Held::Grant { .. }
                 | core::Held::Cancel { .. }
                 | core::Held::ReadList { .. }

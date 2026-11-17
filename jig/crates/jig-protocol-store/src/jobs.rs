@@ -6,7 +6,6 @@ pub struct Job {
     pub name: &'static str,
     pub keys: &'static [KeyRange],
     pub converts: Option<Converts>,
-    pub settles: bool,
     pub counts: &'static [&'static str],
 }
 #[derive(Clone, Copy, Debug)]
@@ -92,29 +91,9 @@ pub struct JobRefusal {
 }
 
 /// Routes a page to its named jig job (protocol/store/jobs.md, 3–4).
-pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
-    if job == "charter-versions" {
-        return charter_versions::page(page);
-    }
-    if job == "retention-rows" {
-        return retention::rows(page);
-    }
-    if job == "retention-proposals" {
-        return retention::proposals(page);
-    }
-    if job == "ended-talk" {
-        return ended_talk::page(page);
-    }
-    if job == "task-logs" {
-        return task_logs::page(page);
-    }
+pub fn page(_job: &str, _page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
-
-mod charter_versions;
-mod ended_talk;
-mod retention;
-pub(crate) mod task_logs;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

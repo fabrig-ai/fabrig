@@ -148,6 +148,7 @@ impl Channel {
                     | engine::Request::Abort { .. }
                     | engine::Request::Lost { .. }
                     | engine::Request::Ended { .. }
+                    | engine::Request::Told { .. }
                     | engine::Request::Closed) => panic!("engine channel: {other:?}"),
                 }
             }
@@ -189,6 +190,7 @@ impl Channel {
                     | worker::Request::RelayCancelled { .. }
                     | worker::Request::Resend { .. }
                     | worker::Request::Lost
+                    | worker::Request::Restarting { .. }
                     | worker::Request::GracePassed
                     | worker::Request::Closed
                     | worker::Request::Value { .. }
@@ -225,6 +227,11 @@ impl Channel {
         );
         self.settle();
     }
+}
+
+/// An authenticated channel whose hello has crossed, for the service's stop routing.
+pub(super) fn opened_engine() -> engine::Component {
+    Channel::new().engine
 }
 
 fn exchange(

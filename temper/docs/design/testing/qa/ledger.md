@@ -3,7 +3,7 @@
 Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 4, 7,
 8 and 9, milestones Q1, Q3 and Q4 of `../../draft/landed-qa.execution.md`.
 The one record of landed QA's state for a project: its landings, cases,
-builds, agent sessions, passes, findings, notes and lines, kept by code,
+builds, agent sessions, passes, findings, gaps, notes and lines, kept by code,
 written through its operations alone, by the loop and by the agents'
 commands.
 
@@ -17,8 +17,8 @@ commands.
   and tokens, passes with their requests, findings with their rounds,
   the agents' notes, and lines.
 - **Its rules** (section 4) hold whoever writes: triage in main's order,
-  one answer kind per landing, a case merged into the queued one for its
-  page, a build deleted only once no pass can need it, a case in one
+  cases with gaps beside them or one answer kind per landing, a case
+  merged into the queued one for its page, a build deleted only once no pass can need it, a case in one
   pass at a time, a session's end deciding each case's state, a pass
   resumed on a build holding its goal's landing, and a finding handed on
   after two goals.
@@ -53,7 +53,7 @@ absent before its first read.
   `pull`, its pull request's number where the merge names one; `title`;
   `seen`, the time it was recorded;
 - `answer`: absent until triage answers, then `none` with its `why`, or
-  `cases`;
+  `cases` or `gap` (`gaps.md`, 2);
 - `triaged`: absent, or the time it was triaged (4.4), with `unanswered`
   true where its triage recorded nothing twice;
 - `sessions`: how many triage sessions ended for it with no answer.
@@ -73,12 +73,12 @@ absent before its first read.
   word for word, `see` (`triage.md`, 4);
 - `state`: `queued`; `assigned`, taken by a pass that has not yet ended
   it; `passed`; `failed`; or `blocked`, blocked twice and out of the
-  queue (4.12);
+  queue (4.12); or `gap`, out of the queue at once (4.18);
 - `pass`: the pass it is assigned to, failed in or passed in, absent
   while `queued`;
 - `blocks`: how many pass sessions ended it blocked, absent for none;
 - `outcomes`: each outcome recorded for it, in order, each its
-  `session`, `time`, `result` (`passed`, `failed` or `blocked`),
+  `session`, `time`, `result` (`passed`, `failed`, `blocked` or `gap`),
   `notes` and `findings`, the numbers it names, possibly none (4.10);
 - `queued`, the time of its first ask; `line`, true once its wait for a
   build has been a line (4.7).
@@ -121,7 +121,7 @@ copy's build stay known (`places.md`, 7).
   assigned again, its `number`, `state` and `pass` before it.
 
 A session's time is `ended` less `started`. A pass session has recorded
-something once an outcome, a finding, a check or a note names it.
+something once an outcome, a finding, a check, a gap or a note names it.
 
 ### 2.6 Lines
 
@@ -187,6 +187,23 @@ A pass's goal is its last request's.
 no place was free (4.17): `from`, when it began, and `to`, when it
 ended, absent while it lasts. Absent in a document Q3 wrote, as none.
 
+### 2.11 Gaps
+
+`gaps`, optional, absent as none (`gaps.md`, 5). Each:
+
+- `number`, from 1, never reused; `kind`, `ctl`, `fake` or `qa`;
+  `why`, the agent's nonempty words; `owner`, resolved by kind when
+  recorded (`gaps.md`, 4);
+- `landing`, the session's for triage, or the case's first ask's for
+  a pass; `case`, only for a pass's gap;
+- `session` and `time` of its record;
+- `state`, `open`, `filed` or `closed`; `filed`, the time the request
+  succeeded, absent until then; `closed`, absent until closed, then
+  an object with `landing`, the closing landing, and `time`.
+
+The gap's session and earlier brief keep its earlier answer beside a
+landing's new triage; the gap stays recorded after closure.
+
 ## 3. Its lock and writes
 
 - **Every operation that records** takes an exclusive lock on
@@ -212,19 +229,24 @@ ended, absent while it lasts. Absent in a document Q3 wrote, as none.
 ### 4.2 Answers
 
 - **No QA** (`triage none WHY`): `why` nonempty; refused where the
-  landing has a case.
+  landing has a case or a gap.
 - **A case** (`triage case FILE`): refused where the landing is answered
   no QA, or where the case does not fit (section 5).
-- **Repeated:** a second no QA replaces the first's `why`; cases add up.
+- **A gap** (`triage gap KIND WHY`): answers `gap` unless the landing
+  has cases; beside cases its answer stays `cases`. Refused after no
+  QA. A case may accompany a gap (`gaps.md`, 2).
+- **Repeated:** a second no QA replaces the first's `why`; cases and
+  gaps add up.
 
 ### 4.3 A case and its merge
 
 - **Checked** against the session's `pages`, `setups` and
   `deployments` (2.5): its surface `ctl`, `web` or `tui`; its page one
-  of that surface's; its setup one of the catalogue's, and, where it is
-  one of `deployments`, its surface `ctl`, since a deployment takes ctl
-  cases alone until Q7 (`deployment.md`, 10); at least one step, every
-  step a nonempty `do` and a nonempty `expect`. Its kind is its setup's.
+  of that surface's; its setup one of the catalogue's, of either kind,
+  since a deployment takes every surface as a box does
+  (`deployment.md`, 6.1); at least one step, every
+  step a nonempty `do` and a nonempty `expect`. Its kind is its setup's,
+  `deployment` where the setup is one of `deployments`.
 - **Joined to a waiting pass** where 4.15 says, before any merge.
 - **Merged:** where a case in state `queued` has the same surface, page
   and kind, the new ask joins it, and the case keeps every landing that
@@ -237,8 +259,8 @@ ended, absent while it lasts. Absent in a document Q3 wrote, as none.
 
 Ended by the loop (`triage.md`, 6), with its exit, tokens and time:
 
-- **Its landing answered** (no QA or a case): the landing is triaged at
-  that time.
+- **Its landing answered** (no QA, a case or a gap): the landing is
+  triaged at that time.
 - **Not answered:** the landing's `sessions` count rises. At two, the
   landing is triaged as `unanswered` and a line says so: `landing L
   (goal G, COMMIT12): triage recorded nothing in two sessions; triaged
@@ -312,7 +334,9 @@ surface in `surfaces` and of the place's kind:
   (`../../draft/landed-qa.md`, 13).
 - **Appended** to the case's `outcomes`; the case's state changes only
   at the session's end (4.12), from the last outcome the session
-  recorded for it.
+  recorded for it. A `pass gap` records result `gap`, naming the gap
+  through its case and session, and changes the case's state at once
+  (4.18); it counts neither failed nor blocked.
 
 ### 4.11 A finding and its match
 
@@ -439,6 +463,31 @@ none is left and a wait is open, it closes, `to` now. So a wait spans
 the time cases a build holds sat queued behind busy places, the
 figure that says a deployment needs another place (section 6).
 
+### 4.18 Gaps
+
+- **Recorded by triage** only for the running session's next landing;
+  **by a pass** only for a case assigned to its running session's pass.
+  KIND is `ctl`, `fake` or `qa`, WHY one nonempty argument. Each
+  command prints `gap N` (`gaps.md`, 2 and 3).
+- **A pass's gap** records its outcome `gap`, takes the case out of the
+  queue at once in state `gap`, and counts neither failed nor blocked.
+  Its report lists the gap and the case's outcome names its number.
+- **Filed** once, all open gaps not yet filed together, as one request
+  with no `goal` (`gaps.md`, 6). Exit 0 marks them `filed` with the
+  time; a failure leaves them open for the next tick. No gap starts a
+  goal.
+- **Closed** by a landing's commits' `QA-gap: N` trailers, once a kept
+  build holds that landing (`gaps.md`, 7). The gap records the closing
+  landing and time. A pass gap's case is `queued` again, its pass and
+  outcomes cleared; only a build holding every closing landing may
+  take it. A triage gap's landing has its answer and `triaged` cleared,
+  its unanswered count reset, and is triaged again with the surfaces,
+  setups and tree of the newest kept build holding its closures; its
+  original diff and drafts still describe what it asked. A running
+  triage finishes its turn before a triage gap closes and reopens
+  earlier work. The earlier gap and session brief remain beside the new answer. Unknown or
+  malformed gap numbers and already closed gaps change nothing.
+
 ## 5. Its refusals
 
 Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
@@ -453,11 +502,14 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
 | out of order | `session N triages landing L, which is not next: landing K is not triaged` |
 | a case after no QA | `landing L is answered no QA; a case is refused` |
 | no QA after a case | `landing L has cases; no QA is refused` |
+| a gap after no QA | `landing L is answered no QA; a gap is refused` |
+| no QA after a gap | `landing L has gaps; no QA is refused` |
+| another gap kind | `gap refused: KIND is none of ctl, fake, qa` |
+| a gap without why | `gap refused: no why` |
 | no QA without why | `no QA needs a line saying why` |
 | a case file unread | `case refused: FILE: WHY` |
 | no surface | `case refused: no surface` |
 | another surface | `case refused: surface S is none of ctl, web, tui` |
-| a web or tui case on a deployment's setup | `case refused: setup S is a deployment's, which takes ctl cases alone` |
 | no page | `case refused: no page` |
 | a page not the surface's | `case refused: P is no SURFACE page; pages: P1, P2, ...` |
 | no setup | `case refused: no setup` |
@@ -495,6 +547,9 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
   pass's number, place, short build, state, cases and goal; a finding's
   number, pass, case, severity, state and title; a note's number, pass
   and words.
+- **`temper-qa gaps [--open]`:** each gap newest first, as `gaps.md`,
+  5 words it, each line cut at a UTF-8 boundary within 200 bytes. `show`
+  also prints counts of `open`, `filed` and `closed` gaps.
 - **`temper-qa lines`:** each line, `N TIME AREA: WORDS`, oldest first.
 - **`temper-qa report PASS`:** the pass's report (`passes.md`, 8).
 - **`temper-qa tune`:** the figures a deployment tunes `qa.json`'s

@@ -58,7 +58,7 @@ impl Walk {
                 }
             }
         }
-        !super::TRACKED.with(Cell::get) || ended_landing
+        ended_landing
     }
     pub fn diagnostic(&self) -> String {
         let tasks: Vec<_> = self
@@ -252,19 +252,6 @@ impl Walk {
                 let board = p::PublicBoard::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
                     .map_err(|why| format!("board: {why:?}"))?;
                 let goals: Vec<_> = board.live().iter().chain(board.ended().iter()).collect();
-                if !super::TRACKED.with(core::cell::Cell::get) {
-                    if !(goals.is_empty()) {
-                        return Err(String::from("untracked change and its conversation delegates leave no goal"));
-                    }
-                    self.calls.push(visitor.send(
-                        fixtures::CLIENTS,
-                        Method::Get,
-                        format!("/jig/v1/public/2/2/2/{project:016x}").as_bytes(),
-                        &[(b"Host", b"one.example")],
-                    ));
-                    self.stage = 100;
-                    return Ok(false);
-                }
                 match (&(goals.len()), &(1)) {
                     (left, right) if left != right => {
                         let finding = format!("one tracked goal, conversation excluded: {}", self.diagnostic());
@@ -273,11 +260,6 @@ impl Walk {
                     _ => {}
                 }
                 let goal = goals[0];
-                super::identifiers::remember(
-                    project,
-                    goal.line().task(),
-                    goal.tree().iter().map(p::PublicLine::task).collect(),
-                );
                 if !(goal.line().goal()) {
                     return Err(format!("assertion failed: {}", stringify!(goal.line().goal())));
                 }
@@ -311,55 +293,6 @@ impl Walk {
                 }
                 self.task = Some(goal.line().task());
                 self.stage = 4;
-            }
-            100 => {
-                let answer = self.last(visitor)?;
-                match (&(answer.status), &(200)) {
-                    (left, right) if left != right => {
-                        let finding = String::from("assertion `left == right` failed");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                service_checks::policy(answer, false)?;
-                let app = p::PublicApplication::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
-                    .map_err(|why| format!("untracked forge envelope: {why:?}"))?;
-                if !(app.tasks().is_empty()) {
-                    return Err(String::from("no excluded task enters the envelope"));
-                }
-                let mut fields = Reader::new(app.record());
-                match (&(fields.u16()), &(Some(2))) {
-                    (left, right) if left != right => {
-                        let finding = String::from("assertion `left == right` failed");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                match (&(fields.u8()), &(Some(0))) {
-                    (left, right) if left != right => {
-                        let finding = String::from("no excluded turn holder");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                match (&(fields.u32()), &(Some(0))) {
-                    (left, right) if left != right => {
-                        let finding = String::from("no excluded landing counted");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                match (&(fields.u32()), &(Some(0))) {
-                    (left, right) if left != right => {
-                        let finding = String::from("no excluded queue counted or ordered");
-                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
-                    }
-                    _ => {}
-                }
-                if !(fields.is_empty()) {
-                    return Err(format!("assertion failed: {}", stringify!(fields.is_empty())));
-                }
-                return Ok(true);
             }
             200..=205 => return self.cross_project(visitor, project),
             _ => {
@@ -633,7 +566,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), 
             forge_references(row, application.record())?;
         }
         6 | 7 => {
-            use jig_client_protocol_wire::v27 as w;
+            use jig_client_protocol_wire::v28 as w;
             let versions =
                 w::NotServed::decode(&w::CEILINGS, &mut reader).map_err(|why| format!("not-served record: {why:?}"))?;
             match (&(versions.served().len()), &(1)) {

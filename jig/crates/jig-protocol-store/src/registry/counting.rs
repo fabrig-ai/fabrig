@@ -8,7 +8,7 @@ use std::{sync::Mutex, thread::ThreadId};
 pub(super) struct Counts {
     pub(super) parses: BTreeMap<Digest, u32>,
     pub(super) layouts: u32,
-    pub(super) held: BTreeMap<(Digest, bool), u32>,
+    pub(super) held: BTreeMap<Digest, u32>,
 }
 impl Counts {
     fn new() -> Self {
@@ -21,8 +21,8 @@ impl Counts {
                 let count = self.parses.get(&digest).copied().unwrap_or(0);
                 self.parses.insert(digest, count.checked_add(1).expect("parse count fits"));
             }
-            Event::Held(digest, current) => {
-                let key = (digest, current);
+            Event::Held(digest) => {
+                let key = digest;
                 let count = self.held.get(&key).copied().unwrap_or(0);
                 self.held.insert(key, count.checked_add(1).expect("held count fits"));
             }
@@ -34,7 +34,7 @@ impl Counts {
 enum Event {
     Reset,
     Parse(Digest),
-    Held(Digest, bool),
+    Held(Digest),
     Layout,
     Read,
 }
@@ -60,8 +60,8 @@ pub(super) fn reset() {
 pub(super) fn parsed(digest: Digest) {
     record(Event::Parse(digest));
 }
-pub(super) fn held(digest: Digest, current: bool) {
-    record(Event::Held(digest, current));
+pub(super) fn held(digest: Digest) {
+    record(Event::Held(digest));
 }
 pub(super) fn layout() {
     record(Event::Layout);

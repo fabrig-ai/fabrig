@@ -1,13 +1,8 @@
 //! Resident frame machines, bounded independently of map records (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
-use crate::patching::{
-    machines::{self, Room},
-    plan::Unplanned,
-    walk::held_root,
-};
-use crate::{Limits, Owner, PatchSet, PatchSets, codec};
+use crate::{Frames, Limits, Owner, OwnerSets, codec};
 use alloc::boxed::Box;
 use skein_codec::{
-    patch::{Capacity, Patcher},
+    patch::{Capacity, Halt, Patcher},
     schema::{self, DeclIx, FieldIx, Schema, Shape, Type, TypeIx, VariantIx},
 };
 use skein_lib::List;
@@ -30,48 +25,49 @@ impl Machines {
     }
 }
 
-pub(crate) fn make(sets: &PatchSets, limits: &Limits) -> Result<Machines, Unplanned> {
-    let mut frames = Machines::new();
+pub(crate) fn make(sets: &OwnerSets, limits: &Limits) -> Result<Machines, Owner> {
+    let mut machines = Machines::new();
     for set in sets.sets {
         for (ix, family) in set.families.iter().enumerate() {
-            let Some(root) = family.frames else { continue };
-            if family.texts.is_empty() {
+            let Some(frames) = &family.frames else { continue };
+            let root = frames.root;
+            if frames.texts.is_empty() {
                 continue;
             }
-            let refusal = Unplanned { owner: set.owner, patch: 0 };
+            let refusal = set.owner;
             let capacity = capacity(set, ix, limits).ok_or(refusal)?;
-            let patcher = machines::kept_patcher(set, ix, capacity)?;
-            let last = last(family.texts).ok_or(refusal)?;
+            let Some(patcher) = kept_patcher(frames, capacity) else { return Err(refusal) };
+            let last = last(frames.texts).ok_or(refusal)?;
             let machine = Machine { patcher: Some(patcher), root, last, capacity };
             match set.owner {
-                Owner::Jig => frames.body = Some(machine),
-                Owner::Smith => frames.turn = Some(machine),
+                Owner::Jig => machines.body = Some(machine),
+                Owner::Smith => machines.turn = Some(machine),
                 Owner::Skein | Owner::Application => return Err(refusal),
             }
         }
     }
-    Ok(frames)
+    Ok(machines)
 }
 fn last(texts: &[&str]) -> Option<u16> {
     Some(schema::parse(texts.last()?.as_bytes()).ok()?.version())
 }
 
-pub(crate) fn capacity(set: &PatchSet, ix: usize, limits: &Limits) -> Option<Capacity> {
+pub(crate) fn capacity(set: &crate::OwnerSet, ix: usize, limits: &Limits) -> Option<Capacity> {
     let family = set.families.get(ix)?;
-    let root = family.frames?;
+    let frames = family.frames.as_ref()?;
+    let root = frames.root;
     let codec = codec::limits(&limits.core)?;
     let bytes = match set.owner {
         Owner::Jig => u32::try_from(crate::core_v6::TurnRecord::encoded_bound(&codec.core)?).ok()?,
         Owner::Smith => codec.core.turn_record_transcript,
         Owner::Skein | Owner::Application => return None,
     };
-    let mut capacity = machines::capacity(set, ix, Room { bytes, nodes: 0 })?;
-    capacity.patches = u32::try_from(set.patches.len()).ok()?;
+    let mut capacity = frame_capacity(frames, Room { bytes, nodes: 0 })?;
     // Either owner's nodes are the most its kept texts allow from the
     // frames' root, so every frame those texts allow is read (protocol/store/transcripts.md 6).
-    let meta = machines::kept_patcher(set, ix, Capacity { bytes: 0, nodes: 0, ..capacity }).ok()?;
-    let last = last(family.texts)?;
-    for text in family.texts {
+    let meta = kept_patcher(frames, Capacity { bytes: 0, nodes: 0, ..capacity })?;
+    let last = last(frames.texts)?;
+    for text in frames.texts {
         let schema = schema::parse(text.as_bytes()).ok()?;
         let root = held_root(&meta, schema.version(), last, root.as_bytes()).ok()?;
         capacity.nodes = capacity.nodes.max(node_bound(&schema, root)?);
@@ -144,4 +140,71 @@ fn type_nodes(schema: &Schema, first: TypeIx, nodes: &List<u32>) -> Option<u32> 
         };
     }
     Some(count)
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Room {
+    pub bytes: u32,
+    pub nodes: u32,
+}
+
+pub(crate) fn frame_capacity(frames: &Frames, room: Room) -> Option<Capacity> {
+    let versions = u32::try_from(frames.texts.len()).ok()?;
+    let patches = u32::try_from(frames.patches.len()).ok()?;
+    let mut text = 0_usize;
+    for kept in frames.texts {
+        text = text.max(kept.len());
+    }
+    for patch in frames.patches {
+        text = text.max(patch.len());
+    }
+    // Patcher::new requires the language's ceiling; keep/plan name the
+    // offending kept text or patch if the actual text exceeds it.
+    let text = u32::try_from(text).ok()?.min(schema::MAX_TEXT);
+    Some(Capacity { versions, patches, text, bytes: room.bytes, nodes: room.nodes })
+}
+
+pub(crate) fn kept_patcher(frames: &Frames, capacity: Capacity) -> Option<Box<Patcher>> {
+    let mut machine = Box::new(Patcher::new(capacity));
+    let mut previous = None;
+    for text in frames.texts {
+        let Ok(version) = machine.keep(text.as_bytes()) else { return None };
+        if let Some(previous) = previous
+            && Some(version) != u16::checked_add(previous, 1)
+        {
+            return None;
+        }
+        previous = Some(version);
+    }
+    for text in frames.patches {
+        if machine.plan(text.as_bytes()).is_err() {
+            return None;
+        }
+    }
+    for text in frames.texts {
+        let schema = schema::parse(text.as_bytes()).ok()?;
+        let version = schema.version();
+        if Some(version) != previous && machine.plan_from(version).is_none() {
+            return None;
+        }
+    }
+    Some(machine)
+}
+
+pub(crate) fn held_root(patcher: &Patcher, version: u16, reached: u16, name: &[u8]) -> Result<DeclIx, Halt> {
+    if let Some(schema) = patcher.schema(version)
+        && let Some(root) = schema.find(name)
+    {
+        return Ok(root);
+    }
+    let mut root = patcher.schema(reached).ok_or(Halt::Order)?.find(name).ok_or(Halt::Order)?;
+    // A held name may spell the reached declaration after a rename. Walk
+    // sources back to the input version; forward passes use counterparts.
+    let passes = reached.checked_sub(version).ok_or(Halt::Order)?;
+    for offset in 0..passes {
+        let from = reached.checked_sub(offset).expect("offset below reached").checked_sub(1).expect("previous version");
+        let plan = patcher.plan_from(from).ok_or(Halt::Order)?;
+        root = patcher.source(plan, root).ok_or(Halt::Order)?;
+    }
+    Ok(root)
 }

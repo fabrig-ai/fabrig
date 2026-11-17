@@ -21,7 +21,11 @@ pub(super) const FAILED: &str = "cannot recover (`opening.md`):\n\n  > ";
 fn unwrapped(start: &str, end: &str) -> String {
     let text = DESIGN.split_once(start).expect("design's refusal start").1;
     let text = text.split_once(end).expect("design's refusal end").0;
-    text.lines().map(|line| line.trim().trim_start_matches("> ")).collect::<Vec<_>>().join(" ")
+    text.lines()
+        .map(|line| line.trim().trim_start_matches("> "))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace("<bridge>", crate::FLOOR_BRIDGE)
 }
 fn says(refusal: OpenRefusal, start: &str, end: &str) {
     assert_eq!(refusal.words().join("`<deployment>`"), unwrapped(start, end));
@@ -39,16 +43,7 @@ pub(super) fn has_deployment_slots(events: &[crate::Event], start: &str) {
 fn a_format_refusal_names_its_family_and_says_to_move_the_generations() {
     use crate::Family;
     let settings = unwrapped(FORMAT, "\n\n-").replace("<family>", "settings");
-    for (family, name) in [
-        (Family::Settings, "settings"),
-        (Family::Component, "component"),
-        (Family::Core, "core"),
-        (Family::Tasks, "tasks"),
-        (Family::People, "people"),
-        (Family::Notes, "notes"),
-        (Family::Accounts, "accounts"),
-        (Family::Application, "application"),
-    ] {
+    for (family, name) in [(Family::Settings, "settings"), (Family::Application, "application")] {
         let words = OpenRefusal::Format { family, found: 2, wanted: 1 }.words().join("`<deployment>`");
         assert_eq!(words, settings.replacen("whose settings", &["whose ", name].concat(), 1), "{family:?}");
     }
@@ -104,10 +99,6 @@ fn an_unnamed_refusal_says_to_name_its_generation() {
     says(OpenRefusal::Generations { why: Generations::Unnamed }, "- `Unnamed`: \"", "\"");
 }
 #[test]
-fn an_unrecorded_refusal_says_to_move_the_generations() {
-    says(OpenRefusal::OlderBuild { why: Older::Unrecorded }, "`Unrecorded`'s:\n\n  > ", "\n\n  `Layout`'s");
-}
-#[test]
 fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
     use crate::Family;
     says(
@@ -118,11 +109,6 @@ fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
     let settings = unwrapped("(the others name theirs):\n\n  > ", "\n\n## 4");
     for (family, clause) in [
         (Family::Component, "whose component family's"),
-        (Family::Core, "whose core family's"),
-        (Family::Tasks, "whose tasks family's"),
-        (Family::People, "whose people family's"),
-        (Family::Notes, "whose notes family's"),
-        (Family::Accounts, "whose accounts family's"),
         (Family::Secrets, "whose secrets family's"),
         (Family::SkeinOauth, "whose kept skein-oauth records'"),
         (Family::SmithTranscript, "whose kept smith turns'"),
@@ -143,36 +129,41 @@ fn a_job_refusal_says_the_designs_words() {
 }
 
 #[test]
-fn level_and_patch_refusals_say_the_designs_words() {
+fn check_refusals_say_the_designs_words() {
+    for (why, start) in [
+        (Check::Load { key: Box::new([]) }, "- `Check { why: Load }`: \""),
+        (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
+    ] {
+        says(OpenRefusal::Check { why }, start, "\"");
+    }
+}
+
+#[test]
+fn floor_and_unregistered_refusals_name_the_bridge() {
+    says(OpenRefusal::OlderBuild { why: Older::Floor }, "- `OlderBuild { why: Floor }` (`records.md`, 3): \"", "\"");
+    says(
+        OpenRefusal::OlderBuild { why: Older::Unregistered },
+        "- `OlderBuild { why: Unregistered }` (`layouts.md`, 5.1): \"",
+        "\"",
+    );
+}
+
+#[test]
+fn ahead_and_admission_refusals_say_the_designs_words() {
     for (refusal, start) in [
-        (OpenRefusal::OlderBuild { why: Older::Unleveled }, "- `OlderBuild { why: Unleveled }`: \""),
         (OpenRefusal::Ahead { owner: crate::Owner::Jig, found: Some(2), wanted: Some(1) }, "- `Ahead`: \""),
-        (
-            OpenRefusal::Patch {
-                owner: crate::Owner::Application,
-                patch: 2,
-                key: Box::new([]),
-                halt: skein_codec::patch::Halt::Order,
-            },
-            "- `Patch`: \"",
-        ),
-        (OpenRefusal::Set { owner: crate::Owner::Application, patch: 2 }, "- `Set`: \""),
-        (
-            OpenRefusal::InFlight { owner: crate::Owner::Application, family: "fixture", count: 0, keys: Box::new([]) },
-            "- `InFlight`: \"",
-        ),
+        (OpenRefusal::Set { owner: crate::Owner::Application }, "- `Set`: \""),
     ] {
         says(refusal, start, "\"");
     }
 }
 
 #[test]
-fn check_refusals_say_the_designs_words() {
+fn behind_and_unregistered_refusals_name_the_bridge_build() {
     for (why, start) in [
-        (Check::Large { key: Box::new([]) }, "- `Check { why: Large }`: \""),
-        (Check::Load { key: Box::new([]) }, "- `Check { why: Load }`: \""),
-        (Check::Private { name: Box::new([]) }, "- `Check { why: Private }`: \""),
+        (Older::Behind, "- `OlderBuild { why: Behind }`: \""),
+        (Older::Unregistered, "- `OlderBuild { why: Unregistered }` (`layouts.md`, 5.1): \""),
     ] {
-        says(OpenRefusal::Check { why }, start, "\"");
+        says(OpenRefusal::OlderBuild { why }, start, "\"");
     }
 }

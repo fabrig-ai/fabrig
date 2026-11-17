@@ -6,6 +6,44 @@ pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
 }
 
+/// Work milestone cards (client/pages/work.md, 1).
+pub const WORK_MILESTONE: Style = Style { owner: owner(), token: 804 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_CARD: Style = Style { owner: owner(), token: 805 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_FOLD: Style = Style { owner: owner(), token: 806 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_LANDED: Style = Style { owner: owner(), token: 807 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_CHANGE: Style = Style { owner: owner(), token: 808 };
+/// Work milestone cards (client/pages/work.md, 1).
+pub const MS_MARK: Style = Style { owner: owner(), token: 809 };
+
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_STRIP: Style = Style { owner: owner(), token: 794 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_DONE: Style = Style { owner: owner(), token: 795 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_LIVE: Style = Style { owner: owner(), token: 796 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_NEEDS: Style = Style { owner: owner(), token: 797 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_WAITS: Style = Style { owner: owner(), token: 798 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_FAILED: Style = Style { owner: owner(), token: 799 };
+/// Milestone parts (client/pages/milestone.md, 2).
+pub const MS_TAG: Style = Style { owner: owner(), token: 800 };
+/// Home's shared milestone row (client/pages/home.md, 1).
+pub const MS_ROW: Style = Style { owner: owner(), token: 801 };
+/// A milestone and the goals the filter shows (client/pages/work.md, 1).
+pub const GOALS_GROUP: Style = Style { owner: owner(), token: 802 };
+/// Goals inset beneath their milestone (client/pages/work.md, 1).
+pub const GOALS_GROUP_ROWS: Style = Style { owner: owner(), token: 803 };
+/// A milestone's goal row (client/pages/milestone.md, 3).
+pub const MS_GOAL: Style = Style { owner: owner(), token: 810 };
+/// A milestone in a need's from line (client/pages/needs-you.md, 1).
+pub const MS_FROM: Style = Style { owner: owner(), token: 830 };
+
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
 /// The goal heading (client/web/look.md).
@@ -186,6 +224,8 @@ pub const GOALS_STATE_RUNNING: Style = Style { owner: owner(), token: 290 };
 pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 291 };
 /// A goal paused by the person (client/pages/README.md).
 pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 292 };
+/// A goal waiting for dependencies or resources (client/pages/work.md, 1).
+pub const GOALS_STATE_WAITS: Style = Style { owner: owner(), token: 793 };
 /// A landed goal (client/pages/README.md).
 pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 293 };
 /// A closed or failed goal (client/pages/README.md).
@@ -1526,6 +1566,44 @@ pub const NAMES: Names<'static> = Names {
         b"temper-group-context",
         b"temper-group-card",
         b"temper-finding-title",
+        b"temper-goals-state-waits",
+        b"temper-ms-strip",
+        b"temper-ms-done",
+        b"temper-ms-live",
+        b"temper-ms-needs",
+        b"temper-ms-waits",
+        b"temper-ms-failed",
+        b"temper-ms-tag",
+        b"temper-ms-row",
+        b"temper-goals-group",
+        b"temper-goals-group-rows",
+        b"temper-work-milestone",
+        b"temper-ms-card",
+        b"temper-ms-fold",
+        b"temper-ms-landed",
+        b"temper-ms-change",
+        b"temper-ms-mark",
+        b"temper-ms-goal",
+        b"temper-reserved-811",
+        b"temper-reserved-812",
+        b"temper-reserved-813",
+        b"temper-reserved-814",
+        b"temper-reserved-815",
+        b"temper-reserved-816",
+        b"temper-reserved-817",
+        b"temper-reserved-818",
+        b"temper-reserved-819",
+        b"temper-reserved-820",
+        b"temper-reserved-821",
+        b"temper-reserved-822",
+        b"temper-reserved-823",
+        b"temper-reserved-824",
+        b"temper-reserved-825",
+        b"temper-reserved-826",
+        b"temper-reserved-827",
+        b"temper-reserved-828",
+        b"temper-reserved-829",
+        b"temper-ms-from",
     ],
     regions: &[b"temper-link"],
 };

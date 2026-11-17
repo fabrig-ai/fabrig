@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
@@ -787,7 +787,7 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
 fn worker_settings_and_linked_facts_cross_client_wire_27() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::settings as client;
-    assert_eq!(jig_client_protocol_wire::VERSION, 27);
+    assert_eq!(jig_client_protocol_wire::VERSION, 28);
     for digest in [None, Some([9; 32])] {
         let source = s::Value::Worker(Box::new(s::WorkerSetting {
             number: 2,

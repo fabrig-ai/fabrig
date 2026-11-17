@@ -1,34 +1,16 @@
 //! Jobs are checked with their sets, before the open writes (protocol/store/jobs.md, 1).
-use crate::patching::plan::Unplanned;
-use crate::{Job, KeptMap, KeyRange, PatchSet, PatchSets};
+use crate::{Job, KeptMap, KeyRange, Owner, OwnerSet, OwnerSets};
 
-pub(crate) fn check(sets: &PatchSets) -> Result<(), Unplanned> {
+pub(crate) fn check(sets: &OwnerSets) -> Result<(), Owner> {
     for set in sets.sets {
-        let refusal = Unplanned { owner: set.owner, patch: 0 };
+        let refusal = set.owner;
         for (index, job) in set.jobs.iter().enumerate() {
-            if job.name.len() > 64 || (!job.settles && job.keys.is_empty()) {
+            if job.name.len() > 64 || job.keys.is_empty() {
                 return Err(refusal);
             }
             for previous in set.jobs.get(..index).expect("earlier jobs") {
                 if previous.name == job.name {
                     return Err(refusal);
-                }
-            }
-            if job.settles {
-                if !job.keys.is_empty() || job.converts.is_some() || !job.counts.is_empty() {
-                    return Err(refusal);
-                }
-                let mut registered = false;
-                for family in set.families {
-                    registered |= !family.types.is_empty() || !family.retired.is_empty();
-                }
-                if !registered {
-                    return Err(refusal);
-                }
-                for previous in set.jobs.get(..index).expect("earlier jobs") {
-                    if previous.settles {
-                        return Err(refusal);
-                    }
                 }
             }
             if !counts(job) || !ranges(set, job) || !converts(set, job) {
@@ -57,7 +39,7 @@ fn counts(job: &Job) -> bool {
     }
     true
 }
-fn ranges(set: &PatchSet, job: &Job) -> bool {
+fn ranges(set: &OwnerSet, job: &Job) -> bool {
     let mut through: Option<&[u8]> = None;
     for range in job.keys {
         if range.from >= range.to || !in_map(set, range) {
@@ -72,7 +54,7 @@ fn ranges(set: &PatchSet, job: &Job) -> bool {
     }
     true
 }
-fn in_map(set: &PatchSet, range: &KeyRange) -> bool {
+fn in_map(set: &OwnerSet, range: &KeyRange) -> bool {
     let mut from = range.from;
     // Each turn crosses a declared map range, even when families interleave.
     let mut turns = 0_usize;
@@ -101,7 +83,7 @@ fn in_map(set: &PatchSet, range: &KeyRange) -> bool {
     }
     false
 }
-fn converts(set: &PatchSet, job: &Job) -> bool {
+fn converts(set: &OwnerSet, job: &Job) -> bool {
     let Some(converts) = job.converts else { return true };
     for family in set.families {
         if family.name == converts.family {

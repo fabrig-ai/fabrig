@@ -89,6 +89,10 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "open-change",
 ];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
+    &["milestone", "whole", "812", "--key", "whole"],
+    &["milestone", "list", "--project", "1"],
+    &["milestone", "show", "812"],
     TIER_HOLD,
     TIER_RELEASE,
     FOLLOW_START,
@@ -489,7 +493,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire::v27 as w;
+    use jig_client_protocol_wire::v28 as w;
     let record =
         w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
     let limits = jig_client_protocol_link::Limits::new(
@@ -740,7 +744,8 @@ impl Harness {
         if json {
             self.json_calls.insert(self.next);
         }
-        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
+        let count = if (call.tool == crate::jig::rows::GOAL_START_AT && crate::jig::call::number(&call, 11).is_some())
+            || crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
             || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
         {
             SINGLE_READ
@@ -767,6 +772,9 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::DEPLOYMENT_CENSUS_AT
                 | crate::jig::rows::WORKER_LIST_AT..=crate::jig::rows::WORKER_REMOVE_AT
+                | crate::jig::rows::MILESTONE_LIST_AT
+                | crate::jig::rows::MILESTONE_SHOW_AT
+                | crate::jig::rows::MILESTONE_WHOLE_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::FINDING_FILE_AT

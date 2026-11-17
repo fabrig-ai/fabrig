@@ -1,0 +1,800 @@
+{
+  "cued": [
+    {
+      "cue": "## Task\n\n@turn-a",
+      "turns": [
+        {
+          "lines": [
+            {
+              "take": "PERSON",
+              "before": "Person: ",
+              "after": ";"
+            },
+            {
+              "take": "REPO",
+              "before": "Repository: ",
+              "after": ";"
+            },
+            {
+              "call": "delegate",
+              "arguments": {
+                "batch": [
+                  {
+                    "executor": {
+                      "kind": "person",
+                      "person": "{{#PERSON}}"
+                    },
+                    "spec": {
+                      "words": "Release the turn landing latch"
+                    },
+                    "contract": {
+                      "kind": "report",
+                      "words": 64
+                    },
+                    "authority": {
+                      "tools": 0,
+                      "grants": [],
+                      "delegation": {
+                        "kinds": [],
+                        "tasks": 0,
+                        "depth": 0
+                      },
+                      "budget": {
+                        "spend": 0
+                      },
+                      "notes": 0
+                    }
+                  },
+                  {
+                    "executor": {
+                      "kind": "procedure",
+                      "connector": 1,
+                      "code": 2
+                    },
+                    "spec": {
+                      "words": "@turn-code-a Write turn-a.txt.",
+                      "parameters": [
+                        {
+                          "name": 1,
+                          "kind": "resource",
+                          "connector": 1,
+                          "resource": "{{#REPO}}"
+                        },
+                        {
+                          "name": 2,
+                          "kind": "bytes",
+                          "value": "main"
+                        }
+                      ]
+                    },
+                    "contract": {
+                      "kind": "change",
+                      "connector": 1,
+                      "change_kind": 1,
+                      "words": 512
+                    },
+                    "authority": {
+                      "tools": 1,
+                      "grants": [
+                        {
+                          "connector": 1,
+                          "kind": 1,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 2,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 3,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 4,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 10,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 11,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 12,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        }
+                      ],
+                      "delegation": {
+                        "kinds": [
+                          {
+                            "kind": "agent",
+                            "number": 1
+                          },
+                          {
+                            "kind": "agent",
+                            "number": 4
+                          }
+                        ],
+                        "tasks": 4,
+                        "depth": 2
+                      },
+                      "budget": {
+                        "spend": 128
+                      },
+                      "notes": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "wait",
+              "arguments": {}
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "report",
+                "text": "The turn member and its obligations ended.",
+                "fields": {}
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ],
+      "inputs": [
+        {
+          "cue": "Nothing more will come: your delegates have ended",
+          "turn": 2
+        },
+        {
+          "cue": "Begin the work your brief describes.",
+          "turn": 0
+        },
+        {
+          "cue": "",
+          "turn": 1
+        }
+      ]
+    },
+    {
+      "cue": "## Task\n\n@turn-b",
+      "turns": [
+        {
+          "lines": [
+            {
+              "take": "REPO",
+              "before": "Repository: ",
+              "after": ";"
+            },
+            {
+              "call": "delegate",
+              "arguments": {
+                "batch": [
+                  {
+                    "executor": {
+                      "kind": "procedure",
+                      "connector": 1,
+                      "code": 2
+                    },
+                    "spec": {
+                      "words": "@turn-code-b Write turn-b.txt.",
+                      "parameters": [
+                        {
+                          "name": 1,
+                          "kind": "resource",
+                          "connector": 1,
+                          "resource": "{{#REPO}}"
+                        },
+                        {
+                          "name": 2,
+                          "kind": "bytes",
+                          "value": "main"
+                        }
+                      ]
+                    },
+                    "contract": {
+                      "kind": "change",
+                      "connector": 1,
+                      "change_kind": 1,
+                      "words": 512
+                    },
+                    "authority": {
+                      "tools": 1,
+                      "grants": [
+                        {
+                          "connector": 1,
+                          "kind": 1,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 2,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 3,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 4,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 10,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 11,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 12,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        }
+                      ],
+                      "delegation": {
+                        "kinds": [
+                          {
+                            "kind": "agent",
+                            "number": 1
+                          },
+                          {
+                            "kind": "agent",
+                            "number": 4
+                          }
+                        ],
+                        "tasks": 4,
+                        "depth": 2
+                      },
+                      "budget": {
+                        "spend": 128
+                      },
+                      "notes": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "wait",
+              "arguments": {}
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "report",
+                "text": "The turn member and its obligations ended.",
+                "fields": {}
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ],
+      "inputs": [
+        {
+          "cue": "Nothing more will come: your delegates have ended",
+          "turn": 2
+        },
+        {
+          "cue": "Begin the work your brief describes.",
+          "turn": 0
+        },
+        {
+          "cue": "",
+          "turn": 1
+        }
+      ]
+    },
+    {
+      "cue": "## Task\n\n@turn-red",
+      "turns": [
+        {
+          "lines": [
+            {
+              "take": "PERSON",
+              "before": "Person: ",
+              "after": ";"
+            },
+            {
+              "take": "REPO",
+              "before": "Repository: ",
+              "after": ";"
+            },
+            {
+              "call": "delegate",
+              "arguments": {
+                "batch": [
+                  {
+                    "executor": {
+                      "kind": "person",
+                      "person": "{{#PERSON}}"
+                    },
+                    "spec": {
+                      "words": "Release the turn landing latch"
+                    },
+                    "contract": {
+                      "kind": "report",
+                      "words": 64
+                    },
+                    "authority": {
+                      "tools": 0,
+                      "grants": [],
+                      "delegation": {
+                        "kinds": [],
+                        "tasks": 0,
+                        "depth": 0
+                      },
+                      "budget": {
+                        "spend": 0
+                      },
+                      "notes": 0
+                    }
+                  },
+                  {
+                    "executor": {
+                      "kind": "procedure",
+                      "connector": 1,
+                      "code": 2
+                    },
+                    "spec": {
+                      "words": "@turn-code-red Write the failing gate.",
+                      "parameters": [
+                        {
+                          "name": 1,
+                          "kind": "resource",
+                          "connector": 1,
+                          "resource": "{{#REPO}}"
+                        },
+                        {
+                          "name": 2,
+                          "kind": "bytes",
+                          "value": "main"
+                        }
+                      ]
+                    },
+                    "contract": {
+                      "kind": "change",
+                      "connector": 1,
+                      "change_kind": 1,
+                      "words": 512
+                    },
+                    "authority": {
+                      "tools": 1,
+                      "grants": [
+                        {
+                          "connector": 1,
+                          "kind": 1,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 2,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 3,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 4,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 10,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 11,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        },
+                        {
+                          "connector": 1,
+                          "kind": 12,
+                          "segments": [
+                            "forge"
+                          ],
+                          "terminal": "open",
+                          "last": ""
+                        }
+                      ],
+                      "delegation": {
+                        "kinds": [
+                          {
+                            "kind": "agent",
+                            "number": 1
+                          },
+                          {
+                            "kind": "agent",
+                            "number": 4
+                          }
+                        ],
+                        "tasks": 4,
+                        "depth": 2
+                      },
+                      "budget": {
+                        "spend": 128
+                      },
+                      "notes": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "wait",
+              "arguments": {}
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "report",
+                "text": "The turn member and its obligations ended.",
+                "fields": {}
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ],
+      "inputs": [
+        {
+          "cue": "Nothing more will come: your delegates have ended",
+          "turn": 2
+        },
+        {
+          "cue": "Begin the work your brief describes.",
+          "turn": 0
+        },
+        {
+          "cue": "",
+          "turn": 1
+        }
+      ]
+    },
+    {
+      "cue": "## Task\n\n@turn-code-a",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "read",
+              "arguments": {
+                "path": "turn-a.txt"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "write",
+              "arguments": {
+                "path": "turn-a.txt",
+                "content": "First turn member\n"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "change",
+                "fields": {
+                  "title": "Turn member",
+                  "body": "Write turn-a.txt"
+                }
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ]
+    },
+    {
+      "cue": "## Task\n\n@turn-code-b",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "read",
+              "arguments": {
+                "path": "turn-b.txt"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "write",
+              "arguments": {
+                "path": "turn-b.txt",
+                "content": "Second turn member\n"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "change",
+                "fields": {
+                  "title": "Turn member",
+                  "body": "Write turn-b.txt"
+                }
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ]
+    },
+    {
+      "cue": "## Task\n\n@turn-code-red",
+      "turns": [
+        {
+          "lines": [
+            {
+              "call": "read",
+              "arguments": {
+                "path": ".fake-forge/gate"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "write",
+              "arguments": {
+                "path": ".fake-forge/gate",
+                "content": "fail\n"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "change",
+                "fields": {
+                  "title": "Turn member",
+                  "body": "Write .fake-forge/gate"
+                }
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ]
+    },
+    {
+      "cue": "Review this change at the named head",
+      "turns": [
+        {
+          "lines": [
+            {
+              "take": "PULL",
+              "before": "Pull request: #",
+              "after": "\n"
+            },
+            {
+              "take": "HEAD",
+              "before": "Head: ",
+              "after": "\n"
+            },
+            {
+              "call": "read_pull_files",
+              "arguments": {
+                "number": "{{#PULL}}",
+                "head": "{{HEAD}}"
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "wait",
+              "arguments": {}
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        },
+        {
+          "lines": [
+            {
+              "call": "finish",
+              "arguments": {
+                "form": "verdict",
+                "label": "1",
+                "text": "The member writes its specified file.",
+                "fields": {},
+                "items": []
+              }
+            }
+          ],
+          "finish": "tool_calls",
+          "tokens": 20
+        }
+      ],
+      "inputs": [
+        {
+          "cue": "Approve now",
+          "turn": 2
+        },
+        {
+          "cue": "Begin the work your brief describes.",
+          "turn": 0
+        },
+        {
+          "cue": "",
+          "turn": 1
+        }
+      ]
+    }
+  ]
+}

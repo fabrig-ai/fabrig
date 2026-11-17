@@ -4,7 +4,7 @@ mod closing;
 mod public;
 mod public_http;
 use crate::fixtures;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{
@@ -45,7 +45,6 @@ struct Exchange {
 }
 impl Exchange {
     fn new(method: skein_http::Method, target: &[u8], body: Box<[u8]>, bearer: Option<&[u8]>) -> Self {
-        let limits = fixtures::client_limits();
         let mut headers = vec![skein_http::Header {
             name: Box::from(b"host".as_slice()),
             value: Box::from(fixtures::HOST.as_bytes()),
@@ -59,6 +58,15 @@ impl Exchange {
         if let Some(bearer) = bearer {
             headers.push(skein_http::Header { name: Box::from(b"authorization".as_slice()), value: Box::from(bearer) });
         }
+        Self::with_headers(method, target, body, headers.into_boxed_slice())
+    }
+    fn with_headers(
+        method: skein_http::Method,
+        target: &[u8],
+        body: Box<[u8]>,
+        headers: Box<[skein_http::Header]>,
+    ) -> Self {
+        let limits = fixtures::client_limits();
         let mut result = Self {
             owner: None,
             client: http::Client::new(&limits),
@@ -81,7 +89,7 @@ impl Exchange {
         result.down(http::Request::Call(http::Call {
             method,
             target: Box::from(target),
-            headers: headers.into_boxed_slice(),
+            headers,
             body: if result.streaming || length == 0 {
                 http::Body::None
             } else {
@@ -205,6 +213,7 @@ pub struct Peer {
     carried: BTreeMap<u64, skein_lib::Secret>,
     next_carried: u64,
     public_answers: BTreeMap<Token, jig_protocol_engine_clients::PublicReply>,
+    http_public: BTreeSet<Token>,
 }
 impl Peer {
     #[must_use]
@@ -274,6 +283,7 @@ impl Peer {
             carried: BTreeMap::new(),
             next_carried: 1 << 63,
             public_answers: BTreeMap::new(),
+            http_public: BTreeSet::new(),
         };
         peer.pump();
         peer
@@ -304,6 +314,9 @@ impl Peer {
             match request {
                 mapping::Request::Http { call, request } => self.server.answer(call, request, &mut self.server_out),
                 mapping::Request::Component(message) => {
+                    if let jig_protocol_engine_clients::FromTransport::PublicRead { exchange, .. } = &message {
+                        self.http_public.insert(*exchange);
+                    }
                     if self.closed == 0 {
                         self.component.down(&self.env, Event::Transport(message), &mut self.out);
                     }
@@ -383,7 +396,13 @@ impl Peer {
                         self.component.down(&self.env, Event::MovedTaken { exchange, record: None }, &mut self.out);
                     }
                     Request::Transport(jig_protocol_engine_clients::ToTransport::Public { exchange, reply }) => {
-                        self.public_answers.insert(exchange, reply);
+                        if self.http_public.remove(&exchange) {
+                            self.mount_event(mapping::Event::Component(
+                                jig_protocol_engine_clients::ToTransport::Public { exchange, reply },
+                            ));
+                        } else {
+                            self.public_answers.insert(exchange, reply);
+                        }
                     }
                     Request::Transport(message) => self.mount_event(mapping::Event::Component(message)),
                     Request::Core(event) => {
@@ -605,7 +624,7 @@ impl Peer {
         subject.encode(&mut record).expect("subject");
         let subject = w::Owned::new(
             &self.env.limits.wire,
-            w::OwnedParts { owner: w::Owner::Jig, version: 27, record: record.finish() },
+            w::OwnedParts { owner: w::Owner::Jig, version: 28, record: record.finish() },
         )
         .expect("subject owner");
         let open = w::Open::new(&self.env.limits.wire, w::OpenParts { stream, watch: self.next_watch, subject })
@@ -773,9 +792,22 @@ impl Peer {
         out.finish()
     }
     pub fn post(&mut self, target: &[u8], body: Box<[u8]>, bearer: Option<&[u8]>) -> Token {
+        self.http_exchange(Exchange::new(skein_http::Method::Post, target, body, bearer))
+    }
+    /// Drives HTTP bytes through the real mapping and component with the supplied headers.
+    pub fn http(
+        &mut self,
+        method: skein_http::Method,
+        target: &[u8],
+        body: Box<[u8]>,
+        headers: Box<[skein_http::Header]>,
+    ) -> Token {
+        self.http_exchange(Exchange::with_headers(method, target, body, headers))
+    }
+    fn http_exchange(&mut self, exchange: Exchange) -> Token {
         let socket = Token::new(self.next_socket);
         self.next_socket += 1;
-        self.sockets.insert(socket, Exchange::new(skein_http::Method::Post, target, body, bearer));
+        self.sockets.insert(socket, exchange);
         self.server.up(
             skein_io::Event::Accepted { owner: Token::new(0), socket, peer: fixtures::address() },
             &mut self.server_out,

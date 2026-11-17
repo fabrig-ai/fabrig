@@ -21,8 +21,8 @@ is converted as it is read, and written at the binary's layout.
   converts a value at another layout as it leaves, so every decoder,
   jig's and the application's, reads the binary's layout with its
   family's version at the head, as it always has.
-- **At open** (5): the registry read, or seeded from the kept texts with
-  no value rewritten; the binary's layouts registered; a plan made for
+- **At open** (5): the registry read, a non-empty store without one
+  refused; the binary's layouts registered; a plan made for
   every layout held, or the open refused before anything is written;
   layouts no value holds retired.
 - **Written changes** (6) convert by their owner's written job at open
@@ -36,13 +36,16 @@ is converted as it is read, and written at the binary's layout.
   `schema/registered` (skein's `data/codec/command.md`, 1). From the
   registration on their versions stay, and no patch names them (skein's
   `data/codec/README.md`, section 5).
-- **Patched as before:** the component's own rows under its tag (the
+- **Outside the registry:** the component's own rows under its tag (the
   format row, the layouts and wires rows, transcripts' places and
   attempts, the workers' openings and the registry's own rows, 3), read
   before the registry or holding it; the secrets' store's families
   (`secrets.md`), read once at open from a store copied whole at each
   upgrade; and the transcripts' frames (`transcripts.md`, 6), already
-  converted as they are read. Each keeps its version and its patches.
+  converted as they are read. These formats stay at their current versions
+  (temper's `draft/store-floor.md`, section 5). A change to one designs
+  how the deployment's store reaches it in the same landing; the frame
+  patcher and its texts and patches stay (`transcripts.md`, 6).
 - **Held records** of any family the binary holds a text of, registered
   or not, are part of their holder's layout (skein's
   `data/codec/README.md`, 9.4): a core projection that holds a tasks
@@ -60,8 +63,8 @@ its binary's generated code was made from and its value types:
 ```rust
 pub struct KeptFamily {
     // ... as `opening.md`, 3
-    pub current: &'static str,          // the binary's text of the family; a patched one's latest kept text
-    pub types: &'static [ValueType],    // its value types; empty for a family the store patches
+    pub current: &'static str,          // the binary's text of the family
+    pub types: &'static [ValueType],    // its value types; empty for a family outside the registry
     pub retired: &'static [Retired],    // its value types no binary writes again
 }
 pub struct Retired {
@@ -81,7 +84,7 @@ pub struct KeyRange {
 ```
 
 - **One per kind of value its keys tell apart:** the tasks family's
-  milestones (`01 01 0a`) are one, its live tasks another; a family whose
+  ended tasks (`01 01 06`) are one, its live tasks another; a family whose
   roots are records of their own (the settings') has one per root. A
   broad root whose keys do not tell its variants apart is one value type
   without a variant, the declaration whole (skein's
@@ -94,17 +97,12 @@ pub struct KeyRange {
   variant renamed (`was`, skein's `data/codec/README.md`, section 3)
   keeps its value type.
 - **One root per range:** a range never holds two roots that only the
-  values' bytes tell apart, since a layout names one root. The settings'
-  charter versions (`01 00 08 03`) held two, a version without an
-  overlay as a `CharterVersion` and one with an overlay as an
-  `OverlaidCharterVersion`, decoded by trial at the same keys
-  (`../../domain/engine/overlays.md`, 7). They are one value type at
-  `CharterVersion`, whose declaration gains `overlay: option Overlay`,
-  and jig's written job `charter-versions` (6) puts each stored value
-  again as that one root; the binary then declares no
-  `OverlaidCharterVersion`.
+  values' bytes tell apart, since a layout names one root: the settings'
+  charter versions (`01 00 08 03`) are one value type at
+  `CharterVersion`, whose `overlay: option Overlay` holds what an
+  overlaid version adds (`../../domain/engine/overlays.md`, 7).
 - **Checked where the set is admitted,** at every open, beside
-  `opening.md`, 3's checks, a failure refused `Set` with patch 0: each
+  `opening.md`, 3's checks, a failure refused `Set { owner }`: each
   number given once in its family; each root a declaration of `current`
   and each variant given only where that root is broad, naming one of
   its leading enumeration's variants (`Schema::root`); each range
@@ -120,10 +118,14 @@ pub struct KeyRange {
   key's by a binary search, as it finds a key's family for the census
   (`README.md`, 6.3).
 - **Retired** (temper's `draft/store-floor.md`, section 2): a value
-  type whose variant or root the family's text no longer declares, as
-  the tasks' milestones (10) and temper's whole change records (12)
-  since store-floor's F0, is declared retired with the ranges that held
-  it. Its ranges hold nothing: every open reads them at its check
+  type whose variant or root the family's text no longer declares may
+  be declared retired with the ranges that held it, until every store
+  at the floor has had its rows erased; none is declared now. The
+  tasks family's 10 (its milestones) and `temper-store`'s 12 (its
+  whole change records) are numbers never given again: the tasks family's `keys`
+  leave out `01 01 0a`, and `temper-store`'s its relative `0c`, so a key
+  there is no family's and passes through as any key outside the
+  registered ranges (1). A retired type's ranges hold nothing: every open reads them at its check
   (5.3) and refuses a store where they hold a value, and a put to one is
   a writer's fault, the commit failing (`Failed`) as for a head that is
   not its family's version (4). Its registry rows are erased as 5.4
@@ -132,9 +134,7 @@ pub struct KeyRange {
 ## 3. The registry
 
 A family of the component's, `jig-store-registry`, beside `openings`
-in `jig-protocol-store`, new at its first version and kept afresh with
-no patch (skein's `data/codec/command.md`, 1), so the component's
-version and its patch set stay as they are:
+in `jig-protocol-store`, at version 1, outside the registry itself (1):
 
 ```
 family jig-store-registry 1
@@ -166,11 +166,11 @@ versioned record Job { ended: u64 }
   lacks, since the open registers the binary's before anything of the
   root's is written (5.2), and a layout's row goes only when no value
   holds it (5.4). A text goes with the last layout naming it.
-- **Ids** are `u16`s within a value type. The seed takes the family's
-  version (5.1); a layout registered later takes one more than the
+- **Ids** are `u16`s within a value type. An empty store's first commit
+  takes the family's version (5.2); a layout registered later takes one more than the
   greatest id its value type's rows hold. An id comes back only once its
   row is retired, when no value holds it (5.4).
-- **Read at every open** by its own kept text, as the component's rows
+- **Read at every open** by its current text, as the component's rows
   are, all of it: as many rows as layouts and texts, a few hundred at
   most.
 
@@ -203,49 +203,45 @@ versioned record Job { ended: u64 }
     refuse as it would any malformed value;
   - a head the registry lacks for its value type, or a value too short
     for a head, is handed on as it is, likewise.
+- **The deployment's header** is read through its registry plan before
+  the registry's writes, then decoded by the binary's codec
+  (`open::decode_header`), so the open can check its commit number.
 - **What the census counts** is the stored head (`README.md`, 6.3): per
   keyspace, values per layout id.
-- **Until the registry is active** (5.1: its seed or its first rows
-  committed) neither edge maps anything: patches walk a store behind as
-  before.
-- **The rehearsal** decodes every record of a registered family in a
-  seeded store as a generic value of its layout's text, from its range's
-  value type's root at that layout, where its head names a layout of the
-  registry; a store not yet seeded as before (`opening.md`, 5).
+- **Until the registry is active** (its rows committed, 5.2), neither
+  edge maps anything. An empty store's first commit registers its
+  layouts with ids equal to the families' versions.
+- **The rehearsal** decodes every record of a registered family as a
+  generic value of its layout's text, from its range's value type's root
+  at that layout, where its head names a layout of the registry
+  (`opening.md`, 5). A store holding values without a registry is
+  refused before decoding (5.1).
 
 ## 5. At open
 
-### 5.1 The seed
+### 5.1 A store with no registry
 
-A store with no `Layout` row, once its pending patches have run, holds
-every registered value at the version of its family that the binary's
-levels give it (`records.md`, 3), which is what its head says. Its seed
-is a `Layout` row per value type of every registered family, at id that
-version, made from the family's kept text at that version (`KeptFamily::texts`)
-with the held families' kept texts at their versions; and a `Text` row
-for each text named. No value is read or rewritten: one commit of a row
-per value type, and a row per text. A value type whose root or variant
-the kept text at that version lacks has no layout there, and no value of
-it can be stored: the seed makes no row for it, and 5.2 registers its
-binary layout at its family's version. A census counting rows in such a
-type's key ranges refuses the open, `Set` with patch 0.
-
-A value type that the family's kept text at that version does not
-declare (its root, or its variant of a broad root, new since that text)
-has no seed row: no value of the store can be at a layout of it, since
-no binary before it wrote a key of its ranges. 5.2 registers its
-binary layout in the same commit, at the family's version as its id,
-as for any value type with no row. A store seeded and a binary that
-brings a new value type in one upgrade (temper's
-`draft/store-shape.execution.md`, S5 to S8, each adding one) therefore
-opens as a store seeded before it would.
+Every store a build opens holds its registry: an empty store's first
+commit writes it (5.2). A store that holds values and no `Layout`
+row is refused before anything is written, `OlderBuild` with why
+`Unregistered` (`opening.md`, 1.8): its values' heads are versions that
+no row names, and no open seeds those values from texts in its code. A
+value type that a store's registry has no row for, its root or variant
+new since the registry's rows, is registered by 5.2, at its family's
+version as its id, as for any value type with no row: no value of the
+store can be at a layout of it, since no binary before it wrote a key
+of its ranges.
+The refusal follows the floor's check (`records.md`, 3). A store whose
+binary's sets register nothing keeps no `Layout` row and is not refused
+for it. Only an empty store's first commit creates a registry (5.2);
+a later open registers new binary layouts in it.
 
 ### 5.2 The binary's layouts
 
 For each value type, its layout in `current`, with the binary's texts of
 the families it holds (each family's `current`): its row is the registry's of that
 fingerprint, whose id is the binary's id; with none, a new row at the
-next id (3) and its texts' rows, committed with the seed or alone. An
+next id (3) and its texts' rows, committed in the registry's commit (5.5). An
 empty store's first commit (`README.md`, section 5) writes the binary's
 layouts at their families' versions as ids, so its heads are its
 families' versions and the edges map nothing until a later binary moves
@@ -254,17 +250,13 @@ a layout.
 ### 5.3 The check
 
 Before anything is written, every open (whether it writes or not)
-plans each layout the registry holds, or will hold once its pending
-patches and its seed are made, to its value type's binary layout
+plans each layout the registry holds to its value type's binary layout
 (skein's `data/codec/layouts.md`): from its row's text and held texts
 and its root and variant, to `current`'s. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
 
 - a written job of the binary converts from it (`jobs.md`, 4), pending
   or done; or
-- its value type's set has a settling job pending and only dropped
-  variants keep it from deriving: it is planned with its drops refused
-  (`jobs.md`, 5.2); or
 - no value holds it: the census counts none at its id in each keyspace
   its value type's ranges reach, with no count past the census's heads
   there (`README.md`, 6.3), where it is retired (5.4). A value type a
@@ -297,18 +289,13 @@ hold nothing (5.3), has its row erased by the next open that writes
 for retirement alone. A log-held value type's layouts never retire by
 the census (`logs.md`, 8).
 
-**By proof:** a settling job's end erases every layout row of its
-value types but the binary's, having walked their ranges whole
-(`jobs.md`, 5.3), a log-held type's only while `task-logs` is pending.
-
 ### 5.5 When the open writes
 
 The open writes before serving, in a new generation made by links
-(`opening.md`, 2), when a patch is pending, when the registry is not
-seeded, when a binary layout is not registered, or when a job is
-pending (`jobs.md`, 2); then, after the patches, one commit (or as many
-as the store's commit edge needs, `records.md`, 4) writes the seed, the
-binary's new layouts and the retirements, before any job runs. An open
+(`opening.md`, 2), when a binary layout is not registered or when a job
+is pending (`jobs.md`, 2); then one commit (or as many as the store's
+commit edge needs, `records.md`, 4) writes the binary's new layouts and
+the retirements, before any job runs. An open
 with none of these writes nothing, so a binary that changes no layout
 and brings no job opens the store in place, as before (temper's
 `draft/store-shape.md`, section 4, step 3: an older binary can read all
@@ -327,45 +314,39 @@ the new by its generated code. The check takes the layout as converted
 (5.3), and the next writing open retires it.
 
 A written job also takes a layout that a plan reaches when the values
-at that layout are not all the root it names: the settings' charter
-versions at their seeded layout (2). Its job, `charter-versions`,
-converts from `CharterVersion`'s layout in the settings' last kept text.
-Its function reads each value as that text's `CharterVersion` or,
-failing that, its `OverlaidCharterVersion`, as the codec did by trial,
-and puts the value again as the binary's `CharterVersion`. The read edge
-leaves values at a written job's `from` layout to the job, never to a
-plan (`jobs.md`, 4).
+at that layout are not all the root it names. The read edge leaves
+values at a written job's `from` layout to the job, never to a plan
+(`jobs.md`, 4).
 
 ## 7. Bounds
 
 - **In memory, at open:** the registry's rows and texts, and what the
   open's planning (5.1 to 5.4) reads, from the check of the binary's
-  texts before the seed (2, and the third item below) to the end of
-  the plans (5.3). Each is made once in that planning and kept to its
-  end, so the seed, the registration and every row's check read the
+  texts (2, and the third item below) to the end of the plans (5.3).
+  Each is made once in that planning and kept to its
+  end, so the registration and every row's check read the
   same one, whichever family or row needs it:
   - **A text parsed** where the planning first reads it: the binary's
-    `current` and last kept text of each family where the open checks
-    them, kept as that check parsed them; a text the registry already
-    holds where a row, the seed or a family holding it first needs it,
+    `current` of each family where the open checks it, kept as that
+    check parsed it; a text the registry already
+    holds where a row or a family holding it first needs it,
     its bytes checked against its digest before it is parsed (5.3). No
     text is parsed twice in one planning.
   - **A layout computed,** the fingerprint of a root and variant in a
     text with its held texts (skein's `data/codec/README.md`, 9.4), once
-    per those four: the seed's and the registration's (5.1, 5.2) are the
-    ones the check compares a row's persisted fingerprint against when
+    per those four: the registration's (5.2) is the
+    one the check compares a row's persisted fingerprint against when
     the row names the same text, root, variant and held texts, in the
     same order; a row naming others has its own computed. Only a
     computed layout is kept: one that fails refuses where it does.
   - **A text's held texts,** the families its records hold and theirs
-    (1), found once per text, as a `current` or as a kept text.
+    (1), found once per text, from the binary or from the registry.
 
   These are dropped when the plans are made, and with the open's
   unfinished registry when it refuses: none outlives the planning that
-  made it. A patching open plans again at its reopen after the copy
-  (`opening.md`, 2) and parses and computes again there, since that
-  registry is the one the copy left, and nothing of the first planning
-  sits beside the patch machines. The parsed texts cost at most every
+  made it. An upgrading open plans again at its reopen after the copy
+  (`opening.md`, 2) and parses and computes again there, over the copy's
+  registry. The parsed texts cost at most every
   text the registry holds and the binary brings, parsed once: the texts
   the open already holds whole. Then one plan derived at a time (skein's
   `data/codec/layouts.md`, 5). While serving:
@@ -373,57 +354,43 @@ plan (`jobs.md`, 4).
   keeps, and a plan per held layout that converts. Rows, texts and parsed
   schemas are dropped when the open ends, after its registry writes and
   written jobs; the drained pending queue keeps no spare capacity.
-  Counted in `README.md`, section 8's worst case beside the patch
-  machines, which no serving open holds.
+  Bounded beside the jobs' page and commit room at open
+  (`README.md`, section 8); no map patch machine is held.
 - **Per read:** a converted value is built in a `Buffer` at the store's
   value bound (`records.md`, 4), with one skein `layout::Workspace`
   beside it fitted at open to every plan the store holds, so a read
   allocates nothing; a value at the binary's layout, or at
   one whose plan keeps, is rewritten in its two head bytes alone.
 - **The registry's rows** within skein-kv's value bound: a `Text` at
-  most 262,144 bytes, refused `Set` with patch 0 where a `current` or a
-  kept text the seed needs is longer.
+  most 262,144 bytes, refused `Set { owner }` where a `current` is longer.
 
 ## 8. Tests
 
 - **Step tests,** in `jig-protocol-store`, over the test owners' sets
-  (`opening.md`, 3), whose fixture families gain value types and a
-  `current` past their last kept text: a store at the last kept text
-  seeded with no value rewritten, its rows as 5.1 says; a field added
+  (`opening.md`, 3), with registry texts and changed binary texts from
+  `jig-test-layouts`: a non-empty store with no
+  registry refused as 5.1 says, before anything is written; a field added
   with a default, read at the old layout and converted, written at the
   binary's id and read back; a broad root's variant unmoved while a
   sibling's record changes; a held record's change converting its
   holder; the census counting by id; each refusal of 5.3 and its words
   (`opening.md`, 1.8); retirement; an empty store's first commit.
-- **The real families,** in `jig-protocol-store` and
-  `temper-protocol-store`: every value type's layout in its family's
-  latest kept text derives to `current` (skein's `data/codec/layouts.md`),
-  so a landing that changes a registered schema with no default or
-  written job fails in its owner's focused suite, not at a deployment's
-  open. A value type that text does not declare is new since it (5.1)
-  and has nothing to derive from; it is counted apart, and its root and
-  variant must resolve in `current`. A value type whose layout there
-  derives only with its drops refused, settled by its set's settling
-  job (`jobs.md`, 5.2), is named apart too: jig's tasks 0 and 6 and its
-  core's projections (1) since store-floor's F0; a retired value type
-  (2) has no layout in `current`.
 - **Retired value types,** step tests: a set whose family declares one
   is admitted only with the ranges rule of 2; a store whose retired
   range holds a value is refused `Layout` with why `Retired` before
   anything is written; one whose registry holds a retired type's rows
   and whose range is empty has them erased by the open that writes; a
   put into a retired range fails its commit.
-- **A new value type at the seed,** a step test: a store at a fixture
-  family's last kept text, unseeded, opened by a binary whose `current`
-  adds a value type in a new key range, opens with no refusal; the seed
-  has no row for the new type, the registration adds its row at the
-  family's version, and a value put at its key reads back.
-- **The open's parses and layouts** (7), step tests: through the seed,
-  the registration and every row's check, each text the planning reads
-  is parsed once, however many families hold it or rows name it; a
-  seeding open computes each value type's seed and binary layouts once
-  and a reopen of a seeded store each binary layout once, neither again
-  for its row's check, while a row naming another text has its own; and
+- **A new value type,** a step test: a store whose registry holds a
+  fixture family's value types, opened by a binary whose `current`
+  adds a value type in a new key range, opens with no refusal; the
+  registration adds its row at the family's version, and a value put
+  at its key reads back.
+- **The open's parses and layouts** (7), step tests: through the
+  registration and every row's check, each text the planning reads
+  is parsed once, however many families hold it or rows name it;
+  each binary layout is computed once, not again for a row naming
+  the same inputs, while a row naming another text has its own; and
   no parsed text is held once the plans are made. The refusals and
   their order are unchanged: a stored text whose bytes do not give its
   digest, a persisted fingerprint its text does not give, a malformed
@@ -431,7 +398,7 @@ plan (`jobs.md`, 4).
 
 ## 9. Open questions
 
-- **The secrets' store and the component's rows** keep their patches
+- **The secrets' store and the component's rows** stay outside the registry
   (1). Registering them would need the registry before the format row
   is read, and the secrets' store's own registry; their rows are few and
   rarely change.

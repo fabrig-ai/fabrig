@@ -33,6 +33,7 @@ pub mod groups;
 pub mod home;
 pub mod inbox;
 pub mod limits_helpers;
+pub mod milestones;
 pub mod needs;
 pub mod panel;
 pub mod public_records;

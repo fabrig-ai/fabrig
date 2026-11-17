@@ -275,27 +275,6 @@ fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
 }
 
 #[test]
-fn differing_layouts_name_the_first_family_in_family_order() {
-    let wanted = format::layouts();
-    let mut settings = wanted;
-    settings.settings[0] ^= 1;
-    settings.component[0] ^= 1;
-    let mut secrets = wanted;
-    secrets.secrets[0] ^= 1;
-    secrets.skein_oauth[0] ^= 1;
-    secrets.smith_transcript[0] ^= 1;
-    let mut oauth = wanted;
-    oauth.skein_oauth[0] ^= 1;
-    oauth.smith_transcript[0] ^= 1;
-    for (found, family) in [(settings, Family::Settings), (secrets, Family::Secrets), (oauth, Family::SkeinOauth)] {
-        assert_eq!(
-            format::check_layouts(&found, &wanted),
-            Err(OpenRefusal::OlderBuild { why: crate::Older::Layout(family) })
-        );
-    }
-}
-
-#[test]
 fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
     let ceilings = &crate::component_v3::CEILINGS;
     let mut counts = skein_lib::List::with_capacity(ceilings.manifest_counts);
@@ -314,7 +293,7 @@ fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
             )
             .expect("families at their bound");
     }
-    let levels = crate::patching::plan::Levels {
+    let levels = crate::upgrade::admission::Levels {
         skein: Some(u32::MAX),
         smith: Some(u32::MAX),
         jig: Some(u32::MAX),

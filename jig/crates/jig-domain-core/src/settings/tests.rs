@@ -235,6 +235,49 @@ fn the_whole_check_refuses_unconfigured_contract_connectors() {
     );
 }
 
+fn requester_template_check(executor: people::TemplateExecutor, conversation: bool, fault: Option<Fault>) {
+    let mut config = config(1);
+    let mut value = template();
+    value.executor = executor;
+    value.flags = tasks::Flags {
+        ended_by: tasks::EndedBy::Requester,
+        conversation,
+        listed: true,
+        retention: tasks::Retention::Kept,
+    };
+    config.defaults.templates = Box::new([value.clone()]);
+    let current = Current::new(config.defaults, &limits(), &[]);
+    let expected = match fault {
+        None => Ok(()),
+        Some(fault) => Err(Failure { setting: Setting::Template(1), fault, detail: None }),
+    };
+    assert_eq!(check(&current, &config.settings, &config.connectors, &limits()), expected);
+    let items = [Item { setting: Setting::Template(1), edit: Edit::Set(Value::Template(Box::new(value.clone()))) }];
+    assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits()), expected);
+    assert_eq!(
+        templates::valid_executor(
+            &value,
+            executor,
+            &[current.charter(1).expect("configured charter").clone()],
+            &config.settings.models
+        ),
+        fault.is_none()
+    );
+    assert_eq!(templates::valid_current_executor(&current, &config.settings, &value, executor), fault.is_none());
+}
+
+#[test]
+fn chosen_requester_templates_admit_gatherings_and_conversations() {
+    for conversation in [false, true] {
+        requester_template_check(people::TemplateExecutor::Chosen, conversation, None);
+    }
+}
+
+#[test]
+fn a_nonconversation_charter_template_cannot_end_by_requester() {
+    requester_template_check(people::TemplateExecutor::Charter(1), false, Some(Fault::Shape));
+}
+
 #[test]
 fn decision_edits_apply_each_kind_over_defaults_and_additions() {
     let limits = limits();

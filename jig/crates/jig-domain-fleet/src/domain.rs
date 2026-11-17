@@ -62,6 +62,8 @@ pub struct Domain {
     pub(crate) claims: u32,
     /// The parent has loaded its claims: strays' deadlines run.
     pub(crate) loaded: bool,
+    pub(crate) restart_wait: Option<skein_lib::Duration>,
+    pub(crate) restart_holds: Map<Id<Attempt>, Time>,
     pub(crate) facts: Lossy<Fact>,
     pub(crate) lost_hosts: Map<Token, crate::history::LostHost>,
     pub(crate) hello_refusals: Queue<crate::HelloRefusalRecord>,
@@ -200,6 +202,8 @@ impl Domain {
             placing: false,
             claims: 0,
             loaded: false,
+            restart_wait: None,
+            restart_holds: Map::with_capacity(tracked),
             facts: Lossy::with_capacity(limits.facts),
             lost_hosts: Map::with_capacity(limits.history),
             hello_refusals: Queue::with_capacity(limits.history),
@@ -539,6 +543,10 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "the fleet routes the complete event vocabulary in one step")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Restarting { wait } => {
+            assert!(!domain.loaded && domain.restart_wait.is_none(), "one kept word before adoption");
+            domain.restart_wait = Some(wait);
+        }
         Event::Mismatch { channel } => {
             if let Some(&id) = domain.tokens.get(&channel) {
                 channel::mismatch(domain, id);
@@ -654,6 +662,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::progress::received(domain, env, channel, run, attempt, report, out);
         }
     }
+    discharged(domain, out);
+}
+
+fn discharged(domain: &mut Domain, out: &mut Queue<Request>) {
+    if domain.loaded && domain.restart_wait.is_some() && domain.restart_holds.is_empty() {
+        domain.restart_wait = None;
+        out.push(Request::Discharged);
+    }
 }
 
 /// Fires the earliest alarm due at `env.now`, if there is one.
@@ -663,6 +679,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if let Some(id) = domain.alarms.expire(env.now) {
         attempt::expire(domain, id, out);
+        discharged(domain, out);
     }
 }
 

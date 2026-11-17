@@ -113,7 +113,11 @@ setups it changed (`ledger.md`, 4.12 and 4.16); written when filed
 ## 5. Filing
 
 The loop's fourth step (`README.md`, 4), for each request not yet
-filed, oldest first:
+filed, oldest first, each on its own. A failure preparing, running or
+recording one request leaves it unfiled for retry and does not stop any
+later request, the gaps' request or the waiting goals' state checks.
+The step returns every failure together, naming each request or goal,
+so its retry and its line after an hour say what failed:
 
 - **Its directory,** `passes/P/requests/R/`, written afresh: `tree/`,
   the request's files at their repository paths (section 4); `message`,
@@ -130,6 +134,13 @@ filed, oldest first:
   latter `request.area`, both internal entries of the tool's table
   (`README.md`, 3.2), 600 seconds to exit; its stdout and stderr to
   `output` there.
+- **A gaps request** (`gaps.md`, 6) is filed beside these, every open
+  gap not yet filed together, whatever the findings' requests did.
+  Its directory is `gaps/requests/N/`, N
+  its first gap, with `tree/` holding one gap document each and a
+  `message` with `QA-gaps:`. Like a recipes-only request it has no
+  `goal` file and starts nothing; success marks its gaps `filed`,
+  failure is retried at the next tick.
 - **The deployment's command,** its contract: it puts `tree/`'s files on
   main at their paths, with `message` as their commit's message, as the
   deployment puts any goal's request there; then, where `goal` exists,
@@ -139,8 +150,8 @@ filed, oldest first:
   deployment's to make it safe to repeat.
 - **Its answer:** exit 0, with `goal N` where `goal` exists: the request
   `filed`, with its `goal` (`ledger.md`, 4.16). Anything else is the
-  step's failure, tried again at the next tick; failing for an hour, a
-  line (`README.md`, 4).
+  request's failure, included in the step's result and tried again at
+  the next tick; failing for an hour, a line (`README.md`, 4).
 
 ## 6. Its goal's end
 
@@ -152,7 +163,8 @@ filed, oldest first:
   argument, for each waiting pass whose goal has no landing recorded
   and no `ended`: its stdin closed, 60 seconds to exit; its stdout's last
   nonempty line `live` changes nothing, `ended` records the request's
-  `ended`, and anything else is the step's failure. Without
+  `ended`, and anything else is included in the step's failures without
+  stopping the other waiting passes' checks. Without
   `request.state`, a pass waits until its goal lands.
 - **Then,** the pass resumes on the newest reached kept build and files
   its findings again in its next request (`../../draft/landed-qa.md`,
@@ -174,8 +186,10 @@ Focused, through the binary and over the loop's fake world
   request's directory; recipes alone with no `goal` file.
 - **Filing** through a fake command: `goal N` recorded and each
   finding's `goals` grown; a failing command retried at the next tick
-  and a line after an hour; a goal reported `ended` resuming the pass on
-  the newest reached build.
+  and a line after an hour; an older request's failure leaving a later
+  success filed and an open gap filed; every failure named together
+  while every waiting goal is checked; a goal reported `ended` resuming
+  the pass on the newest reached build.
 
 ## 8. Open questions
 

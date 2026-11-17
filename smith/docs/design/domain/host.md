@@ -199,7 +199,8 @@ policy.
   deadline for it bounds; and while a turn waits for room to be sent
   (section 6). It stretches to the span of the long operations the run
   reports (its checks, its LLM completions, its commands, its `job`
-  calls' waits), each bounded by the run's own deadlines, until the run
+  calls' waits, a completion's wait for a grant: session.md, section 4),
+  each bounded by the run's own deadlines, until the run
   says each is done. A job that runs on between calls is no long
   operation: the run reports the calls that read it. What
   silence remains is the run's own steps and io's short operations, and
@@ -210,7 +211,11 @@ policy.
   run winds down on its own (run.md, section 9); past a grace the
   process tree is terminated, then killed. Wall time ends the same polite
   way; a broken rule, no progress, or a channel hung up while the run is
-  live terminate the tree at once.
+  live terminate the tree at once. The host's `Signal::Kill` is only ever
+  that last step, a terminate's grace passed, so whoever carries it down
+  to io names it `Grace` (skein's `runtime/io/processes.md`, section 5): the host
+  process adapter's `signal` takes the reason beside the signal, and a
+  terminate goes down named `Unknown`.
 - **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's
@@ -311,6 +316,13 @@ policy.
   source's name, never the credential, so that a host in one process can
   refuse what it cannot run (section 9.1). A host lends as a key only a
   credential it never renews.
+- **Renewals held:** a host whose grants come from elsewhere tells each
+  run when it can renew none, and when it can again: its parent says so
+  (`parent::Event::Renewals { held }`) and the kit sends `renewals` down
+  each live run's channel (protocol/channel.md, sections 3 and 6). A
+  worker's root says held at its link's loss and not held at the next
+  hello (jig's `domain/hosts/hub.md`, 6); a host whose grants are its
+  own never holds them.
 - **Notices go up for the host to act on:** a credential unauthorized,
   an account limited, an account refused. The run that met one ends
   failed for its account, except an unauthorized bearer, which a

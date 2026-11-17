@@ -62,8 +62,7 @@
   disagrees with its key's owner is refused; `Adopt` unwraps a carried
   key into a source's `Key`, any other kind answering stale. A row whose
   envelope does not decode fails the read and stops the engine, as a
-  failed commit does (an older build's store was refused at open by its
-  layout); a held record's digest is taken before it is decoded, so one
+  failed commit does; a held record's digest is taken before it is decoded, so one
   that does not decode can still be replaced.
 
   Each `N` is its value's bound; the version, the tags and the options
@@ -76,11 +75,11 @@
   its envelope. The application's rows
   are its own family's, by its own schema (temper's
   `protocol/credentials.md`, 2.1). jig's set names the family, `map:
-  Secrets`, and its keys' ranges, the application's left out (`opening.md`, 3), so
-  the copy's secrets are patched as the records are. Its layout is one
-  of jig's families' in the main store's layouts row (`records.md`, 3), so a store
-  of a build before it is refused at open, `Older::Layout`, before a
-  secret is read, and made again.
+  Secrets`, and its keys' ranges, the application's left out
+  (`opening.md`, 3), for the rehearsal's decoding and the manifest's
+  counts. The secrets' formats are outside the registry, fixed at their
+  current versions; a change designs how the deployment's store reaches
+  it in that landing (temper's `draft/store-floor.md`, section 5).
 - **Written by components alone,** through the protocol layer's routing.
   The domain names a secret by number, never holds one, and never sees
   the secrets' store's commits, which have numbers of their own.
@@ -172,19 +171,17 @@
   failed commit of the secrets' store was keeping is never handed out.
 - **Read at start,** within its own limits and worst case: named sources
   by number, the sources' sweep in bounded pages.
-- **Patched with the store** (`opening.md`, 2), in the copy's own secrets' store
-  and its own commits, by the patch sets of the families it holds:
-  jig's digests and records, the application's records under its tag,
-  and skein's OAuth records by skein's set (temper's
-  `draft/upgrades.md`, 6.3). Its numbers are kept as they are: the
-  carried values' next number (`[2, 1]`, its own row) and every number
-  a row is kept under, the sources' and accounts' drawn by the accounts'
-  counter in the store (`[1, 4, 0]`), so that the start's sweep erases
-  nothing it should keep and no number is drawn twice. Its last commit
-  is named in the manifest (`README.md`, section 2). A kept family names
-  its map (`KeptFamily::map`, `opening.md`, 3): a secrets family is walked in the
-  copy's secrets' store, each page one commit of that store's own,
-  within that map's limits and record room, and the seal stays the
-  store's (the secrets' store has no format row or header). A fixture
-  family of the application's records proves it (`jig-test-patches`'
-  `fixture-token`), both numbers unchanged across the switch.
+- **Copied with the store** (`opening.md`, 2), whole, to a private
+  secrets' directory; its files are copied, never linked. Its formats
+  stay at their current versions (temper's `draft/store-floor.md`,
+  section 5): jig's digests and records, the application's records under
+  its tag, and skein's OAuth records. No owner set schedules a secrets'
+  patch, and a job's ranges are the public map's alone (`jobs.md`, 1).
+  Its numbers are kept as they are: the carried values' next number
+  (`[2, 1]`, its own row) and every number a row is kept under, the
+  sources' and accounts' drawn by the accounts' counter in the store
+  (`[1, 4, 0]`), so that the start's sweep erases nothing it should keep
+  and no number is drawn twice. Its last commit is named in the manifest
+  (`README.md`, section 2). A kept family names its map
+  (`KeptFamily::map`, `opening.md`, 3) for counting and the rehearsal's
+  decoding by its current text, not for a map patch.

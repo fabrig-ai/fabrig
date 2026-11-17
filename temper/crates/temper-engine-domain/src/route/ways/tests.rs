@@ -87,6 +87,34 @@ fn goal_template() -> core::Template {
     }
 }
 
+#[test]
+fn start_skips_requester_ended_templates_even_when_lowest_or_configured() {
+    let mut config = resume_fixture::config(7);
+    let goal = goal_template();
+    let mut milestone = goal.clone();
+    milestone.number = 1;
+    milestone.flags.ended_by = jig_domain_tasks::EndedBy::Requester;
+    milestone.executor = TemplateExecutor::Chosen;
+    config.core.defaults.templates = Box::new([milestone, goal]);
+    let (domain, _) = resume_fixture::root_with_config_and_limits(config, &resume_fixture::limits());
+    for (way, expected) in
+        [(0, ways::Start::Goal { charter: COORDINATOR, design: false, close_out: false }), (1, ways::Start::Chat)]
+    {
+        let items = [ways::Item {
+            kind: 7,
+            scope: PROJECT,
+            number: 1,
+            edit: ways::Edit::Set(settings::Value::Ways(settings::ProjectWays {
+                drafts: true,
+                goals: true,
+                changes: true,
+                way,
+            })),
+        }];
+        assert_eq!(start(&domain, PROJECT, &items), expected);
+    }
+}
+
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
         contexts: Box::new([]),

@@ -18,6 +18,21 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
         } else {
             names
         };
+        // Milestone identity is shared with the pages (client/pages/milestone.md, 1).
+        // These three call sites name only its template and chip predicate.
+        let names = if [
+            std::path::PathBuf::from("src/jig/runner/milestone.rs"),
+            std::path::PathBuf::from("src/jig/runner/acts/milestone.rs"),
+            std::path::PathBuf::from("src/jig/runner/acts/goal.rs"),
+        ]
+        .contains(path)
+        {
+            names
+                .replace("temper_client_domain_forge::milestones::template", "")
+                .replace("temper_client_domain_forge::milestones::is", "")
+        } else {
+            names
+        };
         assert!(!names.contains("temper"), "{path:?} names temper");
         for (at, _) in text.match_indices("crate::") {
             assert!(text[at..].starts_with("crate::jig"), "{path:?} names an item outside jig");

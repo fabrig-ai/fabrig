@@ -110,7 +110,7 @@ mod tests {
     fn document() -> c::Task {
         let mut parts = jig_client_test_records::task_record().into_parts();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
-        let record = jig_client_protocol_wire::v27::Task::new(&jig_client_protocol_wire::v27::CEILINGS, parts)
+        let record = jig_client_protocol_wire::v28::Task::new(&jig_client_protocol_wire::v28::CEILINGS, parts)
             .expect("checked task record");
         let limits = domain_limits();
         let link =
@@ -592,8 +592,14 @@ mod tests {
         ));
         assert!(root.pages().task().expect("tracked page").cards.is_empty());
         for request in &requests {
-            if let jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { .. }), .. } = request {
-                panic!("tracked page must not read task cards: {requests:?}");
+            if let jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { task: number }), .. } =
+                request
+            {
+                assert_eq!(
+                    c::Requester::Task(*number),
+                    task.requester,
+                    "only the requester is read, not own or delegate held cards"
+                );
             }
         }
     }

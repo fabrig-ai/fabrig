@@ -301,6 +301,8 @@ pub enum Held {
     Acted { to: ReplyTo, outcome: people::Outcome },
     /// Every earlier commit is durable when the journal releases this terminal.
     Drained,
+    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 1).
+    Restarting { wait: skein_lib::Duration },
     /// A point load sent once every earlier commit is durable.
     Load(Box<Now>),
     /// Assemble the connector-owned document prepared for this delivery in the same decision.
@@ -1345,6 +1347,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Asked { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Acknowledge { .. }
+        | fleet::Event::Restarting { .. }
         | fleet::Event::Loaded
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }

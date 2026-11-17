@@ -1,10 +1,75 @@
 //! Retired ranges are probed even without registry rows (protocol/store/layouts.md, 8).
-use super::settling::{JOB, key, layout, set};
 use super::*;
-use crate::Retired;
+use crate::{Job, Retired};
+
+fn base_family(owner: Owner) -> KeptFamily {
+    if owner == Owner::Application {
+        return KeptFamily { current: CURRENT, ..FAMILY };
+    }
+    KeptFamily {
+        current: CURRENT,
+        keys: &[
+            Keys {
+                from: jig_test_patches_jig::keys::NOTES_FROM,
+                to: jig_test_patches_jig::keys::NOTES_TO,
+                root: "Growing",
+            },
+            Keys { from: b"\x02s", to: b"\x02t", root: "Stable" },
+        ],
+        types: &[
+            ValueType { number: 0, root: "Growing", variant: None, keys: &[KeyRange { from: b"\x02n", to: b"\x02o" }] },
+            ValueType { number: 1, root: "Stable", variant: None, keys: &[KeyRange { from: b"\x02s", to: b"\x02t" }] },
+        ],
+        ..FAMILY
+    }
+}
+fn set(owner: Owner, family: KeptFamily, jobs: &'static [Job]) -> OwnerSet {
+    OwnerSet { owner, name: "fixture-layouts", families: Box::leak(Box::new([family])), jobs, ..SET }
+}
+fn key(owner: Owner, ty: usize, suffix: u8) -> Box<[u8]> {
+    let from = base_family(owner).types[ty].keys[0].from;
+    let key = [from, b"/", &[suffix]].concat();
+    if owner == Owner::Application { crate::keys::application(&key, 1024).unwrap() } else { key.into() }
+}
+fn layout(text: &str, number: u16, id: u16) -> Vec<skein_kv::Op> {
+    let schema = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let root = if number == 0 { b"Growing".as_slice() } else { b"Stable" };
+    let fingerprint = schema.layout(schema.root(root, None).unwrap(), &[]).unwrap().digest();
+    let layout = crate::registry_v1::Layout::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::LayoutParts {
+            root: root.into(),
+            variant: None,
+            layout: fingerprint,
+            text: hash(text),
+            held: skein_lib::List::with_capacity(0),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(layout.measure()).unwrap());
+    layout.encode(&mut writer).unwrap();
+    let text_row = crate::registry_v1::Text::new(
+        &crate::registry_v1::CEILINGS,
+        crate::registry_v1::TextParts { text: text.as_bytes().into() },
+    )
+    .unwrap();
+    let mut text_writer = skein_lib::Writer::new(usize::try_from(text_row.measure()).unwrap());
+    text_row.encode(&mut text_writer).unwrap();
+    vec![
+        skein_kv::Op::Put {
+            key: crate::keys::encode_own(&crate::keys::Own::Layout { family: FAMILY.name.into(), number, id }, 1024)
+                .unwrap(),
+            value: writer.finish(),
+        },
+        skein_kv::Op::Put {
+            key: crate::keys::encode_own(&crate::keys::Own::Text(hash(text)), 1024).unwrap(),
+            value: text_writer.finish(),
+        },
+    ]
+}
 
 fn family(owner: Owner) -> KeptFamily {
-    let base = settling::family(owner);
+    let base = base_family(owner);
     KeptFamily {
         current: CURRENT,
         types: Box::leak(Box::new([base.types[0]])),
@@ -14,9 +79,9 @@ fn family(owner: Owner) -> KeptFamily {
 }
 fn baseline(owner: Owner, registry_row: bool, value: bool) -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let base = KeptFamily { types: &[], retired: &[], ..family(owner) };
+    let base = family(owner);
     let mut store = fresh(&mut disk, set(owner, base, &[]));
-    let mut ops = layout(CURRENT, 0, 2);
+    let mut ops = Vec::new();
     if registry_row {
         ops.extend(layout(WRITTEN, 1, 9));
     }
@@ -32,7 +97,7 @@ fn retired_ranges_refuse_values_before_writing_with_or_without_a_registry_row() 
         for registry in [false, true] {
             let mut disk = Disk::new(&baseline(owner, registry, true));
             let before = snapshot(&mut disk);
-            let mut store = store(&disk, set(owner, family(owner), &[JOB]));
+            let mut store = store(&disk, set(owner, family(owner), &[]));
             let events = disk.open(&mut store);
             assert!(
                 {
@@ -62,8 +127,33 @@ fn retired_rows_and_orphan_texts_wait_for_a_writing_open() {
     for owner in [Owner::Application, Owner::Jig] {
         for writing in [false, true] {
             let mut disk = Disk::new(&baseline(owner, true, false));
-            let mut store = store(&disk, set(owner, family(owner), if writing { &[JOB] } else { &[] }));
-            let events = disk.open(&mut store);
+            let family = family(owner);
+            let jobs = if writing {
+                Box::leak(Box::new([Job {
+                    name: "retirement-write",
+                    keys: family.types[0].keys,
+                    converts: None,
+                    counts: &[],
+                }]))
+                .as_slice()
+            } else {
+                &[]
+            };
+            let mut store = store(&disk, set(owner, family, jobs));
+            let mut events = disk.open(&mut store).into_vec();
+            while let Some(index) =
+                events.iter().position(|event| if let Event::Job { .. } = event { true } else { false })
+            {
+                let Event::Job { owner, page, .. } = events.remove(index) else { unreachable!() };
+                assert!(page.rows.is_empty());
+                events.extend(disk.request(
+                    &mut store,
+                    Request::Job {
+                        owner,
+                        answer: Ok(crate::JobAnswer { writes: Box::new([]), through: None, counts: Box::new([]) }),
+                    },
+                ));
+            }
             assert!(
                 {
                     if let Some(Event::Opened { pending, .. }) =
@@ -170,9 +260,7 @@ fn retired_admission_checks_numbers_and_the_ordered_disjoint_exact_union_of_rang
             } else {
                 assert!(
                     {
-                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of, patch: 0 }, .. }] =
-                            events.as_ref()
-                        {
+                        if let [Event::OpenRefused { why: OpenRefusal::Set { owner: of }, .. }] = events.as_ref() {
                             *of == owner
                         } else {
                             false

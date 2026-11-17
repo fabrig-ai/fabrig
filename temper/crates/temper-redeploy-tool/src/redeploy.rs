@@ -3,7 +3,7 @@ use crate::{
     description::Description,
     hosts::{self, Hosts, Output, Part, fill, words},
     openings::{self, Event, Wait},
-    record::{Check, Grace, Journal, Outage, Previous},
+    record::{Check, Grace, Journal, Outage, Previous, seconds},
     stage::{binaries, part_name, valid_commit, version},
 };
 use serde::{Deserialize, Serialize};
@@ -199,7 +199,27 @@ impl Run<'_> {
         };
         let name = part_name(self.description, part);
         self.command(part, &format!("{name} stop"), line)?;
-        self.note(&format!("{name} stopped at {at}"))
+        self.note(&format!("{name} stopped at {at}"))?;
+        if part == Part::Engine && self.journal.record.told.is_none() {
+            self.read_told(at)?;
+        }
+        Ok(())
+    }
+    fn read_told(&mut self, stop: u64) -> Result<(), Failure> {
+        let told =
+            openings::read_told(self.description, stop, self.hosts).map_err(|why| Failure::at("who was told", why))?;
+        self.journal.record.told = Some(told.clone());
+        self.journal.save().map_err(|why| Failure::at("journal", why))?;
+        for told in told {
+            let line = match told.wait_ms {
+                Some(wait) => {
+                    format!("worker {} told: restart wait {} s", told.worker, seconds(u128::from(wait) * 1_000_000))
+                }
+                None => format!("worker {} keeps its grace: not told", told.worker),
+            };
+            self.note(&line)?;
+        }
+        Ok(())
     }
     fn check(&mut self) -> Result<bool, Failure> {
         let binary = format!("{}/{}/temper-engine", self.description.engine.builds, self.commit);
@@ -223,13 +243,13 @@ impl Run<'_> {
         Ok(may_stay)
     }
     fn backup(&mut self) -> Result<(), Failure> {
-        let patched = self
+        let ran_job = self
             .journal
             .record
             .check
             .as_ref()
-            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: patched ")));
-        if !patched || self.journal.record.backup.is_some() {
+            .is_some_and(|check| check.lines.iter().any(|line| line.contains("upgrade: ran ")));
+        if !ran_job || self.journal.record.backup.is_some() {
             return Ok(());
         }
         let at = self.hosts.now();
@@ -423,7 +443,7 @@ impl Run<'_> {
                 if self.hosts.now() > wait.deadline {
                     return Err(Failure::at(
                         &format!("{name} logins"),
-                        format!("{name} did not log in within its grace"),
+                        format!("{name} did not log in within its wait"),
                     ));
                 }
                 let text = hosts::ctl(self.description, &["account", "list"], self.hosts)
@@ -431,7 +451,7 @@ impl Run<'_> {
                 if self.hosts.now() > wait.deadline {
                     return Err(Failure::at(
                         &format!("{name} logins"),
-                        format!("{name} did not log in within its grace"),
+                        format!("{name} did not log in within its wait"),
                     ));
                 }
                 let value: serde_json::Value = serde_json::from_str(&text)
@@ -455,7 +475,7 @@ impl Run<'_> {
                 if self.hosts.now() >= wait.deadline {
                     return Err(Failure::at(
                         &format!("{name} logins"),
-                        format!("{name} did not log in within its grace"),
+                        format!("{name} did not log in within its wait"),
                     ));
                 }
                 self.hosts.sleep(openings::SECOND);

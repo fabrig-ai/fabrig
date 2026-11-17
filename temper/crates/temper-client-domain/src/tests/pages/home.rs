@@ -2333,6 +2333,27 @@ fn landed_is_since_the_rows_count() {
     assert_eq!(spell_landed(&f), None);
 }
 #[test]
+fn a_decision_task_read_keeps_its_milestone_name() {
+    let mut f = enter_skipped();
+    let read = task_reads(&decisions(&mut f, &[decision(1, 10)]))[0].1;
+    let mut task = f::chat::task();
+    task.chip.task = 1;
+    let mut milestone = task.chip.clone();
+    milestone.task = 700;
+    milestone.title = c::DocumentText::complete(c::Text::new(b"Store shape".as_slice().into(), 64).unwrap());
+    milestone.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    task.lineage_chips = List::from_boxed(Box::new([milestone]));
+    task.requester = c::Requester::Task(700);
+    up(
+        &mut f.root,
+        Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task)))) },
+    );
+    assert_eq!(away_form(&f, 100).unwrap().rows[0].milestone.as_deref(), Some(b"Store shape".as_slice()));
+    assert!(task_reads(&decisions(&mut f, &[decision(1, 10)])).is_empty());
+}
+
+#[test]
 fn each_row_reads_its_task() {
     let mut limits = f::limits();
     limits.client.domain.reads = 32;

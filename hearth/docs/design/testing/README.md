@@ -15,9 +15,9 @@ M1 and grows with every milestone. What is open is in `README.md`, section 6.
 
 - **Efficiency is a rule of the tests too.** Every test runs as a regular
   user, and the gate needs Linux and git, nothing else. A world settles in
-  milliseconds; the focused suite takes 30 CPU seconds and the fuzzy one
-  120 CPU seconds (60 seconds before the user's doubling of 10-22,
-  provisional). Each crate lands with its world, and each tool's protocol
+  milliseconds; the focused suite aims at 30 CPU seconds and the fuzzy one
+  at 120 CPU seconds (60 seconds before the user's doubling of 10-22,
+  provisional), each held by layer at the gate (4.1). Each crate lands with its world, and each tool's protocol
   machine with its fake and its recordings.
 - **The domain runs whole on a fake machine** (`fake-machine.md`): files with
   owners, modes, extended attributes, inode numbers and change times;
@@ -309,11 +309,13 @@ lands. With recording on, it rewrites the recordings (`tool-fakes.md`, 5).
 
 ### 4.1 The two suites
 
-The focused suite takes at most **30 CPU seconds**, the user's ruling of
-11-04, kept in `tools/tiers/budgets.toml` and measured as the gate does
-(`tools/tiers/design.md`, 7.3). The fuzzy suite takes at most **120 CPU
-seconds** (60 seconds before the user's doubling of 10-22, provisional), the
-user's word of 11-07, kept and measured as the focused suite's. nextest's
+Each suite has a CPU budget for each of hearth's layers, held at the gate:
+the CI builder's figures of 11-16 plus a tenth, by the user's word of
+11-16, kept in `tools/tiers/budgets.toml` (`tools/tiers/budgets.md`, 2
+and 6). Their ideals are the focused suite's **30 CPU seconds**, the
+user's ruling of 11-04, and the fuzzy suite's **120 CPU seconds** (60
+seconds before the user's doubling of 10-22, provisional), the user's
+word of 11-07, which hearth's figures meet. nextest's
 global timeouts stay, as the suites' wall backstop
 (`skein/docs/foundation/testing-strategy.md`, 8.1). Raising either is an
 explicit decision (skein/docs/foundation/testing-strategy.md, section 8).
@@ -440,10 +442,6 @@ VM tier its one real machine relies on.
 - **The suites' figures** (4.1): what the workspace's global timeouts
   hold, and whether `hearth-render-world` stays on every change. It
   depends on the user's ruling on the measurements.
-  Bringing `tools/tiers/design.md`, 7.3 and 8, into line with the user's
-  11-07 CPU ruling is separate work: those sections still call Smith's,
-  Skein's and Jig's CPU figures open, although `tools/tiers/budgets.toml`
-  records them as decided CPU budgets.
 - **The focused suite's way to its figure** (4.1): whether what is left needs
   repair to hold the queue's figure under 30 CPU seconds. The shares below are a
   sampled profile's estimates of the suite before its repairs (the `hearth-speed-2`

@@ -347,10 +347,11 @@ otherwise.
    names (a stored field `skein_oauth` as `SKEIN_OAUTH`) never change
    once landed and name no variable
    (`skein/docs/design/data/codec/command.md`, 3); a patch author's
-   `pNNNN.rs` and `context.rs` are read. A token ending `_PATCH_SET`
-   names a component's patch set, a Rust constant
-   (`temper/docs/design/protocol/baseline.md`, 4), never a variable,
-   and is not a finding; a declared variable never takes that ending.
+   `pNNNN.rs` and `context.rs` are read. The tokens `SKEIN_SET`,
+   `SMITH_SET`, `JIG_STORE_SET` and `JIG_SET` name owner sets, Rust
+   constants (`jig/docs/design/protocol/store/opening.md`, 3), not
+   variables, and are not findings. This exemption is those four names,
+   not a suffix rule.
    The check reads each file once and splits it into its words (maximal
    runs of ASCII letters, digits and `_`) in one pass, looking each word
    up among the trees' prefixes and the declared names: its cost grows

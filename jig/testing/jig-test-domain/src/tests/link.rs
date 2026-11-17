@@ -162,7 +162,13 @@ fn a_start_refusal_reaches_the_core_as_permanent_without_reading_a_result() {
         let Some(crate::Work::Core(core::Event::AnswerPayload { end, .. })) = work.pop() else {
             panic!("invalid start reaches the core without a result codec");
         };
-        assert_eq!(end, tasks::End::Failed(tasks::Class::Permanent));
+        assert_eq!(
+            end,
+            tasks::End::FailedWithReason {
+                class: tasks::Class::Permanent,
+                reason: b"the model is absent".as_slice().into(),
+            }
+        );
     }
 }
 

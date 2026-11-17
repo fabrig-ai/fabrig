@@ -18,7 +18,7 @@ fn pass_home() -> (Scratch, Home) {
         ledger.end_session(1, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build(BUILD, 3)?;
         ledger.set_build_holds(BUILD, vec![1], 1)?;
-        let pass = ledger.start_pass("places/1", &["web".into()], "high", 4).expect("pass");
+        let pass = ledger.start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 4).expect("pass");
         assert_eq!((pass.pass, pass.session), (1, 2));
         Ok(())
     })
@@ -103,7 +103,14 @@ fn every_recording_command_checks_the_pass_session_before_reading_inputs() {
     home.transact(|ledger| {
         ledger.record_landing(FIX, 11, None, "More work", 5);
         assert_eq!(
-            ledger.start_session(2, "low", [("web".into(), vec!["work".into()])].into(), vec!["fresh".into()], 5)?,
+            ledger.start_session(
+                2,
+                "low",
+                [("web".into(), vec!["work".into()])].into(),
+                vec!["fresh".into()],
+                Vec::new(),
+                5
+            )?,
             3
         );
         Ok(())
@@ -307,13 +314,25 @@ fn checks_require_a_resumed_session_and_an_open_finding_and_print_the_build() {
         ledger.end_pass_session(2, Exit::Code(0), None, 6, "qa", &[])?;
         ledger.file_request(1, 1, Some(30), 7)?;
         ledger.record_landing(FIX, 30, None, "Fix", 8);
-        let triage =
-            ledger.start_session(2, "low", [("web".into(), vec!["work".into()])].into(), vec!["fresh".into()], 9)?;
+        let triage = ledger.start_session(
+            2,
+            "low",
+            [("web".into(), vec!["work".into()])].into(),
+            vec!["fresh".into()],
+            Vec::new(),
+            9,
+        )?;
         ledger.answer_none(triage, "fix covered by pass")?;
         ledger.end_session(triage, Exit::Code(0), None, 10, "qa")?;
         ledger.keep_build(FIX, 11)?;
         ledger.set_build_holds(FIX, vec![1, 2], 2)?;
-        assert_eq!(ledger.resume_pass("places/1", &["web".into()], "high", 12).expect("resume").session, 4);
+        assert_eq!(
+            ledger
+                .resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 12)
+                .expect("resume")
+                .session,
+            4
+        );
         Ok(())
     })
     .expect("resume through ledger");

@@ -223,6 +223,10 @@ pub enum Delivery {
         watcher: Token,
         why: jig_domain_views::End,
     },
+    /// The durable stop asks workers to keep their runs (domain/root.md, 8.2).
+    Restarting {
+        wait: skein_lib::Duration,
+    },
     /// Every commit before the drain is durable.
     Drained,
     /// Root to worker: refuse its hello because of startup, shape or fleet admission; no attempt is
@@ -326,6 +330,19 @@ impl Decision {
 
     pub(crate) fn overrun(&self) -> bool {
         self.overrun
+    }
+
+    /// End facts still belong to this decision after jig retires its live task.
+    pub(crate) fn ended_task(&self, number: u64) -> Option<&jig_domain_tasks::TaskRecord> {
+        for write in &self.writes {
+            if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row)))) =
+                write
+                && row.number == number
+            {
+                return Some(row);
+            }
+        }
+        None
     }
 
     pub(crate) fn write_free(&self) -> bool {
@@ -566,6 +583,7 @@ impl Decision {
             | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::ReadEscalationDecision { .. }
@@ -703,6 +721,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::SetUp { .. }
             | crate::Output::Account(_)
             | crate::Output::Busy(_)
+            | crate::Output::Restarting { .. }
             | crate::Output::Drained
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }
@@ -767,6 +786,7 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Adopt { .. }
         | Event::Cross { .. }
         | Event::Interrupt { .. }
+        | Event::Restarting { .. }
         | Event::Loaded
         | Event::Grant { .. }
         | Event::Unauthorized { .. }

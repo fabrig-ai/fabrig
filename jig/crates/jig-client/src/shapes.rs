@@ -7,6 +7,9 @@ use crate::contract::{
 use skein_lib::{List, Wall};
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
+/// jig's core recurring procedures and its gathering executor.
+pub const RECURRING: u16 = u16::MAX;
+pub const GATHERING: u32 = 2;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NotOffered {
     Project,
@@ -152,18 +155,23 @@ pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reaso
 pub fn set_agreed_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
     goal_from(me, project, number, draft, reason, true)
 }
+/// Fill an offered goal without judging creation or proposing it.
+/// A party delegating beneath a task leaves admission to the engine.
+pub fn fill_goal_from(me: &Me, project: u32, number: u32, draft: &GoalDraft) -> Result<NewTask, NotOffered> {
+    let creating = creating(me, project)?;
+    let template = template(me, project, number).ok_or(NotOffered::Template)?;
+    fill(template, creating, draft.words.clone(), Some(draft), false)
+}
 fn goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text, asks: bool) -> Judged {
     let creating = match creating(me, project) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
     };
-    let Some(template) = template(me, project, number) else {
-        return Judged::NotOffered(NotOffered::Template);
-    };
-    let task = match fill(template, creating, draft.words.clone(), Some(&draft), asks) {
+    let mut task = match fill_goal_from(me, project, number, &draft) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
     };
+    task.spec.asks = asks;
     let filled = GoalDraft {
         words: draft.words,
         executor: task.executor,

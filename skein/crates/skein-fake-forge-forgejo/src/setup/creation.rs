@@ -124,7 +124,7 @@ fn failed(error: Error, limits: &Limits) -> Reply {
 }
 
 fn contents(request: &Request, user: u64, env: &Env<Limits>, hosted: &mut Hosted<'_>) -> Option<Reply> {
-    if let Request::ChangeFiles { at, branch, message, files } = request {
+    if let Request::ChangeFiles { at, branch, new_branch, message, files } = request {
         let limits = &env.limits;
         let mut changes = skein_lib::List::with_capacity(limits.documents.inner);
         for file in files {
@@ -156,6 +156,7 @@ fn contents(request: &Request, user: u64, env: &Env<Limits>, hosted: &mut Hosted
             &env.with(hosted.config.clone()),
             &path_of(at),
             branch,
+            new_branch.as_deref(),
             message,
             changes.as_slice(),
             user,

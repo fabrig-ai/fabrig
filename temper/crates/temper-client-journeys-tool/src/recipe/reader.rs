@@ -8,7 +8,8 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
-pub(super) type CommitFiles = BTreeMap<Box<[u8]>, Vec<u8>>;
+pub(super) type RecipeFiles = BTreeMap<Box<[u8]>, Vec<u8>>;
+const DOCUMENTS: [&[u8]; 5] = [b"agent.json", b"engine.json", b"forgejo.json", b"model.json", b"worker.json"];
 
 pub(super) enum Reader<'a> {
     Directory(&'a Path),
@@ -57,8 +58,8 @@ impl Reader<'_> {
                 .ok_or("missing file".into()),
         }
     }
-    pub(super) fn commit_files(&self, name: &str) -> Result<CommitFiles, Refusal> {
-        let mut files = CommitFiles::new();
+    pub(super) fn commit_files(&self, name: &str) -> Result<RecipeFiles, Refusal> {
+        let mut files = RecipeFiles::new();
         match self {
             Self::Directory(setups) => {
                 let root = setups.join(name).join("files");
@@ -77,6 +78,49 @@ impl Reader<'_> {
         }
         Ok(files)
     }
+    pub(super) fn config_files(&self, name: &str) -> Result<RecipeFiles, Refusal> {
+        let mut files = RecipeFiles::new();
+        match self {
+            Self::Directory(setups) => {
+                let root = setups.join(name).join("config");
+                let refuse = |why: std::io::Error| Refusal::file(name, "config", why.to_string());
+                for entry in fs::read_dir(&root).map_err(refuse)? {
+                    let entry = entry.map_err(refuse)?;
+                    let path = entry.file_name();
+                    let file = config_name(name, path.as_bytes())?;
+                    let refuse = |why: std::io::Error| Refusal::file(name, &file, why.to_string());
+                    if !entry.file_type().map_err(refuse)?.is_file() {
+                        return Err(Refusal::file(name, &file, "expected a regular file"));
+                    }
+                    let mut bytes = vec![];
+                    fs::File::open(entry.path())
+                        .map_err(refuse)?
+                        .take(262_145)
+                        .read_to_end(&mut bytes)
+                        .map_err(refuse)?;
+                    config_insert(name, path.as_bytes(), bytes, &mut files)?;
+                }
+            }
+            #[cfg(test)]
+            Self::Memory(recipes) => {
+                for (path, bytes) in recipes.get(name).expect("recipe read") {
+                    if let Some(path) = path.as_bytes().strip_prefix(b"config/") {
+                        config_insert(name, path, bytes.clone(), &mut files)?;
+                    }
+                }
+            }
+        }
+        for document in DOCUMENTS {
+            if !files.contains_key(document) {
+                return Err(Refusal::file(
+                    name,
+                    &format!("config/{}", String::from_utf8_lossy(document)),
+                    "missing document",
+                ));
+            }
+        }
+        Ok(files)
+    }
     pub(super) fn missing(&self, name: &str) -> bool {
         match self {
             Self::Directory(setups) => !setups.join(name).join("recipe").exists(),
@@ -88,7 +132,23 @@ impl Reader<'_> {
     }
 }
 
-fn insert(name: &str, path: &[u8], bytes: Vec<u8>, files: &mut CommitFiles) -> Result<(), Refusal> {
+fn config_name(name: &str, path: &[u8]) -> Result<String, Refusal> {
+    let file = format!("config/{}", String::from_utf8_lossy(path));
+    if !DOCUMENTS.contains(&path) {
+        return Err(Refusal::file(name, &file, "unexpected document"));
+    }
+    Ok(file)
+}
+fn config_insert(name: &str, path: &[u8], bytes: Vec<u8>, files: &mut RecipeFiles) -> Result<(), Refusal> {
+    let file = config_name(name, path)?;
+    if bytes.len() > 262_144 {
+        return Err(Refusal::file(name, &file, "more than 256 KiB"));
+    }
+    files.insert(path.into(), bytes);
+    Ok(())
+}
+
+fn insert(name: &str, path: &[u8], bytes: Vec<u8>, files: &mut RecipeFiles) -> Result<(), Refusal> {
     let file = format!("files/{}", String::from_utf8_lossy(path));
     if files.len() >= 64 {
         return Err(Refusal::file(name, &file, "more than 64 files"));
@@ -99,7 +159,7 @@ fn insert(name: &str, path: &[u8], bytes: Vec<u8>, files: &mut CommitFiles) -> R
     files.insert(path.into(), bytes);
     Ok(())
 }
-fn directory_files(name: &str, root: &Path, files: &mut CommitFiles) -> Result<(), Refusal> {
+fn directory_files(name: &str, root: &Path, files: &mut RecipeFiles) -> Result<(), Refusal> {
     let mut pending = vec![PathBuf::new()];
     while let Some(relative) = pending.pop() {
         let directory = root.join(&relative);

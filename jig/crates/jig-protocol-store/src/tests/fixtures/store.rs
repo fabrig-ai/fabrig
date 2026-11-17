@@ -1,38 +1,17 @@
 //! Memory component fixtures (protocol/store/README.md, section 9).
 use super::{
-    APPLICATION, CORE_LIMITS, DEPLOYMENT, INSTALLATION, KEY_LIMIT, calls, core_rows, identity, note_entry, note_line,
-    task_history, task_record,
+    APPLICATION, CORE_LIMITS, ENDED, INSTALLATION, KEY_LIMIT, LIVE, cold_task, deployment_record, header_record,
+    kv_limits,
 };
 use crate::{Arrived, Below, Io, Root, SecretOwner, Secrets};
 use crate::{Event, Limits, Request, Store, Stores, Write, codec, format, keys};
 use alloc::boxed::Box;
-use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, Key, Record};
 use skein_io::file_layer::{FileIo, Limits as FileLimits};
 use skein_io::{file, kernel::Fd};
-use skein_lib::{Duration, Env, List, Queue, Token};
+use skein_lib::{Env, List, Queue, Token};
 
-pub const OTHER_DEPLOYMENT: [u8; 16] = [9; 16];
 pub const ROOT: Root = Root { token: Token::new(900), fd: Fd::new(3) };
-
-fn kv_limits() -> skein_kv::Limits {
-    skein_kv::Limits {
-        key: KEY_LIMIT,
-        value: 16_777_216,
-        ops: 16,
-        commit: 134_217_728,
-        queued: 2,
-        queued_bytes: 268_435_456,
-        budget: 16_384,
-        segment: 268_435_456,
-        snapshot_after: 134_217_728,
-        chunk: 16_778_260,
-        page: skein_kv::Page { rows: 2, bytes: 16_778_240 },
-        record: 16_777_216,
-        log: 1 << 40,
-        logs: 16,
-        deadline: Duration::from_nanos(1_000_000_000),
-    }
-}
 
 pub fn limits() -> Limits {
     Limits {
@@ -59,12 +38,29 @@ fn stores_with(limits: &Limits) -> Stores {
 }
 
 pub fn plant(stores: &mut Stores, ops: &[skein_kv::Op]) {
+    let mut planted = List::uncapped();
+    let mut format = false;
+    let mut floor = false;
+    for op in ops {
+        match op {
+            skein_kv::Op::Put { key, .. } => {
+                format |= keys::decode_own(key) == Some(keys::Own::Format);
+                floor |= keys::decode_own(key) == Some(keys::Own::Floor);
+            }
+            skein_kv::Op::Erase { key } => floor |= keys::decode_own(key) == Some(keys::Own::Floor),
+            skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {}
+        }
+        planted.push(op.clone()).expect("uncapped fixture");
+    }
+    if stores.store.last() == 0 && format && !floor {
+        planted.push(floor_put()).expect("uncapped fixture");
+    }
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
         &mut stores.store,
         &crate::memory_env(kv_limits()),
-        skein_kv::Request::Commit { owner: Token::new(0), ops: Box::from(ops) },
+        skein_kv::Request::Commit { owner: Token::new(0), ops: planted.into_boxed() },
         &mut above,
         &mut below,
     );
@@ -79,6 +75,13 @@ pub fn format_put(deployment: [u8; 16]) -> skein_kv::Op {
     skein_kv::Op::Put {
         key: keys::encode_own(&keys::Own::Format, KEY_LIMIT).expect("format key fits"),
         value: format::current(APPLICATION.version, deployment).encode().expect("format fits"),
+    }
+}
+
+pub fn floor_put() -> skein_kv::Op {
+    skein_kv::Op::Put {
+        key: keys::encode_own(&keys::Own::Floor, KEY_LIMIT).expect("floor key fits"),
+        value: crate::rows::floor(""),
     }
 }
 
@@ -102,13 +105,6 @@ pub fn installation_put(id: [u8; 16]) -> skein_kv::Op {
         key: keys::installation(KEY_LIMIT).expect("installation key fits"),
         value: codec::accounts::Installation { id }.encode(),
     }
-}
-
-fn deployment_record(deployment: [u8; 16], commits: u64) -> Record {
-    let mut header = core_rows::deployment();
-    header.id = deployment;
-    header.commits = commits;
-    Record::Core(CoreRecord::Deployment(header))
 }
 
 pub fn over(stores: Stores) -> Store {
@@ -173,11 +169,6 @@ pub fn get_kv(store: &mut Store, key: &[u8]) -> Option<Box<[u8]>> {
     value
 }
 
-pub const ALICE: u64 = 11;
-pub const LIVE: u64 = 21;
-pub const ENDED: u64 = 22;
-pub const PROJECT: u32 = 3;
-
 pub fn committed(store: &mut Store, writes: Box<[Write]>) {
     let number = store.stores.store.last().checked_add(1).expect("fixture next commit");
     let mut extra = 0_u32;
@@ -196,30 +187,6 @@ pub fn committed(store: &mut Store, writes: Box<[Write]>) {
     assert_eq!(*found, number);
 }
 
-pub fn header_record(commits: u64) -> Record {
-    deployment_record(DEPLOYMENT, commits)
-}
-
-pub fn person(number: u64) -> Record {
-    Record::People(jig_domain_people::Stored::Person { number, identity: identity() })
-}
-
-pub fn live_task(number: u64) -> Record {
-    let mut row = task_record();
-    row.number = number;
-    Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row)))
-}
-
-pub fn cold_task(row: &jig_domain_tasks::TaskRecord) -> Record {
-    Record::Tasks(jig_domain_tasks::Stored::LiveCold {
-        number: row.number,
-        spec: Box::new(row.spec.clone()),
-        contract: row.contract.clone(),
-        authority: row.authority.clone(),
-        instructions: row.instructions.clone(),
-    })
-}
-
 /// Fixture callers save whole tasks; production callers name each part explicitly.
 fn whole_tasks(writes: Box<[Write]>) -> Box<[Write]> {
     let mut complete = List::uncapped();
@@ -230,55 +197,6 @@ fn whole_tasks(writes: Box<[Write]>) -> Box<[Write]> {
         complete.push(write).expect("fixture writes");
     }
     complete.into_boxed()
-}
-
-pub fn ended_task(number: u64) -> Record {
-    let mut row = task_record();
-    row.number = number;
-    row.settings = jig_domain_tasks::SettingsRevision { task: 5, run: None };
-    row.phase = jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Report {
-        words: Box::from(b"result".as_slice()),
-    }));
-    Record::Tasks(jig_domain_tasks::Stored::Ended(Box::new(row)))
-}
-
-pub fn history(task: u64, revision: u64) -> Record {
-    let mut row = task_history();
-    row.task = task;
-    row.revision = revision;
-    Record::Tasks(jig_domain_tasks::Stored::History(row))
-}
-
-pub fn run_proof(task: u64) -> Record {
-    let mut row = core_rows::run();
-    row.task = task;
-    Record::Core(CoreRecord::RunProof(row))
-}
-
-pub fn call(task: u64, completion: u32) -> Record {
-    let CoreRecord::Call(mut row) = calls::call(jig_domain_core_vocabulary::CallPart::Controlled) else {
-        panic!("call fixture");
-    };
-    row.key.task = task;
-    row.key.completion = completion;
-    Record::Core(CoreRecord::Call(row))
-}
-
-pub fn notes_entry(name: u64) -> Record {
-    let mut row = note_entry();
-    row.name = name;
-    Record::Notes(jig_domain_notes::Record::Entry(row))
-}
-
-pub fn result_index(party: u64, position: u64, task: u64) -> Record {
-    Record::Tasks(jig_domain_tasks::Stored::Result(jig_domain_tasks::ResultRow { party, position, task }))
-}
-
-pub fn notes_line(scope: &jig_domain_notes::Scope, name: u64) -> Record {
-    let mut row = note_line();
-    row.scope = scope.clone();
-    row.name = name;
-    Record::Notes(jig_domain_notes::Record::Line(row))
 }
 
 pub fn env() -> Env<Limits> {
@@ -332,23 +250,6 @@ pub fn sign_in_secret(number: u64, byte: u8) -> Secrets {
         number,
         value: crate::SecretValue::Digest { expiry: 0, digest: [byte; 32] },
     }
-}
-pub fn codec_limits() -> codec::View {
-    codec::limits(&CORE_LIMITS).expect("fixture codec limits")
-}
-pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
-    let mut row = core_rows::turn();
-    row.task = task;
-    row.attempt = attempt;
-    row.turn = number;
-    row.transcript = Box::from(bytes);
-    row.opens_window = false;
-    row
-}
-pub fn window_turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core_vocabulary::TurnRecord {
-    let mut row = turn(task, attempt, number, bytes);
-    row.opens_window = true;
-    row
 }
 pub fn opened_with_transcripts() -> (Store, Below) {
     let mut store = opened();

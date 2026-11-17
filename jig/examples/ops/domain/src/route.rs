@@ -403,6 +403,7 @@ fn core_held(
         | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::Drained
+        | core::Held::Restarting { .. }
         | core::Held::Grant { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }

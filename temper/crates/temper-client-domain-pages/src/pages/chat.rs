@@ -1032,6 +1032,7 @@ impl Chat {
                     (key.number, handle.number),
                     super::inbox::Card {
                         whole: None,
+                        task: None,
                         object,
                         group: c::InboxGroup::Proposals,
                         project: Some(task.project),
@@ -1140,6 +1141,7 @@ impl Chat {
             self.cards
                 .push(super::inbox::Card {
                     whole: None,
+                    task: None,
                     object,
                     group: c::InboxGroup::Proposals,
                     project,

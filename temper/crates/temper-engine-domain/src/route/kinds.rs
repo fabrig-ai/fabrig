@@ -475,6 +475,7 @@ pub(super) fn read(
             | crate::ForgeRead::RevisionSetting { .. }
             | crate::ForgeRead::ProposalItems { .. }
             | crate::ForgeRead::Finding { .. }
+            | crate::ForgeRead::Milestone { .. }
             | crate::ForgeRead::ProgramEnvironment => {}
         }
     }
@@ -484,6 +485,9 @@ pub(super) fn read(
             let answer = match query {
                 crate::ForgeRead::History(_) => unreachable!("history reads have their own answer"),
                 crate::ForgeRead::View { .. } => unreachable!("view reads have their own answer"),
+                crate::ForgeRead::Milestone { project, task } => {
+                    crate::ForgeReadAnswer::Milestone(super::milestones::read(domain, project, task))
+                }
                 crate::ForgeRead::Finding { project, number } => {
                     crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number))
                 }
@@ -522,9 +526,9 @@ fn read_refusal(
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
                     crate::ForgeRead::History(query) => domain.core.people.role(party, query.project).is_some(),
-                    crate::ForgeRead::View { project, .. } | crate::ForgeRead::Finding { project, .. } => {
-                        domain.core.people.role(party, *project).is_some()
-                    }
+                    crate::ForgeRead::View { project, .. }
+                    | crate::ForgeRead::Finding { project, .. }
+                    | crate::ForgeRead::Milestone { project, .. } => domain.core.people.role(party, *project).is_some(),
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
@@ -536,7 +540,8 @@ fn read_refusal(
                     let own_kind = match query {
                         crate::ForgeRead::History(query) => query.project == project,
                         crate::ForgeRead::View { project: requested, .. }
-                        | crate::ForgeRead::Finding { project: requested, .. } => *requested == project,
+                        | crate::ForgeRead::Finding { project: requested, .. }
+                        | crate::ForgeRead::Milestone { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2

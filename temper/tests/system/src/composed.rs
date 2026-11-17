@@ -802,8 +802,16 @@ impl World {
             Err(request) => *request,
         };
         match request {
+            engine::Request::Restarting { wait } => {
+                assert!(!self.absence.drained, "the word precedes the close");
+                if self.absence.link_joined {
+                    self.absence.told = Some(wait);
+                }
+            }
+            engine::Request::Drained => self.absence.drained = true,
             engine::Request::Worker(engine::WorkerRequest::Settings(_))
             | engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
             engine::Request::Store(engine::StoreRequest::Switch) => {
@@ -881,7 +889,6 @@ impl World {
             | engine::Request::Setup { .. }
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
-            | engine::Request::Drained
             | engine::Request::Stop) => panic!("unscripted engine output: {other:?}"),
         }
     }
@@ -1012,6 +1019,7 @@ impl World {
             | engine::Request::ToChild(_)
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
+            | engine::Request::Restarting { .. }
             | engine::Request::Drained
             | engine::Request::Stop) => return self.protocol.play(other),
         };
@@ -1178,6 +1186,7 @@ impl World {
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
+            | Delivery::Restarting { .. }
             | Delivery::Drained
             | Delivery::Start(_)
             | Delivery::NotesLoad { .. }

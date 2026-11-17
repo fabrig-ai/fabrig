@@ -1,2 +1,0 @@
-family fixture-shelf 2
-versioned record Shelf { name: text 32, books: u32, label: bytes 64 holds fixture-label Label, weight: u32 }

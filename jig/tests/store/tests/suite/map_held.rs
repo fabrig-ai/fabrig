@@ -17,6 +17,7 @@ pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
             own(keys::Own::Format),
             format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
         ),
+        (own(keys::Own::Floor), crate::frame_reads::floor()),
         (own(keys::Own::Layouts), format::layouts().encode()),
         (
             keys::installation(limits.store.key).expect("installation key"),
@@ -43,7 +44,7 @@ pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
             codec::component::Transcript { length: 0, window: 0 }.encode().expect("file place"),
         ));
     }
-    let frame = super::upgrades::baseline::source_commit(&rows, 1);
+    let frame = super::upgrades::commits::source_commit(&rows, 1);
     let mut world = World::unopened_observed(seed, *limits, None);
     world.lay(&[
         Item::directory(b"transcripts").mode(0o700),

@@ -40,7 +40,7 @@
   stays unreaped, holding its PID, until io closes it.
 - **Signals** (`Interrupt`, `Terminate`, `Kill`, `Stop`, or `Continue`) go
   to the child alone, or to its process group: `Signal` names which (`Target::Child` or
-  `Target::Group`). Both go through the child's pidfd,
+  `Target::Group`), and why its owner sends it (5). Both go through the child's pidfd,
   `pidfd_send_signal`, the group's with the kernel's
   process-group scope, which reaches the group the child leads from its
   spawn (../kernel.md, 6.2). The group's ID is the child's PID, which the
@@ -354,3 +354,57 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
   closes the child (its exit observed, its pipes settled, reaped) and the
   cgroup (removed), in either order, and hears each one's `Closed`. A
   cgroup closed while it holds processes is killed first.
+
+## 5. A signal's reason
+
+A signal says why its owner sends it, so that a world hosting the child
+can name a kill's cause when no one expected it (../../testing/README.md, 5).
+Nothing else reads it.
+
+- **It travels with the signal.** io's request and the kernel's record
+  each carry it:
+
+  ```rust
+  Request::Signal { child: Token, signal: Signal, to: Target, reason: Reason }
+  Op::Signal { pidfd: Fd, signal: Signal, to: Target, reason: Reason }
+
+  /// Why an owner signals its child (runtime/io/processes.md, 5).
+  #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+  pub enum Reason {
+      /// The sender said none.
+      Unknown,
+      /// Whoever drives the owner asked for it: a person, or a test's story.
+      Asked,
+      /// The child, or the work it runs, was closed or aborted while it ran.
+      Closed,
+      /// A gentler signal's grace passed with the child still running.
+      Grace,
+      /// The work's deadline passed.
+      Deadline,
+      /// The work was cancelled.
+      Cancelled,
+  }
+  ```
+
+  `Reason` is `kernel::Reason`, beside `kernel::Signal` and
+  `kernel::Target`.
+- **The sender names what its own code knows** at the point it signals:
+  a kill sent because its work's deadline passed is `Deadline`, one sent
+  because the work was cancelled is `Cancelled`, one that follows a
+  terminate whose grace passed is `Grace`, one that ends work being
+  aborted or closed is `Closed`, and one a person or a story asked for
+  is `Asked`. A sender whose code knows none, and every signal sent for
+  no reason of its own (an interrupt relayed, a terminate whose cause
+  lies above it), names `Unknown`. A reason is never guessed from what
+  the child is: a sender that kills for several reasons through one
+  path carries the one that applies down that path.
+- **io passes a request's reason into its record unchanged,** and names
+  its own kill `Closed`: the `Kill` it sends to a child closed or aborted
+  while it runs, or to its group (above, *A child is closed*). A signal
+  io drops (one in flight already, or a child being closed) drops its
+  reason with it.
+- **No one acts on it.** No backend, no io branch and no simulator
+  outcome reads it: the real kernel never sees it, the simulator keeps it
+  in the record it rebuilds and leaves it out of its trace, and a signal
+  does the same whatever its reason. The real world records it with each
+  kill (../../testing/README.md, 5).

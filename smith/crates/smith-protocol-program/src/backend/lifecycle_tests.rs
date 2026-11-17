@@ -27,8 +27,12 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
         &mut below,
     );
     assert!(below.iter().any(|request| {
-        if let Below::Io(io::Request::Signal { child, to: kernel::Target::Group, signal: kernel::Signal::Terminate }) =
-            request
+        if let Below::Io(io::Request::Signal {
+            child,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Terminate,
+            ..
+        }) = request
         {
             *child == Token::new(30)
         } else {

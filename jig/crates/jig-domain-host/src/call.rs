@@ -28,6 +28,8 @@ pub(crate) enum State {
     /// Relayed to the engine for the agent `agent`.
     Relayed {
         agent: Token,
+        /// The link may have carried this relay (domain/hosts/hub.md, 6).
+        carried: bool,
     },
     /// The agent has its answer; local delivery is being cancelled.
     Settling,

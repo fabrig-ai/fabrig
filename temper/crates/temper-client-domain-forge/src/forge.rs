@@ -21,6 +21,7 @@ pub mod github;
 pub mod listed;
 pub mod making;
 pub mod me;
+pub mod milestones;
 pub mod model;
 pub mod panel;
 pub mod playground;

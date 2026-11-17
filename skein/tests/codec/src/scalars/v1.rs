@@ -50,6 +50,26 @@ pub enum Path {
     ScalarsTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::EmptyTail => "Empty (tail)",
+            Self::FlagTag => "Flag (tag)",
+            Self::ScalarsA => "Scalars.a",
+            Self::ScalarsB => "Scalars.b",
+            Self::ScalarsC => "Scalars.c",
+            Self::ScalarsD => "Scalars.d",
+            Self::ScalarsE => "Scalars.e",
+            Self::ScalarsF => "Scalars.f",
+            Self::ScalarsG => "Scalars.g",
+            Self::ScalarsH => "Scalars.h",
+            Self::ScalarsTail => "Scalars (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

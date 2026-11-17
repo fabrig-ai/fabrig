@@ -116,3 +116,31 @@ fn host_cancellation_at_many_moments_closes_the_whole_tree() {
         "cancels crossed early, nested and already-finished runs: {cancelled}/{nested}/{done}"
     );
 }
+
+#[test]
+fn held_renewals_and_newer_grants_never_spend_a_completion_retry() {
+    use super::super::accounts::{account_world, counts, grant, seconds};
+    for seed in 0..64 {
+        let mut rng = Rng::new(seed);
+        let arrives = rng.between(100, 500);
+        let resumes = if rng.chance(500) { arrives - 1 } else { arrives + 1 };
+        let mut world = account_world(
+            Some(0),
+            Some(grant(3, true, Duration::from_secs(60))),
+            0,
+            smith_domain::llm::Failure::Unauthorized,
+        );
+        world.start_at(seconds(90));
+        for at in [5, 15, 25, 35] {
+            world.renewals_at(seconds(at), rng.chance(500));
+        }
+        world.renewals_at(seconds(50), true);
+        world.grant_at(seconds(rng.between(91, arrives - 2)), grant(3, true, Duration::ZERO));
+        world.renewals_at(seconds(resumes), false);
+        world.grant_at(seconds(arrives), grant(4, true, Duration::from_secs(3600)));
+        world.run(2000);
+        assert_eq!(counts(&world), (1, 0, 1, 0), "seed {seed}");
+        assert_eq!(world.completions()[0].started, seconds(arrives), "seed {seed}");
+        assert_eq!(world.completions()[0].grant.expect("account").generation, 4, "seed {seed}");
+    }
+}

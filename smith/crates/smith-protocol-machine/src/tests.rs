@@ -94,6 +94,53 @@ fn git_part_and_unknown_root_are_refused_before_io() {
 }
 
 #[test]
+fn target_failure_file_load_returns_bytes_under_an_admitted_root() {
+    let mut harness = Harness::new();
+    let path = b"target/temper/pre-pr-failures.json";
+    harness.operate(Token::new(1), tools::Op::Load { at: place(path), max: 16 }, FAR);
+    assert!(harness.above.is_empty());
+    assert_eq!(
+        harness.below.pop(),
+        Some(Below::File {
+            request: file::Request::Load {
+                owner: Token::new(1),
+                root: Token::new(10),
+                path: Box::from(path.as_slice()),
+                max: 16,
+                no_follow: false,
+            },
+            deadline: FAR,
+        })
+    );
+    let bytes = b"{\"failures\":[]}\n";
+    harness.event(BelowEvent::File(file::Event::Loaded { owner: Token::new(1), bytes: Box::from(bytes.as_slice()) }));
+    assert_eq!(
+        harness.above.pop(),
+        Some(answer(
+            1,
+            tools::Done::Loaded {
+                version: tools::Version::new(digest::digest(bytes).0),
+                content: Box::from(bytes.as_slice()),
+            }
+        ))
+    );
+    assert!(harness.below.is_empty());
+    assert_closed(harness.component);
+}
+
+#[test]
+fn failure_file_loads_in_git_parts_are_denied_before_io() {
+    let mut harness = Harness::new();
+    for path in [b".git/temper/pre-pr-failures.json".as_slice(), b"nested/.git/temper/pre-pr-failures.json".as_slice()]
+    {
+        harness.operate(Token::new(1), tools::Op::Load { at: place(path), max: 16 }, FAR);
+        assert!(harness.below.is_empty());
+        assert_eq!(harness.above.pop(), Some(answer(1, tools::Done::Failed { fault: tools::Fault::Denied })));
+    }
+    assert_closed(harness.component);
+}
+
+#[test]
 fn store_uses_no_follow_and_returns_digest() {
     let mut harness = Harness::new();
     harness.operate(
@@ -598,7 +645,8 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
         Some(Below::Process(skein_io::Request::Signal {
             child: Token::new(45),
             to: kernel::Target::Group,
-            signal: kernel::Signal::Terminate
+            signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown,
         }))
     );
     harness.component.from_below(
@@ -615,7 +663,8 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
         Some(Below::Process(skein_io::Request::Signal {
             child: Token::new(45),
             to: kernel::Target::Group,
-            signal: kernel::Signal::Kill
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Grace,
         }))
     );
     assert_eq!(harness.component.next_deadline(), Some(Time::from_nanos(20_000_102)));

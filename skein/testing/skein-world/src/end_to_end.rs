@@ -661,7 +661,17 @@ impl Host for Binary {
             && let Some((signal, to)) = self.signal.take()
         {
             self.signalling = true;
-            let _op = self.submit(Op::Signal { pidfd: self.pidfd.expect("a running child has its pidfd"), signal, to });
+            let _op = self.submit(Op::Signal {
+                pidfd: self.pidfd.expect("a running child has its pidfd"),
+                signal,
+                to,
+                reason: match signal {
+                    Signal::Kill => skein_io::kernel::Reason::Asked,
+                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => {
+                        skein_io::kernel::Reason::Unknown
+                    }
+                },
+            });
         }
         if self.status.is_some()
             && !self.signalling

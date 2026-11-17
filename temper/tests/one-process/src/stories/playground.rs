@@ -15,14 +15,19 @@ pub struct Outcome {
     pub answered: u32,
 }
 
-fn scripts() -> serde_json::Value {
-    serde_json::from_slice(temper_playground::stories::A.llm).expect("story A's scripts")
+fn scripts() -> &'static serde_json::Value {
+    static SCRIPTS: std::sync::OnceLock<serde_json::Value> = std::sync::OnceLock::new();
+    SCRIPTS.get_or_init(|| serde_json::from_slice(temper_playground::stories::A.llm).expect("story A's scripts"))
 }
 
 pub(crate) fn codec() -> jig_protocol_store::codec::View {
-    let deployment = serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
-    let engine = temper_playground::documents::settings::configuration(&deployment);
-    jig_protocol_store::codec::limits(&engine.limits.core).expect("story A's stored records")
+    static CODEC: std::sync::OnceLock<jig_protocol_store::codec::View> = std::sync::OnceLock::new();
+    *CODEC.get_or_init(|| {
+        let deployment =
+            serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+        let engine = temper_playground::documents::settings::configuration(&deployment);
+        jig_protocol_store::codec::limits(&engine.limits.core).expect("story A's stored records")
+    })
 }
 
 pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {

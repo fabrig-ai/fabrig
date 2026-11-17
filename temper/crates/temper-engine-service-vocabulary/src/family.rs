@@ -10,6 +10,7 @@ use temper_engine_domain_forge_change as change;
 mod findings;
 mod history;
 mod landing_views;
+mod milestones;
 mod refusals;
 mod ways;
 pub use ways::ways_panel;
@@ -576,6 +577,13 @@ pub fn to_root(
                             None
                         }
                     }
+                    w::Read::Milestone(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::Milestone(read))
+                        } else {
+                            None
+                        }
+                    }
                     w::Read::Finding(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
                             forge_settings_query(w::Read::Finding(read))
@@ -1032,7 +1040,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v27::Limits,
+    jig: &jig_client_protocol_wire::v28::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
@@ -2382,6 +2390,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
     use forge::settings::Edit;
     match answer {
         root::ForgeReadAnswer::History(value) => history::answer(value, limits),
+        root::ForgeReadAnswer::Milestone(value) => milestones::answer(value, limits),
         root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
@@ -2435,6 +2444,7 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
         w::Read::History(value) => Some(root::ForgeRead::History(history::query(value)?)),
         w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
+        w::Read::Milestone(value) => Some(root::ForgeRead::Milestone { project: value.project(), task: value.task() }),
         w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {
             Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })

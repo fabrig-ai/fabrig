@@ -166,8 +166,9 @@ pub fn run(task: &c::Task) -> Option<Run> {
         }),
     }
 }
-// Jig's facts::reader is private; keep its person and project-role identity rule.
-fn reader(whom: c::Whom, project: u32, me: &c::Me) -> bool {
+/// Jig's person and project-role reader identity rule (client/pages/goal.md, 2).
+#[must_use]
+pub fn reader(whom: c::Whom, project: u32, me: &c::Me) -> bool {
     match whom {
         c::Whom::Person(person) => person == me.party.number,
         c::Whom::Role { project: held_project, role } => {
@@ -203,6 +204,8 @@ pub fn link_state(link: &c::TaskLink) -> Option<State> {
 pub enum Shape {
     Unknown,
     Tracked,
+    /// A gathering of goals (client/pages/milestone.md, 3).
+    Milestone,
     /// An agent's task with no priority, not the chat label (client/pages/task.md, 2).
     Agent,
     HeaderAndPlan,
@@ -324,7 +327,7 @@ pub struct Task {
     pub document: Handle,
     pub document_read: DocumentRead,
     read_wait: Duration,
-    long_text: u32,
+    limits: Box<Limits>,
     asking: Asking,
     /// The document that already permitted an ending-triggered panel reopen (client/forge/served.md, 2).
     pub panel_reopened_at: Option<u64>,
@@ -334,6 +337,7 @@ pub struct Task {
     current_call: Option<Box<c::CurrentCall>>,
     pub ended: Option<Ended>,
     pub goal: Option<super::goal::Goal>,
+    pub milestone: Option<Box<super::milestone::Page>>,
     pub shape: Shape,
     pub latest: Option<Box<c::ActivityPage>>,
     pub thread: jig_client::thread::Thread,
@@ -374,7 +378,7 @@ impl Task {
             document,
             document_read: DocumentRead::Reading,
             read_wait: READ_FIRST,
-            long_text: limits.client.domain.long_text,
+            limits: Box::new(*limits),
             asking,
             panel_reopened_at: None,
             tree,
@@ -383,6 +387,7 @@ impl Task {
             current_call: None,
             ended: None,
             goal: None,
+            milestone: None,
             shape: Shape::Unknown,
             latest: None,
             thread,
@@ -703,7 +708,9 @@ impl Task {
             Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
         };
         let paused = match self.shape {
-            Shape::Tracked => super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused,
+            Shape::Tracked | Shape::Milestone => {
+                super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused
+            }
             Shape::Agent => match reader {
                 Some(me) => super::chat::paused(&task.chip, me),
                 None => false,
@@ -737,15 +744,7 @@ impl Task {
             Sending::Cancel if super::chat::allowed(task, c::ActKind::Cancel) => c::Ask::Cancel {
                 project: task.project,
                 task: self.number,
-                reason: c::Text::new(
-                    Box::from(if self.shape == Shape::Tracked || self.shape == Shape::Agent {
-                        b"Closed from its page".as_slice()
-                    } else {
-                        b"Cancelled from its page".as_slice()
-                    }),
-                    u32::MAX,
-                )
-                .expect("page cancellation reason fits"),
+                reason: close_reason(self.shape),
                 grace: None,
             },
             Sending::Amend if super::chat::allowed(task, c::ActKind::Amend) => {
@@ -798,7 +797,7 @@ impl Task {
     }
     /// Goal outcomes and leaving a role talk belong to the frame toast (client/pages/task.md, 4).
     pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {
-        if self.shape != Shape::Tracked && self.shape != Shape::Agent {
+        if self.shape != Shape::Tracked && self.shape != Shape::Agent && self.shape != Shape::Milestone {
             return None;
         }
         let Told::Answered { key, outcome } = told else { return None };
@@ -818,7 +817,7 @@ impl Task {
         if kind == Sending::Leave && done {
             return Some(super::needs::Toasted::LeftTalk);
         }
-        if self.shape != Shape::Tracked {
+        if self.shape != Shape::Tracked && self.shape != Shape::Milestone {
             return None;
         }
         match kind {
@@ -852,6 +851,9 @@ impl Task {
         }
         if let Some(goal) = &self.goal {
             goal.leave(out);
+        }
+        if let Some(milestone) = &self.milestone {
+            milestone.leave(out);
         }
         self.next
     }
@@ -887,7 +889,7 @@ impl Task {
                 }
                 open.outcome = Some(outcome);
             }
-        } else if !said && self.shape != Shape::Tracked {
+        } else if !said && self.shape != Shape::Tracked && self.shape != Shape::Milestone {
             self.outcome = Some(outcome);
         }
         let mut kept = List::with_capacity(self.pending.capacity());
@@ -901,6 +903,11 @@ impl Task {
     pub fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         if let Some(goal) = &mut self.goal
             && goal.told(now, client, &told, out)
+        {
+            return true;
+        }
+        if let Some(page) = &mut self.milestone
+            && page.told(client, &self.limits, &told, out)
         {
             return true;
         }
@@ -988,6 +995,9 @@ impl Task {
         }
         if self.shape == Shape::Agent && self.run.is_none() && self.thread.loaded >= self.thread.committed {
             self.thread.end_run();
+        }
+        if let Some(page) = &mut self.milestone {
+            page.configure(client, &self.limits, out);
         }
         true
     }
@@ -1084,7 +1094,7 @@ impl Task {
     }
     /// Tracked pages read needs through their inbox, without task cards (client/pages/task.md, 4).
     pub fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
-        if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
+        if self.shape == Shape::Tracked || self.shape == Shape::Milestone || chip.phase != c::Phase::Held {
             return;
         }
         let object = c::ObjectKey::Task(chip.task);
@@ -1117,6 +1127,7 @@ impl Task {
         self.cards
             .push(Card {
                 whole: None,
+                task: None,
                 object,
                 group: c::InboxGroup::Escalations,
                 project: None,
@@ -1166,12 +1177,32 @@ impl Task {
             out,
         );
     }
+    fn milestone_changed(&mut self, task: &c::Task, out: &mut Queue<Request>) {
+        if self.shape == Shape::Milestone {
+            if let Some(page) = &mut self.milestone {
+                page.changed(task, out);
+            } else {
+                self.milestone = Some(Box::new(super::milestone::Page::new(task, &mut self.next, out)));
+            }
+            if let Some(ended) = self.ended.take() {
+                unwatch(ended.handle, out);
+            }
+            for card in &self.cards {
+                unwatch(card.handle, out);
+            }
+            self.cards.clear();
+        } else if let Some(page) = self.milestone.take() {
+            page.leave(out);
+        }
+    }
     fn changed(&mut self, task: &c::Task, out: &mut Queue<Request>) {
-        let reads_ended = match task.chip.executor {
-            c::ChipExecutor::Procedure { .. } => true,
-            c::ChipExecutor::Agent { .. } => task.priority.is_some(),
-            c::ChipExecutor::Job { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
-        };
+        let milestone = temper_client_domain_forge::milestones::is(&task.chip);
+        let reads_ended = !milestone
+            && match task.chip.executor {
+                c::ChipExecutor::Procedure { .. } => true,
+                c::ChipExecutor::Agent { .. } => task.priority.is_some(),
+                c::ChipExecutor::Job { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
+            };
         if reads_ended {
             if self.ended.is_none() {
                 let handle = handle(self.next);
@@ -1180,14 +1211,19 @@ impl Task {
             }
             self.read_ended(out);
         }
-        self.shape = match task.chip.executor {
-            c::ChipExecutor::Agent { .. } if task.priority.is_some() => Shape::Tracked,
-            c::ChipExecutor::Agent { .. } => Shape::Agent,
-            c::ChipExecutor::Job { .. }
-            | c::ChipExecutor::Procedure { .. }
-            | c::ChipExecutor::Party { .. }
-            | c::ChipExecutor::Role { .. } => Shape::HeaderAndPlan,
+        self.shape = if milestone {
+            Shape::Milestone
+        } else {
+            match task.chip.executor {
+                c::ChipExecutor::Agent { .. } if task.priority.is_some() => Shape::Tracked,
+                c::ChipExecutor::Agent { .. } => Shape::Agent,
+                c::ChipExecutor::Job { .. }
+                | c::ChipExecutor::Procedure { .. }
+                | c::ChipExecutor::Party { .. }
+                | c::ChipExecutor::Role { .. } => Shape::HeaderAndPlan,
+            }
         };
+        self.milestone_changed(task, out);
         if self.shape == Shape::Tracked {
             for card in &self.cards {
                 unwatch(card.handle, out);
@@ -1196,7 +1232,8 @@ impl Task {
             if let Some(goal) = &mut self.goal {
                 goal.changed(task, &mut self.next, out);
             } else {
-                self.goal = Some(super::goal::Goal::new(task, self.long_text, &mut self.next, out));
+                self.goal =
+                    Some(super::goal::Goal::new(task, self.limits.client.domain.long_text, &mut self.next, out));
             }
         } else if let Some(goal) = self.goal.take() {
             goal.leave(out);
@@ -1218,15 +1255,16 @@ impl Task {
             }
             self.through = Some(task.activity);
         }
-        let running = match task.chip.details.as_ref() {
-            c::ChipPhaseFacts {
-                phase:
-                    c::ChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
-                    | c::ChipPhase::Closing(c::ClosingStage::Run { .. }),
-                ..
-            } => true,
-            c::ChipPhaseFacts { .. } => false,
-        };
+        let running = !milestone
+            && match task.chip.details.as_ref() {
+                c::ChipPhaseFacts {
+                    phase:
+                        c::ChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
+                        | c::ChipPhase::Closing(c::ClosingStage::Run { .. }),
+                    ..
+                } => true,
+                c::ChipPhaseFacts { .. } => false,
+            };
         if running && self.run.is_none() {
             let handle = handle(self.next);
             self.next = self.next.checked_add(1).expect("task handles fit");
@@ -1269,6 +1307,14 @@ fn hold_revision(page: Option<&c::ReadValue>) -> Option<u64> {
 }
 fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
     client.document(handle)?.latest
+}
+
+fn close_reason(shape: Shape) -> c::Text {
+    let words = match shape {
+        Shape::Tracked | Shape::Agent | Shape::Milestone => b"Closed from its page".as_slice(),
+        Shape::Unknown | Shape::HeaderAndPlan => b"Cancelled from its page".as_slice(),
+    };
+    c::Text::new(Box::from(words), u32::MAX).expect("page cancellation reason fits")
 }
 
 /// Pause and Resume use the same offered acts and hold revision on task pages and Team.

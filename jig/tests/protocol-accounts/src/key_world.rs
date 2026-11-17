@@ -88,6 +88,7 @@ impl World {
                 store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
                     jig_domain_core::Deployment {
                         id: [5; 16],
+                        restart_wait_ms: None,
                         tasks: 0,
                         people: 0,
                         sign_ins: 0,

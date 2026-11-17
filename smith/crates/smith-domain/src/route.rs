@@ -77,6 +77,10 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         }
         Event::Acknowledge { run, turn } => return acknowledge(domain, env, run, turn),
         Event::Grant { grant } => return granted(domain, env, grant),
+        Event::Renewals { held } => {
+            domain.renewals_held = held;
+            return;
+        }
         Event::Message { finish_requested, run, name, label, text } => {
             run::Event::Message { finish_requested, run, name, label, text }
         }
@@ -527,6 +531,7 @@ fn ended_session(
 }
 
 /// One of the sessions' requests: out to the protocol layer, or to the run.
+#[expect(clippy::too_many_lines, reason = "routes session requests and settles unsent grant waits before cancellation")]
 fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Request, out: &mut Queue<Request>) {
     let event = match request {
         session::Request::Priced { opener, spent, own_spent } => {
@@ -568,6 +573,11 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
             let id = *domain.sessions.get(&owner).expect("a call owner retains its session");
             let conversation = domain.peers.get(id).expect("session retains peer").conversation;
             let run = run::owner(&domain.run, conversation).expect("run outlives its session");
+            if domain.grant_waits.remove(&owner).is_some() {
+                let host_run = run::host_name(&domain.run, conversation).expect("session retains run");
+                out.push(Request::LongDone { host_run });
+                return session_step(domain, env, session::Event::Cancelled { owner });
+            }
             let held = match domain.pending.get(&run) {
                 Some(pending) => pending.owner == owner,
                 None => false,
@@ -861,6 +871,22 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
             return session_step(domain, env, session::Event::UnsentClosed { owner });
         }
     }
+    // A grant wait precedes reservation: no spend remains held while its renewal waits.
+    let account = domain.peers.get(id).expect("session retains peer").account;
+    if let Some(account) = account {
+        let waiting = match domain.grants.get(&account) {
+            Some(grant) => grant.expires <= env.now && grant.renewable,
+            None => true,
+        };
+        if waiting && domain.renewals_held {
+            let host_run = run::host_name(&domain.run, conversation).expect("session retains run");
+            let until = pending.deadlines.whole;
+            let old = domain.grant_waits.insert(owner, pending).expect("one wait per session");
+            assert!(old.is_none(), "the previous grant wait ended");
+            out.push(Request::Long { host_run, operation: Operation::Grant, until });
+            return;
+        }
+    }
     let PendingCompletion {
         owner,
         name,
@@ -1140,6 +1166,7 @@ fn granted(domain: &mut Domain, env: &Env<Limits>, grant: crate::Grant) {
     if let Some(old) = domain.grants.get(&grant.name.account)
         && old.name.generation >= grant.name.generation
     {
+        wake_grant_waits(domain, env, grant.name.account);
         return;
     }
     let valid = grant.valid.as_nanos().saturating_sub(env.limits.skew.as_nanos());
@@ -1156,6 +1183,37 @@ fn granted(domain: &mut Domain, env: &Env<Limits>, grant: crate::Grant) {
     if domain.grants.contains_key(&grant.name.account) || domain.grants.len() < env.limits.accounts {
         let inserted = domain.grants.insert(grant.name.account, entry);
         assert!(inserted.is_ok(), "known account or checked room");
+    }
+    wake_grant_waits(domain, env, grant.name.account);
+}
+
+/// A resent stale grant settles an unheld wait; only a newer valid grant can issue it.
+fn wake_grant_waits(domain: &mut Domain, env: &Env<Limits>, account: u32) {
+    let valid = match domain.grants.get(&account) {
+        Some(grant) => grant.expires > env.now,
+        None => false,
+    };
+    if !valid && domain.renewals_held {
+        return;
+    }
+    let mut ready = List::with_capacity(env.limits.run.conversations);
+    for (owner, _) in &domain.grant_waits {
+        let id = *domain.sessions.get(owner).expect("grant wait retains session");
+        if domain.peers.get(id).expect("session retains peer").account == Some(account) {
+            ready.push(*owner).expect("room for every waiting session");
+        }
+    }
+    let mut out = Queue::uncapped();
+    for owner in &ready {
+        let pending = domain.grant_waits.remove(owner).expect("selected grant wait");
+        let id = *domain.sessions.get(owner).expect("grant wait retains session");
+        let conversation = domain.peers.get(id).expect("session retains peer").conversation;
+        let host_run = run::host_name(&domain.run, conversation).expect("session retains run");
+        out.push(Request::LongDone { host_run });
+        complete(domain, env, pending, &mut out);
+    }
+    for _ in 0..out.len() {
+        domain.notices.push(out.pop().expect("queued grant wait outcome"));
     }
 }
 

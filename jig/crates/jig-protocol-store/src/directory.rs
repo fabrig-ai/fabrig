@@ -1,6 +1,6 @@
 //! Deployment generations and independent stores (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 use crate::generations::{self, Active, Manifesting, Map, PAGE, Progress, Removing};
-use crate::patching::phase::{self, Patching, Pending};
+use crate::upgrade::phase::{self, Patching};
 use crate::{Arrived, Below, Event, Generations, Io, Limits, Older, OpenRefusal, Phase, Root, Store, open, secrets};
 use alloc::boxed::Box;
 use skein_io::{
@@ -68,7 +68,7 @@ pub(crate) enum Opening {
     TranscriptsMade,
     TranscriptsOpen,
     Patching(Box<Patching>),
-    Pending(Box<crate::patching::switch::Pending>),
+    Pending(Box<crate::upgrade::switch::Pending>),
 }
 #[derive(Debug)]
 pub(crate) struct Closing {
@@ -84,9 +84,9 @@ pub(crate) struct Swept {
 #[derive(Debug)]
 pub(crate) struct Directory {
     /// The open's verdict survives the copy and its reopen (protocol/store/opening.md, 3).
-    pub checked: Option<Result<crate::patching::plan::Checked, crate::patching::plan::Unplanned>>,
+    pub checked: Option<Result<(), crate::Owner>>,
     pub disk: bool,
-    pub patch: Option<Box<Pending>>,
+    pub patch: Option<Box<crate::upgrade::admission::Levels>>,
     pub active: Option<Active>,
     pub transcripts: Option<Root>,
     pub root: Option<Root>,
@@ -156,7 +156,7 @@ pub(crate) fn open(
 fn reset_checked(store: &mut Store) {
     store.directory.checked = None;
     #[cfg(test)]
-    crate::patching::plan::counting::reset();
+    crate::upgrade::admission::counting::reset();
 }
 fn refuse(store: &mut Store, above: &mut Queue<Event>) {
     refusal(store, OpenRefusal::Failed, above);
@@ -439,7 +439,7 @@ fn sweep_next(store: &mut Store, mut sweep: Sweep, below: &mut Below) {
 }
 fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     if pending(store).is_some() {
-        return crate::patching::switch::up(store, arrived, above, below);
+        return crate::upgrade::switch::up(store, arrived, above, below);
     }
     match core::mem::replace(&mut store.directory.opening, Opening::Idle) {
         Opening::Locking => locked(store, arrived, above, below),
@@ -495,8 +495,8 @@ fn read_active(store: &mut Store, below: &mut Below) {
 fn active_read(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
         // A first start writes the manifest's counts: its sets fit them first.
-        if let Err(why) = crate::patching::plan::checked(store) {
-            return refusal(store, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+        if let Err(why) = crate::upgrade::admission::checked(store) {
+            return refusal(store, OpenRefusal::Set { owner: why }, above);
         }
         survey(store, Survey::Top, below);
         return;
@@ -605,21 +605,21 @@ fn first_secrets_opened(
     };
     store.directory.private_root = Some(private);
     let mut counts = skein_lib::List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
-    for set in store.patch_sets.sets {
+    for set in store.owner_sets.sets {
         for family in set.families {
             let count = crate::codec::component::Count::new(
                 &crate::component_v3::CEILINGS,
                 crate::codec::component::CountParts { family: Box::from(family.name.as_bytes()), before: 0, after: 0 },
             )
-            .expect("plan::bounds checked each family's name before this first start wrote");
-            counts.push(count).expect("plan::bounds checked the families' count before this first start wrote");
+            .expect("admission::bounds checked each family's name before this first start wrote");
+            counts.push(count).expect("admission::bounds checked the families' count before this first start wrote");
         }
     }
     let bytes = generations::manifest(
         generations::FIRST,
         None,
         crate::format::NONE,
-        crate::patching::plan::binary(&store.patch_sets),
+        crate::upgrade::admission::binary(&store.owner_sets),
         counts.as_slice(),
         (0, None),
         env.wall,
@@ -1077,7 +1077,7 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
     }
 }
 
-pub(crate) fn pending(store: &Store) -> Option<&crate::patching::switch::Pending> {
+pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending> {
     match &store.directory.opening {
         Opening::Pending(pending) => Some(pending),
         Opening::Idle
@@ -1112,7 +1112,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::patching::switch::Pending
     }
 }
 
-pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::patching::switch::Pending> {
+pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::switch::Pending> {
     match &mut store.directory.opening {
         Opening::Pending(pending) => Some(pending),
         Opening::Idle

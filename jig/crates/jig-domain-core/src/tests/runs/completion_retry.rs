@@ -107,6 +107,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::TaskTurnKept { .. }
                 | Held::AcknowledgeTurn { .. }
                 | Held::Drained
+                | Held::Restarting { .. }
                 | Held::Cancel { .. }
                 | Held::ReadList { .. }
                 | Held::Sources { .. }

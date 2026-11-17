@@ -629,3 +629,38 @@ fn person_flights_route_core_and_forge_answers_with_names_and_refusals() {
         assert!(domain.work.is_empty(), "the final read makes no further work");
     }
 }
+
+#[test]
+fn goals_leave_milestones_out_of_live_and_ended_rows() {
+    use jig_domain_core::reads::{EndedGroup, TaskPage};
+    let (domain, env, key) = chat(jig_domain_tasks::Party::Person(1));
+    let number = key.task;
+    let row = domain.core.tasks.task(number).unwrap();
+    let limits = crate::limits::core_limits(&env.limits);
+    let mut goal = d::task_line(&domain.core, &limits, 1, row, None).unwrap();
+    goal.tracked = Some(1);
+    let mut milestone = goal.clone();
+    milestone.chip.number = number.checked_add(1).unwrap();
+    milestone.chip.details.executor = jig_domain_tasks::Executor::Procedure { connector: u16::MAX, code: 2 };
+    for address in [Address::Goals { ended: false }, Address::Goals { ended: true }, Address::Tasks] {
+        let mut gathered = Gathered::new(3);
+        let rows = List::from_boxed(Box::new([milestone.clone(), goal.clone()]));
+        gathered.push(
+            &address,
+            Part::Jig(Answer::Tasks(Box::new(TaskPage {
+                live: rows.clone(),
+                live_next: None,
+                ended: EndedGroup::Rows { rows, next: None, cut: false },
+            }))),
+        );
+        let Some(Part::Jig(Answer::Tasks(page))) = gathered.first else { panic!("task page") };
+        let expected = if address == Address::Tasks { 2 } else { 1 };
+        assert_eq!(page.live.len(), expected);
+        let EndedGroup::Rows { rows, .. } = page.ended else { panic!("ended rows") };
+        assert_eq!(rows.len(), expected);
+        if expected == 1 {
+            assert_eq!(page.live.get(0), Some(&goal));
+            assert_eq!(rows.get(0), Some(&goal));
+        }
+    }
+}

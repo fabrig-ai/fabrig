@@ -201,6 +201,22 @@ fn calls_across_turns_read_as_one_line() {
 }
 
 #[test]
+fn calls_delivered_one_turn_at_a_time_keep_one_line() {
+    let (mut world, task, person) = chat();
+    commit(&mut world, task, &[HOLD], None);
+    outstanding(&mut world, task);
+    follow(&mut world, person, vec![see(Find::exactly_named(Role::Disclosure, b"Read the page hold"))]);
+    lines(&world, person, &[b"Read the page hold"]);
+    commit(&mut world, task, &[CHANGE], None);
+    outstanding(&mut world, task);
+    follow(&mut world, person, vec![see(Find::exactly_named(Role::Disclosure, b"Read 2 docs"))]);
+    lines(&world, person, &[b"Read 2 docs"]);
+    commit(&mut world, task, &[], Some(ANSWER));
+    follow(&mut world, person, vec![see(Find::text(ANSWER))]);
+    lines(&world, person, &[b"Read 2 docs"]);
+}
+
+#[test]
 fn a_text_ends_the_line() {
     let (mut world, task, person) = chat();
     commit(&mut world, task, &[HOLD], None);

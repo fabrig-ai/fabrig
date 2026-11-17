@@ -430,6 +430,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
         role(result_bytes),
         ask(result_bytes),
         design(result_bytes),
+        milestone(result_bytes),
     ]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
@@ -807,6 +808,17 @@ fn role(result_bytes: u32) -> Template {
         tracked: None,
         flags: Flags { ended_by: EndedBy::Standing, conversation: false, listed: true, retention: Retention::Kept },
         label: 3,
+        ..goal(result_bytes)
+    }
+}
+fn milestone(result_bytes: u32) -> Template {
+    Template {
+        number: 8,
+        name: bytes::copy_of(b"milestone"),
+        shallower: 1,
+        deadline: TemplateDeadline::None,
+        flags: Flags { ended_by: EndedBy::Requester, conversation: false, listed: true, retention: Retention::Kept },
+        label: 4,
         ..goal(result_bytes)
     }
 }

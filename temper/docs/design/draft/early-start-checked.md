@@ -10,7 +10,7 @@ Draft, 2026-11-15, on the user's word. On 11-14, a goal cut two changes `after` 
   - A dependency kept only by its own open question doesn't block.
 - **Wanted:**
   - A dependency's head counts for an early start only once its work is checked: its producer's result, or a delivery whose checks passed (the worker's `Landed.checked`, already on the wire and in the delivery history). An unchecked save, or any push made after the last checked one, never counts.
-  - The change keeps its dependency's last checked commit on its record, and the early start merges that commit, never a later branch tip. This is a stored format change: move its version and bring its patch, by the upgrade rules.
+  - The change keeps its dependency's last checked commit on its record, and the early start merges that commit, never a later branch tip. The registered change record gains `last_checked` with a default of none, with no version move or patch, by the upgrade rules.
   - Keep `producer_start` and the forge's own early-start predicate (`early_base`, `temper/crates/temper-engine-domain-forge/src/domain.rs`) in agreement, and keep the checkout's selection pinned to the recorded commit (`temper/docs/design/domain/worker/checkouts.md`).
   - Everything else in *Early starts* stays: once only, a conflict refuses the start, and the next producer merges the landing tip first. The landing still waits for every dependency to be done. `kept-change-answers.md`'s rule, which holds an answer only for a dependency the producer didn't start from, is unchanged.
   - Revise `questions.md`, 1, *Early starts*, to say a pushed head counts once it is checked, and why.
@@ -47,7 +47,7 @@ Cheap: focused and fuzzy suites only; walk = false.
 - Stories in `temper/tests/engine/domain/tests/suite/forge_routes/early_start.rs`: the same cases end to end, one across a restart, and the producer's required words carrying a `[Started from change N at <commit>, not landed]` line per dependency, through an amendment and a tight budget.
 - The checkout selection tests (`temper/crates/temper-engine-domain-forge/src/tests/early.rs`) pin the recorded commit.
 - `kept-change-answers.md`'s focused cases in `questions.rs` still pass, their fixtures given checked heads.
-- The stored format's patch: its focused upgrade test.
+- The registered field's default: a focused test that an older record reads with none.
 - The stock charter tests (`temper/crates/temper-engine-service-stock/src/tests/stock.rs`) pass with the revised designer, implementer and coordinator lines.
 
 Run only the new and affected tests, by name.

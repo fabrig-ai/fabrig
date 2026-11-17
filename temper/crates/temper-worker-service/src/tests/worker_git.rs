@@ -55,13 +55,43 @@ fn a_cancel_reaches_the_component_and_its_done_reaches_the_root() {
             parts: Box::new([]),
         },
     );
+    let mut kills = 0_u32;
     for _ in 0_u16..1000 {
-        if !stand.turn() {
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+        for request in stand.worker.io().iter() {
+            if let io::Request::Signal { signal, reason, .. } = request {
+                assert_eq!(*signal, kernel::Signal::Kill);
+                assert_eq!(*reason, kernel::Reason::Cancelled);
+                kills += 1;
+            }
+        }
+        stand.drain();
+        if !stand.input() && !stand.worker.work_pending(fixtures::NOW) {
             break;
         }
     }
+    assert_eq!(kills, 1);
     assert_eq!(stand.below.signals, 1);
+    assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Cancelling { run: 7, attempt: 2 }));
+    assert_eq!(stand.worker.notes().pop(), None);
     assert_eq!(ended(&mut stand.worker), Some(Ending::Failed { fault: git::Fault::Cancelled }));
+}
+
+#[test]
+fn a_cancel_is_noted_once_even_when_the_attempt_is_not_held() {
+    let mut stand = fixtures::started_worker();
+    stand.worker.link(
+        fixtures::NOW,
+        jig_protocol_worker_link::Request::Down {
+            down: host::LinkDown::Cancel { run: Token::new(7), attempt: Token::new(2) },
+            parts: Box::new([]),
+        },
+    );
+    assert!(stand.worker.notes().is_empty(), "not before the host takes the cancel");
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::Cancelling { run: 7, attempt: 2 }));
+    stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    assert!(stand.worker.notes().is_empty(), "one note for the one cancel");
 }
 
 #[test]

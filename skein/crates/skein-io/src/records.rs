@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::Token;
 use skein_lib::stream::{self, Fault};
 
-use crate::kernel::{self, Exit, ServiceSignal, Signal, Spawn, Target};
+use crate::kernel::{self, Exit, Reason, ServiceSignal, Signal, Spawn, Target};
 
 /// What the layer above asks of io. Each names an entity by a token: its
 /// owner's, for an entity it asks io to make, and io's (from `Listening`,
@@ -43,15 +43,15 @@ pub enum Request {
     Spawn { owner: Token, spawn: Spawn },
     /// Start a child whose close signals only it, leaving its descendants alive (runtime/io/processes.md).
     SpawnAlone { owner: Token, spawn: Spawn },
-    /// An owner signals its child or group, before closing the child.
-    Signal { child: Token, signal: Signal, to: Target },
+    /// An owner signals its child or group, naming why, before closing the child (runtime/io/processes.md, 5).
+    Signal { child: Token, signal: Signal, to: Target, reason: Reason },
     /// Reads this process and its reaped children at submit: exactly one `Usage` terminal.
     Usage { owner: Token },
     /// Reads the terminal stream size: exactly one Window terminal.
     Window { owner: Token, stream: Token },
     // Files, processes and signals (runtime/io/files.md and runtime/io/processes.md and runtime/io/README.md, 4) go here when a user pulls
     // them: File { owner, root, op }, Spawn { owner, spawn },
-    // Signal { child, signal, to }.
+    // Signal { child, signal, to, reason }.
     /// A graceful close (runtime/io/sockets.md): the output flushed and half-closed, the
     /// input discarded until the peer ends or the close deadline passes. On
     /// the classic face only `Closed` follows; a pending native output right

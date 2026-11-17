@@ -1,7 +1,7 @@
 # Records
 
 The families' current versions are the component's 3, the core's 6,
-the tasks' 10, the people's 15, the notes' 1, the accounts' 2, the
+the tasks' 13, the people's 17, the notes' 1, the accounts' 2, the
 settings' 3 and the secrets' 1. The tasks family's durable
 `MessageKind` holds `FinishRequested { revision }` for a cancel grace
 and `NothingAwaited` for a result-ended task with nothing pending
@@ -28,7 +28,8 @@ delegation's kinds (`../../domain/authority.md`, section 3). The accounts family
 family refuses to open under the format check (3).
 
 A `model` setting's value holds no index, so **at open** the store reads the
-settings family's `model` changes by key range, after pending patches
+settings family's `model` changes by key range, after the registry's
+commit and the jobs
 and before any family's restore, and takes its names as the given defaults'
 overlaid with them, so that a stored vocabulary's model a person added isn't read as gone; and it
 takes each later catalogue from the root, before the commit that makes it
@@ -38,23 +39,20 @@ Settings (`../../domain/engine/settings.md`) are the core's two
 settings families (`README.md`, 4.4), under a schema of their own, `settings`, whose
 version the format row names beside the others' (3), so that their
 records change independently of the core's; and each task's record
-and claim carries a revision in the tasks family's schema. From the
-baseline (3; temper's `protocol/baseline.md`) until a family's
-registration (`layouts.md`, 1), a change a reader would
-notice brings its patch and moves its family's version in the landing
-that makes it; from its registration, its version stays and a store
-converts each value from the layout it was written at; before the
-baseline, each version kept its number, and its schema,
-generated code and one set of golden bytes changed in place (skein's
-`data/codec/README.md`, section 5). The settings' version defines every record of 17.7,
+and claim carries a revision in the tasks family's schema. A registered
+family's version stays (`layouts.md`, 1), and the store converts each
+value from the layout it was written at. An added field takes a default,
+a renamed part its former name (`was`), and a change no plan derives
+its owner's written job (`layouts.md`, 6). Formats outside the registry
+stay at their current versions; a change to one designs how the
+store reaches it in that landing (temper's `draft/store-floor.md`, section 5).
+The settings' version defines every record of the settings family,
 charter versions and pending proposals' sets among them. As every
 family's: each record stored at the top is
 versioned; a bytes field that holds a record or pieces of one says so;
 the keys' root type is jig's own and explicit. A store of an earlier
-version refuses to open under the format check (3). Before the baseline,
-a store from an older build is started afresh when its families change:
-its version does not distinguish the changed layout, and nothing is
-translated. A deployment made again from the same document,
+version refuses to open under the format check (3).
+A deployment made again from the same document,
 with no change stored, behaves as it did. Each record of a setting
 holds its value whole, a charter's instructions as text; their sizes
 follow from the limits that bound each kind (4).
@@ -69,15 +67,13 @@ follow from the limits that bound each kind (4).
   build the day it happens.
 - **A failed run's immutable activity** keeps its failure class and an
   optional invalid-result kind, independently of the task's current retry
-  context (`../../domain/engine/executors.md`, 2). Tasks version 9 carries it,
-  added in place before the baseline.
+  context (`../../domain/engine/executors.md`, 2).
 - **A task's ending authority** is carried in the tasks and people
   families, and a template's in the settings family: `EndedBy`'s
   `closer`, a record of the procedure's connector (`u16`) and code
   (`u32`), beside `result`, `requester` and `standing`; and a live task's closer, its
   number, in the tasks family (`../../domain/tasks/lifecycle.md`, 11). Each family
-  carries them in place before the baseline, its layout fingerprint
-  changing (3).
+  carries them in its registered layout (`layouts.md`, 1).
 - **Standing task forms** (`../../domain/tasks/standing.md`, section 7) keep
   `TaskRecord.activation_open: bool` and `TaskRecord.session: Option<Session>`, with `Session { first: u64,
   reasons: u32, last: u64 }`: the first attempt, the choosing reason bits
@@ -86,16 +82,9 @@ follow from the limits that bound each kind (4).
   `session_ended { attempt: u64, end: SessionEnd }`. `SessionEnd` is
   `quiet`, `bound`, `unoffered`, `fresh`, `closed` or `rules`. The settings
   family's `Model.cache_life_ms: u32` is the prompt cache life in
-  milliseconds, zero for none. These forms are carried in place before
-  the first release, their layout fingerprints changing (3).
+  milliseconds, zero for none.
 - **Change results** keep an explicit title beside their words in the
   tasks family. Both fields independently fit the result-byte limit.
-
-- **Retained project policies** move from people version 14 to 15 in jig's
-  patch 1. The written `StoredPolicy.value` conversion intersects the ceiling's
-  and every policy role's delegation executors with the deployment's configured
-  executors, supplied in the patch context before opening the store. It grants
-  no new executor and keeps every other field. An empty context admits none.
 
 - **Each record carries its family's version,** as every generated record
   does (skein's `data/codec/README.md`, section 5), which is what an upgrade will
@@ -106,7 +95,8 @@ follow from the limits that bound each kind (4).
   people, notes, accounts and settings families keep their versions from
   their registration on, and change their layouts by defaults, former
   names and written jobs, with no patch; the component's, the secrets'
-  and the openings' families are patched as before.
+  and the openings' families stay at their current versions, outside the
+  registry (temper's `draft/store-floor.md`, section 5).
 - **A collection the domain bounds by its bytes in all is one piece**
   (skein's `data/codec/README.md`, 3), its limit the domain's sum: a verdict's
   fields by the result's bytes, an amendment's lists, an authority's and
@@ -198,7 +188,7 @@ follow from the limits that bound each kind (4).
   dependencies as the client's contract has them
   (`../../client/domain/contract/README.md`, section 3).
 - **Question credits share the inbox's list.** The tasks family's
-  `tasks-v9` stores `QuestionCredit { number, answerer, asked, line }`:
+  schema stores `QuestionCredit { number, answerer, asked, line }`:
   the question's number, its answering party and logical addressed
   party (each a `Party`), and the position of its question activity line
   in the asker's record. Words and time are read from that line, never
@@ -210,10 +200,9 @@ follow from the limits that bound each kind (4).
   current requester, never cleared (`../../domain/tasks/lifecycle.md`, 8),
   and `question_woken`, a `u64`: the newest question number that has
   woken it once at a park while it held a timer or a task watch, 0 for
-  none, never lowered (`../../domain/tasks/lifecycle.md`, 2). A patch
-  brings it to every stored task as 0.
-- **Golden bytes** in one set per family, for its current schema, and
-  each patch's beside it from the baseline (skein's `data/codec/README.md`, section 5); a fuzz target per
+  none, never lowered (`../../domain/tasks/lifecycle.md`, 2).
+- **Golden bytes** in one set per family, for its current schema
+  (skein's `data/codec/README.md`, section 5); a fuzz target per
   family's decoder; bounds at their limit and one past it.
 - **What jig's records hold, said** (skein's `data/codec/README.md`, section 3),
   each word part of its family's layout (3): the core's
@@ -235,9 +224,9 @@ follow from the limits that bound each kind (4).
   in-process hub), so neither the core nor the store holds smith's
   codec or its bytes. Live names (the fleet's, the hub's, relays', the
   worker wire's) stay smith's bytes under `call_name_bytes`, and a
-  refused call's reply keeps its opaque address, since neither is kept. A word makes a patch reach the field; a patch that
-  converts a piece's items, not copies them, is still refused when
-  planned (skein's `data/codec/patches.md`, 3; `README.md`, section 11). A settled delivery
+  refused call's reply keeps its opaque address, since neither is kept.
+  The held and pieces declarations let the layout plan reach these
+  fields (skein's `data/codec/layouts.md`, 2). A settled delivery
   keeps its outcome alone, no evidence: the application that hands
   evidence down at a later assignment keeps it in a family of its own,
   by the call's key, and puts it in the assignment as it makes it
@@ -259,9 +248,8 @@ settings (decided 2026-11-03).
   encodes each record and key before the component sees it, and decodes
   each row the component hands back, before its root sees it.
 - **Its store version,** one number the application gives the component
-  when it makes it. Before the baseline it stayed fixed while its
-  encodings changed in place; from it, its patches move it (skein's
-  `data/codec/README.md`, section 5).
+  when it makes it. A registered family's version stays: its layouts
+  change through defaults, former names and written jobs (`layouts.md`).
 
 ## 3. The format row
 
@@ -276,107 +264,71 @@ settings (decided 2026-11-03).
 - **Checked at open:** a store whose row names another version of
   anything, or another deployment than its header, refuses to open,
   saying which; so does one whose installation's identifier is missing
-  or unreadable. Pre-release, nothing is translated (`../README.md`,
-  section 7).
+  or unreadable. The registry's conversion at read does not translate
+  a different family version (`layouts.md`, 5).
 - **The levels** (temper's `draft/upgrades.md`, 4.2): beside the
   versions, the row names each owner's patch level, an optional
   number per owner whose records the store keeps: jig's, the
   application's, skein's (its OAuth records in the secrets' store) and
   smith's (its turns' fields, `transcripts.md`, 1). They are fields of the component's
-  `Format`, added to `component-v3.schema` in place, its generated code
-  and goldens made again: no version moved before the baseline
-  (temper's `draft/upgrades.md`, 4.1), and the layouts tell an older
-  build's store apart (`Older::Layout`). None is an owner before its
-  baseline: a build whose shell hands no set for it writes none. A level is
-  its owner's set's `level`, held explicitly (`opening.md`, 3): its
-  count of landed patches from its baseline, jig's 6 and temper's 14,
-  which stay when the patches go (temper's `draft/store-floor.md`, section 3). The row is the
-  table of applied patches: the levels and the versions they imply.
-- **The baseline** (temper's `protocol/baseline.md`): the store temper's
-  `main` wrote at `bc23255eb7`, before any shell handed a set, so its
-  row's levels are all none. Its row's component and jig families'
-  versions (component 3, core 6, tasks 9, people 14, notes 1, accounts 2,
-  settings 1) and its layouts' row are the component's constant
-  `BASELINE`, written once from that build's `format::current` and
-  `LAYOUTS` and never regenerated: a later build's own layouts move, the
-  baseline's never do. temper's golden store, made by that build, proves
-  it (temper's `protocol/baseline.md`, 6).
+  `Format` in `component-v3.schema`. A build whose shell hands no set
+  for an owner writes none. A level is its owner's set's `level`, held
+  explicitly (`opening.md`, 3): jig's 6, temper's 14, skein's and smith's
+  0. No binary moves a level: a registered family changes by
+  its registry and its jobs (`layouts.md`; `jobs.md`), and a format
+  outside the registry is fixed (temper's `draft/store-floor.md`, section 5). The row is
+  the levels and the versions they imply.
+- **The row at open** (temper's `protocol/floor.md`):
   - **Written** by the first commit, with the binary's levels, and by
-    patching's last commit (`opening.md`, 2), with the levels patched to; by no
-    other commit.
-  - **Read first,** by the kept text of the component's version the row
-    names (skein's `data/codec/patches.md`), so a store behind reads its own
-    row; before the component's baseline, by its current codec.
+    an upgrade's last commit (`opening.md`, 2), with the same levels;
+    by no other commit.
+  - **Read first,** by the binary's codec of the component's own rows:
+    a row whose version is past the binary's is a later jig's,
+    `Ahead { owner: Jig, found: None, wanted }`, its levels unread; one
+    at another version, `Format` naming the component; one at the
+    binary's version that does not decode, `OlderBuild` with
+    `Older::Layout(Component)`.
   - **Compared at open,** per owner, after the component's version and
     with the families' versions, before the header and the deployment
     (`opening.md`, step 2):
-    - first, a store at the baseline: a row whose levels are all none,
-      whose component and jig families' versions are `BASELINE`'s, and
-      whose layouts' row equals `BASELINE`'s, reads as level 0 for each
-      owner whose level the binary sets; an owner the binary leaves none
-      stays none. The comparison below goes on with those levels. So a
-      store the baseline's build wrote opens under every later build,
-      patched where its owners are behind, and a build that hands no
-      set still opens it as before;
-    - both none: the versions and the layouts decide, as before the
-      baseline;
     - first, any owner's store level past the binary's: `Ahead { owner,
-      found: Some(level), wanted }`, since no patch runs backwards (a
+      found: Some(level), wanted }`, since no build runs one backwards (a
       level is past none); the first in `Owner`'s order, upstream first;
     - then any owner's store level none where the binary's is set:
       `OlderBuild` with `Older::Unleveled`, including another owner's
-      none in a row whose jig level is set: a store from before the
-      baseline, or not at it (temper's `draft/upgrades.md`, 4.1);
-    - then any owner's store level behind: the patch path (`opening.md`, 2).
-      Each of jig's families' versions must be its version at the
-      store's jig level: `BASELINE`'s, moved by each block of jig's
-      patches up to that level (jig's patch 1 moves `tasks` 9 to 10 and
-      `settings` 1 to 2, temper's `protocol/baseline.md`, 9); a family
-      the set names that no patch up to that level moves keeps
-      `BASELINE`'s. A family jig's set names nowhere, which only a
-      test's set owning jig with families of its own leaves out, no
-      patch of that set can move: its version must be the binary's, as
-      at equal levels. Jig's real set names every family `BASELINE`
-      lists, so a real store at jig level 0 holds `BASELINE`'s. Another
-      version refuses `Format` naming the family, the version found and
-      the version at that level. Jig's patches rewrite each to the
-      binary's in the sealing commit; the layouts are not compared here,
-      the levels and the versions naming them. The application's
-      version is not compared: its patches rewrite it to the binary's
-      in the sealing commit. The deployment and the header's commits
-      are checked as before; both version checks, the row's own and
-      the header's deployment's, follow this rule;
-    - equal: the versions must be the binary's, or `OlderBuild`. The
-      layouts are compared only where both levels are none: from the
-      baseline on, the levels and the versions name the layouts, and a
-      change every old value survives byte for byte (an appended
-      variant, a widened bound) moves a fingerprint and neither
-      (skein's `data/codec/diff.md`, 3), so a store at equal levels
-      opens under it. The layouts' row is still written with the
-      levels, and read for the baseline above.
+      none in a row whose jig level is set, and the baseline's: a store
+      from before the levels, or not at them (temper's `draft/upgrades.md`, 4.1);
+    - then the floor: a store with no floor row, or one whose number is
+      below the binary's `FLOOR`, refuses `OlderBuild` with `Older::Floor`,
+      before any plan is made, job is found pending, record is decoded
+      for a rehearsal (`opening.md`, 5) or registry is read (`layouts.md`,
+      5.1). A number past the binary's is not refused by it: the levels
+      and layouts decide;
+    - then any owner's store level behind the binary's: `OlderBuild`
+      with `Older::Behind`, a store from a build whose patches this
+      one no longer keeps (temper's `draft/store-floor.md`, 4.1), the
+      first in `Owner`'s order;
+    - equal, or both none: the versions must be the binary's, or
+      `Format` naming the first family that differs. The layouts' row
+      is written with the levels and read at no open: the levels and
+      the versions name the families' texts, and the registry what a
+      registered family's values are at.
 
     Every refusal comes before anything is written but skein-kv's
     recovery (`opening.md`, 1). The families' versions are compared
     before the registry is read (`layouts.md`, 5): a store at another
     version is refused `Format` without its registry's rows read, its
-    layouts planned or the set's bounds checked there. A store behind
-    takes its versions at its level from its pending plan (`opening.md`,
-    2), so the comparison follows the set's checks and that plan; the
-    refusals before it keep their order, and the registry's follow it.
-    A row at a component version past the binary's
-    is a later jig's, since from the baseline the component's version
-    moves only by jig's patches: `Ahead { owner: Jig, found: None,
-    wanted }`, its levels unread.
+    layouts planned or the set's bounds checked there.
 - **The registry,** in rows of their own beside it (`jig-store-registry`,
   the component's): the layouts of the registered families' value
   types, the texts they were made with, and the jobs done
   (`layouts.md`, 3; `jobs.md`, 2). From the registration, the format
   row's versions of the registered families stay as they are, and the
-  layouts' row is the baseline's comparison alone: what a store's
-  values are at is the registry's.
+  layouts' row compares nothing: what a store's values are at is the
+  registry's. A store that holds values and no registry is refused
+  (`layouts.md`, 5.1).
 - **The floor,** in a row of its own beside it (`Floor`, the
-  component's, added to `component-v3.schema` in place as its other
-  rows are, at `00 0d`): the oldest store this build's code still
+  component's, in `component-v3.schema` at `00 0d`): the oldest store this build's code still
   serves, by number, and the build that wrote the row (temper's
   `draft/store-floor.md`, section 3):
 
@@ -385,22 +337,28 @@ settings (decided 2026-11-03).
 versioned record Floor { number: u32 build: text 64 }
 ```
 
-  - **The binary's floor** is the store's constant `FLOOR`, 1 since
-    store-floor's F0, moved only by a landing that drops a whole older
+  - **The binary's floor** is the store's constant `FLOOR`, 1,
+    moved only by a landing that drops a whole older
     form (temper's `draft/store-floor.md`, section 6). The build is the
     name the shell hands the store beside its sets (`opening.md`, 3),
     at most 64 bytes: temper's its build's commit, as its version line
     names it; a shell that hands none has an empty one written.
-  - **Written** by the first commit, with the format row, and by an
-    upgrade's last commit (`opening.md`, 2) where the store has no
-    floor row or one below the binary's: so dev.fabrig.ai's store gets
-    its row in the open that runs F0's jobs, and every store made since
-    has one. By no other commit; a reopen at the same floor leaves the
-    row, and its build, as they are.
-  - **Read** by the census and the rehearsal's decoding as the
-    component's other rows are. The open refuses no store by it
-    (temper's `draft/store-floor.md`, section 3, whose status records
-    the lag).
+  - **Its bridge** is the store's constant `FLOOR_BRIDGE` beside it,
+    a `&'static str`: the build that wrote floor `FLOOR` on the stores
+    it settled, as temper's version line names a build (its commit's
+    first 12 hexadecimal digits), `3d1c717d379e` for floor 1.
+    The two move together. The older stores' refusals name it
+    (`opening.md`, 1.8; `README.md`, section 2), where `<bridge>`
+    stands.
+  - **Written** by the first commit, with the format row, and by no
+    other.
+    A reopen leaves the row, and its build, as they are; a landing
+    that moves the floor designs how its upgrade writes the new number
+    (temper's `draft/store-floor.md`, section 6).
+  - **Checked at open,** after the levels (above), and read by the
+    census and the rehearsal's decoding as the component's other rows
+    are. An empty store is not checked: its first commit writes the
+    row.
 - **The wires,** in a row of their own beside it (`Wires`, the
   component's): the versions the engine that last started on the store
   speaks to its workers, so that the next binary can say before it
@@ -409,14 +367,14 @@ versioned record Floor { number: u32 build: text 64 }
   (smith's `protocol/README.md`, section 8), and each the application
   names, temper's payload version among them, each a name of at most 32
   bytes and a `u32`, at most 16, handed in by the shell as data
-  (`Store::wires`, beside `patch_sets`), so the component names no
+  (`Store::wires`, beside `owner_sets`), so the component names no
   owner's constant. Every start writes it in a commit of its own at its
   switch step (`../../domain/engine/restart.md`), once the store is
   active, after a pending generation's switch, and before anything
   leaves the process: no secret is served (`opening.md`, step 4), no run
   adopted, no connector reaches its system until it is durable. So a
   start that went past its restores leaves its wires, and over a
-  patched generation that commit is the first past the manifest's
+  upgraded generation that commit is the first past the manifest's
   position (`opening.md`, 2, step 6), which ends going back (`opening.md`, 5). Read by the open,
   never compared: a worker's wire is checked at its link's opening, as
   ever (`../channel/README.md`, 4.1), and the row is for the tool that rehearses
@@ -448,15 +406,10 @@ versioned record Floor { number: u32 build: text 64 }
     `Write::Wires` deletes every row of them in the same commit, so the
     rows a store keeps are the openings since its last start.
   - **Read** by the rehearsal alone (`opening.md`, 5), from `A` before
-    the plan, by the family's kept text; a store from before the family
-    holds none and reads none. A start loads none.
+    the plan, by the family's current text. A start loads none.
 
-  The family is new at its first version, kept afresh with no patch
-  (skein's `data/codec/command.md`, 1), so the component's version, its
-  rows and jig's patch set stay as they are: moving the component's
-  version would rewrite every versioned record of it, since each carries
-  its version. A store whose layouts row predates the family holds none
-  of its rows, and opens as before.
+  The family is at version 1, outside the registry; the component's
+  version and its other rows are independent of it.
 - **The layouts,** in a row of their own beside it (`Layouts`, the
   component's): each of jig's families' fingerprint, and each family of
   an upstream owner's that the store keeps (skein-oauth's `SavedToken`
@@ -465,29 +418,20 @@ versioned record Floor { number: u32 build: text 64 }
   layout, computed from the schemas built in and committed beside their
   generated codecs, which the drift test checks against them, so a
   build holds them as constants. Written with the
-  levels, by the first commit and patching's last. Where both levels
-  are none (above), a store with no such
-  row is `Older::Unrecorded`, and one whose fingerprint of a family is
-  not the binary's at its version `Older::Layout(family)`, the first
-  in `Family`'s order. Both refuse before the root starts, and the
-  store is left as it is (`README.md`, section 2); the refusal's text names the
-  directory. `Unrecorded`'s:
+  levels, by the first commit and the upgrade's seal. No open reads
+  this row: the levels and versions name the binary's families, and the
+  registry names each registered value's layout.
 
-  > `<deployment>` holds a store from an older build, made before its
-  > families' layouts were recorded, and this start has changed nothing
-  > in it. A store from before the baseline is not translated, so every
-  > start refuses this one until it is moved. To start afresh, stop the
-  > service, move `active`, `generations/` and `transcripts/` out of
-  > `<deployment>` together, and start again: nothing is deleted, and
-  > the next start makes a new, empty store. The new store has no
-  > tasks, sign-ins, accounts or keys, and every client signs in again.
-
-  `Layout`'s, for the settings family (the others name theirs):
+  **`Older::Layout(family)`** is a component row at the binary's version
+  that does not decode, refused before the root starts (`opening.md`,
+  1.8). Its words can name each family; for the settings family
+  (the others name theirs):
 
   > `<deployment>` holds a store from an older build, whose settings
   > family's layout differs from this build's, and this start has
-  > changed nothing in it. A store from before the baseline is not
-  > translated, so every start refuses this one until it is moved. To
+  > changed nothing in it. No build translates a store from before the
+  > baseline, build `<bridge>` included, so every start refuses this one
+  > until it is moved. To
   > start afresh, stop the service, move `active`, `generations/` and
   > `transcripts/` out of `<deployment>` together, and start again:
   > nothing is deleted, and the next start makes a new, empty store.

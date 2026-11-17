@@ -36,7 +36,14 @@ keeping their committed work and spending no try; crash recovery still
 settles claims as lost or not started (`domain/engine/restart.md`
 ; `domain/tasks/lifecycle.md`, 2). A worker stopped in another process
 still spends an agent try on its Shutdown cancel; changing that remains
-deferred (`protocol/service.md`, section 9). A worker's link says why
+deferred (`protocol/service.md`, section 9). A settled stop keeps that
+the engine restarts and tells each worker whose channel's version has
+the word, which keeps its runs through the restart wait; the next start
+holds their claims as long, until each worker hears it again, and a
+worker's hub answers a relay its link never carried as unsent and holds
+its runs' grant renewals while the link is lost
+(`domain/engine/restart.md`, 1; `domain/engine/fleet.md`;
+`domain/hosts/hub.md`, 6; `protocol/channel/restart.md`). A worker's link says why
 it was lost, on each side, its silence counts bytes, and a closing
 connection is aborted at the stall deadline, so a worker lost fifty
 times each way is taken back each time; the remaining fifty-loss cases are `protocol/channel/README.status.md`, 11. Each side's link takes its
@@ -47,7 +54,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, moved out of the map by the job at open `task-logs`, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); turns written before them stay in their files until retention drops them. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). A task's history and its turns are kept in two of skein-kv's payload logs in the store's generation, compressed, read through a view of the map and the logs, linked into a new generation and dropped whole by retention (`protocol/store/logs.md`); a task with a transcript file keeps using it until retention drops it. Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
@@ -129,7 +136,7 @@ observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
 Views are made only for readers; further observation-cost work remains
 (`domain/testing.md`, sections 5, 9 and 10), and the focused suite's CPU
-budget is 215 s by the user's word of 11-14 (`domain/testing.status.md`, 9). Typed core row names and shared
+budgets are by layer, by the user's word of 11-16 (`domain/testing.status.md`, 9). Typed core row names and shared
 setup avoid repeated formatting and construction; protocol wires skip idle
 polls and parse only new bytes, and due agents check holds and credentials
 before joint account and host selection. The seven store sweeps run in fuzzy
@@ -216,6 +223,7 @@ Design documents:
 - [`protocol/channel/README.md`](protocol/channel/README.status.md)
 - [`protocol/channel/wires.md`](protocol/channel/wires.status.md)
 - [`protocol/channel/bridges.md`](protocol/channel/bridges.status.md)
+- [`protocol/channel/restart.md`](protocol/channel/restart.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)
@@ -224,6 +232,7 @@ Design documents:
 - [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
 - [`protocol/store/parts.md`](protocol/store/parts.status.md)
 - [`protocol/store/logs.md`](protocol/store/logs.status.md)
+- [`protocol/store/crates.md`](protocol/store/crates.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:

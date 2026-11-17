@@ -61,7 +61,14 @@
     amendment's, so that a client says the bound before it sends; and the retention of the
     engine's answers (`requests.md`, 1). It carries no version: the stream's hello does
     (`README.md`, section 6);
-  - *a task:* its header, overview, budget and authority; its fields
+  - *a task:* its header, overview, budget and authority; what its
+    delegation's tasks have left, `tasks_left: u32`: its authority's
+    tasks less the tasks its subtree has made over its life, itself not
+    counted, never below zero, the number a delegate's tasks and one more
+    must fit at admission (`../../../domain/authority.md`, 5 and 8.1), as
+    its budget's `left` is what its spend has left, so that a client
+    narrows a delegate it makes beneath the task, a party's `Delegate`
+    (`requests.md`, 2), to what fits; its fields
     (`requests.md`, 2): tracked and priority, label, flags, when it was made
     (`made`, its record's `created_at`), last activity, and what it
     waits on; the LLM choice its next run takes, what it was given or, given

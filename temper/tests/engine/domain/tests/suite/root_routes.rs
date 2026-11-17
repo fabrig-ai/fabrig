@@ -1,3 +1,6 @@
+#[path = "root_routes/milestones.rs"]
+mod milestones;
+
 #[path = "root_routes/standing.rs"]
 mod standing;
 

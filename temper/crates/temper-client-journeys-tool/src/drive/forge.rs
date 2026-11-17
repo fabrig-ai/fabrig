@@ -8,7 +8,7 @@ use skein_forge::forgejo::{
 use skein_http::Method;
 use skein_json::{Document, Kind, document, tokenizer, writer};
 use skein_lib::{Duration, Time};
-use std::{os::unix::ffi::OsStrExt, path::PathBuf};
+use std::path::PathBuf;
 
 const CHECKS: Duration = Duration::from_secs(300);
 const POLL: Duration = Duration::from_secs(2);
@@ -20,6 +20,7 @@ enum Stage {
     Log,
     Files,
     Repository,
+    Branch,
     File,
     Commit,
     Checks,
@@ -34,6 +35,8 @@ pub(super) struct Pending {
     files: Vec<FileChange>,
     index: usize,
     branch: Box<[u8]>,
+    target_branch: Option<Box<[u8]>>,
+    new_branch: Option<Box<[u8]>>,
     stage: Stage,
     method: Method,
     path: Box<[u8]>,
@@ -42,15 +45,15 @@ pub(super) struct Pending {
 impl Machine {
     pub(super) fn forge_start(&mut self, now: Time, out: &mut Vec<Action>) {
         let Some(Record::Forge(record)) = self.current.as_ref().map(Line::record) else { unreachable!("forge line") };
-        let (repository, message, files) = match record {
-            Forge::Commit { repository, message, paths } => (
+        let (repository, target_branch, message, files) = match record {
+            Forge::Commit { repository, branch, message, paths } => (
                 repository.clone(),
+                branch.clone(),
                 Some(message.clone()),
                 paths.iter().map(|path| FileChange { path: path.clone(), content: Box::new([]), sha: None }).collect(),
             ),
-            Forge::Checks { repository } => (repository.clone(), None, vec![]),
+            Forge::Checks { repository } => (repository.clone(), None, None, vec![]),
         };
-        let log = self.plan.options.scratch.join("session/box.log");
         self.wait(Phase::Forge, now, if message.is_some() { STEP } else { CHECKS });
         self.forge = Some(Pending {
             token_file: PathBuf::new(),
@@ -61,18 +64,35 @@ impl Machine {
             files,
             index: 0,
             branch: Box::new([]),
+            target_branch,
+            new_branch: None,
             stage: Stage::Log,
             method: Method::Get,
             path: Box::new([]),
             last: "no status read".into(),
         });
-        out.push(Action::ReadBoxLog { path: log });
+        match self.place.forge_hands(None) {
+            Ok(Some((api, token_file))) => {
+                let pending = self.forge.as_mut().expect("forge started");
+                pending.hands(api, token_file);
+                match pending.request(self.until.expect("forge bound")) {
+                    Ok(action) => out.push(action),
+                    Err(why) => self.answer(Some(why), out),
+                }
+            }
+            Ok(None) => out.push(super::Place::read_values(&self.plan)),
+            Err(why) => self.answer(Some(why), out),
+        }
     }
     pub(super) fn forge_event(&mut self, event: Event, now: Time, out: &mut Vec<Action>) {
         let Some(mut pending) = self.forge.take() else { return };
         let result = match event {
             Event::BoxLog(result) if pending.stage == Stage::Log => {
-                result.and_then(|bytes| pending.log(&bytes)).map(|()| None)
+                result.and_then(|bytes| self.place.forge_hands(Some(&bytes))).map(|hands| {
+                    let (api, token_file) = hands.expect("forge values supplied");
+                    pending.hands(api, token_file);
+                    None
+                })
             }
             Event::ForgeFiles(result) if pending.stage == Stage::Files => result.map(|contents| {
                 for (file, content) in pending.files.iter_mut().zip(contents) {
@@ -131,13 +151,10 @@ impl Machine {
     }
 }
 impl Pending {
-    fn log(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let git = super::values::read(bytes, crate::line::BoxValue::Git)?;
-        self.api = [git.as_ref(), b"/api/v1"].concat().into();
-        self.token_file =
-            PathBuf::from(std::ffi::OsStr::from_bytes(&super::values::read(bytes, crate::line::BoxValue::Admin)?));
+    fn hands(&mut self, api: Box<[u8]>, token_file: PathBuf) {
+        self.api = api;
+        self.token_file = token_file;
         self.stage = if self.message.is_some() { Stage::Files } else { Stage::Repository };
-        Ok(())
     }
     fn repo_path(&self) -> String {
         format!("/repos/{}", encoded(&self.repository, true))
@@ -154,6 +171,9 @@ impl Pending {
         let mut body: Box<[u8]> = Box::new([]);
         let path = match self.stage {
             Stage::Repository => repo,
+            Stage::Branch => {
+                format!("{repo}/branches/{}", encoded(self.target_branch.as_deref().expect("push branch"), false))
+            }
             Stage::File => format!(
                 "{repo}/contents/{}?ref={}",
                 encoded(&self.files[self.index].path, true),
@@ -167,6 +187,7 @@ impl Pending {
                 let request = Request::ChangeFiles {
                     at: Repo { owner: owner.into(), name: name.into() },
                     branch: self.branch.clone(),
+                    new_branch: self.new_branch.clone(),
                     message: self.message.clone().expect("commit message"),
                     files: self.files.clone().into(),
                 };
@@ -198,13 +219,20 @@ impl Pending {
         })
     }
     fn response(&mut self, status: u16, body: &[u8]) -> Result<Option<Vec<String>>, String> {
-        if !((200..300).contains(&status) || self.stage == Stage::File && status == 404) {
+        if !((200..300).contains(&status)
+            || (self.stage == Stage::File || self.stage == Stage::Branch) && status == 404)
+        {
             return Err(format!(
                 "{} {}: HTTP {status}: {}",
                 if self.method == Method::Post { "POST" } else { "GET" },
                 String::from_utf8_lossy(&self.path),
                 String::from_utf8_lossy(body.get(..4096).unwrap_or(body))
             ));
+        }
+        if self.stage == Stage::Branch && status == 404 {
+            self.new_branch = self.target_branch.clone();
+            self.stage = Stage::File;
+            return Ok(None);
         }
         if self.stage == Stage::File && status == 404 {
             self.next_file();
@@ -218,7 +246,17 @@ impl Pending {
                 if self.branch.is_empty() {
                     return Err("repository lacks default_branch".into());
                 }
-                self.stage = if self.message.is_some() { Stage::File } else { Stage::Checks };
+                self.stage = if self.target_branch.is_some() {
+                    Stage::Branch
+                } else if self.message.is_some() {
+                    Stage::File
+                } else {
+                    Stage::Checks
+                };
+            }
+            Stage::Branch => {
+                self.branch = self.target_branch.clone().expect("push branch");
+                self.stage = Stage::File;
             }
             Stage::File => {
                 self.files[self.index].sha = Some(text(&doc, 0, b"sha")?.into());

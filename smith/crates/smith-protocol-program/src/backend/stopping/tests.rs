@@ -22,7 +22,12 @@ fn a_result_releases_its_action_without_forgetting_escalation() {
     stopping.terminate(Time::from_nanos(10), GRACE, &mut process, &mut below);
     assert_eq!(
         pop_io(&mut below),
-        Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Terminate })
+        Some(io::Request::Signal {
+            child: CHILD,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown
+        })
     );
     stopping.result();
     stopping.release_alarm();
@@ -32,7 +37,12 @@ fn a_result_releases_its_action_without_forgetting_escalation() {
     stopping.terminate(Time::from_nanos(30), GRACE, &mut process, &mut below);
     assert_eq!(
         pop_io(&mut below),
-        Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Kill })
+        Some(io::Request::Signal {
+            child: CHILD,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Kill,
+            reason: kernel::Reason::Grace
+        })
     );
     assert_eq!(pop_io(&mut below), Some(io::Request::Abort { entity: INPUT }));
     assert_eq!(pop_io(&mut below), Some(io::Request::Close { entity: CHILD }));
@@ -53,7 +63,12 @@ fn repeated_pre_spawn_expiry_still_gives_the_late_child_one_terminate_grace() {
     stopping.spawned(Time::from_nanos(30), GRACE, &mut process, &mut below);
     assert_eq!(
         pop_io(&mut below),
-        Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Terminate })
+        Some(io::Request::Signal {
+            child: CHILD,
+            to: kernel::Target::Group,
+            signal: kernel::Signal::Terminate,
+            reason: kernel::Reason::Unknown
+        })
     );
     assert!(below.is_empty());
     assert_eq!(stopping.next_deadline(), Some(Time::from_nanos(40)));

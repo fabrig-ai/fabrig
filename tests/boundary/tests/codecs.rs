@@ -71,10 +71,6 @@ const VERSION_ALLOWED: &[VersionAllowance] = &[
         reason: "skein's patch fixtures: its label and shelf families move as their stories need",
     },
     VersionAllowance {
-        package: "jig-test-patches",
-        reason: "jig's patch fixtures: fixture-label and fixture-shelf at two versions",
-    },
-    VersionAllowance {
         package: "jig-test-patches-jig",
         reason: "jig's patch fixtures over jig's own patches: fixture-note at two versions",
     },

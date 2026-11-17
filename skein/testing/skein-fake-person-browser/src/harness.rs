@@ -792,6 +792,7 @@ impl Runtime {
                     child: self.closing.server_child().expect("server is running"),
                     signal: kernel::Signal::Terminate,
                     to: kernel::Target::Child,
+                    reason: kernel::Reason::Unknown,
                 });
             }
             ServerAction::Start => {

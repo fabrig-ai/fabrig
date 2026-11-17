@@ -15,8 +15,8 @@ use temper_engine_domain_forge as forge;
 /// the core's whole, as jig's applications hold it, and temper's own.
 #[derive(Debug)]
 pub struct Config {
-    /// Charter brief-room costs, absent when no agent is configured (temper/docs/design/domain/agent/tools.md).
-    pub host_part: Option<crate::room::HostPart>,
+    /// Measured charter costs, including without an agent (temper/docs/design/domain/agent/room.md, 4.4).
+    pub host_part: crate::room::HostPart,
     /// Deployment funding span (domain/routing.md, 7).
     pub period_span: skein_lib::Duration,
     /// The core's rules, charters, owners and projects; its one connector is

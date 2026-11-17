@@ -9,6 +9,7 @@ use skein_lib::{Deadlines, Env, Queue};
 mod accounts;
 pub mod acts;
 pub mod application;
+pub(crate) mod milestone;
 mod moves;
 pub(crate) mod proposal;
 pub mod reads;
@@ -197,6 +198,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT
         | rows::TASK_NOTES_AT
+        | rows::MILESTONE_LIST_AT
+        | rows::MILESTONE_SHOW_AT
         | rows::ROLE_LIST_AT
         | rows::ROLE_SHOW_AT
         | rows::PROJECT_SHOW_AT
@@ -209,6 +212,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         }
         rows::TAKE_AT
         | rows::HAND_BACK_AT
+        | rows::MILESTONE_NEW_AT
+        | rows::MILESTONE_WHOLE_AT
         | rows::GOAL_START_AT
         | rows::ROLE_START_AT
         | rows::NEED_ASK_AT

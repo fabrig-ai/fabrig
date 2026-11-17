@@ -1,0 +1,1 @@
+Hello lands by the stock rule on the deployment's fake Forgejo. It has `work/hello` as its home and the fake model as the person's own key account, with any change's review answered approving. This is `ctl-hello`'s state at a deployment's place, one setup in two places, and it walks in a ctl session. It serves ctl's `change`, `landing`, `repository` and `project` groups.

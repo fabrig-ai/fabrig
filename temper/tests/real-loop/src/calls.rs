@@ -776,6 +776,10 @@ impl Caller {
             _ => None,
         }
     }
+    pub(crate) fn cancelling_run(&self) -> bool {
+        matches!(self.steps.get(self.next), Some(Step::Call { argv, .. })
+            if matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("cancel"), ..]))
+    }
     pub(crate) fn stopping_engine(&self) -> bool {
         matches!(self.steps.get(self.next), Some(Step::StopEngine))
     }
@@ -1251,7 +1255,15 @@ impl Caller {
     fn kill_call(&mut self, index: usize) -> bool {
         if self.current.is_none() {
             let pidfd = self.running[index].as_ref().expect("kill running call").pidfd.expect("spawned call");
-            self.submit(index, Op::Signal { pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Child });
+            self.submit(
+                index,
+                Op::Signal {
+                    pidfd,
+                    signal: Signal::Kill,
+                    to: skein_io::kernel::Target::Child,
+                    reason: skein_io::kernel::Reason::Asked,
+                },
+            );
             self.current = Some(index);
             return false;
         }

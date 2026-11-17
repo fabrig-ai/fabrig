@@ -844,3 +844,174 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     assert_eq!(live_row(&world, task).placed, None);
     assert!(world.assignments.iter().any(|(number, next)| *number == task && *next > attempt));
 }
+
+fn restart_header(world: &World) -> core::Deployment {
+    world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) => Some(*header),
+            _ => None,
+        })
+        .expect("durable deployment")
+}
+
+fn held_restart_world(seed: u64) -> World {
+    let mut setup = Setup { seed, ..Setup::default() };
+    setup.limits.core.fleet.grace = Duration::from_secs(360);
+    let mut world = World::new(setup);
+    world.turn(1, 0, None, b"work kept before the restart");
+    world
+}
+
+fn say_restart(world: &mut World) {
+    world.send(root::Event::Core(core::Event::Settling));
+    world.stop();
+}
+
+#[test]
+fn a_settled_stop_keeps_the_word_before_saying_it_and_draining() {
+    let mut world = held_restart_world(2401);
+    let previous = world.store.applied;
+    assert_eq!(restart_header(&world).restart_wait_ms, None);
+    world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+    say_restart(&mut world);
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000), "the held completion has applied its decision");
+    assert!(
+        !world.stop_deliveries.iter().any(|held| matches!(held, core::Held::Restarting { .. } | core::Held::Drained))
+    );
+    world.release_commits();
+    let header = restart_header(&world);
+    assert_eq!(header.commits, previous + 1, "the word makes the stop's own decision without interruptions");
+    assert_eq!(header.restart_wait_ms, Some(1_200_000));
+    let terminals: Vec<_> = world
+        .stop_deliveries
+        .iter()
+        .filter(|held| matches!(held, core::Held::Restarting { .. } | core::Held::Drained))
+        .collect();
+    assert!(
+        matches!(terminals.as_slice(), [core::Held::Restarting { wait }, core::Held::Drained] if *wait == Duration::from_secs(1200))
+    );
+}
+
+#[test]
+fn only_a_settled_stop_with_outliving_workers_and_a_wait_says_restart() {
+    for (settled, in_process, wait) in [(false, false, 1200), (true, true, 1200), (true, false, 0)] {
+        let mut setup =
+            Setup { seed: 2402, configuration: Some(worker_configuration(2402, in_process)), ..Setup::default() };
+        setup.limits.core.fleet.restart_wait = Duration::from_secs(wait);
+        let mut world = World::new(setup);
+        if settled {
+            world.send(root::Event::Core(core::Event::Settling));
+        }
+        world.stop();
+        assert_eq!(restart_header(&world).restart_wait_ms, None);
+        assert!(!world.stop_deliveries.iter().any(|held| matches!(held, core::Held::Restarting { .. })));
+    }
+}
+
+#[test]
+fn a_worker_back_after_the_grace_within_the_word_keeps_its_attempt_and_tries() {
+    let mut world = held_restart_world(2403);
+    let (task, attempt) = (world.task(), world.attempt());
+    let tries = restored_task(&world, task).tries;
+    say_restart(&mut world);
+    world.restart_with(worker_configuration(2403, false));
+    world.advance(Duration::from_secs(361));
+    assert_eq!(restored_task(&world, task).tries, tries);
+    assert!(
+        matches!(restored_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt: found }) if found == attempt)
+    );
+    hello(
+        &mut world,
+        Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
+    );
+    assert_eq!(world.assignments, [(task, attempt)], "adoption places no new attempt");
+    assert_eq!(restored_task(&world, task).tries, tries);
+    assert_eq!(restart_header(&world).restart_wait_ms, None, "logins discharges the word durably");
+    world.restart_with(worker_configuration(2403, false));
+    world.advance(Duration::from_secs(360));
+    assert_eq!(restored_task(&world, task).tries.lost, tries.lost + 1, "the next start holds for grace alone");
+}
+
+#[test]
+fn a_worker_never_back_is_lost_at_the_word_and_grace_and_clears_the_word() {
+    let mut world = held_restart_world(2404);
+    let task = world.task();
+    let lost = restored_task(&world, task).tries.lost;
+    say_restart(&mut world);
+    world.restart_with(worker_configuration(2404, false));
+    world.advance(Duration::from_secs(360));
+    assert_eq!(restored_task(&world, task).tries.lost, lost);
+    world.advance(Duration::from_secs(1199));
+    assert_eq!(restored_task(&world, task).tries.lost, lost);
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000));
+    world.advance(Duration::from_secs(1));
+    assert_eq!(restored_task(&world, task).tries.lost, lost + 1);
+    assert_eq!(restart_header(&world).restart_wait_ms, None);
+}
+
+#[test]
+fn repeated_restarts_and_a_crash_never_shorten_the_longest_word() {
+    let mut world = held_restart_world(2405);
+    let task = world.task();
+    let lost = restored_task(&world, task).tries.lost;
+    say_restart(&mut world);
+    world.restart_with(worker_configuration(2405, false));
+    world.advance(Duration::from_secs(500));
+    // A crash during adoption leaves the kept word for another start.
+    let mut limits = Setup::default().limits;
+    limits.core.fleet.grace = Duration::from_secs(360);
+    limits.core.fleet.restart_wait = Duration::from_secs(10);
+    world.restart_with_limits(worker_configuration(2405, false), limits);
+    world.stop_deliveries.clear();
+    say_restart(&mut world);
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000));
+    assert!(
+        world
+            .stop_deliveries
+            .iter()
+            .any(|held| matches!(held, core::Held::Restarting { wait } if *wait == Duration::from_secs(10)))
+    );
+    world.restart_with(worker_configuration(2405, false));
+    world.advance(Duration::from_secs(1559));
+    assert_eq!(restored_task(&world, task).tries.lost, lost);
+    world.advance(Duration::from_secs(1));
+    assert_eq!(restored_task(&world, task).tries.lost, lost + 1);
+}
+
+#[test]
+fn a_start_without_worker_claims_clears_the_word_after_adoption() {
+    let mut world = held_restart_world(2406);
+    world.park_for_message(0);
+    say_restart(&mut world);
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000));
+    world.hold_switch = true;
+    world.restart_with(worker_configuration(2406, false));
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000), "not discharged before adoption");
+    world.finish_switch();
+    assert!(world.domain.ready());
+    assert_eq!(restart_header(&world).restart_wait_ms, None);
+}
+
+#[test]
+fn a_discharge_after_this_stop_kept_its_word_clears_nothing() {
+    let mut world = held_restart_world(2407);
+    let (task, attempt) = (world.task(), world.attempt());
+    say_restart(&mut world);
+    world.restart_with(worker_configuration(2407, false));
+    world.hold_logins = true;
+    hello(
+        &mut world,
+        Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
+    );
+    say_restart(&mut world);
+    let commit = world.store.applied;
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Logins {
+        channel: Token::new(7),
+        logins: Box::new([]),
+    })));
+    assert_eq!(world.store.applied, commit, "an old discharge makes no decision");
+    assert_eq!(restart_header(&world).restart_wait_ms, Some(1_200_000));
+}

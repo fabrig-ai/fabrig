@@ -20,8 +20,6 @@ pub struct Routes {
     families: families::Bounds,
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
-    patch_context: store::patches::Context,
-    application_patch_context: families::patches::Context,
 }
 #[derive(Debug)]
 pub(super) struct Flight {
@@ -35,11 +33,6 @@ pub(super) struct Flight {
     pub(super) cursor: Option<store::Cursor>,
 }
 impl Routes {
-    /// Patch context whose executor kinds the component supplies before restore.
-    pub fn patch_context(&mut self) -> &mut store::patches::Context {
-        &mut self.patch_context
-    }
-
     /// Size the continuation table from the root's admitted loads.
     #[must_use]
     pub fn new(table: u32, limits: &engine::Limits, families: families::Bounds) -> Routes {
@@ -52,8 +45,6 @@ impl Routes {
             families,
             page_failure: None,
             row_failure: None,
-            patch_context: store::patches::Context::default(),
-            application_patch_context: families::patches::Context::default(),
         }
     }
     /// The store's typed cause for the refused startup page.
@@ -296,7 +287,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             into.push(Up::Ask(job_answer(owner, of, &job, &page, &routes.families)));
         }
         store::Event::Site { owner, of, site, at, patcher, key: _ } => {
-            into.push(Up::Ask(dispatch(routes, owner, of, site, at, patcher)));
+            into.push(Up::Ask(dispatch(owner, of, site, at, patcher)));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
@@ -307,7 +298,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         | store::Event::Back { .. }
         | store::Event::BackRefused { .. }
         | store::Event::Closed { .. }
-        | store::Event::Patched { .. }
         | store::Event::Ran { .. }
         | store::Event::Opened { .. }
         | store::Event::Kept { .. }
@@ -615,7 +605,6 @@ fn job_answer(
 
 /// Route each written site to its owner with the deployment's admitted inputs.
 fn dispatch(
-    routes: &mut Routes,
     owner: Token,
     of: store::Owner,
     site: skein_codec::patch::Site,
@@ -624,22 +613,19 @@ fn dispatch(
 ) -> store::Request {
     let (old, new) = patcher.parts();
     let result = match of {
-        store::Owner::Skein => {
-            skein_oauth::patches::written(site, old, new, at, &mut skein_oauth::patches::Context::default())
-        }
         store::Owner::Smith => {
-            smith_transcript::patches::written(site, old, new, at, &mut smith_transcript::patches::Context::default())
+            let mut context = smith_transcript::patches::Context::default();
+            smith_transcript::patches::written(site, old, new, at, &mut context)
         }
-        store::Owner::Jig => store::patches::written(site, old, new, at, &mut routes.patch_context),
-        store::Owner::Application => {
-            families::patches::written(site, old, new, at, &mut routes.application_patch_context)
+        store::Owner::Skein | store::Owner::Jig | store::Owner::Application => {
+            Err(skein_codec::patch::Halt::NoSite(site))
         }
     };
     store::Request::Site { owner, patcher, result }
 }
 
-/// Read a site's adoption settings or a job page's stored facts; later pages inherit no input.
-pub fn site(routes: &mut Routes, component: &mut store::Store, mut event: store::Event, into: &mut Queue<Up>) {
+/// Read a job page's stored facts; later pages inherit no input.
+pub fn site(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
     if let store::Event::Job { owner, of: store::Owner::Application, job, page } = &event
         && job.as_ref() == "deleted-repository-forge-rows"
     {
@@ -650,52 +636,5 @@ pub fn site(routes: &mut Routes, component: &mut store::Store, mut event: store:
         into.push(Up::Ask(store::Request::Job { owner: *owner, answer }));
         return;
     }
-    routes.application_patch_context = families::patches::Context::default();
-    if let store::Event::Site { of: store::Owner::Application, site, at, patcher, .. } = &mut event
-        && *site == skein_codec::patch::Site::new(5, 0)
-    {
-        let (old, _) = patcher.parts();
-        if let Ok((project, repository)) = families::patches::Context::landing_project(old, *at) {
-            routes.application_patch_context.landing_branch =
-                landing_branch(component, &routes.families, project, repository);
-        }
-    }
     up(routes, event, into);
-}
-
-fn landing_branch(
-    component: &mut store::Store,
-    bounds: &families::Bounds,
-    project: u32,
-    repository: Option<skein_forge::api::Repository>,
-) -> Option<Box<[u8]>> {
-    let mut after = None;
-    let mut branch = None;
-    // Every nonempty page consumes at least one adopted repository.
-    for _ in 0..=bounds.forge().repositories {
-        let page = component
-            .patch_page(skein_kv::Range { start: Box::new([2]), end: Some(Box::new([3])) }, after.as_ref(), 1)
-            .ok()?;
-        for row in page.rows {
-            let temper_engine_domain_forge::Stored::Repository(adopted) =
-                families::records::row(&row.key, &row.value, bounds).ok()?
-            else {
-                return None;
-            };
-            if adopted.project != project || (repository.is_some() && repository != Some(adopted.provider)) {
-                continue;
-            }
-            if let Some(prior) = &branch
-                && *prior != adopted.settings.default_branch
-            {
-                return None;
-            }
-            branch = Some(adopted.settings.default_branch);
-        }
-        after = page.next;
-        if after.is_none() {
-            return branch;
-        }
-    }
-    None
 }

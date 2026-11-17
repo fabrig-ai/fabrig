@@ -312,6 +312,7 @@ impl Driver {
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => self.immediate.push(other),
             }
             assert!(
