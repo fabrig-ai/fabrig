@@ -6,6 +6,10 @@
 
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
   not read, and no landed draft's card starts a goal [in flight: change 664].
+- **Not yet:** 2, *A task's title on a line* and *A task's words after its
+  title*: a goal's and a task's rows and the lineage bar draw titles
+  whole, and an agent's task's brief repeats one-line words [in flight:
+  change 6356].
 
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 

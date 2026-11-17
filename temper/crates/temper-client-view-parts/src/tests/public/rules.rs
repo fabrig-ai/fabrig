@@ -298,3 +298,26 @@ fn a_lines_words_never_touch() {
     assert!(lines.contains(&"task 9abcdef0 · Goal 3f2a9c01 · Ready just now".into()));
     assert!(lines.contains(&"landed · task 9abcdef0 · 789ada1".into()));
 }
+
+#[test]
+fn public_row_titles_cut_locally_and_keep_only_the_engines_needed_cut_word() {
+    for (title, cut) in super::fixtures::row_titles() {
+        for engine_cut in [false, true] {
+            let mut parts = records::line(false).into_parts();
+            parts.title = title.into();
+            parts.title_cut = engine_cut;
+            let line = j::PublicLine::new(&j::CEILINGS, parts).unwrap();
+            let page = card(line, 0);
+            let expected = String::from_utf8(
+                skein_lib::bytes::concat(&[
+                    b"task 9abcdef0 ",
+                    cut,
+                    if engine_cut && title == cut { "…".as_bytes() } else { b"" },
+                ])
+                .into_vec(),
+            )
+            .unwrap();
+            assert!(paragraphs(&page).contains(&expected), "{expected:?}: {:?}", paragraphs(&page));
+        }
+    }
+}

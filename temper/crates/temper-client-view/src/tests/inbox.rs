@@ -428,6 +428,38 @@ fn a_reply_card_names_its_task_after_the_task_ends() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the view scenario constructs long titles and inspects semantic nodes"
+)]
+fn update_titles_cut_before_the_task_number_and_ending_are_joined() {
+    let long = "abcd ".repeat(20).trim_end().to_owned();
+    let cut = format!("{}…", vec!["abcd"; 16].join(" "));
+    let mut task = fixtures::task::document();
+    task.chip.task = fixtures::INBOX_REPLY_TASK;
+    task.chip.title = fixtures::needs::words(&long);
+    let root = fixtures::inbox_with_document(
+        Filter::ALL,
+        Some((c::Read::Task { task: fixtures::INBOX_REPLY_TASK }, c::ReadValue::Task(Box::new(task)))),
+    );
+    let mut view = fixtures::page_view(&root);
+    let name = format!("T10 {cut} replied");
+    let heading = fixtures::find(view.tree(), Role::Heading { level: 3 }, name.as_bytes()).unwrap();
+    let at = view.tree().nodes().iter().position(|n| n.id == heading).unwrap();
+    let title = subtree(view.tree(), at);
+    assert_eq!(fixtures::nodes_text(title).as_ref(), name.as_bytes());
+    let link = title.iter().find(|n| n.role == Role::Link).unwrap().id;
+    assert_eq!(view.tree().nodes().iter().find(|n| n.id == link).unwrap().name.as_deref(), Some(name.as_bytes()));
+    assert_eq!(
+        crate::act(&mut view, link, Act::Press),
+        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+            address: Address::Task { task: fixtures::INBOX_REPLY_TASK }
+        }))
+    );
+}
+
+#[test]
 fn loaded_task_held_and_result_titles_keep_the_title_token() {
     let mut task = fixtures::task::document();
     task.chip.task = fixtures::INBOX_TASK;
