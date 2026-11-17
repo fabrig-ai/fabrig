@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::Event;
 use skein_lib::{Reader, Writer};

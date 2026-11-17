@@ -1,4 +1,4 @@
-family jig-client-wire 27
+family jig-client-wire 28
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -899,6 +899,11 @@ record OpenAnswerRefused { why: WatchRefusal }
 enum OpenAnswer { not_served: NotServed, admitted, refused: OpenAnswerRefused }
 record WatchClose { stream: fixed 16 watch: u64 }
 enum CloseAnswer { closed, signed_out }
+# Batch reply bytes hold the largest of ReadAnswer, OpenAnswer and CloseAnswer at CEILINGS (protocol/client/wire.md, 2.1).
+# ReadAnswer's value: tag + Owner::Family + version + byte length + Owned.record = 1 + 3 + 4 + 4 + 16777216.
+enum Member { read: Owned, open: Open, close: WatchClose }
+record Batch { members: list 64 Member }
+record BatchReply { member: u16 reply: option bytes 16777228 }
 record Gone { stream: fixed 16 }
 record Hello { stream: fixed 16 served: list 16 Served heartbeat: duration }
 record Delivery { watch: u64 document: Owned }
