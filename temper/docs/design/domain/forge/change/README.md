@@ -612,6 +612,15 @@ merged pull request is the forge's to keep or delete, so a branch the
 forge no longer has counts as deleted, and the release deletes or
 rewrites nothing else to end.
 
+**A held release takes the ending asked again** (2026-11-17). A release
+keeps its ending, but that a cancel takes over any other. One held for
+a failed effect, asked again by the same root with another ending, as
+when its parent fails after its cancel, starts again under the ending
+asked: a failed ending closes no pull request and gives the change's
+own branch to its root, so nothing is deleted that the first ending
+had not. A release not held is still refused another ending than its
+own, but for a cancel.
+
 **Ended, it is frozen** (2026-11-15). Its closed pull request stays its
 own: a change made after it on the same branch, at the same head or
 not, opens its own (2, step 2), and never takes it. From its end, its
