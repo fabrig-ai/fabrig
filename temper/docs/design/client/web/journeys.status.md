@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-17. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 
 
@@ -96,6 +96,9 @@ template, where a box now starts a design session
   - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
+  - 3.6, 4.3, 5.1: `add` puts no placeholder in after its proof, and there is no `normalise` command (`../journey-placeholders.status.md`) [in flight: change 7087].
+  - 5.3: a print keeps skein-ui's ids as the replay numbered them [in flight: change 7083].
+  - 8.1: `again` compares a save and a walk as saved, not normalised [in flight: change 7088].
 - **Departs:**
   - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
