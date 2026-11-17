@@ -33,6 +33,10 @@ pub struct Truth {
 
 /// One whole-document replacement made atomically with its story's decision.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a scripted change owns its deployment snapshot, including bounded worker settings"
+)]
 pub enum Change {
     Settings(jig_client_domain::contract::SettingsDocument),
     Setting(jig_client_domain::contract::SettingDocument),
@@ -326,7 +330,7 @@ pub struct Script {
 impl Default for Script {
     fn default() -> Self {
         Self {
-            versions: jig_client_domain::contract::VersionRange { first: 26, last: 26 },
+            versions: jig_client_domain::contract::VersionRange { first: 27, last: 27 },
             truth: Truth::default(),
             bounds: Bounds::default(),
             rules: Vec::new(),

@@ -29,6 +29,7 @@ pub struct Limits {
     pub overlay_parts: u32,
     pub catalogue_model_shown_some: u32,
     pub catalogue_model_description_some: u32,
+    pub worker_setting_name: u32,
     pub last_exact_bytes: u32,
     pub last_open_bytes: u32,
     pub pattern_segments: u32,
@@ -87,6 +88,7 @@ pub const CEILINGS: Limits = Limits {
     overlay_parts: 8,
     catalogue_model_shown_some: 4_096,
     catalogue_model_description_some: 512,
+    worker_setting_name: 128,
     last_exact_bytes: 4_096,
     last_open_bytes: 4_096,
     pattern_segments: 8,
@@ -121,7 +123,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 54] = [
+pub const LIMIT_NAMES: [&str; 55] = [
     "text_bytes",
     "model_name_name",
     "model_name_efforts",
@@ -145,6 +147,7 @@ pub const LIMIT_NAMES: [&str; 54] = [
     "overlay_parts",
     "catalogue_model_shown_some",
     "catalogue_model_description_some",
+    "worker_setting_name",
     "last_exact_bytes",
     "last_open_bytes",
     "pattern_segments",
@@ -181,15 +184,15 @@ pub const LIMIT_NAMES: [&str; 54] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 54] {
+    pub fn values(&self) -> [u32; 55] {
         [
             self.text_bytes, self.model_name_name, self.model_name_efforts, self.model_name_efforts_item, self.model_program_some, self.model_name, self.model_efforts, self.model_effort_some,
             self.run_policy_instructions, self.run_policy_alternatives, self.segment_bytes, self.document_name, self.document_path, self.document_heading_some, self.charter_part_instructions, self.charter_documents,
-            self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions, self.overlay_parts, self.catalogue_model_shown_some, self.catalogue_model_description_some, self.last_exact_bytes,
-            self.last_open_bytes, self.pattern_segments, self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.rules_implies, self.rules_requirements, self.policy_projections,
-            self.policy_roles, self.policy_requirements, self.configured_policy_permissions, self.configured_policy_templates, self.field_rule_name, self.verdict_fields, self.part_path_segments, self.approval_state,
-            self.verdict_choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.template_name, self.template_resources, self.application_state_charters, self.default_models, self.changed_models,
-            self.revision_models, self.revision_items, self.revision_applications, self.proposal_models, self.proposal_items, self.proposal_applications,
+            self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions, self.overlay_parts, self.catalogue_model_shown_some, self.catalogue_model_description_some, self.worker_setting_name,
+            self.last_exact_bytes, self.last_open_bytes, self.pattern_segments, self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.rules_implies, self.rules_requirements,
+            self.policy_projections, self.policy_roles, self.policy_requirements, self.configured_policy_permissions, self.configured_policy_templates, self.field_rule_name, self.verdict_fields, self.part_path_segments,
+            self.approval_state, self.verdict_choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.template_name, self.template_resources, self.application_state_charters, self.default_models,
+            self.changed_models, self.revision_models, self.revision_items, self.revision_applications, self.proposal_models, self.proposal_items, self.proposal_applications,
         ]
     }
 }
@@ -405,6 +408,22 @@ pub enum Path {
     CatalogueModelFirstRead,
     /// Bytes after `CatalogueModel`.
     CatalogueModelTail,
+    /// The `number` field of `WorkerNumber`.
+    WorkerNumberNumber,
+    /// Bytes after `WorkerNumber`.
+    WorkerNumberTail,
+    /// The `number` field of `WorkerSetting`.
+    WorkerSettingNumber,
+    /// The `name` field of `WorkerSetting`.
+    WorkerSettingName,
+    /// The `places` field of `WorkerSetting`.
+    WorkerSettingPlaces,
+    /// The `digest` field of `WorkerSetting`.
+    WorkerSettingDigest,
+    /// The `withdrawn` field of `WorkerSetting`.
+    WorkerSettingWithdrawn,
+    /// Bytes after `WorkerSetting`.
+    WorkerSettingTail,
     /// The `number` field of `ModelNumber`.
     ModelNumberNumber,
     /// Bytes after `ModelNumber`.
@@ -984,6 +1003,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.overlay_parts > CEILINGS.overlay_parts { return Err(Problem { path: Path::OverlayParts, reason: skein_codec::Reason::Bound }); }
     if limits.catalogue_model_shown_some > CEILINGS.catalogue_model_shown_some { return Err(Problem { path: Path::CatalogueModelShown, reason: skein_codec::Reason::Bound }); }
     if limits.catalogue_model_description_some > CEILINGS.catalogue_model_description_some { return Err(Problem { path: Path::CatalogueModelDescription, reason: skein_codec::Reason::Bound }); }
+    if limits.worker_setting_name > CEILINGS.worker_setting_name { return Err(Problem { path: Path::WorkerSettingName, reason: skein_codec::Reason::Bound }); }
     if limits.last_exact_bytes > CEILINGS.last_exact_bytes { return Err(Problem { path: Path::LastExactBytes, reason: skein_codec::Reason::Bound }); }
     if limits.last_open_bytes > CEILINGS.last_open_bytes { return Err(Problem { path: Path::LastOpenBytes, reason: skein_codec::Reason::Bound }); }
     if limits.pattern_segments > CEILINGS.pattern_segments { return Err(Problem { path: Path::PatternSegments, reason: skein_codec::Reason::Bound }); }
@@ -2104,6 +2124,101 @@ impl CatalogueModel {
     }
 }
 
+/// Movable fields of `WorkerNumber`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerNumberParts {
+    /// The `number` field.
+    pub number: u32,
+}
+
+/// `WorkerNumber` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerNumber {
+    number: u32,
+}
+
+impl WorkerNumber {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: WorkerNumberParts) -> Result<Self, Problem> {
+        let WorkerNumberParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> WorkerNumberParts { WorkerNumberParts { number: self.number } }
+
+}
+
+/// Movable fields of `WorkerSetting`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerSettingParts {
+    /// The `number` field.
+    pub number: u32,
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `places` field.
+    pub places: u32,
+    /// The `digest` field.
+    pub digest: Option<[u8; 32]>,
+    /// The `withdrawn` field.
+    pub withdrawn: bool,
+}
+
+/// `WorkerSetting` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerSetting {
+    number: u32,
+    name: Box<[u8]>,
+    places: u32,
+    digest: Option<[u8; 32]>,
+    withdrawn: bool,
+}
+
+impl WorkerSetting {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: WorkerSettingParts) -> Result<Self, Problem> {
+        let WorkerSettingParts { number, name, places, digest, withdrawn } = parts;
+        let value = Self { number, name, places, digest, withdrawn };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u32 { self.number }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `places` field.
+    #[must_use]
+    pub fn places(&self) -> u32 { self.places }
+
+    /// Reads the `digest` field.
+    #[must_use]
+    pub fn digest(&self) -> &Option<[u8; 32]> { &self.digest }
+
+    /// Reads the `withdrawn` field.
+    #[must_use]
+    pub fn withdrawn(&self) -> bool { self.withdrawn }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> WorkerSettingParts { WorkerSettingParts { number: self.number, name: self.name, places: self.places, digest: self.digest, withdrawn: self.withdrawn } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.worker_setting_name.min(CEILINGS.worker_setting_name)).expect("u32 fits usize") { return Err(Problem { path: Path::WorkerSettingName, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `ModelNumber`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ModelNumberParts {
@@ -2321,6 +2436,8 @@ pub enum Setting {
     ProjectPolicy(ProjectPolicySetting),
     /// `model` carrying `ModelNumber`.
     Model(ModelNumber),
+    /// `worker` carrying `WorkerNumber`.
+    Worker(WorkerNumber),
 }
 
 impl Setting {
@@ -4600,6 +4717,8 @@ pub enum Value {
     Model(Box<CatalogueModel>),
     /// `overlay` carrying `Box<Overlay>`.
     Overlay(Box<Overlay>),
+    /// `worker` carrying `Box<WorkerSetting>`.
+    Worker(Box<WorkerSetting>),
 }
 
 impl Value {
@@ -4617,6 +4736,7 @@ impl Value {
             Self::Rules(record) => Rules::check(record, limits),
             Self::Model(record) => CatalogueModel::check(record, limits),
             Self::Overlay(record) => Overlay::check(record, limits),
+            Self::Worker(record) => WorkerSetting::check(record, limits),
         }?;
         Ok(())
     }
@@ -6842,6 +6962,93 @@ impl CatalogueModel {
     }
 }
 
+impl WorkerNumber {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::WorkerNumberTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::WorkerNumberNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl WorkerSetting {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_digest = &self.digest;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_digest.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_places = &self.places;
+        writer.put(&field_places.to_be_bytes())?;
+        let field_digest = &self.digest;
+        match field_digest {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_withdrawn = &self.withdrawn;
+        writer.put(&[u8::from(*field_withdrawn)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::WorkerSettingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u32().ok_or(Problem { path: Path::WorkerSettingNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_name = { let length = match skein_codec::read_len(reader, limits.worker_setting_name.min(CEILINGS.worker_setting_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::WorkerSettingName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::WorkerSettingName, reason: skein_codec::Reason::Short })?) };
+        let decoded_places = reader.u32().ok_or(Problem { path: Path::WorkerSettingPlaces, reason: skein_codec::Reason::Short })?;
+        let decoded_digest = match reader.u8().ok_or(Problem { path: Path::WorkerSettingDigest, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::WorkerSettingDigest, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::WorkerSettingDigest, reason: skein_codec::Reason::Tag }) };
+        let decoded_withdrawn = match reader.u8().ok_or(Problem { path: Path::WorkerSettingWithdrawn, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::WorkerSettingWithdrawn, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { number: decoded_number, name: decoded_name, places: decoded_places, digest: decoded_digest, withdrawn: decoded_withdrawn })
+    }
+}
+
 impl ModelNumber {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -7035,6 +7242,7 @@ impl Setting {
             Self::Application(record) => 1_u32.checked_add(ApplicationSetting::measure(record)).expect("schema ceilings fit u32"),
             Self::ProjectPolicy(record) => 1_u32.checked_add(ProjectPolicySetting::measure(record)).expect("schema ceilings fit u32"),
             Self::Model(record) => 1_u32.checked_add(ModelNumber::measure(record)).expect("schema ceilings fit u32"),
+            Self::Worker(record) => 1_u32.checked_add(WorkerNumber::measure(record)).expect("schema ceilings fit u32"),
             Self::Rules => 1,
         }
     }
@@ -7049,6 +7257,7 @@ impl Setting {
             Self::Application(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::ProjectPolicy(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
+            Self::Worker(record) => { writer.put(&[7_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -7070,6 +7279,7 @@ impl Setting {
             4 => Self::Application(ApplicationSetting::decode_from(limits, reader)?),
             5 => Self::ProjectPolicy(ProjectPolicySetting::decode_from(limits, reader)?),
             6 => Self::Model(ModelNumber::decode_from(limits, reader)?),
+            7 => Self::Worker(WorkerNumber::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::SettingTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -9349,6 +9559,7 @@ impl Value {
             Self::Rules(record) => 1_u32.checked_add(Rules::measure(record)).expect("schema ceilings fit u32"),
             Self::Model(record) => 1_u32.checked_add(CatalogueModel::measure(record)).expect("schema ceilings fit u32"),
             Self::Overlay(record) => 1_u32.checked_add(Overlay::measure(record)).expect("schema ceilings fit u32"),
+            Self::Worker(record) => 1_u32.checked_add(WorkerSetting::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -9361,6 +9572,7 @@ impl Value {
             Self::Rules(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
             Self::Model(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
             Self::Overlay(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::Worker(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -9381,6 +9593,7 @@ impl Value {
             3 => Self::Rules(Box::new(Rules::decode_from(limits, reader)?)),
             4 => Self::Model(Box::new(CatalogueModel::decode_from(limits, reader)?)),
             5 => Self::Overlay(Box::new(Overlay::decode_from(limits, reader)?)),
+            6 => Self::Worker(Box::new(WorkerSetting::decode_from(limits, reader)?)),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -10997,6 +11210,66 @@ impl CatalogueModel {
     }
 }
 
+impl WorkerNumber {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl WorkerSetting {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.worker_setting_name))?)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.worker_setting_name))?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl ModelNumber {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -11180,6 +11453,7 @@ impl Setting {
         biggest = biggest.max(CharterNumber::encoded_bound_within(limits)?).max(TemplateNumber::encoded_bound_within(limits)?);
         biggest = biggest.max(PolicyNumber::encoded_bound_within(limits)?).max(ApplicationSetting::encoded_bound_within(limits)?);
         biggest = biggest.max(ProjectPolicySetting::encoded_bound_within(limits)?).max(ModelNumber::encoded_bound_within(limits)?);
+        biggest = biggest.max(WorkerNumber::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -11195,6 +11469,7 @@ impl Setting {
         biggest = biggest.max(CharterNumber::decoded_bound_within(limits)?).max(TemplateNumber::decoded_bound_within(limits)?);
         biggest = biggest.max(PolicyNumber::decoded_bound_within(limits)?).max(ApplicationSetting::decoded_bound_within(limits)?);
         biggest = biggest.max(ProjectPolicySetting::decoded_bound_within(limits)?).max(ModelNumber::decoded_bound_within(limits)?);
+        biggest = biggest.max(WorkerNumber::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -12784,6 +13059,7 @@ impl Value {
         biggest = biggest.max(Charter::encoded_bound_within(limits)?).max(Template::encoded_bound_within(limits)?);
         biggest = biggest.max(ConfiguredPolicy::encoded_bound_within(limits)?).max(Rules::encoded_bound_within(limits)?);
         biggest = biggest.max(CatalogueModel::encoded_bound_within(limits)?).max(Overlay::encoded_bound_within(limits)?);
+        biggest = biggest.max(WorkerSetting::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -12799,6 +13075,7 @@ impl Value {
         biggest = biggest.max(Charter::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Charter>()).ok()?)?).max(Template::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Template>()).ok()?)?);
         biggest = biggest.max(ConfiguredPolicy::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ConfiguredPolicy>()).ok()?)?).max(Rules::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Rules>()).ok()?)?);
         biggest = biggest.max(CatalogueModel::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<CatalogueModel>()).ok()?)?).max(Overlay::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<Overlay>()).ok()?)?);
+        biggest = biggest.max(WorkerSetting::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<WorkerSetting>()).ok()?)?);
         biggest.checked_add(0)
     }
 }
@@ -13555,6 +13832,8 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Overlay::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelSource::encoded_bound_within(limits)?);
     biggest = biggest.max(CatalogueModel::encoded_bound_within(limits)?);
+    biggest = biggest.max(WorkerNumber::encoded_bound_within(limits)?);
+    biggest = biggest.max(WorkerSetting::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelNumber::encoded_bound_within(limits)?);
     biggest = biggest.max(CharterNumber::encoded_bound_within(limits)?);
     biggest = biggest.max(TemplateNumber::encoded_bound_within(limits)?);
@@ -13626,12 +13905,12 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Set::encoded_bound_within(limits)?);
     biggest = biggest.max(Edit::encoded_bound_within(limits)?);
     biggest = biggest.max(Item::encoded_bound_within(limits)?);
-    biggest = biggest.max(Replaced::encoded_bound_within(limits)?);
-    biggest = biggest.max(RevisionItem::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Replaced::encoded_bound_within(limits)?);
+    biggest = biggest.max(RevisionItem::encoded_bound_within(limits)?);
     biggest = biggest.max(FollowsRevision::encoded_bound_within(limits)?);
     biggest = biggest.max(Follows::encoded_bound_within(limits)?);
     biggest = biggest.max(SizedSet::encoded_bound_within(limits)?);
@@ -13677,6 +13956,8 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Overlay::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelSource::decoded_bound_within(limits)?);
     biggest = biggest.max(CatalogueModel::decoded_bound_within(limits)?);
+    biggest = biggest.max(WorkerNumber::decoded_bound_within(limits)?);
+    biggest = biggest.max(WorkerSetting::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelNumber::decoded_bound_within(limits)?);
     biggest = biggest.max(CharterNumber::decoded_bound_within(limits)?);
     biggest = biggest.max(TemplateNumber::decoded_bound_within(limits)?);
@@ -13748,12 +14029,12 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Set::decoded_bound_within(limits)?);
     biggest = biggest.max(Edit::decoded_bound_within(limits)?);
     biggest = biggest.max(Item::decoded_bound_within(limits)?);
-    biggest = biggest.max(Replaced::decoded_bound_within(limits)?);
-    biggest = biggest.max(RevisionItem::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Replaced::decoded_bound_within(limits)?);
+    biggest = biggest.max(RevisionItem::decoded_bound_within(limits)?);
     biggest = biggest.max(FollowsRevision::decoded_bound_within(limits)?);
     biggest = biggest.max(Follows::decoded_bound_within(limits)?);
     biggest = biggest.max(SizedSet::decoded_bound_within(limits)?);

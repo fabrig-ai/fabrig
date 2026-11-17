@@ -111,6 +111,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         },
         kinds: Box::default(),
         defaults: core::settings::Defaults {
+            workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([core::Charter {
                 parts: Box::new([]),

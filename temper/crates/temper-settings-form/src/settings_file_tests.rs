@@ -981,3 +981,59 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
         );
     }
 }
+
+#[test]
+fn worker_files_proposals_and_reads_keep_the_digest_as_lowercase_hex() {
+    const SETTING: &[u8] = br#"{"kind":"worker","number":2}"#;
+    const DIGEST: &[u8] = b"abababababababababababababababababababababababababababababababab";
+    for (value, digest) in [
+        (
+            br#"{"name":"w1","places":4,"digest":"abababababababababababababababababababababababababababababababab"}"#
+                .as_slice(),
+            Some([0xab; 32]),
+        ),
+        (br#"{"name":"w1","places":4}"#.as_slice(), None),
+    ] {
+        let items = file::decode(&kind_file(SETTING, value), &Limits::standard()).expect("worker file");
+        let item = items.get(0).unwrap();
+        assert_eq!(item.setting, c::Setting::Worker(c::SettingNumber { number: 2 }));
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+        assert_eq!(
+            set.value,
+            c::SettingValue::Worker(Box::new(c::WorkerSetting {
+                number: 2,
+                name: b"w1".as_slice().into(),
+                places: 4,
+                digest,
+                withdrawn: false
+            }))
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting: item.setting,
+            revision: 2,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, SETTING).is_some());
+        assert_eq!(skein_lib::bytes::find(&shown, DIGEST).is_some(), digest.is_some());
+        let proposal = joined(&[
+            br#"{"against":1,"reason":"Add worker","items":[{"setting":"#,
+            SETTING,
+            br#", "set":"#,
+            value,
+            b"}]}",
+        ]);
+        assert_eq!(file::proposal_items(&proposal, &Limits::standard()).unwrap(), items);
+    }
+    for bad in
+        [br#""ab""#.as_slice(), br#""ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB""#, br#""zz""#]
+    {
+        file::decode(
+            &kind_file(SETTING, &joined(&[br#"{"name":"w1","places":4,"digest":"#, bad, b"}"])),
+            &Limits::standard(),
+        )
+        .expect_err("malformed digest");
+    }
+}

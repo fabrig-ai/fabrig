@@ -237,6 +237,7 @@ pub(crate) fn hello(
         refuse(domain, env, channel, &hello, why, None, out);
         return;
     }
+    let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
     let mut worker = Channel {
         jobs,
@@ -335,6 +336,9 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let entry = domain.channels.get_mut(id).expect("a named channel is in contact");
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;
+    if let Some(position) = worker {
+        let _previous = domain.worker_links.insert(position, (false, env.wall)).expect("configured worker link bound");
+    }
     let slots = entry.slots;
     let draining = entry.draining || entry.shutting_down || entry.mismatched;
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));

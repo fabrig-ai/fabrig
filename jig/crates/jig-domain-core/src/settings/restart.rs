@@ -272,6 +272,10 @@ impl Core {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
             }
         }
+        if let Err(failure) = super::workers::check_defaults(&self.current, self.workers_in_process) {
+            let _request = self.refuse_settings(failure);
+            return false;
+        }
         if let Err(failure) = super::check(&self.current, &self.settings, &self.connectors, &env.limits) {
             let _request = self.refuse_settings(failure);
             return false;

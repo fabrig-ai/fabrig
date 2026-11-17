@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
+pub const INTRO: &[u8] = b"Sections are JSON object shapes; bullets give members, types, bounds and effects. A settings file is `file`: read `settings show KIND N`, edit, set whole. Ctl sends these bounds; the deployment may refuse with: `shape`, `count`, `reference`, `rules`, `budget`, `grace`, `owner` or `linked`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -76,7 +76,7 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
             out.put(field.name);
             out.put(b"`: ");
             if let Some(bound) = field.list {
-                out.put(b"list of at most ");
+                out.put(b"list, <= ");
                 number(most(bound, limits), out);
                 out.put(b", each ");
             }
@@ -137,7 +137,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
         Value::Boolean => out.put(b"true or false"),
         Value::Text(bound) | Value::Hex(bound) => {
             out.put(if let Value::Text(_) = value { b"text" } else { b"hex" });
-            out.put(b", at most ");
+            out.put(b", <= ");
             number(most(*bound, limits), out);
             out.put(b" bytes");
         }
@@ -153,9 +153,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             }
             unreachable!("nested shape has a form")
         }
-        Value::Setting => out.put(
-            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`",
-        ),
+        Value::Setting => out.put(b"the value shape named by `setting.kind` (see `setting`)"),
     }
 }
 fn number(value: u64, out: &mut Text) {

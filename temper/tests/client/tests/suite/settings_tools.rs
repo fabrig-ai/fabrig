@@ -290,6 +290,13 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     match value {
         c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
+        c::SettingValue::Worker(value) => {
+            if let Some(digest) = value.digest.as_mut() {
+                for byte in digest {
+                    *byte = byte.wrapping_add(1);
+                }
+            }
+        }
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
         }

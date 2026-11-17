@@ -492,6 +492,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            workers: Box::new([]),
             models: Box::default(),
             charters: Box::new([Charter {
                 parts: Box::new([]),
@@ -3954,4 +3955,75 @@ fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
     assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(env));
+}
+
+#[test]
+fn deployment_worker_settings_join_names_and_keep_admission_and_loss_times() {
+    let (mut core, limits) = make_tree();
+    restore_document_party(&mut core, &limits, &[0]);
+    for (number, name, withdrawn) in
+        [(2, b"alpha".as_slice(), false), (1, b"beta".as_slice(), true), (3, b"unknown".as_slice(), false)]
+    {
+        core.current
+            .changes
+            .insert(
+                crate::settings::Setting::Worker(number),
+                crate::settings::Changed {
+                    revision: 2,
+                    value: Some(crate::settings::Value::Worker(Box::new(crate::settings::WorkerSetting {
+                        number,
+                        name: name.into(),
+                        places: 1,
+                        digest: Some([4; 32]),
+                        withdrawn,
+                    }))),
+                },
+            )
+            .unwrap();
+    }
+    let document = |core: &Core| {
+        let Document::Deployment(document) =
+            make(core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH).unwrap()
+        else {
+            panic!("deployment")
+        };
+        document
+    };
+    let initial = document(&core);
+    assert_eq!(initial.worker_settings.len(), 3);
+    for (row, number) in initial.worker_settings.iter().zip([1, 2, 3]) {
+        assert_eq!((row.number, row.linked, row.since), (number, false, None));
+    }
+    assert!(initial.worker_settings.get(0).unwrap().withdrawn);
+    let mut env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.fleet };
+    let mut out = Queue::uncapped();
+    fleet::step(
+        &mut core.fleet,
+        &env,
+        fleet::Event::Hello {
+            worker: 0,
+            channel: Token::new(10),
+            hello: Hello {
+                jobs: Box::new([]),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    let linked = document(&core);
+    let row = linked.worker_settings.get(1).unwrap();
+    assert_eq!((row.number, row.name.as_ref(), row.linked, row.since), (2, b"alpha".as_slice(), true, Some(env.wall)));
+    assert!(!linked.worker_settings.get(0).unwrap().linked);
+    env.wall = Wall::from_nanos(2000);
+    fleet::step(&mut core.fleet, &env, fleet::Event::Lost { channel: Token::new(10) }, &mut out);
+    let lost = document(&core);
+    assert_eq!(
+        (lost.worker_settings.get(1).unwrap().linked, lost.worker_settings.get(1).unwrap().since),
+        (false, Some(env.wall))
+    );
+    assert_eq!(lost.worker_settings.get(2).unwrap().since, None);
 }

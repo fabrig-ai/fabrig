@@ -28,6 +28,7 @@ pub struct Domain {
     pub(crate) program_sources: Box<[crate::SourceName]>,
     pub(crate) cleanup_programs: Box<[crate::SourceName]>,
     pub(crate) worker_names: crate::Membership,
+    pub(crate) worker_links: Map<u32, (bool, skein_lib::Wall)>,
     /// The workers in contact, and their channels' names.
     pub(crate) channels: Slab<Channel>,
     pub(crate) needs: crate::Needs,
@@ -114,6 +115,19 @@ impl Domain {
         self.worker_names.get(worker)
     }
 
+    /// Link observations survive channel retirement, not an engine restart (workers.md, 6).
+    #[must_use]
+    pub fn worker_link(&self, name: &[u8]) -> (bool, Option<skein_lib::Wall>) {
+        for position in 0..self.worker_names.len() {
+            if self.worker_names.get(position) == Some(name) {
+                return match self.worker_links.get(&position) {
+                    Some((linked, since)) => (*linked, Some(*since)),
+                    None => (false, None),
+                };
+            }
+        }
+        (false, None)
+    }
     #[must_use]
     pub fn program_logins(&self, channel: Token) -> Option<&[crate::Login]> {
         Some(self.channels.get(*self.tokens.get(&channel)?)?.sources.logins())
@@ -161,6 +175,7 @@ impl Domain {
             reads: crate::reads::Reads::new(limits.reads),
             program_sources: Box::new([]),
             worker_names: crate::Membership::empty(),
+            worker_links: Map::with_capacity(limits.configured_workers),
             cleanup_programs: Box::new([]),
             needs,
             needs_restored: false,

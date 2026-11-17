@@ -4793,6 +4793,7 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
 
 fn deployment(w: World) -> c::Deployment {
     c::Deployment {
+        worker_settings: List::with_capacity(0),
         store: c::StoreFill { bytes: 0, mark: 0 },
         census: None,
         hosts: List::with_capacity(0),

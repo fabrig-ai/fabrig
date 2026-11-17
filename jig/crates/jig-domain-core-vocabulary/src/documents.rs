@@ -33,7 +33,7 @@ pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
     Account, AccountState, CENSUS_HEADS, CENSUS_NAME, CENSUS_PREFIX, CENSUS_ROWS, Capacity, CensusHead, CensusKeyspace,
-    Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation, StoreCensus, StoreFill,
+    Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation, StoreCensus, StoreFill, WorkerState,
 };
 pub use inbox_deployment::{Inbox, InboxEntry, InboxObject};
 pub use inbox_selection::{InboxSelection, inbox_selection_bound};
@@ -549,6 +549,10 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
         .max(project_note::note_bound(limits)?)
+        .checked_add(List::<WorkerState>::price(limits.fleet.configured_workers)?)?
+        .checked_add(
+            u64::from(limits.fleet.configured_workers).checked_mul(u64::from(limits.fleet.worker_name_bytes))?,
+        )?
         .checked_add(List::<LiveDelegate>::price(limits.tasks.delegates)?)?
         .checked_add(u64::from(limits.tasks.delegates).checked_mul(chip_phase::heap_bound(&limits.documents)?)?)?
         .checked_add(settings::document_bound(limits, kinds)?)?

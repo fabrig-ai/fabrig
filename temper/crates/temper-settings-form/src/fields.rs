@@ -17,6 +17,7 @@ pub enum Shape {
     Document,
     Model,
     Catalogue,
+    Worker,
     Wake,
     WakeRule,
     WakeBatch,
@@ -310,6 +311,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
 pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
     match kind {
         b"model" => Some(Shape::Catalogue),
+        b"worker" => Some(Shape::Worker),
         b"charter" => Some(Shape::Charter),
         b"template" => Some(Shape::Template),
         b"policy" | b"project-policy" => Some(Shape::Policy),

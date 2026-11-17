@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 26, last: 26 },
+                versions: VersionRange { first: 27, last: 27 },
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -522,6 +522,7 @@ pub fn deployment() -> Deployment {
         cut: false,
     };
     Deployment {
+        worker_settings: skein_lib::List::with_capacity(0),
         store: StoreFill { bytes: 1, mark: 1024 },
         census: None,
         hosts: list([host(1), host(2)]),

@@ -207,7 +207,7 @@ fn dev_layouts_13_14_and_7_settle_before_ended_talk_and_task_logs_and_reopen_in_
     assert_eq!(ran[0].0, "settle-layouts");
     assert_eq!(
         ran[0].1,
-        vec![("put", 11), ("retired", 9), ("turns-6", 0), ("turns-7", 0), ("turns-other", 0), ("turns-unread", 0)],
+        vec![("put", 11), ("retired", 10), ("turns-6", 0), ("turns-7", 0), ("turns-other", 0), ("turns-unread", 0)],
         "{ran:?}"
     );
     assert_eq!(ran[1], ("ended-talk", vec![("ended", 2), ("ended-talk", 2)]));

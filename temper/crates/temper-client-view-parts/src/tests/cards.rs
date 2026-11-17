@@ -259,6 +259,7 @@ pub(crate) fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept:
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
@@ -978,4 +979,12 @@ fn a_model_item_reads_as_what_it_changes() {
             );
         }
     }
+}
+
+#[test]
+fn a_worker_item_is_named_on_the_settings_proposal_card() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let (root, _) = settings_root(settings_page(&[(setting, c::RevisionItemEdit::Set)], true));
+    let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
+    assert!(skein_lib::bytes::find(&said, b"worker 2").is_some(), "{said:?}");
 }

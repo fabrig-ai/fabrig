@@ -535,6 +535,7 @@ fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
                 c::Setting::Charter(_)
                 | c::Setting::Template(_)
                 | c::Setting::Policy(_)
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Rules => 0,
                 c::Setting::ProjectPolicy { project } => project,

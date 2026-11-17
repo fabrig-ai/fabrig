@@ -709,6 +709,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     rules.ceiling
                 }
                 form::SettingValue::Overlay(_)
+                | form::SettingValue::Worker(_)
                 | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
@@ -1173,4 +1174,42 @@ fn a_runs_follow_selector_and_proposal_carry_project_number_and_defaults() {
     assert_eq!(value.start, FollowStart::Owner);
     assert!(value.producer.is_none());
     assert!(value.source.branch.is_empty() && value.target.branch.is_empty() && value.source.paths.is_empty());
+}
+
+#[test]
+fn ask_temper_proposes_reads_and_words_worker_settings() {
+    let body = decided(b"propose_settings", br#"{"against":1,"reason":"Add worker","items":[{"setting":{"kind":"worker","number":2},"set":{"name":"w1","places":4}}]}"#).unwrap();
+    let value = s::Value::Worker(Box::new(s::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: None,
+        withdrawn: false,
+    }));
+    let engine::Tool::ProposeSettings { items, .. } = body.tool else { panic!("settings proposal") };
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Worker(2), edit: s::Edit::Set(value.clone()) }]);
+    assert_eq!(
+        decided(b"settings", br#"{"setting":{"kind":"worker","number":2}}"#).unwrap().tool,
+        engine::Tool::Settings { read: SettingsRead::Setting { setting: s::Setting::Worker(2), revision: 0 }, from: 0 }
+    );
+    let document = jig_domain_core::reads::SettingDocument {
+        overlay: None,
+        setting: s::Setting::Worker(2),
+        revision: 1,
+        value: Some(value),
+        application: None,
+        proposed: None,
+    };
+    let text = settings_text(&SettingsAnswer::Setting(document), None, &[]).unwrap();
+    assert!(skein_lib::bytes::find(&text, b"worker 2").is_some());
+    assert!(skein_lib::bytes::find(&text, br#""name":"w1""#).is_some());
+    let refusal = crate::settings::refusal(&jig_domain_people::Refusal::NotWellFormed {
+        at: 1,
+        why: jig_domain_people::Malformed::Settings {
+            setting: s::Setting::Worker(2),
+            fault: s::Fault::Linked,
+            detail: None,
+        },
+    });
+    assert!(skein_lib::bytes::find(&refusal, b"linked: stop it first").is_some());
 }

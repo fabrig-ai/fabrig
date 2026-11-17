@@ -32,6 +32,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             grants: c.grants.clone(),
             kinds: c.kinds.clone(),
             defaults: core::settings::Defaults {
+                workers: c.defaults.workers.clone(),
                 models: c.defaults.models.clone(),
                 charters: c.defaults.charters.clone(),
                 templates: c.defaults.templates.clone(),

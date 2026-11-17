@@ -218,6 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
                 | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
@@ -1058,6 +1059,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
+            c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -3796,3 +3798,51 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+
+#[test]
+fn ctl_applies_proposes_and_shows_a_worker_setting() {
+    let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
+    let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
+        number: 2,
+        name: b"w1".as_slice().into(),
+        places: 4,
+        digest: Some([0xab; 32]),
+        withdrawn: false,
+    }));
+    let file = file_from_setting(&setting_json(setting, value.clone()));
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).unwrap();
+    assert_eq!(
+        decoded.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig change") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(change.items, decoded);
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig proposal") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, decoded);
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "worker", "2", "--revision", "5"]);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    assert!(text.starts_with("worker 2, revision 5\n"), "{text}");
+    assert!(text.contains("abababababababababababababababababababababababababababababababab"), "{text}");
+}

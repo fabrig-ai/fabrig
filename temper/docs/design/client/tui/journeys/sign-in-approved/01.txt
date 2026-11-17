@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:43229                                     │
+│ Sign in this terminal to 127.0.0.1:40923                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ TTTJ-VMRL, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:43229/terminal?code=TTTJ-VMRL                  │
+│ XPQB-XFFC, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:40923/terminal?code=XPQB-XFFC                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:43229/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:40923/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

@@ -27,7 +27,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
-        Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
+        Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
             unreachable!("an application's setting: apps-core")
         }
     }
@@ -125,7 +125,7 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
-        Fault::Judged => unreachable!("an application's setting: apps-core"),
+        Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     let detail = if fault == Fault::Shape {
         let charter = current.charter(1).unwrap();
@@ -288,7 +288,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
-            Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
+            Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
                 unreachable!("an application's setting: apps-core")
             }
         };
@@ -1101,4 +1101,97 @@ fn overlay_requires_a_default_and_keeps_its_stored_identity() {
             Edit::Removed => assert!(current.charter(1).is_none()),
         }
     }
+}
+
+fn worker_value(number: u32, name: &[u8]) -> WorkerSetting {
+    WorkerSetting { number, name: name.into(), places: 4, digest: Some([7; 32]), withdrawn: false }
+}
+fn worker_item(value: WorkerSetting) -> Item {
+    Item { setting: Setting::Worker(value.number), edit: Edit::Set(Value::Worker(Box::new(value))) }
+}
+#[test]
+fn worker_settings_check_shape_count_identity_and_digest() {
+    let configured = config(1);
+    let mut limits = limits();
+    limits.fleet.slots = 4;
+    limits.fleet.worker_name_bytes = 8;
+    let mut current = Current::new(configured.defaults, &limits, &[]);
+    let good = worker_value(1, b"w1");
+    let check = |current: &Current, items: &[Item]| {
+        check_change(current, items, &configured.settings, &configured.connectors, &limits)
+    };
+    assert_eq!(check(&current, &[worker_item(good.clone())]), Ok(()));
+    for (case, fault) in [
+        ("empty", Fault::Shape),
+        ("space", Fault::Shape),
+        ("first", Fault::Shape),
+        ("long", Fault::Shape),
+        ("zero places", Fault::Shape),
+        ("places", Fault::Shape),
+        ("withdrawn", Fault::Shape),
+        ("digest", Fault::Shape),
+        ("count", Fault::Count),
+    ] {
+        let mut value = good.clone();
+        match case {
+            "empty" => value.name = Box::new([]),
+            "space" => value.name = b"w 1".as_slice().into(),
+            "first" => value.name = b"-w1".as_slice().into(),
+            "long" => value.name = b"123456789".as_slice().into(),
+            "zero places" => value.places = 0,
+            "places" => value.places = 5,
+            "withdrawn" => value.withdrawn = true,
+            "digest" => value.digest = None,
+            "count" => value.number = limits.fleet.configured_workers + 1,
+            _ => unreachable!(),
+        }
+        let setting = Setting::Worker(value.number);
+        assert_eq!(check(&current, &[worker_item(value)]), Err(Failure { setting, fault, detail: None }), "{case}");
+    }
+    let reset = Item { setting: Setting::Worker(1), edit: Edit::Reset };
+    assert_eq!(
+        check(&current, &[reset]),
+        Err(Failure { setting: Setting::Worker(1), fault: Fault::Shape, detail: None })
+    );
+    for default in [true, false] {
+        current.defaults.remove(&Setting::Worker(1));
+        current.changes.remove(&Setting::Worker(1));
+        if default {
+            current
+                .defaults
+                .insert(Setting::Worker(1), Default { value: Value::Worker(Box::new(good.clone())), revision: 1 })
+                .unwrap();
+        } else {
+            apply(&mut current, &[worker_item(good.clone())], 2);
+            apply(&mut current, &[Item { setting: Setting::Worker(1), edit: Edit::Removed }], 3);
+        }
+        for value in [worker_value(1, b"other"), worker_value(2, b"w1"), WorkerSetting { digest: None, ..good.clone() }]
+        {
+            let setting = Setting::Worker(value.number);
+            assert_eq!(
+                check(&current, &[worker_item(value)]),
+                Err(Failure { setting, fault: Fault::Shape, detail: None })
+            );
+        }
+    }
+    current.changes.remove(&Setting::Worker(1));
+    let local = WorkerSetting { digest: None, ..good };
+    current
+        .defaults
+        .insert(Setting::Worker(1), Default { value: Value::Worker(Box::new(local.clone())), revision: 1 })
+        .unwrap();
+    assert_eq!(check(&current, &[worker_item(local)]), Ok(()));
+    assert_eq!(
+        check(&current, &[worker_item(worker_value(1, b"w1"))]),
+        Err(Failure { setting: Setting::Worker(1), fault: Fault::Shape, detail: None })
+    );
+    assert_eq!(
+        check(&current, &[Item { setting: Setting::Worker(1), edit: Edit::Removed }]),
+        Err(Failure { setting: Setting::Worker(1), fault: Fault::Shape, detail: None })
+    );
+    assert_eq!(workers::check_defaults(&current, true), Ok(()));
+    assert_eq!(
+        workers::check_defaults(&current, false),
+        Err(Failure { setting: Setting::Worker(1), fault: Fault::Shape, detail: None })
+    );
 }

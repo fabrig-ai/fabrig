@@ -96,6 +96,23 @@ pub(super) fn deployment(
     if core.people.role(party, people::DEPLOYMENT).is_none() {
         return Err(Missing::NotAllowed);
     }
+    let mut worker_settings = List::with_capacity(limits.fleet.configured_workers);
+    for &setting in &core.current.offered() {
+        if let Some(value) = crate::settings::workers::worker(core.current.value(setting)) {
+            let (linked, since) = core.fleet.worker_link(&value.name);
+            worker_settings
+                .push(WorkerState {
+                    number: value.number,
+                    name: value.name.clone(),
+                    places: value.places,
+                    digest: value.digest,
+                    withdrawn: value.withdrawn,
+                    linked,
+                    since,
+                })
+                .expect("checked worker count");
+        }
+    }
     let source_hosts = core.fleet.host_views();
     let source_runs = core.fleet.attempt_views();
     let mut hosts = List::with_capacity(limits.documents.lines);
@@ -343,6 +360,7 @@ pub(super) fn deployment(
     let (providers, providers_cut) = super::catalogue::offers(core, &limits.documents)?;
     let (readiness, readiness_cut) = super::catalogue::rows(core, limits, party)?;
     Ok(Deployment {
+        worker_settings,
         providers,
         providers_cut,
         readiness,

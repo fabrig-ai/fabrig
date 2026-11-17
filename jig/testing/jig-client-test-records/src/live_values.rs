@@ -404,6 +404,7 @@ pub fn deployment_rows_record() -> w::Deployment {
     w::Deployment::new(
         &l,
         w::DeploymentParts {
+            worker_settings: List::with_capacity(0),
             skein_bools: [false, true, false, false],
             providers: Box::new([]),
             key_bytes: 256,

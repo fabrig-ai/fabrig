@@ -20,6 +20,7 @@ pub(crate) fn selector(call: &Call) -> c::Setting {
         Some(Value::Word(1)) => c::Setting::Template(number),
         Some(Value::Word(2)) => c::Setting::Policy(number),
         Some(Value::Word(3)) => c::Setting::Model(number),
+        Some(Value::Word(4)) => c::Setting::Worker(number),
         Some(_) | None => unreachable!("parsed setting kind"),
     }
 }

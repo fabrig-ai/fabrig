@@ -8,7 +8,10 @@ fn settings_action(count: u32) -> t::PersonAction {
     let mut items = skein_lib::List::with_capacity(count);
     for number in 1..=count {
         items
-            .push(t::SettingHead { setting: t::Setting::Template(number), edit: t::SettingEdit::Removed })
+            .push(t::SettingHead {
+                setting: if number == 1 { t::Setting::Worker(number) } else { t::Setting::Template(number) },
+                edit: t::SettingEdit::Removed,
+            })
             .expect("bounded settings heads");
     }
     t::PersonAction::Settings { against: 1, items: items.into_boxed() }

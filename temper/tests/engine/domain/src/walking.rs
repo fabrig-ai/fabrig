@@ -334,6 +334,7 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                workers: Box::new([]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),

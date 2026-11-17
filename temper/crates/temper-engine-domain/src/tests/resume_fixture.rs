@@ -325,6 +325,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                workers: Box::new([]),
                 models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),

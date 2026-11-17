@@ -986,7 +986,7 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-    use jig_client_protocol_wire::v26 as w;
+    use jig_client_protocol_wire::v27 as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
@@ -2449,4 +2449,170 @@ fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
     assert_eq!(world.domain.settings().newest(), 3);
     // Engine 6 settles the dead in-process claim at the cold restart, as the held-version stories above do.
     world.broken();
+}
+
+fn worker_value(number: u32) -> settings::WorkerSetting {
+    settings::WorkerSetting {
+        number,
+        name: b"w1".as_slice().into(),
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    }
+}
+#[test]
+fn worker_defaults_revisions_withdrawal_return_and_release_route_as_settings() {
+    let (mut config, mut limits) = configuration();
+    limits.core.fleet.slots = 2;
+    peers::journal(&mut limits);
+    let first = worker_value(1);
+    config.core.defaults.workers = Box::new([first.clone()]);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
+    world.client_peer = Some(ClientPeer::default());
+    assert_eq!(revision(&world, 1, false).head.by, settings::Decider::FirstStart);
+    let setting = settings::Setting::Worker(1);
+    assert_eq!(world.domain.settings().default_value(setting), Some(&settings::Value::Worker(Box::new(first.clone()))));
+    let signed = sign_in(&mut world);
+    let refused = change(
+        &mut world,
+        signed,
+        40,
+        1,
+        Box::new([
+            settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Reset },
+            settings::Item {
+                setting,
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+                    places: 0,
+                    ..first.clone()
+                }))),
+            },
+        ]),
+    );
+    assert_eq!(
+        refused,
+        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings { setting, fault: settings::Fault::Shape, detail: None }
+        }))
+    );
+    let remove = settings::Item { setting, edit: settings::Edit::Removed };
+    changed(&change(&mut world, signed, 41, 1, Box::new([remove])), 2);
+    assert_eq!(
+        world.domain.settings().value(setting).unwrap().as_worker().unwrap(),
+        &settings::WorkerSetting { withdrawn: true, ..first.clone() }
+    );
+    let returned = settings::WorkerSetting { places: 2, digest: Some([8; 32]), ..first.clone() };
+    changed(
+        &change(
+            &mut world,
+            signed,
+            42,
+            2,
+            Box::new([settings::Item {
+                setting,
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(returned.clone()))),
+            }]),
+        ),
+        3,
+    );
+    assert_eq!(world.domain.settings().value(setting).unwrap().as_worker(), Some(&returned));
+    changed(&change(&mut world, signed, 43, 3, Box::new([settings::Item { setting, edit: settings::Edit::Reset }])), 4);
+    let mut config = configuration().0;
+    let release = settings::WorkerSetting { digest: Some([9; 32]), ..first };
+    config.core.defaults.workers = Box::new([release.clone()]);
+    restart(&mut world, config);
+    assert_eq!(revision(&world, 5, false).head.by, settings::Decider::Release);
+    assert_eq!(world.domain.settings().value(setting).unwrap().as_worker(), Some(&release));
+    assert_eq!(world.domain.settings().defaults.get(&setting).unwrap().revision, 5);
+}
+#[test]
+fn stored_workers_past_a_lowered_bound_refuse_start_with_the_number() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let value = worker_value(2);
+    let setting = settings::Setting::Worker(2);
+    changed(
+        &change(
+            &mut world,
+            signed,
+            41,
+            1,
+            Box::new([settings::Item { setting, edit: settings::Edit::Set(settings::Value::Worker(Box::new(value))) }]),
+        ),
+        2,
+    );
+    seed_restart_accounts(&mut world);
+    let (mut config, mut limits) = configuration();
+    config.core.worker_names = Box::new([config.core.worker_names[0].clone()]);
+    limits.core.fleet.configured_workers = 1;
+    peers::journal(&mut limits);
+    world.restart_with_limits(config, limits);
+    assert_eq!(
+        world.domain.start_failure(),
+        Some((
+            Some(core::start::Phase::LoadCore),
+            core::start::Failure::Settings {
+                failure: settings::Failure { setting, fault: settings::Fault::Count, detail: None },
+                changed: true
+            }
+        ))
+    );
+    assert!(!world.domain.ready());
+    world.broken();
+}
+
+#[test]
+fn worker_start_checks_a_digestless_default_and_refuses_its_removal() {
+    for in_process in [true, false] {
+        let mut world = start(64);
+        seed_restart_accounts(&mut world);
+        let mut config = configuration().0;
+        config.core.workers_in_process = in_process;
+        config.core.defaults.workers = Box::new([settings::WorkerSetting { digest: None, ..worker_value(1) }]);
+        world.restart_with(config);
+        if in_process {
+            assert!(world.domain.ready());
+            let signed = sign_in(&mut world);
+            assert_eq!(
+                change(
+                    &mut world,
+                    signed,
+                    41,
+                    2,
+                    Box::new([settings::Item { setting: settings::Setting::Worker(1), edit: settings::Edit::Removed }])
+                ),
+                people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+                    at: 0,
+                    why: people::Malformed::Settings {
+                        setting: settings::Setting::Worker(1),
+                        fault: settings::Fault::Shape,
+                        detail: None
+                    }
+                }))
+            );
+        } else {
+            assert_eq!(
+                world.domain.start_failure(),
+                Some((
+                    Some(core::start::Phase::LoadCore),
+                    core::start::Failure::Settings {
+                        failure: settings::Failure {
+                            setting: settings::Setting::Worker(1),
+                            fault: settings::Fault::Shape,
+                            detail: None
+                        },
+                        changed: false
+                    }
+                ))
+            );
+            assert!(!world.domain.ready());
+            world.broken();
+        }
+    }
 }

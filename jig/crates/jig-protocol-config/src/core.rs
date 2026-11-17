@@ -75,6 +75,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         grants: engine.acts.clone(),
         kinds: Box::default(),
         defaults: domain::settings::Defaults {
+            workers: Box::new([]),
             models: engine.llm.models.clone(),
             charters: engine.charters.clone(),
             templates: engine.templates.clone(),

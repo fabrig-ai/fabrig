@@ -86,10 +86,12 @@ pub fn check_change(
     limits: &Limits,
 ) -> Result<(), Failure> {
     super::change_shape(items, limits)?;
+    super::workers::check_change(current, items)?;
     for item in items {
         let number = match item.setting {
             Setting::Model(number) => number,
-            Setting::Charter(_)
+            Setting::Worker(_)
+            | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
@@ -134,6 +136,7 @@ pub fn check_set(
     connectors: &[u16],
     limits: &Limits,
 ) -> Result<(), Failure> {
+    super::workers::check_set(current, defaults, items)?;
     let mut counts = [0_u32; 3];
     for (&setting, _) in &current.defaults {
         count(setting, &mut counts, limits)?;
@@ -225,6 +228,7 @@ pub fn check_set(
             | Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => None,
         };
@@ -266,7 +270,7 @@ pub fn check_set(
             },
             Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
             Value::Overlay(_) => unreachable!("overlay made into a charter"),
-            Value::Rules(_) | Value::Application(_) => None,
+            Value::Worker(_) | Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault, detail: None });
@@ -280,6 +284,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             Setting::Charter(number) => number != 0,
             Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
             | Setting::Application { .. }
@@ -298,6 +303,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             Setting::ProjectPolicy { project } => project != 0,
             Setting::Charter(_)
             | Setting::Template(_)
+            | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
             | Setting::Application { .. } => false,
@@ -311,6 +317,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             setting == Setting::Rules
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
@@ -358,6 +365,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
                 && rules_patterns_fit(value, bound)
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
@@ -871,11 +879,22 @@ fn requirement_refs(requirements: &[authority::Requirement], connectors: &[u16])
     true
 }
 pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result<(), Failure> {
+    if let Setting::Worker(number) = setting {
+        return if number > limits.fleet.configured_workers {
+            Err(Failure { setting, fault: Fault::Count, detail: None })
+        } else {
+            Ok(())
+        };
+    }
     let (slot, bound) = match setting {
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+        Setting::Worker(_)
+        | Setting::Model(_)
+        | Setting::Rules
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => {
             return Ok(());
         }
     };

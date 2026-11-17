@@ -144,6 +144,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
+            Setting::Worker(number) => (b"Worker ", Some(number)),
             Setting::Rules => (b"rules", None),
             Setting::Application { kind, scope, number } => {
                 put(writer, length, measuring, b"application kind ");
