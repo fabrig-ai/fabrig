@@ -26,6 +26,7 @@ impl DeploymentState {
             link: false,
             first: None,
             patch: None,
+            worker: None,
             until: Some(now.saturating_add(STEP)),
             patch_until: None,
         }
@@ -49,6 +50,26 @@ impl DeploymentState {
                 }
                 Err(why) => Progress::Finished(Exit::own(why.clone())),
             },
+            Event::DeploymentWorker(result) if self.stage == Stage::WorkerFile => match result {
+                Ok(worker) => {
+                    self.worker = Some(worker.clone());
+                    self.worker_command(
+                        Stage::WorkerList,
+                        plan.ctl(
+                            &[b"worker".as_slice().into(), b"list".as_slice().into(), b"--json".as_slice().into()],
+                            super::Input::Null,
+                        ),
+                        now,
+                        out,
+                    )
+                }
+                Err(why) => Progress::Failed(why.clone()),
+            },
+            Event::Exited { process: Process::Ctl, code, stdout, stderr }
+                if matches!(self.stage, Stage::WorkerList | Stage::WorkerAdd) =>
+            {
+                self.worker_exited(*code, (stdout, stderr), plan, now, out)
+            }
             Event::ProcessLine { process, output, line } => {
                 self.line((*process, *output, line), activity.phase, plan, now, out)
             }
@@ -115,6 +136,41 @@ impl DeploymentState {
             }
             _ => return None,
         })
+    }
+    fn worker_exited(
+        &mut self,
+        code: i32,
+        output: (&[u8], &[u8]),
+        plan: &Plan,
+        now: Time,
+        out: &mut Vec<Action>,
+    ) -> Progress {
+        if self.until.is_some_and(|at| now >= at) {
+            return Progress::Failed("worker admission deadline passed".into());
+        }
+        if code != 0 {
+            return Progress::Failed(format!(
+                "worker admission {:?} exited {code}: {}",
+                self.stage,
+                String::from_utf8_lossy(output.1.get(..4096).unwrap_or(output.1))
+            ));
+        }
+        let worker = self.worker.as_ref().expect("read worker");
+        if self.stage == Stage::WorkerList {
+            match worker.listed(output.0) {
+                Ok(true) => {}
+                Ok(false) => return self.worker_command(Stage::WorkerAdd, worker.add(plan), now, out),
+                Err(why) => return Progress::Failed(why),
+            }
+        }
+        self.worker = None;
+        self.start(Process::Worker, plan, now, out)
+    }
+    fn worker_command(&mut self, stage: Stage, program: super::Program, now: Time, out: &mut Vec<Action>) -> Progress {
+        self.stage = stage;
+        self.until = Some(now.saturating_add(super::STEP));
+        out.push(Action::Start { process: Process::Ctl, program });
+        Progress::Waiting
     }
     fn start(&mut self, process: Process, plan: &Plan, now: Time, out: &mut Vec<Action>) -> Progress {
         let [forge, model, engine, worker] = plan.deployment_programs();
@@ -188,23 +244,24 @@ impl DeploymentState {
         match process {
             Process::Forgejo => self.start(Process::Model, plan, now, out),
             Process::Model => self.start(Process::Engine, plan, now, out),
-            Process::Engine => self.start(Process::Worker, plan, now, out),
+            Process::Engine if self.patch_until.is_some() => self.start(Process::Worker, plan, now, out),
+            Process::Engine => {
+                self.stage = Stage::Idle;
+                self.until = None;
+                let first = self.first.take().expect("engine's first link");
+                match First::new(
+                    first,
+                    !plan.options.ctl,
+                    SignIn { strict_deadline: true, stderr: false, deadline: "Signing: deadline passed" },
+                ) {
+                    Ok(first) => Progress::First(first),
+                    Err(why) => Progress::Failed(why),
+                }
+            }
             Process::Worker => {
                 self.stage = Stage::Idle;
                 self.until = None;
-                if self.patch_until.is_some() {
-                    Progress::Patched
-                } else {
-                    let first = self.first.take().expect("engine's first link");
-                    match First::new(
-                        first,
-                        !plan.options.ctl,
-                        SignIn { strict_deadline: true, stderr: false, deadline: "Signing: deadline passed" },
-                    ) {
-                        Ok(first) => Progress::First(first),
-                        Err(why) => Progress::Failed(why),
-                    }
-                }
+                if self.patch_until.is_some() { Progress::Patched } else { Progress::Started }
             }
             _ => Progress::None,
         }

@@ -163,7 +163,8 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
 pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
-    let mut steps = native_settings_setup(root);
+    let agents = super::agents_value(&fs::read(root.join("agents.setting")).expect("agents setting copy"));
+    let mut steps = native_settings_setup(root, Some(agents));
     steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Then(Box::new(|calls| {
         let project = ctl::json(calls.last().expect("project read"));

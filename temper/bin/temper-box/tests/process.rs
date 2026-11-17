@@ -52,6 +52,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
         &forgejo,
         vec![
             Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["project", "make", "Project 1", "--key", "first-project"])),
             Step::Run(Call::new(&["me", "--json"])),
             Step::Until(Call::new(&["forge", "list", "--json"]), b"\"state\":\"connected\""),
             Step::Pause,
@@ -64,7 +65,8 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
             Step::Run(Call::new(&["pending"])),
         ],
     ));
-    let [_, me, connected, cut, _, listed, again, empty] = seen.calls.as_slice() else { panic!("eight ctl ends") };
+    let [_, made, me, connected, cut, _, listed, again, empty] = seen.calls.as_slice() else { panic!("nine ctl ends") };
+    assert_eq!(made.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&made.stderr));
     assert_eq!(json(connected)["forges"][0]["state"], "connected");
     assert_eq!((cut.exit, cut.stdout.as_slice()), (Some(Exit::Code(143)), b"".as_slice()), "128 + SIGTERM");
     let (party, listed) = (json(me)["party"]["number"].as_u64().expect("signed in"), json(listed));
@@ -94,8 +96,9 @@ fn temper_open_adopts_a_repository_by_commands() {
     let link = support::terminal::link(&mut serve, support::WITHIN);
     let open = support::terminal::open(scratch.path(), &scratch.path().join("client"), link.as_ref());
     let mut typist = support::terminal::Typist::new(open, serve, link);
-    typist.wait_for(b"== Inbox == Live", support::WITHIN);
-    typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
+    typist.wait_for(b"== No project yet == Live", support::WITHIN);
+    typist.type_on(b"Project name: (empty) (enter sends)", b"Project 1");
+    typist.wait_for(b"== Project 1 is ready. == Live", support::WITHIN);
     typist.type_on(b"Deployment", b"");
     typist.type_on(b"Forges", b"");
     typist.wait_for(b"Forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
@@ -411,6 +414,17 @@ fn temper_box_prints_its_link_and_stops_its_processes() {
 fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     let owned = support::owned::Owned::tier();
     support::owned::lay(scratch.path(), &owned);
+    support::first_repository::stage_binaries(scratch.path());
+    support::owned::setup(
+        scratch.path(),
+        &support::owned::Names {
+            forgejo: std::path::Path::new("fetched"),
+            runner: Some(std::path::Path::new("fetched")),
+            port: owned.forgejo.port(),
+            bot: "temper",
+            person: "ada",
+        },
+    );
     std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
         .expect("box example");
     // A retained group starts only with its started record (temper/docs/design/protocol/setup/box.md, 1).
