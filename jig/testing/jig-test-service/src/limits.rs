@@ -56,12 +56,27 @@ pub struct Limits {
     pub clients_http: jig_protocol_engine_clients_http::Limits,
     pub server: crate::server::Limits,
 }
+/// The test service's small bounds over the application's base, for tests alone.
+#[must_use]
+pub fn small(jig: &jig_protocol_config::Limits) -> Limits {
+    over(jig, SMALL, 8)
+}
+
+/// The test service's standard bounds over the application's base.
+#[must_use]
+pub fn stock(jig: &jig_protocol_config::Limits) -> Limits {
+    over(jig, STANDARD, 16)
+}
+
 #[must_use]
 pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
-    let connector = match name {
-        Profile::Small => SMALL,
-        Profile::Standard => STANDARD,
-    };
+    match name {
+        Profile::Small => small(jig),
+        Profile::Standard => stock(jig),
+    }
+}
+
+fn over(jig: &jig_protocol_config::Limits, connector: connector::Limits, connections: u32) -> Limits {
     let accounts = jig.driver;
     let journal = root::JournalSizes {
         commits: jig.journal.commits,
@@ -91,10 +106,7 @@ pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
         clients_http: jig.clients_http,
         server: crate::server::Limits {
             peer_end: crate::server::PeerEnd::Call,
-            connections: match name {
-                Profile::Small => 8,
-                Profile::Standard => 16,
-            },
+            connections,
             http: skein_http::server::Limits {
                 head: 4096,
                 headers: 32,
@@ -190,6 +202,33 @@ pub(super) fn worker_link(worker: &jig_protocol_config::Worker) -> jig_protocol_
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn small_uses_the_test_services_small_bounds() {
+        let jig = profile(Profile::Small);
+        let limits = small(&jig);
+        assert_eq!(limits.server.connections, 8);
+        assert_eq!(limits.root.connector.tasks, SMALL.tasks);
+    }
+
+    #[test]
+    fn stock_uses_the_test_services_standard_bounds() {
+        let jig = jig_protocol_config::stock();
+        let limits = stock(&jig);
+        assert_eq!(limits.server.connections, 16);
+        assert_eq!(limits.root.connector.tasks, 32);
+    }
+
+    #[test]
+    fn both_constructors_translate_the_given_base() {
+        // A distinct body bound shows that the supplied base is translated.
+        const BODY: u32 = 1234;
+        let mut jig = jig_protocol_config::stock();
+        jig.clients_http.body = BODY;
+        for limits in [small(&jig), stock(&jig)] {
+            assert_eq!(limits.server.http.body, u64::from(BODY));
+        }
+    }
 
     #[test]
     fn each_profile_reserves_a_largest_piece_fact_and_maps_the_hubs_bound() {
