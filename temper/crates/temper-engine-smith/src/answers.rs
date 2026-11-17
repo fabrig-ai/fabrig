@@ -1345,7 +1345,9 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         }
         Refusal::Executor => text.add(b"executor"),
         Refusal::Spec => text.add(b"specification"),
-        Refusal::Contract => text.add(b"result contract"),
+        Refusal::Contract => {
+            text.add(b"result contract (words at most the result bound; a person's or a role's report at least 1)")
+        }
         Refusal::AuthorityShape => text.add(b"authority shape"),
         Refusal::Inputs => text.add(b"historical inputs"),
         Refusal::State => text.add(b"task state"),

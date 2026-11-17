@@ -210,6 +210,7 @@ fn fixture() -> skein_scratch::Scratch {
     let root = scratch.path();
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
+    write(root, ".gitignore", "/target/\n");
     let workspace = skein_scratch::paths::workspace();
     for path in [
         ".temper/pre-pr",
@@ -491,7 +492,7 @@ fn the_base_is_the_pins_merge_base() {
     git(root, &["update-ref", "refs/temper/landing", &other]);
     git(root, &["commit", "--allow-empty", "-qm", "head"]);
     write(root, ".git/MERGE_HEAD", &other);
-    write(root, "temper/docs/addition.md", "# Delivery\n");
+    write(root, "temper/addition.md", "# Delivery\n");
     let output = deliver(root);
     let log = text(&output);
     assert!(output.status.success(), "{log}");

@@ -189,6 +189,34 @@ fn delegate_reaches_as_the_party_and_judges_ended_dependencies() {
 }
 
 #[test]
+fn a_task_document_counts_tasks_left_between_party_delegates() {
+    use jig_domain_core::{documents, reads};
+    let mut world = world(379);
+    let mut parent = gathering();
+    parent.authority.delegation.depth = 2;
+    create(&mut world, Box::new([parent]));
+    made(&world, G, G, None);
+    for (key, left, next_tasks) in [(120, 5, 4), (121, 4, 3), (122, 3, 3)] {
+        jig_core_world::reads::ask(&mut world, u64::from(key), reads::Read::Task { task: G });
+        let reads::Answer::Document(document) = jig_core_world::reads::latest(&world) else {
+            panic!("task document answer")
+        };
+        let documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
+        assert_eq!(document.tasks_left, left);
+        let mut child = people_member(b"delegate", 10);
+        child.authority.delegation =
+            people::Delegation { kinds: Box::new([people::Executor::Charter(CHARTER)]), tasks: next_tasks, depth: 1 };
+        delegate(&mut world, key, G, Box::new([child]));
+        if key == 122 {
+            refusal(&world, people::Refusal::Authority { lacking: people::Lack::Tasks { left: 3 }, proposable: None });
+        } else {
+            let task = if key == 120 { A } else { B };
+            made(&world, task, task, None);
+        }
+    }
+}
+
+#[test]
 fn a_party_fills_then_concludes_a_gathering_and_its_two_delegates_end_it() {
     let mut world = world(378);
     create(&mut world, Box::new([gathering()]));

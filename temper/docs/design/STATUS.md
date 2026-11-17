@@ -265,10 +265,17 @@ passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
 4). Reds end too by the tool and with their goal (`draft/branch-reds.status.md`).
 Before its summary, the check writes every failure it found, with its
-key and class, to `temper/pre-pr-failures.json` in the git directory, and
-the summary's second line names that file and counts the failures by
-class, so that a key its capped summary had no room for stays readable
-(`draft/pre-pr-failure-list.status.md`).
+key and class, to `target/temper/pre-pr-failures.json` under the
+checkout's root, outside the git directory, whose paths an agent's `read`
+refuses, and the summary's second line names that path and counts the
+failures by class, so that a key its capped summary had no room for stays
+readable (`draft/pre-pr-failure-list.status.md`). A delivery of Markdown
+under `docs/` alone that no test declares as its input is prose only: it
+runs citations and the outward scan as a text check, which reads one list
+of names with the boundary crate's Rust test and gives its verdict, and
+no cargo command; and a person's or a role's report contract bound at 0
+words is refused, as no answer could meet it
+(`draft/small-fixes-1116.status.md`).
 
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
@@ -644,6 +651,7 @@ Drafts:
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/page-round-trips.md`](draft/page-round-trips.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/pre-pr-failure-list.md`](draft/pre-pr-failure-list.status.md)
@@ -663,6 +671,7 @@ Drafts:
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/small-fixes-1113.md`](draft/small-fixes-1113.status.md)
+- [`draft/small-fixes-1116.md`](draft/small-fixes-1116.status.md)
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
