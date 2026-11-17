@@ -24,7 +24,7 @@ mod goal;
 mod kinds;
 pub(crate) mod landing;
 mod milestones;
-mod now;
+pub(crate) mod now;
 mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
@@ -580,6 +580,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
             Work::EndedLoaded { waiter, rows } => crate::archive::ended_loaded(domain, waiter, rows),
             Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
+            Work::ChangeFromLoaded { task, row } => crate::changes_from::loaded(domain, env, decision, task, row),
         }
     }
 }

@@ -679,12 +679,18 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 red: false,
                 changes: Box::new([
                     f::ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: 42,
                         title: b"Add export".as_slice().into(),
                         ready_since: AT,
                         checks_since: Some(AT),
                     },
                     f::ChangesQueued {
+                        goal: None,
+                        chat: None,
+                        milestone: None,
                         task: 41,
                         title: b"Add import".as_slice().into(),
                         ready_since: AT,
@@ -699,6 +705,9 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 branch: b"stable".as_slice().into(),
                 red: false,
                 changes: Box::new([f::ChangesQueued {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 43,
                     title: b"Fix quoting".as_slice().into(),
                     ready_since: AT,
@@ -707,6 +716,9 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
             },
         ]),
         landed: Box::new([f::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,

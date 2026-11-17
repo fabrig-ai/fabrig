@@ -1442,6 +1442,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProposalLoaded { .. }
             | Work::ProposalFailed { .. }
             | Work::EndedLoaded { .. }
+            | Work::ChangeFromLoaded { .. }
             | Work::TaskProposalLoaded { .. }
             | Work::EndedFailed { .. }
             | Work::ForgeSettings(_)

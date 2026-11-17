@@ -24,7 +24,7 @@ pub(crate) mod reads;
 pub(crate) mod refusals;
 pub mod settings;
 pub mod task;
-mod task_wait;
+pub mod task_wait;
 pub(crate) mod watches;
 pub use objects::document;
 

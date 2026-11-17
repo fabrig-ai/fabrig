@@ -762,6 +762,18 @@ pub enum WorkerInput {
     ResultRead { payload: Token, end: tasks::End },
 }
 /// A keyed request owned by the root, or forwarded to the forge (client/engine.md).
+/// A row made by the root, joining the child's trial to jig's next-run wait
+/// (temper/docs/design/domain/trial.md, 4 and 6).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct TrialRow {
+    pub account: u32,
+    pub task: Option<u64>,
+    pub took: Option<u32>,
+    pub step: temper_engine_domain_trials::Step,
+    pub state: temper_engine_domain_trials::State,
+    pub run_wait: Option<jig_domain_core::documents::TaskRunWait>,
+}
+
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
@@ -1229,6 +1241,7 @@ pub(crate) enum Work {
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
+    ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
     EndedFailed { waiter: Token },
 }
 
@@ -1295,6 +1308,7 @@ pub(crate) struct AssignmentParts {
 /// An ended owner row the core asked the root to load.
 #[derive(Hash, Debug)]
 pub(crate) enum EndedRead {
+    ChangeFrom { task: u64 },
     EndedTask { request: Token, task: u64 },
     SeenConversation { request: Token, task: u64 },
     Position { request: Token, task: u64, party: u64 },

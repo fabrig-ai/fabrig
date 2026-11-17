@@ -254,10 +254,11 @@ fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
 }
 
 /// Load one ended owner row the core asked for; a full read table answers busy.
-fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
+pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
     let range = match &read {
         EndedRead::Position { task, party, .. } => crate::CoreRange::EndedRead { task: *task, party: *party },
-        EndedRead::EndedTask { task, .. }
+        EndedRead::ChangeFrom { task }
+        | EndedRead::EndedTask { task, .. }
         | EndedRead::SeenConversation { task, .. }
         | EndedRead::PartyInput { task, .. }
         | EndedRead::PersonTask { task, .. } => crate::CoreRange::TaskResult { task: *task },

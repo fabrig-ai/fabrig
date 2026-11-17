@@ -263,12 +263,12 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
-    assert_eq!(root.journal.transcript_bytes, root.forge.client.answer_bytes);
+    assert_eq!(root.journal.transcript_bytes, 88_256, "the changes document sets the delivery floor");
     let mut short = settings.limits;
-    short.root.journal.transcript_bytes -= 1;
+    short.root.journal.transcript_bytes = root.forge.client.answer_bytes - 1;
     assert!(limits::engine(&jig, &short).is_none());
     short.forge.client.answer_bytes -= 1;
-    assert!(limits::engine(&jig, &short).is_some(), "the forge answer, not the deep task row, sets small's bound");
+    assert!(limits::engine(&jig, &short).is_some(), "the forge answer still dominates the deep task row");
     assert_eq!(root.public_watermark, root.watermark / 2);
     let mut jig = jig;
     jig.clients.public.reads = 8;

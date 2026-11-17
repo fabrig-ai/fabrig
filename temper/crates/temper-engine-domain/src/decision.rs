@@ -102,7 +102,7 @@ pub enum Delivery {
     /// The person's trials, newest first (temper/docs/design/domain/trial.md, 6).
     Trials {
         watcher: Token,
-        rows: Box<[temper_engine_domain_trials::Row]>,
+        rows: Box<[crate::TrialRow]>,
     },
     /// The watcher's changes waiting on a person's approval (domain/forge/change/questions.md, 2).
     Approvals {
@@ -499,7 +499,7 @@ impl Decision {
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
             Delivery::FindingsOwned { words, .. } => words.len() <= skein_lib::usize_of(limits.transcript_bytes),
             Delivery::Trials { rows, .. } => {
-                rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
+                rows.len().saturating_mul(size_of::<crate::TrialRow>())
                     <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::Approvals { document, .. } => {

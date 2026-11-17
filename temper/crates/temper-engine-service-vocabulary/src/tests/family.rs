@@ -3145,9 +3145,17 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one whole document pins queue, flight and history fields")]
 fn changes_document_encodes_and_decodes() {
-    let value = forge::ChangesView {
+    let from = Some(forge::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
+    let expected = Some(
+        w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task: 23, title: b"Origin".as_slice().into() }).unwrap(),
+    );
+    let mut value = forge::ChangesView {
         landed_default: Box::new([forge::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             task: 49,
             title: Box::from(b"Default landing".as_slice()),
@@ -3163,6 +3171,9 @@ fn changes_document_encodes_and_decodes() {
         queues: Box::new([forge::ChangesQueue {
             way: change::Way::Turn,
             in_flight: Some(forge::TrainLanding {
+                goal: None,
+                chat: None,
+                milestone: None,
                 task: 61,
                 member: 51,
                 round: 2,
@@ -3176,12 +3187,18 @@ fn changes_document_encodes_and_decodes() {
             red: true,
             changes: Box::new([
                 forge::ChangesQueued {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 51,
                     title: Box::from(b"First".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(123),
                     checks_since: Some(skein_lib::Wall::from_nanos(456)),
                 },
                 forge::ChangesQueued {
+                    goal: None,
+                    chat: None,
+                    milestone: None,
                     task: 52,
                     title: Box::from(b"Next".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(789),
@@ -3190,6 +3207,9 @@ fn changes_document_encodes_and_decodes() {
             ]),
         }]),
         landed: Box::new([forge::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
             signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
@@ -3198,6 +3218,25 @@ fn changes_document_encodes_and_decodes() {
             at: skein_lib::Wall::from_nanos(987),
         }]),
     };
+    for queue in &mut value.queues {
+        for row in &mut queue.changes {
+            row.goal = from.clone();
+            row.chat = from.clone();
+            row.milestone = from.clone();
+        }
+        if let Some(row) = &mut queue.in_flight {
+            row.goal = from.clone();
+            row.chat = from.clone();
+            row.milestone = from.clone();
+        }
+    }
+    for rows in [&mut value.landed, &mut value.landed_default] {
+        for row in rows.iter_mut() {
+            row.goal = from.clone();
+            row.chat = from.clone();
+            row.milestone = from.clone();
+        }
+    }
     let bytes =
         family::document(forge::Document::Changes(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_changes_panel(&bytes, &w::CEILINGS).unwrap();
@@ -3210,10 +3249,10 @@ fn changes_document_encodes_and_decodes() {
         (flight.task(), flight.member(), flight.round(), flight.step(), flight.probe()),
         (61, 51, 2, &w::LandingStep::Probing, &Some([0x33; 32]))
     );
-    assert_eq!((flight.goal(), flight.chat(), flight.milestone()), (&None, &None, &None));
+    assert_eq!((flight.goal(), flight.chat(), flight.milestone()), (&expected, &expected, &expected));
     assert_eq!(queue.changes().len(), 2);
     for (wire, domain) in queue.changes().iter().zip(value.queues[0].changes.iter()) {
-        assert_eq!((wire.goal(), wire.chat(), wire.milestone()), (&None, &None, &None));
+        assert_eq!((wire.goal(), wire.chat(), wire.milestone()), (&expected, &expected, &expected));
         assert_eq!(
             (wire.task(), wire.title(), wire.ready_since(), *wire.checks_since()),
             (
@@ -3232,14 +3271,14 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
     assert_eq!(*landed.commit(), [0xab; 32]);
     assert!(landed.default_branch());
-    assert_eq!((landed.goal(), landed.chat(), landed.milestone()), (&None, &None, &None));
+    assert_eq!((landed.goal(), landed.chat(), landed.milestone()), (&expected, &expected, &expected));
     assert_eq!(got.landed_default_more(), 2);
     assert_eq!(got.landed_default().len(), 1);
     let default = got.landed_default().get(0).unwrap();
     assert_eq!((default.task(), default.title(), default.at()), (49, b"Default landing".as_slice(), 900));
     assert_eq!(*default.commit(), [0xcd; 32]);
     assert!(default.default_branch());
-    assert_eq!((default.goal(), default.chat(), default.milestone()), (&None, &None, &None));
+    assert_eq!((default.goal(), default.chat(), default.milestone()), (&expected, &expected, &expected));
 }
 #[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
@@ -3834,6 +3873,7 @@ fn looked_and_status_translate_both_ways() {
 #[test]
 fn the_worst_small_changes_document_fits_its_decision() {
     const REPOSITORY_BYTES: usize = 2048; // ChangesQueue.repository, the wire ceiling.
+    let from = Some(forge::ChangeFrom { task: 1, title: Box::from([b'f'; 256]) });
     let limits = crate::limits::profile(crate::limits::Profile::Small);
     let mut queues = List::with_capacity(32);
     // Each live change may have its own queue; the view retains at most 32 queues.
@@ -3846,6 +3886,9 @@ fn the_worst_small_changes_document_fits_its_decision() {
                 branch: repeated(b'b', limits.forge.name_bytes),
                 red: true,
                 changes: Box::new([forge::ChangesQueued {
+                    goal: from.clone(),
+                    chat: from.clone(),
+                    milestone: from.clone(),
                     task: u64::from(task),
                     title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                     ready_since: skein_lib::Wall::EPOCH,
@@ -3854,13 +3897,25 @@ fn the_worst_small_changes_document_fits_its_decision() {
             })
             .unwrap();
     }
+    let mut signed = List::with_capacity(u32::try_from(forge::SIGN_OFFS).unwrap());
+    for _ in 0..forge::SIGN_OFFS {
+        signed
+            .push(forge::ChangesSigned {
+                person: 1,
+                head: [2; 32],
+                at: skein_lib::Wall::EPOCH,
+                name: Some(Box::from([b'n'; 256])),
+            })
+            .unwrap();
+    }
     let mut landed = List::with_capacity(limits.forge.changes_landed);
     for task in 0..limits.forge.changes_landed {
         landed
             .push(forge::ChangesLanded {
-                signed: Box::new(
-                    [forge::SignOff { person: 1, head: [2; 32], at: skein_lib::Wall::EPOCH }; forge::SIGN_OFFS],
-                ),
+                goal: from.clone(),
+                chat: from.clone(),
+                milestone: from.clone(),
+                signed: signed.clone().into_boxed(),
                 commit: [0xab; 32],
                 default_branch: true,
                 task: u64::from(task),
@@ -3880,8 +3935,11 @@ fn the_worst_small_changes_document_fits_its_decision() {
         landed_more: 0,
     });
     let bytes = document.owned_bytes();
+    assert_eq!(bytes, 88_256, "the configured changes-document carrier's measured floor");
     assert!(
-        bytes <= usize::try_from(limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)).unwrap()
+        bytes <= usize::try_from(limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)).unwrap(),
+        "changes document owns {bytes} bytes; allowance {}",
+        limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)
     );
 }
 
@@ -4353,9 +4411,37 @@ fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
 }
 
 #[test]
+fn a_trial_wait_is_carried_as_jigs_current_task_run_wait_record() {
+    use jig_domain_core::documents::{TaskRunWait, TaskSourceState, TaskWaitWhy};
+    let rows = Box::new([root::TrialRow {
+        account: 12,
+        task: Some(31),
+        took: None,
+        step: temper_engine_domain_trials::Step::Starts,
+        state: temper_engine_domain_trials::State::Running,
+        run_wait: Some(TaskRunWait::Account {
+            account: Some(12),
+            source: Some(14),
+            why: TaskWaitWhy::Source(TaskSourceState::Asking),
+        }),
+    }]);
+    let bytes = family::trials(rows, &w::CEILINGS).unwrap();
+    let document = w::Trials::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let bytes = document.rows().get(0).unwrap().run_wait().as_ref().unwrap();
+    let mut reader = Reader::new(bytes);
+    let wait = jig_client_protocol_wire::TaskRunWait::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap();
+    assert!(reader.is_empty());
+    let jig_client_protocol_wire::TaskRunWait::Account(wait) = wait else { panic!("account wait") };
+    assert_eq!((*wait.account(), *wait.source()), (Some(12), Some(14)));
+    let jig_client_protocol_wire::TaskWaitWhy::Source(source) = wait.why() else { panic!("source wait") };
+    assert_eq!(source.state(), &jig_client_protocol_wire::TaskSourceState::Asking);
+}
+
+#[test]
 fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
-    use skein_lib::{Reader, Wall};
-    use temper_engine_domain_trials::{Class, Row, State, Step, Why};
+    use root::TrialRow as Row;
+    use skein_lib::Reader;
+    use temper_engine_domain_trials::{Class, State, Step, Why};
     let states = [
         State::Running,
         State::Answered { seconds: 3 },
@@ -4382,24 +4468,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
     ];
     for (index, state) in states.into_iter().enumerate() {
         let rows = Box::new([
-            Row {
-                account: 12,
-                person: 7,
-                task: Some(31),
-                began: Wall::EPOCH,
-                took: Some(14),
-                step: Step::Answers,
-                state,
-            },
-            Row {
-                account: 11,
-                person: 7,
-                task: None,
-                began: Wall::EPOCH,
-                took: None,
-                step: Step::Starts,
-                state: State::Running,
-            },
+            Row { account: 12, run_wait: None, task: Some(31), took: Some(14), step: Step::Answers, state },
+            Row { account: 11, run_wait: None, task: None, took: None, step: Step::Starts, state: State::Running },
         ]);
         let bytes = family::trials(rows, &w::CEILINGS).expect("whole trial document");
         let mut reader = Reader::new(&bytes);
@@ -4437,15 +4507,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         let bounds = w::Limits { trials_rows: 0, ..w::CEILINGS };
         assert!(
             family::trials(
-                Box::new([Row {
-                    account: 1,
-                    person: 7,
-                    task: None,
-                    began: Wall::EPOCH,
-                    took: None,
-                    step: Step::Starts,
-                    state,
-                }]),
+                Box::new([Row { account: 1, run_wait: None, task: None, took: None, step: Step::Starts, state }]),
                 &bounds
             )
             .is_none()
@@ -4974,9 +5036,17 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
 
 #[test]
 fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
-    let signed = forge::SignOff { person: 42, head: [3; 32], at: skein_lib::Wall::from_nanos(123_456_789) };
+    let signed = forge::ChangesSigned {
+        person: 42,
+        head: [3; 32],
+        at: skein_lib::Wall::from_nanos(123_456_789),
+        name: Some(b"Reviewer".as_slice().into()),
+    };
     let row = forge::ChangesLanded {
-        signed: Box::new([signed]),
+        goal: None,
+        chat: None,
+        milestone: None,
+        signed: Box::new([signed.clone()]),
         task: 51,
         title: b"Signed change".as_slice().into(),
         at: skein_lib::Wall::from_nanos(234_567_890),
@@ -5005,7 +5075,7 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
         assert_eq!(row.signed().len(), 1);
         let sign = row.signed().get(0).unwrap();
         assert_eq!((sign.party(), *sign.head(), sign.at()), (signed.person, signed.head, signed.at.as_nanos()));
-        assert_eq!(sign.name(), &None);
+        assert_eq!(sign.name(), &signed.name);
     }
 }
 

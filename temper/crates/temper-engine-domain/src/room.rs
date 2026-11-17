@@ -340,7 +340,7 @@ fn words(parts: &[&[u8]], figures: &[usize]) -> Box<[u8]> {
 
 /// Trials fit their accounts, the family wire and one whole delivery (domain/trial.md, 3.1 and 6).
 pub(crate) fn trial_rows(limits: &crate::Limits) -> u32 {
-    let row = u32::try_from(size_of::<temper_engine_domain_trials::Row>()).expect("trial row size fits u32");
+    let row = u32::try_from(size_of::<crate::TrialRow>()).expect("trial row size fits u32");
     let room = limits
         .journal
         .result_bytes

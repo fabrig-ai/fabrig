@@ -28,7 +28,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.held`: count, 1,536. Sets the retained held-delivery count; the uncapped journal does not use it for admission.
 - `root.journal.writes`: count, 12,288. Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot.
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
-- `root.journal.transcript_bytes`: bytes, 65,536. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
+- `root.journal.transcript_bytes`: bytes, 88,256. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
 - `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
 - `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.

@@ -66,6 +66,8 @@ pub struct Domain {
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
+    pub(crate) trial_waits: Map<u64, Option<jig_domain_core::documents::TaskRunWait>>,
+    pub(crate) changes_from: crate::changes_from::Memory,
     pub(crate) journal: Journal,
     pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
@@ -593,6 +595,8 @@ impl Domain {
             next_application_owner: 1,
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
+            trial_waits: Map::with_capacity(crate::limits::trial_limits(limits).rows),
+            changes_from: crate::changes_from::Memory::new(),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),

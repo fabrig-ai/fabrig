@@ -279,6 +279,10 @@ pub(crate) fn ended_failed(domain: &mut Domain, waiter: Token) {
 /// Answer the core's ended-row question in its own vocabulary.
 pub(crate) fn ended_answer(domain: &mut Domain, read: EndedRead, row: Option<Box<tasks::TaskRecord>>, busy: bool) {
     let event = match read {
+        EndedRead::ChangeFrom { task } => {
+            domain.work.push(Work::ChangeFromLoaded { task, row });
+            return;
+        }
         EndedRead::EndedTask { request, .. } => jig_domain_core::Event::EndedTaskLoaded { request, row, busy },
         EndedRead::SeenConversation { request, .. } => {
             jig_domain_core::Event::SeenConversationLoaded { request, row, busy }
