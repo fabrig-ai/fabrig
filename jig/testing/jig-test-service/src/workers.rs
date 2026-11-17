@@ -19,18 +19,17 @@ impl Workers {
         files: &Files,
         deployment: [u8; 16],
         limits: &kit::Limits,
+        schema: Option<skein_channel::Schema>,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let host = kit::host::Workers::new(
-            config,
-            files,
-            tokens,
-            jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
-            limits,
-        )?;
+        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
+        let host = match schema {
+            Some(schema) => kit::host::Workers::with_schema(config, files, tokens, application, limits, schema),
+            None => kit::host::Workers::new(config, files, tokens, application, limits),
+        }?;
         let mut endpoints = List::with_capacity(u32::try_from(config.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &config.llm.endpoints {
             endpoints

@@ -1,12 +1,13 @@
 //! Host adapters expose only service ports to the scenario (service.md, 4).
 use crate::{fixtures, relay::Relay, world::Capture};
-use jig_test_service::Service;
+use jig_test_service::{Prepared, Service, prepare};
 use skein_io::kernel;
 use skein_lib::{Queue, Time, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{Inherited, PipeHost};
 use smith_agent_process_world as agent_fixture;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
 
 pub(crate) enum Proc {
     Auth(Box<dyn Host>),
@@ -182,7 +183,7 @@ pub(crate) fn engine_failed_starts(inherited: &Inherited) -> Proc {
     proc
 }
 pub(crate) fn engine_providers(inherited: &Inherited) -> Proc {
-    engine_document(inherited, &fixtures::providers_document())
+    engine_document(inherited, providers_prepared())
 }
 pub(crate) fn engine_drain(inherited: &Inherited) -> Proc {
     engine_configured(inherited, false)
@@ -191,25 +192,50 @@ pub(crate) fn engine_calls(inherited: &Inherited) -> Proc {
     engine_configured(inherited, true)
 }
 pub(crate) fn engine_message(inherited: &Inherited) -> Proc {
-    engine_document(inherited, &fixtures::engine_message_document())
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    engine_document(
+        inherited,
+        PREPARED.get_or_init(|| prepare(&fixtures::engine_message_document()).expect("message configuration")),
+    )
 }
 pub(crate) fn engine_window(inherited: &Inherited) -> Proc {
-    engine_document(inherited, &fixtures::engine_window_document())
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    engine_document(
+        inherited,
+        PREPARED.get_or_init(|| prepare(&fixtures::engine_window_document()).expect("window configuration")),
+    )
 }
 pub(crate) fn engine_application_generation(inherited: &Inherited) -> Proc {
-    let document = String::from_utf8(fixtures::engine_document()).expect("fixture UTF-8").replace(
-        r#""prefix":["one"],"resources":[]"#,
-        r#""prefix":["one"],"resources":[{"path":["one","item"],"state":0}]"#,
-    );
-    engine_document(inherited, document.as_bytes())
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| {
+        let document = String::from_utf8(fixtures::engine_document()).expect("fixture UTF-8").replace(
+            r#""prefix":["one"],"resources":[]"#,
+            r#""prefix":["one"],"resources":[{"path":["one","item"],"state":0}]"#,
+        );
+        prepare(document.as_bytes()).expect("generation configuration")
+    });
+    engine_document(inherited, prepared)
 }
 fn engine_configured(inherited: &Inherited, calls: bool) -> Proc {
-    engine_document(inherited, &if calls { fixtures::engine_call_document() } else { fixtures::engine_document() })
+    static CALLS: OnceLock<Prepared> = OnceLock::new();
+    let prepared = if calls {
+        CALLS.get_or_init(|| prepare(&fixtures::engine_call_document()).expect("call configuration"))
+    } else {
+        engine_prepared()
+    };
+    engine_document(inherited, prepared)
 }
-pub(crate) fn engine_document(inherited: &Inherited, document: &[u8]) -> Proc {
+pub(crate) fn engine_prepared() -> &'static Prepared {
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    PREPARED.get_or_init(|| prepare(&fixtures::engine_document()).expect("engine configuration"))
+}
+pub(crate) fn providers_prepared() -> &'static Prepared {
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    PREPARED.get_or_init(|| prepare(&fixtures::providers_document()).expect("providers configuration"))
+}
+pub(crate) fn engine_document(inherited: &Inherited, prepared: &Prepared) -> Proc {
     let mut service =
-        jig_test_service::startup(document, &fixtures::files(false), None, &fixtures::seeds(), None, None)
-            .expect("engine configuration");
+        prepared.startup(&fixtures::files(false), None, &fixtures::seeds(), None, None).expect("engine configuration");
     service.adopt_signals(inherited.signal).expect("engine signal source");
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("deployment root").1;
     service.adopt_store(root, 1000).expect("store directory");
@@ -242,7 +268,15 @@ pub(crate) fn worker_providers(root: kernel::Fd) -> Proc {
     worker_configured(root, false, false, true)
 }
 fn worker_configured(root: kernel::Fd, bad_charter: bool, message: bool, providers: bool) -> Proc {
-    worker_document(root, bad_charter, message, providers, Backend::Direct, fixtures::WORKER_DOCUMENT)
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    worker_document(
+        root,
+        bad_charter,
+        message,
+        providers,
+        Backend::Direct,
+        PREPARED.get_or_init(|| prepare(fixtures::WORKER_DOCUMENT).expect("worker configuration")),
+    )
 }
 #[derive(Clone, Copy)]
 enum Backend {
@@ -253,11 +287,15 @@ enum Backend {
     BothWays,
 }
 pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
-    let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec())
-        .expect("worker JSON")
-        .replace("\"core.call_answer_bytes\":2048", "\"core.call_answer_bytes\":64")
-        .replace("\"hub.run_calls\":1", "\"hub.run_calls\":2");
-    worker_document(root, false, false, false, Backend::Calls, document.as_bytes())
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| {
+        let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec())
+            .expect("worker JSON")
+            .replace("\"core.call_answer_bytes\":2048", "\"core.call_answer_bytes\":64")
+            .replace("\"hub.run_calls\":1", "\"hub.run_calls\":2");
+        prepare(document.as_bytes()).expect("worker calls configuration")
+    });
+    worker_document(root, false, false, false, Backend::Calls, prepared)
 }
 fn worker_document(
     root: kernel::Fd,
@@ -265,7 +303,7 @@ fn worker_document(
     message: bool,
     providers: bool,
     backend: Backend,
-    document: &[u8],
+    prepared: &Prepared,
 ) -> Proc {
     let mut roots = skein_lib::List::with_capacity(1);
     roots.push(root).expect("one worker root");
@@ -297,15 +335,15 @@ fn worker_document(
         agent.host_limits.message_bytes = 256;
         agent.bounds.message_bytes = 512;
     }
-    let service = jig_test_service::startup(
-        document,
-        &fixtures::files(true),
-        Some(&agent),
-        &fixtures::seeds(),
-        None,
-        Some(jig_test_service::WorkerRuntime { roots }),
-    )
-    .expect("worker configuration");
+    let service = prepared
+        .startup(
+            &fixtures::files(true),
+            Some(&agent),
+            &fixtures::seeds(),
+            None,
+            Some(jig_test_service::WorkerRuntime { roots }),
+        )
+        .expect("worker configuration");
     Proc::Worker(Box::new(ServiceHost::new(service, true)))
 }
 pub(crate) fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
@@ -623,20 +661,32 @@ pub(crate) fn worker_both_ways(inherited: &skein_world::Inherited) -> Proc {
     worker_programs_with(inherited, Backend::BothWays)
 }
 fn worker_programs_with(inherited: &skein_world::Inherited, backend: Backend) -> Proc {
+    static DIRECT: OnceLock<Prepared> = OnceLock::new();
+    static PROGRAM: OnceLock<Prepared> = OnceLock::new();
+    static BOTH_WAYS: OnceLock<Prepared> = OnceLock::new();
     let runs = matches!(backend, Backend::Program | Backend::BothWays);
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
-    let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec()).expect("fixture JSON");
-    let document = if matches!(backend, Backend::BothWays) {
-        document
-            .replace("agent-program", "program-agent")
-            .replace("\"check_interval_ms\":60000", "\"check_interval_ms\":1000")
-    } else if runs {
-        document.replace("agent-program", "program-agent")
-    } else {
-        document.replace(r#""hub.slots":1"#, r#""hub.detail_bytes":8,"hub.slots":1"#)
+    let cache = match backend {
+        Backend::Direct | Backend::List => &DIRECT,
+        Backend::Program => &PROGRAM,
+        Backend::BothWays => &BOTH_WAYS,
+        Backend::Calls => unreachable!("calls do not use program sources"),
     };
-    let mut worker = worker_document(root, false, false, false, backend, document.as_bytes());
+    let prepared = cache.get_or_init(|| {
+        let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec()).expect("fixture JSON");
+        let document = if matches!(backend, Backend::BothWays) {
+            document
+                .replace("agent-program", "program-agent")
+                .replace("\"check_interval_ms\":60000", "\"check_interval_ms\":1000")
+        } else if runs {
+            document.replace("agent-program", "program-agent")
+        } else {
+            document.replace(r#""hub.slots":1"#, r#""hub.detail_bytes":8,"hub.slots":1"#)
+        };
+        prepare(document.as_bytes()).expect("program worker configuration")
+    });
+    let mut worker = worker_document(root, false, false, false, backend, prepared);
     let Proc::Worker(host) = &mut worker else { unreachable!("worker factory") };
     host.service.adopt_signals(inherited.signal).expect("worker signal source");
     host.service

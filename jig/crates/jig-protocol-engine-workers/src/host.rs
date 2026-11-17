@@ -93,6 +93,27 @@ impl Workers {
         application: jig_protocol_worker_wire::Application,
         limits: &Limits,
     ) -> Result<Self, Problems> {
+        Self::build(config, files, tokens, application, limits, None)
+    }
+    /// Constructs a fresh host with the immutable full channel table prepared for these limits.
+    pub fn with_schema(
+        config: &config::Engine,
+        files: &config::Files,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: skein_channel::Schema,
+    ) -> Result<Self, Problems> {
+        Self::build(config, files, tokens, application, limits, Some(schema))
+    }
+    fn build(
+        config: &config::Engine,
+        files: &config::Files,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: Option<skein_channel::Schema>,
+    ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
         for worker in &config.hosts.workers {
             let digest = match config::digest(files.contents(&worker.digest).ok_or(invalid(What::Unreadable))?) {
@@ -102,7 +123,11 @@ impl Workers {
             workers.push(Worker { name: worker.name.clone(), digest }).or(Err(invalid(What::Bound)))?;
         }
         let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).ok_or(invalid(What::Bound))?;
-        let (schema, spoken) = jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?;
+        let schema = match schema {
+            Some(schema) => schema,
+            None => jig_protocol_worker_wire::schema(&codec).or(Err(invalid(What::Bound)))?,
+        };
+        let spoken = jig_protocol_worker_wire::spoken();
         let component = Component::with_schema(limits, workers.into_boxed(), spoken, application, schema)
             .or(Err(invalid(What::Bound)))?;
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;

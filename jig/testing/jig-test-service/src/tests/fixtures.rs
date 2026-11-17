@@ -368,7 +368,7 @@ pub fn values() -> crate::values::Values {
 }
 pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers {
     let limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers;
-    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
+    crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits, None).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
     use jig_domain_brief::{Core, GatherPlaced};

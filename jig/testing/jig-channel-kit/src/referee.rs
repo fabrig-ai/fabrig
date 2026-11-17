@@ -1173,18 +1173,12 @@ impl Referee {
                             ));
                         }
                     }
-                    host.service = jig_test_service::startup(
-                        &if matches!(self.story, crate::stories::Story::Providers) {
-                            crate::fixtures::providers_document()
-                        } else {
-                            crate::fixtures::engine_document()
-                        },
-                        &crate::fixtures::files(false),
-                        None,
-                        &crate::fixtures::seeds(),
-                        None,
-                        None,
-                    )
+                    host.service = if matches!(self.story, crate::stories::Story::Providers) {
+                        crate::processes::providers_prepared()
+                    } else {
+                        crate::processes::engine_prepared()
+                    }
+                    .startup(&crate::fixtures::files(false), None, &crate::fixtures::seeds(), None, None)
                     .map_err(|why| format!("restart after drained: {why:?}"))?;
                     let root = host.restart_root.take().ok_or("independent directory for the drained restart")?;
                     host.service.adopt_store(root, 1000).map_err(|why| format!("restart store directory: {why:?}"))?;
