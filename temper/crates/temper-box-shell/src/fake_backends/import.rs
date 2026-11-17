@@ -13,10 +13,8 @@ pub(super) struct Source {
     pub bundle: Option<PathBuf>,
     pub bundle_limits: temper_service::limits::Clients,
 }
-const RESOURCES: &[(&str, bool, &str)] = &[
-    ("workers/0/secret", false, "worker.secret"),
-    ("application/demo/llm/key", false, "demo/llm.key"),
-];
+const RESOURCES: &[(&str, bool, &str)] =
+    &[("workers/0/secret", false, "worker.secret"), ("application/demo/llm/key", false, "demo/llm.key")];
 impl Source {
     pub(super) fn read(dirs: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Self, String> {
         let config = crate::path(&dirs.config);

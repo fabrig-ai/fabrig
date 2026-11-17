@@ -722,7 +722,8 @@ pub(crate) fn worker_redial_ceiling() -> Duration {
         )
         .expect("fixture worker")
         .limits
-        .as_ref().expect("configured limits")
+        .as_ref()
+        .expect("configured limits")
         .link
         .ceiling
     })

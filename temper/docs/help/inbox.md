@@ -57,7 +57,12 @@ A party's inbox is what waits on it, questions, proposals, escalations and perso
   then answer its shown choice with `task answer TASK --rev REV CHOICE
   TEXT`, or its words with `task answer TASK --rev REV TEXT`.
   `task hand-back TASK` returns a claim to the role. Read `help task
-  answer` for approval and cannot-do forms.
+  answer` for approval and cannot-do forms. Pass up what waits on you:
+  a person task with `task amend TASK --to-party PARTY REASON` (or
+  `--to-role ROLE`), where you may amend it: its requester and those
+  above it, the project's owners and maintainers, or a role whose
+  policy allows amending. Pass up an escalation with `task decide TASK
+  --hold REV pass-up`.
 - **temper's runs** have no inbox: what waits on a run reaches it at
   its turns, as its rules for waking say (temper help task).
 
