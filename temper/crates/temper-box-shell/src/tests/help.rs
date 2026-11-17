@@ -334,11 +334,8 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
     // charter calls tools_for; the report/workspace gate is already pinned by
     // temper-engine-smith's a_report_run_cannot_modify_without_delivery.
     let charter = temper_engine_smith::charter(&assignment);
-    for name in [b"change".as_slice(), b"goal", b"delegate"] {
+    for name in [b"change".as_slice(), b"goal", b"delegate", b"effect_forge", b"propose"] {
         assert!(!charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "not declared: {name:?}");
-    }
-    for name in [b"effect_forge".as_slice(), b"propose"] {
-        assert!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "still declared: {name:?}");
     }
 }
 

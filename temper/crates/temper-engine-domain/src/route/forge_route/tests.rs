@@ -1812,7 +1812,7 @@ fn a_landing_repair_charter_fit_cuts_pull_contents_and_keeps_its_whole_ci() {
             b"Pull request" => {
                 assert!(section.text.len() < pull.len(), "pull contents yield to the charter bound");
                 assert!(section.text.starts_with(b"Pull request: #7\n"));
-                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+                assert!(section.text.ends_with(b" bytes; whole: read_issues]\n"));
             }
             _ => {}
         }
@@ -2333,7 +2333,7 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
         &commit_text(&red),
         b", base ",
         &commit_text(&green),
-        b": https://forge.example/o/r/actions/runs/998\nFailed tests: not known (the gate names no report)\nFailed job: gate: read_job head=",
+        b": https://forge.example/o/r/actions/runs/998\nFailed tests: not known (the gate names no report)\nFailed job: gate: read_ci what=job commit=",
         &commit_text(&red),
         b" run=4211 job=9001 attempt=1",
     ]);
@@ -2395,10 +2395,16 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
         &prefix,
         b", base unknown: https://forge.example/o/r/actions/runs/998",
     ]);
-    let job =
-        skein_lib::bytes::concat(&[b"\nFailed job: gate: read_job head=", &prefix, b" run=4211 job=9001 attempt=1"]);
-    let lint =
-        skein_lib::bytes::concat(&[b"\nFailed job: lint: read_job head=", &prefix, b" run=4211 job=9002 attempt=3"]);
+    let job = skein_lib::bytes::concat(&[
+        b"\nFailed job: gate: read_ci what=job commit=",
+        &prefix,
+        b" run=4211 job=9001 attempt=1",
+    ]);
+    let lint = skein_lib::bytes::concat(&[
+        b"\nFailed job: lint: read_ci what=job commit=",
+        &prefix,
+        b" run=4211 job=9002 attempt=3",
+    ]);
     let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
     let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
     let report = b"\nFailed tests: not known (the gate names no report)";
@@ -2412,7 +2418,7 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
             kept,
             b"\n[",
             skein_lib::Decimal::of(omitted).as_bytes(),
-            b" more failed tests and jobs: read_checks names them]",
+            b" more failed tests and jobs: read_ci what=checks names them]",
         ]);
         let bound = u32::try_from(expected.len()).unwrap();
         assert_eq!(super::repair_words(&row, why, Some(&failure), &[], bound).unwrap(), expected);
@@ -6160,14 +6166,14 @@ fn landing_repairs_keep_report_tests_before_jobs_and_a_cut_below_list() {
         b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)\nFailed test: test skein-lib::suite b (focused)";
     let run_at = find(&whole, b"\nGate run: 4211 at ").unwrap();
     let tests_at = find(&whole, tests).expect("each reported test has its required profile line");
-    let job_at = find(&whole, b"\nFailed job: gate: read_job head=").unwrap();
+    let job_at = find(&whole, b"\nFailed job: gate: read_ci what=job commit=").unwrap();
     assert!(run_at < tests_at && tests_at < job_at);
     let without_list = u32::try_from(whole.len() - b" Changes landing below it: 2341 (#7), 2342 (#8).".len()).unwrap();
     let cut = super::repair_words(&row, why, Some(&failure), &[], without_list).unwrap();
     assert!(find(&cut, b"2341 (#7)").is_none(), "optional below list yields first");
     assert!(cut.ends_with(&whole[run_at..]), "run, all tests and jobs survive whole");
     let first_test = b"\nFailed test: test skein-lib::suite fuzzy::a (fuzzy)";
-    let marker = b"\n[2 more failed tests and jobs: read_checks names them]";
+    let marker = b"\n[2 more failed tests and jobs: read_ci what=checks names them]";
     let bound = u32::try_from(
         usize::try_from(without_list).unwrap() - whole[tests_at..].len() + first_test.len() + marker.len(),
     )

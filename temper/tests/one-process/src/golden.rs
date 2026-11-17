@@ -730,6 +730,10 @@ fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::G
     let sections =
         document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
     *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
+    temper_playground::documents::turn_bounds::apply(
+        &mut document,
+        temper_playground::documents::agent().limits.bodies.turn_body,
+    );
     let given = temper_playground::documents::given(&document);
     let temper_service::stock::Given::Own { jig, .. } = &given else { panic!("golden world defaults") };
     for (name, count) in [

@@ -221,7 +221,7 @@ fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_
     assert_ne!(head, failure.candidate);
     let job = failure.jobs.first().expect("failed job");
     let expected_pin = format!(
-        "read_job head {} run {} job {} attempt {}",
+        "read_ci what=job commit {} run {} job {} attempt {}",
         hex(&failure.candidate),
         failure.run.id,
         job.job,
@@ -258,9 +258,10 @@ fn a_landing_repair_reads_gate_checks_at_its_head_and_candidate_and_follows_the_
         assert!(text.contains(&expected_status), "{text}");
         assert!(text.contains(std::str::from_utf8(&failure.run.url).unwrap()), "{text}");
         let pin = text.lines().find(|line| *line == expected_pin).expect("candidate job pin");
+        let pin = pin.strip_prefix("read_ci what=job ").expect("job read");
         let fields: Vec<_> = pin.split_ascii_whitespace().collect();
         let input =
-            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[2], fields[4], fields[6], fields[8]);
+            format!(r#"{{"head":"{}","run":{},"job":{},"attempt":{}}}"#, fields[1], fields[3], fields[5], fields[7]);
         let answer =
             named_read(&mut world, &repair, 510 + u32::try_from(index).unwrap(), b"read_job", input.as_bytes());
         let rendered = temper_engine_smith::answer(&answer);

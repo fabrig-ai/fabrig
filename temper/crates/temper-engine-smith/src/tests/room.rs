@@ -14,8 +14,12 @@ fn endpoints() -> smith_protocol_translate::Endpoints {
         .unwrap();
     smith_protocol_translate::Endpoints::new(entries)
 }
+fn budgets() -> jig_domain_core::CoreBriefBudgets {
+    jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.brief_core_budgets
+}
+
 fn host_part(limits: &run::Limits) -> temper_engine_domain::room::HostPart {
-    measure_host_part(Some(limits), 65_536, &endpoints())
+    measure_host_part(Some(limits), 65_536, &endpoints(), &budgets())
 }
 
 fn non_brief(charter: &run::Charter, limits: &run::Limits) -> u64 {
@@ -197,6 +201,10 @@ fn a_small_receiving_bound_does_not_change_the_measured_costs() {
 }
 
 fn stock_charters() -> Box<[engine::Charter]> {
+    stock_defaults().charters
+}
+
+pub(crate) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     use jig_protocol_config as config;
     let text = include_str!("../../../temper-init/template/temper.json")
         .replace("$llm", "127.0.0.1:8370")
@@ -219,10 +227,9 @@ fn stock_charters() -> Box<[engine::Charter]> {
     let document =
         config::document(&engine_bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
             .unwrap();
-    let engine =
-        config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
+    let engine = config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed, &config::Fixed::NONE)
             .unwrap();
-    temper_engine_service_stock::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).charters
+    temper_engine_service_stock::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
 }
 
 fn encoded(charter: &run::Charter, endpoints: &smith_protocol_translate::Endpoints) -> u64 {
@@ -233,7 +240,7 @@ fn encoded(charter: &run::Charter, endpoints: &smith_protocol_translate::Endpoin
 #[test]
 fn fixed_costs_are_smiths_owned_and_encoded_measure_on_every_stock_wake() {
     let endpoints = endpoints();
-    let table = measure_host_part(Some(&measured_limits()), 65_536, &endpoints);
+    let table = measure_host_part(Some(&measured_limits()), 65_536, &endpoints, &budgets());
     for mut stock in stock_charters() {
         for model in core::iter::once(&mut stock.policy.model).chain(&mut stock.policy.alternatives) {
             model.endpoint = 2;
@@ -282,10 +289,11 @@ fn fixed_costs_are_smiths_owned_and_encoded_measure_on_every_stock_wake() {
 
 #[test]
 fn no_local_agent_keeps_the_owned_and_encoded_costs_and_skips_rendering() {
-    let with = measure_host_part(Some(&measured_limits()), 65_536, &endpoints());
-    let without = measure_host_part(None, 65_536, &endpoints());
+    let with = measure_host_part(Some(&measured_limits()), 65_536, &endpoints(), &budgets());
+    let without = measure_host_part(None, 65_536, &endpoints(), &budgets());
     assert_eq!(without.bound, None);
     for (with, without) in [
+        (with.floor, without.floor),
         (with.fixed, without.fixed),
         (with.model, without.model),
         (with.always, without.always),
@@ -297,5 +305,53 @@ fn no_local_agent_keeps_the_owned_and_encoded_costs_and_skips_rendering() {
     {
         assert_eq!((with.owned, with.encoded), (without.owned, without.encoded));
         assert_eq!(without.rendered, 0);
+    }
+}
+
+#[test]
+fn the_floor_is_smiths_measure_of_the_six_profile_sections() {
+    use jig_protocol_config::{Profile, profile};
+    let shipped = budgets();
+    let varied = jig_domain_core::CoreBriefBudgets {
+        task: 7,
+        tail: 11,
+        dependencies: 13,
+        attempts: 17,
+        plan: 19,
+        notes: 23,
+        preferences: 10_000,
+        now: 10_000,
+    };
+    for budgets in [shipped, profile(Profile::Standard).core.brief_core_budgets, varied] {
+        for limits in [Some(measured_limits()), None] {
+            let endpoints = endpoints();
+            let table = measure_host_part(limits.as_ref(), 65_536, &endpoints, &budgets);
+            let mut assignment = largest();
+            let mut sections = skein_lib::List::with_capacity(6);
+            for (kind, size) in [
+                (jig_domain_brief::Core::Task, budgets.task),
+                (jig_domain_brief::Core::TranscriptTail, budgets.tail),
+                (jig_domain_brief::Core::Results, budgets.dependencies),
+                (jig_domain_brief::Core::Attempts, budgets.attempts),
+                (jig_domain_brief::Core::Plan, budgets.plan),
+                (jig_domain_brief::Core::NotesIndex, budgets.notes),
+            ] {
+                let mut text = skein_lib::bytes::zeroed(usize::try_from(size).unwrap());
+                text.fill(b'x');
+                sections
+                    .push(engine::BriefSection {
+                        kind: engine::BriefKind::Core(kind),
+                        body: engine::BriefBody::Text(text),
+                    })
+                    .unwrap();
+            }
+            assignment.sections = sections.into_boxed();
+            let with = charter(&assignment);
+            assignment.sections = Box::new([]);
+            let without = charter(&assignment);
+            assert_eq!(table.floor.rendered, 0);
+            assert_eq!(table.floor.owned, with.owned_bytes().unwrap() - without.owned_bytes().unwrap());
+            assert_eq!(table.floor.encoded, encoded(&with, &endpoints) - encoded(&without, &endpoints));
+        }
     }
 }

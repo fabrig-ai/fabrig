@@ -118,7 +118,7 @@ fn the_designers_charter_writes_deliveries_for_history_and_catches_up_only_for_a
     assert!(text.contains("write its title and body for the history"));
     assert!(text.contains("Deliver at any point, even while g lands: the closer lands the new head."));
     assert!(text.contains("**Main into g** only for a change that needs what main gained since g was made"));
-    assert!(text.contains("`\"merge\"` naming main's tip (read it with `read_branch`), its words saying what it brings and for which change, named in that change's `after`"));
+    assert!(text.contains("`\"merge\"` naming main's tip (read it with `read_forge what=branch`), its words saying what it brings and for which change, named in that change's `after`"));
     assert!(text.contains("The merge job makes it, with no implementer"));
     assert!(text.contains("a conflict going to a resolution; with no merge job the call is refused: ask your person"));
     assert!(text.contains("Never take main to keep g current"));
@@ -138,7 +138,7 @@ fn the_coordinators_charter_writes_deliveries_for_history_and_catches_up_only_fo
     assert!(text.contains("write its title and body for the history"));
     assert!(text.contains("Deliver at any point, even while g lands: the closer lands the new head."));
     assert!(text.contains("**Main into g** only for a change that needs what main gained since g was made"));
-    assert!(text.contains("`\"merge\"` naming main's tip (read it with `read_branch`), its words saying what it brings and for which change, named in that change's `after`"));
+    assert!(text.contains("`\"merge\"` naming main's tip (read it with `read_forge what=branch`), its words saying what it brings and for which change, named in that change's `after`"));
     assert!(text.contains("The merge job makes it, with no implementer"));
     assert!(text.contains("a conflict going to a resolution; with no merge job the call is refused: ask your person"));
     assert!(text.contains("Never take main to keep g current"));

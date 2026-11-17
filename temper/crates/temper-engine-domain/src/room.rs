@@ -56,6 +56,8 @@ pub struct HostPart {
     pub modify: u64,
     pub shell: u64,
     pub agents: u64,
+    /// The brief's six sections at their profile budgets, owned and encoded with titles and framing; rendered zero.
+    pub floor: Cost,
 }
 
 /// The fixed part's first failing measure (domain/agent/room.md, 4.3).
@@ -65,7 +67,7 @@ pub enum Measure {
     Encoded,
 }
 
-/// A fixed part past its allowance, before any brief.
+/// A fixed part past its allowance or leaving less than the brief's floor.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Unfit {
     pub charter: u32,
@@ -73,6 +75,8 @@ pub struct Unfit {
     pub measure: Measure,
     pub bytes: u64,
     pub allowance: u64,
+    /// The floor in the failing measure; zero where the fixed part passed the allowance itself.
+    pub floor: u64,
 }
 
 /// Fixed-part admission precedes rendered-room admission.
@@ -116,6 +120,7 @@ impl HostPart {
         modify: 0,
         shell: 0,
         agents: 0,
+        floor: Cost::ZERO,
     };
 
     /// Fixed parts, declarations and the instructions with every charter part joined,
@@ -231,7 +236,21 @@ impl HostPart {
         }
         for (measure, (wake, bytes)) in [(Measure::Owned, owned), (Measure::Encoded, encoded)] {
             if bytes > self.allowance {
-                return Err(Unfit { charter: charter.number, wake, measure, bytes, allowance: self.allowance });
+                return Err(Unfit {
+                    charter: charter.number,
+                    wake,
+                    measure,
+                    bytes,
+                    allowance: self.allowance,
+                    floor: 0,
+                });
+            }
+        }
+        for (measure, (wake, bytes), floor) in
+            [(Measure::Owned, owned, self.floor.owned), (Measure::Encoded, encoded, self.floor.encoded)]
+        {
+            if self.allowance.saturating_sub(bytes) < floor {
+                return Err(Unfit { charter: charter.number, wake, measure, bytes, allowance: self.allowance, floor });
             }
         }
         Ok(())
@@ -293,6 +312,28 @@ impl Unfit {
             Measure::Owned => b"owned",
             Measure::Encoded => b"encoded",
         };
+        if self.floor != 0 {
+            let left = Decimal::of(self.allowance.saturating_sub(self.bytes));
+            let floor = Decimal::of(self.floor);
+            return words(
+                &[
+                    b"charter ",
+                    charter.as_bytes(),
+                    b" on a ",
+                    wake,
+                    b" wake is ",
+                    bytes.as_bytes(),
+                    b" bytes ",
+                    measure,
+                    b" before its brief, leaving its brief ",
+                    left.as_bytes(),
+                    b" of the ",
+                    floor.as_bytes(),
+                    b" its floor needs; trim its text, parts or tool families",
+                ],
+                &[1, 5, 9, 11],
+            );
+        }
         words(
             &[
                 b"charter ",

@@ -69,7 +69,7 @@ impl World {
         for turn in &mut script.turns {
             for line in &mut turn.lines {
                 if let Line::Call { name, arguments } = line
-                    && name.as_ref() == b"read_file"
+                    && name.as_ref() == b"read_forge"
                 {
                     *arguments = String::from_utf8(arguments.to_vec())
                         .expect("fixture JSON")

@@ -496,7 +496,7 @@ fn a_goal_calls_change_and_its_change_is_made() {
     let change_tool =
         charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
     let schema: serde_json::Value = serde_json::from_slice(&change_tool.schema).expect("change schema");
-    for member in ["changes", "name", "landing", "after", "branch"] {
+    for member in ["changes", "producer", "questions"] {
         assert!(schema["properties"].get(member).is_some(), "plan member {member} offered");
     }
     let change = delegated(call(

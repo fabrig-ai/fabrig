@@ -112,7 +112,7 @@ fn decode_review(assignment: host::Assignment, bound: u64) -> smith_host_domain:
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the regression verifies the retained UTF-8 prefix")]
 fn a_large_pull_review_fits_before_assignment_admission() {
-    let assignment = review_assignment(41_473);
+    let assignment = review_assignment(65_536);
     let original = temper_engine_smith::charter(&assignment);
     let start = admitted_review(assignment, 65_536);
     let charter = start.charter.value();
@@ -123,7 +123,7 @@ fn a_large_pull_review_fits_before_assignment_admission() {
     let pull = &charter.brief.sections[1];
     assert_eq!(pull.title.as_ref(), b"Pull request");
     assert!(pull.text.starts_with(b"Pull #10 acme/shop head recorded-head\n"));
-    assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    assert!(pull.text.ends_with(b" bytes; whole: read_issues]\n"));
     assert!(skein_lib::bytes::find(&pull.text, b"[cut ").is_some());
     ::core::str::from_utf8(&pull.text).expect("a pull cut keeps complete UTF-8 characters");
 }
@@ -146,8 +146,8 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     let mut assignment = review_assignment(10_000);
     let mut sections = assignment.sections.into_vec();
-    for kind in [ForgeBriefKind::Home, ForgeBriefKind::Ci] {
-        sections.push(BriefSection { kind: BriefKind::Forge(kind), body: BriefBody::Text(vec![b'x'; 20_000].into()) });
+    for (kind, bytes) in [(ForgeBriefKind::Home, 20_000), (ForgeBriefKind::Ci, 35_000)] {
+        sections.push(BriefSection { kind: BriefKind::Forge(kind), body: BriefBody::Text(vec![b'x'; bytes].into()) });
     }
     assignment.sections = sections.into();
     let original = temper_engine_smith::charter(&assignment);
@@ -157,7 +157,7 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
     assert_eq!(sections[0], original.brief.sections[0]);
     assert_eq!(sections[1], original.brief.sections[1]);
     assert_eq!(sections[2], original.brief.sections[2]);
-    assert!(sections[3].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(sections[3].text.ends_with(b" bytes; whole: read_ci]\n"));
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
 fn review_fitting_uses_the_configured_assignment_envelope() {
     // Measured CPU: 0.023 s for both envelopes and the reference's large sections.
     for bound in [49_152, 98_304] {
-        let assignment = review_assignment(41_473);
+        let assignment = review_assignment(65_536);
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
         let pull = &start.charter.value().brief.sections[1];
@@ -198,7 +198,7 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             let text = ::core::str::from_utf8(&fitted.brief.sections[1].text).unwrap();
             let (kept, marker) = text.rsplit_once("\n[cut ").expect("a section past its room is cut");
             assert!(original.starts_with(kept));
-            assert_eq!(marker, format!("{} bytes; whole: read_pull/read_pull_files]\n", size - kept.len()));
+            assert_eq!(marker, format!("{} bytes; whole: read_issues]\n", size - kept.len()));
         }
     }
 }

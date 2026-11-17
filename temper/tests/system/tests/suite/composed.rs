@@ -356,18 +356,18 @@ fn plan_script(reads: bool) -> skein_fake_llm_domain::api::Script {
     use temper_system_world::composed::call;
     let mut turns = Vec::new();
     if reads {
-        turns.push(call(b"read_branch", br#"{"repository":".","branch":"main"}"#));
-        turns.push(call(b"read_branch", br#"{"branch":"main"}"#));
+        turns.push(call(b"read_forge", br#"{"what":"branch","repository":".","branch":"main"}"#));
+        turns.push(call(b"read_forge", br#"{"what":"branch","branch":"main"}"#));
         for path in [".", "src", "README.md", "src/main.rs"] {
             turns.push(call(
-                b"read_file",
-                format!(r#"{{"head":"0000000000000000000000000000000000000001","path":"{path}","max_bytes":4096}}"#)
+                b"read_forge",
+                format!(r#"{{"what":"file","commit":"0000000000000000000000000000000000000001","path":"{path}","max_bytes":4096}}"#)
                     .as_bytes(),
             ));
         }
         // Keep the question and wait at the stock chat's last two completions.
         for _ in 6..62 {
-            turns.push(call(b"read_branch", br#"{"branch":"main"}"#));
+            turns.push(call(b"read_forge", br#"{"what":"branch","branch":"main"}"#));
         }
     }
     turns
@@ -537,11 +537,14 @@ fn unfinished_review() -> skein_fake_llm_domain::api::Script {
     // Only the two abbreviated-hash reads and the missing verdict are recorded
     // in the sighting; the other four reads use the brief's full head.
     let mut turns = vec![
-        call(b"read_compare", br#"{"repository":"org/repo","before":"f471720","after":"$HEAD"}"#),
-        call(b"read_file", br#"{"repository":"org/repo","head":"f471720","path":"README.md"}"#),
+        call(b"read_forge", br#"{"what":"compare","repository":"org/repo","before":"f471720","after":"$HEAD"}"#),
+        call(b"read_forge", br#"{"what":"file","repository":"org/repo","commit":"f471720","path":"README.md"}"#),
     ];
     for _ in 0..4 {
-        turns.push(call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"README.md"}"#));
+        turns.push(call(
+            b"read_forge",
+            br#"{"what":"file","repository":"org/repo","commit":"$HEAD","path":"README.md"}"#,
+        ));
     }
     turns.push(skein_fake_llm_domain::api::Turn {
         lines: Box::default(),
@@ -656,14 +659,14 @@ fn forge_reads_fit_the_receiving_agents_reply_bound() {
     // Tabs require escaping, so fitting must count more than the raw prefix.
     content[100..104].copy_from_slice(b"\t\t\t\t");
     let mut turns = vec![
-        call(b"read_compare", br#"{"before":"$BEFORE","after":"$HEAD"}"#),
-        call(b"read_pull_files", br#"{"number":1,"head":"$HEAD"}"#),
+        call(b"read_forge", br#"{"what":"compare","before":"$BEFORE","after":"$HEAD"}"#),
+        call(b"read_issues", br#"{"what":"pull_files","number":1,"commit":"$HEAD"}"#),
     ];
     for maximum in [None, Some(16000), Some(12000), Some(8000)] {
         let bound = maximum.map_or_else(String::new, |value| format!(",\"max_bytes\":{value}"));
         turns.push(call(
-            b"read_file",
-            format!(r#"{{"head":"$HEAD","path":"docs/design/formats.md"{bound}}}"#).as_bytes(),
+            b"read_forge",
+            format!(r#"{{"what":"file","commit":"$HEAD","path":"docs/design/formats.md"{bound}}}"#).as_bytes(),
         ));
     }
     turns.extend(report_script(false).turns);
@@ -705,7 +708,7 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
         assert!(pull_files.contains("Forge read failed: too large: past an unnamed bound."));
         for (output, error) in &outputs {
             if *error {
-                assert!(output.contains("read_file") && output.contains("max_bytes"));
+                assert!(output.contains("read_forge what=file") && output.contains("max_bytes"));
             }
         }
         return;

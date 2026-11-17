@@ -114,7 +114,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     let smith::Event::Start(smith::Start { charter, .. }) = &start else { panic!("smith start") };
     assert_eq!(charter.brief.sections[0].text, uncut.brief.sections[0].text);
     assert_eq!(charter.brief.sections[1].title.as_ref(), b"CI");
-    assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+    assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_ci]\n"));
     assert!(run::brief_bytes(&charter.brief).expect("fitted brief bytes") <= u64::from(BRIEF_ROOM));
     let call = |name: &[u8], arguments: &[u8]| Turn {
         lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
@@ -141,9 +141,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
 
 #[test]
 fn a_large_pull_review_reaches_smith_and_lands() {
-    for (seed, bytes) in [(931, 47_148), (932, 41_473), (933, 128)] {
-        large_pull_review(seed, bytes);
-    }
+    large_pull_review(931, 47_148);
 }
 
 fn large_pull_review(seed: u64, bytes: usize) {
@@ -151,8 +149,11 @@ fn large_pull_review(seed: u64, bytes: usize) {
     let review = Script {
         cue: b"Review the change".as_slice().into(),
         turns: Box::new([
-            call(b"read_pull", br#"{"repository":"org/repo","number":1}"#),
-            call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"export.csv","max_bytes":512}"#),
+            call(b"read_issues", br#"{"what":"pull","repository":"org/repo","number":1}"#),
+            call(
+                b"read_forge",
+                br#"{"what":"file","repository":"org/repo","commit":"$HEAD","path":"export.csv","max_bytes":512}"#,
+            ),
             call(b"finish", br#"{"verdict":"1","body":"The change is correct at the reviewed head."}"#),
         ]),
     };
@@ -173,13 +174,7 @@ fn large_pull_review(seed: u64, bytes: usize) {
     assert_eq!(fitted.instructions, uncut.instructions);
     assert_eq!(fitted.grants, uncut.grants);
     assert_eq!(fitted.outcome, uncut.outcome);
-    let pull =
-        fitted.brief.sections.iter().find(|section| section.title.as_ref() == b"Pull request").expect("pull retained");
-    if bytes > 128 {
-        assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
-    } else {
-        assert_eq!(fitted, uncut, "an already fitting brief is unchanged");
-    }
+    assert_eq!(fitted, uncut, "the reviewer's read-family offer leaves room for the whole gathered brief");
     assert!(
         matches!(world.reviewed_change().change.state, temper_engine_domain_forge_change::State::Landed { .. }),
         "{:?}",

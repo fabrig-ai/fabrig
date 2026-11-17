@@ -1997,6 +1997,9 @@ fn turn_bounds() {
         turn_bound_document(&directory.join(name), turn, true);
     }
     eprintln!("cluster fixture: T={turn}");
+    let turn = temper_playground::documents::agent().limits.bodies.turn_body;
+    turn_bound_document(&root.join("crates/temper-playground/stories/a/deployment.json"), turn, false);
+    eprintln!("story A: T={turn}");
     let github = root.join("bin/temper-box/tests/fixtures/github");
     let agent = fs::read_to_string(github.join("agent.json")).expect("GitHub agent");
     let agent: serde_json::Value =

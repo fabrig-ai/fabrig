@@ -149,7 +149,7 @@ impl Judge {
                 .map_err(|_| "LLM JSON".to_owned())?;
             value["asked"][0]["turns"].as_array_mut().ok_or_else(|| "chat turns".to_owned())?.insert(
                 2,
-                serde_json::json!({"lines":[{"call":"read_pull_for","arguments":{"head":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
+                serde_json::json!({"lines":[{"call":"read_issues","arguments":{"what":"pull_for","branch":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
             );
             super::write_private(&path, &serde_json::to_vec(&value).map_err(|_| "LLM JSON".to_owned())?);
             self.members.up(&["llm"]);
@@ -599,7 +599,7 @@ impl Judge {
             return Err(format!("chat heard the landed pull: {activity}"));
         }
         if !activity["rows"].to_string().contains("Pull 1 head ") {
-            return Err(format!("chat received its read_pull_for answer: {activity}"));
+            return Err(format!("chat received its read_issues what=pull_for answer: {activity}"));
         }
         self.queue(host, landing_reads())?;
         self.stage = Stage::BeforeRestart;

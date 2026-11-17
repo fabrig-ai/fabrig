@@ -575,22 +575,19 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
 }
 
 fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
-    let charter =
+    let mut charter =
         smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding().endpoints)
             .unwrap();
     assert!(charter.owned_bytes().unwrap() <= workers.encoding().charter_bytes);
     assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding().charter_bytes);
-    assert_eq!(charter.instructions, assignment.run.policy.instructions);
-    if extra == 0 {
-        assert_eq!(charter, temper_engine_smith::charter(assignment), "the whole charter fits");
-    } else {
-        assert_eq!(charter.brief.sections.len(), 1, "the specification section is omitted whole");
-        assert_eq!(
-            charter.brief.sections[0].text.as_ref(),
-            b"Context.\n[1 sections omitted: Task; whole: the task's activity]\n",
-            "the retained context names the omitted specification"
-        );
+    let mut original = temper_engine_smith::charter(assignment);
+    if extra != 0 {
+        assert_ne!(charter.brief, original.brief, "a charter past its room has its brief fitted");
+        assert!(charter.brief.sections[0].text.starts_with(b"Context."), "earlier context stays");
+        charter.brief.sections = Box::new([]);
+        original.brief.sections = Box::new([]);
     }
+    assert_eq!(charter, original, "only the brief may change when fitting the receiving bound");
 }
 
 fn assert_refusal(answers: &[hub::RunAnswer], words: &[u8]) {

@@ -429,7 +429,7 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
         FlightRender::Plain
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
-        | FlightRender::ForgeRead
+        | FlightRender::ForgeRead(_)
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)
@@ -457,7 +457,7 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
         FlightRender::Plain
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
-        | FlightRender::ForgeRead
+        | FlightRender::ForgeRead(_)
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)

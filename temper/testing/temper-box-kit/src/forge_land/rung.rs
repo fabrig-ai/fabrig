@@ -694,9 +694,9 @@ fn twin_document() -> Value {
             for line in value["lines"].as_array().expect("lines") {
                 if let Some(call) = line["call"].as_str() {
                     let args = line["arguments"].as_object().expect("call arguments");
-                    let identity = args.contains_key("head")
+                    let identity = (args.contains_key("head") || args.contains_key("commit"))
                         || args.contains_key("merge")
-                        || (call.starts_with("read_pull") && args.contains_key("number"));
+                        || (call == "read_issues" && args.contains_key("number"));
                     assert!(!identity, "unbound recorded identity: task {task}, turn {turn}, call {call}");
                 }
             }

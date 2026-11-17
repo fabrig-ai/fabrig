@@ -55,9 +55,9 @@ core and receiving-agent body allowance (`tools.md`), retaining prefixes
 or actionable size feedback. A forge read still exceeding the core settled
 answer bound or `root.journal.transcript_bytes` returns a bounded error
 naming the exceeded limit and measured bytes, including the tool name. Its refusal fact names
-`host-render` and that limit. An oversized comparison points to `read_pull`
-for the head and `read_pull_files` pages; an oversized pull-file page points
-to directory and selected-file `read_file` calls at both endpoints with
+`host-render` and that limit. An oversized comparison points to `read_issues what=pull`
+for the head and `read_issues what=pull_files` pages; an oversized pull-file page points
+to directory and selected-file `read_forge what=file` calls at both endpoints with
 `max_bytes`. Forge-client admission busy still uses the host's bounded
 backoff.
 A forge read answered with a kind no agent read asks for (`Runs`, `Run`,
@@ -564,8 +564,8 @@ conversation its person ends, kept, listed among the project's chats.
   `delegate` (`tools.md`), and its task's authority, a chat's, would refuse none of
   them: the declaration is the rail. Its charter names no inspect, modify or
   shell, so its runs are given no repository (`charter.md`, 2): it reads the project's
-  code through the forge's reads, `read_branch` for a repository's head and
-  then `read_file`, as a chat does (`tools.md`, 1), and its model's sub-agents survey
+  code through the forge's reads, `read_forge what=branch` for a repository's head and
+  then `read_forge what=file`, as a chat does (`tools.md`, 1), and its model's sub-agents survey
   where it has them, its charter's `agents` set.
 - **Its draft** is the chat's document (3): a `note` in its own task's
   scope, which its authority's goal scope admits, as a chat's.
@@ -613,7 +613,7 @@ conversation its person ends, kept, listed among the project's chats.
 - **A person known by a login alone** (`agents.md`, 1), where no link vouches for them:
   `temper-box serve` with several members, a managed Forgejo, a pasted App. Often
   no collaborator, adoption finds no person for them and the inventory's forge
-  person has no forge user id; `read_permission` takes an id, so the agent
+  person has no forge user id; `read_forge what=permission` takes an id, so the agent
   cannot match them, and `propose_settings` refuses at the call, in
   acceptance's words, an approval only they could meet (`../forge/change/gates.md`, 3;
   `ask-temper.md`, 2), saying who to add on the forge before adopting again, in the browser the adoption

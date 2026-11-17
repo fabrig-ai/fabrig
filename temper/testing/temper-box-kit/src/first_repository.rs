@@ -69,7 +69,7 @@ pub fn forge_read_llm(config: &Path) -> CtlLlm {
         Box::new([Script {
             cue: b"@first-forge-read".as_slice().into(),
             turns: Box::new([
-                call(b"read_branch", &json!({"repository":"playground/widget","branch":"main"})),
+                call(b"read_forge", &json!({"what":"branch","repository":"playground/widget","branch":"main"})),
                 Turn {
                     lines: Box::new([Line::Text { text: b"Read widget's main branch.".as_slice().into() }]),
                     finish: Finish::Stop,

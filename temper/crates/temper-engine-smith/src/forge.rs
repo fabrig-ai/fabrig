@@ -147,7 +147,7 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
     }
 }
 
-/// Bind one declared connector read name to its decoder discriminator.
+/// Bind a kept connector read name to its decoder discriminator.
 pub(crate) fn read_named(name: &[u8], value: &Value) -> Result<api::Read, Problem> {
     let kind: &[u8] = match name {
         b"read_items" => b"items",
