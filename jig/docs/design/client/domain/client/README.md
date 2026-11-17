@@ -152,7 +152,7 @@ jig-client                        jig_client::Client: the domain and the link, c
 ## 4. Its vocabulary toward the application
 
 ```
-jig_client::Client: step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>), next_deadline()
+jig_client::Client: step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>), settle(now, wall, &mut Queue<Request>), next_deadline()
 
 Event, in
   from the application:
@@ -162,11 +162,11 @@ Event, in
     Read { handle, read, cursor }
     Send { key, name, request }                   an operation, a compound request, or a family's request as bytes; name optional
   from the transport:
-    Reply { exchange, message } | Lost { exchange }
+    Reply { exchange, message } | Part { exchange, message } | Done { exchange } | Lost { exchange }
     Streamed { message } | StreamGone
     Stored | NotStored
 Request, out
-  to the transport:   Exchange { exchange, credential, message } | OpenStream { credential } | CloseStream | Save { records } | Erase { records }
+  to the transport:   Exchange { exchange, credential, message } | OpenStream { credential, replaces } | CloseStream | Save { records } | Erase { records }
   to the application: Link(state) | Changed { handle } | Ended { handle, why } | Page { handle, page }
                       Pending { key } | Answered { key, outcome } | Kept { key, request } | Dropped { count } | Text { handle }
 read by the application: client.document(handle), client.text(handle), client.pending(key), client.link()
@@ -200,7 +200,11 @@ read by the application: client.document(handle), client.text(handle), client.pe
     or a family's request as bytes, with a name or none (`requests.md`).
 - **From the transport:**
   - *`Reply { exchange, message }`:* the one record that answers an
-    exchange; *`Lost { exchange }`:* none came whole;
+    exchange; *`Part { exchange, message }`:* one record of a batch's
+    answer, a member's reply, as it comes; *`Done { exchange }`:* a
+    batch's answer ended whole after its parts
+    (`../../../protocol/client/wire.md`, 2.3); *`Lost { exchange }`:*
+    none came whole, or a batch's answer was cut short;
   - *`Streamed { message }`:* one event of the stream, in order: the
     hello, a delivery, a heartbeat, a watch ended; *`StreamGone`:* the
     stream ended;
@@ -208,15 +212,28 @@ read by the application: client.document(handle), client.text(handle), client.pe
     not (section 8).
 - **Time:** `fire(now, wall, ..)`, at the deadline `next_deadline()` gave
   (section 10).
+- **The settling:** `settle(now, wall, ..)`, once the client root has
+  routed every event of its iteration and what followed from it
+  (../root.md, section 3). Linked, `step` and `fire` give the transport
+  no `Exchange`, `OpenStream` or `CloseStream`: the link gathers them,
+  in the order they were asked for, and `settle` gives them, each
+  gathered read, watch's opening and watch's closing in one batch while
+  more than one is gathered (`../../../protocol/client/wire.md`, 2.3).
+  `Save` and `Erase` leave from `step` and `fire`, as before, so a kept
+  request's record is still stored before its exchange leaves (section
+  8). Unlinked, `settle` gives nothing.
 
 ### 4.2 What it asks for
 
 - **Of the transport:**
   - *`Exchange { exchange, credential, message }`:* one of jig's messages
     (`../../../protocol/client/wire.md`, 2.1) with the credential held, or
-    none; answered by one `Reply` or one `Lost`;
-  - *`OpenStream { credential }` and `CloseStream`:* the one stream every
-    watch's deliveries come on;
+    none, a batch of reads and watches among them; answered by one
+    `Reply`, by a batch's `Part`s then `Done`, or by one `Lost`;
+  - *`OpenStream { credential, replaces }` and `CloseStream`:* the one
+    stream every watch's deliveries come on; `replaces` names the last
+    stream this client knew, the one its small store kept at start and
+    then its own, or none (`../../../protocol/client/wire.md`, section 2);
   - *`Save { records }` and `Erase { records }`:* the small store's,
     written before the requests they keep are sent (section 8).
 - **Of the application,** told, never asked to act:
@@ -726,7 +743,11 @@ the client's protocol designs (`../../../protocol/client/README.md`):
   line, or an in-process channel for one process or a world.
 - **One terminal per exchange:** each `Exchange` answered by one `Reply`,
   with the record that came, or by one `Lost` when none came whole
-  within the exchange's deadline, the transport's. The transport makes
+  within the exchange's deadline, the transport's. A batch's is
+  answered by a `Part` for each of its replies as it comes whole, in
+  the order they came, then one `Done` at its answer's end, or one
+  `Lost` when the answer was refused or cut short, after the parts that
+  came whole (`../../../protocol/client/default-http.md`, section 6). The transport makes
   one attempt; retrying is the client's.
 - **The stream in order:** its events from the hello on, each a
   `Streamed`, in the order the component wrote them; then one `StreamGone`,
