@@ -9,7 +9,7 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
                 .replace("see temper help settings for held revisions", "")
                 .replace("temper/docs/design/client/ctl/results.md, 1", "")
         } else if path == &std::path::PathBuf::from("src/jig/render/goal_title.rs") {
-            // The goal title warning names the application's help page (client/ctl/areas.md, 2).
+            // The goal title warning names the application's help page (client/ctl/areas.md), area 2.
             names.replace("temper ctl help goal start", "")
         } else if path == &std::path::PathBuf::from("src/jig/rows.rs") {
             // Sign-in help names the local recovery commands (client/ctl/README.md, 6.1).

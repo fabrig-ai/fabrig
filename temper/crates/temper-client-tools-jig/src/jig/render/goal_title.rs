@@ -1,4 +1,4 @@
-//! A long goal title warns beside a successful answer (client/ctl/areas.md, 2).
+//! A long goal title warns beside a successful answer (client/ctl/areas.md), area 2.
 use super::Text;
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};

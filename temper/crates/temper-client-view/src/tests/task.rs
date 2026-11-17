@@ -876,50 +876,58 @@ fn the_lineage_cuts_titles_but_the_taskbar_keeps_its_whole_title() {
 }
 
 #[test]
+fn agent_plan_rows_cut_titles_but_own_heading_stays_whole() {
+    plan_row_titles(c::ChipExecutor::Agent { charter: CHARTER });
+}
+
+#[test]
+fn procedure_plan_rows_cut_titles_but_own_heading_stays_whole() {
+    plan_row_titles(c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE });
+}
+
+#[test]
+fn person_plan_rows_cut_titles_but_own_heading_stays_whole() {
+    plan_row_titles(c::ChipExecutor::Party { party: PARTY });
+}
+
 #[expect(clippy::disallowed_macros, reason = "ordinary tests format the taskbar's expected heading")]
-fn plan_rows_cut_titles_while_each_tasks_own_heading_stays_whole() {
-    for executor in [
-        c::ChipExecutor::Agent { charter: CHARTER },
-        c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE },
-        c::ChipExecutor::Party { party: PARTY },
-    ] {
-        for (title, cut) in row_titles() {
-            let mut task = f::delegate();
-            task.activity = 0;
-            task.chip.executor = executor;
-            task.chip.title = fixtures::goal::text(title.as_bytes());
-            let mut live = row();
-            live.chip.title = fixtures::goal::text(title.as_bytes());
-            let mut ended = ended_line(ENDED_CHILD, c::TaskStatus::Done);
-            ended.chip.title = fixtures::goal::text(title.as_bytes());
-            let mut delivery = f::tree();
-            let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
-            tree.rows = List::with_capacity(2);
-            tree.rows.push(live).unwrap();
-            let page = match executor {
-                c::ChipExecutor::Procedure { .. } => Some(tasks_page(&[ended], false, false)),
-                c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } => {
-                    let mut ended_row = row();
-                    ended_row.chip = ended.chip;
-                    tree.rows.push(ended_row).unwrap();
-                    None
-                }
+fn plan_row_titles(executor: c::ChipExecutor) {
+    for (title, cut) in row_titles() {
+        let mut task = f::delegate();
+        task.activity = 0;
+        task.chip.executor = executor;
+        task.chip.title = fixtures::goal::text(title.as_bytes());
+        let mut live = row();
+        live.chip.title = fixtures::goal::text(title.as_bytes());
+        let mut ended = ended_line(ENDED_CHILD, c::TaskStatus::Done);
+        ended.chip.title = fixtures::goal::text(title.as_bytes());
+        let mut delivery = f::tree();
+        let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
+        tree.rows = List::with_capacity(2);
+        tree.rows.push(live).unwrap();
+        let page = match executor {
+            c::ChipExecutor::Procedure { .. } => Some(tasks_page(&[ended], false, false)),
+            c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } => {
+                let mut ended_row = row();
+                ended_row.chip = ended.chip;
+                tree.rows.push(ended_row).unwrap();
+                None
+            }
+            c::ChipExecutor::Job { .. } | c::ChipExecutor::Role { .. } => unreachable!(),
+        };
+        let root = f::root_with_ended(task, delivery, page);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            let heading = match executor {
+                c::ChipExecutor::Agent { .. } => format!("T9 · {title}"),
+                c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } => title.clone(),
                 c::ChipExecutor::Job { .. } | c::ChipExecutor::Role { .. } => unreachable!(),
             };
-            let root = f::root_with_ended(task, delivery, page);
-            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-                let tree = view.tree();
-                let heading = match executor {
-                    c::ChipExecutor::Agent { .. } => format!("T9 · {title}"),
-                    c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } => title.clone(),
-                    c::ChipExecutor::Job { .. } | c::ChipExecutor::Role { .. } => unreachable!(),
-                };
-                assert!(named(tree.nodes(), Role::Heading { level: 1 }, heading.as_bytes()));
-                for name in [b"Task 12".as_slice(), b"Task 23"] {
-                    let item = subtree(tree, index_of(tree, Role::TreeItem, name));
-                    assert!(named(item, Role::Paragraph, cut.as_bytes()));
-                    assert!(named(item, Role::Link, name));
-                }
+            assert!(named(tree.nodes(), Role::Heading { level: 1 }, heading.as_bytes()));
+            for name in [b"Task 12".as_slice(), b"Task 23"] {
+                let item = subtree(tree, index_of(tree, Role::TreeItem, name));
+                assert!(named(item, Role::Paragraph, cut.as_bytes()));
+                assert!(named(item, Role::Link, name));
             }
         }
     }

@@ -1116,48 +1116,56 @@ fn held_person_and_funds_cards_cut_titles_before_joining_lines() {
 }
 
 #[test]
-fn title_only_card_words_are_omitted_but_bodies_and_partial_words_stay() {
-    for (written, cut, drawn) in [
-        ("Release the runner", false, false),
-        ("Release the runner\nIt waits on CI.", false, true),
-        ("Release the runner", true, true),
+fn complete_title_only_card_words_are_omitted() {
+    card_words("Release the runner", false, false);
+}
+
+#[test]
+fn card_bodies_keep_the_title_and_body_words() {
+    card_words("Release the runner\nIt waits on CI.", false, true);
+}
+
+#[test]
+fn partial_title_only_card_words_stay() {
+    card_words("Release the runner", true, true);
+}
+
+fn card_words(written: &str, cut: bool, drawn: bool) {
+    let mut held = held(Some(c::HoldCategory::Stalled));
+    held.task.chip.title = words("Release the runner");
+    held.task.spec.specification.words = words(written);
+    held.task.spec.specification.words.cut = cut;
+    let mut funds = held.clone();
+    funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    let mut person = person();
+    person.task.title = words("Release the runner");
+    person.spec.specification.words = words(written);
+    person.spec.specification.words.cut = cut;
+    for row in [
+        held_row(held),
+        held_row(funds),
+        (
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        ),
     ] {
-        let mut held = held(Some(c::HoldCategory::Stalled));
-        held.task.chip.title = words("Release the runner");
-        held.task.spec.specification.words = words(written);
-        held.task.spec.specification.words.cut = cut;
-        let mut funds = held.clone();
-        funds.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
-        let mut person = person();
-        person.task.title = words("Release the runner");
-        person.spec.specification.words = words(written);
-        person.spec.specification.words.cut = cut;
-        for row in [
-            held_row(held),
-            held_row(funds),
-            (
-                c::ObjectKey::PersonTask(person.task.task),
-                c::Read::PersonTask { task: person.task.task },
-                c::ReadValue::PersonTask(Box::new(person)),
-            ),
-        ] {
-            let root = kinds(&[row]);
-            for view in [f::browser_page_view(&root), f::page_view(&root)] {
-                let paragraphs: Vec<_> = view
-                    .tree()
-                    .nodes()
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, n)| n.role == Role::Paragraph)
-                    .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
-                    .collect();
-                assert_eq!(
-                    paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
-                    drawn,
-                    "{written}, cut={cut}"
-                );
-                assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
-            }
+        let root = kinds(&[row]);
+        for view in [f::browser_page_view(&root), f::page_view(&root)] {
+            let paragraphs: Vec<_> = view
+                .tree()
+                .nodes()
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| n.role == Role::Paragraph)
+                .map(|(at, _)| f::nodes_text(super::inbox::subtree(view.tree(), at)))
+                .collect();
+            assert_eq!(
+                paragraphs.iter().any(|text| skein_lib::bytes::find(text, b"Release the runner").is_some()),
+                drawn,
+                "{written}, cut={cut}"
+            );
+            assert_eq!(has(&view, b"It waits on CI."), written.contains('\n'));
         }
     }
 }
