@@ -67,13 +67,7 @@ fn expected_documents(
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Json, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    let git = match temper.at("application/workers/0/git")? {
-        Json::Null => None,
-        Json::String(path) => Some(current_executable(b"git", path, "application/workers/0/git", environment)?),
-        Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_) => {
-            return Err("application/workers/0/git: expected init's executable or null".into());
-        }
-    };
+    let git = temper_shell::lookup::find(environment, b"git");
     let claude = match temper.at("application/workers/0/claude") {
         Ok(Json::String(name)) => {
             let path = crate::path(name);

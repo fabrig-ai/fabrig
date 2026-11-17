@@ -445,16 +445,8 @@ fn reference_document(generated: &[u8]) -> Box<[u8]> {
         serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json")).unwrap(),
     );
     let room = reference_room();
-    document["engine"]["limits"] = serde_json::from_slice(&merge_profile(
-        &serde_json::to_vec(&document["engine"]["limits"]).unwrap(),
-        &serde_json::to_vec(&room["worker"]["limits"]).unwrap(),
-    ))
-    .unwrap();
-    document["application"] = serde_json::from_slice(&merge_profile(
-        &serde_json::to_vec(&document["application"]).unwrap(),
-        &serde_json::to_vec(&room["application"]).unwrap(),
-    ))
-    .unwrap();
+    merge_profile_members(&mut document["engine"]["limits"], room["worker"]["limits"].clone());
+    merge_profile_members(&mut document["application"], room["application"].clone());
     serde_json::to_vec(&document).unwrap().into_boxed_slice()
 }
 
@@ -624,7 +616,7 @@ fn init_documents_start_without_carrier_overrides() {
             } else {
                 previous
             };
-            assert_eq!((named.value)(&worker.limits), expected, "worker {name}");
+            assert_eq!((named.value)(worker.limits.as_ref().unwrap()), expected, "worker {name}");
         }
     }
 }

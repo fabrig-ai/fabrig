@@ -56,6 +56,7 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
     let mut part = temper_worker_service::startup::worker_part(
         &serde_json::to_vec(&document).expect("JSON"),
         &temper_service_shell::jig_directories(&directories),
+        None,
     )
     .expect("worker part");
     let executable = data.join("temper-worker");

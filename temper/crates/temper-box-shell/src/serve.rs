@@ -321,6 +321,8 @@ fn operations_in_mode(
         None,
         None,
         &service::stock::Given::Stock,
+        None,
+        true,
         &[],
     )
     .map(|(service, _, _)| service.operations());

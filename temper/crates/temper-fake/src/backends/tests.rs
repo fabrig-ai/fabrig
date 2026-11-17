@@ -584,7 +584,7 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
     use skein_lib::{Queue, Secret};
     let (temper, paths, peers) = fixture();
     let docs = write(&temper, &paths, &peers).expect("rewrite");
-    let limits = temper_forge_setup::limits::small();
+    let limits = temper_limits_fixtures::setup_small();
     let entry = temper_forge_setup::setup::Entry {
         forge: 4,
         directory: Box::new([]),

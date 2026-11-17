@@ -277,7 +277,7 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
 
 #[test]
 fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
-    let mut input: serde_json::Value = serde_json::from_slice(&document(None, None)).unwrap();
+    let mut input: serde_json::Value = serde_json::from_slice(&document(None)).unwrap();
     for limits in ["/engine/limits/overrides", "/workers/0/limits/overrides"] {
         let overrides = input.pointer_mut(limits).unwrap().as_object_mut().unwrap();
         for name in ["tasks.message_bytes", "tasks.result_bytes", "tasks.inbox_bytes", "hub.event_bytes"] {

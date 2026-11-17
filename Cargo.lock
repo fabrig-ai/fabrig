@@ -6990,6 +6990,7 @@ dependencies = [
  "temper-fixtures",
  "temper-forge-setup",
  "temper-init",
+ "temper-limits-fixtures",
  "temper-protocol-store",
 ]
 
@@ -8063,7 +8064,9 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-engine-service-startup",
  "temper-fixtures",
+ "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-worker-wire",
  "temper-service-core",

@@ -731,7 +731,7 @@ fn serve_names_what_to_raise_for_eight_slots() {
             None,
         )
         .expect("resolved worker places");
-        assert!(part.worker.jig.limits.hub.slots >= 8);
+        assert!(part.worker.jig.limits.expect("explicit worker limits").hub.slots >= 8);
         assert!(part.limits.checkout.workspaces >= 8);
         assert!(part.limits.git_component.operations >= part.limits.checkout.workspaces);
         let owner = if name == "hub.slots" {
@@ -1910,6 +1910,7 @@ fn the_live_github_configuration_passes_startup_admission() {
             let mut part = temper_worker_service::startup::worker_part(
                 &bytes,
                 &temper_box_shell::directories::jig_directories(&directories),
+                None,
             )
             .expect("worker part");
             part.named.program = skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into();

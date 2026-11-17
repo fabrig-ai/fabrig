@@ -149,16 +149,20 @@ fn git_operations_follow_workspaces() {
 }
 #[test]
 fn output_carrier() {
-    use jig_protocol_worker_wire::{self as wire, v15};
+    use jig_protocol_worker_wire as wire;
     let mut worker = fixtures::worker_settings();
-    worker.jig.limits = config::stock();
+    worker.jig.limits = Some(config::stock());
     let mut sources = STOCK;
-    let zero = v15::Limits { turn_body: 0, turn_refused: worker.jig.limits.as_ref().expect("worker limits").core.tasks.run_inbox, ..wire::CEILINGS };
-    let overhead = u32::try_from(v15::Turn::encoded_bound(&zero).unwrap()).unwrap() + 8;
+    let zero = wire::v16::Limits {
+        turn_body: 0,
+        turn_refused: worker.jig.limits.as_ref().expect("worker limits").core.tasks.run_inbox,
+        ..wire::CEILINGS
+    };
+    let overhead = u32::try_from(wire::Turn::encoded_bound(&zero).unwrap()).unwrap() + 8;
     assert_eq!(overhead + 2 * STOCK.turn, 36_864_476);
     for turn in [STOCK.turn, wire::CEILINGS.assignment_transcript / 4 - 4] {
         sources.turn = turn;
-        derived::worker(&mut worker.jig.limits, sources).unwrap();
+        derived::worker(worker.jig.limits.as_mut().expect("worker limits"), sources).unwrap();
         assert_eq!(worker.jig.limits.as_ref().expect("worker limits").io.output, (overhead + turn).max(derived::OUTPUT_FLOOR));
         let own = fixtures::worker_limits();
         let payload = worker_settings::payload_limits(&own).unwrap();
@@ -209,7 +213,7 @@ fn output_carrier() {
         assert!(problems.is_empty(), "{problems:?}");
     }
     sources.turn = STOCK.turn * 2;
-    let found = derived::worker(&mut worker.jig.limits, sources).unwrap_err();
+    let found = derived::worker(worker.jig.limits.as_mut().expect("worker limits"), sources).unwrap_err();
     assert_eq!(found.path, config::Path::root().member(b"limits").member(b"overrides").member(b"io.output"));
     assert_eq!(
         found.what,

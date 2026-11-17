@@ -35,7 +35,7 @@ fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
     let mut values = config::overrides::list(&source).into_boxed().into_vec();
     values.extend(temper_service_core::limits::list(&own).into_boxed().into_vec());
     values.extend([("future.limit", 99), ("future.limit", 100)]);
-    let mut part = startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+    let mut part = startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
     part.worker.jig.slots = 4;
     let unknown = figures::apply(&mut part, record(3, &values)).unwrap();
     assert_eq!(unknown.into_boxed().as_ref(), [Box::<[u8]>::from(b"future.limit".as_slice())]);
@@ -71,7 +71,7 @@ fn each_moved_member_is_refused_with_its_migration_words() {
         ),
     ] {
         let text = core::str::from_utf8(&base).unwrap().replacen(needle, addition, 1);
-        let found = startup::worker_part(text.as_bytes(), &config::Directories::working()).unwrap_err();
+        let found = startup::worker_part(text.as_bytes(), &config::Directories::working(), None).unwrap_err();
         assert_eq!(found.problems.len(), 1);
         assert_eq!(found.problems.get(0).unwrap().path, path);
         assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Because(words)));
@@ -90,7 +90,7 @@ fn machine_members_check_absolute_claude_and_unique_environment_names() {
         (br#"{"root":"worker","git":null,"environment":[{"name":"A"}]}"#, b"environment"),
     ] {
         let input = fixtures::with(&fixtures::worker_alone_document(), b"application.workers[0]", entry);
-        let found = startup::worker_part(&input, &config::Directories::working()).expect_err("invalid member");
+        let found = startup::worker_part(&input, &config::Directories::working(), None).expect_err("invalid member");
         let prefix = config::Path::root()
             .member(b"application")
             .member(b"workers")
@@ -103,7 +103,7 @@ fn machine_members_check_absolute_claude_and_unique_environment_names() {
         b"application.workers[0]",
         br#"{"root":"worker","git":null,"claude":"/bin/claude","environment":[{"name":"A","value":"one"}]}"#,
     );
-    let part = startup::worker_part(&input, &config::Directories::working()).unwrap();
+    let part = startup::worker_part(&input, &config::Directories::working(), None).unwrap();
     assert_eq!(part.claude.as_deref(), Some(b"/bin/claude".as_slice()));
     assert_eq!(part.environment.as_ref(), [(Box::from(b"A".as_slice()), Box::from(b"one".as_slice()))]);
 }

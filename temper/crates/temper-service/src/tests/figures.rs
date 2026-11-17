@@ -24,6 +24,7 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
         fixtures::forge_runtime(),
         None,
         &given,
+        None,
     )
     .unwrap();
     assert_eq!(

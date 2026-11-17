@@ -138,7 +138,7 @@ fn the_turn_landing_worker_passes_every_startup_check() {
     let bytes = rendered("worker.json");
     let directories = jig_protocol_config::Directories::working();
     let part = startup::worker_part(&bytes, &directories, Some(b"/turn/data/bin/git")).expect("setup worker part");
-    admission(&bytes, part.files);
+    admission("turn-landing-worker-admission", &bytes, part.files);
 }
 
 fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) {
@@ -168,7 +168,7 @@ fn admission(case: &str, bytes: &[u8], files: Box<[jig_protocol_config::File]>) 
         let configuration = temper_worker_shell::agent::figures::configuration(&figures, None, scratch.path(), &[])
             .expect("agent document from the engine's figures");
         let agent = temper_worker_shell::agent::prepare_bytes(configuration).expect("worker's agent").agent;
-        let mut part = startup::worker_part(bytes, &directories).expect("worker part");
+        let mut part = startup::worker_part(bytes, &directories, Some(b"/turn/data/bin/git")).expect("worker part");
         temper_worker_service::figures::apply(&mut part, figures).expect("engine's figures applied");
         if let Err(problems) = temper_worker_service::startup::worker::check_worker_part(&mut part, &files, &agent) {
             panic!("{}", String::from_utf8_lossy(&temper_worker_service::startup::lines(&problems)));
@@ -247,10 +247,10 @@ fn the_turn_landing_engine_documents_pass_startup_root_checks() {
     };
     // Engine-alone startup ignores the local agent argument: its agent runs on the worker.
     let agent = temper_playground::documents::agent();
-    let engine = engine(&bytes);
-    let mut entries = List::with_capacity(u32::try_from(engine.hosts.workers.len()).expect("worker count"));
-    for worker in &engine.hosts.workers {
-        entries.push((worker.digest.clone(), Secret::new(Box::new([b'0'; 64])))).expect("one digest per worker");
+    let named = startup::named(&bytes, &directories).expect("named setup files");
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).expect("file count"));
+    for file in named.files {
+        entries.push((file.path, Secret::new(Box::new([b'0'; 64])))).expect("one entry per named file");
     }
     let problems = match startup::check(
         &bytes,

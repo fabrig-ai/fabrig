@@ -346,6 +346,7 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
     let part = temper_service::startup::worker_part(
         &serde_json::to_vec(&input).expect("worker document"),
         &temper_service_shell::jig_directories(&directories),
+        None,
     )
     .expect("worker-alone preflight");
     assert_eq!(part.files.len(), 1, "only its link secret is read before figures");

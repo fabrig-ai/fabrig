@@ -696,6 +696,7 @@ impl Bounded {
             let mut part = temper_worker_service::startup::worker_part(
                 &self.document,
                 &jig_protocol_config::Directories::working(),
+                None,
             )
             .expect("worker fixture");
             let checked = temper_worker_service::figures::apply(&mut part, figures.clone()).and_then(|_| {

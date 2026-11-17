@@ -116,9 +116,7 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             &temper_service::startup::fixed_worker(),
         )
         .expect("init worker");
-        let bound =
-            jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
-                .expect("stop bound");
+        let bound = worker.stop_bound;
         assert!(bound < timeout, "the unit must outlast the worker's stop bound");
         let seconds = |duration: skein_lib::Duration| {
             assert_eq!(duration.as_millis() % 1_000, 0, "whole seconds in the unit's explanation");
