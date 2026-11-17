@@ -1,5 +1,5 @@
 use crate::engine::Engine;
-use jig_client_protocol_wire::v27 as wire;
+use jig_client_protocol_wire::v28 as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
 const REQUEST_AT: Time = Time::from_nanos(1);
@@ -199,7 +199,7 @@ impl Peer {
             skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, data, u32::try_from(data.len()).unwrap())
                 .unwrap();
         match wire::StreamEvent::decode(&engine.clients.env.limits.wire, &mut Reader::new(&record)) {
-            Ok(wire::StreamEvent::Hello(_)) => true,
+            Ok(wire::StreamEvent::Hello(_) | wire::StreamEvent::Opened(_)) => true,
             Ok(wire::StreamEvent::Delivery(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_)) | Err(_) => {
                 false
             }

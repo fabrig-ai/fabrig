@@ -63,7 +63,7 @@ impl Composition {
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v27::CEILINGS,
+                wire: jig_client_protocol_wire::v28::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -571,7 +571,7 @@ impl Composition {
             link::Request::OpenStream { credential } => {
                 let stream = self.token();
                 self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
+                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential, version: None }));
                 return;
             }
             link::Request::CloseStream => {

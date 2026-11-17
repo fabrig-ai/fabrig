@@ -290,7 +290,10 @@ fn each_shape_is_found_in_plain_stream_text() {
 fn parts(event: w::StreamEvent) -> w::StreamTextParts {
     match event {
         w::StreamEvent::Text(text) => text.into_parts(),
-        w::StreamEvent::Hello(_) | w::StreamEvent::Delivery(_) | w::StreamEvent::Ended(_) => {
+        w::StreamEvent::Hello(_)
+        | w::StreamEvent::Opened(_)
+        | w::StreamEvent::Delivery(_)
+        | w::StreamEvent::Ended(_) => {
             unreachable!("text fixture")
         }
     }

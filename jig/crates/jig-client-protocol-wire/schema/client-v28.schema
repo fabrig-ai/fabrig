@@ -1,4 +1,4 @@
-family jig-client-wire 27
+family jig-client-wire 28
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -902,9 +902,10 @@ enum CloseAnswer { closed, signed_out }
 record Gone { stream: fixed 16 }
 record Hello { stream: fixed 16 served: list 16 Served heartbeat: duration }
 record Delivery { watch: u64 document: Owned }
+record Opened { hello: Hello me: Owned }
 record WatchEnded { watch: u64 why: WatchEnd }
 record StreamText { watch: u64 value: RunText }
-enum StreamEvent { hello: Hello, delivery: Delivery, text: StreamText, ended: WatchEnded }
+enum StreamEvent { hello: Hello, delivery: Delivery, text: StreamText, ended: WatchEnded, opened: Opened }
 record AccountStateLater { until: option u64 }
 enum AccountPlace { directory, file }
 enum AccountUnread { unreadable, refused, failed, stalled, too_large }

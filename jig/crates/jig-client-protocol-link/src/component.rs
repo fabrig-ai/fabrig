@@ -5,7 +5,7 @@
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
-use jig_client_protocol_wire::{self as wire, v27 as w};
+use jig_client_protocol_wire::{self as wire, v28 as w};
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -790,6 +790,7 @@ impl Link {
                     opening.held = Some(Token::new(opening.name));
                 }
             }
+            w::StreamEvent::Opened(_) => return Err(StreamRefusal::Order),
             w::StreamEvent::Delivery(value) => {
                 if stream.name.is_none() {
                     return Err(StreamRefusal::Order);

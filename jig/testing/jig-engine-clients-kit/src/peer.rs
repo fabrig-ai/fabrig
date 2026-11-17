@@ -4,7 +4,7 @@ mod closing;
 mod public;
 mod public_http;
 use crate::fixtures;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{
@@ -567,21 +567,27 @@ impl Peer {
     }
     pub fn open_stream(&mut self) -> [u8; 16] {
         let socket = self.request_stream();
+        self.remember_stream(socket)
+    }
+    pub fn remember_stream(&mut self, socket: Token) -> [u8; 16] {
         let events = self.stream_records(socket);
-        let Some(w::StreamEvent::Hello(hello)) = events.first() else {
-            panic!("hello first: {:?}", self.sockets.get(&socket).expect("stream").body);
+        let hello = match events.first().expect("first stream record") {
+            w::StreamEvent::Hello(hello) => hello,
+            w::StreamEvent::Opened(opened) => opened.hello(),
+            event => panic!("hello first: {event:?}"),
         };
         let name = *hello.stream();
         self.streams.insert(name, socket);
         name
     }
     pub fn request_stream(&mut self) -> Token {
+        self.request_stream_target(b"/jig/v1/stream")
+    }
+    pub fn request_stream_target(&mut self, target: &[u8]) -> Token {
         let socket = Token::new(self.next_socket);
         self.next_socket += 1;
-        self.sockets.insert(
-            socket,
-            Exchange::new(skein_http::Method::Get, b"/jig/v1/stream", Box::new([]), self.bearer.as_deref()),
-        );
+        self.sockets
+            .insert(socket, Exchange::new(skein_http::Method::Get, target, Box::new([]), self.bearer.as_deref()));
         self.server.up(
             skein_io::Event::Accepted { owner: Token::new(0), socket, peer: fixtures::address() },
             &mut self.server_out,
@@ -594,7 +600,8 @@ impl Peer {
         let exchange = self.sockets.get(&socket).expect("requested exchange");
         (exchange.status, &exchange.body)
     }
-    fn stream_records(&self, socket: Token) -> Vec<w::StreamEvent> {
+    #[must_use]
+    pub fn stream_records(&self, socket: Token) -> Vec<w::StreamEvent> {
         let body = &self.sockets.get(&socket).expect("stream").body;
         let mut events = Vec::new();
         let mut rest = body.as_slice();
@@ -624,7 +631,7 @@ impl Peer {
         subject.encode(&mut record).expect("subject");
         let subject = w::Owned::new(
             &self.env.limits.wire,
-            w::OwnedParts { owner: w::Owner::Jig, version: 27, record: record.finish() },
+            w::OwnedParts { owner: w::Owner::Jig, version: 28, record: record.finish() },
         )
         .expect("subject owner");
         let open = w::Open::new(&self.env.limits.wire, w::OpenParts { stream, watch: self.next_watch, subject })
@@ -790,6 +797,10 @@ impl Peer {
         let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut out).expect("encoded link");
         out.finish()
+    }
+    pub fn post_signed(&mut self, target: &[u8], body: Box<[u8]>) -> Token {
+        let bearer = self.bearer.clone().expect("signed in");
+        self.post(target, body, Some(&bearer))
     }
     pub fn post(&mut self, target: &[u8], body: Box<[u8]>, bearer: Option<&[u8]>) -> Token {
         self.http_exchange(Exchange::new(skein_http::Method::Post, target, body, bearer))

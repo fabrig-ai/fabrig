@@ -1,6 +1,6 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v27::*;
+use jig_client_protocol_wire::v28::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
@@ -34,6 +34,8 @@ fn records_1(bytes: &[u8]) {
     check!(Owner, bytes);
     check!(Keyed, bytes);
     check!(Owned, bytes);
+    check!(Opened, bytes);
+    check!(StreamEvent, bytes);
     check!(KeyedAnswer, bytes);
     check!(LinkSignIn, bytes);
     check!(SignedIn, bytes);
@@ -706,6 +708,7 @@ fn mutation_seed(path: &Path) -> bool {
             "record_authorize_",
             "enum_authorize_",
             "record_hello_",
+            "record_opened_",
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",

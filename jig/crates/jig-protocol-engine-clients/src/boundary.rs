@@ -301,6 +301,7 @@ pub enum FromTransport {
     StreamOpen {
         stream: Token,
         credential: Option<Secret>,
+        version: Option<u32>,
     },
     StreamTaken {
         stream: Token,
@@ -400,5 +401,5 @@ impl ::core::fmt::Debug for Reply {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamFailure {
     QueueBound { queued_bytes: u32 },
-    Translation(jig_client_protocol_wire::v27::Problem),
+    Translation(jig_client_protocol_wire::v28::Problem),
 }
