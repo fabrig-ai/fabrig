@@ -4265,6 +4265,14 @@ pub enum Path {
     ChangeColdClose,
     /// Bytes after `ChangeCold`.
     ChangeColdTail,
+    /// The `receipt` field of `Regate`.
+    RegateReceipt,
+    /// The `run` field of `Regate`.
+    RegateRun,
+    /// Bytes after `Regate`.
+    RegateTail,
+    /// The `regate` field of `ChangeHot`.
+    ChangeHotRegate,
     /// The `kept` field of `ChangeHot`.
     ChangeHotKept,
     /// The `task_release` field of `ChangeHot`.
@@ -6225,6 +6233,10 @@ impl Path {
             Self::ChangeColdCatchUp => "ChangeCold.catch_up",
             Self::ChangeColdClose => "ChangeCold.close",
             Self::ChangeColdTail => "ChangeCold (tail)",
+            Self::RegateReceipt => "Regate.receipt",
+            Self::RegateRun => "Regate.run",
+            Self::RegateTail => "Regate (tail)",
+            Self::ChangeHotRegate => "ChangeHot.regate",
             Self::ChangeHotKept => "ChangeHot.kept",
             Self::ChangeHotTaskRelease => "ChangeHot.task_release",
             Self::ChangeHotJob => "ChangeHot.job",
@@ -27780,9 +27792,54 @@ impl ChangeCold {
     }
 }
 
+/// Movable fields of `Regate`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RegateParts {
+    /// The `receipt` field.
+    pub receipt: ReceiptKey,
+    /// The `run` field.
+    pub run: u64,
+}
+
+/// `Regate` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Regate {
+    receipt: ReceiptKey,
+    run: u64,
+}
+
+impl Regate {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: RegateParts) -> Result<Self, Problem> {
+        let RegateParts { receipt, run } = parts;
+        let value = Self { receipt, run };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `receipt` field.
+    #[must_use]
+    pub fn receipt(&self) -> &ReceiptKey { &self.receipt }
+
+    /// Reads the `run` field.
+    #[must_use]
+    pub fn run(&self) -> u64 { self.run }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RegateParts { RegateParts { receipt: self.receipt, run: self.run } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.receipt.check(limits)?;
+        Ok(())
+    }
+}
+
 /// Movable fields of `ChangeHot`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHotParts {
+    /// The `regate` field.
+    pub regate: Option<Regate>,
     /// The `kept` field.
     pub kept: Option<[u8; 32]>,
     /// The `task_release` field.
@@ -27844,6 +27901,7 @@ pub struct ChangeHotParts {
 /// `ChangeHot` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeHot {
+    regate: Option<Regate>,
     kept: Option<[u8; 32]>,
     task_release: Option<TaskRelease>,
     job: Option<HistoryJobRecord>,
@@ -27877,11 +27935,15 @@ pub struct ChangeHot {
 impl ChangeHot {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeHotParts) -> Result<Self, Problem> {
-        let ChangeHotParts { kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
-        let value = Self { kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
+        let ChangeHotParts { regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history } = parts;
+        let value = Self { regate, kept, task_release, job, signed, ending, repair_tasks, resolution_tasks, result, task, priority, change, ci, pull, pending, effect, delegate, delegate_status, verdicts, gate_remarks, drift, queue_repair, queue_repairs, effect_account, producer_failure, questions, follow_check, merge_result, history };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `regate` field.
+    #[must_use]
+    pub fn regate(&self) -> &Option<Regate> { &self.regate }
 
     /// Reads the `kept` field.
     #[must_use]
@@ -27997,9 +28059,12 @@ impl ChangeHot {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { kept: self.kept, task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
+    pub fn into_parts(self) -> ChangeHotParts { ChangeHotParts { regate: self.regate, kept: self.kept, task_release: self.task_release, job: self.job, signed: self.signed, ending: self.ending, repair_tasks: self.repair_tasks, resolution_tasks: self.resolution_tasks, result: self.result, task: self.task, priority: self.priority, change: self.change, ci: self.ci, pull: self.pull, pending: self.pending, effect: self.effect, delegate: self.delegate, delegate_status: self.delegate_status, verdicts: self.verdicts, gate_remarks: self.gate_remarks, drift: self.drift, queue_repair: self.queue_repair, queue_repairs: self.queue_repairs, effect_account: self.effect_account, producer_failure: self.producer_failure, questions: self.questions, follow_check: self.follow_check, merge_result: self.merge_result, history: self.history } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.regate.as_ref() {
+        some_0.check(limits)?;
+        }
         if let Some(some_0) = self.job.as_ref() {
         some_0.check(limits)?;
         }
@@ -51685,6 +51750,40 @@ impl ChangeCold {
         Ok(())
     }
 }
+impl Regate {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_receipt = &self.receipt;
+        size = size.checked_add(field_receipt.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_receipt = &self.receipt;
+        field_receipt.encode(writer)?;
+        let field_run = &self.run;
+        writer.put(&field_run.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RegateTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_receipt = ReceiptKey::decode_from(limits, reader)?;
+        let decoded_run = reader.u64().ok_or(Problem { path: Path::RegateRun, reason: skein_codec::Reason::Short })?;
+        Ok(Self { receipt: decoded_receipt, run: decoded_run })
+    }
+}
+
 impl ChangeHot {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -51711,6 +51810,7 @@ impl ChangeHot {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_regate = match reader.u8().ok_or(Problem { path: Path::ChangeHotRegate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Regate::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotRegate, reason: skein_codec::Reason::Tag }) };
         let decoded_kept = match reader.u8().ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Tag }) };
         let decoded_task_release = match reader.u8().ok_or(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TaskRelease::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Tag }) };
         let decoded_job = match reader.u8().ok_or(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HistoryJobRecord::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Tag }) };
@@ -51739,13 +51839,18 @@ impl ChangeHot {
         let decoded_follow_check = match reader.u8().ok_or(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowCheckProgress::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotFollowCheck, reason: skein_codec::Reason::Tag }) };
         let decoded_merge_result = match reader.u8().ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_hot_merge_result_some.min(CEILINGS.change_hot_merge_result_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeHotMergeResult, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeHotMergeResult, reason: skein_codec::Reason::Tag }) };
         let decoded_history = match reader.u8().ok_or(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHistory::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotHistory, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { kept: decoded_kept, task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
+        Ok(Self { regate: decoded_regate, kept: decoded_kept, task_release: decoded_task_release, job: decoded_job, signed: decoded_signed, ending: decoded_ending, repair_tasks: decoded_repair_tasks, resolution_tasks: decoded_resolution_tasks, result: decoded_result, task: decoded_task, priority: decoded_priority, change: decoded_change, ci: decoded_ci, pull: decoded_pull, pending: decoded_pending, effect: decoded_effect, delegate: decoded_delegate, delegate_status: decoded_delegate_status, verdicts: decoded_verdicts, gate_remarks: decoded_gate_remarks, drift: decoded_drift, queue_repair: decoded_queue_repair, queue_repairs: decoded_queue_repairs, effect_account: decoded_effect_account, producer_failure: decoded_producer_failure, questions: decoded_questions, follow_check: decoded_follow_check, merge_result: decoded_merge_result, history: decoded_history })
     }
 }
 
 
 impl ChangeHot {
     fn measure_0(&self, mut size: u32) -> u32 {
+        let field_regate = &self.regate;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_regate {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_kept = &self.kept;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_kept.is_some() {
@@ -51811,17 +51916,17 @@ impl ChangeHot {
         for item_0 in field_gate_remarks.as_slice() {
         size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
         }
-        let field_drift = &self.drift;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_drift {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
         size
     }
 }
 
 impl ChangeHot {
     fn measure_1(&self, mut size: u32) -> u32 {
+        let field_drift = &self.drift;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_drift {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_queue_repair = &self.queue_repair;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_queue_repair.is_some() {
@@ -51863,6 +51968,14 @@ impl ChangeHot {
 
 impl ChangeHot {
     fn encode_0(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_regate = &self.regate;
+        match field_regate {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_kept = &self.kept;
         match field_kept {
             Some(some_0) => {
@@ -51926,6 +52039,12 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_pull = &self.pull;
         match field_pull {
             Some(some_0) => {
@@ -51934,12 +52053,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_pending = &self.pending;
         match field_pending {
             Some(some_0) => {
@@ -52005,6 +52118,12 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeHot {
+    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_questions = &self.questions;
         field_questions.encode(writer)?;
         let field_follow_check = &self.follow_check;
@@ -52015,12 +52134,6 @@ impl ChangeHot {
             }
             None => writer.put(&[0_u8])?,
         }
-        Ok(())
-    }
-}
-
-impl ChangeHot {
-    fn encode_2(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_merge_result = &self.merge_result;
         match field_merge_result {
             Some(some_0) => {
@@ -68092,7 +68205,7 @@ impl ChangeCold {
     }
 }
 
-impl ChangeHot {
+impl Regate {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -68102,20 +68215,7 @@ impl ChangeHot {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(TaskRelease::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(1_u64.checked_add(ChangeEnding::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(8_u64)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(8_u64)?)?)?.checked_add(ChangeResult::encoded_bound_within(limits)?)?;
-        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(Change::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(ChangeCi::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(EffectResult::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(DelegateRef::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(ChangeStatus::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64)?;
-        size = size.checked_add(1_u64.checked_add(EffectAccount::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_producer_failure_some))?)?)?;
-        size = size.checked_add(Questions::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(FollowCheckProgress::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_merge_result_some))?)?)?.checked_add(1_u64.checked_add(ChangeHistory::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(ReceiptKey::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
         size.checked_add(0)
     }
 
@@ -68128,20 +68228,63 @@ impl ChangeHot {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(TaskRelease::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?.checked_add(List::<SignOff>::price(limits.change_hot_signed)?.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(ChangeEnding::decoded_bound_within(limits)?)?.checked_add(List::<u64>::price(limits.change_hot_repair_tasks)?.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(0_u64)?)?)?;
-        heap = heap.checked_add(List::<u64>::price(limits.change_hot_resolution_tasks)?.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(0_u64)?)?)?.checked_add(ChangeResult::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Change::decoded_bound_within(limits)?)?.checked_add(ChangeCi::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(EffectResult::decoded_bound_within(limits)?)?.checked_add(DelegateRef::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(ChangeStatus::decoded_bound_within(limits)?)?.checked_add(List::<GateReport>::price(limits.change_hot_verdicts)?.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(List::<GateRemark>::price(limits.change_hot_gate_remarks)?.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeHold::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(EffectAccount::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_hot_producer_failure_some))?;
-        heap = heap.checked_add(Questions::decoded_bound_within(limits)?)?.checked_add(FollowCheckProgress::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.change_hot_merge_result_some))?.checked_add(ChangeHistory::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ReceiptKey::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ChangeHot {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(Regate::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(TaskRelease::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(HistoryJobRecord::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeEnding::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(8_u64)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(8_u64)?)?)?;
+        size = size.checked_add(ChangeResult::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(Change::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeCi::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(EffectResult::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(DelegateRef::encoded_bound_within(limits)?)?)?.checked_add(ChangeStatus::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(EffectAccount::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_producer_failure_some))?)?)?.checked_add(Questions::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(FollowCheckProgress::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_hot_merge_result_some))?)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeHistory::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(Regate::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(TaskRelease::decoded_bound_within(limits)?)?.checked_add(HistoryJobRecord::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<SignOff>::price(limits.change_hot_signed)?.checked_add(u64::from(limits.change_hot_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeEnding::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<u64>::price(limits.change_hot_repair_tasks)?.checked_add(u64::from(limits.change_hot_repair_tasks).checked_mul(0_u64)?)?)?.checked_add(List::<u64>::price(limits.change_hot_resolution_tasks)?.checked_add(u64::from(limits.change_hot_resolution_tasks).checked_mul(0_u64)?)?)?;
+        heap = heap.checked_add(ChangeResult::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Change::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ChangeCi::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(EffectResult::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(DelegateRef::decoded_bound_within(limits)?)?.checked_add(ChangeStatus::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<GateReport>::price(limits.change_hot_verdicts)?.checked_add(u64::from(limits.change_hot_verdicts).checked_mul(GateReport::decoded_bound_within(limits)?)?)?)?.checked_add(List::<GateRemark>::price(limits.change_hot_gate_remarks)?.checked_add(u64::from(limits.change_hot_gate_remarks).checked_mul(GateRemark::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(ChangeHold::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(EffectAccount::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.change_hot_producer_failure_some))?.checked_add(Questions::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(FollowCheckProgress::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_hot_merge_result_some))?;
+        heap = heap.checked_add(ChangeHistory::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -70002,6 +70145,7 @@ fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Topic::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeSource::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?);
+    biggest = biggest.max(Regate::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeHot::encoded_bound_within(limits)?);
     biggest = biggest.max(Subscriber::encoded_bound_within(limits)?);
     biggest = biggest.max(FindingCount::encoded_bound_within(limits)?);
@@ -70560,6 +70704,7 @@ fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Topic::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeSource::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?);
+    biggest = biggest.max(Regate::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeHot::decoded_bound_within(limits)?);
     biggest = biggest.max(Subscriber::decoded_bound_within(limits)?);
     biggest = biggest.max(FindingCount::decoded_bound_within(limits)?);

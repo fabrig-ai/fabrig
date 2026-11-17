@@ -854,6 +854,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
 #[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
+        regate,
         kept,
         task_release,
         job,
@@ -886,6 +887,16 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     w::ChangeHot::new(
         &w::CEILINGS,
         w::ChangeHotParts {
+            regate: match regate {
+                Some(value) => Some(
+                    w::Regate::new(
+                        &w::CEILINGS,
+                        w::RegateParts { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             kept: *kept,
             task_release: match task_release {
                 Some(release) => Some(
@@ -965,6 +976,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
     let w::ChangeHotParts {
+        regate,
         kept,
         task_release,
         job,
@@ -995,6 +1007,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         history,
     } = value.into_parts();
     Ok(top::ChangeHot {
+        regate: decode_regate(regate),
         kept,
         task_release: match task_release {
             Some(release) => {
@@ -1057,6 +1070,10 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
             None => None,
         },
     })
+}
+fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
+    let w::RegateParts { receipt, run } = value?.into_parts();
+    Some(top::Regate { receipt: super::landing::decode_receipt_key(receipt), run })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));

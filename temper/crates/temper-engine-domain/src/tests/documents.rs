@@ -291,6 +291,7 @@ fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

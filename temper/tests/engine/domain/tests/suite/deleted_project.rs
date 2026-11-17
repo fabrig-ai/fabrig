@@ -128,6 +128,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
     forge::Stored::Change(Box::new(forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task: CHANGE,
         repository,
         branch: b"temper/old".as_slice().into(),

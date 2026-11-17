@@ -9,6 +9,7 @@ pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

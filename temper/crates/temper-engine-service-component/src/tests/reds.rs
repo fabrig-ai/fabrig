@@ -84,6 +84,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
     let row = forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

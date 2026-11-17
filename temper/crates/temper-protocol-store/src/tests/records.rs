@@ -3344,3 +3344,23 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
         assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
     }
 }
+
+#[test]
+fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
+    use temper_engine_domain_forge_change::State;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for check in [forge::Check::Gate(b"gate".as_slice().into()), forge::Check::Tier(b"tier".as_slice().into())] {
+        let mut row = fixtures::change_row(State::Ready { head: [3; 32], ready_since: skein_lib::Wall::EPOCH });
+        row.regate = Some(forge::Regate {
+            receipt: forge::ReceiptKey { project: 5, repository: row.repository, check, key: [7; 32] },
+            run: u64::MAX,
+        });
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot.clone()));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+        assert_eq!(hot.regate, row.regate);
+    }
+}

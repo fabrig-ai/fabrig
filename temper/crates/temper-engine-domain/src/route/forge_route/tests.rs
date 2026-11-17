@@ -1326,6 +1326,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     forge::ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),

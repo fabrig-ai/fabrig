@@ -542,13 +542,13 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         entries: decoded_entries.into_boxed(),
     })
 }
-pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
+pub(super) fn encode_receipt_key(key: &top::ReceiptKey) -> w::ReceiptKey {
     let (name, tier) = match &key.check {
         top::Check::Gate(name) => (name.clone(), false),
         top::Check::Tier(name) => (name.clone(), true),
     };
     let name = w::ReceiptName::new(&w::CEILINGS, w::ReceiptNameParts { name }).expect(FITS);
-    let key = w::ReceiptKey::new(
+    w::ReceiptKey::new(
         &w::CEILINGS,
         w::ReceiptKeyParts {
             project: key.project,
@@ -557,10 +557,16 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
             key: key.key,
         },
     )
-    .expect(FITS);
+    .expect(FITS)
+}
+pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
     w::ReceiptRow::new(
         &w::CEILINGS,
-        w::ReceiptRowParts { report: encode_report(&receipt.report), key, receipt: encode_receipt_value(receipt) },
+        w::ReceiptRowParts {
+            report: encode_report(&receipt.report),
+            key: encode_receipt_key(key),
+            receipt: encode_receipt_value(receipt),
+        },
     )
     .expect(FITS)
 }
@@ -638,19 +644,19 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     .expect(FITS)
 }
 
-pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
-    let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
+pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
     let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
     let check = match check_name {
         w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
         w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
     };
+    top::ReceiptKey { project, repository: names::decode_repository(repository), check, key }
+}
+pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
+    let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
     let mut receipt = decode_receipt_value(receipt)?;
     receipt.report = decode_report(report);
-    Ok(top::Stored::Receipt {
-        key: top::ReceiptKey { project, repository: names::decode_repository(repository), check, key },
-        receipt,
-    })
+    Ok(top::Stored::Receipt { key: decode_receipt_key(key), receipt })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
     let w::ReceiptParts { base, jobs, failures, passed, run, candidate, ended, logs } = receipt.into_parts();

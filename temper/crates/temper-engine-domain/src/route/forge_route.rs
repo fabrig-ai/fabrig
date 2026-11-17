@@ -2571,6 +2571,7 @@ pub(super) fn start_recovered_change(
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 kept: None,
+                regate: None,
                 source: source.clone(),
                 task_release: None,
                 job: None,

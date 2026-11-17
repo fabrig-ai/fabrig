@@ -1031,6 +1031,7 @@ pub struct ChangeSource {
 pub struct ChangeRow {
     pub source: Option<ChangeSource>,
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1098,6 +1099,12 @@ pub struct ChangeRow {
     /// Open intervals and the last event (landing-history.md, 3.2).
     pub history: Option<crate::history::ChangeHistory>,
 }
+/// A failed receipt superseded by a change's release (temper/docs/design/domain/landing-regate.md, 3–5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Regate {
+    pub receipt: ReceiptKey,
+    pub run: u64,
+}
 /// A change's cold store part (temper/docs/design/protocol/store.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCold {
@@ -1125,6 +1132,7 @@ pub struct ChangeCold {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeHot {
     pub kept: Option<skein_forge::api::Commit>,
+    pub regate: Option<Regate>,
     pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
@@ -1161,6 +1169,7 @@ impl ChangeRow {
         let Self {
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1230,6 +1239,7 @@ impl ChangeRow {
             },
             ChangeHot {
                 kept,
+                regate,
                 task_release,
                 job,
                 signed,
@@ -1262,6 +1272,7 @@ impl ChangeRow {
     }
     /// Join parts belonging to the same task.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each field is moved explicitly from its cold or hot store part")]
     pub fn join(cold: ChangeCold, hot: ChangeHot) -> Self {
         let ChangeCold {
             source,
@@ -1286,6 +1297,7 @@ impl ChangeRow {
         } = cold;
         let ChangeHot {
             kept,
+            regate,
             task_release,
             job,
             signed,
@@ -1318,6 +1330,7 @@ impl ChangeRow {
         Self {
             source,
             kept,
+            regate,
             task_release,
             job,
             signed,

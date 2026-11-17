@@ -2432,6 +2432,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 let key = gate_key(&row, position, number, &gate.name, key);
                 fact.receipt = match d.landing.receipts.get(&key) {
                     Some(receipt) if receipt.passed => policy::Status::Passed,
+                    Some(receipt) if superseded(d, &row, &key, receipt) || d.landing.flights.contains_key(&key) => {
+                        policy::Status::Unknown
+                    }
                     Some(_) => policy::Status::Failed,
                     None => policy::Status::Unknown,
                 };
@@ -3918,6 +3921,23 @@ pub(crate) fn input_commit(inputs: &[api::Input], name: &[u8]) -> Option<api::Co
     None
 }
 
+/// A regate names the whole key and the failed run, not a later receipt (domain/landing-regate.md, 3–5).
+fn superseded(d: &Domain, row: &LandingRow, key: &ReceiptKey, receipt: &Receipt) -> bool {
+    if receipt.passed {
+        return false;
+    }
+    for member in &row.landing.members {
+        if let Some(change) = d.changes.get(&member.change)
+            && let Some(regate) = &change.regate
+            && &regate.receipt == key
+            && regate.run == receipt.run.id
+        {
+            return true;
+        }
+    }
+    false
+}
+
 pub(crate) fn rebuild(d: &mut Domain) {
     let mut flights = List::with_capacity(slots(&d.landing.limits).expect("flight bound"));
     for (_, row) in &d.landing.rows {
@@ -3934,6 +3954,7 @@ pub(crate) fn rebuild(d: &mut Domain) {
             let Some(gate) = d.train_gates(row, repo).get(usize::from(item.gate)) else { continue };
             let key = gate_key(row, item.member, item.gate, &gate.name, key);
             if let Some(receipt) = d.landing.receipts.get(&key)
+                && !superseded(d, row, &key, receipt)
                 && match tests_value(inputs) {
                     None => true,
                     Some(selected) => receipt.passed || selected_report(selected, receipt.failures.as_ref()),

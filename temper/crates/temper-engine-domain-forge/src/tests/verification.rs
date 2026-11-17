@@ -213,6 +213,7 @@ fn opening_row() -> ChangeRow {
     ChangeRow {
         source: None,
         kept: None,
+        regate: None,
         task_release: None,
         job: None,
         signed: Box::new([]),
