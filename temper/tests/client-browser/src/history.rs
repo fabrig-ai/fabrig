@@ -61,6 +61,18 @@ impl Tier {
             }),
             exited(),
         ];
+        let agents = self.scratch.path().join("browser-agents.json");
+        if agents.is_file() {
+            steps.extend(self.ctl(&[
+                "settings",
+                "apply",
+                agents.to_str().expect("agents settings path"),
+                "--against",
+                "1",
+                "--key",
+                "browser-agents",
+            ]));
+        }
         steps.extend(calls);
         steps.extend([open_printed(), exited()]);
         Script::new(steps.into_boxed_slice())

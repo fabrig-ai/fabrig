@@ -53,7 +53,8 @@ impl Play for Authorization<'_> {
 #[test]
 fn a_cross_site_authorization_returns_a_code_and_the_links_state() {
     let (tier, temper) = Tier::authorize("browser-authorize");
-    let mut setup = tier.setup();
+    let mut owner = tier.ctl_face(vec![]);
+    let mut setup = tier.held_setup();
     // The live page can reconnect while its scratch server restarts.
     setup.expected = vec![
         Box::from(b"net::ERR_CONNECTION_REFUSED".as_slice()),
@@ -78,13 +79,11 @@ document.querySelector('#authorize').href = url;
     // appears only after those facts arrive, including after Back reloads it.
     let welcome =
         || Step::Person(PersonStep::See { find: Find::exactly_named(Role::Link, b"Set up temper"), within: WITHIN });
+    let mut before = temper_client_browser_world::page_opens();
+    before.extend([welcome(), Step::Visit { origin: 0, path: b"/".as_slice().into() }, see(b"Test forge")]);
     let mut person = Authorization {
         tier: &tier,
-        before: Script::new(Box::new([
-            welcome(),
-            Step::Visit { origin: 0, path: b"/".as_slice().into() },
-            see(b"Test forge"),
-        ])),
+        before: Script::new(before.into_boxed_slice()),
         after: Script::new(Box::new([
             // The callback's exact dynamically allocated port is now registered.
             // Show temper's page again before stopping it. A temper page left in
@@ -104,5 +103,5 @@ document.querySelector('#authorize').href = url;
         reading: false,
         configured: false,
     };
-    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut person]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut owner, &mut person]), Outcome::Done);
 }
