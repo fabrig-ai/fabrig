@@ -38,9 +38,9 @@ impl World {
         assert_eq!(world.commit(root::first()), Some(1));
         world
     }
-    /// Two legacy files, one still writable and one ended, and a missing file's places.
+    /// Two files, one still writable and one ended, and a missing file's places.
     #[must_use]
-    pub fn legacy_checkpoint(seed: u64) -> Self {
+    pub fn mixed_files_checkpoint(seed: u64) -> Self {
         let mut world = Self::unopened(seed);
         let limits = world.env.limits;
         let codec = limits.codec_view().expect("fixture codec");
@@ -73,8 +73,8 @@ impl World {
         ];
         let mut model_writes: Vec<_> = rows.into_iter().map(Write::Save).collect();
         for task in [live, ended] {
-            let turn = root::turn(task, 1, 1, b"legacy at C");
-            let bytes = transcripts::frame::encode(&turn, &codec).expect("legacy frame");
+            let turn = root::turn(task, 1, 1, b"mixed files at C");
+            let bytes = transcripts::frame::encode(&turn, &codec).expect("mixed files frame");
             let place =
                 codec::component::Transcript { length: u64::try_from(bytes.len()).expect("frame size"), window: 0 };
             let path = format!("transcripts/{:016x}/{task:016x}", task >> 12).into_bytes();
@@ -101,7 +101,7 @@ impl World {
         world.seed_checkpoint_map(ops.into_boxed_slice());
         world.model.stage(1, &model_writes);
         world.model.acknowledge(1);
-        assert_eq!(world.open(), Some(1), "legacy open: {:?}, {:?}", world.refusal(), world.start_open_failure());
+        assert_eq!(world.open(), Some(1), "mixed files open: {:?}, {:?}", world.refusal(), world.start_open_failure());
         world.next = 2;
         world.mark_if_needed();
         world

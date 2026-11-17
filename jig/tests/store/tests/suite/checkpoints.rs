@@ -220,7 +220,7 @@ fn live_and_ended_histories_are_copied_to_their_extents_and_recover_at_c() {
 }
 #[test]
 fn selected_transcript_and_log_drops_commit_then_remove_only_after_release() {
-    let mut world = World::legacy_checkpoint(19);
+    let mut world = World::mixed_files_checkpoint(19);
     world.secret(Secrets::Keep {
         owner: SecretOwner::Service,
         number: 1,
