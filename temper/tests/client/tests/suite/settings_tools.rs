@@ -36,11 +36,21 @@ fn world() -> ClientWorld {
     configured_world([configuration(), configuration()])
 }
 fn configured_world(configs: [engine::Config; 2]) -> ClientWorld {
-    let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
+    settings_world(configs, fixtures::domain_limits(), None)
+}
+fn settings_world(
+    configs: [engine::Config; 2],
+    client: temper_client_domain::Limits,
+    stored_policy_bytes: Option<u32>,
+) -> ClientWorld {
+    let mut front = Joint::new(fixtures::SEED, client);
     let mut limits = front.engine.env.limits;
     limits.people.initial_owners = 2;
     limits.tasks.charters = u32::try_from(configs[0].core.defaults.charters.len()).expect("fixture charters");
     limits.documents.text_bytes = WHOLE_SETTING_BYTES;
+    if let Some(bytes) = stored_policy_bytes {
+        limits.journal.run_bytes = bytes;
+    }
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
@@ -631,6 +641,42 @@ fn a_settings_file_rule_keeps_its_sets_when_applied_and_shown_as_json() {
         let shown = call(&mut world, agent, &words);
         assert!(shown.contains("\"sets\":[1]"), "{shown}");
     }
+}
+
+#[test]
+fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes() {
+    let mut client = fixtures::domain_limits();
+    client.client.domain.document_bytes = temper_client_tools::limits::client().client.domain.document_bytes;
+    // The ctl transport and stored-policy bound are the shipped profile's, not the tiny world's.
+    let mut world = settings_world([configuration(), configuration()], client, Some(65_536));
+    let agent = fixtures::agent(&mut world);
+    let mut charter = configuration().core.defaults.charters[0].clone();
+    charter.number = 2;
+    charter.policy.instructions = vec![b'x'; 82_000].into_boxed_slice();
+    let charter = value_json(
+        c::Setting::Charter(c::SettingNumber { number: 2 }),
+        client_value(&settings::Value::Charter(Box::new(charter))),
+    );
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"set":{charter}}}]}}"#);
+    let before = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(before.starts_with("newest revision 1\n"), "{before}");
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"charter.json", b"--against", b"1", b"--key", b"large-charter"],
+        file.as_bytes(),
+    );
+    let refused = fixtures::answered(&mut world, agent, number);
+    assert_eq!(refused.status, 2, "{refused:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&refused.stderr),
+        "settings apply: out of shape; item 0; charter 2: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
+    );
+    assert_eq!(call(&mut world, agent, &[b"settings", b"show"]), before);
+    // The world keeps decoded records; ctl pending lists the same records through this renderer.
+    let printed = temper_client_tools::jig::render::pending::pending(world.kept(agent), 0, false);
+    assert_eq!(printed.status, 0);
+    assert!(printed.stdout.is_empty(), "ctl pending lists no request: {printed:?}");
 }
 
 #[test]

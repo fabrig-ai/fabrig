@@ -12,12 +12,40 @@ use skein_lib::Reader;
 #[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
     let client =
-        concat!(include_str!("../schema/client-v27.schema"), include_str!("../schema/client-v27-part1.schema"));
+        concat!(include_str!("../schema/client-v28.schema"), include_str!("../schema/client-v28-part1.schema"));
     let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
     assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
     let public =
         skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
     assert_eq!(PUBLIC_VERSION, public.version(), "jig-public-wire PUBLIC_VERSION must equal its family version");
+}
+
+/// A kept record holds the largest request (protocol/client/README.md, 7).
+#[test]
+fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
+    let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");
+    assert!(u64::from(CEILINGS.kept_record) >= widest, "Kept must hold TableEntry's widest encoding");
+    let table = TableEntry::new(
+        &CEILINGS,
+        TableEntryParts {
+            asker: u32::MAX,
+            number: u64::MAX,
+            key: [255; 16],
+            scope: u64::MAX,
+            first_sent: Some(u64::MAX),
+            owner: Owner::Family(Family::new(&CEILINGS, FamilyParts { number: u16::MAX }).expect("family")),
+            version: u32::MAX,
+            request: fixtures::bytes(CEILINGS.table_entry_request),
+        },
+    )
+    .expect("ceiling table entry");
+    assert_eq!(u64::from(table.measure()), widest);
+    let record = fixtures::encoded(&table, TableEntry::measure, TableEntry::encode);
+    let kept = Kept::new(&CEILINGS, KeptParts { store_version: 1, record }).expect("ceiling entry fits Kept");
+    let bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
+    let decoded = Kept::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("kept round trip");
+    assert_eq!(decoded, kept);
+    assert_eq!(TableEntry::decode(&CEILINGS, &mut Reader::new(decoded.record())), Ok(table));
 }
 
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {

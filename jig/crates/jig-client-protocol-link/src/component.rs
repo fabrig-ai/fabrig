@@ -5,7 +5,7 @@
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
-use jig_client_protocol_wire::{self as wire, v27 as w};
+use jig_client_protocol_wire::{self as wire, v28 as w};
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -18,7 +18,7 @@ pub(crate) struct Attempt {
 impl Attempt {
     pub(super) fn carrying(&self) -> bool {
         match self.kind {
-            ExchangeKind::Attempt { carrying } => carrying,
+            ExchangeKind::Attempt { carrying, .. } => carrying,
             ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
@@ -39,7 +39,7 @@ pub(super) enum ExchangeKind {
     SignOut { generation: u64 },
     // `carrying`: an exchange carrying a value either way, sent once and never held
     // behind the store (protocol/client/README.md, 3 and 7).
-    Attempt { carrying: bool },
+    Attempt { carrying: bool, key: RequestKey },
     Read { turn: Option<(u64, u64, u32)> },
     WatchOpen { name: u64 },
     WatchClose { name: u64 },
@@ -193,7 +193,7 @@ impl Link {
             token: attempt,
             owner: record.owner().clone(),
             version: record.version(),
-            kind: ExchangeKind::Attempt { carrying },
+            kind: ExchangeKind::Attempt { carrying, key },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
         let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));

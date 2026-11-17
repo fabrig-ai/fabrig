@@ -222,6 +222,6 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     let bytes = jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy).unwrap();
     let standard = crate::stock();
     assert_eq!(standard.core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v27::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::v28::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
 }

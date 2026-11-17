@@ -59,7 +59,7 @@ pub fn final_answer(value: w::Final) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut bytes).unwrap();
     let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 27, record: bytes.finish() })
+        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: bytes.finish() })
             .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
@@ -100,7 +100,7 @@ pub fn answer_signed_out() -> Box<[u8]> {
 }
 pub fn malformed_final() -> Box<[u8]> {
     let owned =
-        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 27, record: Box::from([255]) })
+        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 28, record: Box::from([255]) })
             .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
@@ -121,6 +121,7 @@ impl Harness {
         match self.out.iter().next().expect("one exchange") {
             Request::Exchange { exchange, .. } => *exchange,
             other @ (Request::Answer { .. }
+            | Request::NotWritten { .. }
             | Request::NotKept { .. }
             | Request::Read { .. }
             | Request::OpenStream { .. }
@@ -159,6 +160,7 @@ impl Harness {
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
+                | Request::NotWritten { .. }
                 | Request::NotKept { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }
@@ -193,7 +195,9 @@ impl Harness {
         let mut count: u32 = 0;
         for value in &self.out {
             match value {
-                Request::Answer { .. } | Request::NotKept { .. } => count = count.saturating_add(1),
+                Request::Answer { .. } | Request::NotKept { .. } | Request::NotWritten { .. } => {
+                    count = count.saturating_add(1);
+                }
                 Request::Exchange { .. }
                 | Request::Read { .. }
                 | Request::OpenStream { .. }

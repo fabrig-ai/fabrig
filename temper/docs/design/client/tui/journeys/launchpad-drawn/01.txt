@@ -1,13 +1,18 @@
 
+<<<<<<< HEAD
   ▄█▀▀   temper 0.0.0 (2217e002c077-dirty)
  ▄█▄█▄█  127.0.0.1:41237
+=======
+  ▄█▀▀   temper 0.0.0 (2dd6dc855782-dirty)
+ ▄█▄█▄█  127.0.0.1:41911
+>>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
 
  Nothing needs you.
 
  Start
-   /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
+
 
 
 

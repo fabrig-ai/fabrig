@@ -1,4 +1,5 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
+<<<<<<< HEAD
 │ Sign in this terminal to 127.0.0.1:43675                                     │
 │ A tab opened in your browser. Check it shows                                 │
 │ VQVX-TDSX, then press Approve.                                               │
@@ -6,6 +7,15 @@
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
 │ ❯ Link: http://127.0.0.1:43675/jig/v1/sign-in/link?secret=… (enter sends)    │
+=======
+│ Sign in this terminal to 127.0.0.1:44715                                     │
+│ A tab opened in your browser. Check it shows                                 │
+│ JGKG-TZTK, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:44715/terminal?code=JGKG-TZTK                  │
+│ The code expires in 9 min.                                                   │
+│ Paste the link temper printed, then Enter.                                   │
+│ ❯ Link: http://127.0.0.1:44715/jig/v1/sign-in/link?secret=… (enter sends)    │
+>>>>>>> 7c19b4a53f57a93aea5a68ef75c29e5c0a9a57f0
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

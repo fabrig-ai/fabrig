@@ -1,4 +1,4 @@
-family jig-client-wire 27
+family jig-client-wire 28
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -31,6 +31,7 @@ family jig-client-wire 27
 # Remaining documents and stream (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 # Account deadlines are optional wall times; absence supplies no deadline.
 # Account changes share the account documents' payer type and ACCOUNT_USES bound.
+# Kept.record: TableEntry's widest encoding (jig/docs/design/protocol/client/README.md, 7).
 # Small store (protocol/client/README.md, 7); TableEntry.request has Keyed.request's ceiling.
 # A read value preserves the contract variant as well as its existing document.
 # Chips.rows and Inbox.needs/updates/selection: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece.

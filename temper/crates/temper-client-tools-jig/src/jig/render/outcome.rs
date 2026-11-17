@@ -327,7 +327,7 @@ fn bytes(
 }
 fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a [u8]; 4]> {
     let reason: Option<&[u8]> = match outcome {
-        Outcome::NotKept => Some(b"request not kept"),
+        Outcome::NotKept => Some(b"request not kept; nothing was sent"),
         Outcome::Unknown => Some(b"unknown past retention"),
         Outcome::Limit => Some(b"request limit"),
         Outcome::Held => Some(b"name held by another request"),

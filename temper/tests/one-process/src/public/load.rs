@@ -5,7 +5,7 @@ use super::{
 };
 use crate::fixtures;
 use jig_client::contract as c;
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire::v28 as w;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 
