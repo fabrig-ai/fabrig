@@ -1,0 +1,1183 @@
+temper/tests/engine/forge/tests/suite/public.rs:129:    let public = [top::PublicTask { task: CHANGE, goal: None }];
+temper/tests/engine/forge/tests/suite/public.rs:156:    let public = [top::PublicTask { task: CHANGE, goal: Some(GOAL) }];
+temper/tests/engine/forge/tests/suite/public.rs:166:    let public = [top::PublicTask { task: CHANGE, goal: None }];
+jig/tests/test-connector/src/world.rs:224:                Record::Task { resources, .. } | Record::Made { resources, .. } => {
+temper/tests/engine/forge/src/public.rs:29:        top::PublicTask { task: GOAL, goal: Some(GOAL) },
+temper/tests/engine/forge/src/public.rs:30:        top::PublicTask { task: CHANGE, goal: Some(GOAL) },
+temper/tests/engine/forge/src/public.rs:31:        top::PublicTask { task: SECOND, goal: Some(GOAL) },
+jig/tests/conformance/tests/suite/referee.rs:250:        r::Task {
+jig/tests/conformance/tests/suite/client_settings_proposals.rs:145:                w::ProposerTask::new(limits.wire(), w::ProposerTaskParts { value: proposal.proposer })
+jig/tests/conformance/src/deletion.rs:283:                author: notes::Author::Task { task, attempt },
+temper/tests/client/tests/suite/watch_room.rs:111:                subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Task { task: chat }),
+temper/tests/client/tests/suite/task_pages.rs:56:    let first = format!("Task {}", plan.first);
+temper/tests/client/tests/suite/task_pages.rs:101:    let goal = format!("Task {}", plan.goal);
+temper/tests/client/tests/suite/task.rs:269:                find: own_dependency(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
+temper/tests/client/tests/suite/task.rs:292:                find: own_dependency(second, Find::named(Role::Link, format!("Task {first}").as_bytes())),
+temper/tests/client/tests/suite/task.rs:382:            find: Find::exactly_named(Role::Link, format!("Task {first}").as_bytes()).within(Box::new([
+temper/tests/engine/domain/tests/suite/root_routes.rs:1507:    let engine::Tool::Note { mut entry, .. } = new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 })
+temper/tests/engine/domain/tests/suite/root_routes.rs:1526:    tool_call(&mut driver, &assignment, 3101, new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 }));
+temper/tests/engine/domain/tests/suite/root_routes.rs:1543:            notes::Author::Task { task: assignment.task, attempt: assignment.attempt }
+temper/tests/engine/domain/tests/suite/root_routes.rs:1575:            None => new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 }),
+temper/tests/engine/domain/tests/suite/root_routes.rs:1599:            author: notes::Author::Task { task: 1, attempt: 1 },
+temper/tests/engine/domain/tests/suite/root_routes.rs:1703:                new_note(b"work: settings", b"working body", notes::Author::Task { task: 0, attempt: 0 })
+temper/tests/engine/domain/tests/suite/root_routes.rs:1854:    let author = notes::Author::Task { task: assignment.task, attempt: assignment.attempt };
+temper/tests/engine/domain/tests/suite/root_routes.rs:1875:    let author = notes::Author::Task { task: assignment.task, attempt: assignment.attempt };
+temper/tests/engine/domain/tests/suite/root_routes.rs:1930:    tool_call(&mut driver, &assignment, 3110, new_note(b"hint", b"body", notes::Author::Task { task: 0, attempt: 0 }));
+temper/tests/engine/domain/tests/suite/reconcile.rs:62:            need: forge::Need::Task { task: ABSENT_TASK, retired: None },
+temper/tests/client/tests/suite/remembered_page.rs:69:    let [Row::Task { place, line, chat, .. }] = rows.as_slice() else { panic!("one kept row: {rows:?}") };
+jig/tests/client/tests/suite/fuzzy/memory.rs:44:fn full_task() -> jig_client_domain::contract::Task {
+temper/tests/engine/domain/tests/suite/panels.rs:704:    let public = [forge::PublicTask { task: CHANGE, goal: None }];
+temper/tests/client/tests/suite/clearing.rs:50:    let jig_domain_core::reads::EndedValue::Task { document, .. } = ended.value else { panic!("task document") };
+temper/tests/client/tests/suite/person_task_tools.rs:817:            tool: engine::Tool::ReadTask { task: child, field: jig_domain_core::reads::TaskTextField::Result, from: 0 },
+temper/tests/client/tests/suite/chat.rs:282:            name: format!("Task {change}").into_bytes().into(),
+temper/tests/client/tests/suite/chat.rs:296:            see(card(Find::exactly_named(Role::Link, format!("Task {change}").as_bytes()))),
+temper/tests/client/tests/suite/chat.rs:303:    assert!(landed.contains(&format!("Task {change} ↗")), "named task link: {landed}");
+temper/tests/client/tests/suite/change_panel.rs:156:    let name = format!("Task {number}");
+temper/tests/client/tests/suite/change_panel.rs:177:    let tag = format!("Change · Task {goal}");
+temper/tests/client/tests/suite/change_page.rs:119:    let name = format!("Task {delegate}");
+temper/tests/client/tests/suite/change_page.rs:263:    let name = format!("Task {child}");
+temper/tests/client/tests/suite/b2.rs:135:    Find::exactly_named(Role::Link, format!("Task {task}").as_bytes())
+temper/tests/real-loop/src/world/diagnostics/tests.rs:22:            Task {
+temper/tests/real-loop/src/world/diagnostics/tests.rs:241:        let row = Task {
+temper/tests/engine/domain/tests/suite/host_calls.rs:718:    assert!(text.starts_with(&format!("Task {change}, spec revision ")), "{text}");
+temper/tests/real-loop/src/world/diagnostics.rs:216:struct Task {
+temper/tests/real-loop/src/world/diagnostics.rs:244:                let kept = self.rows.entry(row.number).or_insert(Task {
+jig/tests/client-wire/tests/suite/placed_holds.rs:15:                w::HoldOwnerTask::new(&w::CEILINGS, w::HoldOwnerTaskParts { task: number }).expect("task owner"),
+temper/tests/client/tests/suite/fuzzy/tell.rs:19:            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("small task"))
+temper/tests/client/tests/suite/fuzzy/tell.rs:32:            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: u64::from(number) }).expect("task"),
+temper/tests/client/tests/suite/fuzzy/team.rs:176:                    Row { interest: Interest::Task { target, held, result }, class: policy.notices }
+temper/tests/client/tests/suite/fuzzy/team.rs:429:            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+temper/tests/client/tests/suite/fuzzy/team.rs:454:            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+temper/tests/client/tests/suite/fuzzy/public_address.rs:26:            Some(Public::Task { project: identifier(project)?, task: identifier(task)? })
+temper/tests/client/tests/suite/fuzzy/public_address.rs:81:        (Public::Task { project, task }, format!("{base}/tasks/{task:016x}")),
+temper/tests/client/tests/suite/fuzzy/public_address.rs:100:            Public::Task { .. } | Public::Landing { .. } => {
+temper/tests/client/tests/live_text.rs:151:        Some(Context::Task { model_index: None, .. })
+temper/tests/client/tests/live_text.rs:156:    assert!(matches!(draft.context, Some(Context::Task { model_index: None, .. })));
+temper/tests/real-loop/src/service.rs:516:            history.tasks.entry(row.number).or_insert_with(|| crate::cancel_kills::Task {
+temper/tests/client/tests/suite/fuzzy/density.rs:1292:fn task_document(task: u64, project: u32) -> c::Task {
+temper/tests/client/tests/suite/fuzzy/density.rs:1293:    c::Task {
+jig/tests/client-protocol/tests/suite/turn_read.rs:36:    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task }));
+temper/tests/client/src/fixtures.rs:1064:                    if let reads::EndedValue::Task { document, .. } = &ended.value {
+temper/tests/client/src/fixtures.rs:1248:        name: format!("Task {task}").into_bytes().into_boxed_slice(),
+temper/tests/engine/domain/tests/suite/forge_routes/status.rs:376:        author: notes::Author::Task { task: role, attempt: 1 },
+jig/tests/client-protocol/tests/suite/fuzzy/client.rs:13:        0 => story.watch(HANDLE, Watchable::Jig(contract::Subject::Task { task: 9 })),
+temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs:690:            let reads::EndedValue::Task { document, .. } = value.value else { panic!("historical task") };
+jig/tests/client-protocol/tests/suite/client.rs:93:    let subject = Watchable::Jig(contract::Subject::Task { task: STOP_TASK });
+jig/tests/client-protocol/tests/suite/client.rs:794:    story.watch(THREAD_TASK, Watchable::Jig(contract::Subject::Task { task }));
+jig/tests/client-protocol/tests/suite/client.rs:833:    story.watch(PROJECT_PAGE, Watchable::Jig(contract::Subject::Task { task: gathering }));
+temper/tests/engine/domain/tests/suite/forge_routes/asked_now.rs:84:    let ruling = format!("Task {repair} asked: Question: keep both lines?\nAnswer: keep both lines");
+jig/tests/client-protocol/tests/client/named_accounts.rs:84:    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task: number }));
+jig/tests/client-protocol/tests/client/named_accounts.rs:185:    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task: PROJECT_PAID }));
+jig/tests/client-protocol/tests/client/llm.rs:77:    story.watch(CHOSEN, Watchable::Jig(contract::Subject::Task { task }));
+temper/tests/real-loop/src/case/oracle.rs:3925:            && DEFERRED_WORDS.contains(&format!("Task {X3} (x3)")),
+temper/tests/real-loop/src/case/acts.rs:280:            calls::ReadCondition::LimitedTask { task: A, account: super::FIRST_ACCOUNT, source: 0 },
+temper/tests/client-browser/src/forgery.rs:14:fn task() -> c::NewTask {
+temper/tests/client-browser/src/forgery.rs:15:    c::NewTask {
+temper/tests/real-loop/src/cancel_kills/tests.rs:9:            (2, Task { requester: None, agent: true }),
+temper/tests/real-loop/src/cancel_kills/tests.rs:10:            (3, Task { requester: None, agent: false }),
+temper/tests/real-loop/src/cancel_kills/tests.rs:11:            (4, Task { requester: None, agent: false }),
+temper/tests/real-loop/src/cancel_kills/tests.rs:12:            (5, Task { requester: Some(4), agent: true }),
+temper/tests/real-loop/src/cancel_kills/tests.rs:13:            (6, Task { requester: None, agent: false }),
+temper/tests/real-loop/src/cancel_kills.rs:13:pub(crate) struct Task {
+jig/tests/client-browser/tests/browser_jig_stories.rs:12:    Find::exactly_named(Role::Heading { level: HEADING_LEVEL }, format!("Task {FIRST_TASK}").as_bytes())
+temper/tests/engine/domain/tests/suite/forge_routes/questions.rs:755:        "Task {} ended; your answer to its question {number} goes no further: Which behavior should hold?",
+temper/tests/engine/domain/tests/suite/forge_routes/questions.rs:839:        "Task {} ended; your answer to its question {number} goes no further: Which behavior should hold?",
+jig/tests/client-browser/src/forgery.rs:13:fn task() -> c::NewTask {
+jig/tests/client-browser/src/forgery.rs:14:    c::NewTask {
+temper/tests/real-loop/src/calls.rs:189:    LimitedTask {
+temper/tests/real-loop/src/calls.rs:196:    WritingTask {
+temper/tests/real-loop/src/calls.rs:383:        ReadCondition::WritingTask { task },
+temper/tests/real-loop/src/calls.rs:1741:        let condition = ReadCondition::WritingTask { task: 8 };
+temper/tests/real-loop/src/calls.rs:1805:        ReadCondition::LimitedTask { task: crate::case::A, account: crate::case::FIRST_ACCOUNT, source: 0 }
+temper/tests/engine/domain/tests/suite/forge_routes/producer_amendment.rs:63:    assert_eq!(message.words.as_ref(), format!("Task {change}, your change, was amended to spec revision {}. Your spec now holds its amended words; work to them from here on. Its reason: Widen to the CLI", live_task(world, change).revisions.spec).as_bytes());
+temper/testing/temper-client-view-kit/src/team.rs:20:    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+temper/testing/temper-client-view-kit/src/task.rs:8:pub fn document() -> c::Task {
+temper/testing/temper-client-view-kit/src/task.rs:179:pub fn delegate() -> c::Task {
+temper/testing/temper-client-view-kit/src/task.rs:291:                    c::Subject::Task { .. }
+temper/testing/temper-client-view-kit/src/roots.rs:372:            } else if let Subject::Inbox { .. } | Subject::Task { .. } = subject {
+temper/tests/engine/domain/tests/suite/forge_routes/goal_questions.rs:630:        engine::Tool::ReadTask { task: story.a, field: jig_domain_core::reads::TaskTextField::Specification, from: 0 },
+temper/tests/engine/domain/tests/suite/forge_routes/goal_questions.rs:659:        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {number}); answer with message target={asker}, form=answer, question={number}:\n"
+temper/testing/temper-client-view-kit/src/needs.rs:541:        .push(c::ProposedTask {
+temper/testing/temper-client-view-kit/src/needs.rs:591:pub fn person() -> c::PersonTask {
+temper/testing/temper-client-view-kit/src/needs.rs:595:    c::PersonTask {
+temper/testing/temper-client-view-kit/src/home.rs:186:                | c::Subject::Task { .. }
+temper/testing/temper-client-view-kit/src/home.rs:720:            writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+jig/tests/people/src/world.rs:130:struct PersonTask {
+jig/tests/people/src/world.rs:415:            self.person_tasks.entry(task).or_insert_with(|| PersonTask {
+temper/testing/temper-client-view-kit/src/groups.rs:36:            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap()),
+temper/tests/engine/domain/tests/suite/forge_routes/goal_closer.rs:623:    assert!(text.contains(&format!("Task {landing}")), "{text}");
+temper/testing/temper-client-view-kit/src/goal.rs:23:pub fn document() -> c::Task {
+temper/testing/temper-client-view-kit/src/goal.rs:365:pub fn paused_document() -> c::Task {
+temper/testing/temper-client-view-kit/src/document.rs:230:                    writer: c::NoteAuthor::Task { task: TASK, attempt: 1 },
+temper/testing/temper-client-view-kit/src/delegation.rs:19:pub fn change() -> c::Task {
+temper/testing/temper-client-view-kit/src/chat_helpers.rs:189:pub fn asking_task() -> c::Task {
+temper/testing/temper-client-view-kit/src/chat.rs:241:                            subject: jig_client::Watchable::Jig(c::Subject::Task { task: OTHER_DELEGATE }),
+temper/testing/temper-client-view-kit/src/chat.rs:289:pub fn delegated_task() -> c::Task {
+temper/testing/temper-client-view-kit/src/cards.rs:29:        .push(c::ProposedTask {
+temper/tests/engine/domain/tests/suite/forge_routes/closer_questions.rs:237:        "Change {landing}: Task {} ended; your answer to its question {number} goes no further: {}",
+temper/tests/one-process/src/referee.rs:769:                let c::EndedValue::Task { document, result } = &value.value else { return Ok(Vec::new()) };
+jig/testing/jig-test/tests/support/live_sign_in.rs:647:                            subject: jig_client::Watchable::Jig(c::Subject::Task { task: first }),
+jig/testing/jig-fake-parties/src/lib.rs:34:pub enum Task {
+jig/testing/jig-channel-kit/src/referee.rs:688:                    for (number, subject) in [(70, jig_client::contract::Subject::Task { task: 1 }), (71, jig_client::contract::Subject::Run { task: 1, turn: None, offset: 0 })] {
+jig/testing/jig-channel-kit/src/program_runs.rs:378:                subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Task { task }),
+temper/testing/temper-box-kit/src/first_repository.rs:360:pub struct Task {
+temper/testing/temper-box-kit/src/first_repository.rs:366:pub const FIRST: Task = Task { project: 1, chat: 1, change: 2, producer: 3 };
+jig/testing/jig-test-store/src/tests/fixtures.rs:138:    d::Record::Task { task: 1, project: 2, resources: Box::new([path()]) }
+temper/testing/temper-box-kit/src/ctl.rs:1664:            ReadCondition::WritingTask { task: 8 },
+temper/testing/temper-box-kit/src/ctl.rs:1680:        let condition = ReadCondition::LimitedTask { task: 2, account: 1, source: 0 };
+jig/testing/jig-test-store/src/records/facts.rs:260:            w::PartyTask::new(&w::CEILINGS, w::PartyTaskParts { value: *value }).expect("admitted fields fit schema"),
+jig/testing/jig-test-store/src/records/facts.rs:275:            let w::PartyTaskParts { value } = value.into_parts();
+jig/testing/jig-test-store/src/records.rs:350:        d::Record::Task { task, project, resources } => w::Value::Task(
+jig/testing/jig-test-store/src/records.rs:353:                w::RecordTaskParts { task: *task, project: *project, resources: encode_paths(resources) },
+jig/testing/jig-test-store/src/records.rs:448:            let w::RecordTaskParts { task, project, resources } = value.into_parts();
+jig/testing/jig-test-store/src/records.rs:449:            d::Record::Task { task, project, resources: decode_paths(resources, limits)? }
+jig/testing/jig-core-kit/src/watches.rs:444:        Subject::Task { task: watched }
+jig/testing/jig-core-kit/src/watches.rs:449:        | Subject::PersonTask { task: watched }
+jig/testing/jig-core-kit/src/watches.rs:481:        Subject::Task { task }
+jig/testing/jig-core-kit/src/watches.rs:486:        | Subject::PersonTask { task }
+jig/testing/jig-core-kit/src/watches.rs:525:        Subject::Task { .. }
+jig/testing/jig-core-kit/src/watches.rs:535:        | Subject::PersonTask { .. }
+jig/testing/jig-core-kit/src/watches.rs:558:        (2, core::documents::Watched::Task { task }),
+jig/testing/jig-core-kit/src/watches.rs:615:        W::Task { task } => Subject::Task { task: *task },
+jig/testing/jig-core-kit/src/stories/instructions.rs:32:pub fn task_document(w: &mut World, task: u64, request: u64) -> documents::Task {
+jig/tests/ops/src/client/transport.rs:471:        | jig_client_domain::contract::Subject::Task { .. }
+jig/testing/jig-core-kit/src/oracle.rs:408:    let document = key.1.map_or_else(|| "Frame".to_owned(), |task| format!("Task {task}"));
+jig/testing/jig-core-kit/src/conformance/naming.rs:37:            | connector::Record::Task { project: owner_project, task: owner_task, .. } => {
+jig/tests/notes/src/world.rs:307:        author: notes::Author::Task { task, attempt: 1 },
+jig/testing/jig-conformance/src/referee/tests.rs:37:    let task = Task {
+jig/testing/jig-conformance/src/referee/tests.rs:129:    let task = Task {
+jig/tests/notes/src/referee.rs:259:        author: Author::Task { task: 1, attempt: 1 },
+jig/examples/ops/client-view/src/tests.rs:367:fn task() -> Task {
+jig/examples/ops/client-view/src/tests.rs:368:    Task {
+jig/examples/ops/client-view/src/root.rs:247:        jig_client_view::sections::section(b, client, words, bindings, Section::Task { task, section });
+jig/examples/ops/client-view/src/root.rs:253:        jig_client_view::sections::section(b, client, words, bindings, Section::Task { task, section });
+jig/examples/ops/client-view/src/observability.rs:66:    let section = jig_client_view::page::Section::Task { task, section: jig_client_view::address::TaskSection::Plan };
+jig/testing/jig-conformance/src/referee/deletions/tests.rs:32:fn task(number: u64) -> Task {
+jig/testing/jig-conformance/src/referee/deletions/tests.rs:33:    Task {
+jig/testing/jig-conformance/src/referee/compound/tests.rs:6:fn task(number: u64) -> Task {
+jig/testing/jig-conformance/src/referee/compound/tests.rs:7:    Task {
+jig/testing/jig-conformance/src/referee.rs:160:pub struct Task {
+jig/testing/jig-conformance/src/referee.rs:195:impl Task {
+jig/testing/jig-conformance/src/core.rs:143:pub fn task(value: &tasks::TaskRecord) -> r::Task {
+jig/testing/jig-conformance/src/core.rs:144:    r::Task {
+jig/testing/jig-client-test-view/src/tests/native_hold.rs:91:fn task(account: Option<Part>) -> Task {
+jig/testing/jig-client-test-view/src/tests/native_hold.rs:161:                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Task { .. }) },
+jig/testing/jig-client-test-view/src/tests.rs:202:fn task() -> Task {
+jig/testing/jig-client-test-view/src/tests.rs:203:    Task {
+jig/testing/jig-client-test-view/src/tests.rs:793:                                    subject: jig_client::Watchable::Jig(Subject::Task { task: 9 }),
+jig/testing/jig-client-test-view/src/tests.rs:832:        jig_client_view::page::Section::Task { task: 10, section: jig_client_view::address::TaskSection::Plan };
+jig/testing/jig-client-test-records/src/pages.rs:281:                w::NoteAuthorTask::new(&l, w::NoteAuthorTaskParts { task: 19, attempt: 23 }).expect("literal"),
+jig/testing/jig-client-test-records/src/owner.rs:140:pub fn task_with_hold_record() -> w::Task {
+jig/testing/jig-client-test-records/src/objects.rs:9:            w::Funder::Task(w::FunderTask::new(limits, w::FunderTaskParts { value: 17 }).expect("literal funder")),
+jig/testing/jig-client-test-records/src/objects.rs:164:                w::ObjectKeyTask::new(limits, w::ObjectKeyTaskParts { value: 7 }).expect("literal task key"),
+jig/testing/jig-client-test-records/src/objects.rs:169:                    w::EndedValueTaskParts { document: task_with_hold_record(), result: failed_result_record() },
+jig/testing/jig-client-test-records/src/object_reads.rs:41:pub fn read_wire_object_key_task() -> w::ObjectKeyTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:43:    w::ObjectKeyTask::new(&lim, w::ObjectKeyTaskParts { value: 7 }).expect("literal fixture fits")
+jig/testing/jig-client-test-records/src/object_reads.rs:69:pub fn read_wire_owner_ended_value_task() -> w::EndedValueTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:71:    w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result: read_wire_result() })
+jig/testing/jig-client-test-records/src/object_reads.rs:81:pub fn read_wire_owner_history_holder_task() -> w::HistoryHolderTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:83:    w::HistoryHolderTask::new(&lim, w::HistoryHolderTaskParts { value: 7 }).expect("literal fixture fits")
+jig/testing/jig-client-test-records/src/object_reads.rs:113:pub fn read_wire_owner_person_task() -> w::PersonTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:117:        w::PersonTaskParts {
+jig/testing/jig-client-test-records/src/object_reads.rs:181:pub fn read_wire_owner_requester_task() -> w::RequesterTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:183:    w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits")
+jig/testing/jig-client-test-records/src/object_reads.rs:210:pub fn read_wire_proposer_task() -> w::ProposerTask {
+jig/testing/jig-client-test-records/src/object_reads.rs:212:    w::ProposerTask::new(&lim, w::ProposerTaskParts { value: 7 }).expect("literal fixture fits")
+jig/testing/jig-client-test-records/src/live_values.rs:33:            funder: w::Funder::Task(w::FunderTask::new(&l, w::FunderTaskParts { value: 7 }).expect("literal")),
+jig/testing/jig-client-test-records/src/live_values.rs:517:                                    w::FunderTask::new(&l, w::FunderTaskParts { value: 127 }).expect("literal"),
+jig/testing/jig-protocol-store-kit/src/lib.rs:35:        author: jig_domain_notes::Author::Task { task: 21, attempt: 2 },
+jig/testing/jig-client-test-records/src/lib.rs:110:pub fn task_record() -> w::Task {
+jig/testing/jig-client-test-records/src/lib.rs:114:        w::TaskParts {
+jig/testing/jig-client-test-records/src/lib.rs:148:                w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits"),
+jig/testing/jig-client-test-records/src/lib.rs:206:                        w::FunderTask::new(&lim, w::FunderTaskParts { value: 7 }).expect("literal fixture fits"),
+jig/testing/jig-client-test-records/src/lib.rs:348:                                w::FunderTask::new(&lim, w::FunderTaskParts { value: 7 })
+jig/testing/jig-client-test-protocol-wire/src/codec/facts.rs:285:            w::PartyTask::new(&w::CEILINGS, w::PartyTaskParts { value: *value }).expect("admitted fields fit schema"),
+jig/testing/jig-client-test-protocol-wire/src/codec/facts.rs:300:            let w::PartyTaskParts { value } = value.into_parts();
+jig/tests/engine-clients/tests/requests/llm.rs:37:        w::NewTaskParts {
+jig/testing/jig-test-domain/src/routes.rs:701:                    | connector::Record::Task { .. }
+jig/testing/jig-test-domain/src/lib.rs:1229:        | connector::Record::Task { .. }
+jig/testing/jig-test-connector/src/values.rs:52:    let Some(Record::Task { resources, .. }) = domain.tasks.get(&task) else {
+jig/testing/jig-test-connector/src/values.rs:112:    let Some(Record::Task { resources, project, .. }) = domain.tasks.get(&task) else {
+jig/testing/jig-test-connector/src/requirements.rs:131:        if let Record::Task { project, resources, .. } = record
+jig/testing/jig-test-connector/src/domain.rs:423:    let record = Record::Task { task, project, resources };
+jig/testing/jig-test-connector/src/domain.rs:542:        Record::Task { task, project, resources } => {
+jig/testing/jig-test-connector/src/domain.rs:543:            domain.tasks.insert(task, Record::Task { task, project, resources }).expect("restored task fits");
+jig/testing/jig-test-connector/src/client_marks.rs:90:                Some(Record::Task { resources, .. }) => resources.contains(path),
+jig/testing/jig-test-connector/src/client_marks.rs:124:        Record::Task { task: number, .. } => task(domain, subject, *number),
+jig/tests/core/tests/suite/stories.rs:385:                author: notes::Author::Task { task: key.task, attempt: key.attempt },
+jig/tests/core/tests/suite/stories.rs:445:                author: notes::Author::Task { task: key.task, attempt: key.attempt },
+jig/tests/core/tests/suite/stories.rs:496:                    author: notes::Author::Task { task: key.task, attempt: key.attempt },
+jig/testing/jig-test-connector/src/client_documents.rs:118:        Some(crate::Record::Task { project: owner, resources, .. }) if *owner == project => Ok(resources),
+jig/testing/jig-test-connector/src/client_documents.rs:120:            crate::Record::Task { .. }
+jig/testing/jig-test-connector/src/boundary.rs:889:    Task { task: u64, project: u32, resources: Box<[Path]> },
+jig/tests/core/tests/suite/stopping.rs:73:        subject: documents::Watched::Task { task: world.task() },
+jig/tests/core/tests/suite/client_peer.rs:85:        subject: documents::Watched::Task { task },
+jig/tests/core/tests/suite/start_connectors.rs:178:            connector::Record::Task { task, project: 1, resources: Box::new([path]) },
+jig/tests/core/tests/suite/standing_now.rs:131:    assert_eq!(entries[0].author, notes::Author::Task { task, attempt: world.call_key(1).attempt });
+jig/tests/core/tests/suite/ended_watches.rs:89:    watches::open(&mut world, 5, Watched::Task { task });
+jig/tests/core/tests/suite/deletion.rs:413:                    connector::Record::Task { project: owner, .. }
+jig/tests/core/tests/stories/procedure_goals.rs:120:    jig_core_world::watches::open(&mut world, 93, core::documents::Watched::Task { task });
+jig/tests/core/tests/suite/person_task.rs:75:    watches::open(&mut world, 20, core::documents::Watched::Task { task });
+jig/tests/core/tests/suite/person_task.rs:156:        watches::open(&mut world, 20, Watched::Task { task });
+jig/tests/core/tests/suite/person_task.rs:197:fn peer_task(world: &World, watcher: u64) -> &core::documents::Task {
+jig/tests/core/tests/suite/person_task.rs:235:    refused_watch(&mut world, 23, Watched::Task { task });
+jig/tests/core/tests/suite/person_task.rs:255:    refused_watch(&mut world, 24, Watched::Task { task });
+jig/tests/core/tests/suite/person_task.rs:263:    refused_watch(&mut world, 25, core::documents::Watched::Task { task });
+jig/tests/core/tests/stories/offers.rs:154:    jig_core_world::watches::open(&mut world, 91, core::documents::Watched::Task { task });
+jig/tests/core/tests/suite/person_reads.rs:126:                    author: notes::Author::Task { task, attempt: key.attempt },
+jig/tests/core/tests/stories/note_room.rs:37:                    author: notes::Author::Task { task: key.task, attempt: key.attempt },
+jig/tests/core/tests/stories/note_room.rs:92:            author: notes::Author::Task { task: 0, attempt: 0 },
+jig/tests/core/tests/suite/settings.rs:1186:    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
+jig/tests/core/tests/suite/settings.rs:2004:fn settings_task_document(world: &mut World, signed: u64, task: u64) -> documents::Task {
+jig/tests/core/tests/suite/settings.rs:2094:    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
+jig/tests/core/tests/suite/per_wake.rs:360:        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {0}); answer with message target={asker}, form=answer, question={0}:\nWhich next?\n",
+jig/tests/core/tests/suite/per_wake.rs:427:        "Questions asked of you, still open, oldest first:\nTask {} asks (question {}); answer with message target={}, form=answer, question={}:\nWhich next?\nTask {} asks (question {second}); answer with message target={}, form=answer, question={second}:\n{}\n",
+jig/tests/core/tests/suite/per_wake.rs:447:        "Questions asked of you, still open, oldest first:\nTask {} asks (question {second}); answer with message target={}, form=answer, question={second}:\n{}\n",
+jig/testing/jig-client-test-domain/src/tests/family_terminals.rs:315:            jig_client_view::page::Section::Task { task: 9, section: jig_client_view::address::TaskSection::Plan },
+jig/testing/jig-client-test-domain/src/tests/family_terminals.rs:316:            jig_client_view::page::Section::Task { task: 10, section: jig_client_view::address::TaskSection::Plan },
+jig/tests/core/tests/suite/party_runs.rs:129:        author: notes::Author::Task { task: key.task, attempt: key.attempt },
+jig/tests/core/tests/suite/party_reads.rs:33:        author: notes::Author::Task { task: 99, attempt: 1 },
+jig/tests/core/tests/suite/retention.rs:132:            record: jig_test_connector::Record::Task { task, project: 1, resources: Box::new([]) },
+jig/tests/core/tests/suite/retention.rs:136:            record: jig_test_connector::Record::Task { task, project: 1, resources: Box::new([]) },
+jig/tests/core/tests/referee/fixtures.rs:47:pub(super) fn task(number: u64) -> Task {
+jig/tests/core/tests/referee/fixtures.rs:48:    Task {
+jig/tests/core/tests/suite/reads.rs:51:    let reads::EndedValue::Task { document, result } = &value.value else { panic!("full retained task") };
+jig/testing/jig-client-test-domain/src/family.rs:66:                .push(jig_client_view::page::Section::Task {
+jig/tests/core/tests/suite/projections.rs:572:    let task = core::ProjectionTask {
+jig/testing/jig-client-scripted-engine/src/watches.rs:178:            Subject::Task { task } | Subject::Tree { task, .. } | Subject::Run { task, .. } => vec![*task],
+jig/testing/jig-client-scripted-engine/src/watches.rs:213:            Subject::Task { task } => {
+temper/crates/temper-client-domain/tests/suite/task_pages.rs:110:    fn document() -> c::Task {
+temper/crates/temper-client-domain/tests/suite/task_pages.rs:182:                    c::Subject::Task { task: TASK } => task_watch = Some(*watch),
+temper/crates/temper-client-domain/tests/suite/task_pages.rs:219:    fn agent() -> c::Task {
+temper/crates/temper-client-domain/tests/suite/task_pages.rs:237:    fn goal() -> c::Task {
+temper/crates/temper-client-domain/tests/suite/change.rs:110:    fn document() -> c::Task {
+temper/crates/temper-client-domain/tests/suite/change.rs:176:                    c::Subject::Task { task: TASK } => task_watch = Some(*watch),
+temper/crates/temper-client-domain/src/tests/trials.rs:340:    let first = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).expect("trial task");
+temper/crates/temper-client-domain/src/tests/trials.rs:344:        opening(&deliver(&mut root, watch, &[running(ACCOUNT, TASK)]), Watchable::Jig(c::Subject::Task { task: TASK })),
+temper/crates/temper-client-domain/src/tests/trials.rs:352:    let next = opening(&out, Watchable::Jig(c::Subject::Task { task: NEXT })).expect("newest running task");
+temper/crates/temper-client-domain/src/tests/trials.rs:369:        let watched = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).unwrap();
+temper/crates/temper-client-domain/src/tests/trials.rs:377:                Watchable::Jig(c::Subject::Task { task: TASK })
+temper/crates/temper-client-domain/src/tests/trials.rs:388:    let watched = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).expect("trial task");
+jig/testing/jig-client-scripted-engine/src/tests/person_task_fixture.rs:19:pub(crate) fn value() -> PersonTask {
+jig/testing/jig-client-scripted-engine/src/tests/person_task_fixture.rs:39:    PersonTask {
+jig/testing/jig-client-scripted-engine/src/tests/person_task.rs:111:fn source() -> PersonTask {
+temper/crates/temper-client-domain/src/tests/panel.rs:39:            if subject == Watchable::Jig(c::Subject::Task { task }) {
+temper/crates/temper-client-domain/src/tests/panel.rs:177:                if subject == Watchable::Jig(c::Subject::Task { task: NEXT }) {
+temper/crates/temper-client-domain/src/tests/panel.rs:306:fn change_task() -> c::Task {
+temper/crates/temper-client-domain/src/tests/panel.rs:545:                            subject: Watchable::Jig(c::Subject::Task { task: NEXT }),
+temper/crates/temper-client-domain/src/tests/panel.rs:554:                                down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: NEXT }) },
+jig/testing/jig-client-scripted-engine/src/tests/offered.rs:13:fn seven() -> Task {
+jig/testing/jig-client-scripted-engine/src/tests/offered.rs:37:    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(2), Subject::Task { task: 8 }).expect("typed watch fits");
+jig/testing/jig-client-scripted-engine/src/tests/fixtures.rs:67:pub(super) fn new_task(words: Text) -> NewTask {
+jig/testing/jig-client-scripted-engine/src/tests/fixtures.rs:68:    NewTask {
+jig/testing/jig-client-scripted-engine/src/tests/fixtures.rs:108:    let task = ProposedTask {
+jig/testing/jig-client-scripted-engine/src/tests/faults.rs:26:    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(3), Subject::Task { task: 8 }).expect("watch");
+temper/crates/temper-worker-protocol-git/src/files.rs:33:pub(crate) struct Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:133:impl Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:134:    pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:135:        Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:141:    pub fn results(directory: Box<[u8]>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:142:        Task { word: Some(b"results"), pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
+temper/crates/temper-worker-protocol-git/src/files.rs:144:    pub fn layout() -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:145:        Task { word: None, pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
+temper/crates/temper-worker-protocol-git/src/files.rs:147:    pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:148:        Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
+temper/crates/temper-worker-protocol-git/src/files.rs:150:    pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:151:        Task { word: Some(b"store"), pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
+temper/crates/temper-worker-protocol-git/src/files.rs:153:    pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:154:        Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:160:    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:161:        Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:167:    pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>) -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:169:        Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:185:    pub fn sweep() -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:186:        Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:198:    pub fn closing() -> Task {
+temper/crates/temper-worker-protocol-git/src/files.rs:199:        Task { word: None, pending: Token::new(0), phase: Phase::Closing }
+temper/crates/temper-client-domain/src/tests/pages/terminal.rs:589:        writer: c::NoteAuthor::Task { task: fixtures::chat::TASK, attempt: 1 },
+jig/testing/jig-client-scripted-engine/src/tests.rs:246:fn task() -> Task {
+jig/testing/jig-client-scripted-engine/src/tests.rs:247:    Task {
+jig/testing/jig-client-scripted-engine/src/tests.rs:338:        Subject::Task { task: 8 },
+temper/crates/temper-client-domain/src/tests/pages/tell.rs:172:    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+temper/crates/temper-client-domain/src/tests/pages/tell.rs:273:                        w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 61 }).unwrap(),
+temper/crates/temper-client-domain/src/tests/pages/tell.rs:350:                        Down::Open { watch: token, subject: jig_client::Watchable::Jig(c::Subject::Task { task: number }) },
+temper/crates/temper-client-domain/src/tests/pages/tell.rs:360:fn prover() -> c::Task {
+jig/testing/jig-client-scripted-engine/src/reads.rs:594:                    writer: NoteAuthor::Task { task: number, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/pages/team/hand.rs:23:    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap())
+temper/crates/temper-client-domain/src/tests/pages/team/hand.rs:80:                w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: task.number() }).unwrap())
+temper/crates/temper-client-view/tests/suite/task_pages.rs:110:    fn document() -> c::Task {
+temper/crates/temper-client-view/tests/suite/task_pages.rs:183:                    c::Subject::Task { task: TASK } => task_watch = Some(*watch),
+temper/crates/temper-client-view/tests/suite/task_pages.rs:290:    fn agent() -> c::Task {
+temper/crates/temper-client-view/tests/suite/task_pages.rs:308:    fn goal() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/team/areas.rs:6:    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+temper/crates/temper-client-view/tests/suite/change_page.rs:110:    fn document() -> c::Task {
+temper/crates/temper-client-view/tests/suite/change_page.rs:179:                    c::Subject::Task { task: TASK } => task_watch = Some(*watch),
+temper/crates/temper-client-view/tests/suite/change_page.rs:298:        let name = format!("Task {task}");
+temper/crates/temper-client-view/tests/suite/change_page.rs:560:        let name = format!("Task {task}");
+temper/crates/temper-client-domain/src/tests/pages/team.rs:435:                subject: Watchable::Jig(c::Subject::Task { task }),
+temper/crates/temper-client-domain/src/tests/pages/team.rs:1066:        writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/pages/team.rs:1266:            Row { interest: Interest::Task { target: 61, held: true, result: false }, class: task.wake.notices },
+temper/crates/temper-client-domain/src/tests/pages/team.rs:1267:            Row { interest: Interest::Task { target: 62, held: false, result: true }, class: task.wake.notices },
+temper/crates/temper-client-domain/src/tests/pages/team.rs:1268:            Row { interest: Interest::Task { target: 63, held: true, result: true }, class: task.wake.notices },
+jig/testing/jig-client-scripted-engine/src/codec/values/wake.rs:72:            w::SubscriptionKindTaskParts { target: *(target), held: *(held), result: *(result) },
+temper/crates/temper-client-view/src/tests/work.rs:71:        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/fixtures/panel.rs:8:pub fn task(number: u64, project: u32, executor: c::ChipExecutor) -> c::Task {
+temper/crates/temper-client-domain/src/tests/fixtures/chat.rs:12:pub fn task() -> c::Task {
+temper/crates/temper-client-domain/src/tests/fixtures/chat.rs:64:            down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
+temper/crates/temper-client-domain/src/tests/fixtures/chat.rs:181:pub fn change() -> c::Task {
+temper/crates/temper-client-domain/src/tests/fixtures/chat.rs:225:pub fn paused_task() -> c::Task {
+jig/testing/jig-client-scripted-engine/src/codec/values/result_details.rs:7:            w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value: *(value) })?)
+temper/crates/temper-client-domain/src/tests/fixtures/acts.rs:73:    ReadValue::PersonTask(Box::new(PersonTask {
+jig/testing/jig-client-scripted-engine/src/codec/values/proposed_task.rs:61:        c::Funder::Task(value) => w::Funder::Task(w::FunderTask::new(limits, w::FunderTaskParts { value: *(value) })?),
+temper/crates/temper-client-view/src/tests/views.rs:192:                        writer: c::NoteAuthor::Task { task: f::chat::TASK, attempt: 1 },
+temper/crates/temper-client-protocol-wire/src/tests/findings.rs:247:                        v1::HolderTask::new(limits, v1::HolderTaskParts { number: u64::MAX }).unwrap(),
+jig/testing/jig-client-scripted-engine/src/codec/values/person_task.rs:13:        w::PersonTaskParts {
+temper/crates/temper-client-view/src/tests/times.rs:97:    let person = c::ReadValue::PersonTask(Box::new(c::PersonTask {
+temper/crates/temper-client-view/src/tests/tell.rs:48:fn task() -> c::Task {
+temper/crates/temper-client-view/src/tests/tell.rs:69:                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap(),
+temper/crates/temper-client-view/src/tests/tell.rs:85:            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap()),
+temper/crates/temper-client-view/src/tests/tell.rs:118:            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => {
+jig/testing/jig-client-scripted-engine/src/codec/values/history.rs:145:            w::HistoryHolder::Task(w::HistoryHolderTask::new(limits, w::HistoryHolderTaskParts { value: *(value) })?)
+temper/crates/temper-client-shell-tui/src/tests/talk.rs:96:        &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: ROLE }).unwrap()),
+temper/crates/temper-client-shell-tui/src/tests/talk.rs:345:    let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
+temper/crates/temper-client-shell-tui/src/tests/talk.rs:357:                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
+temper/crates/temper-client-view/src/tests/task.rs:212:fn titled() -> c::Task {
+temper/crates/temper-client-view/src/tests/task.rs:1373:fn paused_agent_document() -> c::Task {
+temper/crates/temper-client-view/src/tests/task.rs:1702:fn procedure_document(phase: c::Phase) -> c::Task {
+temper/crates/temper-client-view/src/tests/task.rs:1985:fn role_talk_document() -> c::Task {
+jig/testing/jig-client-scripted-engine/src/codec/values/ended.rs:26:        c::EndedValue::Task { document, result } => w::EndedValue::Task(w::EndedValueTask::new(
+jig/testing/jig-client-scripted-engine/src/codec/values/ended.rs:28:            w::EndedValueTaskParts {
+jig/testing/jig-client-scripted-engine/src/codec/values/ended.rs:62:        c::EndedValue::PersonTask { document, result } => w::EndedValue::PersonTask(w::EndedValuePersonTask::new(
+jig/testing/jig-client-scripted-engine/src/codec/values/ended.rs:64:            w::EndedValuePersonTaskParts {
+temper/crates/temper-client-shell-tui/src/tests/close.rs:8:fn task(title: &[u8], ended: bool) -> w::Task {
+temper/crates/temper-client-shell-tui/src/tests/close.rs:80:        &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: CHAT }).unwrap()),
+jig/testing/jig-client-scripted-engine/src/codec/values/documents.rs:80:            w::Recipient::Task(w::RecipientTask::new(limits, w::RecipientTaskParts { value: *(value) })?)
+jig/testing/jig-client-scripted-engine/src/codec/values/documents.rs:194:        w::ProposedTaskParts {
+jig/testing/jig-client-scripted-engine/src/codec/values/documents.rs:219:        w::TaskParts {
+jig/testing/jig-client-scripted-engine/src/codec/values/documents.rs:549:        c::NoteAuthor::Task { task, attempt } => w::NoteAuthor::Task(w::NoteAuthorTask::new(
+jig/testing/jig-client-scripted-engine/src/codec/values/documents.rs:551:            w::NoteAuthorTaskParts { task: *(task), attempt: *(attempt) },
+temper/crates/temper-client-view/src/tests/remembered.rs:51:                c::NoteAuthor::Task { task: 14, attempt: 1 }
+temper/crates/temper-client-view/src/tests/remembered.rs:333:                pages::remembered::Row::Task { .. } => false,
+temper/crates/temper-client-domain-pages/src/tests/report.rs:17:        writer: c::NoteAuthor::Task { task: GOAL, attempt: 2 },
+temper/crates/temper-client-shell-tui/src/tests.rs:1736:            w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
+temper/crates/temper-client-shell-tui/src/tests.rs:1788:                w::NoteScopeTask::new(&w::CEILINGS, w::NoteScopeTaskParts { project: 3, task: 7 }).unwrap(),
+temper/crates/temper-client-shell-tui/src/tests.rs:1797:                w::NoteAuthorTask::new(&w::CEILINGS, w::NoteAuthorTaskParts { task: 7, attempt: 1 }).unwrap(),
+temper/crates/temper-client-shell-tui/src/tests.rs:1835:        watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
+temper/crates/temper-client-shell-tui/src/tests.rs:2795:                        w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
+temper/crates/temper-client-shell-tui/src/tests.rs:3134:                w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).expect("task subject"),
+jig/testing/jig-client-scripted-engine/src/codec/values/common.rs:17:            w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: *(value) })?)
+jig/testing/jig-client-scripted-engine/src/codec/values/common.rs:85:            w::ObjectKeyPersonTaskParts { value: *(value) },
+jig/testing/jig-client-scripted-engine/src/codec/values/common.rs:123:            w::NoteScopeTaskParts { project: *(project), task: *(task) },
+jig/testing/jig-client-scripted-engine/src/codec/values/common.rs:150:        c::Actor::Task(value) => w::Actor::Task(w::ActorTask::new(limits, w::ActorTaskParts { value: *(value) })?),
+temper/crates/temper-client-domain-pages/src/tests/goal.rs:53:fn tracked() -> c::Task {
+temper/crates/temper-client-domain-pages/src/tests/goal.rs:112:            writer: c::NoteAuthor::Task { task: f::TASK, attempt: 1 },
+temper/crates/temper-client-domain-pages/src/tests/goal.rs:607:fn with_offer(kind: c::ActKind) -> c::Task {
+temper/crates/temper-client-domain-pages/src/tests/goal.rs:612:fn paused_task() -> c::Task {
+temper/crates/temper-client-domain-pages/src/tests/goal.rs:880:fn cut_specification() -> c::Task {
+jig/testing/jig-client-scripted-engine/src/codec/values/chip.rs:110:            w::EscalationHolderTaskParts { value: *(value) },
+temper/crates/temper-client-domain-pages/src/tests/fixtures/chat.rs:12:pub fn task() -> c::Task {
+temper/crates/temper-client-domain-pages/src/tests/fixtures/chat.rs:64:            down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:187:        Some(Context::Task {
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:209:        Some(Context::Task {
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:226:        Some(Context::Task {
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:319:        Some(Context::Task {
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:380:            subject: jig_client::Watchable::Jig(c::Subject::Task { task: task.chip.task }),
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:473:        Some(Context::Task {
+temper/crates/temper-client-domain-pages/src/tests/choice.rs:488:        Some(Context::Template { model_index, .. } | Context::Task { model_index, .. }) => model_index,
+temper/crates/temper-client-view/src/tests/needs.rs:556:pub(super) fn milestone_task(change: bool) -> c::Task {
+temper/crates/temper-client-view/src/tests/inbox.rs:413:                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
+temper/crates/temper-client-domain-pages/src/pages/team/wakes.rs:8:    Task { target: u64, held: bool, result: bool },
+temper/crates/temper-client-domain-pages/src/pages/team/wakes.rs:26:                (Interest::Task { target, held, result }, policy.notices)
+temper/crates/temper-client-domain-pages/src/pages/team/wakes.rs:37:                        Interest::Timer { .. } | Interest::Task { .. } | Interest::Topics { .. } => {}
+temper/crates/temper-client-domain-pages/src/pages/team/standing.rs:197:                    subject: Watchable::Jig(c::Subject::Task { task }),
+temper/crates/temper-client-domain-pages/src/pages/team/hand.rs:522:            w::AreaTask::new(bounds, w::AreaTaskParts { number: open.chosen_role()?.task }).ok()?,
+temper/crates/temper-settings-form/src/kinds/follow.rs:92:            w::FollowOwnerTask::new(&d.kinds, w::FollowOwnerTaskParts { task: d.number(field(&owner, b"task")?)? })
+temper/crates/temper-client-domain-pages/src/pages/task.rs:325:pub struct Task {
+temper/crates/temper-client-domain-pages/src/pages/task.rs:355:impl Task {
+temper/crates/temper-client-domain-pages/src/pages/task.rs:367:            (document, c::Subject::Task { task: number }),
+temper/crates/temper-settings-form/src/kinds.rs:657:            w::AreaTask::new(&d.kinds, w::AreaTaskParts { number: d.number(at)? })
+temper/crates/temper-client-view/src/tests/document/corner.rs:135:                        writer: c::NoteAuthor::Task { task: f::chat::TASK, attempt: 1 },
+jig/testing/jig-client-protocol-kit/src/fixtures/create.rs:13:            .push(c::NewTask {
+jig/examples/ops/client-domain/src/wire.rs:15:            let Ok(value) = w::DecisionTask::new(&w::CEILINGS, w::DecisionTaskParts { value }) else {
+jig/testing/jig-client-protocol-kit/src/client/shapes.rs:31:        self.watch(DELEGATE, Watchable::Jig(c::Subject::Task { task }));
+jig/examples/ops/client-domain/src/tests.rs:401:        [jig_client_view::page::Section::Task { task: 9, section: jig_client_view::address::TaskSection::Plan }];
+jig/testing/jig-client-protocol-kit/src/client/facts.rs:58:        self.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task }));
+temper/crates/temper-client-domain-pages/src/pages/remembered.rs:27:    Task { place: u32, note: u64, line: &'a [u8], chat: Option<u64>, changed: Option<Wall> },
+temper/crates/temper-client-domain-pages/src/pages/remembered.rs:73:                c::NoteAuthor::Task { .. } => Row::Task {
+temper/crates/temper-client-shell-terminal/src/tests/fixtures/chat.rs:181:                    c::Subject::Task { task } => {
+temper/crates/temper-client-shell-terminal/src/tests/fixtures/chat.rs:498:fn delegation_task(number: u64, landed: bool) -> contract::Task {
+jig/examples/ops/client-domain/src/observability/documents.rs:81:                .push(jig_client_view::page::Section::Task {
+temper/crates/temper-client-domain-pages/src/pages/milestones.rs:49:                c::EndedValue::Task { document, .. } => Some(document.clone()),
+temper/crates/temper-client-domain-pages/src/pages/milestones.rs:54:                | c::EndedValue::PersonTask { .. } => None,
+jig/testing/jig-client-kit/src/stories/text_pages.rs:62:    let person = c::PersonTask {
+temper/crates/temper-service/src/tests/startup.rs:1795:        What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
+jig/testing/jig-client-kit/src/stories/shared/b_scripted.rs:10:        c::ProposedTask {
+temper/crates/temper-client-domain-pages/src/pages/decided.rs:36:pub enum DecisionTask {
+temper/crates/temper-client-domain-pages/src/pages/decided.rs:208:                c::EndedValue::Task { document, .. } => Some((document, ended.at)),
+temper/crates/temper-client-domain-pages/src/pages/decided.rs:213:                | c::EndedValue::PersonTask { .. } => None,
+temper/crates/temper-client-domain-pages/src/pages/decided.rs:219:fn decision_task(task: &c::Task, ended: Option<Wall>) -> DecisionTask {
+jig/testing/jig-client-kit/src/stories/person_confirmation.rs:97:    ReadValue::PersonTask(Box::new(PersonTask {
+jig/testing/jig-client-kit/src/stories/conversations.rs:35:pub fn chat(number: u64, title: &[u8], activity: Wall) -> Task {
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:26:    Task {
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:113:            (Some(Context::Task { project: a, task: b, .. }), Some(Context::Task { project: x, task: y, .. })) => {
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:116:            (Some(Context::Template { .. }), Some(Context::Task { .. }))
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:117:            | (Some(Context::Task { .. }), Some(Context::Template { .. }))
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:118:            | (None, None | Some(Context::Template { .. } | Context::Task { .. }))
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:119:            | (Some(Context::Template { .. } | Context::Task { .. }), None) => false,
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:135:            Context::Template { project, .. } | Context::Task { project, .. } => Some(project),
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:144:            Context::Template { template, .. } | Context::Task { template, .. } => template,
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:266:        let Some(Context::Task { project, task: number, revision, .. }) = self.context else { return };
+temper/crates/temper-client-domain-pages/src/pages/choice.rs:332:            Some(Context::Task {
+jig/testing/jig-client-kit/src/stories.rs:135:fn batch_task(number: u64, spec: SpecificationDocument, executor: Executor, budget: u64) -> ProposedTask {
+jig/testing/jig-client-kit/src/stories.rs:136:    ProposedTask {
+jig/testing/jig-client-kit/src/stories.rs:174:pub fn task() -> Task {
+jig/testing/jig-client-kit/src/stories.rs:175:    Task {
+jig/testing/jig-client-kit/src/stories.rs:1001:fn incident_delegate() -> Task {
+jig/testing/jig-client-kit/src/stories.rs:1107:pub fn reported(mut task: Task, report: &[u8]) -> Task {
+jig/testing/jig-client-kit/src/scripted/stories.rs:80:        value: EndedValue::Task { document: Box::new(document), result: Box::new(result) },
+jig/testing/jig-client-kit/src/scripted/stories.rs:505:                            value: EndedValue::PersonTask { document: Box::new(document), result: Box::new(result) },
+jig/testing/jig-client-kit/src/scripted.rs:136:    fn seed_chat(&self, party: u64, project: u32, words: &[u8]) -> jig_client_domain::contract::Task {
+jig/testing/jig-client-kit/src/scripted.rs:485:                if let Subject::Task { task } = &subject {
+jig/testing/jig-client-kit/src/scripted.rs:496:                | Subject::Task { .. }
+temper/crates/temper-client-domain-pages/src/pages/chat.rs:146:            subject: Watchable::Jig(c::Subject::Task { task }),
+temper/crates/temper-client-domain-pages/src/pages/chat.rs:907:                    subject: Watchable::Jig(c::Subject::Task { task: *task }),
+temper/crates/temper-client-domain-pages/src/pages/chat.rs:1569:            if let c::EndedValue::Task { mut document, result } = value.value {
+temper/crates/temper-client-domain-pages/src/pages/changes.rs:105:                                    c::EndedValue::Task { document, .. } => Some(document.clone()),
+temper/crates/temper-client-domain-pages/src/pages/changes.rs:110:                                    | c::EndedValue::PersonTask { .. } => None,
+jig/testing/jig-client-kit/src/joint/truth.rs:334:            record: jig_test_connector::Record::Task { task: 7, project: u32::MAX, resources: Box::new([]) },
+temper/crates/temper-client-domain-forge/src/tests/public.rs:51:            Public::Task { project: PROJECT, task: TASK },
+jig/testing/jig-client-kit/src/joint/engine_stories.rs:145:                    author: jig_domain_notes::Author::Task { task: chat, attempt: assignment.attempt },
+jig/testing/jig-client-kit/src/joint/engine_stories.rs:283:                author: jig_domain_notes::Author::Task { task: assignment.task, attempt: assignment.attempt },
+temper/crates/temper-client-domain-forge/src/tests/fixtures/chat.rs:11:pub fn task() -> c::Task {
+temper/crates/temper-client-domain-forge/src/tests/fixtures/chat.rs:61:pub fn change() -> c::Task {
+temper/crates/temper-client-domain-forge/src/tests/fixtures/acts.rs:41:    ReadValue::PersonTask(Box::new(PersonTask {
+temper/crates/temper-client-domain-forge/src/tests/amend.rs:78:fn goal() -> c::Task {
+temper/crates/temper-client-domain-forge/src/tests/amend.rs:93:fn cut_goal() -> c::Task {
+temper/crates/temper-client-domain-forge/src/tests/address.rs:437:        (Public::Task { project: 1, task: 10 }, b"/public/projects/0000000000000001/tasks/000000000000000a"),
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:328:pub(crate) fn needs_task(task: u64) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:386:fn task(name: &str, number: u64) -> c::Task {
+temper/crates/temper-client-domain-forge/src/public.rs:67:    Task {
+temper/crates/temper-client-domain-forge/src/public.rs:119:                    Public::Task { .. } => (Slot::new(Doc::JigCard), Some(Slot::new(Doc::ForgeChange))),
+temper/crates/temper-client-domain-forge/src/public.rs:244:            Public::Task { project, task } | Public::Landing { project, task } => [Some(project), Some(task)],
+temper/crates/temper-client-gallery-tool/src/worlds/views.rs:9:pub(super) fn task() -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds/tell.rs:46:            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => {
+temper/crates/temper-client-gallery-tool/src/worlds/tell.rs:126:                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("owner"),
+temper/crates/temper-client-gallery-tool/src/worlds/tell.rs:129:                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("holder"),
+temper/crates/temper-client-gallery-tool/src/worlds/tell.rs:145:                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("triager"),
+temper/crates/temper-client-gallery-tool/src/worlds/tell.rs:148:                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("holder"),
+temper/crates/temper-client-domain-forge/src/address.rs:18:    Task { task: u64 },
+temper/crates/temper-client-domain-forge/src/address.rs:733:    Task { project: u64, task: u64 },
+temper/crates/temper-client-domain-forge/src/address.rs:744:        Public::Task { project, task } => (project, b"/tasks/".as_slice(), Some(task)),
+temper/crates/temper-client-domain-forge/src/address.rs:777:            (b"tasks", task) => Public::Task { project, task: public_id(task)? },
+temper/crates/temper-client-gallery-tool/src/worlds/team/follows.rs:113:                        w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 })
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:77:            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } if role => {
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:216:    let holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("task"));
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:403:pub(super) fn prover(reader: u64) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:443:            writer: c::NoteAuthor::Task { task: 52, attempt: 1 },
+temper/crates/temper-client-domain-forge/src/forge/trials.rs:52:struct Task {
+temper/crates/temper-client-domain-forge/src/forge/trials.rs:298:        side.trials.task = Some(Task { number, open: true });
+temper/crates/temper-client-domain-forge/src/forge/trials.rs:302:                subject: Watchable::Jig(c::Subject::Task { task: number }),
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:346:        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:508:fn change_task(work: Work, number: u64) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds/chat_work.rs:32:pub(super) fn task(name: &str) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:367:fn agent_work_task() -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:378:fn role_talk_task() -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:668:                c::NoteAuthor::Task { task: 14, attempt: 1 }
+temper/crates/temper-client-gallery-tool/src/worlds.rs:821:                        c::Subject::Task { task: number } => {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1750:fn finish_document(mut t: c::Task) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1911:        .push(c::ProposedTask {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:2023:                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-gallery-tool/src/worlds.rs:2498:        writer: c::NoteAuthor::Task { task: 10, attempt: 1 },
+temper/crates/temper-client-gallery-tool/src/worlds.rs:2519:                writer: c::NoteAuthor::Task { task: f.number, attempt: 1 },
+temper/crates/temper-client-gallery-tool/src/worlds.rs:2723:    fn document(&self, w: World) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:2924:                        writer: c::NoteAuthor::Task { task: self.facts.number, attempt: 1 },
+temper/crates/temper-client-gallery-tool/src/worlds.rs:3037:fn document(w: World, number: u64) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:4306:fn base_task(number: u64, title: &str) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:4322:    c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:4509:fn shown_task(w: World, task: u64, then: Then) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5686:    note.writer = c::NoteAuthor::Task { task: 1, attempt: 1 };
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5877:fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
+temper/crates/temper-client-gallery-tool/src/samples.rs:3237:                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/pages/findings.rs:98:            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap())),
+temper/crates/temper-client-domain/src/tests/pages/findings.rs:198:    let task = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 40 }).unwrap());
+temper/crates/temper-client-domain/src/tests/pages/findings.rs:212:                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
+temper/crates/temper-client-domain/src/tests/pages/findings.rs:222:    parts.holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).unwrap());
+temper/crates/temper-client-gallery-tool/src/needs.rs:678:                w::HolderTask::new(b, w::HolderTaskParts { number: 55 }).expect("finding sample within wire bounds"),
+temper/crates/temper-client-domain/src/tests/pages/chats.rs:61:    fn task(&mut self) -> NewTask {
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:20:            subject: Watchable::Jig(c::Subject::Task { task: f::TASK })
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:601:                    down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:859:fn live_delegate() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:935:            down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { task: DELEGATED }) },
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:1049:        value: c::EndedValue::Task { document: Box::new(task.clone()), result: Box::new(result.clone()) },
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:1489:        writer: c::NoteAuthor::Task { task: f::TASK, attempt: f::ATTEMPT },
+temper/crates/temper-client-domain/src/tests/pages/chat.rs:2555:fn paused_task() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/all_home/launchpad.rs:432:        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/pages/all_home/launchpad.rs:498:                if let Watchable::Jig(c::Subject::Task { .. }) = subject {
+temper/crates/temper-client-view-work/src/tests/work.rs:75:        writer: c::NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-domain/src/tests/pages.rs:223:            && subject == Watchable::Jig(c::Subject::Task { task: TASK })
+temper/crates/temper-client-domain/src/tests/pages.rs:299:            && subject == Watchable::Jig(c::Subject::Task { task: DOCUMENT_TASK })
+temper/crates/temper-client-view-work/src/tests/tell.rs:35:fn task() -> c::Task {
+temper/crates/temper-client-view-work/src/tests/tell.rs:56:                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap(),
+temper/crates/temper-client-view-work/src/tests/tell.rs:72:            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap()),
+temper/crates/temper-client-view-work/src/tests/tell.rs:105:            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => {
+temper/crates/temper-client-view-work/src/tests/task.rs:303:fn titled() -> c::Task {
+temper/crates/temper-client-view-work/src/tests/task.rs:998:fn procedure_document(phase: c::Phase) -> c::Task {
+temper/crates/temper-client-view-work/src/tests/milestone.rs:30:fn document() -> c::Task {
+temper/crates/temper-client-view-work/src/tests/milestone.rs:118:        writer: c::NoteAuthor::Task { task: number, attempt: 1 },
+temper/crates/temper-client-view-work/src/tests/home_cards.rs:509:                                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap(),
+temper/crates/temper-client-view-work/src/tests/goal.rs:35:        writer: c::NoteAuthor::Task { task: TASK, attempt: 1 },
+temper/crates/temper-client-view-work/src/tests/goal.rs:1613:    fn offered() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/home.rs:2452:                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
+temper/crates/temper-client-domain/src/tests/pages/goals.rs:202:        writer: c::NoteAuthor::Task { task: GOAL, attempt: 1 },
+temper/crates/temper-client-view-work/src/tests/chat.rs:1822:                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }),
+temper/crates/temper-client-domain/src/tests/pages/remembered.rs:29:            c::NoteAuthor::Task { task: 99, attempt: 3 }
+temper/crates/temper-client-domain/src/tests/pages/remembered.rs:362:                    c::NoteAuthor::Task { .. } => Row::Task {
+temper/crates/temper-client-domain/src/tests/pages/talk.rs:34:    let watch = find_watch(&out, c::Subject::Task { task: f::chat::TASK });
+temper/crates/temper-client-domain/src/tests/pages/talk.rs:83:fn role() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/talk.rs:307:        writer: c::NoteAuthor::Task { task: f::chat::TASK, attempt: 1 },
+temper/crates/temper-client-view-work/src/pages/task.rs:141:    let holes = if word == Word::ReadingTask { &[Hole::Number(page.number)][..] } else { &[] };
+temper/crates/temper-client-view-work/src/pages/inbox.rs:569:            EndedValue::Task { document, result } => {
+temper/crates/temper-client-view-work/src/pages/inbox.rs:576:            EndedValue::PersonTask { result, .. } => {
+temper/crates/temper-client-view-work/src/pages/inbox.rs:628:            EndedValue::Task { document, result } => (&document.chip, Some(result.as_ref())),
+temper/crates/temper-client-view-work/src/pages/inbox.rs:629:            EndedValue::PersonTask { result, .. } => (&result.task, Some(result.as_ref())),
+temper/crates/temper-client-tui/src/tests/launchpad/team.rs:72:            writer: c::NoteAuthor::Task { task: 40, attempt: 1 },
+temper/crates/temper-client-tui/src/tests/launchpad/team.rs:84:    let task = |number| w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap());
+temper/crates/temper-client-tui/src/tests/launchpad/team.rs:103:                                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
+temper/crates/temper-client-tui/src/tests/launchpad/team.rs:120:                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 41 }).unwrap(),
+temper/crates/temper-client-tui/src/tests/launchpad.rs:259:            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task }) } => {
+temper/crates/temper-client-tui/src/tests/launchpad.rs:454:fn task_document() -> c::Task {
+temper/crates/temper-client-view-setup/src/tests/team.rs:463:                Interest::Task { target: 61, held: false, result: true },
+temper/crates/temper-client-view-setup/src/tests/team.rs:469:                Interest::Task { target: 61, held: true, result: false },
+temper/crates/temper-client-view-setup/src/tests/team.rs:475:                Interest::Task { target: 61, held: true, result: true },
+temper/crates/temper-client-view-setup/src/tests/model_check.rs:454:    let task_watch = opening(&out, jig_client::Watchable::Jig(c::Subject::Task { task: 91 }));
+temper/crates/temper-client-tui/src/tests/foot.rs:157:                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: 9 }),
+temper/crates/temper-client-tui/src/tests/foot.rs:225:                        writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+temper/crates/temper-client-tui/src/tests/foot.rs:2270:fn walk_task() -> c::Task {
+temper/crates/temper-client-tui/src/tests/fixtures.rs:397:                Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 9 }) } => {
+temper/crates/temper-client-tui/src/tests/fixtures.rs:472:                            writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+temper/crates/temper-client-tui/src/tests/commands.rs:114:                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: 9 }),
+temper/crates/temper-client-tui/src/tests/commands.rs:180:                        writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+temper/crates/temper-client-view-setup/src/pages/team/wakes.rs:62:            Interest::Task { target, held, result } => {
+temper/crates/temper-client-view-setup/src/pages/team/wakes.rs:119:        Interest::Task { target, held, result } => concat(&[
+temper/crates/temper-client-tui/src/tests/chat.rs:88:fn task() -> c::Task {
+temper/crates/temper-client-tui/src/tests/chat.rs:109:fn cancelled_task() -> c::Task {
+temper/crates/temper-client-tui/src/tests/chat.rs:322:                        w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: TASK }).unwrap());
+temper/crates/temper-client-tui/src/tests/chat.rs:413:                        writer: c::NoteAuthor::Task { task: TASK, attempt: ATTEMPT },
+temper/crates/temper-client-tui/src/tests/chat.rs:446:                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }) },
+temper/crates/temper-client-view/src/tests/chat.rs:675:                                subject: jig_client::Watchable::Jig(c::Subject::Task { .. }),
+temper/crates/temper-client-view/src/tests/chat.rs:1292:fn resting_task() -> c::Task {
+temper/crates/temper-client-view-setup/src/pages/remembered.rs:45:            Row::Task { note, line, chat, changed, .. } => (note, line, Some(chat), changed),
+temper/crates/temper-protocol-store/src/records/application/refusal.rs:119:        p::Party::Task(value) => w::Party::Task(w::PartyTask::new(l, w::PartyTaskParts { value: *value })?),
+temper/crates/temper-client-shell-terminal/src/client/tests/fixtures.rs:256:                    down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Task { task }) },
+temper/crates/temper-client-shell-terminal/src/client/tests/fixtures.rs:328:fn committed_task() -> w::Task {
+temper/crates/temper-client-view/src/tests/delegation.rs:21:fn landed() -> c::Task {
+temper/crates/temper-client-view/src/tests/delegation.rs:140:                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: number }),
+temper/crates/temper-client-view/src/tests/delegation.rs:164:                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: number }),
+temper/crates/temper-client-view/src/tests/choice.rs:1080:pub(crate) fn waiting_task(wait: Option<c::TaskRunWait>) -> c::Task {
+temper/crates/temper-client-view/src/tests/chats.rs:814:                            writer: NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-view/src/tests/chat_sheet.rs:119:                Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { .. }) } => {
+temper/crates/temper-client-view/src/tests/chat_sheet.rs:197:                            writer: c::NoteAuthor::Task { task: CHAT, attempt: 1 },
+temper/crates/temper-client-tools/src/tests/jig/wait.rs:49:    let watch = Watchable::Jig(c::Subject::Task { task: 1 });
+temper/crates/temper-client-tools/src/tests/jig/wait.rs:113:    root.deliver_subject(&Watchable::Jig(c::Subject::Task { task: 1 }), delivery);
+temper/crates/temper-client-tools/src/tests/jig/task_words.rs:16:fn delegate() -> c::Task {
+temper/crates/temper-client-tools/src/tests/jig/task_words.rs:43:        value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
+temper/crates/temper-client-tools/src/tests/jig/task_words.rs:67:fn untracked(contract: c::TaskContractDocument) -> c::Task {
+temper/crates/temper-client-tools/src/tests/jig/task_words.rs:660:fn task_without_account(wait: c::WaitsOn) -> c::Task {
+temper/crates/temper-client-tools/src/tests/jig/task_words.rs:1265:        value: c::EndedValue::PersonTask { document: Box::new(person), result: Box::new(result) },
+temper/crates/temper-client-view-parts/src/tests/shared.rs:337:                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).expect("task"),
+temper/crates/temper-client-tools/src/tests/jig/role.rs:266:            writer: c::NoteAuthor::Task { task: f::TASK, attempt: 1 },
+temper/crates/temper-client-view-parts/src/tests/public/rules.rs:64:    render(Public::Task { project: PROJECT, task: TASK }, &[(Doc::JigCard, records::card_line(line))], seconds)
+temper/crates/temper-client-view-parts/src/tests/public/rules.rs:240:            Public::Task { project: PROJECT, task: TASK },
+temper/crates/temper-client-view-parts/src/tests/public/rules.rs:272:            Public::Task { project: PROJECT, task: TASK },
+temper/crates/temper-client-view-parts/src/tests/public/rules.rs:288:        Public::Task { project: PROJECT, task: TASK },
+temper/crates/temper-client-tools/src/tests/jig/replays.rs:30:            c::EndedValue::PersonTask { document: Box::new(person), result: ended_result() },
+temper/crates/temper-client-view-parts/src/tests/public.rs:64:    assert_eq!(page, Public::Task { project: PROJECT, task: TASK });
+temper/crates/temper-client-view-parts/src/tests/public.rs:83:    let mut task = reader(Public::Task { project: PROJECT, task: TASK });
+temper/crates/temper-client-tools/src/tests/jig/notes.rs:16:        writer: c::NoteAuthor::Task { task: f::TASK, attempt: 1 },
+temper/crates/temper-client-view-parts/src/tests/choice.rs:60:pub(crate) fn waiting_task(wait: Option<c::TaskRunWait>) -> c::Task {
+temper/crates/temper-client-tools/src/tests/jig/milestone.rs:40:fn milestone() -> c::Task {
+temper/crates/temper-client-view-parts/src/tests/chats.rs:172:                            writer: NoteAuthor::Task { task, attempt: 1 },
+temper/crates/temper-client-tools/src/tests/jig/goal_milestone.rs:33:fn milestone() -> c::Task {
+temper/crates/temper-client-tools/src/tests/jig/goal_milestone.rs:55:fn delegated(root: &f::Harness, call: u32) -> &c::NewTask {
+temper/crates/temper-client-tools/src/tests/jig/amend_controls.rs:14:fn task() -> c::Task {
+temper/crates/temper-client-view-parts/src/public/pages.rs:27:            Shown::Task { card, change, unavailable, as_of, companion_as_of, .. } => {
+temper/crates/temper-client-view-parts/src/public/lines.rs:14:        self.link(b, &self.identity(task, goal), Public::Task { project: self.project, task });
+temper/crates/temper-client-view-parts/src/public.rs:146:        | Public::Task { project, .. }
+temper/crates/temper-engine-smith/src/tests/see_person.rs:270:            writer: jig_domain_notes::Author::Task { task: 12, attempt: 1 },
+temper/crates/temper-engine-smith/src/tests/see_person.rs:280:fn task() -> d::Task {
+temper/crates/temper-engine-smith/src/tests/see_person.rs:281:    d::Task {
+temper/crates/temper-engine-smith/src/tests/see_person.rs:382:        value: jig_domain_core::reads::EndedValue::Task { document: Box::new(value), result: Box::new(result) },
+jig/crates/jig-domain-tasks/src/placed.rs:15:    Task { task: u64 },
+temper/crates/temper-client-tools/src/tests/fixtures/waits.rs:68:pub(crate) fn task_in(latest: &mut client::Latest) -> &mut c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/waits.rs:155:    client::Watchable::Jig(c::Subject::Task { task: TASK })
+temper/crates/temper-client-tools/src/tests/fixtures/waits.rs:367:pub(crate) fn parked_task() -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/waits.rs:382:pub(crate) fn ended_task(phase: c::Phase) -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/task_text.rs:99:) -> jig_client::contract::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/reads.rs:454:pub(crate) fn document_at_byte_bound() -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/reads.rs:513:pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
+temper/crates/temper-engine-smith/src/tests.rs:3700:        engine::Tool::ReadTask { task: 23, field: jig_domain_core::reads::TaskTextField::Specification, from: 17 }
+temper/crates/temper-engine-smith/src/tests.rs:3708:        assert_eq!(decoded.tool, engine::Tool::ReadTask { task: 23, field: expected, from: 0 });
+temper/crates/temper-client-domain/src/tests/pages/task.rs:28:            subject: Watchable::Jig(c::Subject::Task { task: f::TASK }),
+temper/crates/temper-client-domain/src/tests/pages/task.rs:375:fn agent_document() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/task.rs:815:                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result.clone()) },
+temper/crates/temper-client-domain/src/tests/pages/task.rs:908:fn offered_task(kind: c::ActKind, admission: Option<c::Admission>) -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/task.rs:973:fn paused_agent() -> c::Task {
+temper/crates/temper-client-domain/src/tests/pages/task.rs:1785:fn standing_task() -> c::Task {
+jig/crates/jig-domain-tasks/src/domain.rs:18:pub(crate) struct Task {
+jig/crates/jig-domain-tasks/src/domain.rs:30:impl Task {
+jig/crates/jig-domain-tasks/src/domain.rs:104:pub struct ViewTask {
+jig/crates/jig-domain-tasks/src/domain.rs:226:            rows.push(ViewTask {
+temper/crates/temper-engine-smith/src/see/person/runs.rs:236:            EndedValue::Task { .. }
+temper/crates/temper-engine-smith/src/see/person/runs.rs:241:            | EndedValue::PersonTask { .. }
+temper/crates/temper-client-tools/src/tests/fixtures/dependencies.rs:8:pub(crate) fn goal_with_dependencies() -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/dependencies.rs:45:pub(crate) fn goal_with_dependencies_and_long_specification() -> c::Task {
+temper/crates/temper-engine-smith/src/see/person.rs:532:                jig_domain_core::reads::EndedValue::Task { .. }
+temper/crates/temper-engine-smith/src/see/person.rs:536:                | jig_domain_core::reads::EndedValue::PersonTask { .. }
+temper/crates/temper-engine-smith/src/see/person.rs:592:            jig_domain_core::reads::EndedValue::Task { document, .. } => Some(document),
+temper/crates/temper-engine-smith/src/see/person.rs:597:            | jig_domain_core::reads::EndedValue::PersonTask { .. }
+temper/crates/temper-engine-smith/src/see/person.rs:687:            jig_domain_core::reads::EndedValue::Task { result, .. } => Some(&result.ending),
+temper/crates/temper-engine-smith/src/see/person.rs:692:            | jig_domain_core::reads::EndedValue::PersonTask { .. }
+jig/crates/jig-domain-tasks/src/compound/staged.rs:609:    CompoundTask {
+temper/crates/temper-client-tools/src/tests/fixtures/choices.rs:90:pub(crate) fn chat_task(root: &Harness, call: u32) -> &c::NewTask {
+temper/crates/temper-client-tools/src/tests/fixtures/choices.rs:111:pub(crate) fn choice_task(admission: c::Admission) -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/acts.rs:8:pub(crate) fn offered(acts: &[c::ActKind]) -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/acts.rs:270:pub(crate) fn with_delegates() -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/acts.rs:325:fn act_task() -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures/acts.rs:356:pub(crate) fn person_document() -> c::PersonTask {
+temper/crates/temper-client-tools/src/tests/fixtures/acts.rs:358:    c::PersonTask {
+temper/crates/temper-client-tools/src/tests/fixtures.rs:477:pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
+temper/crates/temper-client-tools/src/tests/fixtures.rs:521:        value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
+jig/crates/jig-domain-tasks/src/boundary.rs:84:    Task { target: u64, held: bool, result: bool },
+temper/crates/temper-client-tools/src/tests/finding.rs:27:    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: task }).unwrap())
+temper/crates/temper-client-tools/src/tests/finding.rs:42:            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 39 }).unwrap())),
+temper/crates/temper-engine-smith/src/notes.rs:63:            author: notes::Author::Task { task: 0, attempt: 0 },
+temper/crates/temper-engine-smith/src/kinds.rs:350:            v1::AreaTask::new(&v1::CEILINGS, v1::AreaTaskParts { number }).expect("fixed owner number"),
+temper/crates/temper-client-tools/src/tests/change.rs:92:fn task(ended: bool, change_result: bool) -> c::Task {
+temper/crates/temper-client-tools/src/tests/change.rs:128:fn no_change_task() -> c::Task {
+temper/crates/temper-client-tools/src/tests/change.rs:139:        value: c::EndedValue::Task { document: Box::new(task), result },
+temper/crates/temper-client-tools/src/tests/change.rs:164:                &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+temper/crates/temper-client-tools/src/tests/change.rs:205:            &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+temper/crates/temper-client-tools/src/tests/change.rs:370:    let subject = client::Watchable::Jig(c::Subject::Task { task: 2 });
+temper/crates/temper-client-tools/src/tests/change.rs:459:fn cancelled() -> c::Task {
+temper/crates/temper-client-tools/src/tests/change.rs:476:            let subject = client::Watchable::Jig(c::Subject::Task { task: 2 });
+temper/crates/temper-client-tools/src/tests/change.rs:573:        &client::Watchable::Jig(c::Subject::Task { task: 8 }),
+temper/crates/temper-client-tools/src/tests/change.rs:592:    root.end(call, &client::Watchable::Jig(c::Subject::Task { task: 8 }), c::WatchEnd::NotAllowed);
+temper/crates/temper-client-tools/src/tests/change.rs:647:                    &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+temper/crates/temper-client-tools/src/tests/change.rs:655:                    &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+temper/crates/temper-client-tools/src/tests/change.rs:712:        &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+temper/crates/temper-engine-smith/src/calls.rs:972:    Ok(engine::Tool::ReadTask {
+jig/crates/jig-domain-people/src/refusals.rs:353:    Task { task: u64 },
+temper/crates/temper-client-tools/src/landing/history.rs:159:fn task_record(task: u64) -> w::HistoryTask {
+temper/crates/temper-client-tools/src/landing/history.rs:160:    w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task }).expect("scalar task")
+jig/crates/jig-domain-core/src/tests/start/rows.rs:151:    n.author = notes::Author::Task { task: 1, attempt: 0 };
+jig/crates/jig-domain-notes/src/tests.rs:32:        author: Author::Task { task: 9, attempt: 1 },
+jig/crates/jig-domain-notes/src/tests.rs:96:        author: Author::Task { task: 9, attempt: 1 },
+jig/crates/jig-domain-notes/src/tests.rs:174:        author: Author::Task { task: 1, attempt: 1 },
+jig/crates/jig-domain-notes/src/tests.rs:757:        assert_eq!(saved.author, Author::Task { task: 9, attempt: 1 });
+jig/crates/jig-domain-notes/src/domain.rs:458:        Author::Task { task, attempt } => task != 0 && attempt != 0,
+jig/crates/jig-domain-notes/src/boundary.rs:45:    Task { task: u64, attempt: u64 },
+temper/crates/temper-client-view-parts/src/choice.rs:436:        Some(choice::Context::Template { template, .. } | choice::Context::Task { template, .. }) => template,
+jig/crates/jig-domain-core/src/tests/start/projections.rs:490:        (vec![goal(1), goal_words(1), task(2)], K::Task { goal: 1, task: 2 }, K::TaskWords { goal: 1, task: 2 }),
+jig/crates/jig-domain-core/src/tests/start/projections.rs:491:        (vec![goal(1), goal_words(1), task_words(2)], K::TaskWords { goal: 1, task: 2 }, K::Task { goal: 1, task: 2 }),
+temper/crates/temper-client-tools-jig/src/jig/wait.rs:154:        Subject::Task(task) => (c::Subject::Task { task: *task }, b"task"),
+temper/crates/temper-engine-service-vocabulary/src/family/refusals.rs:356:        p::Party::Task(value) => w::Actor::Task(w::ActorTask::new(limits, w::ActorTaskParts { value })?),
+jig/crates/jig-protocol-tools/src/notes.rs:58:        author: notes::Author::Task { task: 0, attempt: 0 },
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:4662:            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: u64::MAX }).unwrap()),
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:4768:                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 42 }).unwrap(),
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:4898:            w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 51 }).unwrap()),
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:5235:            w::HistoryOf::Change(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 51 }).unwrap()),
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:5239:            w::HistoryOf::Landing(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 61 }).unwrap()),
+temper/crates/temper-engine-service-vocabulary/src/family/findings.rs:129:        forge::Holder::Task(number) => w::Holder::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
+temper/crates/temper-engine-service-vocabulary/src/family/findings.rs:288:        forge::Filer::Task(number) => w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
+temper/crates/temper-client-tools-jig/src/jig/runner/reads.rs:926:            c::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/runner/reads.rs:931:            | c::EndedValue::PersonTask { .. } => None,
+temper/crates/temper-client-tools-jig/src/jig/runner/acts/subject.rs:69:        c::EndedValue::Task { document, .. } | c::EndedValue::Escalation { task: document, .. } => {
+temper/crates/temper-client-tools-jig/src/jig/runner/acts/subject.rs:75:        c::EndedValue::PersonTask { document, .. } => chip_scope(&document.task),
+temper/crates/temper-client-tools-jig/src/jig/runner/acts/need.rs:47:    let task = c::NewTask {
+jig/crates/jig-protocol-store/src/view/rows.rs:39:            .insert(task, Task { asked: List::uncapped(), covered: List::uncapped() })
+jig/crates/jig-domain-core/src/tests/runs/run_choice.rs:549:        core.view_names.insert(WatchedSubject { subject: Subject::Task { task: TASK }, watchers: 1 }).unwrap();
+jig/crates/jig-protocol-store/src/view.rs:34:struct Task {
+jig/crates/jig-protocol-engine-clients/src/translate/watches.rs:22:        w::Subject::Task(value) => (d::Watched::Task { task: value.task() }, rows),
+jig/crates/jig-domain-core/src/tests/runs/first_usable.rs:179:fn document(core: &Core, limits: &Limits) -> Task {
+jig/crates/jig-protocol-engine-clients/src/translate/task.rs:45:                    w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: number })?)
+jig/crates/jig-protocol-engine-clients/src/translate/task.rs:89:            w::Recipient::Task(w::RecipientTask::new(limits, w::RecipientTaskParts { value: *number })?)
+jig/crates/jig-protocol-engine-clients/src/translate/task.rs:339:        w::TaskParts {
+jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs:374:        p::Party::Task(value) => w::Actor::Task(w::ActorTask::new(limits, w::ActorTaskParts { value })?),
+temper/crates/temper-client-tools-jig/src/jig/render/outcome.rs:1380:        Some(c::NewTask {
+temper/crates/temper-client-tools-jig/src/jig/render/outcome.rs:1385:        Some(c::NewTask { executor: c::Executor::Person(_), .. }) => b"need",
+jig/crates/jig-protocol-engine-clients/src/translate/pages/rows.rs:138:        jig_domain_notes::Author::Task { task, attempt } => {
+jig/crates/jig-protocol-engine-clients/src/translate/pages/rows.rs:139:            w::NoteAuthor::Task(w::NoteAuthorTask::new(limits, w::NoteAuthorTaskParts { task, attempt })?)
+jig/crates/jig-protocol-engine-clients/src/translate/owner.rs:23:        t::Funder::Task(number) => w::Funder::Task(w::FunderTask::new(limits, w::FunderTaskParts { value: number })?),
+jig/crates/jig-protocol-engine-clients/src/translate/owner.rs:101:            w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value: number })?)
+jig/crates/jig-protocol-engine-clients/src/translate/owner.rs:449:            w::SubscriptionKindTaskParts { target, held, result },
+jig/crates/jig-protocol-engine-clients/src/translate/objects/proposals.rs:50:            w::HistoryHolder::Task(w::HistoryHolderTask::new(limits, w::HistoryHolderTaskParts { value })?)
+jig/crates/jig-protocol-engine-clients/src/translate/objects/proposals.rs:78:        w::ProposedTaskParts {
+temper/crates/temper-engine-service-startup/src/startup/problems.rs:19:    StoreTask { needs: u32, has: u32, batch_bytes: u32 },
+temper/crates/temper-engine-service-startup/src/startup/problems.rs:61:EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+temper/crates/temper-engine-service-startup/src/startup/problems.rs:217:            EngineWhat::StoreTask { needs, has, batch_bytes } => {
+jig/crates/jig-domain-core/src/tests/reads/retained_lineage.rs:34:    let crate::reads::EndedValue::Task { document, .. } = value.value else { panic!("task") };
+jig/crates/jig-protocol-engine-clients/src/translate/objects/current.rs:121:        w::PersonTaskParts {
+temper/crates/temper-engine-service-startup/src/startup/checks.rs:1018:            What::Half(crate::startup::EngineWhat::StoreTask {
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:17:        reads::EndedValue::Task { document, result } => w::EndedValue::Task(w::EndedValueTask::new(
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:19:            w::EndedValueTaskParts {
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:79:        reads::EndedValue::PersonTask { document, result } => w::EndedValue::PersonTask(w::EndedValuePersonTask::new(
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:81:            w::EndedValuePersonTaskParts {
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:140:            reads::EndedValue::Task { .. }
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:145:            | reads::EndedValue::PersonTask { .. }
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:162:        reads::EndedValue::Task { document, .. } => {
+jig/crates/jig-protocol-engine-clients/src/translate/objects.rs:193:            w::ObjectKeyPersonTaskParts { value: document.task.number },
+jig/crates/jig-protocol-engine-clients/src/translate/inbox.rs:16:                        w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value })?)
+jig/crates/jig-domain-core/src/tests/reads/ended_watches.rs:83:    let load = open_retained(&mut core, &limits, Watched::Task { task: RETAINED });
+jig/crates/jig-domain-core/src/tests/reads/ended_watches.rs:126:    let load = open_retained(&mut core, &limits, Watched::Task { task: RETAINED });
+jig/crates/jig-domain-core/src/tests/reads/ended_watches.rs:144:                subject: Watched::Task { task: RETAINED },
+temper/crates/temper-client-tools-jig/src/jig/render/document/proposal.rs:524:        c::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/render/document/proposal.rs:527:        | c::EndedValue::PersonTask { .. } => unreachable!("validated proposal history"),
+temper/crates/temper-client-tools-jig/src/jig/render/document/proposal.rs:557:        c::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/render/document/proposal.rs:560:        | c::EndedValue::PersonTask { .. } => unreachable!("validated proposal history"),
+jig/crates/jig-domain-core/src/tests/reads/closed.rs:187:    for subject in [Watched::Task { task: 1 }, Watched::Tree { task: 1 }, Watched::Run { task: 1 }] {
+jig/crates/jig-domain-core/src/tests/reads/closed.rs:391:            author: notes::Author::Task { task: name, attempt: 1 },
+jig/crates/jig-domain-core/src/tests/reads/closed.rs:590:    assert_eq!(entry.author, notes::Author::Task { task, attempt: 1 });
+jig/crates/jig-protocol-engine-clients/src/translate/chips.rs:175:            w::EscalationHolderTaskParts { value: number },
+jig/crates/jig-protocol-engine-clients/src/translate/answers.rs:268:                    w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: *value })?)
+jig/crates/jig-domain-core/src/tests/person_task.rs:121:fn task_document(core: &Core, env: &Env<Limits>, task: u64) -> Task {
+jig/crates/jig-domain-core/src/tests/person_task.rs:123:        make(core, &env.limits, PERSON, &Subject::Task { task }, &window(), env.wall).expect("payer may read Task")
+temper/crates/temper-engine-service-component/src/tests/stop/drop_job.rs:136:        need: Need::Task { task: CALL.task, retired: None },
+jig/crates/jig-domain-core/src/tests/inbox/inbox_selection.rs:569:    let crate::reads::EndedValue::Task { document, result } = &history.value else { panic!("whole kept task") };
+temper/crates/temper-client-tools-jig/src/jig/render.rs:108:            contract::EndedValue::PersonTask { document, .. } => Some(document),
+temper/crates/temper-client-tools-jig/src/jig/render.rs:109:            contract::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/render.rs:142:            contract::EndedValue::PersonTask { result, .. } => result.details.as_ref()?.chosen_by,
+temper/crates/temper-client-tools-jig/src/jig/render.rs:143:            contract::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/render.rs:189:        contract::EndedValue::Task { .. }
+temper/crates/temper-client-tools-jig/src/jig/render.rs:192:        | contract::EndedValue::PersonTask { .. } => return None,
+temper/crates/temper-client-tools-jig/src/jig/render.rs:208:    if let contract::EndedValue::Task { document, result } = &value.value
+jig/crates/jig-domain-core/src/tests/effects/hold_origin.rs:327:        for subject in [Subject::Task { task: 2 }, Subject::Escalation { task: 2 }] {
+jig/crates/jig-domain-core/src/tests/effects.rs:75:        let next = ProjectionTask {
+jig/crates/jig-domain-core/src/tests/effects.rs:148:        [K::GoalWords(1), K::Task { goal: 1, task: 1 }, K::TaskWords { goal: 1, task: 1 }, K::Goal(1)]
+jig/crates/jig-domain-core/src/tests/effects.rs:163:        [K::Task { goal: 1, task: 9 }, K::TaskWords { goal: 1, task: 9 }, K::Goal(1)]
+jig/crates/jig-domain-core/src/tests/effects.rs:180:    assert_eq!(projection_keys(&projection_puts(&mut out)).as_ref(), [K::Task { goal: 1, task: 9 }, K::Goal(1)]);
+jig/crates/jig-domain-core/src/tests/effects.rs:265:        expected.push(K::Task { goal: 1, task: task.number }).unwrap();
+jig/crates/jig-domain-core/src/tests/documents/chip_executor.rs:45:        make(&core, &limits, 1, &Subject::Task { task: 2 }, &window(), Wall::EPOCH).expect("task")
+jig/crates/jig-domain-core/src/tests/classify_subjects.rs:38:        Row { subject: Subject::Task { task: TASK }, shape: Shape::Retained(TASK), marks: no },
+jig/crates/jig-domain-core/src/tests/classify_subjects.rs:91:        Row { subject: Subject::PersonTask { task: TASK }, shape: Shape::Other, marks: no },
+jig/crates/jig-domain-core/src/effects/projections.rs:104:    let next = ProjectionTask {
+jig/crates/jig-domain-core/src/tests/admission/goal_of.rs:80:            make(&core, &limits, REQUESTER, &Subject::Task { task: number }, &window(), Wall::EPOCH).unwrap()
+jig/crates/jig-domain-core/src/tests/admission/escalation_holder.rs:103:            compound::PartyTask { person: REQUESTER, role: Some(people::Role::Owner), project: PROJECT, task: TASK },
+jig/crates/jig-domain-core/src/documents/task_tree.rs:363:    Ok(Task {
+jig/crates/jig-domain-core/src/tests/admission/account_admission.rs:62:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 2 },
+jig/crates/jig-domain-core/src/tests/acts/tracking.rs:60:            compound::PartyTask {
+jig/crates/jig-domain-core/src/tests/acts/tracking.rs:83:            compound::PartyTask {
+jig/crates/jig-domain-core/src/documents/offers.rs:85:    list(core, limits, party, &Subject::Task { task: row.number }, kinds.as_slice(), decision)
+jig/crates/jig-domain-core/src/documents/offers.rs:147:        | Subject::Task { .. }
+jig/crates/jig-domain-core/src/documents/offers.rs:157:        | Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/documents/offers.rs:180:                return list(core, limits, party, &Subject::PersonTask { task: row.number }, kinds, decision);
+jig/crates/jig-domain-core/src/documents/offers.rs:189:            list(core, limits, party, &Subject::PersonTask { task: row.number }, kinds, decision)
+jig/crates/jig-domain-core/src/documents/offers.rs:218:        Subject::Task { task } | Subject::Escalation { task } => *task,
+jig/crates/jig-domain-core/src/documents/offers.rs:232:        | Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:107:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:118:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:147:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:160:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:174:    make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH).unwrap();
+jig/crates/jig-domain-core/src/tests/acts/kind_order.rs:180:    make(&core, &limits, 1, &Subject::Task { task: 1 }, &window(), Wall::EPOCH).unwrap();
+jig/crates/jig-domain-core/src/documents/objects.rs:63:    Ok(ProposedTask {
+jig/crates/jig-domain-core/src/documents/objects.rs:520:    Ok(PersonTask {
+jig/crates/jig-domain-core/src/tests/acts/conversations.rs:46:    let subject = Subject::Task { task: CONVERSATION };
+jig/crates/jig-domain-core/src/tests/acts/conversations.rs:55:    let subject = Subject::Task { task: CONVERSATION };
+jig/crates/jig-domain-core/src/tests/acts/conversations.rs:122:    let subject = Subject::Task { task: CONVERSATION };
+jig/crates/jig-domain-core/src/tests/acts/conversations.rs:131:    let subject = Subject::Task { task: CONVERSATION };
+jig/crates/jig-domain-core/src/documents/deployment.rs:410:        | super::Subject::Task { .. }
+jig/crates/jig-domain-core/src/documents/deployment.rs:419:        | super::Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/tests/acts.rs:214:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts.rs:237:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts.rs:250:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts.rs:414:    let subject = Subject::PersonTask { task: 5 };
+jig/crates/jig-domain-core/src/tests/acts.rs:562:            offers::admit(&core, &limits, 1, act, &Subject::Task { task: number }, Wall::EPOCH),
+jig/crates/jig-domain-core/src/tests/acts.rs:567:                compound::PartyTask { person: 1, project: 1, role: Some(people::Role::Owner), task: number },
+jig/crates/jig-domain-core/src/tests/acts.rs:585:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 2 },
+jig/crates/jig-domain-core/src/tests/acts.rs:750:    let object = Subject::Task { task: 5 };
+jig/crates/jig-domain-core/src/tests/acts.rs:767:    let object = Subject::Task { task: 5 };
+jig/crates/jig-domain-core/src/tests/acts.rs:774:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 5 },
+jig/crates/jig-domain-core/src/tests/acts.rs:812:                compound::PartyTask {
+jig/crates/jig-domain-core/src/tests/acts.rs:1179:            compound::PartyTask { person: 1, project: 1, role: None, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts.rs:1199:        if let flight::Flight::PersonTask { request, .. } = flight
+jig/crates/jig-domain-core/src/tests/acts.rs:1206:    let flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
+jig/crates/jig-domain-core/src/tests/acts.rs:1232:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/tests/acts.rs:1242:            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+jig/crates/jig-domain-core/src/documents.rs:105:        Subject::Task { task } => {
+jig/crates/jig-domain-core/src/documents.rs:140:        Subject::PersonTask { task } => {
+jig/crates/jig-domain-core/src/tests.rs:1687:        make(&core, &limits, 1, &Subject::PersonTask { task: 5 }, &window(), Wall::EPOCH).unwrap()
+jig/crates/jig-domain-core/src/tests.rs:1792:        author: notes::Author::Task { task: 2, attempt: 1 },
+jig/crates/jig-domain-core/src/tests.rs:2349:        ("Task", Watched::Task { task: 1 }, Subject::Task { task: 1 }),
+jig/crates/jig-domain-core/src/tests.rs:2383:            Watched::Task { .. }
+jig/crates/jig-domain-core/src/tests.rs:2596:        Watched::Task { task: 2 },
+jig/crates/jig-domain-core/src/tests.rs:3139:    let crate::reads::EndedValue::Task { document, result } = value.value else { panic!() };
+jig/crates/jig-domain-core/src/tests.rs:3215:    let crate::reads::EndedValue::PersonTask { document, .. } = value.value else { panic!() };
+jig/crates/jig-domain-core/src/tests.rs:3530:    let subject = Subject::PersonTask { task: 5 };
+jig/crates/jig-domain-core/src/tests.rs:3759:            Watched::Task { task: 1 }
+jig/crates/jig-domain-core/src/admission/roles.rs:20:        let super::compound::PartyTask { person, project, role, task } = party;
+jig/crates/jig-domain-core/src/admission/roles.rs:96:        let super::compound::PartyTask { person, project, role, task } = party;
+jig/crates/jig-domain-core/src/admission/roles.rs:169:        let super::compound::PartyTask { person, role, project, task } = party;
+jig/crates/jig-domain-core/src/admission/proposals.rs:71:            &authority::Holder::Task {
+jig/crates/jig-domain-core/src/admission/escalation.rs:158:                        &authority::Holder::Task {
+jig/crates/jig-domain-core/src/admission/compound.rs:9:pub(crate) struct PartyTask {
+jig/crates/jig-domain-core/src/acts/requests.rs:200:        documents::Subject::PersonTask { task } => {
+jig/crates/jig-domain-core/src/acts/requests.rs:206:        documents::Subject::Task { .. }
+jig/crates/jig-domain-core/src/acts/objects/task.rs:18:    let who = PartyTask { person: party, project: row.project, role: held, task: number };
+jig/crates/jig-domain-core/src/acts/objects.rs:29:        documents::Subject::Task { task: number } => task::admit(core, limits, party, act, *number),
+jig/crates/jig-domain-core/src/acts/objects.rs:30:        documents::Subject::PersonTask { task: number } => allowed(person(core, party, act, *number, None)),
+jig/crates/jig-domain-core/src/acts/bounds.rs:153:        crate::admission::compound::PartyTask { person: party, role: held, project: row.project, task },
+jig/crates/jig-domain-core/src/acts/bounds.rs:387:    let crate::admission::compound::PartyTask { person, project, role, task } = party;
+jig/crates/jig-domain-core/src/acts/bounds.rs:515:    let crate::admission::compound::PartyTask { person, project, role, .. } = party;
+jig/crates/jig-domain-core/src/acts/bounds.rs:522:            if !core.reaches(crate::admission::compound::PartyTask { task: *dependency, ..party }, depth, admission) {
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures.rs:517:                        w::NoteScopeTask::new(limits, w::NoteScopeTaskParts { project: 3, task: 8 }).expect("scope"),
+jig/crates/jig-domain-core-vocabulary/src/vocabulary.rs:519:    EndedPersonTask { request: Token, person: u64, project: u32, task: u64 },
+jig/crates/jig-domain-core-vocabulary/src/vocabulary.rs:521:    EndedTask { request: Token, task: u64 },
+jig/crates/jig-domain-core-vocabulary/src/vocabulary.rs:798:    PersonTask {
+jig/crates/jig-domain-core-vocabulary/src/vocabulary.rs:874:    EndedPersonTask {
+jig/crates/jig-domain-core-vocabulary/src/vocabulary.rs:976:    ReadTask {
+temper/crates/temper-engine-domain/src/translate.rs:222:            | Tool::ReadTask { .. }
+temper/crates/temper-engine-domain/src/translate.rs:265:        | Tool::ReadTask { .. }
+temper/crates/temper-engine-domain/src/translate.rs:316:        | Tool::ReadTask { .. }
+temper/crates/temper-engine-domain/src/translate.rs:381:        | Tool::ReadTask { .. }
+temper/crates/temper-engine-domain/src/translate.rs:677:        Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
+jig/crates/jig-domain-core/src/routing/view/routes.rs:35:        Subject::Task { task }
+jig/crates/jig-domain-core/src/routing/view/routes.rs:40:        | Subject::PersonTask { task }
+jig/crates/jig-domain-core/src/routing/view/routes.rs:73:        Subject::Task { task } => {
+jig/crates/jig-domain-core/src/routing/view/routes.rs:86:        | Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/routing/view/routes.rs:271:        | Watched::Task { .. }
+jig/crates/jig-domain-core/src/routing/view/routes.rs:321:            | Watched::Task { .. }
+jig/crates/jig-domain-core/src/routing/view/routes.rs:426:        Watched::Task { task } => Subject::Task { task },
+jig/crates/jig-domain-core/src/routing/view/marks.rs:56:            let Subject::Task { task } = &self.view_names.get(binding.subject).expect("bound subject").subject else {
+jig/crates/jig-domain-core/src/routing/view/marks.rs:107:                Subject::Task { task }
+jig/crates/jig-domain-core/src/routing/view/marks.rs:112:                | Subject::PersonTask { task }
+jig/crates/jig-domain-core/src/routing/view/marks.rs:173:            Subject::Task { task } | Subject::Tree { task } => trees.as_slice().contains(task),
+jig/crates/jig-domain-core/src/routing/view/marks.rs:177:            | Subject::PersonTask { task }
+jig/crates/jig-domain-core/src/routing/view/marks.rs:462:        Subject::Task { task } => {
+jig/crates/jig-domain-core/src/routing/view/marks.rs:541:        | Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/routing/task/refused.rs:107:        Flight::Goal { request, .. } | Flight::PersonTask { request, .. } | Flight::Made { request, .. } => {
+temper/crates/temper-engine-domain/src/tests/remember.rs:53:            author: notes::Author::Task { task: 0, attempt: 0 },
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/watches.rs:56:    w::Subject::Task(w::SubjectTask::new(&wire(), w::SubjectTaskParts { task: 7 }).expect("task"))
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/watches.rs:69:        ("Task", task_subject(), d::Watched::Task { task: 7 }, 32),
+temper/crates/temper-engine-domain/src/tests/public.rs:36:            temper_engine_domain_forge::PublicTask { task, goal: Some(task) },
+temper/crates/temper-engine-domain/src/tests/public.rs:37:            temper_engine_domain_forge::PublicTask { task: u64::MAX, goal: None }
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/pages.rs:121:        writer: jig_domain_notes::Author::Task { task: 19, attempt: 23 },
+jig/crates/jig-domain-core/src/routing/task/done.rs:41:        Flight::PersonTask { request, route } => {
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/objects.rs:48:        value: reads::EndedValue::Task { document: Box::new(task_with_hold()), result: Box::new(failed_result()) },
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:89:    Task { task: u64 },
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:97:    PersonTask { task: u64 },
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:183:    Task {
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:201:    PersonTask {
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:350:    Task { document: Box<documents::Task>, result: Box<documents::ResultDoc> },
+jig/crates/jig-domain-core-vocabulary/src/reads/vocabulary.rs:368:    PersonTask { document: Box<documents::PersonTask>, result: Box<documents::ResultDoc> },
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/documents.rs:146:pub fn task_with_hold() -> d::Task {
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/documents.rs:147:    d::Task {
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/create.rs:84:        w::NewTaskParts {
+jig/crates/jig-protocol-engine-clients/src/tests/fixtures/answers/refusals.rs:194:                        by: w::Actor::Task(w::ActorTask::new(&limits, w::ActorTaskParts { value: 8 }).expect("actor")),
+jig/crates/jig-domain-core-vocabulary/src/effects/projections.rs:19:pub struct ProjectionTask {
+jig/crates/jig-domain-core-vocabulary/src/effects/projections.rs:68:impl ProjectionTask {
+jig/crates/jig-domain-core-vocabulary/src/effects/projections.rs:87:    pub fn join(self, words: Box<[u8]>) -> ProjectionTask {
+jig/crates/jig-domain-core-vocabulary/src/effects/projections.rs:89:        ProjectionTask { number, requester, words, phase }
+jig/crates/jig-domain-core-vocabulary/src/effects/projections.rs:126:    Task { goal: u64, task: u64 },
+jig/crates/jig-domain-core-vocabulary/src/documents/task_tree.rs:224:pub struct Task {
+jig/crates/jig-domain-core/src/routing/run/now.rs:39:        notes::Author::Task { task, attempt } => (task, attempt),
+jig/crates/jig-domain-core/src/routing/run/now.rs:284:            author: notes::Author::Task { task: 1, attempt: 3 },
+jig/crates/jig-domain-core/src/routing/run/calls.rs:425:        NamedAction::ReadTask { task, field, from, room } => {
+jig/crates/jig-domain-core/src/routing/run/calls.rs:477:        NamedAction::ReadTask { .. } => unreachable!("task reads use the unrecorded path"),
+jig/crates/jig-domain-core/src/routing/run/calls.rs:745:            entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
+jig/crates/jig-domain-core/src/routing/run/calls.rs:755:            entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
+jig/crates/jig-domain-core-vocabulary/src/documents/objects.rs:26:pub struct ProposedTask {
+jig/crates/jig-domain-core-vocabulary/src/documents/objects.rs:149:pub struct PersonTask {
+temper/crates/temper-engine-domain/src/route/tools.rs:24:    if let Tool::ReadTask { task, field, from } = body.tool {
+temper/crates/temper-engine-domain/src/route/tools.rs:29:            action: core::NamedAction::ReadTask { task, field, from, room },
+temper/crates/temper-engine-domain/src/route/tools.rs:129:                Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
+jig/crates/jig-domain-core/src/routing/party/propose.rs:190:        crate::admission::compound::PartyTask { person, project, role, task },
+jig/crates/jig-domain-core-vocabulary/src/documents.rs:135:    Task {
+jig/crates/jig-domain-core-vocabulary/src/documents.rs:185:    PersonTask {
+jig/crates/jig-domain-core-vocabulary/src/documents.rs:325:    Task { task: u64 },
+temper/crates/temper-engine-domain/src/route/see/person.rs:317:            core::reads::EndedValue::Task { document, .. } => document.priority.is_some(),
+temper/crates/temper-engine-domain/src/route/see/person.rs:322:            | core::reads::EndedValue::PersonTask { .. }
+jig/crates/jig-domain-core/src/routing/party/dispatch.rs:20:    pub(crate) fn task(self, task: u64) -> PartyTask {
+jig/crates/jig-domain-core/src/routing/party/dispatch.rs:21:        PartyTask { person: self.person, project: self.project, role: self.role, task }
+jig/crates/jig-domain-authority/src/tests_policy.rs:271:    let mut holder = Holder::Task {
+jig/crates/jig-domain-authority/src/tests_policy.rs:278:    let Holder::Task { numbers, .. } = &mut holder else { unreachable!() };
+jig/crates/jig-domain-authority/src/tests_policy.rs:919:    let holder = Holder::Task { project: 1, authority: creator, numbers: numbers(100), tasks_left: 10 };
+temper/crates/temper-engine-domain/src/route/see.rs:74:    Task { number: u64, task: Answer, report: Option<Answer> },
+temper/crates/temper-engine-domain/src/route/see.rs:199:    Task { number: u64 },
+jig/crates/jig-domain-core/src/routing/party/create.rs:249:                        crate::admission::compound::PartyTask {
+jig/crates/jig-domain-core/src/routing/party/create.rs:579:        crate::admission::compound::PartyTask {
+temper/crates/temper-engine-domain/src/route/remember.rs:248:                        author: notes::Author::Task { task: 0, attempt: 0 },
+temper/crates/temper-engine-domain/src/route/remember.rs:266:                        author: notes::Author::Task { task: 0, attempt: 0 },
+jig/crates/jig-domain-core/src/reads/withheld.rs:43:                | EndedValue::Task { .. }
+jig/crates/jig-domain-core/src/reads/withheld.rs:48:                | EndedValue::PersonTask { .. }
+jig/crates/jig-domain-core/src/routing/party/batch_reads.rs:77:                crate::admission::compound::PartyTask {
+temper/crates/temper-engine-domain/src/route/public.rs:47:        tasks.push(PublicTask { task: *task, goal: public_goal(domain, *task) }).expect("public tasks room");
+jig/crates/jig-domain-authority/src/check.rs:265:            let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
+jig/crates/jig-domain-authority/src/check.rs:314:            let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
+jig/crates/jig-domain-authority/src/check.rs:666:            let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
+jig/crates/jig-domain-authority/src/check.rs:685:                    let strict = if source == Source::Task { Answer::Propose } else { Answer::Refuse };
+jig/crates/jig-domain-authority/src/check.rs:1092:        Holder::Task { project, authority, numbers, tasks_left } => (*project, authority, *numbers, *tasks_left),
+jig/crates/jig-domain-core/src/reads/watches.rs:76:        Subject::Task { .. } => {}
+jig/crates/jig-domain-core/src/reads/watches.rs:89:        | Subject::PersonTask { .. }
+jig/crates/jig-domain-core/src/reads/watches.rs:98:                EndedValue::Task { document, .. } => document,
+jig/crates/jig-domain-core/src/reads/watches.rs:103:                | EndedValue::PersonTask { .. }
+jig/crates/jig-domain-core/src/routing/effect/note.rs:384:                author: notes::Author::Task { task: 41, attempt: 1 },
+jig/crates/jig-domain-core/src/reads/settings.rs:199:            | super::Destination::RunTask { .. }
+jig/crates/jig-domain-core/src/reads/run_task.rs:211:        destination: Destination::RunTask { to, key, read },
+jig/crates/jig-domain-core/src/reads/run_task.rs:225:    let Destination::RunTask { to, key, read } = core::mem::replace(&mut pending.destination, Destination::Done) else {
+temper/crates/temper-engine-domain/src/route/host_route.rs:331:    } else if let crate::Tool::ReadTask { .. } = &body.tool {
+jig/crates/jig-domain-authority/src/boundary.rs:399:    Task {
+temper/crates/temper-engine-domain/src/fuzzy/approval_people.rs:279:            | c::Subject::Task { .. }
+jig/crates/jig-domain-core/src/reads/rows.rs:672:                    EndedValue::Task {
+jig/crates/jig-domain-core/src/reads/rows.rs:686:                    EndedValue::PersonTask {
+temper/crates/temper-engine-domain/src/boundary.rs:191:    ReadTask {
+temper/crates/temper-engine-domain/src/boundary.rs:1298:    EndedTask { request: Token, task: u64 },
+temper/crates/temper-engine-domain/src/boundary.rs:1302:    PersonTask { request: Token, person: u64, project: u32, task: u64 },
+jig/crates/jig-domain-core/src/reads.rs:66:    RunTask { to: ReplyTo, key: crate::CallKey, read: run_task::Read },
+jig/crates/jig-domain-core/src/reads.rs:80:            | Destination::RunTask { .. }
+jig/crates/jig-domain-core/src/reads.rs:271:        | Destination::RunTask { .. }
+jig/crates/jig-domain-core/src/reads.rs:315:        | Destination::RunTask { .. }
+jig/crates/jig-domain-core/src/reads.rs:619:        Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
+jig/crates/jig-client/src/tests/reads.rs:216:            subject: crate::Watchable::Jig(c::Subject::Task { task }),
+jig/crates/jig-client/src/tests/fixtures.rs:55:    Watchable::Jig(contract::Subject::Task { task: SUBJECT_TASK })
+jig/crates/jig-client/src/tests/fixtures.rs:363:pub fn facts_task() -> contract::Task {
+jig/crates/jig-client/src/tests/fixtures.rs:493:pub fn shape_task(ask: contract::Ask) -> contract::NewTask {
+jig/crates/jig-client/src/shapes.rs:269:    Ok(NewTask {
+temper/crates/temper-engine-domain-forge-vocabulary/src/reconcile.rs:105:    Task { task: u64, retired: Option<u16> },
+temper/crates/temper-engine-domain-forge-vocabulary/src/public.rs:7:pub struct PublicTask {
+temper/crates/temper-engine-domain-forge-vocabulary/src/boundary.rs:1984:    StatusTask {
+temper/crates/temper-engine-domain-forge-vocabulary/src/boundary.rs:2018:    TierTask {
+jig/crates/jig-client-view/src/tree/sections/task.rs:93:                crate::state::page::Section::Task { task, .. } => return Some(*task),
+jig/crates/jig-client-view/src/tree/sections/task.rs:163:        if !client.shows(crate::state::page::Section::Task { task: number, section: *section }) {
+jig/crates/jig-client-view/src/tree/sections/task.rs:177:    if !client.shows(crate::state::page::Section::Task { task, section }) {
+jig/crates/jig-client-view/src/tree/sections/task.rs:182:    super::status(b, client, words, crate::state::page::Section::Task { task, section });
+temper/crates/temper-engine-domain/src/route/document.rs:240:                author: notes::Author::Task { task: 0, attempt: 0 },
+jig/crates/jig-client-view/src/tree/sections.rs:23:        Section::Task { task, section } => task::section(b, client, words, bindings, task, section),
+jig/crates/jig-protocol-store-records/src/codec/tasks/value.rs:9:        domain::Funder::Task(task) => wire::Funder::Task(wire::Task::new(limits, wire::TaskParts { task })?),
+jig/crates/jig-protocol-store-records/src/codec/tasks/state.rs:88:            wire::EscalationHolder::Task(wire::EscalationTask::new(limits, wire::EscalationTaskParts { task: *task })?)
+jig/crates/jig-protocol-store-records/src/codec/tasks/state.rs:104:            let wire::EscalationTaskParts { task } = source.into_parts();
+jig/crates/jig-protocol-store-records/src/codec/tasks/proposals.rs:35:            wire::ProposalHolder::Task(wire::Task::new(limits, wire::TaskParts { task: *value })?)
+jig/crates/jig-protocol-store-records/src/codec/tasks/proposals.rs:50:            let wire::TaskParts { task } = value.into_parts();
+jig/crates/jig-protocol-store-records/src/codec/tasks/proposals.rs:239:            wire::ProposalAction::Release(wire::Task::new(limits, wire::TaskParts { task: *task })?)
+jig/crates/jig-protocol-store-records/src/codec/tasks/proposals.rs:299:            let wire::TaskParts { task } = value.into_parts();
+temper/crates/temper-engine-domain-forge/src/tests/restore_fit.rs:682:            need: Need::Task { task: 0, retired: None }
+temper/crates/temper-engine-domain-forge/src/domain.rs:9865:                Need::Task { .. } | Need::EntryOwner { .. } | Need::Entry { .. } => {
+temper/crates/temper-engine-domain-forge/src/domain.rs:9871:                    if need == (Need::Task { task: row.goal, retired: None }) {
+temper/crates/temper-engine-domain-forge/src/domain.rs:9878:                    if need == (Need::Task { task: row.change, retired: None }) {
+temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs:434:            need: Need::Task { task: TASK, retired: None }
+temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs:582:                    need: Need::Task { task: TASK, retired: Some(REPO.forge) },
+temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs:599:            need: Need::Task { task: TASK, retired: Some(REPO.forge) }
+temper/crates/temper-engine-domain-forge/src/tests/reconcile.rs:685:            need: Need::Task { task: TASK, retired: None },
+jig/crates/jig-client-view/src/tree/fragments/ended.rs:150:        EndedValue::Task { document, result } => {
+jig/crates/jig-client-view/src/tree/fragments/ended.rs:230:        EndedValue::PersonTask { document, result } => {
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:321:        PublicTask { task: GOAL, goal: Some(GOAL) },
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:322:        PublicTask { task: CHANGE, goal: Some(GOAL) },
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:323:        PublicTask { task: SECOND, goal: Some(GOAL) },
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:324:        PublicTask { task: QUEUED, goal: Some(GOAL) },
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:873:    public.push(PublicTask { task: GOAL, goal: Some(GOAL) }).expect("goal");
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:889:        public.push(PublicTask { task, goal: Some(GOAL) }).expect("public");
+temper/crates/temper-engine-domain-forge/src/tests/public.rs:973:    [PublicTask { task: CHANGE, goal: None }, PublicTask { task: SECOND, goal: None }]
+temper/crates/temper-engine-domain-forge/src/reconcile.rs:39:        self.need(kind, Need::Task { task, retired })?;
+temper/crates/temper-engine-domain-forge/src/reconcile.rs:219:                Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
+temper/crates/temper-engine-domain-forge/src/reconcile.rs:248:            Need::Task { retired, .. } => {
+temper/crates/temper-engine-domain-forge/src/reconcile.rs:290:            Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
+temper/crates/temper-engine-domain-forge/src/reconcile.rs:302:                Need::Forge(_) | Need::Repository(_) | Need::Task { .. } => false,
+jig/crates/jig-protocol-store-records/src/codec/notes.rs:39:                domain::Author::Task { task, attempt } => {
+jig/crates/jig-protocol-store-records/src/codec/notes.rs:40:                    wire::Author::Task(wire::Task::new(limits, wire::TaskParts { task: *task, attempt: *attempt })?)
+jig/crates/jig-protocol-store-records/src/codec/notes.rs:94:                    let wire::TaskParts { task, attempt } = task.into_parts();
+jig/crates/jig-protocol-store-records/src/codec/notes.rs:95:                    domain::Author::Task { task, attempt }
+jig/crates/jig-protocol-store-records/src/codec/people/outcomes/facts.rs:193:            wire::Party::Task(wire::PartyTask::new(limits, wire::PartyTaskParts { value: *value })?)
+jig/crates/jig-protocol-store-records/src/codec/people/outcomes/facts.rs:208:            let wire::PartyTaskParts { value } = value.into_parts();
+jig/crates/jig-client-view/src/tree/cards.rs:228:                    jig_client::contract::NoteAuthor::Task { task, attempt } => {
+jig/crates/jig-protocol-store-records/src/codec/people/asks.rs:62:            let wire::NoteScopeTaskParts { task } = value.into_parts();
+jig/crates/jig-protocol-store-records/src/codec/people/asks.rs:231:            wire::Proposer::Task(wire::ProposerTask::new(limits, wire::ProposerTaskParts { value: *value })?)
+jig/crates/jig-protocol-store-records/src/codec/people/asks.rs:241:            let wire::ProposerTaskParts { value } = value.into_parts();
+jig/crates/jig-protocol-store-records/src/codec/core/projections.rs:222:            wire::Party::Task(wire::PartyTask::new(&limits.core, wire::PartyTaskParts { value: *value })?)
+jig/crates/jig-protocol-store-records/src/tests/codec/core_rows.rs:187:    let task = core::ProjectionTask {
+jig/crates/jig-client-view/src/tests/tree/work_pages.rs:87:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/work_pages.rs:136:pub(in crate::tests) fn recurring_task(number: u64, words: &[u8]) -> ProposedTask {
+jig/crates/jig-client-view/src/tests/tree/work_pages.rs:137:    ProposedTask {
+jig/crates/jig-client-view/src/tests/tree/work_pages.rs:190:        crate::state::page::Section::Task { task: 9, section: TaskSection::Overview }
+jig/crates/jig-client-view/src/tests/tree/turns.rs:48:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-protocol-store-records/src/codec/core.rs:110:            wire::Proposer::Task(wire::ProposerTask::new(&limits.core, wire::ProposerTaskParts { value: *value })?)
+jig/crates/jig-protocol-store-records/src/codec/core.rs:121:            let wire::ProposerTaskParts { value } = value.into_parts();
+jig/crates/jig-client-view/src/tests/tree/task_proposals.rs:26:fn task(keys: &[ProposalKey], activity: u64) -> Task {
+jig/crates/jig-client-view/src/tests/tree/task_proposals.rs:46:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-protocol-link/src/translate/watches.rs:14:        c::Subject::Task { task } => {
+jig/crates/jig-client-protocol-link/src/translate/watches.rs:15:            w::Subject::Task(w::SubjectTask::new(limits, w::SubjectTaskParts { task: *task })?)
+jig/crates/jig-client-domain/src/tests/fixtures.rs:61:    Watchable::Jig(contract::Subject::Task { task })
+jig/crates/jig-client-domain/src/tests/fixtures.rs:158:fn document(number: u64) -> contract::Task {
+jig/crates/jig-client-domain/src/tests/fixtures.rs:159:    contract::Task {
+jig/crates/jig-client-view/src/tests/tree/sections/project/owner.rs:93:fn template(number: u64) -> ProposedTask {
+jig/crates/jig-client-view/src/tests/tree/sections/project/owner.rs:94:    ProposedTask {
+jig/crates/jig-client-domain/src/contract/watches.rs:14:    Task {
+jig/crates/jig-client-protocol-link/src/translate/queries.rs:11:            Some(w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value })?))
+jig/crates/jig-client-view/src/tests/tree/pages.rs:279:    let section = crate::state::page::Section::Task { task: 8, section: crate::state::address::TaskSection::Plan };
+jig/crates/jig-client-protocol-wire/src/tests/fixtures/task_values.rs:3:pub fn task(limits: &Limits) -> Task {
+jig/crates/jig-client-protocol-wire/src/tests/fixtures/task_values.rs:7:        TaskParts {
+jig/crates/jig-client-protocol-link/src/translate/asks.rs:41:            w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: *value })?)
+jig/crates/jig-client-protocol-link/src/translate/pages/person.rs:51:    Ok(c::PersonTask {
+jig/crates/jig-client-protocol-wire/src/tests/fixtures.rs:296:pub fn funder_task(limits: &Limits) -> FunderTask {
+jig/crates/jig-client-protocol-wire/src/tests/fixtures.rs:297:    FunderTask::new(limits, FunderTaskParts { value: u64::MAX }).expect("bounded funder_task")
+jig/crates/jig-client-protocol-link/src/translate/pages/notes.rs:7:        w::NoteAuthor::Task(row) => c::NoteAuthor::Task { task: row.task(), attempt: row.attempt() },
+jig/crates/jig-client-view/src/tests/tree/fragments/tree.rs:84:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/fragments/tree.rs:387:        .find_map(|(handle, held)| (held.subject == Subject::Task { task: 8 }).then_some(*handle))
+jig/crates/jig-client-view/src/tests/tree/fragments/tree.rs:393:    assert!(!domain.shows(crate::state::page::Section::Task { task: 8, section: TaskSection::Plan }));
+jig/crates/jig-client-view/src/tests/tree/fragments/tree.rs:408:        .find_map(|(handle, held)| (held.subject == Subject::Task { task: 8 }).then_some(*handle))
+jig/crates/jig-client-view/src/tests/tree/fragments/runtime_facts.rs:42:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-protocol-link/src/translate/pages/ended.rs:58:        w::EndedValue::Task(row) => c::EndedValue::Task {
+jig/crates/jig-client-protocol-link/src/translate/pages/ended.rs:95:        w::EndedValue::PersonTask(row) => c::EndedValue::PersonTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/proposal.rs:180:            .push(ProposedTask {
+jig/crates/jig-client-protocol-link/src/translate/operations.rs:233:        w::NewTaskParts {
+jig/crates/jig-client-protocol-link/src/translate/operations.rs:353:    Ok(c::NewTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/person_task.rs:64:fn value() -> PersonTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/person_task.rs:65:    PersonTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/person_task.rs:238:fn full_value(l: &crate::tests::fixtures::Profile) -> PersonTask {
+jig/crates/jig-client-protocol-link/src/tests/reads.rs:12:            from: w::Requester::Task(w::RequesterTask::new(wire, w::RequesterTaskParts { value: 11 }).unwrap()),
+jig/crates/jig-client-protocol-link/src/tests/reads.rs:569:                w::NoteScopeTask::new(&w::CEILINGS, w::NoteScopeTaskParts { project: 13, task: 19 }).unwrap(),
+jig/crates/jig-client-view/src/tests/state/ended_objects.rs:15:fn task() -> Task {
+jig/crates/jig-client-view/src/tests/state/ended_objects.rs:233:    let document = PersonTask {
+jig/crates/jig-client-view/src/tests/state/ended_objects.rs:250:        EndedValue::PersonTask { document: Box::new(document), result: Box::new(result()) },
+jig/crates/jig-client-view/src/tests/state/ended_objects.rs:468:                ReadValue::PersonTask(Box::new(PersonTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/history.rs:104:pub(in crate::tests) fn task() -> ProposedTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/history.rs:107:    ProposedTask {
+jig/crates/jig-client-view/src/tests/tree/fragments/ended_pages.rs:333:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/state/domain/task_revisit.rs:24:                    subject: jig_client::Watchable::Jig(Subject::Task { task: found }),
+jig/crates/jig-client-view/src/tests/state/domain/task_revisit.rs:69:        value: EndedValue::Task {
+jig/crates/jig-client-view/src/tests/state/domain/task_revisit.rs:84:fn cancelled_task() -> Task {
+jig/crates/jig-client-view/src/tests/state/domain/task_revisit.rs:105:    let EndedValue::Task { document, result } = &mut facts.value else {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads_wire.rs:62:pub fn read_wire_owner_person_task() -> w::PersonTask {
+jig/crates/jig-client-view/src/tests/state/domain/task_context.rs:57:                        subject: jig_client::Watchable::Jig(Subject::Task { task: 8 }),
+jig/crates/jig-client-protocol-link/src/translate/documents/task.rs:177:    Ok(c::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads_values.rs:144:pub fn read_value_owner_person_task() -> c::PersonTask {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads_values.rs:145:    c::PersonTask {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads_values.rs:206:    c::EndedValue::Task { document: Box::new(task()), result: Box::new(read_value_result()) }
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads.rs:56:        w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result }).unwrap(),
+jig/crates/jig-client-protocol-link/src/tests/fixtures/reads.rs:65:        value: c::EndedValue::Task { document: Box::new(task()), result: Box::new(result) },
+jig/crates/jig-client-view/src/tests/tree/chip_facts.rs:89:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-protocol-link/src/translate/documents/project.rs:217:    Ok(c::ProposedTask {
+jig/crates/jig-client-view/src/tests/state/domain/pages/task_proposals.rs:11:fn task(keys: &[ProposalKey], activity: u64) -> Task {
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_wake.rs:93:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_links.rs:31:                                subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:517:    for writer in [NoteAuthor::Party { party: u64::MAX }, NoteAuthor::Task { task: u64::MAX, attempt: u64::MAX }] {
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:885:    assert_eq!(domain.sections(), &[Section::Task { task: 9, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:994:            Section::Task { task: 8, section: TaskSection::Overview },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:995:            Section::Task { task: 8, section: TaskSection::Activity },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:996:            Section::Task { task: 8, section: TaskSection::Plan },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:997:            Section::Task { task: 8, section: TaskSection::History },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:998:            Section::Task { task: 8, section: TaskSection::Budget },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:999:            Section::Task { task: 8, section: TaskSection::Panels },
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1054:            let value = Section::Task { task: 8, section };
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1143:        assert_eq!(actual_watches.as_slice(), &[Subject::Task { task: 8 }], "{executor:?}");
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1234:    let opened = show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1236:    assert_eq!(watches.as_slice(), &[Subject::Task { task: 8 }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1244:    let opened = show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1251:        let sections = crate::tests::kit::list([Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1256:        !show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }])
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1263:    let first = Section::Task { task: 8, section: TaskSection::Plan };
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1264:    let second = Section::Task { task: 9, section: TaskSection::Plan };
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1272:    let opened = show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1285:    show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1294:    show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Overview }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1295:    let requests = show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1301:    let sections = [Section::Task { task: 8, section: TaskSection::Plan }];
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1308:    let opened = show_sections(&mut domain, &[Section::Task { task: 8, section: TaskSection::Plan }]);
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1319:    let section = Section::Task { task: 8, section: TaskSection::Plan };
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1331:    let section = Section::Task { task: 8, section: TaskSection::Plan };
+jig/crates/jig-client-view/src/tests/state/domain/pages.rs:1363:    let section = Section::Task { task: 8, section: TaskSection::Plan };
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:55:pub fn task_record() -> w::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:58:pub fn task() -> c::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:59:    c::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:186:pub fn task_with_lineage(count: u32) -> w::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:224:pub fn task_with_piece(bytes: &[u8]) -> w::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:236:pub fn task_at_row_bound() -> w::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:239:pub fn task_with_two_chips() -> c::Task {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/documents.rs:310:pub fn task_with_resource_path(count: u32) -> w::Task {
+jig/crates/jig-client-view/src/tests/state/domain/owner_tree.rs:77:fn plan_task() -> Task {
+jig/crates/jig-client-view/src/tests/state/domain/owner_tree.rs:95:                            subject: jig_client::Watchable::Jig(Subject::Task { task }),
+jig/crates/jig-client-view/src/tests/state/domain/owner_tree.rs:185:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_contract.rs:14:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-protocol-link/src/tests/fixtures/create.rs:17:pub fn new_task(executor: c::Executor, contract: c::NewContract) -> c::NewTask {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/create.rs:18:    c::NewTask {
+jig/crates/jig-client-protocol-link/src/tests/fixtures/create.rs:55:pub fn task_with_deadline(wall: Option<skein_lib::Wall>) -> c::NewTask {
+jig/crates/jig-client-view/src/tests/state/conversation_work.rs:87:fn task(observation: Option<ChipObservation>, context: bool) -> Task {
+jig/crates/jig-client-view/src/tests/state/conversation_work.rs:122:                        subject: jig_client::Watchable::Jig(Subject::Task { task: 8 }),
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_context.rs:34:                            subject: jig_client::Watchable::Jig(Subject::Task { task: 8 }),
+jig/crates/jig-client-view/src/tests/state/domain/owner_person_task.rs:26:fn value(contract: TaskContractDocument) -> PersonTask {
+jig/crates/jig-client-view/src/tests/state/domain/owner_person_task.rs:33:    PersonTask {
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_budget.rs:15:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/cards_objects/task_authority.rs:112:                                subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/state/domain/owner_hold_parts.rs:50:fn task(account: Option<Part>) -> Task {
+jig/crates/jig-client-view/src/tests/tree/cards_objects/owner_escalation.rs:215:    ReadValue::PersonTask(Box::new(PersonTask {
+jig/crates/jig-client-view/src/tests/state/domain/native.rs:110:    let task = Section::Task { task: TASK, section: TaskSection::Plan };
+jig/crates/jig-client-view/src/tests/fixtures.rs:319:    let tasks = crate::tests::kit::list([NewTask {
+jig/crates/jig-client-view/src/tests/fixtures.rs:350:    let tasks = crate::tests::kit::list([NewTask {
+jig/crates/jig-client-view/src/tests/tree/cards_objects/note_facts.rs:7:    for writer in [NoteAuthor::Party { party: u64::MAX }, NoteAuthor::Task { task: u64::MAX, attempt: u64::MAX }] {
+jig/crates/jig-client-view/src/tests/tree/cards_objects/note_facts.rs:43:        writer: NoteAuthor::Task { task: 91, attempt: 12 },
+jig/crates/jig-client-view/src/tests/tree/cards_objects/instruction_facts.rs:52:                            subject: jig_client::Watchable::Jig(Subject::Task { .. }),
+jig/crates/jig-client-view/src/tests/tree/cards_objects.rs:197:pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
+jig/crates/jig-client-view/src/tests/tree/cards_objects.rs:198:    Task {
+jig/crates/jig-client-view/src/tests/state/domain/drafts.rs:43:fn steering_document(act: ActKind) -> Task {
+jig/crates/jig-client-view/src/state/ui/owed.rs:24:            && self.shows(Section::Task { task, section: TaskSection::Activity }, lent)
+jig/crates/jig-client-view/src/state/ui/owed.rs:35:        let plan = Section::Task { task, section: TaskSection::Plan };
+jig/crates/jig-client-domain/src/contract/ended.rs:80:    Task { document: Box<Task>, result: Box<Result> },
+jig/crates/jig-client-domain/src/contract/ended.rs:85:    PersonTask { document: Box<PersonTask>, result: Box<Result> },
+jig/crates/jig-client-domain/src/contract/ended.rs:106:            EndedValue::Task { document, result } => {
+jig/crates/jig-client-domain/src/contract/ended.rs:170:            EndedValue::PersonTask { document, result } => {
+jig/crates/jig-client-domain/src/contract/ended.rs:180:            EndedValue::Task { .. } | EndedValue::PersonTask { .. } | EndedValue::Escalation { .. } => true,
+jig/crates/jig-client-domain/src/contract/documents.rs:59:pub struct Task {
+jig/crates/jig-client-domain/src/contract/documents.rs:338:pub struct ProposedTask {
+jig/crates/jig-client-domain/src/contract/documents.rs:532:    Task { task: u64, attempt: u64 },
+jig/crates/jig-client-view/src/state/ui/borrowed/task.rs:63:        Task { state: &self.ui.task_page, plan }
+jig/crates/jig-client-domain/src/contract/wake.rs:45:    Task {
+jig/crates/jig-client-domain/src/contract/common.rs:254:    Task { project: u32, task: u64 },
+jig/crates/jig-domain-core/src/routing/flight.rs:12:    PersonTask { request: Token, route: crate::PersonTaskRoute },
+jig/crates/jig-domain-core/src/routing/flight.rs:77:            if let Flight::PersonTask { .. } = flight {
+jig/crates/jig-domain-core/src/routing/flight.rs:95:        self.fly(Flight::PersonTask { request, route })
+jig/crates/jig-client-view/src/state/ui.rs:832:        && let Subject::Task { task } = held.subject
+jig/crates/jig-client-view/src/state/ui.rs:866:        && let Subject::Task { .. } = held.subject
+jig/crates/jig-client-view/src/tests/state/domain/confirmation.rs:51:pub(in crate::tests) fn task() -> Task {
+jig/crates/jig-client-view/src/tests/state/domain/confirmation.rs:52:    Task {
+jig/crates/jig-client-view/src/state/address.rs:53:    Task { task: u64, section: TaskSection },
+jig/crates/jig-client-view/src/tests/state/domain/answers/person_refresh.rs:17:fn document(taken_by: Option<u64>, offered: &[ActKind]) -> PersonTask {
+jig/crates/jig-client-view/src/tests/state/domain/answers/person_refresh.rs:27:    PersonTask {
+jig/crates/jig-client-domain/src/contract/refusals.rs:83:    Task { task: u64 },
+jig/crates/jig-client-domain/src/contract/operations.rs:87:pub struct NewTask {
+jig/crates/jig-client-view/src/state/activity/routing.rs:29:        crate::state::page::Section::Task {
+jig/crates/jig-client-domain/src/contract/reads.rs:77:    Task {
+jig/crates/jig-client-domain/src/contract/reads.rs:94:    PersonTask {
+jig/crates/jig-client-view/src/state/page/task.rs:319:            && watch.subject == (contract::Subject::Task { task: number })
+jig/crates/jig-client-view/src/state/page/task.rs:399:        if domain.shows(crate::state::page::Section::Task { task: number, section }, lent) {
+jig/crates/jig-client-view/src/state/page/task.rs:421:    if domain.shows(crate::state::page::Section::Task { task: number, section: TaskSection::Plan }, lent) {
+jig/crates/jig-client-view/src/state/page/task.rs:429:    if !domain.shows(crate::state::page::Section::Task { task: number, section: TaskSection::Activity }, lent) {
+jig/crates/jig-client-view/src/state/page/task.rs:477:    if !domain.shows(crate::state::page::Section::Task { task: shown, section: TaskSection::Plan }, lent) {
+jig/crates/jig-client-view/src/state/page/task.rs:525:    if !domain.shows(crate::state::page::Section::Task { task: shown, section: TaskSection::Plan }, lent) {
+jig/crates/jig-client-domain/src/contract/person_task.rs:15:pub struct PersonTask {
+jig/crates/jig-client-domain/src/contract/person_task.rs:30:impl PersonTask {
+jig/crates/jig-client-view/src/state/activity/chips.rs:14:                crate::state::page::Section::Task {
+jig/crates/jig-client-view/src/state/page/shown.rs:18:            Section::Task { task, section } => {
+jig/crates/jig-client-view/src/state/page/shown.rs:45:                Section::Task { task, .. } => return Some(*task),
+jig/crates/jig-client-view/src/state/page/shown.rs:60:                Section::Inbox { .. } | Section::Conversations { .. } | Section::Task { .. } | Section::Deployment => {}
+jig/crates/jig-client-view/src/state/page/shown.rs:73:                | Section::Task { .. }
+jig/crates/jig-client-view/src/state/page/shown.rs:85:                Section::Inbox { .. } | Section::Task { .. } | Section::Project { .. } | Section::Deployment => {}
+jig/crates/jig-client-view/src/state/page/shown.rs:106:                    domain.sections.push(Section::Task { task, section }).expect("task sections fit");
+jig/crates/jig-client-view/src/state/page/shown.rs:178:            Section::Task { task, .. } => domain.shown_task().is_none() || domain.shown_task() == Some(task),
+jig/crates/jig-client-view/src/state/page/shown.rs:245:            context_subject(domain, &jig_client::contract::Subject::Task { task });
+jig/crates/jig-client-view/src/state/page/shown.rs:265:        Subject::Task { task } => match section {
+jig/crates/jig-client-view/src/state/page/shown.rs:266:            Section::Task { task: named, .. } => named == *task,
+jig/crates/jig-client-view/src/state/page/shown.rs:271:        Subject::Tree { task, .. } => section == Section::Task { task: *task, section: TaskSection::Plan },
+jig/crates/jig-client-view/src/state/page/shown.rs:272:        Subject::Run { task, .. } => section == Section::Task { task: *task, section: TaskSection::Activity },
+jig/crates/jig-client-view/src/state/page/shown.rs:274:            Section::Task { section: TaskSection::Activity, .. } => true,
+jig/crates/jig-client-view/src/state/page/shown.rs:275:            Section::Task { .. }
+jig/crates/jig-client-view/src/state/page/shown.rs:283:            Section::Conversations { .. } | Section::Task { .. } | Section::Project { .. } | Section::Deployment => {
+jig/crates/jig-client-view/src/state/page/shown.rs:295:            Section::Inbox { .. } | Section::Task { .. } | Section::Project { .. } | Section::Deployment => false,
+jig/crates/jig-client-view/src/state/page/shown.rs:369:            context_subject(domain, &Subject::Task { task: *task });
+jig/crates/jig-client-view/src/state/page/shown.rs:374:            Some(Section::Task { task: *task, section: TaskSection::Activity })
+jig/crates/jig-client-view/src/state/page/shown.rs:395:                    | Section::Task { .. }
+jig/crates/jig-client-view/src/state/page/routing.rs:885:        | Subject::Task { .. }
+jig/crates/jig-client-view/src/state/page/replies.rs:26:            | Subject::Task { .. }
+jig/crates/jig-client-view/src/state/page.rs:26:    Task { task: u64, section: TaskSection },
+jig/crates/jig-client-view/src/state/objects.rs:249:                    jig_client::contract::EndedValue::Task { document, .. } => Some(document.project),
+jig/crates/jig-client-view/src/state/objects.rs:252:                    jig_client::contract::EndedValue::PersonTask { document, .. } => document.project(),
+jig/crates/jig-client-view/src/state/page/project.rs:192:            | contract::Subject::Task { .. }
+jig/crates/jig-client-view/src/state/page/opening.rs:36:        Section::Task { task, section } => {
+jig/crates/jig-client-view/src/state/page/opening.rs:38:            open_once(domain, Subject::Task { task }, owner, out);

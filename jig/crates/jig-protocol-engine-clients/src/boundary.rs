@@ -400,5 +400,5 @@ impl ::core::fmt::Debug for Reply {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamFailure {
     QueueBound { queued_bytes: u32 },
-    Translation(jig_client_protocol_wire::v26::Problem),
+    Translation(jig_client_protocol_wire::v27::Problem),
 }

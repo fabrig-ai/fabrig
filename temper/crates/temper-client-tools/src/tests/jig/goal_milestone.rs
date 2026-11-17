@@ -37,7 +37,8 @@ fn milestone() -> c::Task {
         c::Executor::Procedure { connector: shapes::RECURRING, code: shapes::GATHERING };
     task.concluded = None;
     task.authority.authority.delegation.depth = 2;
-    task.authority.authority.delegation.tasks = 3;
+    task.authority.authority.delegation.tasks = 30;
+    task.tasks_left = 3;
     task.budget.left = 70;
     task.budget.deadline = None;
     task
@@ -98,14 +99,14 @@ fn goal_start_delegates_a_narrowed_template_to_a_milestone() {
 }
 
 #[test]
-fn milestone_task_allowance_reserves_the_goal_and_vanishes_at_zero_depth() {
-    for (depth, tasks, expected_depth, expected_tasks) in
-        [(2, 5, 1, 4), (1, 5, 0, 0), (0, 5, 0, 0), (2, 0, 1, 0), (100, 100, 8, 20)]
+fn milestone_tasks_left_reserves_the_goal_and_vanishes_at_zero_depth() {
+    for (depth, tasks_left, expected_depth, expected_tasks) in
+        [(2, 5, 1, 4), (2, 1, 1, 0), (2, 0, 1, 0), (1, 5, 0, 0), (100, 100, 8, 20)]
     {
         let mut root = f::choice_root(me());
         let mut parent = milestone();
         parent.authority.authority.delegation.depth = depth;
-        parent.authority.authority.delegation.tasks = tasks;
+        parent.tasks_left = tasks_left;
         let call = submit(&mut root, beneath().as_slice(), parent);
         let allowance = &delegated(&root, call).authority.delegation;
         assert_eq!((allowance.depth, allowance.tasks), (expected_depth, expected_tasks));

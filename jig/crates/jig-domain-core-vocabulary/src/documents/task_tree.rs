@@ -273,6 +273,8 @@ pub struct Task {
     pub result: Option<Ending>,
     pub budget: BudgetLine,
     pub authority: AuthorityLine,
+    /// Tasks left over the subtree's life, excluding itself (jig/docs/design/client/domain/contract/documents.md, 1).
+    pub tasks_left: u32,
     pub hold: Option<HoldPhaseLine>,
     pub proposals: List<ProposalRef>,
     /// At least one list omitted rows; individual text values state their cuts.
