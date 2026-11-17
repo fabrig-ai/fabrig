@@ -687,12 +687,9 @@ def failure_counts(errors):
 
 def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
-    path = 'temper/pre-pr-failures.json'
+    relative = 'target/temper/pre-pr-failures.json'
+    path = root / relative
     try:
-        result = git(['rev-parse', '--git-path', path], root, env)
-        if result.returncode:
-            raise ValueError(result.stderr.decode(errors='replace'))
-        path = (root / os.fsdecode(result.stdout).strip()).resolve()
         entries = []
         for kind, group in zip(('new', 'flake', 'inherited'), failure_groups(errors)):
             for error in group:
@@ -714,11 +711,11 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
         temporary = path.with_name('pre-pr-failures.json.tmp')
         temporary.write_bytes(text.encode('utf-8', errors='backslashreplace'))
         temporary.replace(path)
-        return f'every key in {path}'
+        return f'every key in {relative}'
     except (OSError, ValueError) as error:
         message = str(error).split('\n', 1)[0].split('\r', 1)[0]
         message = message.encode('utf-8', errors='backslashreplace')[:512].decode('utf-8', errors='ignore')
-        return f'not written to {path}: {message}'
+        return f'not written to {relative}: {message}'
 
 
 def timed(name, action, pending=None):

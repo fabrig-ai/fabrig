@@ -210,6 +210,7 @@ fn fixture() -> skein_scratch::Scratch {
     let root = scratch.path();
     git(root, &["init", "-q"]);
     fs::create_dir_all(root.join(".git/home")).expect("temporary HOME");
+    write(root, ".gitignore", "/target/\n");
     let workspace = skein_scratch::paths::workspace();
     for path in [
         ".temper/pre-pr",
