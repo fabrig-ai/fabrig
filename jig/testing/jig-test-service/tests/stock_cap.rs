@@ -1,13 +1,13 @@
 //! The stock's per-worker ceiling fits the u32 engine channel cap (protocol/limits.md).
 #[cfg(test)]
 mod tests {
-    use jig_protocol_config::{Profile, stock};
+    use jig_protocol_config::stock;
     use jig_protocol_worker_wire::sizes;
 
     #[test]
     fn stock_engine_link_cap_fits() {
         let stock = stock();
-        let engine = jig_test_service::limits::for_profile(Profile::Standard, &stock).workers;
+        let engine = jig_test_service::limits::stock(&stock).workers;
         let cap = sizes::engine_cap(&engine.sizes).expect("stock engine link cap fits u32");
         assert_eq!(cap.bytes, 2_503_418_860);
         let mut candidate = engine.sizes;

@@ -26,6 +26,7 @@ jig-domain-notes.workspace = true
 jig-test-connector.workspace = true
 
 [dev-dependencies]
+jig-protocol-config-fixtures.workspace = true
 jig-protocol-config.workspace = true
 jig-test-connector-kit.workspace = true
 

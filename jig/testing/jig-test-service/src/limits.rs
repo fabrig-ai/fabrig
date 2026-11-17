@@ -1,5 +1,5 @@
 //! The application's limits and channel edges (protocol/limits.md).
-use jig_protocol_config::{Profile, profile};
+
 use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_lib::Duration;
@@ -68,14 +68,6 @@ pub fn stock(jig: &jig_protocol_config::Limits) -> Limits {
     over(jig, STANDARD, 16)
 }
 
-#[must_use]
-pub fn for_profile(name: Profile, jig: &jig_protocol_config::Limits) -> Limits {
-    match name {
-        Profile::Small => small(jig),
-        Profile::Standard => stock(jig),
-    }
-}
-
 fn over(jig: &jig_protocol_config::Limits, connector: connector::Limits, connections: u32) -> Limits {
     let accounts = jig.driver;
     let journal = root::JournalSizes {
@@ -118,10 +110,6 @@ fn over(jig: &jig_protocol_config::Limits, connector: connector::Limits, connect
             stall: Duration::from_secs(30),
         },
     }
-}
-#[must_use]
-pub fn profile_limits(name: Profile) -> Limits {
-    for_profile(name, &profile(name))
 }
 
 fn workers(jig: &jig_protocol_config::Limits) -> jig_protocol_engine_workers::Limits {
@@ -205,7 +193,7 @@ mod tests {
 
     #[test]
     fn small_uses_the_test_services_small_bounds() {
-        let jig = profile(Profile::Small);
+        let jig = jig_protocol_config_fixtures::small();
         let limits = small(&jig);
         assert_eq!(limits.server.connections, 8);
         assert_eq!(limits.root.connector.tasks, SMALL.tasks);
@@ -233,8 +221,8 @@ mod tests {
     #[test]
     fn each_profile_reserves_a_largest_piece_fact_and_maps_the_hubs_bound() {
         use jig_protocol_worker_wire::{Kind, sizes};
-        for name in [Profile::Small, Profile::Standard] {
-            let profile = profile(name);
+        for name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+            let profile = name;
             let sizes = workers(&profile).sizes;
             assert_eq!(sizes.piece, profile.hub.piece_bytes);
             let codec = sizes::limits(&sizes).expect("profile codec limits");
@@ -254,11 +242,11 @@ mod public_tests {
 
     #[test]
     fn public_admission_follows_the_effective_watermark_and_clients() {
-        for name in [Profile::Small, Profile::Standard] {
-            let mut jig = profile(name);
+        for name in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
+            let mut jig = name;
             // Distinct from OFF to show that the effective client limit is copied.
             jig.clients.public.reads = 8;
-            let limits = for_profile(name, &jig);
+            let limits = small(&jig);
             assert_eq!(limits.root.public_watermark, limits.root.watermark / 2);
             assert_eq!(limits.root.public_reads, 8);
         }

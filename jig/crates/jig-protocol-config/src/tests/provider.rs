@@ -195,21 +195,20 @@ fn address_providers_must_be_application_or_link_and_paths_must_be_data_paths() 
 }
 #[test]
 fn provider_limits_are_positive_named_overrides_with_profile_defaults() {
-    for (profile, codes, tokens) in [(crate::Profile::Small, 16, 64), (crate::Profile::Standard, 256, 1024)] {
-        let mut limits = crate::profile(profile);
-        assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (codes, tokens));
-        for name in [b"clients.provider_codes".as_slice(), b"clients.provider_tokens"] {
-            assert_eq!(crate::overrides::apply(&mut limits, name, 0), Err(What::Override));
-            crate::overrides::apply(&mut limits, name, 7).unwrap();
-            assert_eq!(crate::overrides::apply(&mut limits, name, u64::MAX), Err(What::Override));
-        }
-        assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (7, 7));
-        limits.clients.provider_codes = 0;
-        assert!(!jig_protocol_engine_clients::valid(&limits.clients));
-        limits.clients.provider_codes = 1;
-        limits.clients.provider_tokens = 0;
-        assert!(!jig_protocol_engine_clients::valid(&limits.clients));
+    let (codes, tokens) = (256, 1024);
+    let mut limits = crate::stock();
+    assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (codes, tokens));
+    for name in [b"clients.provider_codes".as_slice(), b"clients.provider_tokens"] {
+        assert_eq!(crate::overrides::apply(&mut limits, name, 0), Err(What::Override));
+        crate::overrides::apply(&mut limits, name, 7).unwrap();
+        assert_eq!(crate::overrides::apply(&mut limits, name, u64::MAX), Err(What::Override));
     }
+    assert_eq!((limits.clients.provider_codes, limits.clients.provider_tokens), (7, 7));
+    limits.clients.provider_codes = 0;
+    assert!(!jig_protocol_engine_clients::valid(&limits.clients));
+    limits.clients.provider_codes = 1;
+    limits.clients.provider_tokens = 0;
+    assert!(!jig_protocol_engine_clients::valid(&limits.clients));
 }
 #[test]
 fn provider_key_refuses_non_rsa_der_and_malformed_armor() {
@@ -366,7 +365,7 @@ fn issuer_member_paths(pem: &[u8], scratch: &std::path::Path) {
         (provider.key.clone(), Secret::new(Box::from(pem))),
         (provider.clients[0].secret.clone().expect("confidential client"), secret),
     ];
-    let limits = crate::profile(crate::Profile::Small).clients;
+    let limits = crate::stock().clients;
     let issuer = provider_issuer(provider, &files, issuer_urls(), &limits).expect("issuer built from private bytes");
     assert!(issuer.discovery().starts_with(b"{\"issuer\":\"https://app.example.com\""));
     assert_eq!(

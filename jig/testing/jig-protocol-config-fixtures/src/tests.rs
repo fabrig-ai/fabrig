@@ -1,16 +1,36 @@
-use jig_protocol_config::{self as config, DocumentLimits, Path, Profile};
+use jig_protocol_config::{self as config, Defaults, Directories, DocumentLimits};
 
 #[test]
-fn fixtures_small_is_the_small_profile() {
-    let document = config::document(br#"{"profile":"small"}"#, &DocumentLimits { bytes: 256, tokens: 128, depth: 8 })
-        .expect("fixture JSON");
-    let parsed = config::overrides::parse(&document, 0, &Path::root().member(b"limits"));
-    assert!(parsed.problems.is_empty());
-    assert_eq!(crate::small().core.tasks.tasks, config::profile(Profile::Small).core.tasks.tasks);
-    assert_eq!(crate::small(), config::profile(Profile::Small));
+fn small_limits_pass_the_engine_reader_checks() {
+    let document = config::document(
+        br#"{
+        "limits":{},
+        "llm":{"endpoints":[],"providers":[]},
+        "hosts":{"workers":[],"listener":[]},
+        "clients":{"heartbeat_ms":10000,"link":false},
+        "deployment":{"directory":"state"},
+        "providers":[{"number":1,"kind":"deployment"}],
+        "owners":[{"provider":1,"subject":"owner"}],
+        "projects":[],"connectors":[],"memory_bytes":34359738368
+        }"#,
+        &DocumentLimits { bytes: 2048, tokens: 512, depth: 8 },
+    )
+    .expect("fixture JSON");
+    let parsed = config::engine_over(&document, 0, &Directories::working(), Defaults::Passed, &crate::small())
+        .expect("small limits pass every reader check");
     let mut expected = crate::small();
-    // The reader derives the carrier from two streams plus four ordinary exchanges
-    // (jig/docs/design/protocol/limits.md, derived in the reader).
+    // The reader derives two streams plus four ordinary exchanges.
     expected.clients.exchanges = 6;
     assert_eq!(parsed.limits, expected);
+}
+
+#[test]
+fn small_holds_composed_settings() {
+    let limits = crate::small();
+    let tasks = limits.core.tasks;
+    assert_eq!(tasks.tasks, 8);
+    assert_eq!(tasks.batch, 2);
+    assert_eq!(tasks.spec_bytes, 4_096);
+    assert_eq!(tasks.result_bytes, 512);
+    assert_eq!(limits.store.store.value, 4_580_852);
 }

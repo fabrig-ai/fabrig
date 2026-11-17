@@ -90,8 +90,8 @@ fn invalid_drain_members_name_their_field() {
 }
 fn a_silence_under_three_pings_is_refused() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.silence_ms": 14999}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.silence_ms": 14999}"#,
         fixtures::path(&[b"limits", b"link.silence_ms"]),
         What::Silence,
     );
@@ -100,15 +100,15 @@ fn a_silence_under_three_pings_is_refused() {
 fn a_silence_of_exactly_three_pings_is_accepted() {
     let bytes = fixtures::with(
         fixtures::WORKER_SMALL,
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.ping_ms": 1000, "link.silence_ms": 3000}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.ping_ms": 1000, "link.silence_ms": 3000}"#,
     );
     assert_eq!(worker(&bytes).unwrap().stop_bound, Duration::from_secs(59));
 }
 fn three_pings_past_a_duration_are_refused() {
     refuses(
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"link.ping_ms": 9223372036854}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"link.ping_ms": 9223372036854}"#,
         fixtures::path(&[b"limits", b"link.silence_ms"]),
         What::Silence,
     );
@@ -172,7 +172,7 @@ fn a_workers_hub_slots_follow_its_places_unless_overridden() {
         let places =
             fixtures::with(br#""slots": SLOTS"#, b"SLOTS", skein_lib::Decimal::of(u64::from(slots)).as_bytes());
         let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, &places);
-        let bytes = fixtures::with(&bytes, br#""profile": "small""#, br#""overrides": {}"#);
+        let bytes = fixtures::with(&bytes, br#""profile": "standard""#, br#""overrides": {}"#);
         let parsed = worker(&bytes).unwrap();
         assert_eq!(parsed.slots, slots);
         assert_eq!(parsed.limits.hub.slots, slots);
@@ -194,8 +194,8 @@ fn a_workers_hub_slots_follow_its_places_unless_overridden() {
 fn more_slots_than_the_hub_can_host_are_refused() {
     let bytes = fixtures::with(
         fixtures::WORKER_SMALL,
-        br#""profile": "small""#,
-        br#""profile": "small", "overrides": {"hub.slots": 2}"#,
+        br#""profile": "standard""#,
+        br#""profile": "standard", "overrides": {"hub.slots": 2}"#,
     );
     let bytes = fixtures::with(&bytes, br#""slots": 2"#, br#""slots": 3"#);
     let errors = worker(&bytes).unwrap_err();
@@ -203,7 +203,7 @@ fn more_slots_than_the_hub_can_host_are_refused() {
 }
 fn a_worker_with_no_profile_adds_no_bound_of_small() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, br#""slots": 3"#);
-    let bytes = fixtures::with(&bytes, br#""profile": "small""#, br#""profile": "standrd""#);
+    let bytes = fixtures::with(&bytes, br#""profile": "standard""#, br#""profile": "standrd""#);
     let problems = worker(&bytes).unwrap_err();
     assert_eq!(problems.problems.len(), 1, "{problems:?}");
     assert_eq!(problems.past, 0, "{problems:?}");
@@ -262,7 +262,7 @@ fn a_workers_present_memory_bytes_must_be_an_unsigned_integer() {
 }
 #[test]
 fn a_workers_hub_guard_runs_without_memory_bytes() {
-    let mut limits = crate::profile(crate::Profile::Small);
+    let mut limits = crate::stock();
     limits.hub.source_timeout = Duration::ZERO;
     let mut problems = crate::Problems::empty();
     crate::check::worker(&limits, Some(graces()), &mut problems);
@@ -296,7 +296,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 
 #[test]
 fn program_source_resources_have_positive_bounded_admission() {
-    let limits = crate::profile(crate::Profile::Small).hub;
+    let limits = crate::stock().hub;
     assert_eq!(limits.program_sources, 12);
     assert!(jig_domain_host::valid_hub(&limits));
     assert!(!jig_domain_host::valid_hub(&jig_domain_host::Limits { source_interval: Duration::ZERO, ..limits }));

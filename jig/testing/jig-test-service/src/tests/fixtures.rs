@@ -7,7 +7,7 @@ use skein_lib::{List, ReplyTo, Secret, Time, Token, Wall};
 use skein_lib::{Queue, Writer};
 
 const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "standard", "overrides": {"tasks.result_bytes":32,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
 "endpoints": [{
@@ -153,11 +153,9 @@ pub fn started(document: &[u8]) -> Service {
     Service::new(Some(engine), List::with_capacity(0), io, crate::kernel_queue(&io))
 }
 pub fn memory_store(engine: &mut crate::Engine) {
-    let limits = crate::store::limits(
-        &engine.env.limits,
-        &crate::limits::profile_limits(jig_protocol_config::Profile::Small).store,
-    )
-    .expect("final admitted fixture store");
+    let limits =
+        crate::store::limits(&engine.env.limits, &crate::limits::small(&jig_protocol_config_fixtures::small()).store)
+            .expect("final admitted fixture store");
     engine.store.host.component = jig_protocol_store::Store::over(
         &limits,
         jig_test_store::application(&engine.env.limits.connector),
@@ -337,11 +335,12 @@ pub fn config() -> jig_protocol_config::Engine {
 fn config_document(input: &[u8]) -> jig_protocol_config::Engine {
     let bounds = jig_protocol_config::DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 };
     let document = jig_protocol_config::document(input, &bounds).expect("fixture JSON");
-    let mut config = jig_protocol_config::engine(
+    let mut config = jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Document,
+        &jig_protocol_config_fixtures::small(),
     )
     .expect("fixture config");
     for charter in &mut config.charters {
@@ -367,7 +366,7 @@ pub fn values() -> crate::values::Values {
     crate::values::Values { accounts, application }
 }
 pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers {
-    let limits = crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers;
+    let limits = crate::limits::small(&config.limits).workers;
     crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
@@ -446,7 +445,7 @@ pub const WORKER_DOCUMENT: &[u8] = br#"{
 "programs":{"check_interval_ms":60000},
 "graces":{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
-"limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},
+"limits":{"profile":"standard","overrides":{"hub.slots":1,"hub.run_calls":1,"hub.turns":1}},
 "memory_bytes":1152921504606846976
 }],"application":{"workers":[{"root":"agent-root"}]}}
 "#;

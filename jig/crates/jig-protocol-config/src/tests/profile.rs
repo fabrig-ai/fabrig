@@ -1,44 +1,40 @@
-use crate::{Profile, profile};
+use crate::profile;
 
 #[test]
 fn supplied_profiles_have_valid_domain_limits() {
-    for selected in [Profile::Small, Profile::Standard] {
-        let limits = profile(selected);
-        assert_eq!(limits.driver.redirect_bytes, 16_384, "{selected:?} redirect bound");
-        let redirect_room = skein_oauth_accounts::redirect_room(&limits.driver).unwrap();
-        assert!(limits.driver.redirect_bytes >= redirect_room, "{selected:?} redirect holds a full answer");
-        assert_eq!(limits.driver.server.head, 24_593, "{selected:?} listener head");
-        let listener_head = skein_oauth_accounts::listener_head(limits.driver.redirect_bytes).unwrap();
-        assert!(limits.driver.server.head >= listener_head, "{selected:?} head holds a browser's request");
-        assert_eq!(limits.core.tasks.charter_documents, 2);
-        assert_eq!(limits.core.brief.sections, 10);
-        assert!(jig_domain_core_vocabulary::valid(&limits.core), "{selected:?} core");
-        assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
-        assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
-        assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
-        assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "{selected:?} codecs");
-        let sizes = jig_protocol_store::sizes::check_commits(
-            &limits.core,
-            &jig_protocol_store::sizes::Application { version: 1, key: 0, value: 0 },
-            &limits.store.commits,
-            &limits.store.store,
-            limits.store.orphan_erases,
-        )
-        .expect("profile store bounds");
-        if selected == Profile::Standard {
-            assert_eq!(sizes.value, limits.store.store.value, "stock's least value envelope");
-        }
-        let writes = jig_domain_core_vocabulary::settings::writes_bound(&limits.core).expect("profile settings writes");
-        assert!(writes <= limits.journal.writes, "{selected:?} journal");
-        let mut problems = crate::Problems::empty();
-        crate::clients::check_settings(&limits, &mut problems);
-        assert!(problems.problems.is_empty(), "{selected:?} client wire: {problems:?}");
-    }
+    let limits = crate::stock();
+    assert_eq!(limits.driver.redirect_bytes, 16_384, "stock redirect bound");
+    let redirect_room = skein_oauth_accounts::redirect_room(&limits.driver).unwrap();
+    assert!(limits.driver.redirect_bytes >= redirect_room, "stock redirect holds a full answer");
+    assert_eq!(limits.driver.server.head, 24_593, "stock listener head");
+    let listener_head = skein_oauth_accounts::listener_head(limits.driver.redirect_bytes).unwrap();
+    assert!(limits.driver.server.head >= listener_head, "stock head holds a browser's request");
+    assert_eq!(limits.core.tasks.charter_documents, 2);
+    assert_eq!(limits.core.brief.sections, 10);
+    assert!(jig_domain_core_vocabulary::valid(&limits.core), "stock core");
+    assert!(jig_domain_host::valid_hub(&limits.hub), "stock hub");
+    assert_eq!(crate::domain::capacity(&limits.core), None, "stock capacity");
+    assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "stock messages");
+    assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "stock codecs");
+    let sizes = jig_protocol_store::sizes::check_commits(
+        &limits.core,
+        &jig_protocol_store::sizes::Application { version: 1, key: 0, value: 0 },
+        &limits.store.commits,
+        &limits.store.store,
+        limits.store.orphan_erases,
+    )
+    .expect("profile store bounds");
+    assert_eq!(sizes.value, limits.store.store.value, "stock's least value envelope");
+    let writes = jig_domain_core_vocabulary::settings::writes_bound(&limits.core).expect("profile settings writes");
+    assert!(writes <= limits.journal.writes, "stock journal");
+    let mut problems = crate::Problems::empty();
+    crate::clients::check_settings(&limits, &mut problems);
+    assert!(problems.problems.is_empty(), "stock client wire: {problems:?}");
 }
 
 #[test]
 fn child_validity_keeps_semantic_and_count_refusals() {
-    let limits = profile(Profile::Small).core;
+    let limits = crate::stock().core;
     let mut brief = limits.brief;
     brief.briefs = 0;
     assert!(!jig_domain_brief::valid(&brief));
@@ -112,14 +108,13 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 4_582_931), (Profile::Standard, 262_144, 100_883_575)] {
-        let configured = profile(kind);
-        let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
-        assert_eq!(u64::from(configured.core.resume_bytes), request);
-        assert_eq!(configured.store.store.page.bytes, page);
-        assert_eq!(jig_protocol_store::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
-        assert!(request.min(u64::from(page)) < MAX_FRAME);
-    }
+    let (request, page) = (262_144, 100_883_575);
+    let configured = crate::stock();
+    let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
+    assert_eq!(u64::from(configured.core.resume_bytes), request);
+    assert_eq!(configured.store.store.page.bytes, page);
+    assert_eq!(jig_protocol_store::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
+    assert!(request.min(u64::from(page)) < MAX_FRAME);
 }
 
 // jig/docs/design/protocol/limits.md: sized from fabrig's own development (2026-11-16).
@@ -158,7 +153,7 @@ fn stock_figures_cover_development_and_read_cleanly() {
     let parsed = crate::overrides::parse_over(&document, 0, &crate::Path::root(), &limits);
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     assert_eq!(parsed.limits, limits);
-    let bytes = super::fixtures::with(super::fixtures::ENGINE_SMALL, br#""profile": "small""#, br#""overrides":{}"#);
+    let bytes = super::fixtures::with(super::fixtures::ENGINE_SMALL, br#""profile": "standard""#, br#""overrides":{}"#);
     let engine = super::fixtures::engine(&bytes).expect("stock engine passes every startup check");
     assert_eq!(engine.limits, limits);
 }
@@ -166,7 +161,7 @@ fn stock_figures_cover_development_and_read_cleanly() {
 // Development figures and their coupled limits.
 #[test]
 fn standard_holds_fabrig_scale() {
-    let limits = profile(Profile::Standard);
+    let limits = crate::stock();
     let tasks = limits.core.tasks;
     assert_eq!(tasks.project_goals, 80);
     assert_eq!(tasks.depth, 32);
@@ -211,83 +206,65 @@ fn standard_holds_fabrig_scale() {
 // the mark refuses every commit that grows it first, and the engine stops.
 #[test]
 fn each_profiles_store_map_holds_its_fill_mark() {
-    for selected in [Profile::Small, Profile::Standard] {
-        let limits = profile(selected);
-        assert!(limits.store.store.budget >= limits.core.fill_mark, "{selected:?} map budget");
-    }
+    let limits = crate::stock();
+    assert!(limits.store.store.budget >= limits.core.fill_mark, "stock map budget");
 }
 
 #[test]
 fn standard_page_holds_smiths_largest_turn() {
-    let limits = profile(Profile::Standard);
+    let limits = crate::stock();
     let frame = jig_protocol_store::sizes::frame(&limits.core, 33_554_432).expect("smith's largest turn frame");
     assert_eq!(frame, 33_554_501);
     assert!(limits.store.store.page.bytes >= frame);
 }
 
 #[test]
-fn small_holds_composed_settings() {
-    let limits = profile(Profile::Small);
-    let tasks = limits.core.tasks;
-    assert_eq!(tasks.tasks, 8);
-    assert_eq!(tasks.batch, 2);
-    assert_eq!(tasks.spec_bytes, 4_096);
-    assert_eq!(tasks.result_bytes, 512);
-    assert_eq!(limits.store.store.value, 4_580_852);
-}
-
-#[test]
 fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
-    for selected in [Profile::Small, Profile::Standard] {
-        let people = profile(selected).core.people;
-        // Twenty conversations each: create, three messages, decide. Fivefold headroom.
-        assert_eq!(people.requests, people.people * 20 * 5 * 5);
-        assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
-    }
+    let people = crate::stock().core.people;
+    // Twenty conversations each: create, three messages, decide. Fivefold headroom.
+    assert_eq!(people.requests, people.people * 20 * 5 * 5);
+    assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
 }
 
 // jig/docs/design/domain/engine/briefs.md, 2: bodies and the calls and loads carrying them.
 #[test]
 fn profiles_hold_a_documents_body_and_carriers() {
-    for (kind, body, escaped, load) in
-        [(Profile::Small, 32_768, 69_632, 65_536), (Profile::Standard, 65_536, 135_168, 131_072)]
     {
-        let limits = profile(kind);
-        assert_eq!(limits.core.notes.body_bytes, body, "{kind:?} body");
-        assert_eq!(limits.core.call_answer_bytes, escaped, "{kind:?} call");
-        assert_eq!(limits.hub.event_bytes, u64::from(escaped), "{kind:?} event");
-        assert_eq!(limits.core.load_bytes, load, "{kind:?} load");
+        let (body, escaped, load) = (65_536, 135_168, 131_072);
+        let limits = crate::stock();
+        assert_eq!(limits.core.notes.body_bytes, body, "stock body");
+        assert_eq!(limits.core.call_answer_bytes, escaped, "stock call");
+        assert_eq!(limits.hub.event_bytes, u64::from(escaped), "stock event");
+        assert_eq!(limits.core.load_bytes, load, "stock load");
     }
 }
 
 #[test]
 fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
     const ORDINARY_EXCHANGES: u32 = 4;
-    for selected in [Profile::Small, Profile::Standard] {
-        let limits = profile(selected);
-        let streams = limits.clients.streams.max(limits.clients_http.streams);
-        let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
-        assert!(limits.clients_http.calls >= minimum, "{selected:?} HTTP calls carry streams and ordinary exchanges");
-        assert!(limits.clients.exchanges >= limits.clients_http.calls, "{selected:?} component carries HTTP calls");
-    }
+
+    let limits = crate::stock();
+    let streams = limits.clients.streams.max(limits.clients_http.streams);
+    let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
+    assert!(limits.clients_http.calls >= minimum, "stock HTTP calls carry streams and ordinary exchanges");
+    assert!(limits.clients.exchanges >= limits.clients_http.calls, "stock component carries HTTP calls");
 }
 
 #[test]
 fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
     use jig_domain_tasks::{Class, Retry};
     use skein_lib::Duration;
-    for selected in [Profile::Small, Profile::Standard] {
-        let retries = profile(selected).core.tasks.retries;
+
+    let retries = crate::stock().core.tasks.retries;
+    assert_eq!(
+        retries.infrastructure,
+        Retry { retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000) }
+    );
+    for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
         assert_eq!(
-            retries.infrastructure,
-            Retry { retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000) }
+            retries.of(class),
+            Retry { retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000) }
         );
-        for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
-            assert_eq!(
-                retries.of(class),
-                Retry { retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000) }
-            );
-        }
     }
 }
 
@@ -295,7 +272,7 @@ fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
 #[test]
 fn standard_stream_edges_hold_every_first_delivery() {
     use jig_client_protocol_wire::v26 as w;
-    let limits = profile(Profile::Standard);
+    let limits = crate::stock();
     let clients = limits.clients;
     let delivery = w::Delivery::encoded_bound(&clients.wire).expect("delivery bound") + 1;
     assert_eq!(clients.watches_per_stream, 31);
@@ -311,8 +288,6 @@ fn standard_stream_edges_hold_every_first_delivery() {
     assert_eq!(limits.clients_http.event, base64 + 8);
     assert!(jig_protocol_engine_clients::valid(&clients));
     assert_eq!(jig_protocol_engine_clients::limits::stream_queue_bytes(u32::MAX, &clients.wire), None);
-    let small = profile(Profile::Small);
-    assert_eq!((small.clients.watches_per_stream, small.clients.queued_bytes), (4, 65_536));
 }
 
 #[test]
@@ -320,7 +295,7 @@ fn standard_sse_edge_accepts_the_largest_stream_frame() {
     const PIECE: [u8; 1024] = [b'A'; 1024];
     use skein_http::sse::writer as sse;
     use skein_lib::{Env, Queue, Time, Wall};
-    let limits = profile(Profile::Standard);
+    let limits = crate::stock();
     let record =
         jig_client_protocol_wire::v26::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
     let data_bytes = skein_lib::base64::encoded_len(

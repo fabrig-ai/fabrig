@@ -9,7 +9,7 @@ fn config() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let document = config::document(
         br#"{
-        "limits":{"profile":"small"},
+        "limits":{"profile":"standard"},
         "llm":{"providers":[],"endpoints":[]},
         "hosts":{"workers":[],"listener":[{"socket":"127.0.0.1:7100"}]},
         "clients":{"heartbeat_ms":10000,"link":true},
@@ -21,7 +21,14 @@ fn config() -> jig_protocol_config::Engine {
         &config::DocumentLimits { bytes: 1024, tokens: 256, depth: 8 },
     )
     .expect("configuration document");
-    config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).expect("configuration")
+    config::engine_over(
+        &document,
+        0,
+        &config::Directories::working(),
+        config::Defaults::Passed,
+        &jig_protocol_config_fixtures::small(),
+    )
+    .expect("configuration")
 }
 
 #[test]

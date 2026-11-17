@@ -36,7 +36,7 @@ pub mod members;
 pub mod names;
 pub mod overrides;
 pub mod profile;
-pub use profile::{JournalSizes, Limits, Link, Profile, profile, stock};
+pub use profile::{JournalSizes, Limits, Link, stock};
 pub mod forms;
 mod problem;
 pub mod read;

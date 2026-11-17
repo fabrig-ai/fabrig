@@ -1,6 +1,4 @@
-//! Limits for one person's machine (protocol/limits.md).
-//! The profile keeps concurrent work and retained state small for a personal deployment.
-use super::{Limits, Link};
+//! Small figures for tests (jig/docs/design/protocol/limits.md).
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
@@ -11,6 +9,7 @@ use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
+use jig_protocol_config::{Limits, Link};
 use skein_lib::Duration;
 const RETRY: tasks::Retry = tasks::Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
 const RETRIES: tasks::Retries = tasks::Retries {
@@ -182,10 +181,14 @@ pub(super) const NOTES: notes::Limits = notes::Limits {
 };
 pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::DocumentLimits {
     roles: AUTHORITY.roles,
-    grants: super::authority_grants(&TASKS, &AUTHORITY),
-    executors: super::authority_executors(&TASKS, &AUTHORITY),
+    grants: if TASKS.authority_grants > AUTHORITY.grants { TASKS.authority_grants } else { AUTHORITY.grants },
+    executors: if TASKS.executor_kinds > AUTHORITY.executors { TASKS.executor_kinds } else { AUTHORITY.executors },
     implications: AUTHORITY.implications,
-    segments: super::name_segments(&TASKS, &AUTHORITY),
+    segments: {
+        let task =
+            if TASKS.hold_segments > TASKS.authority_segments { TASKS.hold_segments } else { TASKS.authority_segments };
+        if AUTHORITY.segments > task { AUTHORITY.segments } else { task }
+    },
     rows: 4,
     text_bytes: 4_096,
     chips: 4,
@@ -304,8 +307,8 @@ pub(super) const IO: skein_io::Limits = skein_io::Limits {
 // Account moves count 18 core route positions for their emitted outputs.
 // Retained-revision release adds 2 * 4 heads + 16 versions + one extent = 25.
 // Placed holds: tightened core room plus 18 connector slots needs 20,801 writes.
-pub(super) const JOURNAL: super::JournalSizes =
-    super::JournalSizes { commits: 3, writes: 20_801, door: 256, release: 256 };
+pub(super) const JOURNAL: jig_protocol_config::JournalSizes =
+    jig_protocol_config::JournalSizes { commits: 3, writes: 20_801, door: 256, release: 256 };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
     store: STORE,
@@ -354,7 +357,8 @@ const REDIRECT: u32 = 16_384;
 
 /// Accounts use bounded OAuth exchanges and the shared socket limits.
 pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Limits {
-    accounts: super::driver_places(&CORE.accounts).expect("all sources and pending account sign-ins"),
+    accounts: jig_protocol_config::profile::driver_places(&CORE.accounts)
+        .expect("all sources and pending account sign-ins"),
     file_stall: Duration::from_secs(30),
     lock_wait: Duration::from_secs(1),
     exchanges: 4,

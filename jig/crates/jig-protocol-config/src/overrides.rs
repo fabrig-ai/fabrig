@@ -1,5 +1,5 @@
 //! Named limits and strict profile selection (jig/docs/design/protocol/limits.md).
-use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, read, stock};
+use crate::{Limits, Path, Problem, Problems, Segment, What, profile, read, stock};
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, bytes};
 
@@ -743,7 +743,6 @@ pub(crate) fn read_over(document: &Document, at: u32, path: &Path, base: &Limits
     if let Some(at) = object.member(document, b"profile") {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
-                b"small" => limits = profile(Profile::Small),
                 b"standard" => {}
                 _ => problems.push(path.member(b"profile"), What::Override),
             },

@@ -8,7 +8,28 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-domain-authority.workspace = true
+jig-domain-brief.workspace = true
+jig-domain-core-vocabulary.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-host.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-people.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-views.workspace = true
 jig-protocol-config.workspace = true
+jig-client-protocol-wire.workspace = true
+jig-domain-accounts.workspace = true
+jig-protocol-engine-clients.workspace = true
+jig-protocol-engine-clients-http.workspace = true
+jig-protocol-store.workspace = true
+skein-http.workspace = true
+skein-io.workspace = true
+skein-kv.workspace = true
+skein-lib.workspace = true
+skein-oauth.workspace = true
+skein-oauth-accounts.workspace = true
+skein-tls.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
