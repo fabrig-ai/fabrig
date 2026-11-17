@@ -67,6 +67,93 @@ fn a_landed_change_keeps_its_title_after_its_close() {
     assert_eq!(view(&restored), closed);
 }
 
+fn merged_pull_world(ending: top::ReleaseEnding) -> (World, top::Name) {
+    use skein_fake_forge_domain::api as raw;
+    use skein_forge::api::State;
+    use temper_engine_forge_world::{REPO, translate};
+    let mut world = World::new(SEED);
+    world.adopt();
+    world.slow_calls(skein_lib::Duration::ZERO);
+    world.produce(BRANCH);
+    let pull = world.open_pull(BRANCH, b"main");
+    let head = world.branch(BRANCH);
+    let mut row = changes::change_row();
+    row.pull = Some(pull);
+    row.change.last_head = Some(translate::commit(head));
+    row.change.state = if ending == top::ReleaseEnding::Done {
+        change::State::NoChange { words: b"Already merged elsewhere".as_slice().into() }
+    } else {
+        change::State::Checking { head: translate::commit(head) }
+    };
+    world.event(top::Event::Change { row });
+    let branch_name = top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+    };
+    let pull_name = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(pull) };
+    world.event(top::Event::Hold { entry: 0, task: CHANGE, resource: branch_name.clone(), from: None });
+    world.event(top::Event::Names { task: CHANGE, resources: Box::new([pull_name.clone()]) });
+    assert!(matches!(
+        world.external(raw::Op::Write(raw::Write::Merge { number: pull, head, how: raw::MergeHow::Style }), 2),
+        raw::Answer::Merged(_)
+    ));
+    world.run_for(60);
+    assert!(
+        matches!(world.stored().get(&top::Key::PullState(pull_name)), Some(top::Stored::PullState(state)) if state.state == State::Closed),
+        "the poll must have seen the merge"
+    );
+    assert!(!world.stored().iter().any(|(_, r)| matches!(r, top::Stored::Landed { .. })));
+    world.take_calls();
+    world.take_seen();
+    (world, branch_name)
+}
+
+#[test]
+fn another_hands_merge_ends_cancelled_or_no_change_without_pull_cleanup() {
+    use skein_forge::api::{Op, Write};
+    for ending in [top::ReleaseEnding::Cancelled, top::ReleaseEnding::Done] {
+        let (mut world, branch_name) = merged_pull_world(ending);
+        world.event(top::Event::SettleEffects { task: CHANGE, root: CHANGE, ending });
+        world.event(top::Event::Release {
+            task: CHANGE,
+            root: CHANGE,
+            ending,
+            reason: Some(b"cancelled".as_slice().into()),
+            entry: 100,
+        });
+        let mut released = false;
+        for entry in 101..110 {
+            world.run_for(1);
+            for request in world.take_seen() {
+                match request {
+                    top::Request::Released { task: CHANGE } => released = true,
+                    top::Request::ContinueRelease { task: CHANGE } => {
+                        world.event(top::Event::ContinueRelease { task: CHANGE, entry });
+                    }
+                    top::Request::ReleaseFailed { .. } => panic!("release held: {request:?}"),
+                    _ => {}
+                }
+            }
+            if released {
+                break;
+            }
+        }
+        assert!(released, "release must end");
+        assert!(world.hold(&branch_name).is_none());
+        assert_eq!(
+            world.change(CHANGE).ending,
+            Some(if ending == top::ReleaseEnding::Cancelled { top::Ending::Cancelled } else { top::Ending::NoChange })
+        );
+        assert!(!world.stored().iter().any(|(_, r)| matches!(r, top::Stored::Landed { .. })));
+        let calls = world.take_calls();
+        assert!(!calls.iter().any(|op| matches!(op, Op::Write(Write::Post { .. } | Write::Close { .. }))), "{calls:?}");
+        assert!(
+            calls.iter().any(|op| matches!(op, Op::Write(Write::DeleteBranch { branch }) if branch.as_ref() == BRANCH))
+        );
+    }
+}
+
 // Catch-ups use ancestry without the goal's full diff (temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/README.md, 6).
 fn catch_up_world(advance_main: bool) -> (World, skein_forge::api::Commit, skein_forge::api::Commit) {
     let mut world = World::with_comparison_room(SEED);

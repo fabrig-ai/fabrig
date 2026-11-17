@@ -290,9 +290,10 @@ impl Joint {
         let owners: Vec<_> = self.peers.keys().copied().collect();
         for owner in owners {
             let peer = self.peers.get_mut(&owner).expect("peer");
-            protocol::resume(
+            protocol::resume_with_domain(
                 &mut peer.server,
                 self.service.as_mut().expect("Forgejo service"),
+                protocol::Hosted { domain: &mut self.domain, config: &self.fake_env.limits },
                 &self.protocol_env,
                 &mut peer.above,
                 &mut peer.below,
@@ -307,9 +308,10 @@ impl Joint {
                 peer.pipe.server_down(down);
             }
             if let Some(up) = peer.pipe.server_up() {
-                protocol::up(
+                protocol::up_with_domain(
                     &mut peer.server,
                     self.service.as_mut().expect("Forgejo service"),
+                    protocol::Hosted { domain: &mut self.domain, config: &self.fake_env.limits },
                     &self.protocol_env,
                     up,
                     &mut peer.above,

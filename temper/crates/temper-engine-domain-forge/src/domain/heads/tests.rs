@@ -271,6 +271,7 @@ fn completing_release_erases_deleted_change_head_but_keeps_a_live_base() {
         let mut out = Queue::uncapped();
         release_outcome(
             &mut d,
+            &env,
             5,
             skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
             &mut out,
