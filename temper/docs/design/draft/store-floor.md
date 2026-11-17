@@ -150,7 +150,7 @@ Once dev.fabrig.ai has run F0 and S7's `task-logs`, every item below goes, and n
   - The root `AGENTS.md` rule on stored families gains the floor: no code for a store older than dev.fabrig.ai's, and a format outside the registry is fixed (5).
   - skein's `data/codec/command.md` drops the frozen-text rule for a store's history, and keeps it for wires.
 - **The words** that promise older stores are rewritten to the floor, their citations repaired:
-  - `temper/docs/design/protocol/baseline.md`;
+  - `temper/docs/design/protocol/floor.md`;
   - jig's `protocol/store/layouts.md` (the seed), `opening.md` (the eager walk), `jobs.md` and `parts.md` (the done jobs);
   - the drafts `upgrades.md`, `staged-upgrades.md`, `redeploys.md` and `store-shape.md`, and their execution and status files.
 

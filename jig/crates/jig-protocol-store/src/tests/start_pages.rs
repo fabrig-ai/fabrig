@@ -89,30 +89,30 @@ fn load_core_pages_equal_the_direct_page_walk_with_the_same_cursors() {
 }
 
 #[test]
-fn census_pairs_and_result_joins_equal_the_direct_page_walk() {
+fn census_pairs_and_result_joins_read_ended_owners_from_logs() {
     let position = Record::People(jig_domain_people::Stored::EndedRead { task: ENDED, party: ALICE, through: 1 });
-    let mut selected = open();
-    let mut default = open();
-    for store in [&mut selected, &mut default] {
-        fixtures::committed(
-            store,
-            Box::new([
-                fixtures::header(1),
-                fixtures::save(fixtures::ended_task(ENDED)),
-                fixtures::save(fixtures::result_index(ALICE, 1, ENDED)),
-                fixtures::save(position.clone()),
-            ]),
-        );
-    }
+    let mut store = open();
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(1),
+            fixtures::save(fixtures::ended_task(ENDED)),
+            fixtures::save(fixtures::result_index(ALICE, 1, ENDED)),
+            fixtures::save(position.clone()),
+        ]),
+    );
     let mut after = None;
+    let mut found = List::uncapped();
     for _ in 0..ROWS {
-        let (items, next) = page(request(&mut selected, census(), after.clone(), 2));
-        let direct =
-            crate::restore::page(&mut default, census(), after.as_ref(), 2, BYTES).expect("direct census page");
-        let (rows, default_next) = (direct.items, direct.next);
-        assert_eq!(records(items), records(rows));
-        assert_eq!(next, default_next);
+        let (items, next) = page(request(&mut store, census(), after, 2));
+        for row in records(items) {
+            found.push(row).unwrap();
+        }
         if next.is_none() {
+            assert_eq!(
+                found.into_boxed().as_ref(),
+                [position, fixtures::ended_task(ENDED), fixtures::ended_task(ENDED)]
+            );
             return;
         }
         after = next;

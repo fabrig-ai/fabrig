@@ -1,7 +1,7 @@
 # D039: Eight production files pass 1,500 lines
 
 - **Kind:** complexity
-- **Where:** `jig-client-view-words/src/words/phrases/jig.rs`, `jig-protocol-config/src/members.rs`, `jig-protocol-store/src/codec/settings.rs`, `jig-domain-tasks/src/boundary.rs`, `jig-domain-core/src/reads/rows.rs`, `jig-client-view-words/src/words/phrases/english.rs`, `jig-domain-tasks/src/domain.rs`, `jig-domain-core/src/effects.rs`
+- **Where:** `jig-client-view-words/src/words/phrases/jig.rs`, `jig-protocol-config/src/members.rs`, `jig-protocol-store-records/src/codec/settings.rs`, `jig-domain-tasks/src/boundary.rs`, `jig-domain-core/src/reads/rows.rs`, `jig-client-view-words/src/words/phrases/english.rs`, `jig-domain-tasks/src/domain.rs`, `jig-domain-core/src/effects.rs`
 - **Seen:** 2026-10-18 at `86971be`, in jig's tech-debt list ("Signals in the step code": long functions, long tests, large files)
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (cross-check: files of 800 lines or more, 66 to 134; A2 F8, A3 F2, A6 F11, F18)
 - **Checked:** 2026-11-03 at `a6a8155d35`
@@ -15,7 +15,7 @@
 
 Eight hand-written production files are over 1,500 lines: `jig-client-view-words/src/words/phrases/jig.rs`
 3,075 (D021); `jig-protocol-config/src/members.rs` 2,659, new since the backfill's first
-count; `jig-protocol-store/src/codec/settings.rs` 2,254 (D025); `jig-domain-tasks/src/boundary.rs`
+count; `jig-protocol-store-records/src/codec/settings.rs` 2,254 (D025); `jig-domain-tasks/src/boundary.rs`
 2,252; `jig-domain-core/src/reads/rows.rs` 1,837; `jig-client-view-words/src/words/phrases/english.rs`
 1,630 (D021); `jig-domain-tasks/src/domain.rs` 1,588; `jig-domain-core/src/effects.rs` 1,507.
 

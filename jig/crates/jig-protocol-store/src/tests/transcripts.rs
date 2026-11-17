@@ -700,7 +700,7 @@ fn exhausted_pages_remain_empty_terminal_answers() {
 fn framed_readable(raw: &[u8]) -> Store {
     use jig_test_patches_jig::frames;
     let mut store = fixtures::over(fixtures::stores());
-    store.patch_sets(super::frame_patches::SETS);
+    store.owner_sets(super::frame_patches::SETS);
     fixtures::run(
         &mut store,
         crate::Request::Open {
@@ -845,7 +845,10 @@ fn configured_read_room_and_frame_capacity_are_measured_separately() {
     assert_eq!(limits.store.page.bytes, 16_778_240);
     // Supplied well-formed smith fixtures: the current turn's maximum is
     // 74 bytes; the earlier layout's replay grows its raw maximum to 138.
-    for (text, expected) in [(sets.sets[1].families[0].texts[0], 138), (sets.sets[1].families[0].texts[1], 74)] {
+    for (text, expected) in [
+        (sets.sets[1].families[0].frames.expect("frames family").texts[0], 138),
+        (sets.sets[1].families[0].frames.expect("frames family").texts[1], 74),
+    ] {
         let schema = skein_codec::schema::parse(text.as_bytes()).expect("fixture schema");
         let root = schema.find(b"Turn").expect("fixture turn");
         assert_eq!(schema.most_bytes(root), expected);

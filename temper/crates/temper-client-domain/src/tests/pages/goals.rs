@@ -3,7 +3,7 @@ use crate::{
     Address, GoalsFilter,
     pages::{
         self, Act, Event, Pages, Request,
-        goals::{self, Goals, State},
+        goals::{self, Goals, State, Wait},
     },
 };
 use jig_client::{Down, Readable, Readout, Told, Up, Watchable, contract as c};
@@ -23,14 +23,14 @@ const ENDED_READ: u32 = 3;
 const ALL_READ: u32 = 4;
 const CURRENT_ENDED: usize = 1;
 
-fn me() -> c::Me {
+pub(super) fn me() -> c::Me {
     let mut me = fixtures::chats::me();
     let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
     template.number = jig_client::shapes::GOAL;
     template.tracked = Some(1);
     me
 }
-fn line(task: u64, activity: Wall) -> c::TaskLine {
+pub(super) fn line(task: u64, activity: Wall) -> c::TaskLine {
     let mut line = chat_line();
     line.chip.task = task;
     line.last_activity = activity;
@@ -291,6 +291,11 @@ fn goals_read_its_query_and_release_it() {
     assert!(out.is_empty());
 }
 
+fn phase(chip: &mut c::Chip, phase: c::ChipPhase) {
+    chip.phase = phase.compact();
+    chip.details.phase = phase;
+}
+
 #[test]
 fn each_state_of_the_table_reads() {
     let base = fixtures::chat::task().chip;
@@ -326,6 +331,21 @@ fn each_state_of_the_table_reads() {
         (base.clone(), false, false, 1, State::Running),
     ] {
         cases.push(case).expect("state cases fit");
+    }
+    for (dependencies, more, holds, expected) in [
+        (&[12][..], false, false, State::Waits(Wait { first: 12, second: None, count: 1, more: false })),
+        (&[12, 13, 14][..], false, true, State::Waits(Wait { first: 12, second: Some(13), count: 3, more: false })),
+        (&[][..], true, true, State::Waits(Wait { first: 0, second: None, count: 0, more: true })),
+        (&[][..], false, true, State::WaitsForRoom),
+        (&[][..], false, false, State::Planning),
+    ] {
+        let mut chip = base.clone();
+        phase(&mut chip, c::ChipPhase::Waiting { dependencies: List::from_boxed(dependencies.into()), more, holds });
+        cases.push((chip.clone(), false, false, 0, expected)).unwrap();
+        if expected != State::Planning {
+            cases.push((chip.clone(), false, true, 1, expected)).unwrap();
+        }
+        cases.push((chip, true, false, 0, State::Needs { funds: false })).unwrap();
     }
     for (ending, expected) in [
         (Some(c::ChipEnding::Done(c::ResultValue::Report(fixtures::chat::document_text(b"done")))), State::Landed),
@@ -364,7 +384,9 @@ fn each_state_of_the_table_reads() {
         assert_eq!(goals::state(chip, *needs, *report, *delegates), *expected);
         let filters = match expected {
             State::Needs { .. } => [true, true, false, false],
-            State::Planning | State::Paused | State::Running => [true, false, true, false],
+            State::Planning | State::Paused | State::Waits(_) | State::WaitsForRoom | State::Running => {
+                [true, false, true, false]
+            }
             State::Landed | State::Closed | State::Failed => [true, false, false, true],
         };
         for (filter, selected) in
@@ -372,6 +394,31 @@ fn each_state_of_the_table_reads() {
         {
             assert_eq!(goals::shown(filter, *expected), selected);
         }
+    }
+}
+
+#[test]
+fn a_goals_id_is_its_leading_capitals_and_digits() {
+    for (title, expected) in [
+        ("S7 history in task logs", Some("S7")),
+        ("K10 · prepare reconnect statements once", Some("K10")),
+        ("H1, Home's parts", Some("H1")),
+        ("ABC123", Some("ABC123")),
+        ("A0", Some("A0")),
+        ("Fix 3 bugs", None),
+        ("s7 history", None),
+        ("SS7a", None),
+        ("ABCD1", None),
+        ("A1234", None),
+        ("A", None),
+        ("1", None),
+        ("", None),
+    ] {
+        let expected = match expected {
+            Some(id) => Some(id.as_bytes()),
+            None => None,
+        };
+        assert_eq!(goals::id(title.as_bytes()), expected, "{title}");
     }
 }
 
@@ -448,6 +495,8 @@ fn needs_come_from_the_selection_and_read_again_as_needs_total_moves() {
     );
     assert!(h.goals().needs_person(GOAL));
     assert!(h.goals().needs_person(OTHER));
+    assert!(h.goals().needs_own(GOAL));
+    assert!(!h.goals().needs_own(OTHER));
     let mut changed = me();
     changed.needs_total = 1;
     h.event(crate::Event::Client {
@@ -470,6 +519,7 @@ fn needs_come_from_the_selection_and_read_again_as_needs_total_moves() {
         })),
     );
     assert!(!h.goals().needs_person(GOAL));
+    assert!(!h.goals().needs_own(GOAL));
     h.event(crate::Event::Client {
         event: jig_client::Event::Up {
             up: Up::Watched { watch: h.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(changed))) },

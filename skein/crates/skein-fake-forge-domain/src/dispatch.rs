@@ -58,6 +58,7 @@ pub(crate) fn dispatch(
         event: RunEvent::Dispatch,
         user,
         cancelled_by: None,
+        wait: None,
         state: RunState::Running,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
@@ -83,6 +84,7 @@ pub(crate) fn dispatch(
         event: RunEvent::Dispatch,
         user,
         cancelled_by: None,
+        wait: None,
         state: RunState::Running,
         conclusion: None,
         created: domain::clock(env).max(domain.floor),
@@ -133,7 +135,7 @@ pub(crate) fn dispatch(
             .get(index)
             .expect("job")
             .id;
-        pending(domain, env, id, run, job);
+        pending(domain, env, id, run, job, true);
     }
     Ok(Answer::Done)
 }
@@ -147,10 +149,18 @@ fn workflow<'a>(repository: &'a Repository, file: &[u8]) -> Result<&'a crate::ap
     Err(Error::Missing(What::File))
 }
 
-fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64, job: u64) {
+/// The first recheck is at the declared wait's end. Later rechecks only wait
+/// for labels and needs, including after an image restores the timer.
+fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64, job: u64, starting: bool) {
+    let repository = domain.repositories.get(id).expect("repository");
+    let kept = repository.dispatched.get(&run).expect("dispatched run");
+    let file = kept.run.workflow.as_ref().expect("workflow run");
+    let definition = workflow(repository, file).expect("configured workflow");
+    let phases = ci::phases(domain, kept.run.commit, definition.cue.as_ref(), &env.limits.limits);
+    let remaining = if starting { phases.wait } else { skein_lib::Duration::ZERO };
     let repository = domain.repositories.get_mut(id).expect("repository");
     let kept = repository.dispatched.get_mut(&run).expect("dispatched run");
-    let mut wait = None;
+    let mut wait = if remaining == skein_lib::Duration::ZERO { None } else { Some(actions::JobWait::Runner) };
     let mut found = None;
     for entry in &kept.jobs {
         if entry.id == job {
@@ -194,6 +204,7 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
             }
         }
     }
+    actions::complete(kept);
     let repository = domain.repositories.get(id).expect("repository");
     let kept = repository.dispatched.get(&run).expect("dispatched run");
     let file = kept.run.workflow.as_ref().expect("workflow run");
@@ -204,13 +215,20 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
             .timers
             .arm(
                 Alarm::Workflow { repository: id, run, job },
-                env.now.saturating_add(max.max(skein_lib::Duration::from_millis(1))),
+                env.now.saturating_add(if remaining == skein_lib::Duration::ZERO {
+                    max.max(skein_lib::Duration::from_millis(1))
+                } else {
+                    remaining
+                }),
             )
             .expect("retained job timer");
     } else if domain.rng.chance(silent) {
         domain.tally.silent = domain.tally.silent.saturating_add(1);
     } else {
-        let span = faults::draw(domain, min, max);
+        let span = match phases.run {
+            Some(span) => span,
+            None => faults::draw(domain, min, max),
+        };
         domain
             .timers
             .arm(Alarm::Workflow { repository: id, run, job }, env.now.saturating_add(span))
@@ -223,7 +241,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     let kept = repository.dispatched.get(&run).expect("timer's retained run");
     for entry in &kept.jobs {
         if entry.id == job && entry.wait.is_some() {
-            pending(domain, env, id, run, job);
+            pending(domain, env, id, run, job, false);
             return;
         }
     }
@@ -319,9 +337,8 @@ pub(crate) fn cancel(domain: &mut Domain, id: Id<Repository>, user: u64, run: u6
         job.wait = None;
         job.steps = actions::outcome_steps(&job.name, Check::Failed, Failing::NoStep, None, None, &[]);
     }
-    kept.run.state = RunState::Completed;
-    kept.run.conclusion = Some(Conclusion::Cancelled);
     kept.run.cancelled_by = Some(user);
+    actions::complete(kept);
     kept.artifact = None;
     Ok(Answer::Done)
 }
@@ -360,6 +377,6 @@ pub(crate) fn rerun(
         }
     }
     actions::complete(kept);
-    pending(domain, env, id, entry.run, job);
+    pending(domain, env, id, entry.run, job, true);
     Ok(Answer::Done)
 }

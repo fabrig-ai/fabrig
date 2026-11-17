@@ -176,6 +176,7 @@ fn kind_from(record: &v1::ReachKind) -> Kind {
         v1::ReachKind::Irreversible => Kind::Irreversible,
         v1::ReachKind::Rules => Kind::Rules,
         v1::ReachKind::Other => Kind::Other,
+        v1::ReachKind::Findings => Kind::Findings,
     }
 }
 
@@ -191,6 +192,7 @@ fn kind_record(value: Kind) -> v1::ReachKind {
         Kind::Irreversible => v1::ReachKind::Irreversible,
         Kind::Rules => v1::ReachKind::Rules,
         Kind::Other => v1::ReachKind::Other,
+        Kind::Findings => v1::ReachKind::Findings,
     }
 }
 

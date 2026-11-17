@@ -12,9 +12,7 @@ mod checkpoints;
 mod crashes;
 mod directories;
 mod frame_memory;
-mod fresh_windows;
 mod generations;
-mod in_flight;
 mod installation;
 mod joins;
 mod layout_golden;
@@ -23,8 +21,6 @@ mod mark_gate;
 mod openings;
 mod orphan_memory;
 mod pages;
-mod patching;
-mod patching_memory;
 mod pending_switch;
 mod readers;
 mod records;
@@ -38,7 +34,6 @@ mod fuzzy {
     mod crashes;
     mod frames;
     mod generations;
-    mod patching;
     mod pending_switch;
     #[path = "../readers_fuzzy.rs"]
     mod readers;

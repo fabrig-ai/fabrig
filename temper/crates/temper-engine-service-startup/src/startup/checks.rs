@@ -19,12 +19,12 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
     name.put(number.as_bytes()).expect("setting number counted");
     Path::root().member(&name.finish())
 }
-/// Each default charter leaves its brief room before the core admits work
-/// (temper/docs/design/domain/agent/tools.md).
+/// Each default charter passes both room checks before the core admits work
+/// (temper/docs/design/domain/agent/room.md, 4.1).
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
-        if let Err(short) = host.check(charter) {
-            problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(short)));
+        if let Err(refusal) = host.check(charter) {
+            problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(refusal)));
         }
     }
 }

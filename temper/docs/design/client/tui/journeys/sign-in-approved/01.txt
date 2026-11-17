@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:38607                                     │
+│ Sign in this terminal to 127.0.0.1:34735                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ KKSV-CZGL, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:38607/terminal?code=KKSV-CZGL                  │
+│ GWSM-CBFR, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:34735/terminal?code=GWSM-CBFR                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:38607/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:34735/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

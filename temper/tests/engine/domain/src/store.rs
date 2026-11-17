@@ -19,6 +19,7 @@ pub const LIMITS: JournalLimits = JournalLimits {
 pub const HEADER: Deployment = Deployment {
     projects: 1,
     id: [31; 16],
+    restart_wait_ms: None,
     tasks: 0,
     people: 0,
     sign_ins: 0,
@@ -584,7 +585,7 @@ impl Store {
                 unreachable!("an engine store never rehearses or goes back")
             }
             // This world does not consume the census (jig protocol/store/README.md, 6.3).
-            Event::Census { .. } | Event::Patched { .. } => {}
+            Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");
                 for write in &writes {

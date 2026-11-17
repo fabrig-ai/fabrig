@@ -5,6 +5,21 @@ use core::fmt::Write;
 use crate::{generate, parse};
 
 #[test]
+fn path_names_keep_schema_spelling_and_variant_order() {
+    let schema = parse(
+        "family paths 1\nversioned record Record { some_field: u8 }\nrecord Plain { value: u8 }\nenum Enum { empty }",
+    )
+    .expect("versioned record, plain record and enumeration");
+    let output = generate(&schema);
+    let implementation = output.records.split_once("impl Path {\n").expect("path names").1;
+    let implementation = implementation.split_once("\n}\n").expect("end of path implementation").0;
+    assert_eq!(
+        implementation,
+        "    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).\n    #[must_use]\n    pub const fn name(self) -> &'static str {\n        match self {\n            Self::RecordSomeField => \"Record.some_field\",\n            Self::RecordVersion => \"Record (version)\",\n            Self::RecordTail => \"Record (tail)\",\n            Self::PlainValue => \"Plain.value\",\n            Self::PlainTail => \"Plain (tail)\",\n            Self::EnumTag => \"Enum (tag)\",\n        }\n    }"
+    );
+}
+
+#[test]
 fn limit_names_and_values_follow_field_order() {
     for text in [
         "family f 1 record HTTPRecord { raw: secret 64 maybe: option text 32 rows: list 3 list 2 option bytes 8 }",

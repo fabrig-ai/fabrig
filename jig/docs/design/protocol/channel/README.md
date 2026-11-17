@@ -8,8 +8,9 @@ It covers the opening and what authenticates a worker, the records each
 way, what crosses as bytes of another owner and where smith's are
 decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
-is tested; `wires.md` holds the wires its opening states, and
-`bridges.md` how the channel speaks them across versions. An application with no workers has no channel: its
+is tested; `wires.md` holds the wires its opening states,
+`bridges.md` how the channel speaks them across versions, and
+`restart.md` the restart an engine says before it stops. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 
@@ -666,6 +667,9 @@ holds, and neither of its components reads them.
   again: so a worker the engine does not take back stops its runs within
   the stop bound it stated, as one with no channel does, and the
   engine's grace, counted from its own view, still outlasts it.
+- **A restart said lengthens the clock** (`restart.md`): a channel on
+  which the engine said it restarts arms it, at its loss, for the
+  longer of the restart wait and the grace.
 - **The stop bound counts from the engine's view.** A silent partition is
   noticed by each side on its own clock, a silence deadline after the last
   frame it heard, and the engine may have last heard from the worker a

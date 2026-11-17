@@ -642,8 +642,7 @@ impl Drivers {
             | crate::Event::Corrupt { .. }
             | crate::Event::Site { .. }
             | crate::Event::Job { .. }
-            | crate::Event::Ran { .. }
-            | crate::Event::Patched { .. }) => {
+            | crate::Event::Ran { .. }) => {
                 above.push(event);
             }
         }

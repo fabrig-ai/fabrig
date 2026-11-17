@@ -33,7 +33,7 @@ fn restored_people(world: &mut World) {
 
 fn seeded() -> World {
     let mut world = World::unopened(SEED);
-    world.patch_sets(BASE);
+    world.owner_sets(BASE);
     world.open().expect("initial open");
     world.mark().expect("previous start mark");
     for (owner, value) in [
@@ -51,7 +51,7 @@ fn seeded() -> World {
 fn secrets_wait_for_the_mark() {
     for sets in [BASE, SETS] {
         let mut world = seeded();
-        world.patch_sets(sets);
+        world.owner_sets(sets);
         let last = world.open().expect("ordinary or pending open");
         let before = world.contents();
         restored_people(&mut world);

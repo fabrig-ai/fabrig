@@ -47,7 +47,7 @@ pub enum StartStop {
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
 )]
 pub struct Domain {
-    pub(crate) host_part: Option<crate::room::HostPart>,
+    pub(crate) host_part: crate::room::HostPart,
     revision: u64,
     held_bytes: u64,
     pub(crate) public_reads: u32,
@@ -705,7 +705,7 @@ impl Domain {
     /// (temper/docs/design/domain/agent/tools.md).
     pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
         use jig_domain_core::settings::{Setting, Value, overlaid};
-        let Some(host) = self.host_part else { return Ok(()) };
+        let host = self.host_part;
         for setting in self.core.current.offered().into_boxed() {
             if let Setting::Charter(number) = setting {
                 if let Some(overlay) = self.core.current.overlay(setting) {
@@ -713,9 +713,9 @@ impl Domain {
                         // Jig refuses a stored overlay whose supplied default is absent.
                         continue;
                     };
-                    host.check(&overlaid(default, overlay))?;
+                    host.check_rendered(&overlaid(default, overlay))?;
                 } else if let Some(charter) = self.core.current.charter(number) {
-                    host.check(charter)?;
+                    host.check_rendered(charter)?;
                 }
             }
         }
@@ -1032,6 +1032,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::ToChild(_)
             | Request::Busy(_)
             | Request::Unsettled(_)
+            | Request::Restarting { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1388,6 +1389,7 @@ fn released_into(
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
+        | Delivery::Restarting { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }

@@ -209,6 +209,7 @@ impl Process {
                     child,
                     to: kernel::Target::Group,
                     signal: kernel::Signal::Terminate,
+                    reason: kernel::Reason::Unknown,
                 }));
             }
             Stop::Killing { .. } => {
@@ -216,6 +217,7 @@ impl Process {
                     child,
                     to: kernel::Target::Group,
                     signal: kernel::Signal::Kill,
+                    reason: kernel::Reason::Grace,
                 }));
             }
             Stop::Closing { .. } => {
@@ -282,6 +284,7 @@ impl Process {
                         child,
                         to: kernel::Target::Group,
                         signal: kernel::Signal::Terminate,
+                        reason: kernel::Reason::Unknown,
                     }));
                 }
             }
@@ -307,6 +310,7 @@ impl Process {
                             child,
                             to: kernel::Target::Group,
                             signal: kernel::Signal::Kill,
+                            reason: kernel::Reason::Grace,
                         }));
                     }
                 }

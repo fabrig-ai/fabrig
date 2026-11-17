@@ -226,14 +226,11 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   window's length or for one turn's size: a window's load fails only for
   what could not be read (a frame unread or refused, below) or a page its
   root could not take.
-- **A window closed by an upgrade.** A turn is handed to a run in its
-  current version, patched as read when it was written in an older one
-  (`../../protocol/store/transcripts.md`, 6), and a run resumes from it. A patch
-  marked fresh says instead that windows across it start fresh: smith's,
-  when what its turns mean to an agent changes. Patching then closes
-  each live task's current window in the copy, before the switch
-  (`../../protocol/store/opening.md`, 2, step 4): its run proof's window keeps
-  its attempt and turn, and is closed. The core restores it closed, and
+- **A closed window.** A turn is handed to a run in its current
+  version, patched as read when it was written in an older one
+  (`../../protocol/store/transcripts.md`, 6), and an open window may
+  resume from it. A stored run proof's `CurrentWindow` may instead be
+  closed, keeping its attempt and turn. The core restores it closed, and
   the task's next attempt starts fresh from a brief carrying the
   transcript's tail, as one past the resume limit does: the closed
   window's turns are loaded for their text alone, none is resumed, and
@@ -258,14 +255,13 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
-- **No attempt goes on across a fresh mark.** An upgrade across one is
-  a full one, its workers stopped first (temper's `draft/upgrades.md`,
-  section 9), and the core holds to it whatever was stopped. The walk
-  that closes the windows marks every run proof it visits `crossed`
-  (core-v6's `RunProof.crossed`; `../../protocol/store/opening.md`, 2, step
-  4): a claim resuming an earlier attempt's window, one whose attempt
-  has yet to commit a turn and has no window, and one whose window an
-  earlier mark closed alike. At the restart a crossed claim is never
+- **A crossed claim is never adopted.** The stored proof's
+  `RunProof.crossed` (core-v6) fences the claim independently of its
+  window: a claim resuming an earlier attempt's window, one whose
+  attempt has yet to commit a turn and has no window, and one whose
+  window is already closed alike. Registration and the jobs' runner
+  infer no fresh mark and close no windows; the core consumes the
+  proof as stored. At the restart a crossed claim is never
   adopted (`restart.md`, step 3): in the engine's process it is settled at
   once, lost or not started as at any stop; on another worker its run is
   stopped when the worker lists it, and the claim ends lost once the run

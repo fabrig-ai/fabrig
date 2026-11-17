@@ -273,6 +273,7 @@ fn line_words(w: &Words, classes: &temper_protocol_reaches::Classes, line: how::
             Kind::Irreversible => Word::HowLineIrreversible,
             Kind::Rules => Word::HowLineRules,
             Kind::Other => Word::HowLineOther,
+            Kind::Findings => Word::HowLineFindings,
         },
         Subject::Set(number) => {
             let set = classes.set(number).expect("model names a present set");

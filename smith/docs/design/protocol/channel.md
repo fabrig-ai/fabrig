@@ -123,6 +123,7 @@ of domain/host.md, section 2.
 | answer | a call's name, and its answer (below) | once per call, also after a cancel |
 | acknowledge | a turn's number: that turn and every one before it are kept durably | as the host keeps them |
 | grant | an account; a generation; how long it is valid; its value (section 6) | when the host refreshes one |
+| renewals | whether the host's renewals of grants are held | when its link to what grants them is lost, `held`, and when it is back, not held (section 6) |
 | cancel | nothing | at most once |
 | drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
 
@@ -203,6 +204,9 @@ of domain/host.md, section 2.
 - **withdrawn:** the host settled a call the run withdrew, without giving
   its answer. Whatever the host did stands, and the run asks again under
   the same name to learn it (domain/run.md, 5.2);
+- **unsent:** the host settled a call the run withdrew that never reached
+  what decides it, so nothing was done, and the run asks again as after
+  busy (domain/run.md, 5.2). `Reply`'s last variant, `unsent`;
 - **too large:** the host's answer is larger than the run takes. The run
   tells the LLM so, as an error, and does not ask again, since the host
   would answer the same.
@@ -217,7 +221,7 @@ of domain/host.md, section 2.
 | withdraw | a call's name | once per call, at most |
 | turn | its number in this activation; the spend so far; the last message read, if any; `opens_window`; its body, as bytes (transcript.md) | numbered from one in each activation, each once |
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
-| long | what it is (`check`, `completion` or `command`) and how long, at most, as a duration | when the checks, an LLM completion or a command start |
+| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
 | unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |
@@ -410,6 +414,11 @@ edge is independent of the channel's own flow control (section 7).
   an endpoint that names no program. A start that carries one is
   refused, and a later grant of one fails as any credential the agent
   cannot install.
+- **Renewals held.** A host whose grants come from elsewhere says when
+  it can renew none, `renewals` held, and when it can again, not held;
+  a run starts with them not held. While held, a completion whose
+  renewable grant has lapsed waits for the next grant rather than
+  failing (domain/session.md, section 4).
 - **The agent's half keeps the values** in a table keyed by account,
   holding two generations of each, so a refresh does not cut a call in
   flight. It hands the domain only the account, the generation and when

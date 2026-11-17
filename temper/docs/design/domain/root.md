@@ -693,7 +693,7 @@ each step the core asks for:
    commit is durable, the accounts' driver made after it (jig's
    `protocol/llm.md`, 5.1); over a pending generation the restores'
    commits before it land in the copy alone, and a refusal before the
-   switch leaves the generation patched from active (jig's
+   switch leaves the source generation active (jig's
    `domain/engine/restart.md`). A rehearsing root
    (`../protocol/binaries.md`, `temper-box upgrade --check`) ends
    before this step, reporting the restores whole.
@@ -748,6 +748,16 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   the service prints each as it ends (`../protocol/binaries.md`
   ), and the next start settles it as its class says (forge/README.md,
   section 9).
+- **Then it says it restarts** (jig's `domain/engine/restart.md`, 1,
+  *Saying it restarts*; `../draft/redeploys.md`, 5.2). Settled or past
+  its bound, the root tells the core it stops; the core keeps the word
+  in its stop's decision and, once durable, asks `Held::Restarting {
+  wait }`. The root hands it to its service as `Request::Restarting {
+  wait }`, and the service has its workers' component tell each worker
+  (`host::Workers::restarting`, jig's `protocol/channel/restart.md`, 3),
+  logging each worker told or not (`../protocol/wires.md`, section 4).
+  The workers' links stay up until `Drained` closes them, after it, so
+  the word drains before each close.
 - **A second signal** aborts the wait, as it aborts the drain.
 
 Then the drain. What the root adds to the core's:
@@ -767,7 +777,7 @@ back:
 
 | Restarted or away | What carries on |
 |---|---|
-| the engine | each worker keeps hosting its runs within its engine-away bound, redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/README.md`, section 4, and `forge/branches.md`, section 1, and `forge/README.md`, section 9) |
+| the engine | each worker keeps hosting its runs within its engine-away bound, or the restart wait its engine's settled stop told it (`worker/README.md`, section 2), redials, and its hello waits for the stored settings; the restart adopts each run its store holds as claimed, by its attempt, and the run goes on (`worker/README.md`, section 2; jig's `domain/engine/restart.md`, step 3 and `root.md`, section 7). Past the bound a run is interrupted, never failed, and resumes. The forge reads afresh and settles its outbox, each write in flight found or sent again as its class says, a goal's own branch made again (`forge/README.md`, section 4, and `forge/branches.md`, section 1, and `forge/README.md`, section 9) |
 | a worker | its runs, stopped or lost, are resumed on it or another worker from their transcripts and saved work, their start messages kept (`worker/README.md`, section 2) |
 | a forge | its reads and writes wait out the outage and its CI is read again (`forge/keeping-up.md`, 5); an owned Forgejo on a box gets its sign-in source once the engine answers, without its own restart (`../protocol/setup/box.md`, 2) |
 

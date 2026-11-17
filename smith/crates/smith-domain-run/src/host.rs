@@ -167,6 +167,9 @@ pub enum HostReply {
     /// The host settled a withdrawn relay without revealing its answer; retry the same name.
     Withdrawn,
 
+    /// The withdrawn relay was never carried; retry without an uncertain effect.
+    Unsent,
+
     /// The host's answer exceeds the run's receiving allowance; report an error once.
     TooLarge,
 

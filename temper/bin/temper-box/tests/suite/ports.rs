@@ -16,6 +16,11 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(scratch.path().join("config/temper.json")).expect("deployment"))
             .expect("deployment JSON");
+    let provider = &document["engine"]["clients"]["provider"];
+    if !provider.is_null() {
+        let owned = document["application"]["machine"]["owned"]["listen"]["socket"].as_str().expect("owned socket");
+        assert_eq!(provider["clients"][0]["redirect_uri"], format!("http://{owned}/user/oauth2/temper/callback"));
+    }
     for pointer in [
         "/application/clients/listener/socket",
         "/application/machine/owned/listen/socket",

@@ -230,6 +230,7 @@ pub struct Limits {
     pub logged_change_title: u32,
     pub logged_landing_branch: u32,
     pub logged_landing_changes: u32,
+    pub milestone_row_name: u32,
     pub landing_log_landings: u32,
     pub status_brief_sentence: u32,
     pub status_brief_lede: u32,
@@ -539,6 +540,7 @@ pub const CEILINGS: Limits = Limits {
     logged_change_title: 256,
     logged_landing_branch: 4_096,
     logged_landing_changes: 64,
+    milestone_row_name: 256,
     landing_log_landings: 256,
     status_brief_sentence: 200,
     status_brief_lede: 600,
@@ -623,7 +625,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 305] = [
+pub const LIMIT_NAMES: [&str; 306] = [
     "segment_name",
     "answer_name_name",
     "segments_segments",
@@ -848,6 +850,7 @@ pub const LIMIT_NAMES: [&str; 305] = [
     "logged_change_title",
     "logged_landing_branch",
     "logged_landing_changes",
+    "milestone_row_name",
     "landing_log_landings",
     "status_brief_sentence",
     "status_brief_lede",
@@ -934,7 +937,7 @@ pub const LIMIT_NAMES: [&str; 305] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 305] {
+    pub fn values(&self) -> [u32; 306] {
         [
             self.segment_name, self.answer_name_name, self.segments_segments, self.protection_branch, self.protection_contexts, self.settings_default_branch, self.adopted_contexts, self.adopted_host,
             self.adopted_owner, self.adopted_name, self.adopted_prefix, self.adopted_checks, self.adopted_workflows, self.adopted_workflows_item, self.retargeted_before, self.retargeted_after,
@@ -964,17 +967,17 @@ impl Limits {
             self.rule_pattern_segments, self.landing_rule_gates, self.landing_rule_approvals, self.landing_rule_sets, self.class_item_words, self.path_set_name, self.path_set_patterns, self.path_set_patterns_item,
             self.project_classes_items, self.project_classes_sets, self.charter_words_line, self.project_words_headline, self.project_words_lede, self.follow_source_branch, self.follow_source_paths, self.follow_source_paths_item,
             self.follow_target_branch, self.follow_check_workflow, self.follow_check_artifact, self.follow_producer_some, self.logged_change_signed, self.logged_change_title, self.logged_landing_branch, self.logged_landing_changes,
-            self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why, self.closing_tasks_tasks,
-            self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes, self.closer_landing_changes,
-            self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files, self.follow_entry_commits,
-            self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue, self.follow_row_skips,
-            self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason, self.change_source_branch,
-            self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed, self.change_hot_repair_tasks,
-            self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths, self.subscriber_paths_item,
-            self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head, self.red_why,
-            self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.finding_signature_source, self.finding_signature_ids,
-            self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some, self.finding_reason_some, self.device_endpoint,
-            self.device_label,
+            self.milestone_row_name, self.landing_log_landings, self.status_brief_sentence, self.status_brief_lede, self.decided_question, self.decided_options, self.decided_options_item, self.decided_why,
+            self.closing_tasks_tasks, self.closing_jobs_attempts, self.closing_line_line_some, self.closing_asked_answer_some, self.closing_question_words, self.closing_message_words, self.closing_relay_replies, self.closer_close_changes,
+            self.closer_landing_changes, self.closer_selections, self.landed_draft_path, self.landed_draft_branch, self.landed_draft_title, self.follow_commit_message, self.follow_reason_reason, self.follow_files_files,
+            self.follow_entry_commits, self.follow_skip_reason, self.follow_parity_run, self.follow_question_words, self.follow_question_answer_some, self.follow_row_branch, self.follow_row_stopped_some, self.follow_row_queue,
+            self.follow_row_skips, self.follow_row_questions, self.follow_check_progress_definition, self.follow_check_progress_held_some, self.history_project_marks, self.history_formed_members, self.history_proved_proofs, self.history_hold_reason,
+            self.change_source_branch, self.change_cold_branch, self.change_cold_base, self.change_cold_title, self.change_cold_body, self.change_cold_report, self.change_cold_close_some, self.change_hot_signed,
+            self.change_hot_repair_tasks, self.change_hot_resolution_tasks, self.change_hot_verdicts, self.change_hot_gate_remarks, self.change_hot_producer_failure_some, self.change_hot_merge_result_some, self.subscriber_goal_tasks_some, self.subscriber_paths,
+            self.subscriber_paths_item, self.finding_areas_names, self.finding_areas_names_item, self.finding_words_words, self.finding_reply_area_some, self.call_follow_refusal_some, self.red_key, self.red_head,
+            self.red_why, self.red_pass_key, self.red_recorded_head, self.red_reply_key, self.area_name, self.area_words, self.project_areas_areas, self.finding_signature_source,
+            self.finding_signature_ids, self.finding_signature_ids_item, self.finding_signature_first, self.finding_area_some, self.finding_title, self.finding_body, self.finding_why_some, self.finding_reason_some,
+            self.device_endpoint, self.device_label,
         ]
     }
 }
@@ -3546,6 +3549,42 @@ pub enum Path {
     LoggedLandingChanges,
     /// Bytes after `LoggedLanding`.
     LoggedLandingTail,
+    /// The `at` field of `MilestoneLanding`.
+    MilestoneLandingAt,
+    /// The `goal` field of `MilestoneLanding`.
+    MilestoneLandingGoal,
+    /// The `change` field of `MilestoneLanding`.
+    MilestoneLandingChange,
+    /// Bytes after `MilestoneLanding`.
+    MilestoneLandingTail,
+    /// The tag of `MilestoneOutcome`.
+    MilestoneOutcomeTag,
+    /// The `at` field of `MilestoneEnd`.
+    MilestoneEndAt,
+    /// The `outcome` field of `MilestoneEnd`.
+    MilestoneEndOutcome,
+    /// The `done` field of `MilestoneEnd`.
+    MilestoneEndDone,
+    /// The `failed` field of `MilestoneEnd`.
+    MilestoneEndFailed,
+    /// The `closed` field of `MilestoneEnd`.
+    MilestoneEndClosed,
+    /// The `spent` field of `MilestoneEnd`.
+    MilestoneEndSpent,
+    /// Bytes after `MilestoneEnd`.
+    MilestoneEndTail,
+    /// The `project` field of `MilestoneRow`.
+    MilestoneRowProject,
+    /// The `task` field of `MilestoneRow`.
+    MilestoneRowTask,
+    /// The `name` field of `MilestoneRow`.
+    MilestoneRowName,
+    /// The `last_landing` field of `MilestoneRow`.
+    MilestoneRowLastLanding,
+    /// The `ended` field of `MilestoneRow`.
+    MilestoneRowEnded,
+    /// Bytes after `MilestoneRow`.
+    MilestoneRowTail,
     /// The `repository` field of `LandingLog`.
     LandingLogRepository,
     /// The `landings` field of `LandingLog`.
@@ -4186,6 +4225,8 @@ pub enum Path {
     ChangeSourceAt,
     /// Bytes after `ChangeSource`.
     ChangeSourceTail,
+    /// The `milestone` field of `ChangeCold`.
+    ChangeColdMilestone,
     /// The `source` field of `ChangeCold`.
     ChangeColdSource,
     /// The `goal` field of `ChangeCold`.
@@ -4538,6 +4579,1812 @@ pub enum Path {
     RowTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each schema path has one exhaustive naming arm")]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::RepositoryForge => "Repository.forge",
+            Self::RepositoryRepository => "Repository.repository",
+            Self::RepositoryTail => "Repository (tail)",
+            Self::NumberNumber => "Number.number",
+            Self::NumberTail => "Number (tail)",
+            Self::CommitCommit => "Commit.commit",
+            Self::CommitTail => "Commit (tail)",
+            Self::SegmentName => "Segment.name",
+            Self::SegmentTail => "Segment (tail)",
+            Self::AnswerNameName => "AnswerName.name",
+            Self::AnswerNameTail => "AnswerName (tail)",
+            Self::SegmentsSegments => "Segments.segments",
+            Self::SegmentsTail => "Segments (tail)",
+            Self::WhatTag => "What (tag)",
+            Self::NameForge => "Name.forge",
+            Self::NameRepository => "Name.repository",
+            Self::NameWhat => "Name.what",
+            Self::NameTail => "Name (tail)",
+            Self::ItemStateTag => "ItemState (tag)",
+            Self::CiTag => "Ci (tag)",
+            Self::BypassTag => "Bypass (tag)",
+            Self::ProtectionBranch => "Protection.branch",
+            Self::ProtectionContexts => "Protection.contexts",
+            Self::ProtectionApprovals => "Protection.approvals",
+            Self::ProtectionDismissStale => "Protection.dismiss_stale",
+            Self::ProtectionQueue => "Protection.queue",
+            Self::ProtectionSignatures => "Protection.signatures",
+            Self::ProtectionLinear => "Protection.linear",
+            Self::ProtectionCodeOwners => "Protection.code_owners",
+            Self::ProtectionBypass => "Protection.bypass",
+            Self::ProtectionTail => "Protection (tail)",
+            Self::SettingsDefaultBranch => "Settings.default_branch",
+            Self::SettingsMerge => "Settings.merge",
+            Self::SettingsSquash => "Settings.squash",
+            Self::SettingsRebase => "Settings.rebase",
+            Self::SettingsTail => "Settings (tail)",
+            Self::RoleTag => "Role (tag)",
+            Self::KindsRead => "Kinds.read",
+            Self::KindsPush => "Kinds.push",
+            Self::KindsOpen => "Kinds.open",
+            Self::KindsLand => "Kinds.land",
+            Self::KindsReview => "Kinds.review",
+            Self::KindsStatus => "Kinds.status",
+            Self::KindsComment => "Kinds.comment",
+            Self::KindsIssue => "Kinds.issue",
+            Self::KindsBranch => "Kinds.branch",
+            Self::KindsTail => "Kinds (tail)",
+            Self::RepositoryProtectionTag => "RepositoryProtection (tag)",
+            Self::AdoptedProject => "Adopted.project",
+            Self::AdoptedContexts => "Adopted.contexts",
+            Self::AdoptedHome => "Adopted.home",
+            Self::AdoptedProvider => "Adopted.provider",
+            Self::AdoptedHost => "Adopted.host",
+            Self::AdoptedOwner => "Adopted.owner",
+            Self::AdoptedName => "Adopted.name",
+            Self::AdoptedPrefix => "Adopted.prefix",
+            Self::AdoptedRole => "Adopted.role",
+            Self::AdoptedCi => "Adopted.ci",
+            Self::AdoptedChecks => "Adopted.checks",
+            Self::AdoptedKinds => "Adopted.kinds",
+            Self::AdoptedProtection => "Adopted.protection",
+            Self::AdoptedSettings => "Adopted.settings",
+            Self::AdoptedWorkflows => "Adopted.workflows",
+            Self::AdoptedTail => "Adopted (tail)",
+            Self::RunWriterTask => "RunWriter.task",
+            Self::RunWriterAttempt => "RunWriter.attempt",
+            Self::RunWriterTail => "RunWriter (tail)",
+            Self::WriterTag => "Writer (tag)",
+            Self::BranchDriftExpected => "BranchDrift.expected",
+            Self::BranchDriftObserved => "BranchDrift.observed",
+            Self::BranchDriftTail => "BranchDrift (tail)",
+            Self::RetargetedNumber => "Retargeted.number",
+            Self::RetargetedBefore => "Retargeted.before",
+            Self::RetargetedAfter => "Retargeted.after",
+            Self::RetargetedTail => "Retargeted (tail)",
+            Self::DriftChangeTag => "DriftChange (tag)",
+            Self::DriftAt => "Drift.at",
+            Self::DriftChange => "Drift.change",
+            Self::DriftTail => "Drift (tail)",
+            Self::DesignWriterTask => "DesignWriter.task",
+            Self::DesignWriterAttempt => "DesignWriter.attempt",
+            Self::DesignWriterRereading => "DesignWriter.rereading",
+            Self::DesignWriterTail => "DesignWriter (tail)",
+            Self::HoldName => "Hold.name",
+            Self::HoldTask => "Hold.task",
+            Self::HoldWriter => "Hold.writer",
+            Self::HoldDesignWriters => "Hold.design_writers",
+            Self::HoldDrift => "Hold.drift",
+            Self::HoldTail => "Hold (tail)",
+            Self::NamesTask => "Names.task",
+            Self::NamesResources => "Names.resources",
+            Self::NamesTail => "Names (tail)",
+            Self::LandingsTopicRepository => "LandingsTopic.repository",
+            Self::LandingsTopicBranch => "LandingsTopic.branch",
+            Self::LandingsTopicTail => "LandingsTopic (tail)",
+            Self::CiTopicRepository => "CiTopic.repository",
+            Self::CiTopicHead => "CiTopic.head",
+            Self::CiTopicTail => "CiTopic (tail)",
+            Self::NumberTopicRepository => "NumberTopic.repository",
+            Self::NumberTopicNumber => "NumberTopic.number",
+            Self::NumberTopicTail => "NumberTopic (tail)",
+            Self::BranchHeadName => "BranchHead.name",
+            Self::BranchHeadCommit => "BranchHead.commit",
+            Self::BranchHeadOwned => "BranchHead.owned",
+            Self::BranchHeadTail => "BranchHead (tail)",
+            Self::PullStateName => "PullState.name",
+            Self::PullStateHead => "PullState.head",
+            Self::PullStateCi => "PullState.ci",
+            Self::PullStateState => "PullState.state",
+            Self::PullStateTail => "PullState (tail)",
+            Self::CiStateRepository => "CiState.repository",
+            Self::CiStateHead => "CiState.head",
+            Self::CiStateStatus => "CiState.status",
+            Self::CiStateTail => "CiState (tail)",
+            Self::LandedCommit => "Landed.commit",
+            Self::LandedTask => "Landed.task",
+            Self::LandedTail => "Landed (tail)",
+            Self::ReleaseEndingTag => "ReleaseEnding (tag)",
+            Self::PendingReleaseEntry => "PendingRelease.entry",
+            Self::PendingReleaseName => "PendingRelease.name",
+            Self::PendingReleaseTail => "PendingRelease (tail)",
+            Self::ReleaseRowTask => "ReleaseRow.task",
+            Self::ReleaseRowRoot => "ReleaseRow.root",
+            Self::ReleaseRowEnding => "ReleaseRow.ending",
+            Self::ReleaseRowClosePull => "ReleaseRow.close_pull",
+            Self::ReleaseRowComment => "ReleaseRow.comment",
+            Self::ReleaseRowPendingRelease => "ReleaseRow.pending_release",
+            Self::ReleaseRowFailed => "ReleaseRow.failed",
+            Self::ReleaseRowEffectsSettled => "ReleaseRow.effects_settled",
+            Self::ReleaseRowReleasing => "ReleaseRow.releasing",
+            Self::ReleaseRowTail => "ReleaseRow (tail)",
+            Self::VerdictTag => "Verdict (tag)",
+            Self::CheckTag => "Check (tag)",
+            Self::CreateIssueKey => "CreateIssue.key",
+            Self::CreateIssueTitle => "CreateIssue.title",
+            Self::CreateIssueBody => "CreateIssue.body",
+            Self::CreateIssueTail => "CreateIssue (tail)",
+            Self::OpenPullTitle => "OpenPull.title",
+            Self::OpenPullBody => "OpenPull.body",
+            Self::OpenPullHead => "OpenPull.head",
+            Self::OpenPullBase => "OpenPull.base",
+            Self::OpenPullTail => "OpenPull (tail)",
+            Self::PostNumber => "Post.number",
+            Self::PostKey => "Post.key",
+            Self::PostBody => "Post.body",
+            Self::PostTail => "Post (tail)",
+            Self::PostReviewNumber => "PostReview.number",
+            Self::PostReviewKey => "PostReview.key",
+            Self::PostReviewVerdict => "PostReview.verdict",
+            Self::PostReviewBody => "PostReview.body",
+            Self::PostReviewTail => "PostReview (tail)",
+            Self::EditNumber => "Edit.number",
+            Self::EditTitle => "Edit.title",
+            Self::EditBody => "Edit.body",
+            Self::EditTail => "Edit (tail)",
+            Self::SetReviewersNumber => "SetReviewers.number",
+            Self::SetReviewersReviewers => "SetReviewers.reviewers",
+            Self::SetReviewersTail => "SetReviewers (tail)",
+            Self::JobAttemptHead => "JobAttempt.head",
+            Self::JobAttemptRun => "JobAttempt.run",
+            Self::JobAttemptJob => "JobAttempt.job",
+            Self::JobAttemptAttempt => "JobAttempt.attempt",
+            Self::JobAttemptTail => "JobAttempt (tail)",
+            Self::RecordedMergeCommit => "RecordedMerge.commit",
+            Self::RecordedMergeTail => "RecordedMerge (tail)",
+            Self::MergeHowTag => "MergeHow (tag)",
+            Self::UpdateStyleTag => "UpdateStyle (tag)",
+            Self::MergeWriteNumber => "MergeWrite.number",
+            Self::MergeWriteHead => "MergeWrite.head",
+            Self::MergeWriteHow => "MergeWrite.how",
+            Self::MergeWriteTail => "MergeWrite (tail)",
+            Self::UpdateWriteNumber => "UpdateWrite.number",
+            Self::UpdateWriteStyle => "UpdateWrite.style",
+            Self::UpdateWriteTail => "UpdateWrite (tail)",
+            Self::DispatchInputName => "DispatchInput.name",
+            Self::DispatchInputValue => "DispatchInput.value",
+            Self::DispatchInputTail => "DispatchInput (tail)",
+            Self::DispatchWriteWorkflow => "DispatchWrite.workflow",
+            Self::DispatchWriteBranch => "DispatchWrite.branch",
+            Self::DispatchWriteInputs => "DispatchWrite.inputs",
+            Self::DispatchWriteTail => "DispatchWrite (tail)",
+            Self::SetStatusCommit => "SetStatus.commit",
+            Self::SetStatusContext => "SetStatus.context",
+            Self::SetStatusStatus => "SetStatus.status",
+            Self::SetStatusDescription => "SetStatus.description",
+            Self::SetStatusLink => "SetStatus.link",
+            Self::SetStatusTail => "SetStatus (tail)",
+            Self::CreateBranchBranch => "CreateBranch.branch",
+            Self::CreateBranchCommit => "CreateBranch.commit",
+            Self::CreateBranchTail => "CreateBranch (tail)",
+            Self::DeleteBranchBranch => "DeleteBranch.branch",
+            Self::DeleteBranchTail => "DeleteBranch (tail)",
+            Self::WriteTag => "Write (tag)",
+            Self::MergeConditionBase => "MergeCondition.base",
+            Self::MergeConditionTail => "MergeCondition (tail)",
+            Self::UpdateConditionHead => "UpdateCondition.head",
+            Self::UpdateConditionBase => "UpdateCondition.base",
+            Self::UpdateConditionTail => "UpdateCondition (tail)",
+            Self::ConditionTag => "Condition (tag)",
+            Self::EffectWrite => "Effect.write",
+            Self::EffectCondition => "Effect.condition",
+            Self::EffectTail => "Effect (tail)",
+            Self::PositionAt => "Position.at",
+            Self::PositionComment => "Position.comment",
+            Self::PositionReview => "Position.review",
+            Self::PositionReviewPage => "Position.review_page",
+            Self::PositionTail => "Position (tail)",
+            Self::AttemptSent => "Attempt.sent",
+            Self::AttemptDeadline => "Attempt.deadline",
+            Self::AttemptWall => "Attempt.wall",
+            Self::AttemptExpires => "Attempt.expires",
+            Self::AttemptTail => "Attempt (tail)",
+            Self::EntryNumber => "Entry.number",
+            Self::EntryTask => "Entry.task",
+            Self::EntryRepository => "Entry.repository",
+            Self::EntryEffect => "Entry.effect",
+            Self::EntryStart => "Entry.start",
+            Self::EntryAttempt => "Entry.attempt",
+            Self::EntryFailures => "Entry.failures",
+            Self::EntryQueued => "Entry.queued",
+            Self::EntryTail => "Entry (tail)",
+            Self::EntryRowEntry => "EntryRow.entry",
+            Self::EntryRowHeld => "EntryRow.held",
+            Self::EntryRowTail => "EntryRow (tail)",
+            Self::ProposedEffectNumber => "ProposedEffect.number",
+            Self::ProposedEffectResource => "ProposedEffect.resource",
+            Self::ProposedEffectEntry => "ProposedEffect.entry",
+            Self::ProposedEffectTail => "ProposedEffect (tail)",
+            Self::RateLimitedAfter => "RateLimited.after",
+            Self::RateLimitedTail => "RateLimited (tail)",
+            Self::BoundTag => "Bound (tag)",
+            Self::ExcessBound => "Excess.bound",
+            Self::ExcessLimit => "Excess.limit",
+            Self::ExcessSize => "Excess.size",
+            Self::ExcessExact => "Excess.exact",
+            Self::ExcessTail => "Excess (tail)",
+            Self::ErrorTag => "Error (tag)",
+            Self::ErrorValueError => "ErrorValue.error",
+            Self::ErrorValueTail => "ErrorValue (tail)",
+            Self::MadeTag => "Made (tag)",
+            Self::OutcomeMadeMade => "OutcomeMade.made",
+            Self::OutcomeMadeFound => "OutcomeMade.found",
+            Self::OutcomeMadeTail => "OutcomeMade (tail)",
+            Self::OutcomeRacedMade => "OutcomeRaced.made",
+            Self::OutcomeRacedWhy => "OutcomeRaced.why",
+            Self::OutcomeRacedTail => "OutcomeRaced (tail)",
+            Self::OutcomeTag => "Outcome (tag)",
+            Self::PermissionTag => "Permission (tag)",
+            Self::BranchCreationTag => "BranchCreation (tag)",
+            Self::PullReviewers => "Pull.reviewers",
+            Self::PullNumber => "Pull.number",
+            Self::PullState => "Pull.state",
+            Self::PullHead => "Pull.head",
+            Self::PullBase => "Pull.base",
+            Self::PullCommit => "Pull.commit",
+            Self::PullBaseCommit => "Pull.base_commit",
+            Self::PullMerged => "Pull.merged",
+            Self::PullMergeable => "Pull.mergeable",
+            Self::PullCi => "Pull.ci",
+            Self::PullTail => "Pull (tail)",
+            Self::StepNumber => "Step.number",
+            Self::StepName => "Step.name",
+            Self::StepTail => "Step (tail)",
+            Self::JobAnswerAttempt => "JobAnswer.attempt",
+            Self::JobAnswerStep => "JobAnswer.step",
+            Self::JobAnswerLog => "JobAnswer.log",
+            Self::JobAnswerTruncated => "JobAnswer.truncated",
+            Self::JobAnswerTail => "JobAnswer (tail)",
+            Self::FileAnswerHead => "FileAnswer.head",
+            Self::FileAnswerPath => "FileAnswer.path",
+            Self::FileAnswerBytes => "FileAnswer.bytes",
+            Self::FileAnswerTruncated => "FileAnswer.truncated",
+            Self::FileAnswerTail => "FileAnswer (tail)",
+            Self::DirectoryKindTag => "DirectoryKind (tag)",
+            Self::DirectoryEntryName => "DirectoryEntry.name",
+            Self::DirectoryEntryKind => "DirectoryEntry.kind",
+            Self::DirectoryEntryTail => "DirectoryEntry (tail)",
+            Self::DirectoryAnswerHead => "DirectoryAnswer.head",
+            Self::DirectoryAnswerPath => "DirectoryAnswer.path",
+            Self::DirectoryAnswerEntries => "DirectoryAnswer.entries",
+            Self::DirectoryAnswerTruncated => "DirectoryAnswer.truncated",
+            Self::DirectoryAnswerTail => "DirectoryAnswer (tail)",
+            Self::BranchesAnswerBranches => "BranchesAnswer.branches",
+            Self::BranchesAnswerTail => "BranchesAnswer (tail)",
+            Self::ProtectionAnswerProtection => "ProtectionAnswer.protection",
+            Self::ProtectionAnswerTail => "ProtectionAnswer (tail)",
+            Self::PermissionValuePermission => "PermissionValue.permission",
+            Self::PermissionValueUser => "PermissionValue.user",
+            Self::PermissionValueLogin => "PermissionValue.login",
+            Self::PermissionValueTail => "PermissionValue (tail)",
+            Self::BranchCreationValueCreation => "BranchCreationValue.creation",
+            Self::BranchCreationValueTail => "BranchCreationValue (tail)",
+            Self::KindTag => "Kind (tag)",
+            Self::ProvenanceTag => "Provenance (tag)",
+            Self::SummaryLabels => "Summary.labels",
+            Self::SummaryNumber => "Summary.number",
+            Self::SummaryKind => "Summary.kind",
+            Self::SummaryState => "Summary.state",
+            Self::SummaryAuthor => "Summary.author",
+            Self::SummaryKey => "Summary.key",
+            Self::SummaryTitle => "Summary.title",
+            Self::SummaryBody => "Summary.body",
+            Self::SummaryUpdated => "Summary.updated",
+            Self::SummaryTail => "Summary (tail)",
+            Self::CommentId => "Comment.id",
+            Self::CommentProvenance => "Comment.provenance",
+            Self::CommentAuthor => "Comment.author",
+            Self::CommentCreated => "Comment.created",
+            Self::CommentRevision => "Comment.revision",
+            Self::CommentKey => "Comment.key",
+            Self::CommentBody => "Comment.body",
+            Self::CommentTail => "Comment (tail)",
+            Self::ReviewId => "Review.id",
+            Self::ReviewProvenance => "Review.provenance",
+            Self::ReviewRevision => "Review.revision",
+            Self::ReviewAuthor => "Review.author",
+            Self::ReviewVerdict => "Review.verdict",
+            Self::ReviewCommit => "Review.commit",
+            Self::ReviewKey => "Review.key",
+            Self::ReviewBody => "Review.body",
+            Self::ReviewAt => "Review.at",
+            Self::ReviewOfficial => "Review.official",
+            Self::ReviewTail => "Review (tail)",
+            Self::ItemsAnswerItems => "ItemsAnswer.items",
+            Self::ItemsAnswerMore => "ItemsAnswer.more",
+            Self::ItemsAnswerNow => "ItemsAnswer.now",
+            Self::ItemsAnswerCut => "ItemsAnswer.cut",
+            Self::ItemsAnswerTail => "ItemsAnswer (tail)",
+            Self::ItemAnswerItem => "ItemAnswer.item",
+            Self::ItemAnswerComments => "ItemAnswer.comments",
+            Self::ItemAnswerMore => "ItemAnswer.more",
+            Self::ItemAnswerTail => "ItemAnswer (tail)",
+            Self::ReviewsAnswerReviews => "ReviewsAnswer.reviews",
+            Self::ReviewsAnswerMore => "ReviewsAnswer.more",
+            Self::ReviewsAnswerCut => "ReviewsAnswer.cut",
+            Self::ReviewsAnswerTail => "ReviewsAnswer (tail)",
+            Self::StatusAt => "Status.at",
+            Self::StatusContext => "Status.context",
+            Self::StatusVerdict => "Status.verdict",
+            Self::StatusDescription => "Status.description",
+            Self::StatusUrl => "Status.url",
+            Self::StatusJob => "Status.job",
+            Self::StatusTail => "Status (tail)",
+            Self::RemarkId => "Remark.id",
+            Self::RemarkAuthor => "Remark.author",
+            Self::RemarkPath => "Remark.path",
+            Self::RemarkLine => "Remark.line",
+            Self::RemarkBody => "Remark.body",
+            Self::RemarkTail => "Remark (tail)",
+            Self::FilePath => "File.path",
+            Self::FileBefore => "File.before",
+            Self::FileAfter => "File.after",
+            Self::FileTail => "File (tail)",
+            Self::CollaboratorUser => "Collaborator.user",
+            Self::CollaboratorPermission => "Collaborator.permission",
+            Self::CollaboratorTail => "Collaborator (tail)",
+            Self::StatusesAnswerCi => "StatusesAnswer.ci",
+            Self::StatusesAnswerStatuses => "StatusesAnswer.statuses",
+            Self::StatusesAnswerMore => "StatusesAnswer.more",
+            Self::StatusesAnswerTail => "StatusesAnswer (tail)",
+            Self::RemarksAnswerRemarks => "RemarksAnswer.remarks",
+            Self::RemarksAnswerMore => "RemarksAnswer.more",
+            Self::RemarksAnswerCut => "RemarksAnswer.cut",
+            Self::RemarksAnswerTail => "RemarksAnswer (tail)",
+            Self::PullFilesAnswerHead => "PullFilesAnswer.head",
+            Self::PullFilesAnswerFiles => "PullFilesAnswer.files",
+            Self::PullFilesAnswerMore => "PullFilesAnswer.more",
+            Self::PullFilesAnswerCut => "PullFilesAnswer.cut",
+            Self::PullFilesAnswerTail => "PullFilesAnswer (tail)",
+            Self::CompareAnswerBefore => "CompareAnswer.before",
+            Self::CompareAnswerAfter => "CompareAnswer.after",
+            Self::CompareAnswerAhead => "CompareAnswer.ahead",
+            Self::CompareAnswerBehind => "CompareAnswer.behind",
+            Self::CompareAnswerFiles => "CompareAnswer.files",
+            Self::CompareAnswerChanged => "CompareAnswer.changed",
+            Self::CompareAnswerTail => "CompareAnswer (tail)",
+            Self::ChecksAnswerStatuses => "ChecksAnswer.statuses",
+            Self::ChecksAnswerTail => "ChecksAnswer (tail)",
+            Self::CollaboratorsAnswerCollaborators => "CollaboratorsAnswer.collaborators",
+            Self::CollaboratorsAnswerMore => "CollaboratorsAnswer.more",
+            Self::CollaboratorsAnswerTail => "CollaboratorsAnswer (tail)",
+            Self::LocatedRepository => "Located.repository",
+            Self::LocatedTail => "Located (tail)",
+            Self::AnswerTag => "Answer (tag)",
+            Self::AnswerValueAnswer => "AnswerValue.answer",
+            Self::AnswerValueTail => "AnswerValue (tail)",
+            Self::ReadResultTag => "ReadResult (tag)",
+            Self::CallReadResult => "CallRead.result",
+            Self::CallReadTail => "CallRead (tail)",
+            Self::CallEffectEntry => "CallEffect.entry",
+            Self::CallEffectDeadline => "CallEffect.deadline",
+            Self::CallEffectOutcome => "CallEffect.outcome",
+            Self::CallEffectTail => "CallEffect (tail)",
+            Self::ReachKindTag => "ReachKind (tag)",
+            Self::ReachClassTag => "ReachClass (tag)",
+            Self::ReachSetNumber => "ReachSet.number",
+            Self::ReachSetTail => "ReachSet (tail)",
+            Self::ReachReasonTag => "ReachReason (tag)",
+            Self::ReachKind => "Reach.kind",
+            Self::ReachClass => "Reach.class",
+            Self::ReachReason => "Reach.reason",
+            Self::ReachUnder => "Reach.under",
+            Self::ReachSets => "Reach.sets",
+            Self::ReachMatched => "Reach.matched",
+            Self::ReachAway => "Reach.away",
+            Self::ReachTail => "Reach (tail)",
+            Self::CallDecidedTook => "CallDecided.took",
+            Self::CallDecidedReach => "CallDecided.reach",
+            Self::CallDecidedTail => "CallDecided (tail)",
+            Self::NamedCallTask => "NamedCall.task",
+            Self::NamedCallAttempt => "NamedCall.attempt",
+            Self::NamedCallCompletion => "NamedCall.completion",
+            Self::NamedCallPosition => "NamedCall.position",
+            Self::NamedCallTail => "NamedCall (tail)",
+            Self::LiveBranchBranch => "LiveBranch.branch",
+            Self::LiveBranchTail => "LiveBranch (tail)",
+            Self::LiveWhatTag => "LiveWhat (tag)",
+            Self::LiveResourceRepository => "LiveResource.repository",
+            Self::LiveResourceWhat => "LiveResource.what",
+            Self::LiveResourceTail => "LiveResource (tail)",
+            Self::WatchResource => "Watch.resource",
+            Self::WatchParticipating => "Watch.participating",
+            Self::WatchTail => "Watch (tail)",
+            Self::DeliveryId => "Delivery.id",
+            Self::DeliveryRevision => "Delivery.revision",
+            Self::DeliveryTail => "Delivery (tail)",
+            Self::EchoTag => "Echo (tag)",
+            Self::CachedItem => "Cached.item",
+            Self::CachedPull => "Cached.pull",
+            Self::CachedTip => "Cached.tip",
+            Self::CachedTail => "Cached (tail)",
+            Self::LiveRecordWatch => "LiveRecord.watch",
+            Self::LiveRecordPosition => "LiveRecord.position",
+            Self::LiveRecordListed => "LiveRecord.listed",
+            Self::LiveRecordCommentAfter => "LiveRecord.comment_after",
+            Self::LiveRecordCommentPage => "LiveRecord.comment_page",
+            Self::LiveRecordCommentScanning => "LiveRecord.comment_scanning",
+            Self::LiveRecordCommentRepair => "LiveRecord.comment_repair",
+            Self::LiveRecordReviewPage => "LiveRecord.review_page",
+            Self::LiveRecordComments => "LiveRecord.comments",
+            Self::LiveRecordReviews => "LiveRecord.reviews",
+            Self::LiveRecordCached => "LiveRecord.cached",
+            Self::LiveRecordPushed => "LiveRecord.pushed",
+            Self::LiveRecordEchoes => "LiveRecord.echoes",
+            Self::LiveRecordTail => "LiveRecord (tail)",
+            Self::RepositoryRecordRepository => "RepositoryRecord.repository",
+            Self::RepositoryRecordMark => "RepositoryRecord.mark",
+            Self::RepositoryRecordClock => "RepositoryRecord.clock",
+            Self::RepositoryRecordTail => "RepositoryRecord (tail)",
+            Self::ClientValueTag => "ClientValue (tag)",
+            Self::ClientRowValue => "ClientRow.value",
+            Self::ClientRowTail => "ClientRow (tail)",
+            Self::ChangeStatusTag => "ChangeStatus (tag)",
+            Self::FreshnessTag => "Freshness (tag)",
+            Self::GateKindTag => "GateKind (tag)",
+            Self::AuthorityLackTag => "AuthorityLack (tag)",
+            Self::AuthorityHoldLack => "AuthorityHold.lack",
+            Self::AuthorityHoldHad => "AuthorityHold.had",
+            Self::AuthorityHoldReleased => "AuthorityHold.released",
+            Self::AuthorityHoldTask => "AuthorityHold.task",
+            Self::AuthorityHoldSpec => "AuthorityHold.spec",
+            Self::AuthorityHoldHold => "AuthorityHold.hold",
+            Self::AuthorityHoldTasks => "AuthorityHold.tasks",
+            Self::AuthorityHoldTail => "AuthorityHold (tail)",
+            Self::ChangeHoldTag => "ChangeHold (tag)",
+            Self::EffectResultTag => "EffectResult (tag)",
+            Self::LandingRepairGate => "LandingRepair.gate",
+            Self::LandingRepairTail => "LandingRepair (tail)",
+            Self::LandedBelowChange => "LandedBelow.change",
+            Self::LandedBelowPull => "LandedBelow.pull",
+            Self::LandedBelowTail => "LandedBelow (tail)",
+            Self::LandingBelowGreen => "LandingBelow.green",
+            Self::LandingBelowChanges => "LandingBelow.changes",
+            Self::LandingBelowByTest => "LandingBelow.by_test",
+            Self::LandingBelowTop => "LandingBelow.top",
+            Self::LandingBelowTail => "LandingBelow (tail)",
+            Self::LandingRepairAtGate => "LandingRepairAt.gate",
+            Self::LandingRepairAtCandidate => "LandingRepairAt.candidate",
+            Self::LandingRepairAtBelow => "LandingRepairAt.below",
+            Self::LandingRepairAtTail => "LandingRepairAt (tail)",
+            Self::RepairTag => "Repair (tag)",
+            Self::RepairValueWhy => "RepairValue.why",
+            Self::RepairValueTail => "RepairValue (tail)",
+            Self::DelegateGateNumber => "DelegateGate.number",
+            Self::DelegateGateHead => "DelegateGate.head",
+            Self::DelegateGateTail => "DelegateGate (tail)",
+            Self::MergeDelegateBase => "MergeDelegate.base",
+            Self::MergeDelegateFrom => "MergeDelegate.from",
+            Self::MergeDelegateTail => "MergeDelegate (tail)",
+            Self::DelegateTag => "Delegate (tag)",
+            Self::DelegateRefTask => "DelegateRef.task",
+            Self::DelegateRefRequest => "DelegateRef.request",
+            Self::DelegateRefTail => "DelegateRef (tail)",
+            Self::ProducingRequested => "Producing.requested",
+            Self::ProducingTail => "Producing (tail)",
+            Self::ChangeHeadHead => "ChangeHead.head",
+            Self::ChangeHeadTail => "ChangeHead (tail)",
+            Self::ReopeningRequested => "Reopening.requested",
+            Self::ReopeningRetarget => "Reopening.retarget",
+            Self::ReopeningTail => "Reopening (tail)",
+            Self::GatingHead => "Gating.head",
+            Self::GatingAsked => "Gating.asked",
+            Self::GatingTail => "Gating (tail)",
+            Self::ReadyHeadHead => "ReadyHead.head",
+            Self::ReadyHeadReadySince => "ReadyHead.ready_since",
+            Self::ReadyHeadTail => "ReadyHead (tail)",
+            Self::UpdatingFrom => "Updating.from",
+            Self::UpdatingBase => "Updating.base",
+            Self::UpdatingReadySince => "Updating.ready_since",
+            Self::UpdatingTail => "Updating (tail)",
+            Self::ResolvingRequested => "Resolving.requested",
+            Self::ResolvingBase => "Resolving.base",
+            Self::ResolvingTail => "Resolving (tail)",
+            Self::WaitingProducerBase => "WaitingProducer.base",
+            Self::WaitingProducerTail => "WaitingProducer (tail)",
+            Self::RepairingRequested => "Repairing.requested",
+            Self::RepairingWhy => "Repairing.why",
+            Self::RepairingTail => "Repairing (tail)",
+            Self::MergeChangeMerge => "MergeChange.merge",
+            Self::MergeChangeTail => "MergeChange (tail)",
+            Self::LandedChangeMerge => "LandedChange.merge",
+            Self::LandedChangeSince => "LandedChange.since",
+            Self::LandedChangeTail => "LandedChange (tail)",
+            Self::NoChangeWords => "NoChange.words",
+            Self::NoChangeTail => "NoChange (tail)",
+            Self::PreparingFrom => "Preparing.from",
+            Self::PreparingMain => "Preparing.main",
+            Self::PreparingReadySince => "Preparing.ready_since",
+            Self::PreparingTail => "Preparing (tail)",
+            Self::JudgementLanding => "Judgement.landing",
+            Self::JudgementRound => "Judgement.round",
+            Self::JudgementPull => "Judgement.pull",
+            Self::JudgementBranch => "Judgement.branch",
+            Self::JudgementBase => "Judgement.base",
+            Self::JudgementPrefix => "Judgement.prefix",
+            Self::JudgementTail => "Judgement (tail)",
+            Self::JudgingHead => "Judging.head",
+            Self::JudgingReadySince => "Judging.ready_since",
+            Self::JudgingTarget => "Judging.target",
+            Self::JudgingAsked => "Judging.asked",
+            Self::JudgingTail => "Judging (tail)",
+            Self::ChangeLiveTag => "ChangeLive (tag)",
+            Self::ChangeStateLive => "ChangeState.live",
+            Self::ChangeStateHolds => "ChangeState.holds",
+            Self::ChangeStateTail => "ChangeState (tail)",
+            Self::GateNumber => "Gate.number",
+            Self::GateKind => "Gate.kind",
+            Self::GateBlocking => "Gate.blocking",
+            Self::GateFreshness => "Gate.freshness",
+            Self::GateEager => "Gate.eager",
+            Self::GateTail => "Gate (tail)",
+            Self::GateReportNumber => "GateReport.number",
+            Self::GateReportHead => "GateReport.head",
+            Self::GateReportStatus => "GateReport.status",
+            Self::GateReportTail => "GateReport (tail)",
+            Self::GateFailureNumber => "GateFailure.number",
+            Self::GateFailureCount => "GateFailure.count",
+            Self::GateFailureTail => "GateFailure (tail)",
+            Self::GateRemarkNumber => "GateRemark.number",
+            Self::GateRemarkHead => "GateRemark.head",
+            Self::GateRemarkWords => "GateRemark.words",
+            Self::GateRemarkTail => "GateRemark (tail)",
+            Self::WayTag => "Way (tag)",
+            Self::StartedFromTask => "StartedFrom.task",
+            Self::StartedFromHead => "StartedFrom.head",
+            Self::StartedFromTail => "StartedFrom (tail)",
+            Self::EarlyHeadsHeads => "EarlyHeads.heads",
+            Self::EarlyHeadsTail => "EarlyHeads (tail)",
+            Self::EarlyTag => "Early (tag)",
+            Self::ExecutionTag => "Execution (tag)",
+            Self::ExecutionClockSince => "ExecutionClock.since",
+            Self::ExecutionClockHead => "ExecutionClock.head",
+            Self::ExecutionClockRun => "ExecutionClock.run",
+            Self::ExecutionClockAttempt => "ExecutionClock.attempt",
+            Self::ExecutionClockRan => "ExecutionClock.ran",
+            Self::ExecutionClockWaited => "ExecutionClock.waited",
+            Self::ExecutionClockUnknown => "ExecutionClock.unknown",
+            Self::ExecutionClockAt => "ExecutionClock.at",
+            Self::ExecutionClockSeen => "ExecutionClock.seen",
+            Self::ExecutionClockTail => "ExecutionClock (tail)",
+            Self::ChangeEarly => "Change.early",
+            Self::ChangeTask => "Change.task",
+            Self::ChangeState => "Change.state",
+            Self::ChangeGates => "Change.gates",
+            Self::ChangeClean => "Change.clean",
+            Self::ChangeRepairs => "Change.repairs",
+            Self::ChangeResolutions => "Change.resolutions",
+            Self::ChangeUpdates => "Change.updates",
+            Self::ChangeSince => "Change.since",
+            Self::ChangeClock => "Change.clock",
+            Self::ChangeReadySince => "Change.ready_since",
+            Self::ChangeOwnsTurn => "Change.owns_turn",
+            Self::ChangeLastHead => "Change.last_head",
+            Self::ChangeLastChecked => "Change.last_checked",
+            Self::ChangeGateFailures => "Change.gate_failures",
+            Self::ChangeReleased => "Change.released",
+            Self::ChangeReleasedResolution => "Change.released_resolution",
+            Self::ChangeWay => "Change.way",
+            Self::ChangeLanding => "Change.landing",
+            Self::ChangeTail => "Change (tail)",
+            Self::ChangeCiHead => "ChangeCi.head",
+            Self::ChangeCiStatus => "ChangeCi.status",
+            Self::ChangeCiTail => "ChangeCi (tail)",
+            Self::EffectAccountEntry => "EffectAccount.entry",
+            Self::EffectAccountWords => "EffectAccount.words",
+            Self::EffectAccountTail => "EffectAccount (tail)",
+            Self::ResultTextBytes => "ResultText.bytes",
+            Self::ResultTextCut => "ResultText.cut",
+            Self::ResultTextTail => "ResultText (tail)",
+            Self::ChangeResultHead => "ChangeResult.head",
+            Self::ChangeResultChecks => "ChangeResult.checks",
+            Self::ChangeResultFailed => "ChangeResult.failed",
+            Self::ChangeResultRepairs => "ChangeResult.repairs",
+            Self::ChangeResultRepairCount => "ChangeResult.repair_count",
+            Self::ChangeResultReviews => "ChangeResult.reviews",
+            Self::ChangeResultTail => "ChangeResult (tail)",
+            Self::ModelEffortModel => "ModelEffort.model",
+            Self::ModelEffortEffort => "ModelEffort.effort",
+            Self::ModelEffortTail => "ModelEffort (tail)",
+            Self::LlmChoiceMain => "LlmChoice.main",
+            Self::LlmChoiceSubagents => "LlmChoice.subagents",
+            Self::LlmChoiceAccount => "LlmChoice.account",
+            Self::LlmChoiceTail => "LlmChoice (tail)",
+            Self::RouteTag => "Route (tag)",
+            Self::HeldAnswer => "Held.answer",
+            Self::HeldTail => "Held (tail)",
+            Self::StandsTag => "Stands (tag)",
+            Self::OpenAsker => "Open.asker",
+            Self::OpenNumber => "Open.number",
+            Self::OpenLine => "Open.line",
+            Self::OpenWords => "Open.words",
+            Self::OpenStands => "Open.stands",
+            Self::OpenTail => "Open (tail)",
+            Self::WaitingFrom => "Waiting.from",
+            Self::WaitingNumber => "Waiting.number",
+            Self::WaitingWords => "Waiting.words",
+            Self::WaitingPassed => "Waiting.passed",
+            Self::WaitingTail => "Waiting (tail)",
+            Self::AnsweredAsker => "Answered.asker",
+            Self::AnsweredNumber => "Answered.number",
+            Self::AnsweredLine => "Answered.line",
+            Self::AnsweredAnswer => "Answered.answer",
+            Self::AnsweredTail => "Answered (tail)",
+            Self::QuestionsRoute => "Questions.route",
+            Self::QuestionsTaken => "Questions.taken",
+            Self::QuestionsOpen => "Questions.open",
+            Self::QuestionsWaiting => "Questions.waiting",
+            Self::QuestionsAnswered => "Questions.answered",
+            Self::QuestionsTail => "Questions (tail)",
+            Self::ChangeFailureLine => "ChangeFailure.line",
+            Self::ChangeFailureTail => "ChangeFailure (tail)",
+            Self::ChangeEndingTag => "ChangeEnding (tag)",
+            Self::SignOffPerson => "SignOff.person",
+            Self::SignOffHead => "SignOff.head",
+            Self::SignOffAt => "SignOff.at",
+            Self::SignOffTail => "SignOff (tail)",
+            Self::ChangeFollowsFollow => "ChangeFollows.follow",
+            Self::ChangeFollowsCommits => "ChangeFollows.commits",
+            Self::ChangeFollowsTail => "ChangeFollows (tail)",
+            Self::PhaseTag => "Phase (tag)",
+            Self::PlanItemText => "PlanItem.text",
+            Self::PlanItemPhase => "PlanItem.phase",
+            Self::PlanItemTail => "PlanItem (tail)",
+            Self::LifecycleTask => "Lifecycle.task",
+            Self::LifecyclePosition => "Lifecycle.position",
+            Self::LifecycleTail => "Lifecycle (tail)",
+            Self::TaskRevisionTask => "TaskRevision.task",
+            Self::TaskRevisionRevision => "TaskRevision.revision",
+            Self::TaskRevisionTail => "TaskRevision (tail)",
+            Self::MilestoneKeyTag => "MilestoneKey (tag)",
+            Self::MilestoneKey => "Milestone.key",
+            Self::MilestoneText => "Milestone.text",
+            Self::MilestoneTail => "Milestone (tail)",
+            Self::GoalViewPhase => "GoalView.phase",
+            Self::GoalViewGoal => "GoalView.goal",
+            Self::GoalViewRepository => "GoalView.repository",
+            Self::GoalViewTitle => "GoalView.title",
+            Self::GoalViewGoalText => "GoalView.goal_text",
+            Self::GoalViewPlan => "GoalView.plan",
+            Self::GoalViewMilestones => "GoalView.milestones",
+            Self::GoalViewFinished => "GoalView.finished",
+            Self::GoalViewTail => "GoalView (tail)",
+            Self::ProjectedOpened => "Projected.opened",
+            Self::ProjectedDigest => "Projected.digest",
+            Self::ProjectedLastBody => "Projected.last_body",
+            Self::ProjectedBodyRevision => "Projected.body_revision",
+            Self::ProjectedMilestones => "Projected.milestones",
+            Self::ProjectedClosed => "Projected.closed",
+            Self::ProjectedTail => "Projected (tail)",
+            Self::IssueRowGoal => "IssueRow.goal",
+            Self::IssueRowRepository => "IssueRow.repository",
+            Self::IssueRowState => "IssueRow.state",
+            Self::IssueRowNumber => "IssueRow.number",
+            Self::IssueRowPending => "IssueRow.pending",
+            Self::IssueRowBefore => "IssueRow.before",
+            Self::IssueRowFailed => "IssueRow.failed",
+            Self::IssueRowDesired => "IssueRow.desired",
+            Self::IssueRowTail => "IssueRow (tail)",
+            Self::ApplicationAdoptedRepository => "ApplicationAdopted.repository",
+            Self::ApplicationAdoptedOwner => "ApplicationAdopted.owner",
+            Self::ApplicationAdoptedName => "ApplicationAdopted.name",
+            Self::ApplicationAdoptedRole => "ApplicationAdopted.role",
+            Self::ApplicationAdoptedHome => "ApplicationAdopted.home",
+            Self::ApplicationAdoptedKinds => "ApplicationAdopted.kinds",
+            Self::ApplicationAdoptedProtection => "ApplicationAdopted.protection",
+            Self::ApplicationAdoptedTail => "ApplicationAdopted (tail)",
+            Self::CoreRefusedRefusal => "CoreRefused.refusal",
+            Self::CoreRefusedTail => "CoreRefused (tail)",
+            Self::ForgeReasonTag => "ForgeReason (tag)",
+            Self::ForgeRefusedReason => "ForgeRefused.reason",
+            Self::ForgeRefusedTail => "ForgeRefused (tail)",
+            Self::MakingKeyForge => "MakingKey.forge",
+            Self::MakingKeyOrg => "MakingKey.org",
+            Self::MakingKeyName => "MakingKey.name",
+            Self::MakingKeyTail => "MakingKey (tail)",
+            Self::CopyFromAddress => "CopyFrom.address",
+            Self::CopyFromTail => "CopyFrom (tail)",
+            Self::MakeFromTag => "MakeFrom (tag)",
+            Self::MakeIntoProject => "MakeInto.project",
+            Self::MakeIntoHome => "MakeInto.home",
+            Self::MakeIntoHost => "MakeInto.host",
+            Self::MakeIntoTail => "MakeInto (tail)",
+            Self::MakeStepTag => "MakeStep (tag)",
+            Self::MakeStatusStatus => "MakeStatus.status",
+            Self::MakeStatusTail => "MakeStatus (tail)",
+            Self::MakeFailureTag => "MakeFailure (tag)",
+            Self::MakingFailedStep => "MakingFailed.step",
+            Self::MakingFailedReason => "MakingFailed.reason",
+            Self::MakingFailedWords => "MakingFailed.words",
+            Self::MakingFailedTail => "MakingFailed (tail)",
+            Self::MakingMadeId => "MakingMade.id",
+            Self::MakingMadeBranch => "MakingMade.branch",
+            Self::MakingMadeTail => "MakingMade (tail)",
+            Self::MakingStateTag => "MakingState (tag)",
+            Self::RepositoryMakingKey => "RepositoryMaking.key",
+            Self::RepositoryMakingFrom => "RepositoryMaking.from",
+            Self::RepositoryMakingInto => "RepositoryMaking.into",
+            Self::RepositoryMakingAsked => "RepositoryMaking.asked",
+            Self::RepositoryMakingCopying => "RepositoryMaking.copying",
+            Self::RepositoryMakingState => "RepositoryMaking.state",
+            Self::RepositoryMakingTail => "RepositoryMaking (tail)",
+            Self::MakeRefusalTag => "MakeRefusal (tag)",
+            Self::MakeRefusedReason => "MakeRefused.reason",
+            Self::MakeRefusedTail => "MakeRefused (tail)",
+            Self::FollowAtAfter => "FollowAt.after",
+            Self::FollowAtTail => "FollowAt (tail)",
+            Self::FollowReasonActAfter => "FollowReasonAct.after",
+            Self::FollowReasonActReason => "FollowReasonAct.reason",
+            Self::FollowReasonActTail => "FollowReasonAct (tail)",
+            Self::FollowMergeActAfters => "FollowMergeAct.afters",
+            Self::FollowMergeActTail => "FollowMergeAct (tail)",
+            Self::FollowActTag => "FollowAct (tag)",
+            Self::FollowOutcomeRefusal => "FollowOutcome.refusal",
+            Self::FollowOutcomeTail => "FollowOutcome (tail)",
+            Self::OpenedTask => "Opened.task",
+            Self::OpenedTail => "Opened (tail)",
+            Self::OpenRepositoryOwner => "OpenRepository.owner",
+            Self::OpenRepositoryName => "OpenRepository.name",
+            Self::OpenRepositoryTail => "OpenRepository (tail)",
+            Self::SeveralRepositoriesRepositories => "SeveralRepositories.repositories",
+            Self::SeveralRepositoriesTail => "SeveralRepositories (tail)",
+            Self::UnderPrefixOwner => "UnderPrefix.owner",
+            Self::UnderPrefixName => "UnderPrefix.name",
+            Self::UnderPrefixPrefix => "UnderPrefix.prefix",
+            Self::UnderPrefixTail => "UnderPrefix (tail)",
+            Self::NamePastBound => "NamePast.bound",
+            Self::NamePastTail => "NamePast (tail)",
+            Self::OpenRefusalTag => "OpenRefusal (tag)",
+            Self::OpenRefusedReason => "OpenRefused.reason",
+            Self::OpenRefusedTail => "OpenRefused (tail)",
+            Self::ApplicationOutcomeTag => "ApplicationOutcome (tag)",
+            Self::ApplicationToken => "Application.token",
+            Self::ApplicationUntil => "Application.until",
+            Self::ApplicationOutcome => "Application.outcome",
+            Self::ApplicationTail => "Application (tail)",
+            Self::ForgeWriterForge => "ForgeWriter.forge",
+            Self::ForgeWriterAuthor => "ForgeWriter.author",
+            Self::ForgeWriterTail => "ForgeWriter (tail)",
+            Self::BindingAddress => "Binding.address",
+            Self::BindingSubject => "Binding.subject",
+            Self::BindingTail => "Binding (tail)",
+            Self::FlightTask => "Flight.task",
+            Self::FlightEntry => "Flight.entry",
+            Self::FlightTail => "Flight (tail)",
+            Self::LandingAtAt => "LandingAt.at",
+            Self::LandingAtTail => "LandingAt (tail)",
+            Self::LandingPlaceTag => "LandingPlace (tag)",
+            Self::LandingFaultsMember => "LandingFaults.member",
+            Self::LandingFaultsGate => "LandingFaults.gate",
+            Self::LandingFaultsTail => "LandingFaults (tail)",
+            Self::LandingPhasePlace => "LandingPhase.place",
+            Self::LandingPhaseHeld => "LandingPhase.held",
+            Self::LandingPhaseTail => "LandingPhase (tail)",
+            Self::GateKeyKey => "GateKey.key",
+            Self::GateKeyTail => "GateKey (tail)",
+            Self::DispatchedKeyKey => "DispatchedKey.key",
+            Self::DispatchedKeyTry => "DispatchedKey.try_",
+            Self::DispatchedKeyTail => "DispatchedKey (tail)",
+            Self::GateProofStateTag => "GateProofState (tag)",
+            Self::GatePostedTag => "GatePosted (tag)",
+            Self::GateProofProof => "GateProof.proof",
+            Self::GateProofPosted => "GateProof.posted",
+            Self::GateProofFaults => "GateProof.faults",
+            Self::GateProofTail => "GateProof (tail)",
+            Self::LandingTimeoutMember => "LandingTimeout.member",
+            Self::LandingTimeoutGate => "LandingTimeout.gate",
+            Self::LandingTimeoutRun => "LandingTimeout.run",
+            Self::LandingTimeoutTail => "LandingTimeout (tail)",
+            Self::LandingGateRefusedGate => "LandingGateRefused.gate",
+            Self::LandingGateRefusedTail => "LandingGateRefused (tail)",
+            Self::LandingGateFailedGate => "LandingGateFailed.gate",
+            Self::LandingGateFailedRun => "LandingGateFailed.run",
+            Self::LandingGateFailedTail => "LandingGateFailed (tail)",
+            Self::LandingLeftChangeChange => "LandingLeftChange.change",
+            Self::LandingLeftChangeTail => "LandingLeftChange (tail)",
+            Self::LandingFallbackUnits => "LandingFallback.units",
+            Self::LandingFallbackTop => "LandingFallback.top",
+            Self::LandingFallbackTail => "LandingFallback (tail)",
+            Self::LandingBlamedGate => "LandingBlamed.gate",
+            Self::LandingBlamedRun => "LandingBlamed.run",
+            Self::LandingBlamedRed => "LandingBlamed.red",
+            Self::LandingBlamedGreen => "LandingBlamed.green",
+            Self::LandingBlamedTail => "LandingBlamed (tail)",
+            Self::LandingLeaveTag => "LandingLeave (tag)",
+            Self::LandingCombineTag => "LandingCombine (tag)",
+            Self::LandingMemberRound => "LandingMember.round",
+            Self::LandingMemberChange => "LandingMember.change",
+            Self::LandingMemberRepository => "LandingMember.repository",
+            Self::LandingMemberPull => "LandingMember.pull",
+            Self::LandingMemberHead => "LandingMember.head",
+            Self::LandingMemberBase => "LandingMember.base",
+            Self::LandingMemberCandidate => "LandingMember.candidate",
+            Self::LandingMemberGates => "LandingMember.gates",
+            Self::LandingMemberAsked => "LandingMember.asked",
+            Self::LandingMemberLanded => "LandingMember.landed",
+            Self::LandingMemberLeft => "LandingMember.left",
+            Self::LandingMemberUnit => "LandingMember.unit",
+            Self::LandingMemberBranch => "LandingMember.branch",
+            Self::LandingMemberCombined => "LandingMember.combined",
+            Self::LandingMemberRecorded => "LandingMember.recorded",
+            Self::LandingMemberTold => "LandingMember.told",
+            Self::LandingMemberJudging => "LandingMember.judging",
+            Self::LandingMemberLeaveTold => "LandingMember.leave_told",
+            Self::LandingMemberTail => "LandingMember (tail)",
+            Self::LandingRoundEndTag => "LandingRoundEnd (tag)",
+            Self::LandingRecordHoldMember => "LandingRecordHold.member",
+            Self::LandingRecordHoldTail => "LandingRecordHold (tail)",
+            Self::LandingOwnHoldTag => "LandingOwnHold (tag)",
+            Self::FailingTestTestId => "FailingTest.test_id",
+            Self::FailingTestTail => "FailingTest (tail)",
+            Self::LandingSelectionTests => "LandingSelection.tests",
+            Self::LandingSelectionTail => "LandingSelection (tail)",
+            Self::LandingSelectedGateSelection => "LandingSelectedGate.selection",
+            Self::LandingSelectedGateTail => "LandingSelectedGate (tail)",
+            Self::LandingProbedMember => "LandingProbed.member",
+            Self::LandingProbedGate => "LandingProbed.gate",
+            Self::LandingProbedRun => "LandingProbed.run",
+            Self::LandingProbedPassed => "LandingProbed.passed",
+            Self::LandingProbedTail => "LandingProbed (tail)",
+            Self::LandingByTestGates => "LandingByTest.gates",
+            Self::LandingByTestProbed => "LandingByTest.probed",
+            Self::LandingByTestTail => "LandingByTest (tail)",
+            Self::LandingSearchTestsTag => "LandingSearchTests (tag)",
+            Self::LandingSearchGreen => "LandingSearch.green",
+            Self::LandingSearchRed => "LandingSearch.red",
+            Self::LandingSearchTests => "LandingSearch.tests",
+            Self::LandingSearchTail => "LandingSearch (tail)",
+            Self::LandingSearchedRed => "LandingSearched.red",
+            Self::LandingSearchedGreen => "LandingSearched.green",
+            Self::LandingSearchedChanges => "LandingSearched.changes",
+            Self::LandingSearchedTail => "LandingSearched (tail)",
+            Self::LandingRoundBranch => "LandingRound.branch",
+            Self::LandingRoundPull => "LandingRound.pull",
+            Self::LandingRoundUpstream => "LandingRound.upstream",
+            Self::LandingRoundCombined => "LandingRound.combined",
+            Self::LandingRoundRecorded => "LandingRound.recorded",
+            Self::LandingRoundTold => "LandingRound.told",
+            Self::LandingRoundEnding => "LandingRound.ending",
+            Self::LandingRoundFailure => "LandingRound.failure",
+            Self::LandingRoundJudging => "LandingRound.judging",
+            Self::LandingRoundChanged => "LandingRound.changed",
+            Self::LandingRoundSearch => "LandingRound.search",
+            Self::LandingRoundTail => "LandingRound (tail)",
+            Self::LandingStateSearched => "LandingState.searched",
+            Self::LandingStateLastLeft => "LandingState.last_left",
+            Self::LandingStateTask => "LandingState.task",
+            Self::LandingStateProject => "LandingState.project",
+            Self::LandingStatePhase => "LandingState.phase",
+            Self::LandingStateMembers => "LandingState.members",
+            Self::LandingStatePreparation => "LandingState.preparation",
+            Self::LandingStateStaleProofs => "LandingState.stale_proofs",
+            Self::LandingStateBranch => "LandingState.branch",
+            Self::LandingStateRound => "LandingState.round",
+            Self::LandingStateOwnHold => "LandingState.own_hold",
+            Self::LandingStateTail => "LandingState (tail)",
+            Self::LandingPrepareHead => "LandingPrepare.head",
+            Self::LandingPrepareMain => "LandingPrepare.main",
+            Self::LandingPrepareTail => "LandingPrepare (tail)",
+            Self::LandingRepairAskGate => "LandingRepairAsk.gate",
+            Self::LandingRepairAskCandidate => "LandingRepairAsk.candidate",
+            Self::LandingRepairAskBelow => "LandingRepairAsk.below",
+            Self::LandingRepairAskTail => "LandingRepairAsk (tail)",
+            Self::LandingPrefixPrefix => "LandingPrefix.prefix",
+            Self::LandingPrefixTail => "LandingPrefix (tail)",
+            Self::LandingResolveBase => "LandingResolve.base",
+            Self::LandingResolveTail => "LandingResolve (tail)",
+            Self::LandingAskTag => "LandingAsk (tag)",
+            Self::LandingAskSlotAsk => "LandingAskSlot.ask",
+            Self::LandingAskSlotTail => "LandingAskSlot (tail)",
+            Self::LandingOperationTag => "LandingOperation (tag)",
+            Self::LandingRunId => "LandingRun.id",
+            Self::LandingRunAttempt => "LandingRun.attempt",
+            Self::LandingRunEnded => "LandingRun.ended",
+            Self::LandingRunClock => "LandingRun.clock",
+            Self::LandingRunTail => "LandingRun (tail)",
+            Self::LandingEntryEntry => "LandingEntry.entry",
+            Self::LandingEntryMember => "LandingEntry.member",
+            Self::LandingEntryGate => "LandingEntry.gate",
+            Self::LandingEntryOperation => "LandingEntry.operation",
+            Self::LandingEntryPreparation => "LandingEntry.preparation",
+            Self::LandingEntryBase => "LandingEntry.base",
+            Self::LandingEntryRun => "LandingEntry.run",
+            Self::LandingEntryTail => "LandingEntry (tail)",
+            Self::HistoryJobTag => "HistoryJob (tag)",
+            Self::HistoryJobFailureTag => "HistoryJobFailure (tag)",
+            Self::HistoryJobFailedClass => "HistoryJobFailed.class",
+            Self::HistoryJobFailedTail => "HistoryJobFailed (tail)",
+            Self::HistoryJobOutcomeTag => "HistoryJobOutcome (tag)",
+            Self::HistoryJobRecordTask => "HistoryJobRecord.task",
+            Self::HistoryJobRecordAttempt => "HistoryJobRecord.attempt",
+            Self::HistoryJobRecordJob => "HistoryJobRecord.job",
+            Self::HistoryJobRecordOutcome => "HistoryJobRecord.outcome",
+            Self::HistoryJobRecordRound => "HistoryJobRecord.round",
+            Self::HistoryJobRecordMembers => "HistoryJobRecord.members",
+            Self::HistoryJobRecordHead => "HistoryJobRecord.head",
+            Self::HistoryJobRecordWritten => "HistoryJobRecord.written",
+            Self::HistoryJobRecordTail => "HistoryJobRecord (tail)",
+            Self::LandingRowJob => "LandingRow.job",
+            Self::LandingRowLanding => "LandingRow.landing",
+            Self::LandingRowAsks => "LandingRow.asks",
+            Self::LandingRowEntries => "LandingRow.entries",
+            Self::LandingRowTail => "LandingRow (tail)",
+            Self::ReceiptNameName => "ReceiptName.name",
+            Self::ReceiptNameTail => "ReceiptName (tail)",
+            Self::ReceiptCheckTag => "ReceiptCheck (tag)",
+            Self::ReceiptKeyProject => "ReceiptKey.project",
+            Self::ReceiptKeyRepository => "ReceiptKey.repository",
+            Self::ReceiptKeyCheckName => "ReceiptKey.check_name",
+            Self::ReceiptKeyKey => "ReceiptKey.key",
+            Self::ReceiptKeyTail => "ReceiptKey (tail)",
+            Self::ReceiptRunId => "ReceiptRun.id",
+            Self::ReceiptRunNumber => "ReceiptRun.number",
+            Self::ReceiptRunUrl => "ReceiptRun.url",
+            Self::ReceiptRunTail => "ReceiptRun (tail)",
+            Self::FailedTestsTests => "FailedTests.tests",
+            Self::FailedTestsTail => "FailedTests (tail)",
+            Self::FailuresTag => "Failures (tag)",
+            Self::BlamedFailuresFailures => "BlamedFailures.failures",
+            Self::BlamedFailuresTail => "BlamedFailures (tail)",
+            Self::BlameTag => "Blame (tag)",
+            Self::TierVerdictRun => "TierVerdict.run",
+            Self::TierVerdictBlame => "TierVerdict.blame",
+            Self::TierVerdictTail => "TierVerdict (tail)",
+            Self::TierRepairRun => "TierRepair.run",
+            Self::TierRepairTip => "TierRepair.tip",
+            Self::TierRepairBy => "TierRepair.by",
+            Self::TierRepairTail => "TierRepair (tail)",
+            Self::TierVerificationTier => "TierVerification.tier",
+            Self::TierVerificationVerdict => "TierVerification.verdict",
+            Self::TierVerificationRepaired => "TierVerification.repaired",
+            Self::TierVerificationTail => "TierVerification (tail)",
+            Self::VerificationRepository => "Verification.repository",
+            Self::VerificationCommit => "Verification.commit",
+            Self::VerificationChanges => "Verification.changes",
+            Self::VerificationTiers => "Verification.tiers",
+            Self::VerificationTail => "Verification (tail)",
+            Self::TierJudgedTip => "TierJudged.tip",
+            Self::TierJudgedKey => "TierJudged.key",
+            Self::TierJudgedTail => "TierJudged (tail)",
+            Self::TierFlakeTest => "TierFlake.test",
+            Self::TierFlakeCount => "TierFlake.count",
+            Self::TierFlakeTail => "TierFlake (tail)",
+            Self::TierLandingCommit => "TierLanding.commit",
+            Self::TierLandingKey => "TierLanding.key",
+            Self::TierLandingTail => "TierLanding (tail)",
+            Self::TierTestsTests => "TierTests.tests",
+            Self::TierTestsTail => "TierTests (tail)",
+            Self::TierSelectionTag => "TierSelection (tag)",
+            Self::TierFindingFailing => "TierFinding.failing",
+            Self::TierFindingFlakes => "TierFinding.flakes",
+            Self::TierFindingBlamed => "TierFinding.blamed",
+            Self::TierFindingTail => "TierFinding (tail)",
+            Self::TierGroupLow => "TierGroup.low",
+            Self::TierGroupHigh => "TierGroup.high",
+            Self::TierGroupTests => "TierGroup.tests",
+            Self::TierGroupTail => "TierGroup (tail)",
+            Self::TierProbeLanding => "TierProbe.landing",
+            Self::TierProbeLow => "TierProbe.low",
+            Self::TierProbeHigh => "TierProbe.high",
+            Self::TierProbeTests => "TierProbe.tests",
+            Self::TierProbeWaiting => "TierProbe.waiting",
+            Self::TierProbeFinding => "TierProbe.finding",
+            Self::TierProbeTail => "TierProbe (tail)",
+            Self::TierPartTag => "TierPart (tag)",
+            Self::TierRunNumber => "TierRun.number",
+            Self::TierRunTip => "TierRun.tip",
+            Self::TierRunKey => "TierRun.key",
+            Self::TierRunLandings => "TierRun.landings",
+            Self::TierRunPart => "TierRun.part",
+            Self::TierRunFaults => "TierRun.faults",
+            Self::TierRunTail => "TierRun (tail)",
+            Self::TierRecordSequence => "TierRecord.sequence",
+            Self::TierRecordJudged => "TierRecord.judged",
+            Self::TierRecordFailing => "TierRecord.failing",
+            Self::TierRecordFlakes => "TierRecord.flakes",
+            Self::TierRecordRun => "TierRecord.run",
+            Self::TierRecordTail => "TierRecord (tail)",
+            Self::TierPendingCommit => "TierPending.commit",
+            Self::TierPendingKey => "TierPending.key",
+            Self::TierPendingTail => "TierPending (tail)",
+            Self::TierBranchEntryEntry => "TierBranchEntry.entry",
+            Self::TierBranchEntryTail => "TierBranchEntry (tail)",
+            Self::TierBranchTag => "TierBranch (tag)",
+            Self::TierFaultTag => "TierFault (tag)",
+            Self::TierProbeBranchLanding => "TierProbeBranch.landing",
+            Self::TierProbeBranchBranch => "TierProbeBranch.branch",
+            Self::TierProbeBranchTail => "TierProbeBranch (tail)",
+            Self::TierFlightEntry => "TierFlight.entry",
+            Self::TierFlightStart => "TierFlight.start",
+            Self::TierFlightSince => "TierFlight.since",
+            Self::TierFlightWaiting => "TierFlight.waiting",
+            Self::TierFlightNext => "TierFlight.next",
+            Self::TierFlightRun => "TierFlight.run",
+            Self::TierFlightPending => "TierFlight.pending",
+            Self::TierFlightFault => "TierFlight.fault",
+            Self::TierFlightReport => "TierFlight.report",
+            Self::TierFlightTail => "TierFlight (tail)",
+            Self::ReceiptJobJob => "ReceiptJob.job",
+            Self::ReceiptJobAttempt => "ReceiptJob.attempt",
+            Self::ReceiptJobName => "ReceiptJob.name",
+            Self::ReceiptJobTail => "ReceiptJob (tail)",
+            Self::ReceiptTestKey => "ReceiptTest.key",
+            Self::ReceiptTestFuzzy => "ReceiptTest.fuzzy",
+            Self::ReceiptTestTail => "ReceiptTest (tail)",
+            Self::ReceiptTestsTests => "ReceiptTests.tests",
+            Self::ReceiptTestsTail => "ReceiptTests (tail)",
+            Self::ReceiptManyBound => "ReceiptMany.bound",
+            Self::ReceiptManyTail => "ReceiptMany (tail)",
+            Self::ReceiptReportTag => "ReceiptReport (tag)",
+            Self::ReceiptBase => "Receipt.base",
+            Self::ReceiptJobs => "Receipt.jobs",
+            Self::ReceiptFailures => "Receipt.failures",
+            Self::ReceiptPassed => "Receipt.passed",
+            Self::ReceiptRun => "Receipt.run",
+            Self::ReceiptCandidate => "Receipt.candidate",
+            Self::ReceiptEnded => "Receipt.ended",
+            Self::ReceiptLogs => "Receipt.logs",
+            Self::ReceiptTail => "Receipt (tail)",
+            Self::TierGoalGoal => "TierGoal.goal",
+            Self::TierGoalBranch => "TierGoal.branch",
+            Self::TierGoalTip => "TierGoal.tip",
+            Self::TierGoalRan => "TierGoal.ran",
+            Self::TierGoalFailing => "TierGoal.failing",
+            Self::TierGoalStarted => "TierGoal.started",
+            Self::TierGoalTail => "TierGoal (tail)",
+            Self::TierHoldParty => "TierHold.party",
+            Self::TierHoldAt => "TierHold.at",
+            Self::TierHoldReason => "TierHold.reason",
+            Self::TierHoldTail => "TierHold (tail)",
+            Self::TierPostedTestsTests => "TierPostedTests.tests",
+            Self::TierPostedTestsTail => "TierPostedTests (tail)",
+            Self::TierPostedBlameTag => "TierPostedBlame (tag)",
+            Self::TierPostedLandingCommit => "TierPostedLanding.commit",
+            Self::TierPostedLandingBlame => "TierPostedLanding.blame",
+            Self::TierPostedLandingChange => "TierPostedLanding.change",
+            Self::TierPostedLandingTail => "TierPostedLanding (tail)",
+            Self::TierCommentVerdictAt => "TierCommentVerdict.at",
+            Self::TierCommentVerdictTail => "TierCommentVerdict (tail)",
+            Self::TierCommentRepairBy => "TierCommentRepair.by",
+            Self::TierCommentRepairTail => "TierCommentRepair (tail)",
+            Self::TierCommentKindTag => "TierCommentKind (tag)",
+            Self::TierCommentPull => "TierComment.pull",
+            Self::TierCommentLanding => "TierComment.landing",
+            Self::TierCommentKind => "TierComment.kind",
+            Self::TierCommentTail => "TierComment (tail)",
+            Self::TierPostingNumber => "TierPosting.number",
+            Self::TierPostingTip => "TierPosting.tip",
+            Self::TierPostingLink => "TierPosting.link",
+            Self::TierPostingStatus => "TierPosting.status",
+            Self::TierPostingDescription => "TierPosting.description",
+            Self::TierPostingLandings => "TierPosting.landings",
+            Self::TierPostingComments => "TierPosting.comments",
+            Self::TierPostingNext => "TierPosting.next",
+            Self::TierPostingEntry => "TierPosting.entry",
+            Self::TierPostingPart => "TierPosting.part",
+            Self::TierPostingOpBytes => "TierPosting.op_bytes",
+            Self::TierPostingTail => "TierPosting (tail)",
+            Self::TierRowObservations => "TierRow.observations",
+            Self::TierRowRepository => "TierRow.repository",
+            Self::TierRowTier => "TierRow.tier",
+            Self::TierRowRecord => "TierRow.record",
+            Self::TierRowTask => "TierRow.task",
+            Self::TierRowRequested => "TierRow.requested",
+            Self::TierRowCancelled => "TierRow.cancelled",
+            Self::TierRowPurpose => "TierRow.purpose",
+            Self::TierRowPending => "TierRow.pending",
+            Self::TierRowBaseline => "TierRow.baseline",
+            Self::TierRowBranch => "TierRow.branch",
+            Self::TierRowProbe => "TierRow.probe",
+            Self::TierRowFlight => "TierRow.flight",
+            Self::TierRowHeld => "TierRow.held",
+            Self::TierRowHold => "TierRow.hold",
+            Self::TierRowResult => "TierRow.result",
+            Self::TierRowPosting => "TierRow.posting",
+            Self::TierRowReceived => "TierRow.received",
+            Self::TierRowGoals => "TierRow.goals",
+            Self::TierRowGoal => "TierRow.goal",
+            Self::TierRowStarted => "TierRow.started",
+            Self::TierRowTail => "TierRow (tail)",
+            Self::ReceiptRowReport => "ReceiptRow.report",
+            Self::ReceiptRowKey => "ReceiptRow.key",
+            Self::ReceiptRowReceipt => "ReceiptRow.receipt",
+            Self::ReceiptRowTail => "ReceiptRow (tail)",
+            Self::ForgeKindTag => "ForgeKind (tag)",
+            Self::ForgeModeTag => "ForgeMode (tag)",
+            Self::AddressHost => "Address.host",
+            Self::AddressPort => "Address.port",
+            Self::AddressTls => "Address.tls",
+            Self::AddressTail => "Address (tail)",
+            Self::PlaceApi => "Place.api",
+            Self::PlaceGit => "Place.git",
+            Self::PlaceWeb => "Place.web",
+            Self::PlaceTail => "Place (tail)",
+            Self::BotLogin => "Bot.login",
+            Self::BotName => "Bot.name",
+            Self::BotEmail => "Bot.email",
+            Self::BotTail => "Bot (tail)",
+            Self::EmptyIntentPlayground => "EmptyIntent.playground",
+            Self::EmptyIntentOrg => "EmptyIntent.org",
+            Self::EmptyIntentRepository => "EmptyIntent.repository",
+            Self::EmptyIntentLabel => "EmptyIntent.label",
+            Self::EmptyIntentTail => "EmptyIntent (tail)",
+            Self::CopyIntentAddresses => "CopyIntent.addresses",
+            Self::CopyIntentTail => "CopyIntent (tail)",
+            Self::FirstIntentTag => "FirstIntent (tag)",
+            Self::EndedForgeSecretsErased => "EndedForge.secrets_erased",
+            Self::EndedForgeBoxRemoved => "EndedForge.box_removed",
+            Self::EndedForgeTail => "EndedForge (tail)",
+            Self::ForgeStateTag => "ForgeState (tag)",
+            Self::ForgeLinkUser => "ForgeLink.user",
+            Self::ForgeLinkPerson => "ForgeLink.person",
+            Self::ForgeLinkTail => "ForgeLink (tail)",
+            Self::ForgeNumber => "Forge.number",
+            Self::ForgeKind => "Forge.kind",
+            Self::ForgeMode => "Forge.mode",
+            Self::ForgeState => "Forge.state",
+            Self::ForgePlace => "Forge.place",
+            Self::ForgeGitProgram => "Forge.git_program",
+            Self::ForgeReadOnly => "Forge.read_only",
+            Self::ForgeBot => "Forge.bot",
+            Self::ForgeAsked => "Forge.asked",
+            Self::ForgeFirst => "Forge.first",
+            Self::ForgePerson => "Forge.person",
+            Self::ForgeTail => "Forge (tail)",
+            Self::ForgeNumberLast => "ForgeNumber.last",
+            Self::ForgeNumberTail => "ForgeNumber (tail)",
+            Self::ResetStepTag => "ResetStep (tag)",
+            Self::ResettingStep => "Resetting.step",
+            Self::ResettingTail => "Resetting (tail)",
+            Self::PlaygroundStateTag => "PlaygroundState (tag)",
+            Self::PlaygroundState => "Playground.state",
+            Self::PlaygroundForge => "Playground.forge",
+            Self::PlaygroundProject => "Playground.project",
+            Self::PlaygroundAccount => "Playground.account",
+            Self::PlaygroundTail => "Playground (tail)",
+            Self::PatternLastTag => "PatternLast (tag)",
+            Self::RulePatternSegments => "RulePattern.segments",
+            Self::RulePatternLast => "RulePattern.last",
+            Self::RulePatternTail => "RulePattern (tail)",
+            Self::RuleGateNumber => "RuleGate.number",
+            Self::RuleGateBlocking => "RuleGate.blocking",
+            Self::RuleGateFreshness => "RuleGate.freshness",
+            Self::RuleGateTail => "RuleGate (tail)",
+            Self::RuleApprovalRole => "RuleApproval.role",
+            Self::RuleApprovalPeople => "RuleApproval.people",
+            Self::RuleApprovalFreshness => "RuleApproval.freshness",
+            Self::RuleApprovalTail => "RuleApproval (tail)",
+            Self::LandingRulePattern => "LandingRule.pattern",
+            Self::LandingRuleEnforce => "LandingRule.enforce",
+            Self::LandingRuleCi => "LandingRule.ci",
+            Self::LandingRuleUpToDate => "LandingRule.up_to_date",
+            Self::LandingRuleGates => "LandingRule.gates",
+            Self::LandingRuleApprovals => "LandingRule.approvals",
+            Self::LandingRuleSets => "LandingRule.sets",
+            Self::LandingRuleTail => "LandingRule (tail)",
+            Self::CharterValueNumber => "CharterValue.number",
+            Self::CharterValueTail => "CharterValue (tail)",
+            Self::TemplateGoalDesign => "TemplateGoal.design",
+            Self::TemplateGoalCloseOut => "TemplateGoal.close_out",
+            Self::TemplateGoalTail => "TemplateGoal (tail)",
+            Self::ProjectQuestionsRoute => "ProjectQuestions.route",
+            Self::ProjectQuestionsTail => "ProjectQuestions (tail)",
+            Self::ProjectWaysDrafts => "ProjectWays.drafts",
+            Self::ProjectWaysGoals => "ProjectWays.goals",
+            Self::ProjectWaysChanges => "ProjectWays.changes",
+            Self::ProjectWaysWay => "ProjectWays.way",
+            Self::ProjectWaysTail => "ProjectWays (tail)",
+            Self::ReachKindOfKind => "ReachKindOf.kind",
+            Self::ReachKindOfTail => "ReachKindOf (tail)",
+            Self::ClassSubjectTag => "ClassSubject (tag)",
+            Self::ClassItemSubject => "ClassItem.subject",
+            Self::ClassItemWords => "ClassItem.words",
+            Self::ClassItemClass => "ClassItem.class",
+            Self::ClassItemTail => "ClassItem (tail)",
+            Self::PathSetNumber => "PathSet.number",
+            Self::PathSetName => "PathSet.name",
+            Self::PathSetPatterns => "PathSet.patterns",
+            Self::PathSetTail => "PathSet (tail)",
+            Self::ProjectClassesItems => "ProjectClasses.items",
+            Self::ProjectClassesSets => "ProjectClasses.sets",
+            Self::ProjectClassesTail => "ProjectClasses (tail)",
+            Self::CharterWordsLine => "CharterWords.line",
+            Self::CharterWordsTail => "CharterWords (tail)",
+            Self::ProjectWordsHeadline => "ProjectWords.headline",
+            Self::ProjectWordsLede => "ProjectWords.lede",
+            Self::ProjectWordsTail => "ProjectWords (tail)",
+            Self::DependencyProject => "Dependency.project",
+            Self::DependencyTail => "Dependency (tail)",
+            Self::FollowRepositoryForge => "FollowRepository.forge",
+            Self::FollowRepositoryRepository => "FollowRepository.repository",
+            Self::FollowRepositoryTail => "FollowRepository (tail)",
+            Self::FollowSourceRepository => "FollowSource.repository",
+            Self::FollowSourceBranch => "FollowSource.branch",
+            Self::FollowSourcePaths => "FollowSource.paths",
+            Self::FollowSourceTail => "FollowSource (tail)",
+            Self::FollowTargetRepository => "FollowTarget.repository",
+            Self::FollowTargetBranch => "FollowTarget.branch",
+            Self::FollowTargetTail => "FollowTarget (tail)",
+            Self::FollowPersonPerson => "FollowPerson.person",
+            Self::FollowPersonTail => "FollowPerson (tail)",
+            Self::FollowOwnerTaskTask => "FollowOwnerTask.task",
+            Self::FollowOwnerTaskTail => "FollowOwnerTask (tail)",
+            Self::FollowOwnerTag => "FollowOwner (tag)",
+            Self::FollowStartTag => "FollowStart (tag)",
+            Self::FollowFormatTag => "FollowFormat (tag)",
+            Self::FollowCheckWorkflow => "FollowCheck.workflow",
+            Self::FollowCheckArtifact => "FollowCheck.artifact",
+            Self::FollowCheckFormat => "FollowCheck.format",
+            Self::FollowCheckTail => "FollowCheck (tail)",
+            Self::FollowSource => "Follow.source",
+            Self::FollowTarget => "Follow.target",
+            Self::FollowOwner => "Follow.owner",
+            Self::FollowStart => "Follow.start",
+            Self::FollowProducer => "Follow.producer",
+            Self::FollowVerification => "Follow.verification",
+            Self::FollowTail => "Follow (tail)",
+            Self::SettingSlotTag => "SettingSlot (tag)",
+            Self::ToBeginProject => "ToBegin.project",
+            Self::ToBeginTail => "ToBegin (tail)",
+            Self::GoalFromProject => "GoalFrom.project",
+            Self::GoalFromChat => "GoalFrom.chat",
+            Self::GoalFromGoal => "GoalFrom.goal",
+            Self::GoalFromAt => "GoalFrom.at",
+            Self::GoalFromTail => "GoalFrom (tail)",
+            Self::KeepAskingProject => "KeepAsking.project",
+            Self::KeepAskingSubject => "KeepAsking.subject",
+            Self::KeepAskingAt => "KeepAsking.at",
+            Self::KeepAskingTail => "KeepAsking (tail)",
+            Self::PersonFactTag => "PersonFact (tag)",
+            Self::DismissedParty => "Dismissed.party",
+            Self::DismissedWhat => "Dismissed.what",
+            Self::DismissedTail => "Dismissed (tail)",
+            Self::LoggedChangeSigned => "LoggedChange.signed",
+            Self::LoggedChangeTask => "LoggedChange.task",
+            Self::LoggedChangePull => "LoggedChange.pull",
+            Self::LoggedChangeTitle => "LoggedChange.title",
+            Self::LoggedChangeTail => "LoggedChange (tail)",
+            Self::LoggedLandingCommit => "LoggedLanding.commit",
+            Self::LoggedLandingBranch => "LoggedLanding.branch",
+            Self::LoggedLandingAt => "LoggedLanding.at",
+            Self::LoggedLandingChanges => "LoggedLanding.changes",
+            Self::LoggedLandingTail => "LoggedLanding (tail)",
+            Self::MilestoneLandingAt => "MilestoneLanding.at",
+            Self::MilestoneLandingGoal => "MilestoneLanding.goal",
+            Self::MilestoneLandingChange => "MilestoneLanding.change",
+            Self::MilestoneLandingTail => "MilestoneLanding (tail)",
+            Self::MilestoneOutcomeTag => "MilestoneOutcome (tag)",
+            Self::MilestoneEndAt => "MilestoneEnd.at",
+            Self::MilestoneEndOutcome => "MilestoneEnd.outcome",
+            Self::MilestoneEndDone => "MilestoneEnd.done",
+            Self::MilestoneEndFailed => "MilestoneEnd.failed",
+            Self::MilestoneEndClosed => "MilestoneEnd.closed",
+            Self::MilestoneEndSpent => "MilestoneEnd.spent",
+            Self::MilestoneEndTail => "MilestoneEnd (tail)",
+            Self::MilestoneRowProject => "MilestoneRow.project",
+            Self::MilestoneRowTask => "MilestoneRow.task",
+            Self::MilestoneRowName => "MilestoneRow.name",
+            Self::MilestoneRowLastLanding => "MilestoneRow.last_landing",
+            Self::MilestoneRowEnded => "MilestoneRow.ended",
+            Self::MilestoneRowTail => "MilestoneRow (tail)",
+            Self::LandingLogRepository => "LandingLog.repository",
+            Self::LandingLogLandings => "LandingLog.landings",
+            Self::LandingLogTail => "LandingLog (tail)",
+            Self::StatusBriefSentence => "StatusBrief.sentence",
+            Self::StatusBriefLede => "StatusBrief.lede",
+            Self::StatusBriefAt => "StatusBrief.at",
+            Self::StatusBriefLanded => "StatusBrief.landed",
+            Self::StatusBriefFindings => "StatusBrief.findings",
+            Self::StatusBriefTail => "StatusBrief (tail)",
+            Self::StatusRunningTask => "StatusRunning.task",
+            Self::StatusRunningLanded => "StatusRunning.landed",
+            Self::StatusRunningSince => "StatusRunning.since",
+            Self::StatusRunningFindings => "StatusRunning.findings",
+            Self::StatusRunningTail => "StatusRunning (tail)",
+            Self::ProjectFactsProject => "ProjectFacts.project",
+            Self::ProjectFactsLanded => "ProjectFacts.landed",
+            Self::ProjectFactsLastLanded => "ProjectFacts.last_landed",
+            Self::ProjectFactsBrief => "ProjectFacts.brief",
+            Self::ProjectFactsRunning => "ProjectFacts.running",
+            Self::ProjectFactsTail => "ProjectFacts (tail)",
+            Self::LookedParty => "Looked.party",
+            Self::LookedProject => "Looked.project",
+            Self::LookedPrevious => "Looked.previous",
+            Self::LookedLatest => "Looked.latest",
+            Self::LookedSeen => "Looked.seen",
+            Self::LookedNextSeen => "Looked.next_seen",
+            Self::LookedTail => "Looked (tail)",
+            Self::AwayParty => "Away.party",
+            Self::AwayProject => "Away.project",
+            Self::AwaySince => "Away.since",
+            Self::AwayUntil => "Away.until",
+            Self::AwayLanded => "Away.landed",
+            Self::AwayOff => "Away.off",
+            Self::AwayTail => "Away (tail)",
+            Self::DecidedProject => "Decided.project",
+            Self::DecidedNumber => "Decided.number",
+            Self::DecidedParty => "Decided.party",
+            Self::DecidedTask => "Decided.task",
+            Self::DecidedAt => "Decided.at",
+            Self::DecidedQuestion => "Decided.question",
+            Self::DecidedOptions => "Decided.options",
+            Self::DecidedTook => "Decided.took",
+            Self::DecidedWhy => "Decided.why",
+            Self::DecidedOverturned => "Decided.overturned",
+            Self::DecidedReach => "Decided.reach",
+            Self::DecidedTail => "Decided (tail)",
+            Self::ClosingStepTag => "ClosingStep (tag)",
+            Self::ClosingRunStep => "ClosingRun.step",
+            Self::ClosingRunChange => "ClosingRun.change",
+            Self::ClosingRunTail => "ClosingRun (tail)",
+            Self::ClosingTasksTasks => "ClosingTasks.tasks",
+            Self::ClosingTasksTail => "ClosingTasks (tail)",
+            Self::ClosingJobsAttempts => "ClosingJobs.attempts",
+            Self::ClosingJobsNext => "ClosingJobs.next",
+            Self::ClosingJobsTail => "ClosingJobs (tail)",
+            Self::ClosingLineLine => "ClosingLine.line",
+            Self::ClosingLineTail => "ClosingLine (tail)",
+            Self::ClosingSelectionProgressTag => "ClosingSelectionProgress (tag)",
+            Self::ClosingSelectionPull => "ClosingSelection.pull",
+            Self::ClosingSelectionHead => "ClosingSelection.head",
+            Self::ClosingSelectionProgress => "ClosingSelection.progress",
+            Self::ClosingSelectionTail => "ClosingSelection (tail)",
+            Self::ClosingAskedQuestion => "ClosingAsked.question",
+            Self::ClosingAskedAnswer => "ClosingAsked.answer",
+            Self::ClosingAskedTail => "ClosingAsked (tail)",
+            Self::ClosingStandsTag => "ClosingStands (tag)",
+            Self::ClosingQuestionAsker => "ClosingQuestion.asker",
+            Self::ClosingQuestionNumber => "ClosingQuestion.number",
+            Self::ClosingQuestionStep => "ClosingQuestion.step",
+            Self::ClosingQuestionWords => "ClosingQuestion.words",
+            Self::ClosingQuestionStands => "ClosingQuestion.stands",
+            Self::ClosingQuestionTail => "ClosingQuestion (tail)",
+            Self::ClosingFormTag => "ClosingForm (tag)",
+            Self::ClosingMessageTarget => "ClosingMessage.target",
+            Self::ClosingMessageForm => "ClosingMessage.form",
+            Self::ClosingMessageWords => "ClosingMessage.words",
+            Self::ClosingMessageTail => "ClosingMessage (tail)",
+            Self::ClosingRelayOpen => "ClosingRelay.open",
+            Self::ClosingRelayReplies => "ClosingRelay.replies",
+            Self::ClosingRelayTail => "ClosingRelay (tail)",
+            Self::CloserTask => "Closer.task",
+            Self::CloserGoal => "Closer.goal",
+            Self::CloserClosed => "Closer.closed",
+            Self::CloserRunning => "Closer.running",
+            Self::CloserLanding => "Closer.landing",
+            Self::CloserHold => "Closer.hold",
+            Self::CloserRetry => "Closer.retry",
+            Self::CloserMaking => "Closer.making",
+            Self::CloserCloseChanges => "Closer.close_changes",
+            Self::CloserLandingChanges => "Closer.landing_changes",
+            Self::CloserSelections => "Closer.selections",
+            Self::CloserDone => "Closer.done",
+            Self::CloserRelay => "Closer.relay",
+            Self::CloserTail => "Closer (tail)",
+            Self::LandedDraftRepository => "LandedDraft.repository",
+            Self::LandedDraftPath => "LandedDraft.path",
+            Self::LandedDraftProject => "LandedDraft.project",
+            Self::LandedDraftBranch => "LandedDraft.branch",
+            Self::LandedDraftCommit => "LandedDraft.commit",
+            Self::LandedDraftTitle => "LandedDraft.title",
+            Self::LandedDraftWriter => "LandedDraft.writer",
+            Self::LandedDraftAt => "LandedDraft.at",
+            Self::LandedDraftChat => "LandedDraft.chat",
+            Self::LandedDraftGoal => "LandedDraft.goal",
+            Self::LandedDraftReady => "LandedDraft.ready",
+            Self::LandedDraftTail => "LandedDraft (tail)",
+            Self::FollowCommitId => "FollowCommit.id",
+            Self::FollowCommitMessage => "FollowCommit.message",
+            Self::FollowCommitTail => "FollowCommit (tail)",
+            Self::FollowReasonReason => "FollowReason.reason",
+            Self::FollowReasonTail => "FollowReason (tail)",
+            Self::FollowStateTag => "FollowState (tag)",
+            Self::FollowFilesFiles => "FollowFiles.files",
+            Self::FollowFilesTail => "FollowFiles (tail)",
+            Self::FollowEntryBefore => "FollowEntry.before",
+            Self::FollowEntryAfter => "FollowEntry.after",
+            Self::FollowEntryPull => "FollowEntry.pull",
+            Self::FollowEntryCommits => "FollowEntry.commits",
+            Self::FollowEntryMoreCommits => "FollowEntry.more_commits",
+            Self::FollowEntryFiles => "FollowEntry.files",
+            Self::FollowEntryMoreFiles => "FollowEntry.more_files",
+            Self::FollowEntryChange => "FollowEntry.change",
+            Self::FollowEntryState => "FollowEntry.state",
+            Self::FollowEntryWord => "FollowEntry.word",
+            Self::FollowEntryRemake => "FollowEntry.remake",
+            Self::FollowEntryTail => "FollowEntry (tail)",
+            Self::FollowSkipAfter => "FollowSkip.after",
+            Self::FollowSkipReason => "FollowSkip.reason",
+            Self::FollowSkipTail => "FollowSkip (tail)",
+            Self::FollowFailingCount => "FollowFailing.count",
+            Self::FollowFailingTail => "FollowFailing (tail)",
+            Self::FollowVerdictTag => "FollowVerdict (tag)",
+            Self::FollowParitySource => "FollowParity.source",
+            Self::FollowParityHead => "FollowParity.head",
+            Self::FollowParityVerdict => "FollowParity.verdict",
+            Self::FollowParityRun => "FollowParity.run",
+            Self::FollowParityTail => "FollowParity (tail)",
+            Self::FollowQuestionChange => "FollowQuestion.change",
+            Self::FollowQuestionNumber => "FollowQuestion.number",
+            Self::FollowQuestionWords => "FollowQuestion.words",
+            Self::FollowQuestionPerson => "FollowQuestion.person",
+            Self::FollowQuestionAnswer => "FollowQuestion.answer",
+            Self::FollowQuestionRelayed => "FollowQuestion.relayed",
+            Self::FollowQuestionTail => "FollowQuestion (tail)",
+            Self::FollowRowProject => "FollowRow.project",
+            Self::FollowRowFollow => "FollowRow.follow",
+            Self::FollowRowSource => "FollowRow.source",
+            Self::FollowRowBranch => "FollowRow.branch",
+            Self::FollowRowHeard => "FollowRow.heard",
+            Self::FollowRowTask => "FollowRow.task",
+            Self::FollowRowStopped => "FollowRow.stopped",
+            Self::FollowRowQueue => "FollowRow.queue",
+            Self::FollowRowSkips => "FollowRow.skips",
+            Self::FollowRowParity => "FollowRow.parity",
+            Self::FollowRowQuestions => "FollowRow.questions",
+            Self::FollowRowPending => "FollowRow.pending",
+            Self::FollowRowTail => "FollowRow (tail)",
+            Self::FollowCheckProgressFollow => "FollowCheckProgress.follow",
+            Self::FollowCheckProgressSource => "FollowCheckProgress.source",
+            Self::FollowCheckProgressHead => "FollowCheckProgress.head",
+            Self::FollowCheckProgressDefinition => "FollowCheckProgress.definition",
+            Self::FollowCheckProgressKey => "FollowCheckProgress.key",
+            Self::FollowCheckProgressFlight => "FollowCheckProgress.flight",
+            Self::FollowCheckProgressPage => "FollowCheckProgress.page",
+            Self::FollowCheckProgressFaults => "FollowCheckProgress.faults",
+            Self::FollowCheckProgressHeld => "FollowCheckProgress.held",
+            Self::FollowCheckProgressTail => "FollowCheckProgress (tail)",
+            Self::ChangeHistoryLast => "ChangeHistory.last",
+            Self::ChangeHistoryReady => "ChangeHistory.ready",
+            Self::ChangeHistoryQueued => "ChangeHistory.queued",
+            Self::ChangeHistoryPaused => "ChangeHistory.paused",
+            Self::ChangeHistoryHeld => "ChangeHistory.held",
+            Self::ChangeHistoryLandingHeld => "ChangeHistory.landing_held",
+            Self::ChangeHistoryDelivered => "ChangeHistory.delivered",
+            Self::ChangeHistoryTail => "ChangeHistory (tail)",
+            Self::HistoryMarkHour => "HistoryMark.hour",
+            Self::HistoryMarkFirst => "HistoryMark.first",
+            Self::HistoryMarkTail => "HistoryMark (tail)",
+            Self::HistoryProjectProject => "HistoryProject.project",
+            Self::HistoryProjectNext => "HistoryProject.next",
+            Self::HistoryProjectKept => "HistoryProject.kept",
+            Self::HistoryProjectWholeSince => "HistoryProject.whole_since",
+            Self::HistoryProjectMarks => "HistoryProject.marks",
+            Self::HistoryProjectSweeping => "HistoryProject.sweeping",
+            Self::HistoryProjectRemoving => "HistoryProject.removing",
+            Self::HistoryProjectTail => "HistoryProject (tail)",
+            Self::HistoryInLandingTask => "HistoryInLanding.task",
+            Self::HistoryInLandingRound => "HistoryInLanding.round",
+            Self::HistoryInLandingUnit => "HistoryInLanding.unit",
+            Self::HistoryInLandingTail => "HistoryInLanding (tail)",
+            Self::HistoryUnreadyTag => "HistoryUnready (tag)",
+            Self::HistoryLineTag => "HistoryLine (tag)",
+            Self::HistoryJoinedLine => "HistoryJoined.line",
+            Self::HistoryJoinedPlace => "HistoryJoined.place",
+            Self::HistoryJoinedPriority => "HistoryJoined.priority",
+            Self::HistoryJoinedTail => "HistoryJoined (tail)",
+            Self::HistoryLandingDepartureCause => "HistoryLandingDeparture.cause",
+            Self::HistoryLandingDepartureTail => "HistoryLandingDeparture (tail)",
+            Self::HistoryDepartureTag => "HistoryDeparture (tag)",
+            Self::HistoryDepartedLine => "HistoryDeparted.line",
+            Self::HistoryDepartedCause => "HistoryDeparted.cause",
+            Self::HistoryDepartedTail => "HistoryDeparted (tail)",
+            Self::HistoryUpdateStyle => "HistoryUpdate.style",
+            Self::HistoryUpdateTail => "HistoryUpdate (tail)",
+            Self::HistoryUpdateOutcomeTag => "HistoryUpdateOutcome (tag)",
+            Self::HistoryUpdatedOutcome => "HistoryUpdated.outcome",
+            Self::HistoryUpdatedTail => "HistoryUpdated (tail)",
+            Self::HistoryJobStartedJob => "HistoryJobStarted.job",
+            Self::HistoryJobStartedTask => "HistoryJobStarted.task",
+            Self::HistoryJobStartedTail => "HistoryJobStarted (tail)",
+            Self::HistoryJobEndedJob => "HistoryJobEnded.job",
+            Self::HistoryJobEndedOutcome => "HistoryJobEnded.outcome",
+            Self::HistoryJobEndedTail => "HistoryJobEnded (tail)",
+            Self::HistoryWithTag => "HistoryWith (tag)",
+            Self::HistoryConflictWith => "HistoryConflict.with",
+            Self::HistoryConflictFiles => "HistoryConflict.files",
+            Self::HistoryConflictTail => "HistoryConflict (tail)",
+            Self::HistoryAskTag => "HistoryAsk (tag)",
+            Self::HistoryAskedAsk => "HistoryAsked.ask",
+            Self::HistoryAskedTask => "HistoryAsked.task",
+            Self::HistoryAskedGate => "HistoryAsked.gate",
+            Self::HistoryAskedTail => "HistoryAsked (tail)",
+            Self::HistoryAnswerTag => "HistoryAnswer (tag)",
+            Self::HistoryAnsweredAsk => "HistoryAnswered.ask",
+            Self::HistoryAnsweredOutcome => "HistoryAnswered.outcome",
+            Self::HistoryAnsweredTail => "HistoryAnswered (tail)",
+            Self::HistoryDeliveredChecked => "HistoryDelivered.checked",
+            Self::HistoryDeliveredTail => "HistoryDelivered (tail)",
+            Self::HistoryPauseTag => "HistoryPause (tag)",
+            Self::HistoryPausedWhy => "HistoryPaused.why",
+            Self::HistoryPausedTail => "HistoryPaused (tail)",
+            Self::HistoryMemberChange => "HistoryMember.change",
+            Self::HistoryMemberUnit => "HistoryMember.unit",
+            Self::HistoryMemberHead => "HistoryMember.head",
+            Self::HistoryMemberTail => "HistoryMember (tail)",
+            Self::HistoryFormedMembers => "HistoryFormed.members",
+            Self::HistoryFormedPlace => "HistoryFormed.place",
+            Self::HistoryFormedTail => "HistoryFormed (tail)",
+            Self::HistoryRoundCauseTag => "HistoryRoundCause (tag)",
+            Self::HistoryRoundEndedCause => "HistoryRoundEnded.cause",
+            Self::HistoryRoundEndedTail => "HistoryRoundEnded (tail)",
+            Self::HistoryGateGate => "HistoryGate.gate",
+            Self::HistoryGateKey => "HistoryGate.key",
+            Self::HistoryGateTail => "HistoryGate (tail)",
+            Self::HistoryGateVerdictTag => "HistoryGateVerdict (tag)",
+            Self::HistoryGateEndedGate => "HistoryGateEnded.gate",
+            Self::HistoryGateEndedKey => "HistoryGateEnded.key",
+            Self::HistoryGateEndedVerdict => "HistoryGateEnded.verdict",
+            Self::HistoryGateEndedTail => "HistoryGateEnded (tail)",
+            Self::HistoryProofGate => "HistoryProof.gate",
+            Self::HistoryProofRun => "HistoryProof.run",
+            Self::HistoryProofTail => "HistoryProof (tail)",
+            Self::HistoryProvedProofs => "HistoryProved.proofs",
+            Self::HistoryProvedTail => "HistoryProved (tail)",
+            Self::HistorySearchedGreen => "HistorySearched.green",
+            Self::HistorySearchedRed => "HistorySearched.red",
+            Self::HistorySearchedBlamed => "HistorySearched.blamed",
+            Self::HistorySearchedTail => "HistorySearched (tail)",
+            Self::HistoryProbeEndedGreen => "HistoryProbeEnded.green",
+            Self::HistoryProbeEndedTail => "HistoryProbeEnded (tail)",
+            Self::HistoryTurnMembers => "HistoryTurn.members",
+            Self::HistoryTurnTail => "HistoryTurn (tail)",
+            Self::HistoryRecordedStateTag => "HistoryRecordedState (tag)",
+            Self::HistoryRecordedState => "HistoryRecorded.state",
+            Self::HistoryRecordedTail => "HistoryRecorded (tail)",
+            Self::HistoryEndingTag => "HistoryEnding (tag)",
+            Self::HistoryEndedEnding => "HistoryEnded.ending",
+            Self::HistoryEndedTail => "HistoryEnded (tail)",
+            Self::HistoryLandingOutcomeTag => "HistoryLandingOutcome (tag)",
+            Self::HistoryLandingEndedOutcome => "HistoryLandingEnded.outcome",
+            Self::HistoryLandingEndedTail => "HistoryLandingEnded (tail)",
+            Self::HistoryOnTag => "HistoryOn (tag)",
+            Self::HistoryByTag => "HistoryBy (tag)",
+            Self::HistoryHoldOn => "HistoryHold.on",
+            Self::HistoryHoldReason => "HistoryHold.reason",
+            Self::HistoryHoldBy => "HistoryHold.by",
+            Self::HistoryHoldTail => "HistoryHold (tail)",
+            Self::HistoryAfterVerdictTag => "HistoryAfterVerdict (tag)",
+            Self::HistoryAfterVerdict => "HistoryAfter.verdict",
+            Self::HistoryAfterTail => "HistoryAfter (tail)",
+            Self::HistoryUnreadyStepWhy => "HistoryUnreadyStep.why",
+            Self::HistoryUnreadyStepTail => "HistoryUnreadyStep (tail)",
+            Self::HistoryWhatTag => "HistoryWhat (tag)",
+            Self::HistoryEventProject => "HistoryEvent.project",
+            Self::HistoryEventNumber => "HistoryEvent.number",
+            Self::HistoryEventAt => "HistoryEvent.at",
+            Self::HistoryEventSourceAt => "HistoryEvent.source_at",
+            Self::HistoryEventChange => "HistoryEvent.change",
+            Self::HistoryEventRepository => "HistoryEvent.repository",
+            Self::HistoryEventLanding => "HistoryEvent.landing",
+            Self::HistoryEventHead => "HistoryEvent.head",
+            Self::HistoryEventBase => "HistoryEvent.base",
+            Self::HistoryEventOperation => "HistoryEvent.operation",
+            Self::HistoryEventAttempt => "HistoryEvent.attempt",
+            Self::HistoryEventWhat => "HistoryEvent.what",
+            Self::HistoryEventTail => "HistoryEvent (tail)",
+            Self::HistoryChangeProject => "HistoryChange.project",
+            Self::HistoryChangeChange => "HistoryChange.change",
+            Self::HistoryChangeNumber => "HistoryChange.number",
+            Self::HistoryChangeLanding => "HistoryChange.landing",
+            Self::HistoryChangeTail => "HistoryChange (tail)",
+            Self::HistoryLandingProject => "HistoryLanding.project",
+            Self::HistoryLandingLanding => "HistoryLanding.landing",
+            Self::HistoryLandingNumber => "HistoryLanding.number",
+            Self::HistoryLandingChange => "HistoryLanding.change",
+            Self::HistoryLandingTail => "HistoryLanding (tail)",
+            Self::HistoryLastProject => "HistoryLast.project",
+            Self::HistoryLastNumber => "HistoryLast.number",
+            Self::HistoryLastChange => "HistoryLast.change",
+            Self::HistoryLastAt => "HistoryLast.at",
+            Self::HistoryLastTail => "HistoryLast (tail)",
+            Self::TaskReleaseRevision => "TaskRelease.revision",
+            Self::TaskReleaseAt => "TaskRelease.at",
+            Self::TaskReleaseTail => "TaskRelease (tail)",
+            Self::FindingsTopicProject => "FindingsTopic.project",
+            Self::FindingsTopicTail => "FindingsTopic (tail)",
+            Self::TopicTag => "Topic (tag)",
+            Self::ChangeSourceBranch => "ChangeSource.branch",
+            Self::ChangeSourceAt => "ChangeSource.at",
+            Self::ChangeSourceTail => "ChangeSource (tail)",
+            Self::ChangeColdMilestone => "ChangeCold.milestone",
+            Self::ChangeColdSource => "ChangeCold.source",
+            Self::ChangeColdGoal => "ChangeCold.goal",
+            Self::ChangeColdTask => "ChangeCold.task",
+            Self::ChangeColdRepository => "ChangeCold.repository",
+            Self::ChangeColdBranch => "ChangeCold.branch",
+            Self::ChangeColdBase => "ChangeCold.base",
+            Self::ChangeColdTitle => "ChangeCold.title",
+            Self::ChangeColdBody => "ChangeCold.body",
+            Self::ChangeColdBaseRepair => "ChangeCold.base_repair",
+            Self::ChangeColdProducingCharter => "ChangeCold.producing_charter",
+            Self::ChangeColdReviewCharter => "ChangeCold.review_charter",
+            Self::ChangeColdProducingLlm => "ChangeCold.producing_llm",
+            Self::ChangeColdReviewLlm => "ChangeCold.review_llm",
+            Self::ChangeColdReport => "ChangeCold.report",
+            Self::ChangeColdRepairs => "ChangeCold.repairs",
+            Self::ChangeColdFollows => "ChangeCold.follows",
+            Self::ChangeColdCatchUp => "ChangeCold.catch_up",
+            Self::ChangeColdClose => "ChangeCold.close",
+            Self::ChangeColdTail => "ChangeCold (tail)",
+            Self::ChangeHotKept => "ChangeHot.kept",
+            Self::ChangeHotTaskRelease => "ChangeHot.task_release",
+            Self::ChangeHotJob => "ChangeHot.job",
+            Self::ChangeHotSigned => "ChangeHot.signed",
+            Self::ChangeHotEnding => "ChangeHot.ending",
+            Self::ChangeHotRepairTasks => "ChangeHot.repair_tasks",
+            Self::ChangeHotResolutionTasks => "ChangeHot.resolution_tasks",
+            Self::ChangeHotResult => "ChangeHot.result",
+            Self::ChangeHotTask => "ChangeHot.task",
+            Self::ChangeHotPriority => "ChangeHot.priority",
+            Self::ChangeHotChange => "ChangeHot.change",
+            Self::ChangeHotCi => "ChangeHot.ci",
+            Self::ChangeHotPull => "ChangeHot.pull",
+            Self::ChangeHotPending => "ChangeHot.pending",
+            Self::ChangeHotEffect => "ChangeHot.effect",
+            Self::ChangeHotDelegate => "ChangeHot.delegate",
+            Self::ChangeHotDelegateStatus => "ChangeHot.delegate_status",
+            Self::ChangeHotVerdicts => "ChangeHot.verdicts",
+            Self::ChangeHotGateRemarks => "ChangeHot.gate_remarks",
+            Self::ChangeHotDrift => "ChangeHot.drift",
+            Self::ChangeHotQueueRepair => "ChangeHot.queue_repair",
+            Self::ChangeHotQueueRepairs => "ChangeHot.queue_repairs",
+            Self::ChangeHotEffectAccount => "ChangeHot.effect_account",
+            Self::ChangeHotProducerFailure => "ChangeHot.producer_failure",
+            Self::ChangeHotQuestions => "ChangeHot.questions",
+            Self::ChangeHotFollowCheck => "ChangeHot.follow_check",
+            Self::ChangeHotMergeResult => "ChangeHot.merge_result",
+            Self::ChangeHotHistory => "ChangeHot.history",
+            Self::ChangeHotTail => "ChangeHot (tail)",
+            Self::SubscriberTask => "Subscriber.task",
+            Self::SubscriberNumber => "Subscriber.number",
+            Self::SubscriberTopic => "Subscriber.topic",
+            Self::SubscriberOwnChange => "Subscriber.own_change",
+            Self::SubscriberGoalTasks => "Subscriber.goal_tasks",
+            Self::SubscriberPaths => "Subscriber.paths",
+            Self::SubscriberTail => "Subscriber (tail)",
+            Self::FindingCountNumber => "FindingCount.number",
+            Self::FindingCountTail => "FindingCount (tail)",
+            Self::FindingHolderTag => "FindingHolder (tag)",
+            Self::FindingHeldHolder => "FindingHeld.holder",
+            Self::FindingHeldTail => "FindingHeld (tail)",
+            Self::FindingAreasNames => "FindingAreas.names",
+            Self::FindingAreasTail => "FindingAreas (tail)",
+            Self::FindingWordsWords => "FindingWords.words",
+            Self::FindingWordsTail => "FindingWords (tail)",
+            Self::FindingRefusalTag => "FindingRefusal (tag)",
+            Self::FindingRefusedWhy => "FindingRefused.why",
+            Self::FindingRefusedTail => "FindingRefused (tail)",
+            Self::FindingResultTag => "FindingResult (tag)",
+            Self::FindingReplyProject => "FindingReply.project",
+            Self::FindingReplyNumber => "FindingReply.number",
+            Self::FindingReplyArea => "FindingReply.area",
+            Self::FindingReplyResult => "FindingReply.result",
+            Self::FindingReplyTail => "FindingReply (tail)",
+            Self::CallFollowFollow => "CallFollow.follow",
+            Self::CallFollowRefusal => "CallFollow.refusal",
+            Self::CallFollowTail => "CallFollow (tail)",
+            Self::RecorderTag => "Recorder (tag)",
+            Self::RedGoal => "Red.goal",
+            Self::RedKey => "Red.key",
+            Self::RedHead => "Red.head",
+            Self::RedWhy => "Red.why",
+            Self::RedBy => "Red.by",
+            Self::RedAt => "Red.at",
+            Self::RedGeneration => "Red.generation",
+            Self::RedTail => "Red (tail)",
+            Self::RedNumberLast => "RedNumber.last",
+            Self::RedNumberTail => "RedNumber (tail)",
+            Self::RedPassChange => "RedPass.change",
+            Self::RedPassKey => "RedPass.key",
+            Self::RedPassGeneration => "RedPass.generation",
+            Self::RedPassTail => "RedPass (tail)",
+            Self::RedRecordedHead => "RedRecorded.head",
+            Self::RedRecordedGeneration => "RedRecorded.generation",
+            Self::RedRecordedReplaced => "RedRecorded.replaced",
+            Self::RedRecordedTail => "RedRecorded (tail)",
+            Self::RedFullBound => "RedFull.bound",
+            Self::RedFullTail => "RedFull (tail)",
+            Self::RedRefusalTag => "RedRefusal (tag)",
+            Self::RedRefusedWhy => "RedRefused.why",
+            Self::RedRefusedTail => "RedRefused (tail)",
+            Self::RedResultTag => "RedResult (tag)",
+            Self::RedReplyGoal => "RedReply.goal",
+            Self::RedReplyKey => "RedReply.key",
+            Self::RedReplyResult => "RedReply.result",
+            Self::RedReplyTail => "RedReply (tail)",
+            Self::CallPayloadTag => "CallPayload (tag)",
+            Self::CallKey => "Call.key",
+            Self::CallAnswer => "Call.answer",
+            Self::CallTail => "Call (tail)",
+            Self::AreaTaskNumber => "AreaTask.number",
+            Self::AreaTaskTail => "AreaTask (tail)",
+            Self::AreaPartyNumber => "AreaParty.number",
+            Self::AreaPartyTail => "AreaParty (tail)",
+            Self::AreaRoleNumber => "AreaRole.number",
+            Self::AreaRoleTail => "AreaRole (tail)",
+            Self::AreaCharterNumber => "AreaCharter.number",
+            Self::AreaCharterTail => "AreaCharter (tail)",
+            Self::AreaOwnerTag => "AreaOwner (tag)",
+            Self::AreaName => "Area.name",
+            Self::AreaWords => "Area.words",
+            Self::AreaOwner => "Area.owner",
+            Self::AreaTail => "Area (tail)",
+            Self::ProjectAreasAreas => "ProjectAreas.areas",
+            Self::ProjectAreasTail => "ProjectAreas (tail)",
+            Self::ProjectTriagerOwner => "ProjectTriager.owner",
+            Self::ProjectTriagerTail => "ProjectTriager (tail)",
+            Self::SettingValueTag => "SettingValue (tag)",
+            Self::SizedValueValue => "SizedValue.value",
+            Self::SizedValueSize => "SizedValue.size",
+            Self::SizedValueTail => "SizedValue (tail)",
+            Self::SettingEditTag => "SettingEdit (tag)",
+            Self::SettingRowKind => "SettingRow.kind",
+            Self::SettingRowScope => "SettingRow.scope",
+            Self::SettingRowNumber => "SettingRow.number",
+            Self::SettingRowSlot => "SettingRow.slot",
+            Self::SettingRowEdit => "SettingRow.edit",
+            Self::SettingRowTail => "SettingRow (tail)",
+            Self::FindingKindTag => "FindingKind (tag)",
+            Self::SeverityTag => "Severity (tag)",
+            Self::FindingStateTag => "FindingState (tag)",
+            Self::FilerTag => "Filer (tag)",
+            Self::FindingSignatureRepository => "FindingSignature.repository",
+            Self::FindingSignatureSource => "FindingSignature.source",
+            Self::FindingSignatureIds => "FindingSignature.ids",
+            Self::FindingSignatureFirst => "FindingSignature.first",
+            Self::FindingSignatureTail => "FindingSignature (tail)",
+            Self::FindingProject => "Finding.project",
+            Self::FindingNumber => "Finding.number",
+            Self::FindingKind => "Finding.kind",
+            Self::FindingSeverity => "Finding.severity",
+            Self::FindingArea => "Finding.area",
+            Self::FindingState => "Finding.state",
+            Self::FindingTitle => "Finding.title",
+            Self::FindingBody => "Finding.body",
+            Self::FindingFiler => "Finding.filer",
+            Self::FindingAt => "Finding.at",
+            Self::FindingWhy => "Finding.why",
+            Self::FindingHander => "Finding.hander",
+            Self::FindingGoal => "Finding.goal",
+            Self::FindingReason => "Finding.reason",
+            Self::FindingSignature => "Finding.signature",
+            Self::FindingSeen => "Finding.seen",
+            Self::FindingTail => "Finding (tail)",
+            Self::DeviceParty => "Device.party",
+            Self::DeviceNumber => "Device.number",
+            Self::DeviceEndpoint => "Device.endpoint",
+            Self::DeviceP256dh => "Device.p256dh",
+            Self::DeviceAuth => "Device.auth",
+            Self::DeviceLabel => "Device.label",
+            Self::DeviceAt => "Device.at",
+            Self::DeviceTail => "Device (tail)",
+            Self::ValueTag => "Value (tag)",
+            Self::RowValue => "Row.value",
+            Self::RowVersion => "Row (version)",
+            Self::RowTail => "Row (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {
@@ -4787,6 +6634,7 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.logged_change_title > CEILINGS.logged_change_title { return Err(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Bound }); }
     if limits.logged_landing_branch > CEILINGS.logged_landing_branch { return Err(Problem { path: Path::LoggedLandingBranch, reason: skein_codec::Reason::Bound }); }
     if limits.logged_landing_changes > CEILINGS.logged_landing_changes { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Bound }); }
+    if limits.milestone_row_name > CEILINGS.milestone_row_name { return Err(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Bound }); }
     if limits.landing_log_landings > CEILINGS.landing_log_landings { return Err(Problem { path: Path::LandingLogLandings, reason: skein_codec::Reason::Bound }); }
     if limits.status_brief_sentence > CEILINGS.status_brief_sentence { return Err(Problem { path: Path::StatusBriefSentence, reason: skein_codec::Reason::Bound }); }
     if limits.status_brief_lede > CEILINGS.status_brief_lede { return Err(Problem { path: Path::StatusBriefLede, reason: skein_codec::Reason::Bound }); }
@@ -4832,11 +6680,11 @@ fn check_limits_2(limits: &Limits) -> Result<(), Problem> {
     if limits.change_cold_title > CEILINGS.change_cold_title { return Err(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_body > CEILINGS.change_cold_body { return Err(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Bound }); }
     if limits.change_cold_report > CEILINGS.change_cold_report { return Err(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Bound }); }
-    if limits.change_cold_close_some > CEILINGS.change_cold_close_some { return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_3(limits: &Limits) -> Result<(), Problem> {
+    if limits.change_cold_close_some > CEILINGS.change_cold_close_some { return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_signed > CEILINGS.change_hot_signed { return Err(Problem { path: Path::ChangeHotSigned, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_repair_tasks > CEILINGS.change_hot_repair_tasks { return Err(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Bound }); }
     if limits.change_hot_resolution_tasks > CEILINGS.change_hot_resolution_tasks { return Err(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Bound }); }
@@ -9929,6 +11777,8 @@ pub enum ReachKind {
     Rules,
     /// `other` without a payload.
     Other,
+    /// `findings` without a payload.
+    Findings,
 }
 
 impl ReachKind {
@@ -21552,6 +23402,200 @@ impl LoggedLanding {
     }
 }
 
+/// Movable fields of `MilestoneLanding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneLandingParts {
+    /// The `at` field.
+    pub at: u64,
+    /// The `goal` field.
+    pub goal: u64,
+    /// The `change` field.
+    pub change: u64,
+}
+
+/// `MilestoneLanding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneLanding {
+    at: u64,
+    goal: u64,
+    change: u64,
+}
+
+impl MilestoneLanding {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MilestoneLandingParts) -> Result<Self, Problem> {
+        let MilestoneLandingParts { at, goal, change } = parts;
+        let value = Self { at, goal, change };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> u64 { self.goal }
+
+    /// Reads the `change` field.
+    #[must_use]
+    pub fn change(&self) -> u64 { self.change }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneLandingParts { MilestoneLandingParts { at: self.at, goal: self.goal, change: self.change } }
+
+}
+
+/// `MilestoneOutcome` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum MilestoneOutcome {
+    /// `complete` without a payload.
+    Complete,
+    /// `ended` without a payload.
+    Ended,
+    /// `closed` without a payload.
+    Closed,
+}
+
+impl MilestoneOutcome {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `MilestoneEnd`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneEndParts {
+    /// The `at` field.
+    pub at: u64,
+    /// The `outcome` field.
+    pub outcome: MilestoneOutcome,
+    /// The `done` field.
+    pub done: u32,
+    /// The `failed` field.
+    pub failed: u32,
+    /// The `closed` field.
+    pub closed: u32,
+    /// The `spent` field.
+    pub spent: u64,
+}
+
+/// `MilestoneEnd` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneEnd {
+    at: u64,
+    outcome: MilestoneOutcome,
+    done: u32,
+    failed: u32,
+    closed: u32,
+    spent: u64,
+}
+
+impl MilestoneEnd {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: MilestoneEndParts) -> Result<Self, Problem> {
+        let MilestoneEndParts { at, outcome, done, failed, closed, spent } = parts;
+        let value = Self { at, outcome, done, failed, closed, spent };
+        Ok(value)
+    }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Reads the `outcome` field.
+    #[must_use]
+    pub fn outcome(&self) -> &MilestoneOutcome { &self.outcome }
+
+    /// Reads the `done` field.
+    #[must_use]
+    pub fn done(&self) -> u32 { self.done }
+
+    /// Reads the `failed` field.
+    #[must_use]
+    pub fn failed(&self) -> u32 { self.failed }
+
+    /// Reads the `closed` field.
+    #[must_use]
+    pub fn closed(&self) -> u32 { self.closed }
+
+    /// Reads the `spent` field.
+    #[must_use]
+    pub fn spent(&self) -> u64 { self.spent }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneEndParts { MilestoneEndParts { at: self.at, outcome: self.outcome, done: self.done, failed: self.failed, closed: self.closed, spent: self.spent } }
+
+}
+
+/// Movable fields of `MilestoneRow`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneRowParts {
+    /// The `project` field.
+    pub project: u32,
+    /// The `task` field.
+    pub task: u64,
+    /// The `name` field.
+    pub name: Box<[u8]>,
+    /// The `last_landing` field.
+    pub last_landing: Option<MilestoneLanding>,
+    /// The `ended` field.
+    pub ended: Option<MilestoneEnd>,
+}
+
+/// `MilestoneRow` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MilestoneRow {
+    project: u32,
+    task: u64,
+    name: Box<[u8]>,
+    last_landing: Option<MilestoneLanding>,
+    ended: Option<MilestoneEnd>,
+}
+
+impl MilestoneRow {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: MilestoneRowParts) -> Result<Self, Problem> {
+        let MilestoneRowParts { project, task, name, last_landing, ended } = parts;
+        let value = Self { project, task, name, last_landing, ended };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Reads the `last_landing` field.
+    #[must_use]
+    pub fn last_landing(&self) -> &Option<MilestoneLanding> { &self.last_landing }
+
+    /// Reads the `ended` field.
+    #[must_use]
+    pub fn ended(&self) -> &Option<MilestoneEnd> { &self.ended }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> MilestoneRowParts { MilestoneRowParts { project: self.project, task: self.task, name: self.name, last_landing: self.last_landing, ended: self.ended } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.milestone_row_name.min(CEILINGS.milestone_row_name)).expect("u32 fits usize") { return Err(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// Movable fields of `LandingLog`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingLogParts {
@@ -25560,6 +27604,8 @@ impl ChangeSource {
 /// Movable fields of `ChangeCold`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeColdParts {
+    /// The `milestone` field.
+    pub milestone: Option<u64>,
     /// The `source` field.
     pub source: Option<ChangeSource>,
     /// The `goal` field.
@@ -25601,6 +27647,7 @@ pub struct ChangeColdParts {
 /// `ChangeCold` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ChangeCold {
+    milestone: Option<u64>,
     source: Option<ChangeSource>,
     goal: Option<u64>,
     task: u64,
@@ -25624,11 +27671,15 @@ pub struct ChangeCold {
 impl ChangeCold {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeColdParts) -> Result<Self, Problem> {
-        let ChangeColdParts { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
-        let value = Self { source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
+        let ChangeColdParts { milestone, source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close } = parts;
+        let value = Self { milestone, source, goal, task, repository, branch, base, title, body, base_repair, producing_charter, review_charter, producing_llm, review_llm, report, repairs, follows, catch_up, close };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `milestone` field.
+    #[must_use]
+    pub fn milestone(&self) -> &Option<u64> { &self.milestone }
 
     /// Reads the `source` field.
     #[must_use]
@@ -25704,7 +27755,7 @@ impl ChangeCold {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { source: self.source, goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
+    pub fn into_parts(self) -> ChangeColdParts { ChangeColdParts { milestone: self.milestone, source: self.source, goal: self.goal, task: self.task, repository: self.repository, branch: self.branch, base: self.base, title: self.title, body: self.body, base_repair: self.base_repair, producing_charter: self.producing_charter, review_charter: self.review_charter, producing_llm: self.producing_llm, review_llm: self.review_llm, report: self.report, repairs: self.repairs, follows: self.follows, catch_up: self.catch_up, close: self.close } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.source.as_ref() {
@@ -27812,6 +29863,8 @@ pub enum Value {
     ChangeCold(Box<ChangeCold>),
     /// `change_hot` carrying `Box<ChangeHot>`.
     ChangeHot(Box<ChangeHot>),
+    /// `milestone` carrying `MilestoneRow`.
+    Milestone(MilestoneRow),
 }
 
 impl Value {
@@ -27858,6 +29911,7 @@ impl Value {
             Self::RedPass(record) => RedPass::check(record, limits),
             Self::ChangeCold(record) => ChangeCold::check(record, limits),
             Self::ChangeHot(record) => ChangeHot::check(record, limits),
+            Self::Milestone(record) => MilestoneRow::check(record, limits),
             Self::Ci(_) | Self::Landed(_) | Self::Writer(_) | Self::Flight(_) | Self::ForgeNumber(_) | Self::Playground(_) | Self::Dismissed(_) | Self::Looked(_) | Self::Away(_) | Self::HistoryChange(_) | Self::HistoryLanding(_) | Self::HistoryLast(_) | Self::RedNumber(_) => Ok(()),
         }?;
         Ok(())
@@ -32828,7 +34882,7 @@ impl ReachKind {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Wording | Self::Retry | Self::Implementation | Self::Tests | Self::Dependency | Self::Departure | Self::Money | Self::Irreversible | Self::Rules | Self::Other => 1,
+            Self::Wording | Self::Retry | Self::Implementation | Self::Tests | Self::Dependency | Self::Departure | Self::Money | Self::Irreversible | Self::Rules | Self::Other | Self::Findings => 1,
         }
     }
 
@@ -32845,6 +34899,7 @@ impl ReachKind {
             Self::Irreversible => writer.put(&[7_u8])?,
             Self::Rules => writer.put(&[8_u8])?,
             Self::Other => writer.put(&[9_u8])?,
+            Self::Findings => writer.put(&[10_u8])?,
         }
         Ok(())
     }
@@ -32869,6 +34924,7 @@ impl ReachKind {
             7 => Self::Irreversible,
             8 => Self::Rules,
             9 => Self::Other,
+            10 => Self::Findings,
             _ => return Err(Problem { path: Path::ReachKindTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -44856,6 +46912,198 @@ impl LoggedLanding {
     }
 }
 
+impl MilestoneLanding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_goal = &self.goal;
+        writer.put(&field_goal.to_be_bytes())?;
+        let field_change = &self.change;
+        writer.put(&field_change.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneLandingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::MilestoneLandingAt, reason: skein_codec::Reason::Short })?;
+        let decoded_goal = reader.u64().ok_or(Problem { path: Path::MilestoneLandingGoal, reason: skein_codec::Reason::Short })?;
+        let decoded_change = reader.u64().ok_or(Problem { path: Path::MilestoneLandingChange, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at, goal: decoded_goal, change: decoded_change })
+    }
+}
+
+impl MilestoneOutcome {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Complete | Self::Ended | Self::Closed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Complete => writer.put(&[0_u8])?,
+            Self::Ended => writer.put(&[1_u8])?,
+            Self::Closed => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Complete,
+            1 => Self::Ended,
+            2 => Self::Closed,
+            _ => return Err(Problem { path: Path::MilestoneOutcomeTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl MilestoneEnd {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        let field_outcome = &self.outcome;
+        field_outcome.encode(writer)?;
+        let field_done = &self.done;
+        writer.put(&field_done.to_be_bytes())?;
+        let field_failed = &self.failed;
+        writer.put(&field_failed.to_be_bytes())?;
+        let field_closed = &self.closed;
+        writer.put(&field_closed.to_be_bytes())?;
+        let field_spent = &self.spent;
+        writer.put(&field_spent.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneEndTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::MilestoneEndAt, reason: skein_codec::Reason::Short })?;
+        let decoded_outcome = MilestoneOutcome::decode_from(limits, reader)?;
+        let decoded_done = reader.u32().ok_or(Problem { path: Path::MilestoneEndDone, reason: skein_codec::Reason::Short })?;
+        let decoded_failed = reader.u32().ok_or(Problem { path: Path::MilestoneEndFailed, reason: skein_codec::Reason::Short })?;
+        let decoded_closed = reader.u32().ok_or(Problem { path: Path::MilestoneEndClosed, reason: skein_codec::Reason::Short })?;
+        let decoded_spent = reader.u64().ok_or(Problem { path: Path::MilestoneEndSpent, reason: skein_codec::Reason::Short })?;
+        Ok(Self { at: decoded_at, outcome: decoded_outcome, done: decoded_done, failed: decoded_failed, closed: decoded_closed, spent: decoded_spent })
+    }
+}
+
+impl MilestoneRow {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_last_landing = &self.last_landing;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_last_landing.is_some() {
+        size = size.checked_add(24).expect("schema ceilings fit u32");
+        }
+        let field_ended = &self.ended;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_ended.is_some() {
+        size = size.checked_add(29).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        let field_last_landing = &self.last_landing;
+        match field_last_landing {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_ended = &self.ended;
+        match field_ended {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::MilestoneRowTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::MilestoneRowProject, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::MilestoneRowTask, reason: skein_codec::Reason::Short })?;
+        let decoded_name = { let length = match skein_codec::read_len(reader, limits.milestone_row_name.min(CEILINGS.milestone_row_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MilestoneRowName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MilestoneRowName, reason: skein_codec::Reason::Short })?) };
+        let decoded_last_landing = match reader.u8().ok_or(Problem { path: Path::MilestoneRowLastLanding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(MilestoneLanding::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::MilestoneRowLastLanding, reason: skein_codec::Reason::Tag }) };
+        let decoded_ended = match reader.u8().ok_or(Problem { path: Path::MilestoneRowEnded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(MilestoneEnd::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::MilestoneRowEnded, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, task: decoded_task, name: decoded_name, last_landing: decoded_last_landing, ended: decoded_ended })
+    }
+}
+
 impl LandingLog {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -49220,6 +51468,11 @@ impl ChangeCold {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_milestone = &self.milestone;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_milestone.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         let field_source = &self.source;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_source {
@@ -49286,6 +51539,53 @@ impl ChangeCold {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        Self::encode_0(self, writer)?;
+        Self::encode_1(self, writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ChangeColdTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_milestone = match reader.u8().ok_or(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdMilestone, reason: skein_codec::Reason::Tag }) };
+        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeSource::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Tag }) };
+        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Tag }) };
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeColdTask, reason: skein_codec::Reason::Short })?;
+        let decoded_repository = Repository::decode_from(limits, reader)?;
+        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.change_cold_branch.min(CEILINGS.change_cold_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Short })?) };
+        let decoded_base = { let length = match skein_codec::read_len(reader, limits.change_cold_base.min(CEILINGS.change_cold_base)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBase, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Short })?) };
+        let decoded_title = { let length = match skein_codec::read_len(reader, limits.change_cold_title.min(CEILINGS.change_cold_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Short })?) };
+        let decoded_body = { let length = match skein_codec::read_len(reader, limits.change_cold_body.min(CEILINGS.change_cold_body)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBody, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Short })?) };
+        let decoded_base_repair = match reader.u8().ok_or(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Bool }) };
+        let decoded_producing_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdProducingCharter, reason: skein_codec::Reason::Short })?;
+        let decoded_review_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdReviewCharter, reason: skein_codec::Reason::Short })?;
+        let decoded_producing_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Tag }) };
+        let decoded_review_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Tag }) };
+        let decoded_report = { let length = match skein_codec::read_len(reader, limits.change_cold_report.min(CEILINGS.change_cold_report)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdReport, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Short })?) };
+        let decoded_repairs = match reader.u8().ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Tag }) };
+        let decoded_follows = match reader.u8().ok_or(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeFollows::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Tag }) };
+        let decoded_catch_up = match reader.u8().ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Tag }) };
+        let decoded_close = match reader.u8().ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_cold_close_some.min(CEILINGS.change_cold_close_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdClose, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { milestone: decoded_milestone, source: decoded_source, goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
+    }
+}
+
+
+impl ChangeCold {
+    fn encode_0(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_milestone = &self.milestone;
+        match field_milestone {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_source = &self.source;
         match field_source {
             Some(some_0) => {
@@ -49351,6 +51651,12 @@ impl ChangeCold {
             }
             None => writer.put(&[0_u8])?,
         }
+        Ok(())
+    }
+}
+
+impl ChangeCold {
+    fn encode_1(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_follows = &self.follows;
         match field_follows {
             Some(some_0) => {
@@ -49378,37 +51684,7 @@ impl ChangeCold {
         }
         Ok(())
     }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ChangeColdTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeSource::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdSource, reason: skein_codec::Reason::Tag }) };
-        let decoded_goal = match reader.u8().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeColdGoal, reason: skein_codec::Reason::Tag }) };
-        let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeColdTask, reason: skein_codec::Reason::Short })?;
-        let decoded_repository = Repository::decode_from(limits, reader)?;
-        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.change_cold_branch.min(CEILINGS.change_cold_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBranch, reason: skein_codec::Reason::Short })?) };
-        let decoded_base = { let length = match skein_codec::read_len(reader, limits.change_cold_base.min(CEILINGS.change_cold_base)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBase, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBase, reason: skein_codec::Reason::Short })?) };
-        let decoded_title = { let length = match skein_codec::read_len(reader, limits.change_cold_title.min(CEILINGS.change_cold_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdTitle, reason: skein_codec::Reason::Short })?) };
-        let decoded_body = { let length = match skein_codec::read_len(reader, limits.change_cold_body.min(CEILINGS.change_cold_body)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdBody, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdBody, reason: skein_codec::Reason::Short })?) };
-        let decoded_base_repair = match reader.u8().ok_or(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeColdBaseRepair, reason: skein_codec::Reason::Bool }) };
-        let decoded_producing_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdProducingCharter, reason: skein_codec::Reason::Short })?;
-        let decoded_review_charter = reader.u32().ok_or(Problem { path: Path::ChangeColdReviewCharter, reason: skein_codec::Reason::Short })?;
-        let decoded_producing_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdProducingLlm, reason: skein_codec::Reason::Tag }) };
-        let decoded_review_llm = match reader.u8().ok_or(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LlmChoice::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdReviewLlm, reason: skein_codec::Reason::Tag }) };
-        let decoded_report = { let length = match skein_codec::read_len(reader, limits.change_cold_report.min(CEILINGS.change_cold_report)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdReport, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdReport, reason: skein_codec::Reason::Short })?) };
-        let decoded_repairs = match reader.u8().ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdRepairs, reason: skein_codec::Reason::Tag }) };
-        let decoded_follows = match reader.u8().ok_or(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeFollows::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeColdFollows, reason: skein_codec::Reason::Tag }) };
-        let decoded_catch_up = match reader.u8().ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeColdCatchUp, reason: skein_codec::Reason::Tag }) };
-        let decoded_close = match reader.u8().ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.change_cold_close_some.min(CEILINGS.change_cold_close_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ChangeColdClose, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::ChangeColdClose, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { source: decoded_source, goal: decoded_goal, task: decoded_task, repository: decoded_repository, branch: decoded_branch, base: decoded_base, title: decoded_title, body: decoded_body, base_repair: decoded_base_repair, producing_charter: decoded_producing_charter, review_charter: decoded_review_charter, producing_llm: decoded_producing_llm, review_llm: decoded_review_llm, report: decoded_report, repairs: decoded_repairs, follows: decoded_follows, catch_up: decoded_catch_up, close: decoded_close })
-    }
 }
-
 impl ChangeHot {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -51677,6 +53953,7 @@ impl Value {
             Self::RedPass(record) => 1_u32.checked_add(RedPass::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeCold(record) => 1_u32.checked_add(ChangeCold::measure(record)).expect("schema ceilings fit u32"),
             Self::ChangeHot(record) => 1_u32.checked_add(ChangeHot::measure(record)).expect("schema ceilings fit u32"),
+            Self::Milestone(record) => 1_u32.checked_add(MilestoneRow::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -51731,6 +54008,7 @@ impl Value {
             Self::RedPass(record) => { writer.put(&[45_u8])?; record.encode(writer)?; }
             Self::ChangeCold(record) => { writer.put(&[46_u8])?; record.encode(writer)?; }
             Self::ChangeHot(record) => { writer.put(&[47_u8])?; record.encode(writer)?; }
+            Self::Milestone(record) => { writer.put(&[48_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -51793,6 +54071,7 @@ impl Value {
             45 => Self::RedPass(RedPass::decode_from(limits, reader)?),
             46 => Self::ChangeCold(Box::new(ChangeCold::decode_from(limits, reader)?)),
             47 => Self::ChangeHot(Box::new(ChangeHot::decode_from(limits, reader)?)),
+            48 => Self::Milestone(MilestoneRow::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ValueTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -62965,6 +65244,126 @@ impl LoggedLanding {
     }
 }
 
+impl MilestoneLanding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl MilestoneOutcome {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl MilestoneEnd {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(MilestoneOutcome::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(MilestoneOutcome::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl MilestoneRow {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.milestone_row_name))?)?.checked_add(1_u64.checked_add(MilestoneLanding::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(MilestoneEnd::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.milestone_row_name))?.checked_add(MilestoneLanding::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(MilestoneEnd::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 impl LandingLog {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -65657,15 +68056,16 @@ impl ChangeCold {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(ChangeSource::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(8_u64)?.checked_add(Repository::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?;
-        size = size.checked_add(1_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(ChangeSource::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_branch))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_base))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_cold_title))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_body))?)?.checked_add(1_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(LlmChoice::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_cold_report))?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeFollows::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.change_cold_close_some))?)?)?;
         size.checked_add(0)
     }
 
@@ -65678,15 +68078,16 @@ impl ChangeCold {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(ChangeSource::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Repository::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.change_cold_branch))?.checked_add(u64::from(limits.change_cold_base))?;
-        heap = heap.checked_add(u64::from(limits.change_cold_title))?.checked_add(u64::from(limits.change_cold_body))?;
+        heap = heap.checked_add(0_u64)?.checked_add(ChangeSource::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_report))?;
-        heap = heap.checked_add(0_u64)?.checked_add(ChangeFollows::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.change_cold_close_some))?;
+        heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.change_cold_branch))?;
+        heap = heap.checked_add(u64::from(limits.change_cold_base))?.checked_add(u64::from(limits.change_cold_title))?;
+        heap = heap.checked_add(u64::from(limits.change_cold_body))?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(LlmChoice::decoded_bound_within(limits)?)?.checked_add(LlmChoice::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.change_cold_report))?.checked_add(0_u64)?;
+        heap = heap.checked_add(ChangeFollows::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.change_cold_close_some))?;
         heap.checked_add(0)
     }
 }
@@ -67021,6 +69422,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::encoded_bound_within(limits)?).max(Red::encoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::encoded_bound_within(limits)?).max(RedPass::encoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::encoded_bound_within(limits)?).max(ChangeHot::encoded_bound_within(limits)?);
+        biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -67057,6 +69459,7 @@ impl Value {
         biggest = biggest.max(HistoryLast::decoded_bound_within(limits)?).max(Red::decoded_bound_within(limits)?);
         biggest = biggest.max(RedNumber::decoded_bound_within(limits)?).max(RedPass::decoded_bound_within(limits)?);
         biggest = biggest.max(ChangeCold::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeCold>()).ok()?)?).max(ChangeHot::decoded_bound_within(limits)?.checked_add(u64::try_from(size_of::<ChangeHot>()).ok()?)?);
+        biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -67499,6 +69902,10 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dismissed::encoded_bound_within(limits)?);
     biggest = biggest.max(LoggedChange::encoded_bound_within(limits)?);
     biggest = biggest.max(LoggedLanding::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneLanding::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneOutcome::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneEnd::encoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneRow::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingLog::encoded_bound_within(limits)?);
     biggest = biggest.max(StatusBrief::encoded_bound_within(limits)?);
     biggest = biggest.max(StatusRunning::encoded_bound_within(limits)?);
@@ -67566,14 +69973,14 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateEnded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProved::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistorySearched::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProbeEnded::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryTurn::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryRecordedState::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistorySearched::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryProbeEnded::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryTurn::encoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryRecordedState::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryRecorded::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnding::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnded::encoded_bound_within(limits)?);
@@ -68053,6 +70460,10 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Dismissed::decoded_bound_within(limits)?);
     biggest = biggest.max(LoggedChange::decoded_bound_within(limits)?);
     biggest = biggest.max(LoggedLanding::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneLanding::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneOutcome::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneEnd::decoded_bound_within(limits)?);
+    biggest = biggest.max(MilestoneRow::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingLog::decoded_bound_within(limits)?);
     biggest = biggest.max(StatusBrief::decoded_bound_within(limits)?);
     biggest = biggest.max(StatusRunning::decoded_bound_within(limits)?);
@@ -68120,14 +70531,14 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryGateEnded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProof::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryProved::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistorySearched::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryProbeEnded::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryTurn::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryRecordedState::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistorySearched::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryProbeEnded::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryTurn::decoded_bound_within(limits)?);
+    biggest = biggest.max(HistoryRecordedState::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryRecorded::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnding::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryEnded::decoded_bound_within(limits)?);

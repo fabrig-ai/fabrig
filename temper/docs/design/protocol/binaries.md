@@ -133,12 +133,6 @@ default; the document is `temper.json` in the configuration directory
     left without its outcome is printed as the drained engine ends, one
     line each, and the exit is still 0:
     `temper-box serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
-  - A start refused because its patches would reshape a write in flight
-    (jig's `protocol/store/opening.md`, 3, `InFlight`) prints jig's words,
-    then a line for each write its keys name, from temper's `Flight`
-    key, at most 64, then how many more, and exits 1:
-    `temper-box serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
-    `temper-box serve: and {n} more forge writes in flight`.
   - A start refused at a step of its restart (jig's `domain/engine/restart.md`
     ; `../domain/root.md`, 8.1), which only a store that does
     not decode, a live set past the limits or a link that cannot be
@@ -200,7 +194,7 @@ default; the document is `temper.json` in the configuration directory
   Their rows, and run as `claude`'s, are `temper-agent-shell`'s
   constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line
-  each: every owner's patch level (0 at the baseline, `baseline.md`), its
+  each: every owner's explicit level (`floor.md`, 3), its
   families' and the store's versions, and its wires, as jig's store
   keeps them (jig's `protocol/store/records.md`, 3). It reads no
   configuration and no store. Its row and its lines are
@@ -209,31 +203,31 @@ default; the document is `temper.json` in the configuration directory
   `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
   data directory or a copy of one such as last night's backup, which it
   never writes: it works in a scratch copy under the cache directory,
-  with the configuration `temper-box serve` would read; the open patches
-  and checks as a start would, restores, and stops before its switch
-  step. Before its plan it decodes every record of every kept family
-  by its version's kept text, patched or not (jig's
+  with the configuration `temper-box serve` would read; the open
+  registers layouts, runs jobs and checks as a start would, restores,
+  and stops before its switch step. After the floor check and before
+  its plan it decodes every record by its registry layout, or by the
+  current text for a family outside the registry (jig's
   `protocol/store/opening.md`, 5, "Every record decoded"); the first
   that does not decode is printed, `record not decodable: {family}
   {version}, {map} key {hex}` (a frame: `{family} {version},
   transcript {name} at {offset}`), and the rehearsal ends there, exit
-  1; else `decoded {records} records`. It prints a line per patch with
-  its counts and time, a line per job as a start's (below) with its
-  time after its counts, the time
-  of the whole, and the refusal a start would meet, in a start's words,
-  or that the patches and the restores pass, saying that what follows
-  the switch is not rehearsed; then whether each worker may stay, by
-  the opening the copy keeps of it, and whether the workers may: yes
-  when every worker the configuration names may and no pending patch
-  is marked fresh, no naming each that may not and why, unknown when
+  1; else `decoded {records} records`. It prints a line per `Event::Ran`
+  job as a start's (below), ending `; time unavailable`, and the
+  `whole rehearsal/tool time: {nanoseconds} ns`. It prints the refusal
+  a start would meet, in a start's words, or `registry commit, jobs and
+  restores pass; what follows the switch is not rehearsed`; then
+  whether each worker may stay, by the opening the copy keeps of it,
+  and whether the workers may: yes when every worker the configuration
+  names may, no naming each that may not and why, unknown when
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
-  patches and restores pass, 1 when a start would be refused there.
+  registry commit, jobs and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --back`:** makes the previous generation active
-  again (jig's `protocol/store/opening.md`, 5), for a binary that patched and
+  again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
   failed before its first commit of its own: the deployment stopped,
   and the old binary started after it. Refused, changing nothing, once
-  the patched generation has committed, with no previous generation, or
+  the upgraded generation has committed, with no previous generation, or
   while a process holds the deployment, each in words that say so; past
   the first commit, going back is restoring a backup
   (`../draft/upgrades.md`, 3.2).
@@ -243,16 +237,15 @@ default; the document is `temper.json` in the configuration directory
   and `--remove NAME` removes it (`checkpoints.md`, 2). While the engine
   serves, an owner takes one with `temper ctl DIR deployment checkpoint`
   (`checkpoints.md`, 3).
-- **A start that patches** prints a line per patch as it ends:
-  `temper-box serve: patched {owner} {patch}: {records} records in {commits} commits`.
-  A start that runs a job at open prints a line per job as it ends,
+- **A start that runs a job at open** prints a line per `Event::Ran`
+  job as it ends,
   `temper-box serve: ran {owner} {job}: {rows} rows in {commits} commits`,
   and, for a job that counts (jig's `protocol/store/jobs.md`, 3), `; `
   then each of its counts as `{name} {count}`, joined by `, `, in the
   job's order, zeros included:
   `temper-box serve: ran temper deleted-repository-forge-rows: 812 rows in 2 commits; dropped 5, BranchHead 1, PullState 2, Ci 0, Client 0, Receipt 2, Tier 0, Verification 0, LandingLog 0, Application 0, Names 0`
   (`store.md`, 4). `upgrade --check`'s line is the same with `upgrade`
-  for `serve`, then `; ` and its time.
+  for `serve`, then `; time unavailable`.
 - **`temper-box program-login NAME`:** a program's login for
   the program source NAME, on this host: it checks the document and the
   agent's configuration, makes the source's configuration directory, and
@@ -313,7 +306,7 @@ temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine o
 temper-box program-login NAME              run by hand on a host, replaced by the program's sign-in
 temper-box versions                        prints this binary's levels, versions and wires
 temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
-temper-box upgrade --back                  makes the previous generation active again, before the patched one's first commit
+temper-box upgrade --back                  makes the previous generation active again, before the upgraded one's first commit
 temper-box checkpoint                      takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
 ```
 
@@ -408,9 +401,9 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **`versions`** prints, one line each, in this order, and exits 0,
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
-    binary's patch level of each (jig's `protocol/store/opening.md`, 5,
-    `levels`), from the sets it hands its store (`baseline.md`, 4): 0 at
-    the baseline, then its owner's count of landed patches;
+    binary's `OwnerSet.level` of each (jig's `protocol/store/opening.md`, 3),
+    from the sets it hands its store (`floor.md`, 3): skein 0, smith 0,
+    jig 6 and temper 14;
   - `store VERSION`, jig's store's component version, then `family
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`

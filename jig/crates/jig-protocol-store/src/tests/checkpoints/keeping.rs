@@ -202,13 +202,11 @@ fn checkpoint_open_preserves_transcript_tails_and_strays_instead_of_running_star
 
 #[test]
 fn checkpoint_open_refuses_a_first_start_and_a_pending_job_before_writing() {
-    const BASE: crate::PatchSet = crate::PatchSet {
+    const BASE: crate::OwnerSet = crate::OwnerSet {
         owner: crate::Owner::Application,
         name: "fixture",
         level: Some(0),
         families: &[crate::STORE_FAMILIES[0]],
-        patches: &[],
-        fresh: None,
         jobs: &[],
     };
     let mut disk = Disk::new(&[]);
@@ -228,20 +226,19 @@ fn checkpoint_open_refuses_a_first_start_and_a_pending_job_before_writing() {
     assert_eq!(disk.contents(), before);
     disk.crash(1);
     let mut store = disk.store();
-    store.patch_sets(crate::PatchSets { sets: &[BASE] });
+    store.owner_sets(crate::OwnerSets { sets: &[BASE] });
     disk.open(&mut store);
     disk.request(&mut store, fixtures::commit(1, Box::new([fixtures::header(1)])));
     disk.crash(2);
     let before = disk.contents();
     let root = disk.root();
     let mut stopped = disk.store();
-    stopped.patch_sets(crate::PatchSets {
-        sets: &[crate::PatchSet {
+    stopped.owner_sets(crate::OwnerSets {
+        sets: &[crate::OwnerSet {
             jobs: &[crate::Job {
                 name: "pending",
                 keys: &[crate::KeyRange { from: &[0, 1], to: &[0, 2] }],
                 converts: None,
-                settles: false,
                 counts: &[],
             }],
             ..BASE

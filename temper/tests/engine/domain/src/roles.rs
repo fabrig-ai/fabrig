@@ -582,6 +582,7 @@ impl World {
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)
                 | engine::Request::Store(engine::StoreRequest::Checkpoint { .. })
+                | engine::Request::Restarting { .. }
                 | engine::Request::Drained) => panic!("unexpected role output {other:?}"),
             }
         }

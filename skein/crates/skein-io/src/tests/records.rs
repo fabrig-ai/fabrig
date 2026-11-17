@@ -105,7 +105,12 @@ fn entity_requests() -> [Request; 6] {
         Request::Reject { socket: entity },
         Request::Stream { stream: entity, down: stream::Down::Demand { read: stream::Read::Fill(2), room: 3 } },
         Request::Output { stream: entity, down: stream::OutputDown::Room { right: Token::new(5), bytes: 8 } },
-        Request::Signal { child: entity, signal: crate::kernel::Signal::Terminate, to: crate::kernel::Target::Group },
+        Request::Signal {
+            child: entity,
+            signal: crate::kernel::Signal::Terminate,
+            to: crate::kernel::Target::Group,
+            reason: crate::kernel::Reason::Unknown,
+        },
         Request::Close { entity },
         Request::Abort { entity },
     ]

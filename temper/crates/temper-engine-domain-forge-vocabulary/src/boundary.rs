@@ -1036,6 +1036,7 @@ pub struct ChangeRow {
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
+    pub milestone: Option<u64>,
     pub ending: Option<Ending>,
     /// Whole-life delegate account; a release resets retry counts alone.
     pub repair_tasks: Box<[u64]>,
@@ -1106,6 +1107,7 @@ pub struct ChangeCold {
     pub branch: Box<[u8]>,
     pub base: Box<[u8]>,
     pub goal: Option<u64>,
+    pub milestone: Option<u64>,
     pub base_repair: bool,
     pub producing_charter: u32,
     pub review_charter: u32,
@@ -1154,6 +1156,7 @@ pub struct ChangeHot {
 impl ChangeRow {
     /// Place every field in its store part.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each field is moved explicitly into its cold or hot store part")]
     pub fn split(self) -> (ChangeCold, ChangeHot) {
         let Self {
             source,
@@ -1162,6 +1165,7 @@ impl ChangeRow {
             job,
             signed,
             goal,
+            milestone,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1210,6 +1214,7 @@ impl ChangeRow {
                 branch,
                 base,
                 goal,
+                milestone,
                 base_repair,
                 producing_charter,
                 review_charter,
@@ -1265,6 +1270,7 @@ impl ChangeRow {
             branch,
             base,
             goal,
+            milestone,
             base_repair,
             producing_charter,
             review_charter,
@@ -1316,6 +1322,7 @@ impl ChangeRow {
             job,
             signed,
             goal,
+            milestone,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1493,6 +1500,7 @@ pub enum Operation {
     Delete,
     Record,
 }
+/// A step's hearing, with no preparation at start (temper/docs/design/domain/landing-preparing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
     pub job: Option<crate::history::JobStep>,
@@ -1500,7 +1508,7 @@ pub struct LandingHeard {
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
-    pub preparation: landing::Preparation,
+    pub preparation: Option<landing::Preparation>,
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
     pub released: bool,
@@ -1706,6 +1714,7 @@ pub enum Stored {
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
+    Milestone(crate::MilestoneRow),
     Making(crate::RepositoryMaking),
     /// A person's dismissals (temper/docs/design/domain/forge/attention.md, 1).
     Dismissed {
@@ -1788,6 +1797,7 @@ pub enum Key {
     RedPass { change: u64, key: Box<[u8]> },
     ChangeCold(u64),
     ChangeHot(u64),
+    Milestone(u64),
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -2294,6 +2304,10 @@ pub enum Event {
         row: IssueRow,
         entry: skein_forge_client::Entry,
     },
+    /// A milestone's identity and end from the tracked-task projection (domain/milestones.md, 8).
+    Milestone {
+        row: crate::MilestoneRow,
+    },
     /// Describe the next write for a goal projection.
     Project {
         entry: u64,
@@ -2619,6 +2633,7 @@ pub enum Request {
     /// Make Home's brief task (temper/docs/design/domain/forge/attention.md, 3).
     StatusRun {
         project: u32,
+        since: skein_lib::Wall,
         words: Box<[u8]>,
         findings: Box<[u8]>,
         signers: Box<[u64]>,

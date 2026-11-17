@@ -12,7 +12,7 @@ use std::{
     time::Duration,
 };
 
-pub const WATCH: Duration = Duration::from_secs(5);
+pub const WATCH: Duration = Duration::from_secs(60);
 const START: Duration = Duration::from_mins(5);
 const STOP: Duration = Duration::from_secs(70);
 const TICK: Duration = Duration::from_millis(10);
@@ -45,7 +45,10 @@ impl Drive {
             let number = ledger.pass_command_session(session)?.pass.expect("pass session");
             let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass");
             let place = home.configuration.place_directory(&home.directory, &pass.place)?;
-            let mut paths = PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?);
+            let mut paths = PlacePaths::new(
+                &std::path::absolute(place).map_err(io_refusal)?,
+                home.configuration.place_kind(&pass.place),
+            );
             paths.ports = home.configuration.ports.get(&pass.place).cloned();
             Ok(Self {
                 ctl: false,
@@ -73,18 +76,17 @@ impl Drive {
         command
     }
 
-    fn session_command(&self, scripts: &[PathBuf]) -> Command {
+    fn session_command(&self, chain: Option<&crate::kind::Chain>) -> Command {
         let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
-        command
-            .arg("drive")
-            .arg("--bin")
-            .arg(&self.place.bin)
-            .arg("--bundle")
-            .arg(&self.place.bundle)
-            .arg("--scratch")
-            .arg(&self.place.scratch);
-        for script in scripts {
-            command.arg("--scripts").arg(script);
+        command.arg("drive");
+        command.args(self.place.kind.drive_arguments(chain.map(|chain| chain.root.as_path())));
+        command.arg("--bin").arg(&self.place.bin);
+        command.arg("--bundle").arg(&self.place.bundle);
+        command.arg("--scratch").arg(&self.place.scratch);
+        if let Some(chain) = chain {
+            for script in chain.members.iter().filter_map(|member| member.scripts.as_ref()) {
+                command.arg("--scripts").arg(script);
+            }
         }
         command.arg("--strict").arg("--files").arg(&self.files);
         if let Some(ports) = &self.place.ports {
@@ -175,9 +177,11 @@ impl Drive {
     }
     pub fn close(&self) -> Result<Reply, Refusal> {
         let mut reply = self.request("end", None)?;
-        // The response precedes socket removal and lock release. Do not report a free place early.
+        // The response precedes socket removal and lock release. Do not report a free place early, and
+        // hold the lock no longer than it takes to see it released, so the place frees at once.
         let lock = self.lock()?;
         lock.lock().map_err(|why| refused(format!("drive.lock: {why}")))?;
+        drop(lock);
         let lines = match fs::read_to_string(self.place.scratch.join("session/lines")) {
             Ok(lines) => lines,
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -200,7 +204,7 @@ impl Drive {
         exchange(stream, request, bound, &skein_shell::Clock::new())
     }
 
-    fn scripts(&self) -> Result<Vec<PathBuf>, Refusal> {
+    fn scripts(&self) -> Result<Option<crate::kind::Chain>, Refusal> {
         let setup = fs::read_to_string(&self.place.setup).map_err(|why| {
             if why.kind() == std::io::ErrorKind::NotFound {
                 refused(format!(
@@ -213,7 +217,8 @@ impl Drive {
         })?;
         let words: Vec<_> = setup.split_whitespace().collect();
         if words == ["fresh"] {
-            return Ok(Vec::new());
+            self.place.kind.check_fresh()?;
+            return Ok(None);
         }
         let [name, hash] = words.as_slice() else {
             return Err(refused("setup: expected NAME HASH or fresh"));
@@ -224,56 +229,46 @@ impl Drive {
         {
             return Err(refused("setup: expected NAME HASH or fresh"));
         }
-        let mut name = (*name).to_owned();
-        let mut visited = Vec::new();
-        let mut scripts = Vec::new();
-        loop {
-            let fail = |why| refused(format!("recipe {name}: {why}"));
-            visited.push(name.clone());
-            let directory = self.setups.join(&name);
-            let recipe = fs::read_to_string(directory.join("recipe")).map_err(|why| fail(why.to_string()))?;
-            if recipe.len() > 64 * 1024 || recipe.lines().count() > 1024 {
-                return Err(fail("recipe exceeds its size or line bound".into()));
-            }
-            let mut lines = recipe.lines();
-            if lines.next() != Some("recipe 1") {
-                return Err(fail("expected recipe 1".into()));
-            }
-            let script = directory.join("scripts.json");
-            match fs::metadata(&script) {
-                Ok(metadata) if metadata.is_file() => {
-                    File::open(&script).map_err(|why| fail(why.to_string()))?;
-                    scripts.push(script);
-                }
-                Ok(_) => return Err(fail("scripts.json is not a file".into())),
-                Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
-                Err(why) => return Err(fail(why.to_string())),
-            }
-            let Some(second) = lines.next() else {
-                return Err(fail("no closing check".into()));
-            };
-            if second == "after" || second.starts_with("after\t") {
-                return Err(fail("invalid after record".into()));
-            }
-            let Some(after) = second.strip_prefix("after ") else {
-                break;
-            };
-            let parent = after.strip_prefix('"').and_then(|value| value.strip_suffix('"')).unwrap_or(after);
-            if !recipe_name(parent) {
-                return Err(fail("invalid after recipe name".into()));
-            }
-            if visited.iter().any(|name| name == parent) {
-                return Err(fail("cycle in after chain".into()));
-            }
-            if visited.len() == 9 {
-                return Err(fail("more than eight parents".into()));
-            }
-            name = parent.into();
-        }
-        scripts.reverse();
-        Ok(scripts)
+        crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Holder).map(Some)
     }
 }
+/// Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,
+/// and wake it again only after the holder releases the place's lock.
+pub(crate) fn end_from_loop(place: PathBuf, waker: crate::events::Waker) {
+    // Capture this holder's connection before the loop may reuse the place.
+    // A delayed connect could reach a later pass's holder at the same path.
+    let mut stream = match UnixStream::connect(place.join("drive.sock")) {
+        Ok(stream) => stream,
+        Err(why) if matches!(why.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => {
+            return;
+        }
+        Err(why) => {
+            eprintln!("temper-qa: end holder: {why}");
+            return;
+        }
+    };
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
+    )]
+    std::thread::spawn(move || {
+        let mut end = || -> Result<(), Refusal> {
+            stream.set_write_timeout(Some(STOP)).map_err(io_refusal)?;
+            stream.set_read_timeout(Some(STOP)).map_err(io_refusal)?;
+            stream.write_all(b"end\n").map_err(io_refusal)?;
+            let mut answer = Vec::new();
+            stream.read_to_end(&mut answer).map_err(io_refusal)?;
+            let lock = File::open(place.join("drive.lock")).map_err(io_refusal)?;
+            lock.lock().map_err(io_refusal)?;
+            Ok(())
+        };
+        if let Err(why) = end() {
+            eprintln!("temper-qa: end holder: {why}");
+        }
+        waker.poke();
+    });
+}
+
 fn recipe_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64

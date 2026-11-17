@@ -190,6 +190,43 @@ fn a_merge_during_release_is_still_logged() {
     assert!(d.verifications.is_empty());
 }
 
+#[test]
+fn a_default_branch_merge_keeps_only_a_newer_milestone_landing() {
+    let mut d = configured_domain(&[]);
+    let milestone =
+        MilestoneRow { project: 5, task: 40, name: b"Store shape".as_slice().into(), last_landing: None, ended: None };
+    step(&mut d, &env(), Event::Milestone { row: milestone }, &mut Queue::uncapped());
+    add_change(&mut d, CHANGE, b"main");
+    let row = d.changes.get_mut(&CHANGE).unwrap();
+    row.goal = Some(42);
+    row.milestone = Some(40);
+    let out = merged(&mut d, CHANGE, FIRST);
+    let expected = MilestoneLanding { at: env().wall, goal: 42, change: CHANGE };
+    assert_eq!(d.milestone(40).unwrap().last_landing, Some(expected.clone()));
+    let mut saved = false;
+    for request in &out {
+        if let Request::Save { record: Stored::Milestone(row), .. } = request {
+            saved |= row.last_landing == Some(expected.clone());
+        }
+    }
+    assert!(saved);
+    add_change(&mut d, SECOND, b"main");
+    let row = d.changes.get_mut(&SECOND).unwrap();
+    row.goal = Some(43);
+    row.milestone = Some(40);
+    let mut older = env();
+    older.wall = Wall::EPOCH;
+    outcome_facts(
+        &mut d,
+        &older,
+        OPEN,
+        SECOND,
+        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged([9; 32]), found: false },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(d.milestone(40).unwrap().last_landing, Some(expected));
+}
+
 fn signed(d: &mut Domain, task: u64, signed: SignOff) -> Queue<Request> {
     let mut out = Queue::uncapped();
     step(d, &env(), Event::Signed { task, signed: Box::new([signed]) }, &mut out);

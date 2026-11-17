@@ -59,6 +59,10 @@ pub enum Observation {
     AgentContext { path: Box<[u8]>, answered: usize, window: u32 },
     /// The agent received a grant name and relative validity without its value.
     AgentGrant { account: u32, generation: u64, valid: skein_lib::Duration },
+    /// The host's renewal availability reached the domain.
+    AgentRenewals { held: bool },
+    /// An already installed generation reached the domain without another installation.
+    AgentGrantResent { account: u32, generation: u64 },
     /// A settled oversized answer survived Start translation.
     AgentSavedTooLarge,
     /// A saved host decision reached the domain vocabulary with its stable name.
@@ -467,6 +471,11 @@ impl Peer {
                     smith_domain::Event::HostReturned { relay, reply } => {
                         output.push(Observation::AgentHostReturned { relay, reply });
                     }
+                    smith_domain::Event::Renewals { held } => output.push(Observation::AgentRenewals { held }),
+                    smith_domain::Event::Grant { grant } => output.push(Observation::AgentGrantResent {
+                        account: grant.name.account,
+                        generation: grant.name.generation,
+                    }),
                     smith_domain::Event::Delivered { owner, delivery } => {
                         output.push(Observation::AgentDelivered { owner, delivery: Box::new(delivery) });
                     }
@@ -507,7 +516,7 @@ fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
         skip: 4096,
         output_bytes: largest.checked_add(8).expect("frame fits"),
         output_frames: 4,
-        kinds: 21,
+        kinds: 22,
     }
 }
 
@@ -1033,6 +1042,14 @@ impl World {
         if let Half::Host(host) = &mut self.host.half {
             host.send_acknowledge(turn, skein_lib::Token::new(29), &mut self.host.host_events, &mut self.host.below)
                 .expect("bounded acknowledgement");
+        }
+    }
+
+    /// Send the host's renewal availability to the agent half.
+    pub fn host_renewals(&mut self, held: bool) {
+        if let Half::Host(host) = &mut self.host.half {
+            host.send_renewals(held, skein_lib::Token::new(40), &mut self.host.host_events, &mut self.host.below)
+                .expect("renewals on a live channel");
         }
     }
 

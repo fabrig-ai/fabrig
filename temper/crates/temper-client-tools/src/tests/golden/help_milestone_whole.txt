@@ -1,0 +1,9 @@
+milestone whole TASK --key KEY
+  TASK (task): a number; required. The milestone's task number
+Say every goal is in the milestone
+Prints: `done: task N, whole`
+--json: the record milestone_whole.
+Key: --key KEY, required.
+Whole cannot be undone. A second call keeps the first conclusion.
+A task that is not a gathering, or has ended, is refused (exit 2).
+Pause, resume and close are task's, as for any task.

@@ -115,7 +115,7 @@ impl Store {
             &self.models,
             maps,
         );
-        component.patch_sets(self.sets);
+        component.owner_sets(self.sets);
         assert!(component.wires(self.wires));
         self.component = Some(component);
         let root = self.files.root();

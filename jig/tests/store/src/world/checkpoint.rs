@@ -1,4 +1,4 @@
-//! A pre-S7 deployment fixture, written through kv and io before jig opens it.
+//! Mixed transcript files, written through kv and io before jig opens the deployment.
 use super::{Restored, World, root};
 use jig_protocol_store::{Write, codec, keys, transcripts};
 use skein_fake_machine::Item;
@@ -8,32 +8,30 @@ impl World {
     /// Current history routing without registering unrelated layouts in a crash scene.
     #[must_use]
     pub fn history_world() -> Self {
-        const SETS: jig_protocol_store::PatchSets = jig_protocol_store::PatchSets {
-            sets: &[jig_protocol_store::PatchSet {
+        const SETS: jig_protocol_store::OwnerSets = jig_protocol_store::OwnerSets {
+            sets: &[jig_protocol_store::OwnerSet {
                 level: None,
-                patches: &[],
-                jobs: &[*jig_protocol_store::JIG_STORE_PATCH_SET.jobs.last().expect("task-logs is last")],
+                jobs: &[],
                 families: &[
                     jig_protocol_store::KeptFamily {
                         retired: &[],
                         types: &[],
-                        texts: &[],
+                        frames: None,
                         ..jig_protocol_store::STORE_FAMILIES[3]
                     },
                     jig_protocol_store::KeptFamily {
                         retired: &[],
                         types: &[],
-                        texts: &[],
                         ..jig_protocol_store::STORE_FAMILIES[4]
                     },
                 ],
-                ..jig_protocol_store::JIG_STORE_PATCH_SET
+                ..jig_protocol_store::JIG_STORE_SET
             }],
         };
         let mut limits = root::limits();
         limits.store.record = limits.store.page.bytes;
         let mut world = Self::unopened_observed(0, limits, None);
-        world.patch_sets(SETS);
+        world.owner_sets(SETS);
         assert_eq!(world.open(), Some(0));
         assert_eq!(world.commit(root::first()), Some(1));
         world
@@ -56,6 +54,17 @@ impl World {
             },
             skein_kv::Op::Put { key: Box::new([0, 3]), value: jig_protocol_store::format::layouts().encode() },
         ];
+        let floor = jig_protocol_store::component_v3::Floor::new(
+            &jig_protocol_store::component_v3::CEILINGS,
+            jig_protocol_store::component_v3::FloorParts { number: jig_protocol_store::FLOOR, build: Box::default() },
+        )
+        .expect("fixture floor");
+        let mut writer = skein_lib::Writer::new(usize::try_from(floor.measure()).expect("floor size"));
+        floor.encode(&mut writer).expect("floor bytes");
+        ops.push(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Floor, limits.store.key).expect("floor key"),
+            value: writer.finish(),
+        });
         for row in &rows {
             ops.push(skein_kv::Op::Put {
                 key: keys::encode(&row.key(), limits.store.key).expect("fixture key"),

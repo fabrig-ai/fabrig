@@ -201,6 +201,7 @@ fn owner_authority() -> AuthorityDocument {
 }
 fn task() -> Task {
     Task {
+        tasks_left: 0,
         concluded: None,
         talk: None,
         session: None,

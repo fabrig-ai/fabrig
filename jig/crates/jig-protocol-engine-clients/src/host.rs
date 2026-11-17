@@ -90,7 +90,6 @@ impl Bridge {
             | Event::Back { .. }
             | Event::BackRefused { .. }
             | Event::Closed { .. }
-            | Event::Patched { .. }
             | Event::Committed { .. }
             | Event::Failed { .. }
             | Event::FrameTooLarge { .. }

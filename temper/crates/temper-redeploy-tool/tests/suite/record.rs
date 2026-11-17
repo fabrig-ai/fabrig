@@ -12,6 +12,7 @@ fn the_record_round_trips_and_each_printed_line_replaces_the_whole_file() {
         "commit": "abcdef012345", "mode": "workers", "began": 123,
         "previous": [{"part": "engine", "commit": "0123456789ab"}],
         "graces": [{"worker": "w1", "grace_ms": 30000}],
+        "told": [{"worker": "w1", "wait_ms": 1_200_000}],
         "before": {"projects": [2], "cut": false, "tasks": [{"task": 3, "project": 2, "label": 2, "phase": "held", "held": "lost"}]},
         "lines": [], "check": {"code": 0, "lines": ["workers may stay: yes"]}, "backup": "a-backup",
         "window": {"from": 123, "to": 124, "worker": "w1"},

@@ -141,8 +141,10 @@ that proof remains with the after-landing runs (11).
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).
 
+
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
+
 
 - **Not yet:**
   4.2: temper-box-kit's ctl checks panic where they find, and the fake
@@ -159,5 +161,24 @@ that proof remains with the after-landing runs (11).
   4.2: the worker world's referee of turns panics on a changed replay or
   a turn gap, and the port chooser panics on a narrow range; their
   tests are `#[should_panic]`. [in flight: change 3251]
+
+- **Not yet:**
+  2.5: the template's paging story is still the one-process world's,
+  not `tests/client`'s. [in flight: change 5562]
+  2.5: a worker's opening with chosen wires is still checked in the
+  one-process world, not `temper-worker-service`'s tests.
+  [in flight: change 5561]
+  2.5: the stories past their 2 s aim share the world's start, ctl
+  calls and referee steps at costs not yet profiled.
+  [in flight: change 5568]
+  2.5: the `m15` and `github` stories and the renewal across versions
+  rescan what they kept at each checkpoint and step.
+  [in flight: change 5569]
+  2.5: the `copy`, `ready_copies` and `push` stories recheck each answer
+  at every step, and the restart mid-copy calibrates with a whole run.
+  [in flight: change 5570]
+  2.5: story A, the golden stories, the incident stories and the goal
+  across versions make what doesn't change more than once.
+  [in flight: change 5571]
 
 

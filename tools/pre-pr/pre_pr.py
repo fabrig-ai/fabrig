@@ -3,6 +3,7 @@
 The private snapshot leaves the caller's index alone; only exceeded counts need a
 base worktree. Every tool streams before the bounded, final verdict.
 """
+import contextlib
 import fnmatch
 import hashlib
 import json
@@ -132,17 +133,25 @@ def members(data):
     return {p['name']: p for p in data['packages'] if p['id'] in data['workspace_members']}
 
 
+def package_directories(packages):
+    return {Path(p['manifest_path']).parent.parts: name for name, p in packages.items()}
+
+
+def owner(path, directories):
+    """The longest leading run of whole path components (section 3), lexically."""
+    parts = path.parts
+    for length in range(len(parts), -1, -1):
+        name = directories.get(parts[:length])
+        if name is not None:
+            return name
+    return None
+
+
 def select(data, changed, always):
     """C, direct D and prefixed R, sorted by package name (section 3)."""
     packages = members(data)
-    directories = sorted(((Path(p['manifest_path']).parent, name) for name, p in packages.items()),
-                         key=lambda entry: len(entry[0].parts), reverse=True)
-    changed_packages = set()
-    for path in changed:
-        for directory, name in directories:
-            if path.is_relative_to(directory):
-                changed_packages.add(name)
-                break
+    directories = package_directories(packages)
+    changed_packages = {name for path in changed if (name := owner(path, directories)) is not None}
     tests = changed_packages.copy()
     for name, package in packages.items():
         if any(d.get('path') and d['name'] in changed_packages for d in package['dependencies']):
@@ -184,7 +193,7 @@ def documentation(path):
 
 def code_inputs(paths, data, root):
     """Use package ownership and the gate's declared readers (section 3)."""
-    directories = [Path(p['manifest_path']).parent for p in members(data).values()]
+    directories = package_directories(members(data))
     globs = lines(root, '.config/gate/read-by-tests.txt')
     registry = root / '.config/fixture-readers.toml'
     if registry.exists():
@@ -208,7 +217,7 @@ def code_inputs(paths, data, root):
                 or path == '.temper/pre-pr'
                 or (path.startswith('skein/scripts/') and path.endswith('.sh'))
                 or any(path.startswith(prefix) for prefix in prefixes)
-                or any((root / path).is_relative_to(directory) for directory in directories)
+                or owner(root / path, directories) is not None
                 or any(path in (f'{tree}/scripts/old_forms.py', f'{tree}/scripts/old-forms.txt')
                        for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')))):
             selected.append(path)
@@ -257,6 +266,17 @@ def citations(base_id, tree_id, root, env):
         error = failure(f'citations ({inherited_count} broken at base)', '')
         error['inherited'] = True
         errors.append(error)
+    return code, errors
+
+
+def outward(root, env):
+    """Key a name finding as the Rust test; tool errors are never inherited."""
+    code, log = run(['python3', '-I', '-B', 'tools/outward/outward.py'], root, env)
+    if code == 1:
+        errors = [failure('test fabrig-boundary::outward no_file_names_the_lab', log,
+                          ('fabrig-boundary::outward', 'no_file_names_the_lab'))]
+    else:
+        errors = [failure('check outward', log)] if code else []
     return code, errors
 
 
@@ -679,12 +699,9 @@ def failure_counts(errors):
 
 def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
     """Keep every structured failure atomically, before the summary (sections 6–7)."""
-    path = 'temper/pre-pr-failures.json'
+    relative = 'target/temper/pre-pr-failures.json'
+    path = root / relative
     try:
-        result = git(['rev-parse', '--git-path', path], root, env)
-        if result.returncode:
-            raise ValueError(result.stderr.decode(errors='replace'))
-        path = (root / os.fsdecode(result.stdout).strip()).resolve()
         entries = []
         for kind, group in zip(('new', 'flake', 'inherited'), failure_groups(errors)):
             for error in group:
@@ -706,11 +723,11 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env):
         temporary = path.with_name('pre-pr-failures.json.tmp')
         temporary.write_bytes(text.encode('utf-8', errors='backslashreplace'))
         temporary.replace(path)
-        return f'every key in {path}'
+        return f'every key in {relative}'
     except (OSError, ValueError) as error:
         message = str(error).split('\n', 1)[0].split('\r', 1)[0]
         message = message.encode('utf-8', errors='backslashreplace')[:512].decode('utf-8', errors='ignore')
-        return f'not written to {path}: {message}'
+        return f'not written to {relative}: {message}'
 
 
 def timed(name, action, pending=None):
@@ -801,25 +818,33 @@ def main():
                 failures_tail = failures_tail.removeprefix('every key ')
             print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
-        runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
-        with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
+        paths, selected = [], []
+        if base_id:
+            diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
+            if diff.returncode:
+                errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
+            else:
+                paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+            try:
+                selected = code_inputs(paths, {'packages': [], 'workspace_members': []}, root)
+            except (OSError, ValueError, RuntimeError) as error:
+                errors.append(failure('check selection', str(error)))
+        docs = any(documentation(path) for path in paths)
+        prose_only = bool(paths) and not selected and not errors and all(
+            path.endswith('.md') and 'docs' in Path(path).parts[:-1] for path in paths)
+        if prose_only:
+            hold = contextlib.nullcontext()
+        else:
+            runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
+            hold = runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout)
+        with hold:
             data = None
-            paths, selected = [], []
-            docs = False
             if not base_id:
                 print(f'pre-pr: no base ({why}): the format check and the counted baselines alone', flush=True)
                 code_checks = True
             else:
-                diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
-                if diff.returncode:
-                    errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
-                else:
-                    paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
-                docs = any(documentation(path) for path in paths)
                 try:
-                    empty = {'packages': [], 'workspace_members': []}
-                    selected = code_inputs(paths, empty, root)
-                    if docs or selected or any(not documentation(path) for path in paths):
+                    if not prose_only and not errors and (docs or selected or any(not documentation(path) for path in paths)):
                         data = metadata(root, private)
                         selected = code_inputs(paths, data, root)
                 except (OSError, ValueError, RuntimeError) as error:
@@ -831,7 +856,12 @@ def main():
                           f'(code input {selected[0]!r})', flush=True)
                 if docs:
                     path = next(path for path in paths if documentation(path))
-                    print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
+                    if prose_only:
+                        print(f'pre-pr: prose only: outward names, citations and design size limits '
+                              f'(docs input {path!r})', flush=True)
+                        print('pre-pr: boundary tests: none (prose only)', flush=True)
+                    else:
+                        print(f'pre-pr: {kind}: citations and design size limits (docs input {path!r})', flush=True)
                 if not code_checks and not docs:
                     print('pre-pr: no code or docs inputs changed', flush=True)
 
@@ -885,6 +915,9 @@ def main():
                         starved.append(warning)
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
+                errors += found
+            if prose_only:
+                _, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]

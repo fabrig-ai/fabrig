@@ -71,7 +71,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_593, Setting::Charter(5)));
+    assert_eq!(run, (27_596, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -85,7 +85,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
         (b"tasks.charters", 12, Setting::Charter(1), "the stock offers 12 charters"),
-        (b"core.templates", 6, Setting::Template(1), "the stock offers 6 templates"),
+        (b"core.templates", 7, Setting::Template(1), "the stock offers 7 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
@@ -424,7 +424,7 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_596), (5, 27_593)] {
+    for (number, expected) in [(2, 12_596), (5, 27_596)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();

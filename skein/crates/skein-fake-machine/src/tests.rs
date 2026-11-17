@@ -227,7 +227,12 @@ fn never_child_waits_until_killed() {
     assert_eq!(sim.ready(pid), 0);
     q.push(Submit {
         op: Token::new(3),
-        kind: Op::Signal { pidfd, signal: Signal::Kill, to: skein_io::kernel::Target::Child },
+        kind: Op::Signal {
+            pidfd,
+            signal: Signal::Kill,
+            to: skein_io::kernel::Target::Child,
+            reason: skein_io::kernel::Reason::Unknown,
+        },
     });
     sim.submit(pid, &mut q);
     let mut out = Queue::with_capacity(2);

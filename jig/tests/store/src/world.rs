@@ -3,8 +3,8 @@ use crate::{model::Model, root};
 mod checkpoint;
 use jig_domain_core as core;
 use jig_protocol_store::{
-    Arrived, Below, Counts, Event, Get, Io, Load, OpenRefusal, Owner, PatchSets, Request, Restore, Root, Row, Secrets,
-    Store, TranscriptRead, Write,
+    Arrived, Below, Event, Get, Io, Load, OpenRefusal, Owner, OwnerSets, Request, Restore, Root, Row, Secrets, Store,
+    TranscriptRead, Write,
 };
 use skein_fake_machine::{Machine, serve};
 use skein_io::{
@@ -35,10 +35,10 @@ impl Restored {
 
 pub struct World {
     observer: Option<fn(Step)>,
-    sets: PatchSets,
+    sets: OwnerSets,
     scratch: Option<Root>,
     scratch_disk: Option<u32>,
-    patched: Vec<(Owner, u32, Counts)>,
+    ran: Vec<(Owner, Box<str>, u64, u64)>,
     refusal: Option<OpenRefusal>,
     kernel_cuts: bool,
     link_error: Option<skein_io::kernel::Error>,
@@ -213,10 +213,10 @@ impl World {
         }
         World {
             observer,
-            sets: PatchSets::NONE,
+            sets: OwnerSets::NONE,
             scratch: None,
             scratch_disk: None,
-            patched: Vec::new(),
+            ran: Vec::new(),
             refusal: None,
             kernel_cuts: false,
             link_error: None,
@@ -264,14 +264,14 @@ impl World {
         self.store.start_open_failure()
     }
 
-    pub fn patch_sets(&mut self, sets: PatchSets) {
+    pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.sets = sets;
-        self.store.patch_sets(sets);
+        self.store.owner_sets(sets);
     }
 
     #[must_use]
-    pub fn patched(&self) -> &[(Owner, u32, Counts)] {
-        &self.patched
+    pub fn ran(&self) -> &[(Owner, Box<str>, u64, u64)] {
+        &self.ran
     }
 
     #[must_use]
@@ -384,8 +384,8 @@ impl World {
             seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
         );
         self.store = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
-        self.store.patch_sets(self.sets);
-        self.patched.clear();
+        self.store.owner_sets(self.sets);
+        self.ran.clear();
         self.refusal = None;
         self.changes.clear();
         self.written.clear();
@@ -523,7 +523,7 @@ impl World {
     pub fn checkpoint_copy(&mut self, name: jig_protocol_store::CheckpointName) -> Self {
         let prefix = [b"checkpoints/".as_slice(), &name.bytes(), b"/"].concat();
         let mut copy = Self::unopened_observed(71, self.env.limits, None);
-        copy.patch_sets(self.sets);
+        copy.owner_sets(self.sets);
         copy.model = Model {
             acknowledged: name.store,
             prefixes: BTreeMap::from([(
@@ -576,7 +576,7 @@ impl World {
         self.settle()
     }
 
-    /// Serve the synchronous production restore door without driving file work.
+    /// Read a restart page through the serving view, driving its history fetches.
     ///
     /// # Errors
     /// Returns the production reader's typed phase, range, read or decode failure.
@@ -587,10 +587,15 @@ impl World {
         rows: u32,
         bytes: u64,
     ) -> Result<jig_protocol_store::restore::Loaded, jig_protocol_store::restore::Failure> {
-        self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
-        let page = jig_protocol_store::restore::page(&mut self.store, range, after, rows, bytes);
-        self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-        page
+        let events = self.request(Request::Restore { owner: Token::new(0), range, after: after.cloned(), rows, bytes });
+        let mut events = events.into_iter();
+        let event = events.next().expect("one restore terminal");
+        assert!(events.next().is_none(), "one restore terminal");
+        match event {
+            Event::Page { items, next, .. } => Ok(jig_protocol_store::restore::Loaded { items, next }),
+            Event::PageRefused { failure, .. } => Err(failure),
+            event => panic!("restore terminal: {event:?}"),
+        }
     }
 
     /// Serve the raw main-map reader, independently of the world's model.
@@ -700,42 +705,49 @@ impl World {
         self.store.wires(wires)
     }
 
-    pub fn open(&mut self) -> Option<u64> {
-        self.patched.clear();
-        self.refusal = None;
-        let mut contexts = Contexts::default();
-        let mut events = self.request(Request::Open {
+    /// A start request for stories that inspect its events without answering frame sites or jobs.
+    #[must_use]
+    pub fn open_request(&self) -> Request {
+        Request::Open {
             purpose: jig_protocol_store::Purpose::Serve,
             owner: OWNER,
             root: self.root,
             installation: self.drawn,
-        });
+        }
+    }
+
+    /// Start an open whose fixture job pages the caller answers itself.
+    pub fn begin_open(&mut self) -> Vec<Event> {
+        self.ran.clear();
+        self.refusal = None;
+        self.request(self.open_request())
+    }
+
+    pub fn open(&mut self) -> Option<u64> {
+        let mut contexts = Contexts::default();
+        let mut events = self.begin_open();
         for _ in 0..10_000 {
             let mut answer = None;
             for event in events {
                 match event {
                     // This store world has no census consumer (protocol/store/README.md, 6.3).
-                    Event::Census { .. } | Event::Ran { .. } => {}
+                    Event::Census { .. } => {}
+                    Event::Ran { of, job, rows, commits, .. } => self.ran.push((of, job, rows, commits)),
                     Event::Page { .. } | Event::PageRefused { .. } => {
                         unreachable!("a start's pages need a start-mode store")
                     }
                     Event::Job { owner, of, job, page } => {
-                        let result = if of == Owner::Jig {
-                            jig_protocol_store::jobs::page(&job, &page)
-                        } else {
-                            Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
-                        };
+                        let result = answer_job(of, &job, &page);
                         answer = Some(Request::Job { owner, answer: result });
                     }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                     }
-                    Event::Patched { of, patch, counts, .. } => self.patched.push((of, patch, counts)),
                     Event::Opened { last, installation, pending, .. } => {
                         self.pending = pending;
                         self.installation = installation;
-                        if !self.patched.is_empty() {
-                            self.model.patched(last);
+                        if pending {
+                            self.model.upgraded(last);
                         }
                         self.next = last + 1;
                         return Some(last);
@@ -817,7 +829,7 @@ impl World {
         Request::Rehearse { owner: OWNER, directory: self.root, scratch: self.scratch_root(), installation: self.drawn }
     }
 
-    /// Answer the fixture's written sites, retaining the rehearsal's ordered events.
+    /// Answer fixture jobs and frame sites, retaining the rehearsal's ordered events.
     pub fn rehearse(&mut self) -> Vec<Event> {
         let request = self.rehearsal_request();
         let mut events = self.request(request);
@@ -830,11 +842,7 @@ impl World {
                 if let Event::Site { owner, of, key, site, at, patcher } = event {
                     answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                 } else if let Event::Job { owner, of, job, page } = event {
-                    let result = if of == Owner::Jig {
-                        jig_protocol_store::jobs::page(&job, &page)
-                    } else {
-                        Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
-                    };
+                    let result = answer_job(of, &job, &page);
                     answer = Some(Request::Job { owner, answer: result });
                 } else {
                     if let Event::Opened { last, pending, .. } = &event {
@@ -961,8 +969,17 @@ impl World {
                     self.machine.sync(file);
                     self.machine.close(file);
                 }
-                Made::Link(_) | Made::HardLink(_) | Made::Fifo | Made::Device => {
-                    panic!("generation scenarios lay files and directories")
+                Made::HardLink(target) => {
+                    let split = target.iter().rposition(|byte| *byte == b'/');
+                    let (directory, target) =
+                        split.map_or((b".".as_slice(), target.as_slice()), |at| (&target[..at], &target[at + 1..]));
+                    let directory =
+                        self.machine.open(root, directory, How::DirectoryNoFollow).expect("link source parent");
+                    self.machine.hard_link(directory, target, parent, name).expect("link scenario file");
+                    self.machine.close(directory);
+                }
+                Made::Link(_) | Made::Fifo | Made::Device => {
+                    panic!("generation scenarios lay files, directories and hard links")
                 }
             }
             self.machine.sync(parent);
@@ -1327,7 +1344,6 @@ fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], pa
 // Serving makes a new set of defaults at each site (protocol/store/transcripts.md 6).
 #[derive(Default)]
 struct Contexts {
-    application: jig_test_patches::patches::Context,
     smith: jig_test_patches_smith::patches::Context,
     jig: jig_test_patches_jig::patches::Context,
 }
@@ -1342,10 +1358,7 @@ fn answer_site(
 ) -> Request {
     let (old, new) = patcher.parts();
     let result = match of {
-        Owner::Application => {
-            contexts.application.key = key;
-            jig_test_patches::patches::written(site, old, new, at, &mut contexts.application)
-        }
+        Owner::Application => panic!("no application frame site"),
         Owner::Smith => {
             contexts.smith.key = key;
             jig_test_patches_smith::patches::written(site, old, new, at, &mut contexts.smith)
@@ -1354,4 +1367,19 @@ fn answer_site(
         Owner::Skein => panic!("no skein fixture site"),
     };
     Request::Site { owner, patcher, result }
+}
+
+fn answer_job(
+    of: Owner,
+    name: &str,
+    page: &jig_protocol_store::JobPage,
+) -> Result<jig_protocol_store::JobAnswer, jig_protocol_store::JobRefusal> {
+    if let Some(answer) = crate::patches::job(of, name, page) {
+        return Ok(answer);
+    }
+    if of == Owner::Jig {
+        jig_protocol_store::jobs::page(name, page)
+    } else {
+        Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
+    }
 }

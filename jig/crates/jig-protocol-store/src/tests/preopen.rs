@@ -1,5 +1,5 @@
 //! Open failures and first causes (protocol/store/opening.md, 1–2).
-use super::{fixtures, patching::SETS};
+use super::{fixtures, owners::SETS};
 use crate::{Event, OpenRefusal, Request, Restore, Store, Write, keys, restore};
 use skein_lib::{List, Queue, Token};
 
@@ -123,15 +123,15 @@ fn ordinary_refusals_and_coarse_failures_remain_truthful_and_sticky() {
 fn changed_counts_are_kept_in_the_manifest() {
     let mut store = cold();
     fixtures::run(&mut store, open_ask());
-    store.patch_sets(SETS);
+    store.owner_sets(SETS);
     let key: Box<[u8]> = Box::from(b"l/0".as_slice());
     fixtures::committed(
         &mut store,
         Box::new([fixtures::header(1), Write::Put { key: key.clone(), value: Box::new([1]) }]),
     );
-    let before = crate::patching::check::before(&mut store).expect("before counts");
+    let before = crate::upgrade::check::before(&mut store).expect("before counts");
     fixtures::committed(&mut store, Box::new([fixtures::header(2), Write::Remove { key }]));
-    let counts = crate::patching::check::counts(&mut store, before).expect("counts retained without judgment");
+    let counts = crate::upgrade::check::counts(&mut store, before).expect("counts retained without judgment");
     let manifest = crate::codec::component::Manifest {
         generation: 2,
         from: Some(1),
@@ -188,7 +188,7 @@ fn a_real_get_refusal_keeps_its_category_and_bounded_site() {
 #[test]
 fn a_real_patch_count_walk_refusal_keeps_its_category() {
     let mut store = cold();
-    store.patch_sets(SETS);
+    store.owner_sets(SETS);
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
@@ -198,7 +198,7 @@ fn a_real_patch_count_walk_refusal_keeps_its_category() {
         &mut above,
         &mut below,
     );
-    assert!(crate::patching::check::before(&mut store).is_none());
+    assert!(crate::upgrade::check::before(&mut store).is_none());
     assert_eq!(
         store.start_open_failure(),
         Some(&restore::OpenFailure::Data(restore::Failure {

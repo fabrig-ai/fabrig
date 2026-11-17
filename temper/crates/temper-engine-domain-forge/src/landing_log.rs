@@ -27,6 +27,8 @@ pub(crate) fn landed(
     if !d.repositories.contains_key(&repository) {
         return;
     }
+    crate::milestone_rows::landed(d, now, task, out);
+    let change = d.changes.get(&task).expect("landed change");
     let follows = change.follows.clone();
     if let Some(follows) = follows {
         let project = d.repositories.get(&repository).expect("adopted landing").project;

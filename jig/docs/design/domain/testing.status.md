@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-14. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-16. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
@@ -30,9 +30,9 @@ observation and world-cost work.
   and together they fell 181, but D035's own tasks rose 34, where that plan's
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
-  9: the focused suite's CPU budget is 215 s (`tools/tiers/budgets.toml`),
-  1.5 times its 143 in the development machine's focused run of main at
-  11-14 11:42Z, by the user's word of 11-14. The
+  9: the focused suite's CPU budgets are by layer (`tools/tiers/budgets.toml`),
+  the CI builder's gate figures of 11-16 plus a tenth, by the user's word
+  of 11-16, against an ideal of 30 s (`tools/tiers/budgets.md`, 6). The
   `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
   their whole-suite effect, and fuzzy's fit with the moved core and store
   sweeps and `Standard` drive, await the queue's after-landing record. The

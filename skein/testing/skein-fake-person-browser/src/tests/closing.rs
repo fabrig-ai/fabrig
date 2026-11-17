@@ -22,7 +22,7 @@ fn running() -> Closing {
     closing
 }
 fn terminate(child: Token) -> io::Request {
-    io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child }
+    io::Request::Signal { child, signal: Signal::Terminate, to: Target::Child, reason: io::kernel::Reason::Unknown }
 }
 fn exited(closing: &mut Closing, requests: &mut VecDeque<io::Request>) {
     closing.io_event(&io::Event::Exited { owner: PROCESS, exit: Exit::Code(0) }, requests);

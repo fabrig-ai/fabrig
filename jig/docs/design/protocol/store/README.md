@@ -31,17 +31,17 @@ section 11.
   asks for maps to a short, fixed list of intervals (section 4).
 - **Records from schemas,** with skein's generator: a codec per family,
   versioned, golden bytes and fuzzing. A format row names the versions,
-  each owner's patch level and the deployment; a store of another
-  version or deployment refuses to open, and before the first release
-  nothing is translated (`records.md`).
+  each owner's level and the deployment; a floor row names the oldest
+  store the build opens. A store of another version or deployment
+  refuses to open (`records.md`).
 - **Values name their layout.** A registered family's value carries its
   value type's layout id, an entry of the store's registry; the open
   checks that each layout held converts to the binary's, and each value
   is converted as it is read (`layouts.md`).
 - **Generations.** The maps live in numbered generations under the
   deployment's directory, `active` naming the open one. A store the open
-  must write before serving (a patch pending, its registry to seed or
-  extend, a job pending) is upgraded at open in a new generation made
+  must write before serving (a binary layout to register or a job
+  pending) is upgraded at open in a new generation made
   by links, checked, and switched to by one durable rename; a crash
   anywhere leaves one whole generation active (`README.md`, section 2,
   and `opening.md`, section 2 to 4). Jobs at open walk the map for their
@@ -81,6 +81,8 @@ section 11.
   over skein-kv's in-memory mode, with an in-memory stand-in for
   transcripts' files, and the store's own world crashes it on skein's
   simulated disk (section 9).
+- **Two crates:** the component above its records' translation,
+  `jig-protocol-store-records`, which it re-exports as `codec` (`crates.md`).
 
 ## 2. Where it sits
 
@@ -99,8 +101,8 @@ skein-io                        files: the ring, or the simulator's disk
 - **A component of the engine's protocol layer,** step code under the
   subset (skein/docs/foundation/programming-model.md, section 10), with its limits, worst case,
   deadlines and most outputs per entry point. It depends on skein-lib,
-  skein-kv, io's file vocabulary, skein-codec and its generated codecs,
-  and the core's vocabulary (its keys, records, ranges and reads). It
+  skein-kv, io's file vocabulary, skein-codec, its generated codecs and
+  its records' translation, and the core's vocabulary (its keys, records, ranges and reads). It
   depends on no application's crate, and links no smith crate: turns are
   bytes to it.
 - **On disk,** in the deployment's directory (`../configuration.md`,
@@ -108,7 +110,7 @@ skein-io                        files: the ring, or the simulator's disk
   generations; `active` names the one a start opens, and an upgrade
   makes the next from the active one's files, linking the snapshot and
   the log segments skein-kv writes no more and copying the rest,
-  patches it and switches to it (`opening.md`, 2). Two generations may
+  upgrades it and switches to it (`opening.md`, 2). Two generations may
   share a file under two names, which neither writes. Transcripts
   are shared by every generation:
 
@@ -153,21 +155,19 @@ skein-io                        files: the ring, or the simulator's disk
 - **The manifest,** a file per generation, written by io's durable
   replace into the generation's directory before `active` names it,
   and never changed: a record of the component's own schema
-  (`Manifest`, beside the format row in the component's family, `records.md`, 1,
-  added to `component-v3.schema` in place, as the levels are: `records.md`, 3),
+  (`Manifest`, beside the format row in `component-v3.schema`, `records.md`, 3),
   encoded and versioned as every record. It names:
   - `generation`, the generation's number, and `from`, the one it was
-    patched from, none for a first start's;
-  - `before` and `after`, each owner's levels (`records.md`, 3), none before its
-    baseline; a first start's before levels are all none, and its after
-    levels the binary's;
-  - `counts`: each kept family's count of records before its patches
-    and after, one per family the binary's sets keep, in their order (a
-    first start's each 0 and 0; none with no sets). Only kept families
-    are walked: every other record is copied byte for byte, and no patch
-    adds or removes a record, so the check before the switch refuses a
-    count that moved (`opening.md`, 2, step 5);
-  - `store` and `secrets`, the last commit of each map when patching
+    upgraded from, none for a first start's;
+  - `before` and `after`, each owner's levels (`records.md`, 3);
+    a first start's before levels are all none, and its after levels
+    the binary's;
+  - `counts`: each kept family's count of records before the registry's
+    commit and the jobs and after, one per family the binary's sets keep,
+    in their order (a first start's each 0 and 0; none with no sets).
+    These are reported, not judged by the check: a job may add or erase
+    rows (`opening.md`, 2, step 5);
+  - `store` and `secrets`, the last commit of each map when the upgrade
     ended: the store's, which the deployment's header names (section 5),
     and the secrets' store's; for a first start, 0 and none respectively;
   - `written`, the wall-clock time it was written, `env.wall` in its own
@@ -183,8 +183,7 @@ skein-io                        files: the ring, or the simulator's disk
   `active`, so no cut leaves it alone; a new store beside it would
   number its tasks again over its files. Open refuses it, `OlderBuild`
   with `Older::Directory`, before anything is written, and leaves it
-  untouched (`records.md`, 3). Before the first release nothing is translated:
-  the operator stops the service, moves `store/`, `secrets/` and
+  untouched (`records.md`, 3). The operator stops the service, moves `store/`, `secrets/` and
   `transcripts/` out of the deployment's directory together (its
   transcripts belong to its tasks), and starts again, which is a first
   start. The refusal's text says so, naming
@@ -192,9 +191,9 @@ skein-io                        files: the ring, or the simulator's disk
 
   > `<deployment>` holds a store from an older build, in the layout
   > before generations (`store/`, `secrets/` or `transcripts/` at its
-  > top), and this start has changed nothing in it. Before the first
-  > release a store is not translated, so every start refuses this one
-  > until it is moved. To start afresh, stop the service, move
+  > top), and this start has changed nothing in it. No build translates
+  > a store from before generations, build `<bridge>` included, so every
+  > start refuses this one until it is moved. To start afresh, stop the service, move
   > `store/`, `secrets/` and `transcripts/` out of `<deployment>`
   > together, and start again: nothing is deleted, and the next start
   > makes a new, empty store. The new store has no tasks, sign-ins,
@@ -205,8 +204,9 @@ skein-io                        files: the ring, or the simulator's disk
 
   > `<deployment>` holds a store whose <family> family is at another
   > version than this build's, and this start has changed nothing in it.
-  > A store from before the baseline is not translated, so every start
-  > refuses this one until it is moved. To start afresh, stop the service,
+  > No build translates a store from before the baseline, build
+  > `<bridge>` included, so every start refuses this one until it is
+  > moved. To start afresh, stop the service,
   > move `active`, `generations/` and `transcripts/` out of `<deployment>`
   > together, and start again: nothing is deleted, and the next start
   > makes a new, empty store. The new store has no tasks, sign-ins,
@@ -248,10 +248,15 @@ skein-io                        files: the ring, or the simulator's disk
     `secrets/` and `transcripts/` out of `<deployment>` together, and
     start again: nothing is deleted, and the next start makes a new,
     empty store."
-  - `Unrecorded`, `Layout` and `Unleveled`: "To start afresh, stop the
+  - `Layout` and `Unleveled`: "To start afresh, stop the
     service, move `active`, `generations/` and `transcripts/` out of
     `<deployment>` together, and start again: nothing is deleted, and
     the next start makes a new, empty store."
+  - `Floor` and `Unregistered`, the stores the bridge can upgrade:
+    "Start build `<bridge>` on it and let it open, then this build."
+    `Behind` also names that build, which brings the store to this
+    build's levels (`opening.md`, 1.8; `<bridge>` is `records.md`, 3's
+    `FLOOR_BRIDGE`).
 - **A backup** copies, with the engine stopped, the deployment's
   directory whole, or is a checkpoint: the state at one commit, taken
   while the engine serves or over a stopped deployment, mostly by hard
@@ -389,7 +394,7 @@ secrets' store (`secrets.md`).
 - **Numbers are shared.** The journal numbers the root's commits, and
   skein-kv numbers its own from one, across restarts. Every root commit
   is one skein-kv commit, and nothing else writes the store but
-  patching, before the root starts, whose last commit writes the header
+  the upgrade, before the root starts, whose last commit writes the header
   with its own number (`opening.md`, 2), so the numbers are equal whenever the
   root runs. The component checks this as it submits, and stops on a
   mismatch. At start, skein-kv's recovered last commit must equal
@@ -450,7 +455,7 @@ secrets' store (`secrets.md`).
   or is at or before the last durable one), `Closed` (the store isn't
   open), `Queue` (the queue behind transcripts' syncs is full), `Writes`
   (more writes than the root's bound, `Commits::writes`), `Switching`
-  (wires, a dropped transcript or a turn while a patch switch is
+  (wires, a dropped transcript or a turn while an upgrade switch is
   pending), `Encoding` (a key, a record, a turn's frame or the first
   commit's own rows past its codec's limits), `Copy` (a copy's first
   key the map doesn't hold, or its read failing), `Reads` (a read of the
@@ -552,7 +557,7 @@ walk (temper's `draft/store-shape.md`, 8). skein-kv counts (skein's
 count up, and nothing of it is stored.
 
 - **The rule:** the component gives every skein-kv store it opens for
-  the map (the active generation's and a patched copy's, never the
+  the map (the active generation's and an upgraded copy's, never the
   secrets' store) the census rule of its tags (4.2): a key under tag 0
   counts by its first two bytes, the component's family; under tag 1 by
   three, jig's child and family (`01 01 16`, the tasks child's
@@ -563,7 +568,7 @@ count up, and nothing of it is stored.
   `core.terminals`, `temper.changes`. The component's and jig's come
   from a table beside the component's key encoders (`keys`), one name per
   tag they write; the application's from a table it hands the component
-  with its patch sets, its own name and a name per first key tag it
+  with its owner sets, its own name and a name per first key tag it
   writes (`Store::keyspaces`). A prefix no table names has an empty name,
   and readers show its bytes. A test holds each table to its key
   writers: every tag written has one name, and no two names repeat.
@@ -575,7 +580,7 @@ count up, and nothing of it is stored.
   bytes written since `since`. The component sends it up as
   `Event::Census`:
   - once the store has opened, after `Opened`: what recovery counted, a
-    patched generation's after its patches;
+    new generation's after registration and the jobs;
   - then after a commit's answer, once `CENSUS_EVERY` (60 s of the
     component's clock) has passed since the last report, so never while
     no commit is answered.
@@ -620,21 +625,18 @@ count up, and nothing of it is stored.
   map's budget, its queued commits and its buffers, which follow its
   chunk target and the largest row it holds), the component's buffers
   and tables, and the three drivers' (skein's
-  `runtime/io/files.md`). Patching's peak (`opening.md`, 2:
-  one map open, one machine per kept family within its own map's record
-  room, the walk's page and commit buffers at the larger of the two
-  maps' bounds, since one walk serves both, the copy's chunk, and the
-  closing walk's run proof decoded by the binary's codec beside its
-  bytes) is the
-  larger of it and serving's, since the root never serves while it
-  patches. The sets are the shell's; their kept families determine the
-  patch machines' capacities. Fixed scenarios check measured heap peaks
+  `runtime/io/files.md`). The upgrade's peak (`opening.md`, 2:
+  one generation's maps open, the copy's chunk, the registry's planning
+  bounds (`layouts.md`, 7), and a job's page and commit room
+  (`jobs.md`, 3)) is counted apart from serving's: the root never serves
+  while it upgrades. No map patch machine or closing-window walk is
+  held. Fixed scenarios check measured heap peaks
   against named ceilings (skein/docs/foundation/programming-model.md, 6.3).
   Serving's holds the frames' machines (`transcripts.md`, 6), at most two, each its
   `Patcher::workspace_bound`, and none for sets with no kept text: their
   bytes the frames' bounds and their nodes the most their kept texts
   allow (`transcripts.md`, 6). The tests price smith's real turn's machine against
-  serving's (`tests/frame_memory.rs`), from a copy of smith's schema
+  serving's (`jig/tests/store/tests/suite/frame_memory.rs`), from a copy of smith's schema
   checked against smith-transcript's generated bounds.
 - **Whole files:** the manifest (section 2) is read and written whole,
   and at its bounds, 64 kept families each named in 64 bytes, it is 5464
@@ -695,27 +697,25 @@ Each within jig's suites' budgets.
   flight. Its referee: the start opens, never refused and never a
   panic, with the last acknowledged decision, or that and one whole
   uncertain one, never part of one.
-- **Generations and patching,** in the store's world: a fixture owner's
-  patch sets over a store at an older level, patched, checked, opened
-  `pending`, switched only when its root asks, never before, and a
-  root that ends before asking leaving the old generation active; a
-  fixture family's flight range holding a record under a pending patch
-  refused `InFlight`, naming it, before any write, and the same record
-  under a patch of another family patched past it; each
-  refusal before any
-  write; a second start refused `Busy` while one holds the lock; the
+- **Generations and jobs,** in the store's world: fixture owner sets
+  registering new layouts and running declared jobs at the same levels,
+  checked, opened `pending`, switched only when the root asks, never
+  before, and a root that ends before asking leaving the old generation
+  active; stores below the floor, behind the binary's levels or without
+  a registry refused before any upgrade; a second start refused `Busy`
+  while one holds the lock; the
   copy's secrets private; the copy's snapshot and sealed segments
   linked to the previous generation's, each file with two links, its
   newest segment and its secrets copied with one, and a link the file
   system refuses copied in its place; going back before the copy's
-  first commit of its own, after patch commits past skein-kv's snapshot
+  first commit of its own, after job commits past skein-kv's snapshot
   bound replaced the copy's linked snapshot, opening the previous
   generation at its last commit with its records as they were; a cut
   at every write, sync, link and rename of the
-  first start, the copy, the patch commits, the manifest, the switch
+  first start, the copy, the registry's and jobs' commits, the manifest, the switch
   and the drop, each
   run from its own start, the referee finding one whole generation
-  active, the other strays removed, and its records the patched or the
+  active, the other strays removed, and its records the upgraded or the
   old, never a mix.
 - **The transcripts' framing's golden bytes,** as skein-kv keeps its
   own (skein's `data/kv.md`, section 9): a task's file of frames made from
@@ -724,28 +724,28 @@ Each within jig's suites' budgets.
   by the test that reads it; the writer's file compared with it byte
   for byte, and the reader walking it from both ends to the same turns.
   A change to the framing (`transcripts.md`, 1: the frame's length at both ends and its
-  checksum, around the body) fails it, naming the format: from
-  the first release on, it needs an upgrade of its own before the
-  records' patches (temper's `draft/upgrades.md`, 6.5). A change to the
-  core's `TurnRecord` or smith's turn is the patches' and their goldens'
-  instead.
+  checksum, around the body) fails it, naming the format. The framing,
+  the core's `TurnRecord` and smith's turn stay at their current versions:
+  a change designs how the store reaches it in that landing (temper's
+  `draft/store-floor.md`, section 5). The frame patcher and its fixtures
+  stay (`transcripts.md`, 6).
 - **Rehearsing and going back** (`opening.md`, 5), in the store's world over
-  fixture sets: a rehearsal reporting each patch and the restores whole,
+  fixture sets: a rehearsal reporting each job and its counts and the restores whole,
   `A` still active and its maps unchanged, and the next start removing
   the scratch; one meeting a refusal, reporting it in a start's words;
-  going back after a patched start that failed before its first commit
+  going back after an upgraded start that failed before its first commit
   of its own, the next start opening `A` as it was; refused once the
-  patched generation has committed, with no previous generation, and
+  upgraded generation has committed, with no previous generation, and
   while another process holds the lock, each changing nothing.
 - **The deployment's layout's golden bytes,** as the framing's: a first
-  start's directory and a patched start's, kept as their listings (each
+  start's directory and an upgraded start's, kept as their listings (each
   name, each file's kind and mode) with `active`'s bytes (a generation's
   number in decimal, no leading zero, and a newline) and the manifest's
   record, never regenerated by the test that reads them. A change to a
   name, to `active`'s form or to where a generation keeps its maps fails
   it, naming the layout: from the first release a later build reads this
   layout as it finds it (temper's `draft/v0.1.0.md`, section 5). The
-  manifest's fields are the component's family's, which patches carry.
+  manifest's fields are the component's family's, at its fixed version.
 - **Transcripts patched as read,** most of it at the lowest layer. Step
   tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
   fixture body family in `jig-test-patches-jig`): frames written at each
@@ -758,35 +758,27 @@ Each within jig's suites' budgets.
   refused in each phase; the frames' checks refusing at a serving open;
   no machine with sets that keep no text; each
   machine's worst case against its measured peak; over skein-io's fault
-  points, a cut at each step of a read changes no file. Fuzzed: a frame's decode with
-  machines, over random fixture frames. One story in the store's world:
-  a fixture store behind, patched with a fresh-marked patch, its live
-  windows closed in the copy, a cut at each closing commit run from its
-  own start, and after the switch a window read patched and a closed one
-  found closed, going back finding them as they were. The core's side
-  (a closed window starting fresh with its tail, counted as a
-  transition) is the core's tests' (`../../domain/engine/executors.md`, 2), in its
-  world, whose store closes the window by the walk itself: smith's
-  fixture turn kept at one text, and a patch marked fresh that changes
-  no family. Generation, upgrade, check and frame scenarios run in the focused
+  points, a cut at each step of a read changes no file. Fuzzed: a frame's
+  decode with machines, over random fixture frames. The core's closed
+  window starts fresh with its tail, counted as a transition
+  (`../../domain/engine/executors.md`, 2); no map patch closes it at open.
+  Generation, upgrade, check and frame scenarios run in the focused
   `jig-store-world::suite` binary, with short cases as data rows and a few
   cuts chosen for what a cut there can lose (`../../domain/testing.md`, 9). Their
   whole sweeps are under `fuzzy::` in that binary. The copy's
-  mutation cuts belong to `fuzzy::patching::every_patch_write_cut_recovers_all_records_and_no_stray`;
+  mutation cuts belong to `fuzzy::upgrades::drop_copy_and_switch_recover_after_every_mutation`;
   `fuzzy::upgrades::cuts_across_check_and_switch_recover_whole_maps` starts
   at the seal's sync and cuts every operation through the check and switch.
-  Frame and mark scenarios kept above step tests prove durable files or
-  proofs across restart; decoder-only duplicates stay in the step tests.
+  Frame scenarios kept above step tests prove durable files across
+  restart; decoder-only duplicates stay in the step tests.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   golden bytes; refusals at open (format, deployment, sizes, numbers).
   Direct transcript pages either advance through a nonempty prefix or
-  terminate `Unread` when no turn fits. Private phase tests refuse a
-  closing run proof outside its decode limit, a mismatched key and proof,
-  and a malformed run-proof key with `Check::Load` naming the offending
-  key: the active generation and source stay unchanged, and the next
-  start sweeps the abandoned copy. The closing-write fault and crash
-  stories hold the switch's order.
+  terminate `Unread` when no turn fits. The copy's check refuses a row
+  the restart cannot load (`Check::Load`), naming its key: the active
+  generation and source stay unchanged, and the next start sweeps the
+  abandoned copy.
 - **Fuzz targets** for each family's decoder and a frame's.
 - **On the real ring,** the reference binary (`../service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
@@ -886,45 +878,30 @@ intervals, and its indexes, by the rules of section 7.
 
 ## 11. Open questions
 
-- **Upgrades** are a pass at opening that patches a copy and switches
-  to it (`README.md`, section 2, and `records.md`, section 3, and `opening.md`, section 1 to 4). Still open:
-  - values nested in another owner's family as they run across owners'
-    levels (skein's `data/codec/README.md`, section 10);
-  - pieces whose items' conversion stops, a site or a held field in
-    reach, are refused `Pieces` (skein's `data/codec/patches.md`, 3, and
-    `data/codec/README.md`, 10): a patch of smith's `Hit` (`Found.hits`,
-    `pieces Hit`) or of jig's own packed lists (`records.md`, 1) is
-    opened piece by piece while their items convert without a site;
-  - the core's records walked by a smith patch: the core's `Row` reaches
-    `TurnRecord`, which holds smith's turn, so each smith patch runs the
-    core's identity plan over every core record, though no row in the
-    map holds a turn; a frames' root kept out of `Row`'s `Value` would
-    spare that walk;
-  - smith's machine is priced for the most nodes its kept turn allows
-    (`transcripts.md`, 6): from the baseline on, about 249 MB per serving store
-    (`Patcher::workspace_bound` at 1,054,764 nodes), though a typical
-    turn takes a few hundred nodes. Its tables grow in bounded steps
-    (skein's `data/codec/patches.md`, 7), so a store holds what its largest turn
-    needed, not the price; but it keeps that room until the machine
-    goes, so one large turn keeps it large (skein's `data/codec/README.md`, 10,
-    "Shrinking");
-  - keys a patch moves (`opening.md`, 3), left to later work: a line for them
-    in skein's patch text, and the key function's answer up and back;
+- **Upgrades** register layouts and run jobs in a copy, then switch to it
+  (`opening.md`, sections 1 to 4). Still open:
   - the free space checked before the copy (`opening.md`, 2), which
     links its maps' sealed files and so needs room for its newest
-    segment, its secrets and its patch commits alone;
-  - a gate holding each patch's `after` to at least the pin it lands
-    on (`opening.md`, 3);
-  - what a patch's working buffers pay (`opening.md`, 2): the copy reads and writes
-    each file it copies in pieces of skein-kv's `Limits::chunk`, the row ceiling, not
-    its chunk target (skein's `data/kv.md`, 5 and 7), and the switch's digest
-    check reads `active` into a buffer of the drivers' whole read, which
-    that ceiling sets (`host::max_read`). So a patch pays about 60 MB on
-    standard however small its rows; a deployment's budgets meet this
-    (skein's `data/kv.md`, section 12).
-- **The header by its own level's text.** A jig behind decodes the header
-  by the binary's core text, which every store holds until jig's first patch
-  moves the core; that patch brings the kept text's decode with it.
+    segment, its secrets and its registry and job commits;
+  - what the copy's working buffers pay (`opening.md`, 2): it reads and
+    writes each file it copies in pieces of skein-kv's `Limits::chunk`,
+    the row ceiling, not its chunk target (skein's `data/kv.md`, 5 and 7),
+    and the switch's digest check reads `active` into a buffer of the
+    drivers' whole read, which that ceiling sets (`host::max_read`). So
+    an upgrade pays about 60 MB on standard however small its rows; a
+    deployment's budgets meet this (skein's `data/kv.md`, section 12).
+- **Frames' machines** (`transcripts.md`, 6):
+  - pieces whose items' conversion stops, a site or a held field in
+    reach, are refused `Pieces` (skein's `data/codec/patches.md`, 3, and
+    `data/codec/README.md`, 10): a frame patch of smith's `Hit`
+    (`Found.hits`, `pieces Hit`) can convert its items only without a site;
+  - smith's machine is priced for the most nodes its kept turn allows,
+    about 249 MB per serving store (`Patcher::workspace_bound` at
+    1,054,764 nodes), though a typical turn takes a few hundred nodes.
+    Its tables grow in bounded steps (skein's `data/codec/patches.md`, 7),
+    so a store holds what its largest turn needed, not the price; but
+    it keeps that room until the machine goes, so one large turn keeps
+    it large (skein's `data/codec/README.md`, 10, "Shrinking").
 - **Backups:** copying the deployment's directory whole while the engine
   is stopped works; a copy that keeps hard links keeps the files two
   generations share as one, and one that does not stores them twice and

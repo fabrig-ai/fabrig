@@ -818,7 +818,6 @@ impl Component {
             | store::Event::Back { .. }
             | store::Event::BackRefused { .. }
             | store::Event::Closed { .. }
-            | store::Event::Patched { .. }
             | store::Event::Committed { .. }
             | store::Event::Failed { .. }
             | store::Event::FrameTooLarge { .. }
@@ -1092,7 +1091,6 @@ impl Component {
                 | store::Event::Back { .. }
                 | store::Event::BackRefused { .. }
                 | store::Event::Closed { .. }
-                | store::Event::Patched { .. }
                 | store::Event::Committed { .. }
                 | store::Event::Failed { .. }
                 | store::Event::FrameTooLarge { .. }

@@ -335,7 +335,10 @@ fn check_members(
         if !crate::wake::valid(&new.wake) {
             return Err(problem(number, Refusal::Spec));
         }
-        if !valid_contract(limits, &new.contract) || job_contract(&new.contract) && !matches_job(new.executor) {
+        if !valid_contract(limits, &new.contract)
+            || !person_report_floor(new.executor, &new.contract)
+            || job_contract(&new.contract) && !matches_job(new.executor)
+        {
             return Err(problem(number, Refusal::Contract));
         }
         if !valid_authority(limits, &new.authority) {
@@ -392,6 +395,19 @@ fn check_members(
         }
     }
     Ok(())
+}
+
+/// A person's report can be answered in words (jig/docs/design/domain/people/README.md, 7).
+fn person_report_floor(executor: Executor, contract: &Contract) -> bool {
+    match executor {
+        Executor::Person(crate::PersonAddress::Person(_) | crate::PersonAddress::Role(_)) => match contract {
+            Contract::Report { words } => *words != 0,
+            Contract::Approval { .. } | Contract::Verdict { .. } | Contract::Change { .. } | Contract::Job { .. } => {
+                true
+            }
+        },
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => true,
+    }
 }
 
 /// A job delegates nothing and only a procedure creates one (jig/docs/design/domain/tasks/lifecycle.md, 3.1).

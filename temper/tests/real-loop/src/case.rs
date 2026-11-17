@@ -1029,6 +1029,7 @@ fn waiting_setup(id: u32, name: &str) -> api::Setup {
 #[must_use]
 pub fn fixture_6_6() -> forge::Fixture {
     forge::Fixture {
+        manual_merges: api::ManualMerges::OFF,
         setup: || waiting_setup(waiting::APP_ID, waiting::APP),
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
         configure: |value, agent, forge| {

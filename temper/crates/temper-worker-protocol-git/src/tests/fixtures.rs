@@ -451,11 +451,13 @@ impl Started {
         while self.below.out.io.pop().is_some() {}
         self.component.fire(now, &mut self.below.out);
     }
-    pub fn signals(&self) -> Box<[(skein_lib::Token, skein_io::kernel::Signal, skein_io::kernel::Target)]> {
+    pub fn signals(
+        &self,
+    ) -> Box<[(skein_lib::Token, skein_io::kernel::Signal, skein_io::kernel::Target, skein_io::kernel::Reason)]> {
         let mut values = skein_lib::List::with_capacity(4);
         for request in &self.below.out.io {
-            if let skein_io::Request::Signal { child, signal, to } = request {
-                values.push((*child, *signal, *to)).expect("test-sized signals");
+            if let skein_io::Request::Signal { child, signal, to, reason } = request {
+                values.push((*child, *signal, *to, *reason)).expect("test-sized signals");
             }
         }
         values.into_boxed()

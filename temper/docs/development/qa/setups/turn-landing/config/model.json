@@ -1,0 +1,32 @@
+{
+  "listen": {
+    "socket": "{place.model}"
+  },
+  "key": "{place.data}/model/key",
+  "tls": null,
+  "models": [
+    {
+      "name": "gpt-6.1-sol",
+      "window": 1048576,
+      "output": 8192
+    },
+    {
+      "name": "gpt-6-astra",
+      "window": 1048576,
+      "output": 8192
+    },
+    {
+      "name": "gpt-6.1-terra",
+      "window": 1048576,
+      "output": 8192
+    },
+    {
+      "name": "gpt-6-luna",
+      "window": 1048576,
+      "output": 8192
+    }
+  ],
+  "cued": [],
+  "asked": [],
+  "otherwise": []
+}

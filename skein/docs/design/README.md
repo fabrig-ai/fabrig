@@ -61,7 +61,7 @@ this design.
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs, bounds and golden bytes generated from them | [data/codec/README.md](data/codec/README.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
-| record patches | `skein-codec` | versioned patch files and upgrades of stored records | [data/codec/patches.md](data/codec/patches.md) |
+| record patches | `skein-codec` | versioned patch files for wires and transcripts' frames | [data/codec/patches.md](data/codec/patches.md) |
 | layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
 | the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
 | bridges | `skein-codec`, `skein-codegen` | a wire's reverses, its floor and breaking declarations, and the bridge that translates a record between the versions a build speaks | [data/codec/bridges.md](data/codec/bridges.md) |
@@ -76,7 +76,8 @@ this design.
 | the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge/connection.md](forge/connection.md) |
 | the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge/client.md](forge/client.md) |
 | the forge setup | `skein-forge-setup` | makes a forge ready for a service: the identity, credentials, repositories and hooks it acts with | [forge/setup/README.md](forge/setup/README.md) |
-| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-http`, `skein-fake-forge-forgejo`, `skein-fake-forge-github`, `skein-fake-peers`, `skein-throwaway-forgejo` | for tests: a forge's state and git, Forgejo's API over it, GitHub's API and blob layer, a forge peer on loopback beside the LLM's and OAuth's, the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [testing/fakes/forge.md](testing/fakes/forge.md) |
+| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-http`, `skein-fake-forge-forgejo`, `skein-fake-forge-github`, `skein-fake-peers` | for tests: a forge's state and git, its CI and Actions, Forgejo's API over it, GitHub's API and blob layer, and a forge peer on loopback beside the LLM's and OAuth's | [testing/fakes/forge.md](testing/fakes/forge.md) |
+| the throwaway Forgejo | `skein-throwaway-forgejo` | for tests: the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [testing/fakes/throwaway.md](testing/fakes/throwaway.md) |
 | the fake GitHub | `skein-fake-forge-github`, `skein-fake-forge-http`, `skein-fake-peers` | GitHub's API and browser faces, signed job-log blobs and hosted peer scenarios | [testing/fakes/github.md](testing/fakes/github.md) |
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [testing/browser.md](testing/browser.md) |
 | the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui/README.md](ui/README.md) |

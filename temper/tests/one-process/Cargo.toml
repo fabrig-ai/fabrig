@@ -31,6 +31,8 @@ temper-github-app.workspace = true
 temper-client-shell-cli.workspace = true
 jig-client.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+temper-test-env.workspace = true
 temper-service.workspace = true
 temper-engine-service.workspace = true
 temper-engine-shell.workspace = true
@@ -81,10 +83,6 @@ skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]
-jig-protocol-worker-link.workspace = true
-temper-worker-service.workspace = true
-temper-worker-service-fixtures.workspace = true
-skein-channel.workspace = true
 skein-scratch.workspace = true
 skein-heap.workspace = true
 jig-test-store-files.workspace = true

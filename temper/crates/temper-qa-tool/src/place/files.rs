@@ -6,9 +6,19 @@ use std::{ffi::OsString, fs, os::unix::ffi::OsStringExt, path::Path};
 
 pub(super) fn copy(lines: &[String], source: &Path, destination: &Path) -> Result<(), Refusal> {
     for line in lines {
-        let Some(tail) = line.strip_prefix("forge commit forgejo ") else { continue };
+        let (tail, skip) = if let Some(tail) = line.strip_prefix("forge commit forgejo ") {
+            (tail, 2)
+        } else if let Some(tail) = line.strip_prefix("forge push forgejo ") {
+            (tail, 3)
+        } else if let Some(tail) = line.strip_prefix("deployment patch ") {
+            (tail, 1)
+        } else {
+            continue;
+        };
         let mut fields = Fields { rest: tail.as_bytes() };
-        fields.next().and_then(|_| fields.next()).map_err(field_refusal)?;
+        for _ in 0..skip {
+            fields.next().map_err(field_refusal)?;
+        }
         while !fields.rest.is_empty() {
             let bytes = fields.next().map_err(field_refusal)?;
             if !(1..=256).contains(&bytes.len())

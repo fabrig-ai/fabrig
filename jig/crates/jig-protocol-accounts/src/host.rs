@@ -313,8 +313,7 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Rehearsing { .. }
         | store::Event::Back { .. }
         | store::Event::BackRefused { .. }
-        | store::Event::Closed { .. }
-        | store::Event::Patched { .. } => unreachable!("accounts routing receives only secrets answers"),
+        | store::Event::Closed { .. } => unreachable!("accounts routing receives only secrets answers"),
     }
     event
 }

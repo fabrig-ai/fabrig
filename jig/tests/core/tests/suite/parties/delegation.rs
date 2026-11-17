@@ -7,6 +7,7 @@ use skein_lib::Wall;
 const G: u64 = FIRST;
 const A: u64 = 3;
 const B: u64 = 4;
+const NO_QUESTIONS: &[jig_domain_core::documents::InboxObject] = &[];
 
 fn world(seed: u64) -> World {
     with_role(seed, Some(people::Role::Member), true)
@@ -188,6 +189,34 @@ fn delegate_reaches_as_the_party_and_judges_ended_dependencies() {
 }
 
 #[test]
+fn a_task_document_counts_tasks_left_between_party_delegates() {
+    use jig_domain_core::{documents, reads};
+    let mut world = world(379);
+    let mut parent = gathering();
+    parent.authority.delegation.depth = 2;
+    create(&mut world, Box::new([parent]));
+    made(&world, G, G, None);
+    for (key, left, next_tasks) in [(120, 5, 4), (121, 4, 3), (122, 3, 3)] {
+        jig_core_world::reads::ask(&mut world, u64::from(key), reads::Read::Task { task: G });
+        let reads::Answer::Document(document) = jig_core_world::reads::latest(&world) else {
+            panic!("task document answer")
+        };
+        let documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
+        assert_eq!(document.tasks_left, left);
+        let mut child = people_member(b"delegate", 10);
+        child.authority.delegation =
+            people::Delegation { kinds: Box::new([people::Executor::Charter(CHARTER)]), tasks: next_tasks, depth: 1 };
+        delegate(&mut world, key, G, Box::new([child]));
+        if key == 122 {
+            refusal(&world, people::Refusal::Authority { lacking: people::Lack::Tasks { left: 3 }, proposable: None });
+        } else {
+            let task = if key == 120 { A } else { B };
+            made(&world, task, task, None);
+        }
+    }
+}
+
+#[test]
 fn a_party_fills_then_concludes_a_gathering_and_its_two_delegates_end_it() {
     let mut world = world(378);
     create(&mut world, Box::new([gathering()]));
@@ -217,6 +246,98 @@ fn a_party_fills_then_concludes_a_gathering_and_its_two_delegates_end_it() {
             words: b"Concluded: 2 done, 0 failed, 0 cancelled.".as_slice().into()
         }))
     );
+}
+
+fn question_world(seed: u64) -> World {
+    let mut world = world(seed);
+    world.domain.core_mut().person_answers();
+    let mut parent = gathering();
+    parent.authority.tools = jig_domain_core::ToolFamilies::JIG.message.0;
+    create(&mut world, Box::new([parent]));
+    let mut child = people_member(b"ask", 30);
+    child.authority.tools = jig_domain_core::ToolFamilies::JIG.message.0;
+    delegate(&mut world, 117, G, Box::new([child]));
+    made(&world, A, A, None);
+    world
+}
+
+fn gathering_question(world: &mut World) -> u64 {
+    use jig_domain_core as core;
+    use skein_lib::{ReplyTo, Token};
+    assert_eq!(world.assigned.as_ref().expect("delegate run").task, A);
+    let attempt = world.assigned.as_ref().expect("delegate run").attempt;
+    world.send(jig_test_domain::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(40_001)),
+        key: core::CallKey { task: A, attempt, completion: 1, position: 0 },
+        action: core::NamedAction::Message {
+            target: G,
+            kind: tasks::MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+        },
+    }));
+    let Some((_, _, core::CallPart::Sent { message })) = world.answers.last() else {
+        panic!("question admitted: {:?}", world.answers.last())
+    };
+    *message
+}
+
+#[test]
+fn a_gatherings_delegate_asks_its_person_and_hears_the_answer_from_its_requester() {
+    use jig_domain_core::{documents, reads};
+    let mut world = question_world(388);
+    finish(&mut world);
+    let question = gathering_question(&mut world);
+    assert_eq!(live_row(&world, A).questions[0].answerer, tasks::Party::Person(PARTY));
+    assert!(live_row(&world, G).inbox.is_empty(), "the gathering keeps no question");
+    let sign_in = world.sign_in.expect("signed in");
+    assert_eq!(
+        inbox(&mut world, sign_in, reads::Group::Questions),
+        vec![documents::InboxObject::Question { message: question }]
+    );
+    jig_core_world::reads::ask(&mut world, 911, reads::Read::Question { task: G, message: question });
+    let reads::Answer::Document(frame) = jig_core_world::reads::latest(&world) else { panic!("live question") };
+    let documents::Document::Question(document) = frame.as_ref() else { panic!("question document") };
+    assert_eq!(document.from, tasks::Party::Task(A));
+    assert_eq!(document.words.bytes.as_ref(), b"proceed?");
+    ask_as(
+        &mut world,
+        sign_in,
+        118,
+        people::Ask::AnswerQuestion { project: PROJECT, task: G, question, words: b"proceed".as_slice().into() },
+    );
+    assert!(live_row(&world, A).questions.is_empty(), "answer: {:?}", world.people_answers.last());
+    assert!(live_row(&world, A).inbox.iter().any(|word| word.from == tasks::Party::Task(G)
+        && word.kind == tasks::MessageKind::Answer { question }
+        && word.words.as_ref() == b"proceed"));
+    assert!(live_row(&world, G).inbox.is_empty(), "the gathering keeps no answer notice");
+    assert_eq!(live_row(&world, G).question_lines[0].answer.expect("retained answer").task, A);
+    assert_eq!(inbox(&mut world, sign_in, reads::Group::Questions).as_slice(), NO_QUESTIONS);
+}
+
+#[test]
+fn a_deployments_gathering_keeps_its_delegates_question_out_of_person_inboxes() {
+    use jig_domain_core::{self as core, reads};
+    let seed = 389;
+    let mut world = question_world(seed);
+    // A deployment-owned gathering is a restored fixture, not a person's Create.
+    let mut row = live_row(&world, G).clone();
+    row.requester = tasks::Party::Deployment { project: PROJECT };
+    world
+        .store
+        .seed(Box::new([jig_test_domain::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+    world.restart(seed, false);
+    world.domain.core_mut().person_answers();
+    crate::closed_proofs::hello(&mut world);
+    let question = gathering_question(&mut world);
+    assert_eq!(live_row(&world, A).questions[0].answerer, tasks::Party::Task(G));
+    assert!(live_row(&world, G).inbox.iter().any(|word| word.number == question
+        && word.from == tasks::Party::Task(A)
+        && word.kind == tasks::MessageKind::Question));
+    let sign_in = world.sign_in.expect("signed in");
+    assert_eq!(inbox(&mut world, sign_in, reads::Group::Questions).as_slice(), NO_QUESTIONS);
+    other_party(&mut world, people::Role::Member);
+    let other = world.sign_in.expect("second party signed in");
+    assert_eq!(inbox(&mut world, other, reads::Group::Questions).as_slice(), NO_QUESTIONS);
 }
 
 #[test]

@@ -107,13 +107,14 @@ fn reports_copy_named_keyspaces_and_leave_secrets_uncounted() {
         }
     }
     assert_eq!(census.keyspaces.len(), u32::try_from(store.stores.store.census().keyspaces().len()).unwrap());
-    let hold = space(census, &[1, 1, 23]);
-    assert_eq!(&*hold.name, "tasks.holds");
-    assert_eq!(hold.rows, 1);
-    assert_eq!(hold.puts, 1);
-    let attempt = space(census, &[1, 1, 22]);
-    assert_eq!(&*attempt.name, "tasks.attempts");
-    assert_eq!(attempt.rows, 1);
+    for space in &census.keyspaces {
+        assert_ne!(space.prefix.as_ref(), [1, 1, 23]);
+        assert_ne!(space.prefix.as_ref(), [1, 1, 22]);
+    }
+    let histories = space(census, &[0, 10]);
+    assert_eq!(&*histories.name, "component.histories");
+    assert_eq!(histories.rows, 1);
+    assert_eq!(histories.puts, 1);
     let application = space(census, &[2, 12]);
     assert_eq!(&*application.name, "example.changes");
     assert_eq!((application.rows, application.keys, application.values, application.written), (1, 3, 3, 6));

@@ -131,13 +131,13 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
                 open::refuse(store, store.directory.owner, OpenRefusal::Failed, above);
             } else {
                 store.registry.settle();
-                crate::patching::switch::opened(store);
+                crate::upgrade::switch::opened(store);
                 store.directory.checked = None;
                 above.push(Event::Opened {
                     owner: store.directory.owner,
                     last: store.stores.store.last(),
                     installation: store.installation,
-                    pending: crate::patching::switch::pending(store),
+                    pending: crate::upgrade::switch::pending(store),
                 });
                 crate::census::report(store, above);
             }

@@ -441,7 +441,7 @@ fn perform(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut system
             }
         }
         Op::Spawn { spawn } => system::process::spawn(spawn),
-        Op::Signal { pidfd, signal, to } => system::process::signal_child(*pidfd, *signal, *to),
+        Op::Signal { pidfd, signal, to, .. } => system::process::signal_child(*pidfd, *signal, *to),
         Op::Usage => system::process::usage().map(Done::Usage),
         Op::Window { fd } => system::terminal::size(*fd).map(Done::Window),
         Op::Wait { pidfd, reap } => {

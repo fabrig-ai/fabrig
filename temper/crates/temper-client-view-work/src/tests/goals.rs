@@ -15,7 +15,10 @@ use skein_ui::{Builder, Role, Style, Tree};
 
 use temper_client_domain::{
     Address, GoalsFilter,
-    pages::{goals::State, report::Report},
+    pages::{
+        goals::{State, Wait},
+        report::Report,
+    },
 };
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
@@ -33,8 +36,8 @@ const TOP_NODES: u32 = 15;
 
 const META_NODES: u32 = 13;
 
-// Seven states, with the two needs words checked separately.
-const STATE_CASES: usize = 8;
+// Nine states, with the two needs words checked separately.
+const STATE_CASES: usize = 10;
 
 // The template fixture's bounds and identities, independent of its name.
 
@@ -69,9 +72,19 @@ const TODAY_END: u64 = THURSDAY + HOUR + 12 * MINUTE;
 const MONDAY_END: u64 = MONDAY + 18 * HOUR + 40 * MINUTE;
 
 fn tree(line: &c::TaskLine, state: State, report: Option<&Report>, words: &Words) -> (Tree, Bindings) {
+    tree_named(line, state, report, words, &goals::Names::new())
+}
+
+fn tree_named(
+    line: &c::TaskLine,
+    state: State,
+    report: Option<&Report>,
+    words: &Words,
+    names: &goals::Names<'_>,
+) -> (Tree, Bindings) {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = Bindings::new(fixtures::tree_limits().bindings);
-    goals::row(&mut b, words, &mut bindings, &mut Times::new(fixtures::NOW), line, state, report);
+    goals::row(&mut b, words, &mut bindings, &mut Times::new(fixtures::NOW), line, state, report, names);
     (b.finish(), bindings)
 }
 
@@ -80,6 +93,13 @@ fn states() -> [(State, &'static [u8], Style, bool); STATE_CASES] {
         (State::Needs { funds: true }, b"needs funds", look::GOALS_STATE_NEEDS, false),
         (State::Needs { funds: false }, b"needs you", look::GOALS_STATE_NEEDS, false),
         (State::Paused, b"paused by you", look::GOALS_STATE_PAUSED, false),
+        (
+            State::Waits(Wait { first: 12, second: None, count: 1, more: false }),
+            b"waits on task 12",
+            look::GOALS_STATE_WAITS,
+            false,
+        ),
+        (State::WaitsForRoom, b"waits for its resources", look::GOALS_STATE_WAITS, false),
         (State::Planning, b"planning", look::GOALS_STATE_PLANNING, false),
         (State::Running, b"running", look::GOALS_STATE_RUNNING, false),
         (State::Landed, b"landed", look::GOALS_STATE_LANDED, true),
@@ -155,9 +175,79 @@ fn each_state_says_its_word_and_carries_its_token() {
             &line,
             State::Landed,
             None,
+            &goals::Names::new(),
         );
         assert_eq!(styled_text(&b.finish(), look::GOALS_STATE_LANDED).as_ref(), expected);
         assert_eq!(times.next, Some(Wall::from_nanos(FRIDAY)));
+    }
+}
+
+#[test]
+fn a_wait_names_what_the_page_holds_in_both_shells() {
+    assert_eq!(look::NAMES.style(look::GOALS_STATE_WAITS), Some(b"temper-goals-state-waits".as_slice()));
+    let mut first = line();
+    first.chip.task = 12;
+    let mut second = line();
+    second.chip.task = 13;
+    second.chip.title = fixtures::goal::text(b"S5 first step");
+    for (dependencies, more, holds, title, both, expected) in [
+        (&[12][..], false, false, "S6 retention by horizon", true, "waits on S6"),
+        (&[12][..], false, false, "Fast service tests", true, "waits on Fast service tests"),
+        (
+            &[12][..],
+            false,
+            false,
+            "A long dependency title that exceeds forty characters by far",
+            true,
+            "waits on A long dependency title that exceeds…",
+        ),
+        (&[99][..], false, false, "S6 retention by horizon", true, "waits on task 99"),
+        (&[13, 12][..], false, false, "S6 retention by horizon", true, "waits on S5 and S6"),
+        (&[13, 12][..], false, false, "S6 retention by horizon", false, "waits on 2 tasks"),
+        (&[12, 13, 14][..], false, false, "S6 retention by horizon", true, "waits on 3 tasks"),
+        (&[12, 13, 14][..], true, false, "S6 retention by horizon", true, "waits on 3+ tasks"),
+        (&[][..], true, false, "S6 retention by horizon", true, "waits on 0+ tasks"),
+        (&[][..], false, true, "S6 retention by horizon", true, "waits for its resources"),
+    ] {
+        first.chip.title = fixtures::goal::text(title.as_bytes());
+        let mut names = goals::Names::new();
+        names.add(&first);
+        if both {
+            names.add(&second);
+        }
+        let mut waiting = line();
+        waiting.delegates_total = 0;
+        waiting.chip.details.phase =
+            c::ChipPhase::Waiting { dependencies: List::from_boxed(dependencies.into()), more, holds };
+        waiting.chip.phase = c::Phase::Waiting;
+        let state = temper_client_domain::pages::goals::state(&waiting.chip, false, false, 0);
+        let mut sentence = crate::accounts::words::join(&[expected.as_bytes(), b"."]);
+        sentence[0].make_ascii_uppercase();
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, _) = tree_named(&waiting, state, None, &words, &names);
+            if words.shell == crate::words::Shell::Browser {
+                assert_eq!(styled_text(&tree, look::GOALS_STATE_WAITS).as_ref(), expected.as_bytes());
+            }
+            assert_eq!(styled_text(&tree, look::GOALS_LINE).as_ref(), sentence.as_ref());
+            let text = fixtures::text(&tree);
+            assert!(skein_lib::bytes::find(&text, expected.as_bytes()).is_some());
+            if words.shell == crate::words::Shell::Terminal {
+                let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), expected.as_bytes()).is_some());
+                assert!(skein_lib::bytes::find(print.text.as_slice(), &sentence).is_some());
+            }
+            let report = Report {
+                headline: Box::from(*b"Read report."),
+                paragraphs: List::uncapped(),
+                left: None,
+                risk: None,
+                decided: List::uncapped(),
+                at: None,
+            };
+            let (tree, _) = tree_named(&waiting, state, Some(&report), &words, &names);
+            assert_eq!(styled_text(&tree, look::GOALS_LINE).as_ref(), b"Read report.");
+        }
     }
 }
 
@@ -251,6 +341,8 @@ fn its_headline_is_the_reports_or_its_states() {
         at: None,
     };
     for (state, fallback) in [
+        (State::Waits(Wait { first: 12, second: None, count: 1, more: false }), b"Waits on task 12.".as_slice()),
+        (State::WaitsForRoom, b"Waits for its resources.".as_slice()),
         (State::Planning, b"Planning from the draft.".as_slice()),
         (State::Running, b"Six of nine tasks done.".as_slice()),
         (State::Paused, b"Six of nine tasks done.".as_slice()),
@@ -275,7 +367,10 @@ fn its_headline_is_the_reports_or_its_states() {
         let mut line = line();
         line.delegates_done = done;
         line.delegates_total = total;
-        assert_eq!(goals::headline(&fixtures::browser_words(), &line, State::Running, None).as_ref(), expected);
+        assert_eq!(
+            goals::headline(&fixtures::browser_words(), &line, State::Running, None, &goals::Names::new()).as_ref(),
+            expected
+        );
     }
     for state in [State::Needs { funds: true }, State::Needs { funds: false }] {
         let mut line = line();
@@ -526,6 +621,22 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
     let mut line = line();
     line.chip.task = task;
     match state {
+        State::Waits(wait) => {
+            let mut dependencies = List::uncapped();
+            dependencies.push(wait.first).unwrap();
+            if let Some(second) = wait.second {
+                dependencies.push(second).unwrap();
+            }
+            line.chip.details.phase = c::ChipPhase::Waiting { dependencies, more: wait.more, holds: false };
+            line.chip.phase = c::Phase::Waiting;
+            line.delegates_total = EMPTY;
+        }
+        State::WaitsForRoom => {
+            line.chip.details.phase =
+                c::ChipPhase::Waiting { dependencies: List::uncapped(), more: false, holds: true };
+            line.chip.phase = c::Phase::Waiting;
+            line.delegates_total = EMPTY;
+        }
         State::Planning => line.delegates_total = EMPTY,
         State::Needs { funds: false } | State::Running => {}
         State::Needs { funds: true } => {
@@ -578,7 +689,12 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
                     c::ChipEnding::Cancelled { reason: text(), result: None, by: line.requester, at: Wall::EPOCH }
                 }
                 State::Failed => c::ChipEnding::Failed(text()),
-                State::Needs { .. } | State::Paused | State::Planning | State::Running => unreachable!(),
+                State::Needs { .. }
+                | State::Paused
+                | State::Waits(_)
+                | State::WaitsForRoom
+                | State::Planning
+                | State::Running => unreachable!(),
             });
         }
     }
@@ -657,6 +773,48 @@ fn the_headline_counts_every_row_in_every_form() {
                 assert_eq!(styled_text(&page.tree(&words).0, look::GOALS_HEADLINE).as_ref(), expected.as_bytes());
             }
         }
+    }
+}
+
+#[test]
+fn waiting_rows_are_under_way_and_only_an_own_need_says_you() {
+    let wait = State::Waits(Wait { first: NEEDS_TASK, second: Some(FUNDS_TASK), count: 2, more: false });
+    let mut page = Page::populated();
+    let mut waiting = page_line(200, wait);
+    // The own need is last: Wait stores only the first two dependencies.
+    waiting.chip.details.phase = c::ChipPhase::Waiting {
+        dependencies: List::from_boxed(Box::new([FUNDS_TASK, 99, NEEDS_TASK])),
+        more: false,
+        holds: false,
+    };
+    let room = page_line(201, State::WaitsForRoom);
+    page.live(&[waiting.clone(), room.clone()], false);
+    page.ended(&[], false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        page.filter(GoalsFilter::Live);
+        let (tree, bindings) = page.tree(&words);
+        assert_eq!(row_tasks(&tree, &bindings).as_ref(), &[200, 201]);
+        assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), b"2 goals, 2 under way.");
+        assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Waits for you.").is_some());
+        for filter in [GoalsFilter::Needs, GoalsFilter::Ended] {
+            page.filter(filter);
+            let (tree, bindings) = page.tree(&words);
+            assert!(row_tasks(&tree, &bindings).is_empty());
+        }
+        waiting.chip.details.phase =
+            c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([FUNDS_TASK])), more: false, holds: false };
+        page.live(&[waiting.clone(), room.clone()], false);
+        page.filter(GoalsFilter::Live);
+        assert!(
+            skein_lib::bytes::find(&fixtures::text(&page.tree(&words).0), b"Waits on task 102.").is_some(),
+            "an ancestor is not the reader's own task"
+        );
+        waiting.chip.details.phase = c::ChipPhase::Waiting {
+            dependencies: List::from_boxed(Box::new([FUNDS_TASK, 99, NEEDS_TASK])),
+            more: false,
+            holds: false,
+        };
+        page.live(&[waiting.clone(), room.clone()], false);
     }
 }
 
@@ -755,6 +913,76 @@ fn the_filters_press_and_move() {
             }
         }
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects grouped semantic subtrees")]
+fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
+    let mut page = Page::populated();
+    let m = fixtures::milestones::TASK;
+    let mut planning = page_line(PLANNING_TASK, State::Planning);
+    planning.requester = c::Requester::Task(m);
+    let mut needs = page_line(NEEDS_TASK, State::Needs { funds: false });
+    needs.requester = c::Requester::Task(m);
+    let mut landed = page_line(LANDED_TASK, State::Landed);
+    landed.requester = c::Requester::Task(m);
+    let mut unknown = page_line(PAUSED_TASK, State::Paused);
+    unknown.requester = c::Requester::Task(9999);
+    page.live(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false);
+    page.ended(&[landed.clone(), page_line(FAILED_TASK, State::Failed)], false);
+    let out = fixtures::milestones::offer(&mut page.root, page.me, &page.limits);
+    let listed = fixtures::milestones::watch(&out, Some(fixtures::milestones::LABEL), None, PAGE_ROWS);
+    let mut milestone = line();
+    milestone.chip.task = m;
+    milestone.chip.title = fixtures::goal::text(b"Store shape");
+    let mut empty = milestone.clone();
+    empty.chip.task = m + 1;
+    let out = fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
+    let children = fixtures::milestones::watch(&out, None, Some(m), PAGE_ROWS);
+    fixtures::milestones::live(&mut page.root, &page.limits, children, &[planning, needs, landed], false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        for (filter, expected, children) in [
+            (
+                GoalsFilter::All,
+                &[RUNNING_TASK, m, PLANNING_TASK, NEEDS_TASK, LANDED_TASK, PAUSED_TASK, FAILED_TASK][..],
+                &[PLANNING_TASK, NEEDS_TASK, LANDED_TASK][..],
+            ),
+            (GoalsFilter::Live, &[RUNNING_TASK, m, PLANNING_TASK, PAUSED_TASK][..], &[PLANNING_TASK][..]),
+            (GoalsFilter::Needs, &[m, NEEDS_TASK][..], &[NEEDS_TASK][..]),
+            (GoalsFilter::Ended, &[m, LANDED_TASK, FAILED_TASK][..], &[LANDED_TASK][..]),
+        ] {
+            page.filter(filter);
+            let (tree, bindings) = page.tree(&words);
+            assert_eq!(row_tasks(&tree, &bindings).as_ref(), expected);
+            assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), b"6 goals, 4 under way.");
+            let group = styled_node(&tree, look::GOALS_GROUP).unwrap();
+            let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::GOALS_GROUP)).unwrap();
+            let end = index + usize::try_from(group.size).unwrap();
+            let subtree = &tree.nodes()[index..end];
+            assert_eq!(
+                subtree.iter().filter(|n| n.styles.as_slice().contains(&look::GOALS_ROW)).count(),
+                children.len() + 1,
+                "{filter:?} {:?} group {group:?}",
+                words.shell
+            );
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::GOALS_GROUP)).count(),
+                1,
+                "no group without a shown goal"
+            );
+            assert!(styled_node(&tree, look::GOALS_GROUP_ROWS).is_some());
+            if words.shell == crate::words::Shell::Terminal {
+                let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), "milestone · Store shape".as_bytes()).is_some());
+            }
+        }
+    }
+    page.live(&[page_line(RUNNING_TASK, State::Running)], false);
+    page.filter(GoalsFilter::Needs);
+    let (tree, bindings) = page.tree(&fixtures::browser_words());
+    assert!(row_tasks(&tree, &bindings).is_empty());
+    assert!(styled_node(&tree, look::GOALS_GROUP).is_none());
 }
 
 #[test]

@@ -16,11 +16,13 @@ pub mod llm;
 pub mod repair;
 pub mod scripts;
 pub mod terminal;
+pub mod turn_landing;
 
 /// A real deadline bounds every story, including startup and drain.
 pub const PATIENCE: skein_lib::Duration = skein_lib::Duration::from_secs(20);
 mod agent;
 pub mod calls;
+mod cancel_kills;
 pub mod ending;
 mod patience;
 pub mod service;
@@ -30,7 +32,7 @@ pub use skein_lib::Time;
 pub use skein_scratch::Scratch;
 pub use temper_service::End;
 
-/// The checked result retains its owners until assertions finish.
+/// The result retains its owners until assertions finish.
 pub struct Ran {
     outcome: Outcome,
     scratch: Scratch,
@@ -123,6 +125,68 @@ impl Ran {
     pub fn killed(&self) -> &[skein_world::real::Killed] {
         &self.outcome.killed
     }
+    /// Notes in iteration order, bounded by age and then by count.
+    fn recent_notes(&self) -> &[(Time, temper_service::Note)] {
+        let notes = &self.service().notes;
+        let first =
+            notes.partition_point(|(at, _)| self.outcome.end.saturating_since(*at) > skein_lib::Duration::from_secs(5));
+        &notes[first.max(notes.len().saturating_sub(100))..]
+    }
+    fn cancel_kills(&self) -> cancel_kills::Judged {
+        let notes: Vec<_> = self
+            .outcome
+            .procs
+            .iter()
+            .enumerate()
+            .flat_map(|(root, proc)| {
+                let world::Kind::Service(service) = &proc.kind else { return Vec::new() };
+                service
+                    .notes
+                    .iter()
+                    .filter_map(|(at, note)| {
+                        if let temper_service::Note::Worker(temper_service::worker_alone::Note::Cancelling {
+                            run,
+                            attempt,
+                        }) = note
+                        {
+                            Some(cancel_kills::Note { root, at: *at, run: *run, attempt: *attempt })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        let kills: Vec<_> = self
+            .killed()
+            .iter()
+            .map(|kill| {
+                // Roots are admitted before hosted children and are never removed.
+                // Only service roots have notes; hosted requesters are not paired.
+                let root = self
+                    .outcome
+                    .procs
+                    .get(kill.requester)
+                    .and_then(|proc| matches!(&proc.kind, world::Kind::Service(_)).then_some(kill.requester));
+                cancel_kills::Kill { root, at: kill.at, reason: kill.reason, exit: kill.exit }
+            })
+            .collect();
+        cancel_kills::judge(&kills, &notes, &self.service().cancel_history, self.requested_kills())
+    }
+    fn kill_finding(&self, heading: &str, details: &[String]) -> String {
+        use std::fmt::Write;
+        let mut finding = format!("{heading}\n");
+        for (killed, detail) in self.killed().iter().zip(details) {
+            let millis = killed.at.saturating_since(self.outcome.start).as_millis();
+            writeln!(finding, "{killed}; {millis} ms from run start{detail}").expect("string writer");
+        }
+        finding.push_str("service notes (last 5 s, latest 100):\n");
+        for (at, note) in self.recent_notes() {
+            let millis = at.saturating_since(self.outcome.start).as_millis();
+            writeln!(finding, "{millis} ms: {note:?}").expect("string writer");
+        }
+        finding
+    }
     #[must_use]
     pub fn path(&self) -> &std::path::Path {
         self.scratch.path()
@@ -145,6 +209,17 @@ pub fn run_on(scratch: Scratch, recipe: impl FnOnce() -> llm::Recipe, steps: imp
     let outcome = world::run(&scratch, recipe, steps, false, false);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
+/// Run to completion with an agent frozen at the story's task cancellation.
+/// Returns without the teardown check so a story can inspect its finding.
+#[must_use]
+pub fn run_stubborn_on(
+    scratch: Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Ran {
+    let outcome = world::run_stubborn(&scratch, recipe, steps);
+    Ran { outcome: Outcome::Checked(outcome), scratch }
+}
 /// Run a terminal sign-in with a synthetic issuer and no provisioned key.
 #[must_use]
 pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
@@ -153,21 +228,23 @@ pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 
+/// Teardown's checks return their first finding (testing/real-loop.md).
+pub fn check(ran: &Ran) -> Result<(), String> {
+    if !matches!(
+        ran.served(),
+        Some(End::Engine(temper_service::EngineEnd::Drained) | End::Worker(temper_service::worker_alone::End::Drained))
+    ) {
+        return Err(format!("service end {:?}", ran.served()));
+    }
+    let judged = ran.cancel_kills();
+    if let Some(heading) = judged.refusal {
+        return Err(ran.kill_finding(&heading, &judged.details));
+    }
+    Ok(())
+}
 fn checked(ran: Ran) -> Ran {
-    assert!(
-        matches!(
-            ran.served(),
-            Some(
-                End::Engine(temper_service::EngineEnd::Drained)
-                    | End::Worker(temper_service::worker_alone::End::Drained)
-            )
-        ),
-        "service end {:?}",
-        ran.served()
-    );
-    assert_eq!(ran.killed().len(), ran.requested_kills(), "only requested kills: {:?}", ran.killed());
-    for killed in ran.killed() {
-        assert_eq!(killed.exit, Exit::Signal(9), "requested kill");
+    if let Err(finding) = check(&ran) {
+        panic!("{finding}");
     }
     ran
 }

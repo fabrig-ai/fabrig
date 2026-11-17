@@ -5,8 +5,9 @@ with no patch file and no generic value: a plan derived from the two
 layouts' texts, run as a pass over the value's bytes. A store that names
 each value's layout (jig's `protocol/store/layouts.md`) builds one plan
 per layout it holds, at open, and runs it on each value read at that
-layout. The patch machine (`patches.md`) stays for the families a store
-still patches and for the written jobs that need a generic value.
+layout. The patch machine (`patches.md`) stays for wires and the
+transcripts' frames; a registered family's written changes use its
+owner's jobs.
 
 - **A value type's layout** (`README.md`, 9.4): a root declaration, at
   one variant where the root is broad and its keys tell its variants
@@ -77,9 +78,10 @@ one given on one side alone has no plan (`Underived::Held`).
   own), and its enumeration and every declaration enclosing it in the
   reach no longer keep, so no copy of a span passes over it. Any other
   part that is not derived still refuses the plan as `derive` does. A
-  plan with no drop is `derive`'s, byte for byte. A store uses it only
-  to settle its values once (jig's `protocol/store/jobs.md`, 5), never
-  for what it reads while serving.
+  plan with no drop is `derive`'s, byte for byte. A store's reads while
+  serving use `derive`, not `derive_dropping`; the latter lets a caller
+  distinguish a value holding a dropped variant from one the plan can
+  convert. Section 6's step tests cover both outcomes.
 - **What a plan keeps** for its pass, per old declaration of the reach:
   its new declaration; per new field, its old field and that field's
   conversion, or the default's bytes; per old variant, its new tag; per
@@ -107,7 +109,7 @@ the new value's into the caller's buffer:
 
 - **The root's head:** a versioned root's first two bytes are passed
   over, and the new text's version written in their place; the caller
-  maps that head to its own (jig's `protocol/store/layouts.md`, 3). A
+  maps that head to its own (jig's `protocol/store/layouts.md`, 4). A
   nested versioned record's head is the new text's version too.
 - **A record:** each old field's span is found in order (its bytes read
   as its type's decoder would, lengths and counts checked against what

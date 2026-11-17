@@ -147,7 +147,7 @@ impl Document {
             return Err(read::why(&p.member(b"owner"), b"expected a Forgejo login other than temper-admin"));
         }
         let p = p.member(b"repositories");
-        let items = read::list(&d, repositories_at, 1, &p)?;
+        let items = read::list(&d, repositories_at, 0, &p)?;
         let mut repositories = List::<Repository>::with_capacity(items.len());
         for (i, at) in items.iter().enumerate() {
             let p = read::index(&p, i);

@@ -181,7 +181,7 @@ members = [
     "smith/tests/real",
     "smith/tests/fake-claude",
     "smith/tests/transcript-patches",
-    "jig/testing/jig-test-patches",
+    "jig/testing/jig-test-layouts",
     "jig/testing/jig-test-patches-jig",
     "jig/testing/jig-test-patches-smith",
     "jig/testing/jig-client-fake-person-browser",
@@ -231,6 +231,7 @@ members = [
     "jig/testing/jig-engine-clients-kit",
     "jig/testing/jig-client-protocol-kit",
     "jig/testing/jig-protocol-accounts-kit",
+    "jig/testing/jig-protocol-store-kit",
     "jig/testing/jig-people-kit",
     "jig/testing/jig-tasks-kit",
     "jig/testing/jig-channel-kit",
@@ -269,6 +270,7 @@ members = [
     "jig/crates/jig-protocol-tools",
     "jig/crates/jig-protocol-config",
     "jig/crates/jig-protocol-store",
+    "jig/crates/jig-protocol-store-records",
     "jig/crates/jig-protocol-store-people",
     "jig/crates/jig-protocol-store-tasks",
     "jig/crates/jig-protocol-store-core",
@@ -383,7 +385,6 @@ members = [
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-store-codec",
-    "temper/crates/temper-protocol-store-patches",
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
@@ -601,7 +602,7 @@ smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
 smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
-jig-test-patches = { path = "jig/testing/jig-test-patches" }
+jig-test-layouts = { path = "jig/testing/jig-test-layouts" }
 jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
 base64 = { version = "0.22" }
@@ -633,6 +634,7 @@ jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }
 jig-protocol-store = { path = "jig/crates/jig-protocol-store" }
+jig-protocol-store-records = { path = "jig/crates/jig-protocol-store-records" }
 jig-protocol-store-people = { path = "jig/crates/jig-protocol-store-people" }
 jig-protocol-store-tasks = { path = "jig/crates/jig-protocol-store-tasks" }
 jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
@@ -660,6 +662,7 @@ jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
 jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-protocol-store-kit = { path = "jig/testing/jig-protocol-store-kit" }
 jig-test-kit = { path = "jig/testing/jig-test-kit" }
 jig-people-kit = { path = "jig/testing/jig-people-kit" }
 jig-tasks-kit = { path = "jig/testing/jig-tasks-kit" }
@@ -763,7 +766,6 @@ temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wir
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
-temper-protocol-store-patches = { path = "temper/crates/temper-protocol-store-patches" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }

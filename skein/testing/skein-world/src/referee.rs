@@ -21,7 +21,7 @@ use core::cell::{Cell, RefCell};
 use skein_io::kernel::ServiceSignal;
 use skein_lib::{Queue, Time};
 
-use crate::Starved;
+use crate::{Cut, Starved};
 
 /// Where the referee places a scenario's last word (testing-strategy.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -189,22 +189,34 @@ fn broke(seed: u64, now: Time, expectation: &dyn Debug, why: &str) -> String {
     format!("seed {seed}: at {} ns, {expectation:?} broke: {why}", now.as_nanos())
 }
 
-/// Referee access to world signals and real-loop scheduler accounting.
+#[derive(Debug)]
+pub(crate) enum Control {
+    Signal { host: usize, signal: ServiceSignal },
+    Cut { host: usize, cut: Cut },
+}
+
+/// Referee access to world signals, simulated cuts and real-loop scheduler accounting.
 #[derive(Clone, Debug)]
 pub struct Controls {
-    pub(crate) signals: Rc<RefCell<Queue<(usize, ServiceSignal)>>>,
+    pub(crate) pending: Rc<RefCell<Queue<Control>>>,
     pub(crate) sched_start: Rc<Cell<Option<crate::real::Sched>>>,
 }
 
 impl Controls {
     pub(crate) fn new() -> Self {
-        Self { signals: Rc::new(RefCell::new(Queue::with_capacity(256))), sched_start: Rc::new(Cell::new(None)) }
+        Self { pending: Rc::new(RefCell::new(Queue::with_capacity(256))), sched_start: Rc::new(Cell::new(None)) }
     }
 
     /// Delivers a signal to the named root or hosted child in the next turn.
     /// Root ids come from `spawn`; hosted ids follow them in admission order.
     pub fn signal(&self, host: usize, signal: ServiceSignal) {
-        self.signals.borrow_mut().push((host, signal));
+        self.pending.borrow_mut().push(Control::Signal { host, signal });
+    }
+
+    /// Cuts the named restartable root in the simulated world's next turn.
+    /// Root ids come from `spawn`; the cut uses its registered restart factory.
+    pub fn cut(&self, host: usize, cut: Cut) {
+        self.pending.borrow_mut().push(Control::Cut { host, cut });
     }
 }
 

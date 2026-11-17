@@ -216,7 +216,8 @@ pub(crate) const fn refusal(refusal: agent::MessageRefusal) -> host::MessageRefu
 pub(crate) const fn operation(operation: agent::Operation) -> jig_domain_link::Operation {
     match operation {
         agent::Operation::Checks => jig_domain_link::Operation::Checks,
-        agent::Operation::Completion => jig_domain_link::Operation::Completion,
+        // jig domain/hosts/hub.md, 5; smith domain/session.md, 4: the completion is busy while its grant waits.
+        agent::Operation::Completion | agent::Operation::Grant => jig_domain_link::Operation::Completion,
         agent::Operation::Command => jig_domain_link::Operation::Command,
     }
 }

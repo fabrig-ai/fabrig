@@ -12,16 +12,13 @@ use skein_codec::{patch::Patcher, schema};
 // generated code by `the_real_copy_is_smiths_schema`.
 const REAL: &str = include_str!("fixtures/smith-transcript-v7.schema");
 // Smith's real turn alone, as its set keeps it from the baseline on.
-const REAL_SETS: crate::PatchSets = crate::PatchSets {
-    sets: &[crate::PatchSet {
+const REAL_SETS: crate::OwnerSets = crate::OwnerSets {
+    sets: &[crate::OwnerSet {
         level: Some(0),
-        patches: &[],
-        fresh: None,
         families: &[crate::KeptFamily {
             current: REAL,
             name: smith_transcript::FAMILY,
-            texts: &[REAL],
-            frames: Some(smith_transcript::ROOT),
+            frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[REAL], patches: &[] }),
             ..super::frame_patches::SETS.sets[1].families[0]
         }],
         ..super::frame_patches::SETS.sets[1]
@@ -65,21 +62,21 @@ fn frame_capacities_cover_real_and_kept_turns() {
     eprintln!("real smith machine heap {}", Patcher::workspace_bound(real).expect("real heap"));
 }
 
-fn kept_turns_fit(sets: &crate::PatchSets, limits: &crate::Limits) {
+fn kept_turns_fit(sets: &crate::OwnerSets, limits: &crate::Limits) {
     for set in sets.sets {
         if set.owner != crate::Owner::Smith {
             continue;
         }
         for (ix, family) in set.families.iter().enumerate() {
-            let Some(root) = family.frames else { continue };
+            let Some(frames) = &family.frames else { continue };
+            let root = frames.root;
             let capacity = patches::capacity(set, ix, limits).expect("kept capacity");
-            let meta = crate::patching::machines::kept_patcher(set, ix, capacity).expect("kept metadata");
-            let last = schema::parse(family.texts.last().expect("kept last").as_bytes()).expect("last text").version();
+            let meta = patches::kept_patcher(frames, capacity).expect("kept metadata");
+            let last = schema::parse(frames.texts.last().expect("kept last").as_bytes()).expect("last text").version();
             let mut most = 0;
-            for text in family.texts {
+            for text in frames.texts {
                 let schema = schema::parse(text.as_bytes()).expect("kept text");
-                let root = crate::patching::walk::held_root(&meta, schema.version(), last, root.as_bytes())
-                    .expect("kept root");
+                let root = patches::held_root(&meta, schema.version(), last, root.as_bytes()).expect("kept root");
                 most = most.max(maximum_decl(&schema, root).0);
             }
             assert_eq!(capacity.nodes, most, "the machine's nodes are its kept texts' most");

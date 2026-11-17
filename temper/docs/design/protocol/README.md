@@ -113,9 +113,9 @@ its tests, is `cluster.md`.
     binary, `temper help`, and agents' `read_docs`.
 16. **tooling.md:** the contract with a project's own `prepare` and
     `key` commands, run as jobs on a worker for a landing by turn.
-17. **baseline.md:** the store every later build upgrades from: its
-    kept texts, the patch sets temper hands jig's store, the golden
-    store, and the gate on stored changes.
+17. **floor.md:** the oldest store this build opens: its families and
+    versions, the owner sets temper hands jig's store, the golden
+    deployment, named refusals and the policy on stored changes.
 18. **wires.md:** the wires between the engine, its workers, their
     agents and its clients: their versions moving with their layouts,
     what the opening states, a mismatch, the host tools' contract, and
@@ -522,12 +522,12 @@ section 8 give them. temper's sit beside them:
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
-- **The store's baseline is `bc23255eb7`'s store** (`baseline.md`; the
-  user, 2026-11-11), not the first release: from it, a change of
-  temper's families lands with its patch, which moves `STORE_VERSION`
-  (`baseline.md`, 7). The wires' and the clients' versions are no
-  store's: from 2026-11-12 each moves at the landing that changes its
-  layout (wires.md, sections 3 and 9).
+- **The store's floor is dev.fabrig.ai's settled store** (`floor.md`, 1
+  and 2). Registered families convert at read through the registry;
+  defaults, former names and written jobs change them without a patch,
+  version move or map walk. Formats outside the registry are fixed at
+  their versions (`floor.md`, 6). The wires' and clients' versions move
+  at the landing that changes their layouts (wires.md, sections 3 and 9).
 - **Both channel components are given temper's wire,** its `Spoken`
   statement, its bridge and the declarations its parts hold, when they
   are made; neither knows what it covers (wires.md, sections 4 and 6).
@@ -536,10 +536,10 @@ section 8 give them. temper's sit beside them:
   every wire of `temper_engine_service::wires()`, jig's and smith's beside
   temper's, so the next binary's rehearsal can say whether the workers
   may stay (wires.md, section 10).
-- **What the baseline freezes.** From it (`baseline.md`), every byte of
-  temper's a deployment keeps must stay readable by every later build
-  (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Made before it, in place, each
-  in one change with its golden bytes:
+- **What a deployment keeps.** The floor (`floor.md`) bounds the stores
+  a build opens. Registered layouts come from the store's registry;
+  fixed forms and small files have their own readers and golden bytes:
+
   - **The forges' secrets from a schema:** temper's family
     `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
     a versioned record per row of jig's secrets' store under temper's tag
@@ -548,8 +548,7 @@ section 8 give them. temper's sit beside them:
     app's id `u64`s, big-endian as every schema's; the app's slug a
     `text N`; its key a `secret N` holding its DER; the accepted
     installations a list; the origin its kind and address). The
-    hand-written envelope and its little-endian numbers go. temper's set
-    names the family at the baseline, `map: Secrets`, its keys temper's
+    owner set names the family, `map: Secrets`, its keys temper's
     numbers below 2^63 (jig's `protocol/store/secrets.md`). A pasted
     bundle is a carried value, jig's from 2^63 up, kept only until the
     request that carries it is used (credentials.md, 2.2): its form is
@@ -560,17 +559,17 @@ section 8 give them. temper's sit beside them:
     answers' items, comments, reviews, statuses, remarks and files its
     `pieces`; each list of raw names (a branch's segments, protection
     contexts, labels, branch names) a declared item type and its
-    `pieces`, its bytes moving in place where they must.
+    `pieces`, converted at read through the registry.
   - **An effect's key is an identity, never patched:** kept as written,
     in the store and in the forge's markers, compared byte for byte.
-    Its first byte is its version (skein's `forge/client.md`, 7.1); from
-    the baseline the connector reads every version it has written,
+    Its first byte is its version (skein's `forge/client.md`, 7.1);
+    the connector reads the versions the floor's stores hold,
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge/README.md, section 3). The marker's wrapper and the bot's
     marker are fixed forms.
   - **Small files** (`../draft/upgrades.md`, section 10): the forge's setup
-    `state`, versioned JSON, is read in every version from the baseline
-    on and written in the current at its next write; the
+    `state`, versioned JSON, is read in its supported versions
+    and written in the current at its next write; the
     preparation writes it before the engine starts, so it follows the
     forge's own upgrade, whose going back is its dump (setup/owned.md, 3).
     The worker's secret and digest (hex digits and a newline), the
@@ -589,14 +588,13 @@ section 8 give them. temper's sit beside them:
   Outside it: what an external program reads (Forgejo's and the
   runner's files, which their own upgrade carries), the fake backends'
   sandbox, logs, caches and worker roots.
-- **The baseline's kept texts, sets, golden store and gate** are
-  `baseline.md`'s: every stored family's current text kept at level 0
-  with no patch (3); the four owners' sets handed by `temper-service`'s
-  store shell in place of `PatchSets::NONE` (4); a store the baseline's
-  build wrote read at level 0 (5); its golden store, which every later
-  build starts on (6); and the focused check that holds each later
-  stored change to its patch (7). Still open past it: a delivery's
-  evidence with its kept form (jig's `protocol/store/README.md`, section 11).
+- **Owner sets, the golden store and the gate** are `floor.md`'s:
+  the four owners' current families, value types, jobs, frame histories
+  and explicit levels (3); a once-kept floor deployment that opens and
+  serves, and its floorless refusal (5); registered-family changes
+  without patches, and the gate on wires and fixed formats (6). Still
+  open: a delivery's evidence with its kept form (jig's
+  `protocol/store/README.md`, section 11).
 
 ## 8. Secrets
 
@@ -666,7 +664,7 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
   environment builders, and its output parsers against transcripts of
   real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,
-  `skein/docs/design/testing/fakes/forge.md`, section 7);
+  `skein/docs/design/testing/fakes/throwaway.md`, section 2);
   temper's pages as skein's text shell prints them (`../client/testing.md`
   ).
 - **Machine worlds:** the forge component against a scripted HTTP peer

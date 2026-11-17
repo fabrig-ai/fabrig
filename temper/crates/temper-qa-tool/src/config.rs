@@ -1,11 +1,12 @@
 //! Home-relative configuration (qa/README.md, 3.2).
-use crate::{Refusal, document as d, refused};
+use crate::{Kind, Refusal, document as d, refused};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Configuration {
     pub owner: String,
+    pub gaps_fake: Option<String>,
     pub git: Git,
     pub agent: Agent,
     pub bounds: Bounds,
@@ -13,6 +14,7 @@ pub struct Configuration {
     pub notify: Option<Vec<String>>,
     pub places: Vec<String>,
     pub ports: std::collections::BTreeMap<String, String>,
+    pub kinds: std::collections::BTreeMap<String, Kind>,
     pub surfaces: Vec<String>,
     pub areas: std::collections::BTreeMap<String, String>,
     pub request: RequestConfiguration,
@@ -47,6 +49,18 @@ impl Configuration {
     pub fn finding_area(&self, surface: &str) -> &str {
         self.areas.get(surface).map_or(self.owner.as_str(), String::as_str)
     }
+    #[must_use]
+    pub fn gap_owner(&self, kind: &str) -> &str {
+        match kind {
+            "ctl" => self.finding_area("ctl"),
+            "fake" => self.gaps_fake.as_deref().unwrap_or(&self.owner),
+            _ => &self.owner,
+        }
+    }
+    #[must_use]
+    pub fn place_kind(&self, name: &str) -> Kind {
+        self.kinds.get(name).copied().unwrap_or_default()
+    }
     pub fn place_directory(&self, home: &Path, name: &str) -> Result<PathBuf, Refusal> {
         if !self.places.iter().any(|place| place == name) {
             return Err(refused(format!("unknown place {name}")));
@@ -58,9 +72,20 @@ impl Configuration {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
             let object = d::object(
                 &value,
-                &["owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request"],
+                &[
+                    "owner", "git", "agent", "bounds", "builds", "notify", "places", "surfaces", "areas", "request",
+                    "gaps",
+                ],
             )?;
             let owner = nonempty(object, "owner")?;
+            let gaps_fake = object
+                .get("gaps")
+                .map(|value| {
+                    let gaps = d::object(value, &["fake"])?;
+                    gaps.get("fake").map(d::string).transpose()
+                })
+                .transpose()?
+                .flatten();
             let git = named_object(object, "git", &["directory", "branch", "fetch"])?;
             let directory = path(home, &nonempty(git, "directory").map_err(|why| refused(format!("git.{why}")))?);
             let branch = git.get("branch").map(d::string).transpose()?.unwrap_or_else(|| "main".into());
@@ -77,7 +102,7 @@ impl Configuration {
                 state: request.get("state").map(command_line).transpose()?,
                 area: request.get("area").map(d::string).transpose()?.unwrap_or_else(|| owner.clone()),
             };
-            let (places, ports) = places(object.get("places"), home)?;
+            let (places, ports, kinds) = places(object.get("places"), home)?;
             let surfaces = object
                 .get("surfaces")
                 .map(d::strings)
@@ -111,6 +136,7 @@ impl Configuration {
             let notify = object.get("notify").map(command_line).transpose()?;
             Ok(Self {
                 owner,
+                gaps_fake,
                 git: Git { directory, branch, fetch },
                 agent: Agent { command, triage, pass },
                 bounds,
@@ -118,6 +144,7 @@ impl Configuration {
                 notify,
                 places,
                 ports,
+                kinds,
                 surfaces,
                 areas,
                 request,
@@ -126,29 +153,33 @@ impl Configuration {
         decode().map_err(|why: Refusal| refused(format!("qa.json: {why}")))
     }
 }
-type Places = (Vec<String>, std::collections::BTreeMap<String, String>);
+type Places = (Vec<String>, std::collections::BTreeMap<String, String>, std::collections::BTreeMap<String, Kind>);
 
 fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
-    let Some(value) = value else { return Ok((vec!["places/1".into()], std::collections::BTreeMap::new())) };
+    let Some(value) = value else {
+        return Ok((vec!["places/1".into()], std::collections::BTreeMap::new(), std::collections::BTreeMap::new()));
+    };
     let values = d::array(value)?;
     if values.is_empty() {
         return Err(refused("places needs at least one directory"));
     }
     let mut names = Vec::new();
+    let mut kinds = std::collections::BTreeMap::new();
     let mut ports = std::collections::BTreeMap::new();
     let mut directories = std::collections::BTreeSet::new();
     let mut used = std::collections::BTreeMap::new();
     for value in values {
-        let (name, list) = if value.is_string() {
-            (d::string(value)?, None)
+        let (name, list, kind) = if value.is_string() {
+            (d::string(value)?, None, Kind::Box)
         } else {
             let object = d::object(value, &["directory", "kind", "ports"])?;
             let name = nonempty(object, "directory")?;
             let kind = object.get("kind").map(d::string).transpose()?.unwrap_or_else(|| "box".into());
-            if kind != "box" {
-                return Err(refused(format!("place {name}: kind {kind} is not supported; only box places are built")));
+            let kind = Kind::parse(&kind).map_err(|why| refused(format!("place {name}: {why}")))?;
+            if kind == Kind::Deployment && !object.contains_key("ports") {
+                return Err(refused(format!("place {name} is a deployment's and names no ports")));
             }
-            (name, object.get("ports"))
+            (name, object.get("ports"), kind)
         };
         if name.trim().is_empty() {
             return Err(refused(format!("place {name:?}: directory is empty")));
@@ -185,9 +216,10 @@ fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
             };
             ports.insert(name.clone(), check().map_err(|why| refused(format!("place {name}: {why}")))?);
         }
+        kinds.insert(name.clone(), kind);
         names.push(name);
     }
-    Ok((names, ports))
+    Ok((names, ports, kinds))
 }
 
 fn named_object<'a>(

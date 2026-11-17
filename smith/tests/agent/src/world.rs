@@ -106,6 +106,8 @@ pub struct Settings {
     pub job: Job,
     /// Host tool name declared by the fixture charter.
     pub host_tool_name: &'static [u8],
+    /// Timeout declared by the opaque host tool, independent of the caller deadline.
+    pub host_tool_timeout: Duration,
     pub limits: Limits,
     /// The run's token and wall-time allowance, shared across conversations.
     pub budget: run::Budget,
@@ -138,6 +140,7 @@ impl Settings {
             seed,
             job: Job::Coding,
             host_tool_name: b"host_action",
+            host_tool_timeout: Duration::from_millis(300),
             limits: LIMITS,
             budget: BUDGET,
             writable: true,
@@ -166,6 +169,12 @@ pub enum HostSchedule {
     Withdraw,
     /// Wait for withdrawal, but replay recorded answer.
     LateAnswer,
+    /// Every timed-out withdrawal is known never to have been sent.
+    Unsent,
+    /// The first timed-out withdrawal is unsent, then the host answers.
+    UnsentThenAnswer,
+    /// Every timed-out withdrawal settles without revealing an outcome.
+    Withdrawn,
 }
 
 /// Outside record of a root delivery handed to an opt-in parent bridge.
@@ -219,6 +228,7 @@ enum Delivery {
     Cancel,
     Drain,
     Grant { grant: Grant },
+    Input { event: Box<Event> },
 }
 
 #[derive(Debug)]
@@ -315,6 +325,7 @@ pub struct World<B: Backend = Typed> {
     answered: Option<Time>,
     checked: Vec<bool>,
     check_notices: Vec<(Time, bool)>,
+    long_notices: Vec<(Time, Option<smith_domain::Operation>, Option<Time>)>,
     check_terminals: Vec<Time>,
     pushes: Vec<run::Delivery>,
     delivery_names: Vec<(run::CallName, Time)>,
@@ -388,6 +399,28 @@ impl<B: Backend> World<B> {
     /// Schedule an existing host grant independently of an in-flight provider call.
     pub fn grant_at(&mut self, at: Time, grant: Grant) {
         self.schedule.send(at, Delivery::Grant { grant });
+    }
+
+    /// Schedule the host's renewal availability independently of grants.
+    pub fn renewals_at(&mut self, at: Time, held: bool) {
+        self.schedule.send(at, Delivery::Input { event: Box::new(Event::Renewals { held }) });
+    }
+
+    /// Install initial grants now, then delay the pending start to the supplied time.
+    pub fn start_at(&mut self, at: Time) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else {
+            panic!("start is first");
+        };
+        for grant in core::mem::take(&mut start.grants) {
+            self.stage.push(Event::Grant { grant });
+        }
+        self.schedule.send(at, Delivery::Input { event: Box::new(Event::Start(start)) });
+    }
+
+    /// Long operation starts and terminals, in boundary order.
+    #[must_use]
+    pub fn long_notices(&self) -> &[(Time, Option<smith_domain::Operation>, Option<Time>)] {
+        &self.long_notices
     }
 
     /// Unauthorized notices, retaining their rejected generations.
@@ -509,6 +542,7 @@ impl<B: Backend> World<B> {
             answered: None,
             checked: Vec::new(),
             check_notices: Vec::new(),
+            long_notices: Vec::new(),
             check_terminals: Vec::new(),
             pushes: Vec::new(),
             delivery_names: Vec::new(),
@@ -981,14 +1015,18 @@ impl<B: Backend> World<B> {
                     .push((self.now, crate::messages_referee::Seen::Answer { turns, parked, spent, read }));
                 self.answered = Some(self.now);
             }
-            Request::Long { host_run, operation, .. } => {
+            Request::Long { host_run, operation, until } => {
+                self.long_notices.push((self.now, Some(operation), Some(until)));
                 assert_eq!(host_run, self.host_run, "long notice echoes the host identity");
                 match operation {
                     smith_domain::Operation::Checks => self.check_notices.push((self.now, true)),
-                    smith_domain::Operation::Completion | smith_domain::Operation::Command => {}
+                    smith_domain::Operation::Completion
+                    | smith_domain::Operation::Command
+                    | smith_domain::Operation::Grant => {}
                 }
             }
             Request::LongDone { host_run } => {
+                self.long_notices.push((self.now, None, None));
                 assert_eq!(host_run, self.host_run, "ended notice echoes the host identity");
                 if self.check_notices.last().is_some_and(|(_, open)| *open) {
                     self.check_notices.push((self.now, false));
@@ -1264,7 +1302,13 @@ impl<B: Backend> World<B> {
                     HostSchedule::TooLarge => {
                         run::HostAnswer::new(vec![b'x'; 128].into(), false).expect("bounded oversized host text")
                     }
-                    HostSchedule::Answer | HostSchedule::Replay | HostSchedule::Withdraw | HostSchedule::LateAnswer => {
+                    HostSchedule::Answer
+                    | HostSchedule::Replay
+                    | HostSchedule::Withdraw
+                    | HostSchedule::LateAnswer
+                    | HostSchedule::Unsent
+                    | HostSchedule::UnsentThenAnswer
+                    | HostSchedule::Withdrawn => {
                         run::HostAnswer::new(b"opaque host answer: first decision".as_slice().into(), false)
                             .expect("bounded host text")
                     }
@@ -1278,6 +1322,15 @@ impl<B: Backend> World<B> {
                         2 => run::HostReply::Unanswered(run::Unanswered::Lost),
                         _ => run::HostReply::Answered(answer),
                     },
+                    HostSchedule::Unsent => run::HostReply::Unsent,
+                    HostSchedule::UnsentThenAnswer => {
+                        if relay.attempt == 1 {
+                            run::HostReply::Unsent
+                        } else {
+                            run::HostReply::Answered(answer)
+                        }
+                    }
+                    HostSchedule::Withdrawn => run::HostReply::Withdrawn,
                     HostSchedule::Withdraw => {
                         if relay.attempt == 1 {
                             run::HostReply::Unanswered(run::Unanswered::Withdrawn)
@@ -1300,13 +1353,17 @@ impl<B: Backend> World<B> {
                     }
                     run::HostReply::Busy => run::HostReply::Busy,
                     run::HostReply::Withdrawn => run::HostReply::Withdrawn,
+                    run::HostReply::Unsent => run::HostReply::Unsent,
                     run::HostReply::TooLarge => run::HostReply::TooLarge,
                     run::HostReply::Unanswered(run::Unanswered::Withdrawn) => {
                         run::HostReply::Unanswered(run::Unanswered::Withdrawn)
                     }
                 };
-                let at = if matches!(self.settings.host, HostSchedule::LateAnswer | HostSchedule::Withdraw)
-                    && relay.attempt == 1
+                let at = if matches!(self.settings.host, HostSchedule::Unsent | HostSchedule::Withdrawn)
+                    || (matches!(
+                        self.settings.host,
+                        HostSchedule::LateAnswer | HostSchedule::Withdraw | HostSchedule::UnsentThenAnswer
+                    ) && relay.attempt == 1)
                 {
                     deadline.saturating_add(Duration::from_millis(20))
                 } else {
@@ -1363,6 +1420,7 @@ impl<B: Backend> World<B> {
 
     fn deliver(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Input { event } => self.stage.push(*event),
             Delivery::Grant { grant } => self.stage.push(Event::Grant { grant }),
             Delivery::Message { finish_requested, name, label, text } => {
                 let mut rendered = label.to_vec();
@@ -1474,6 +1532,7 @@ impl<B: Backend> World<B> {
             | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
+            | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
@@ -1544,6 +1603,7 @@ impl<B: Backend> World<B> {
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Start(_)
+            | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
@@ -1570,6 +1630,7 @@ impl<B: Backend> World<B> {
             | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
+            | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
@@ -1862,7 +1923,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
                     description: b"Opaque host write".as_slice().into(),
                     schema: br#"{"type":"object"}"#.as_slice().into(),
                     effect: run::HostEffect::Write,
-                    timeout: Duration::from_millis(300),
+                    timeout: settings.host_tool_timeout,
                 }])
             } else {
                 Box::new([])

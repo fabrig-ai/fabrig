@@ -299,8 +299,6 @@ pub enum Family {
 /// What the check before the switch found (protocol/store/opening.md 2, step 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Check {
-    /// A patched record too large for a commit alone, by its key as `Patch` gives it.
-    Large { key: Box<[u8]> },
     /// A row of the restart's ranges that does not load within the deployment's limits.
     Load { key: Box<[u8]> },
     /// A file in the copy's secrets' store that is not private.
@@ -311,10 +309,6 @@ impl Check {
     /// them, as `OpenRefusal::words` gives every refusal's (protocol/store/opening.md 1).
     fn words(&self) -> &'static [&'static str] {
         match self {
-            Self::Large { .. } => &[
-                "The check before the switch found a patched record too large for a commit alone in the copy of the store this start patched in ",
-                ", and the generation it patched from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
-            ],
             Self::Load { .. } => &[
                 "The check before the switch found a record the restart could not load within the deployment's limits in the copy of the store this start patched in ",
                 ", and the generation it patched from stays active, unchanged. Every start of this build checks a fresh copy the same way: start the build before it again, which opens that generation as it was.",
@@ -350,19 +344,13 @@ pub enum OpenRefusal {
     /// A level past the binary's (5.3); `found: None` for a component
     /// version past the binary's, its levels unread.
     Ahead { owner: crate::Owner, found: Option<u32>, wanted: Option<u32> },
-    /// A patch refused a record of the copy (10.2): the key as the walk
-    /// handed it to the owner (`Event::Site`'s).
-    Patch { owner: crate::Owner, patch: u32, key: Box<[u8]>, halt: skein_codec::patch::Halt },
-    /// The binary's sets do not plan (10.3).
-    Set { owner: crate::Owner, patch: u32 },
+    /// The binary's owner sets do not check (protocol/store/opening.md, 3).
+    Set { owner: crate::Owner },
     /// A job refused its page or answered outside its bounds (protocol/store/jobs.md, 3).
     Job { owner: crate::Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },
     /// The check before the switch failed (10.2, step 5); the generation
     /// patched from stays active, unchanged.
     Check { why: Check },
-    /// Effects a pending patch reshapes (protocol/store/opening.md 3): the first family
-    /// in the plan's order, its count, and its first keys, at most 64.
-    InFlight { owner: crate::Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> },
 }
 /// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -371,6 +359,35 @@ pub enum Unplanned {
     Text,
     Undeclared,
     Retired,
+}
+
+/// Join the bridge into a static piece, keeping deployment slots unchanged.
+macro_rules! bridge_words {
+    ($before:expr, $after:expr) => {{
+        #[expect(clippy::indexing_slicing, reason = "const concatenation indexes within each measured piece")]
+        const BYTES: [u8; $before.len() + crate::FLOOR_BRIDGE.len() + $after.len()] = {
+            let mut bytes = [0; $before.len() + crate::FLOOR_BRIDGE.len() + $after.len()];
+            let parts = [$before.as_bytes(), crate::FLOOR_BRIDGE.as_bytes(), $after.as_bytes()];
+            let mut part = 0_usize;
+            let mut at = 0_usize;
+            while part < parts.len() {
+                let mut i = 0_usize;
+                while i < parts[part].len() {
+                    bytes[at] = parts[part][i];
+                    at = at.checked_add(1).expect("measured text");
+                    i = i.checked_add(1).expect("measured piece");
+                }
+                part = part.checked_add(1).expect("three pieces");
+            }
+            bytes
+        };
+        #[expect(clippy::disallowed_methods, reason = "const concatenation of UTF-8 literals and FLOOR_BRIDGE")]
+        const TEXT: &str = match ::core::str::from_utf8(&BYTES) {
+            Ok(text) => text,
+            Err(_) => panic!("UTF-8 pieces"),
+        };
+        TEXT
+    }};
 }
 
 /// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying
@@ -382,20 +399,11 @@ macro_rules! older {
     ($clause:literal, $why:literal) => {
         &[
             "",
-            concat!(
-                $clause,
-                $why,
-                ", and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
-            ),
+            bridge_words!(concat!($clause, $why, ", and this start has changed nothing in it. No build translates a store from before the baseline, build `"), "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of "),
             " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
         ]
     };
 }
-
-const IN_FLIGHT_WORDS: &[&str] = &[
-    "",
-    " holds effects its last run sent and did not settle, in records this build's patches change, and this start has changed nothing in it. Start the build before it again, let it settle them, and stop it: a stop settles what it sent first. Then start this build.",
-];
 
 impl Family {
     fn version_words(self) -> &'static [&'static str] {
@@ -440,6 +448,7 @@ impl OpenRefusal {
     /// between each two consecutive pieces, wherever protocol/store/README.md has `<deployment>`.
     /// No allocation, no formatting.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one match keeps every open refusal's operator instructions together")]
     pub fn words(&self) -> &'static [&'static str] {
         match self {
             Self::Unready { why: Unready::Empty } => &[
@@ -472,27 +481,45 @@ impl OpenRefusal {
                 " could not be read or written, or its store could not be recovered, while this start opened it, and the start stopped there. Check the disk's space and the directory's permissions, and start again. If the next start fails the same way, restore ",
                 " from a backup.",
             ],
+            Self::OlderBuild { why: Older::Floor } => &[
+                "",
+                bridge_words!(
+                    " holds a store older than this build opens: it has no floor, or one below this build's, and this start has changed nothing in it. Start build `",
+                    "` on it and let it open, then this build."
+                ),
+            ],
+            Self::OlderBuild { why: Older::Unregistered } => &[
+                "",
+                bridge_words!(
+                    " holds a store older than this build opens: it has no registry of its layouts, and this start has changed nothing in it. Start build `",
+                    "` on it and let it open, then this build."
+                ),
+            ],
             Self::OlderBuild { why: Older::Unleveled } => &[
                 "",
-                " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                bridge_words!(
+                    " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. No build translates a store from before the baseline, build `",
+                    "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of "
+                ),
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
+            ],
+            Self::OlderBuild { why: Older::Behind } => &[
+                "",
+                bridge_words!(
+                    " holds a store from an older build, at patch levels behind this build's, and this start has changed nothing in it. This build keeps no patch: start build `",
+                    "` on it and let it open, which brings it to this build's levels, then start this build."
+                ),
             ],
             Self::Ahead { .. } => &[
                 "",
                 " holds a store from a later build, at patch levels past this build's, and this start has changed nothing in it. No patch runs backwards: start the later build again, or restore ",
                 " from a backup this build made.",
             ],
-            Self::Patch { .. } => &[
-                "A patch refused a record while this start patched a copy of the store in ",
-                ", and the generation it patched from stays active, unchanged. Every start of this build refuses the same record: start the build before it again, which opens that generation as it was.",
-            ],
             Self::Set { .. } => &[
-                "This build's patches do not plan, and this start has changed nothing in ",
+                "This build's owner sets do not check, and this start has changed nothing in ",
                 ". The build is wrong: start the build before it again.",
             ],
             Self::Check { why } => why.words(),
-            Self::InFlight { .. } => IN_FLIGHT_WORDS,
-            Self::OlderBuild { why: Older::Unrecorded } => older!("made before its families' layouts were recorded"),
             Self::OlderBuild { why: Older::Layout(family) } => match family {
                 Family::Settings => older!("whose settings family's layout differs from this build's"),
                 Family::Component => older!("whose component family's layout differs from this build's"),
@@ -508,7 +535,10 @@ impl OpenRefusal {
             },
             Self::OlderBuild { why: Older::Directory } => &[
                 "",
-                " holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of ",
+                bridge_words!(
+                    " holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. No build translates a store from before generations, build `",
+                    "` included, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of "
+                ),
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
             Self::Job { .. } => &[
@@ -548,9 +578,13 @@ impl OpenRefusal {
 pub enum Older {
     /// A store before an owner's baseline, which records no patch level (5.3).
     Unleveled,
-    /// A store with no layouts row, made before they were recorded (protocol/store/records.md 3).
-    Unrecorded,
-    /// A family's fingerprint is not this build's at its version (protocol/store/records.md 3).
+    /// No floor row, or one below this build's floor (protocol/store/opening.md, 1.8).
+    Floor,
+    /// A level behind the binary's (protocol/store/records.md, 3).
+    Behind,
+    /// A store holding values and no registry (protocol/store/layouts.md, 5.1).
+    Unregistered,
+    /// The component's own row does not decode at its version (protocol/store/records.md, 3).
     Layout(Family),
     /// The layout before generations, with no active file (protocol/store/README.md 2).
     Directory,
@@ -640,7 +674,6 @@ pub enum Event {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
         openings: Box<[WorkerOpening]>,
-        fresh: bool,
     },
     Decoded {
         owner: Token,
@@ -811,13 +844,6 @@ pub enum Event {
         rows: u64,
         commits: u64,
         counts: Box<[crate::JobCount]>,
-    },
-    /// A patch's walk is done and committed (protocol/store/opening.md 2, step 4).
-    Patched {
-        owner: Token,
-        of: crate::Owner,
-        patch: u32,
-        counts: crate::Counts,
     },
 }
 

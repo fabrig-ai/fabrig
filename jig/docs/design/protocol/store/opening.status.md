@@ -1,6 +1,6 @@
 # opening: status
 
-2026-11-15. Where the tree's code lags or departs from [opening.md](opening.md).
+2026-11-16. Where the tree's code lags or departs from [opening.md](opening.md).
 
 
 
@@ -10,6 +10,4 @@
 
 
 - **Not yet:** the reference-binary crash and fake-store gaps remain `README.status.md`, 9.
-
-
 

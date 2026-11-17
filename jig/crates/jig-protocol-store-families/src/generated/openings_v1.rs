@@ -74,6 +74,29 @@ pub enum Path {
     WorkerOpeningTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::OpenedWireName => "OpenedWire.name",
+            Self::OpenedWireLowest => "OpenedWire.lowest",
+            Self::OpenedWireLayouts => "OpenedWire.layouts",
+            Self::OpenedWireTail => "OpenedWire (tail)",
+            Self::OpenedTermKind => "OpenedTerm.kind",
+            Self::OpenedTermLargest => "OpenedTerm.largest",
+            Self::OpenedTermTail => "OpenedTerm (tail)",
+            Self::WorkerOpeningWorker => "WorkerOpening.worker",
+            Self::WorkerOpeningWires => "WorkerOpening.wires",
+            Self::WorkerOpeningOutput => "WorkerOpening.output",
+            Self::WorkerOpeningTerms => "WorkerOpening.terms",
+            Self::WorkerOpeningAt => "WorkerOpening.at",
+            Self::WorkerOpeningVersion => "WorkerOpening (version)",
+            Self::WorkerOpeningTail => "WorkerOpening (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

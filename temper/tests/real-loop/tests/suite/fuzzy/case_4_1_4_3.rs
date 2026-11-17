@@ -15,7 +15,7 @@ fn the_opener_and_the_two_hour_check_run_on_three_workers() {
     // Leaves out survey, instructions/pool, host kinds, Markdown CI's fast path and goal issue; pools/load/queue/disk, moving B and the plane: testing/reference-case.md's 4.1 and 4.3 rows.
     let cluster = run_cluster_forge(
         WORKERS,
-        &["s2"],
+        &["s1", "s2"],
         case::fixture_check(),
         case::scripts::step_4_1_4_3,
         case::scripts::step_4_1_4_3_rules,

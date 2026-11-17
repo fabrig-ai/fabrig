@@ -58,6 +58,30 @@ pub fn record(bytes: &[u8], bound: u32) -> Option<(usize, Box<[u8]>)> {
     Some((frame.len(), record))
 }
 
+/// A history body, decoded independently of the store's history reader (store/logs.md, 3).
+#[must_use]
+pub(super) fn history(body: &[u8]) -> Option<Vec<skein_kv::Op>> {
+    let mut reader = Reader::new(body);
+    if reader.u8()? != 1 {
+        return None;
+    }
+    let mut ops = Vec::new();
+    while !reader.is_empty() {
+        let length = reader.u16()?;
+        let key = Box::from(reader.bytes(u32::from(length))?);
+        let op = match reader.u8()? {
+            1 => {
+                let length = reader.u32()?;
+                skein_kv::Op::Put { key, value: Box::from(reader.bytes(length)?) }
+            }
+            2 => skein_kv::Op::Erase { key },
+            _ => return None,
+        };
+        ops.push(op);
+    }
+    if ops.is_empty() { None } else { Some(ops) }
+}
+
 /// Keep every physical offset and the opaque turn's version while making its kind unread.
 pub(super) fn corrupt(bytes: &[u8], limits: &jig_protocol_store::codec::View) -> Option<Box<[u8]>> {
     let bound = u32::try_from(jig_protocol_store::core_v6::TurnRecord::encoded_bound(&limits.core)?).ok()?;

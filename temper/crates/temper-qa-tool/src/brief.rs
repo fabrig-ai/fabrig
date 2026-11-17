@@ -1,12 +1,98 @@
 //! Inputs at the merge and the brief's ordered sections (qa/triage.md, 3).
 use crate::{
-    Home, Landing, Ledger, Pages, Refusal,
+    Home, Kind, Landing, Ledger, Pages, Refusal,
     faces::{Changed, GitFace},
 };
 use std::{collections::BTreeMap, fmt::Write};
 
 const GENERATED_SEGMENTS: &[&str] = &["generated", "golden"];
 const REFERENCE_DIRECTORY: &str = "temper/docs/help/reference/";
+const SETUPS_DIRECTORY: &str = "temper/docs/development/qa/setups";
+
+pub(crate) fn setup_names(
+    git: &mut impl GitFace,
+    commit: &str,
+    configured: &[String],
+) -> Result<Vec<(String, Kind)>, Refusal> {
+    let mut setups = vec![("fresh".into(), Kind::Box)];
+    let directory = SETUPS_DIRECTORY;
+    let entries = git.entries(commit, directory)?;
+    let ctl_only = !configured.iter().any(|surface| surface == "web" || surface == "tui");
+    let mut recipes = BTreeMap::new();
+    for entry in &entries {
+        if entry.directory
+            && entry.name != "fresh"
+            && let Some(bytes) = git.file(commit, &format!("{directory}/{}/recipe", entry.name))?
+            && let Ok(recipe) = String::from_utf8(bytes)
+        {
+            let config = git
+                .entries(commit, &format!("{directory}/{}", entry.name))?
+                .iter()
+                .any(|entry| entry.directory && entry.name == "config");
+            recipes.insert(entry.name.clone(), (recipe, config));
+        }
+    }
+    for entry in entries {
+        if !entry.directory || entry.name == "fresh" {
+            continue;
+        }
+        let kind = crate::kind::chain_kind(&entry.name, |name| {
+            let Some((recipe, config)) = recipes.get(name) else { return Ok(None) };
+            if recipe.lines().next() != Some("recipe 1")
+                || (ctl_only
+                    && recipe.lines().any(|line| matches!(line.split_whitespace().next(), Some("web" | "tui"))))
+            {
+                return Ok(None);
+            }
+            Ok(Some(crate::kind::Setup { parent: crate::kind::parent(recipe).map(str::to_owned), config: *config }))
+        })?;
+        if !ctl_only || kind.is_some() {
+            setups.push((entry.name, kind.unwrap_or_default()));
+        }
+    }
+    Ok(setups)
+}
+
+fn read_setups(
+    git: &mut impl GitFace,
+    commit: &str,
+    configured: &[String],
+    kinds: &[Kind],
+) -> Result<(Vec<(String, Kind)>, String), Refusal> {
+    let mut setups = setup_names(git, commit, configured)?;
+    setups.retain(|(_, kind)| kinds.contains(kind));
+    let mut catalogue = String::new();
+    for (name, kind) in &setups {
+        if name == "fresh" {
+            catalogue.push_str("- fresh (box): a fresh box at its welcome with nothing set up\n");
+            continue;
+        }
+        let path = format!("{SETUPS_DIRECTORY}/{name}/README.md");
+        let bytes = git.file(commit, &path)?.unwrap_or_default();
+        let text = String::from_utf8_lossy(&bytes);
+        writeln!(catalogue, "- {name} ({}): {} ({path})", kind.name(), first_paragraph(&text)).expect("string");
+    }
+    Ok((setups, catalogue))
+}
+
+fn opening(pages: &Pages) -> &str {
+    match (pages.contains_key("ctl"), pages.contains_key("web"), pages.contains_key("tui")) {
+        (true, true, true) => {
+            "ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them"
+        }
+        (true, true, false) => {
+            "ctl or the web client, ctl first: write ctl cases before web cases, the person's acts and temper's account as `temper ctl` gives them"
+        }
+        (true, false, true) => {
+            "ctl or the TUI, ctl first: write ctl cases before TUI cases, the person's acts and temper's account as `temper ctl` gives them"
+        }
+        (true, false, false) => "ctl, the person's acts and temper's account as `temper ctl` gives them",
+        (false, true, true) => "the web client or the TUI",
+        (false, true, false) => "the web client",
+        (false, false, true) => "the TUI",
+        (false, false, false) => "the configured surfaces (none)",
+    }
+}
 
 fn generated_directory(path: &str) -> Option<&str> {
     if path.starts_with(REFERENCE_DIRECTORY) {
@@ -69,6 +155,7 @@ pub fn stat_text(paths: &[Changed]) -> String {
 pub(crate) struct Inputs {
     pub pages: Pages,
     pub setups: Vec<String>,
+    pub deployments: Vec<String>,
     pub patch: Vec<u8>,
     drafts: Vec<String>,
     stat: String,
@@ -77,35 +164,46 @@ pub(crate) struct Inputs {
     catalogue: String,
 }
 impl Inputs {
-    pub fn read(git: &mut impl GitFace, landing: &Landing) -> Result<Self, Refusal> {
+    pub fn read(
+        git: &mut impl GitFace,
+        landing: &Landing,
+        configured: &[String],
+        kinds: &[Kind],
+        build: &str,
+    ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
         let parent = format!("{commit}^1");
         let drafts = landing_drafts(git, landing)?;
         let mut pages = Pages::new();
         let mut surfaces = String::new();
-        let mut groups = Vec::new();
-        for entry in git.entries(commit, REFERENCE_DIRECTORY.trim_end_matches('/'))? {
-            if !entry.directory
-                && let Some(group) = entry.name.strip_prefix("ctl-").and_then(|name| name.strip_suffix(".md"))
-            {
-                groups.push(group.to_owned());
+        if configured.iter().any(|surface| surface == "ctl") {
+            let mut groups = Vec::new();
+            for entry in git.entries(build, REFERENCE_DIRECTORY.trim_end_matches('/'))? {
+                if !entry.directory
+                    && let Some(group) = entry.name.strip_prefix("ctl-").and_then(|name| name.strip_suffix(".md"))
+                {
+                    groups.push(group.to_owned());
+                }
             }
+            groups.sort();
+            groups.dedup();
+            for group in &groups {
+                writeln!(surfaces, "- ctl: {group}: {REFERENCE_DIRECTORY}ctl-{group}.md").expect("string");
+            }
+            pages.insert("ctl".into(), groups);
+            surfaces.push_str(
+                "- ctl design: temper/docs/design/client/ctl/README.md; temper/docs/design/client/ctl/tools.md\n",
+            );
         }
-        groups.sort();
-        groups.dedup();
-        for group in &groups {
-            writeln!(surfaces, "- ctl: {group}: {REFERENCE_DIRECTORY}ctl-{group}.md").expect("string");
-        }
-        pages.insert("ctl".into(), groups);
-        surfaces.push_str(
-            "- ctl design: temper/docs/design/client/ctl/README.md; temper/docs/design/client/ctl/tools.md\n",
-        );
         for (surface, directory, journeys) in [
             ("web", "temper/docs/design/client/pages", "temper/docs/design/client/web/journeys.md"),
             ("tui", "temper/docs/design/client/tui/pages", "temper/docs/design/client/tui/journeys.md"),
         ] {
+            if !configured.iter().any(|name| name == surface) {
+                continue;
+            }
             let mut names = Vec::new();
-            for entry in git.entries(commit, directory)? {
+            for entry in git.entries(build, directory)? {
                 let name = if entry.directory { Some(entry.name.as_str()) } else { page_name(&entry.name) };
                 if let Some(name) = name {
                     names.push(name.to_owned());
@@ -117,18 +215,13 @@ impl Inputs {
             pages.insert(surface.into(), names);
             writeln!(surfaces, "- {surface} journeys: {journeys}").expect("string");
         }
-        let mut setups = vec!["fresh".into()];
-        let mut catalogue = String::from("- fresh: a fresh box at its welcome with nothing set up\n");
-        let directory = "temper/docs/development/qa/setups";
-        for entry in git.entries(commit, directory)? {
-            if entry.directory && entry.name != "fresh" {
-                let path = format!("{directory}/{}/README.md", entry.name);
-                let bytes = git.file(commit, &path)?.unwrap_or_default();
-                let text = String::from_utf8_lossy(&bytes);
-                writeln!(catalogue, "- {}: {} ({path})", entry.name, first_paragraph(&text)).expect("string");
-                setups.push(entry.name);
-            }
-        }
+        let (catalogue_setups, catalogue) = read_setups(git, build, configured, kinds)?;
+        let deployments = catalogue_setups
+            .iter()
+            .filter(|(_, kind)| *kind == Kind::Deployment)
+            .map(|(name, _)| name.clone())
+            .collect();
+        let setups = catalogue_setups.into_iter().map(|(name, _)| name).collect();
         let mut qa = Vec::new();
         for value in git.qa_trailers(&parent, commit)? {
             if !qa.contains(&value) {
@@ -138,6 +231,7 @@ impl Inputs {
         Ok(Self {
             pages,
             setups,
+            deployments,
             drafts,
             qa,
             surfaces,
@@ -147,8 +241,9 @@ impl Inputs {
         })
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {
-        let mut text = String::from(
-            "# Triage\n\nJudge what a person now sees or does through ctl, the web client or the TUI, ctl first: write ctl cases before web and TUI cases, the person's acts and temper's account as `temper ctl` gives them. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, so what only the box's own Forgejo or another real backend shows is no case, and a landing that changes nothing else a person meets is no QA, its line saying so. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+        let mut text = format!(
+            "# Triage\n\nJudge what a person now sees or does through {}. The green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, what a person meets that these cannot show is a gap. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+            opening(&self.pages),
         );
         writeln!(
             text,
@@ -161,6 +256,7 @@ impl Inputs {
             landing.title
         )
         .expect("string");
+        writeln!(text, "Tree: {}\n", home.triage_tree().display()).expect("string");
         text.push_str("## Drafts\n\n");
         if self.drafts.is_empty() {
             text.push_str("No draft is named; the request was the title's words.\n");
@@ -208,8 +304,40 @@ impl Inputs {
                 }
             }
         }
-        text.push_str("\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{\"surface\":\"web\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}]}\n```\nA case's surface is ctl, web or tui; for ctl, page is one of its groups. Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n");
+        self.commands(&mut text);
+        text.push_str("\nA landing a person would meet that no case can judge yet, because ctl offers no way to do or see it, the fakes show no such behaviour, or QA's lines and setups can't reach it, is a gap: `temper-qa triage gap KIND WHY`, never none. KIND is ctl, fake or qa; WHY one nonempty argument. Gaps may accompany cases.\n");
+        for gap in ledger.gaps.iter().filter(|gap| gap.landing == landing.number && gap.case.is_none()) {
+            writeln!(text, "\nEarlier gap {} ({}; {}): {}", gap.number, gap.kind, gap.state.name(), gap.why)
+                .expect("string");
+        }
         text
+    }
+    fn commands(&self, text: &mut String) {
+        if self.pages.is_empty() {
+            text.push_str("\n## Commands\n\nNo surfaces are configured. Run `temper-qa triage none WHY` (WHY one nonempty argument). The answer is recorded at once.\n");
+            return;
+        }
+        let example = if self.pages.contains_key("web") {
+            "web"
+        } else if self.pages.contains_key("ctl") {
+            "ctl"
+        } else {
+            "tui"
+        };
+        let names: Vec<_> = ["ctl", "web", "tui"].into_iter().filter(|name| self.pages.contains_key(*name)).collect();
+        let names = match names.as_slice() {
+            [] => "none".into(),
+            [name] => (*name).to_owned(),
+            [first, second] => format!("{first} or {second}"),
+            _ => "ctl, web or tui".into(),
+        };
+        write!(text, "\n## Commands\n\nRun `temper-qa triage none WHY` (WHY one nonempty argument) or `temper-qa triage case FILE` (FILE a JSON file, or - for stdin). Each answer is recorded at once; an early end loses nothing recorded. A case on a queued case's surface and page joins it.\n\nCase form (adds and see optional; all other fields required):\n```json\n{{\"surface\":\"{example}\",\"page\":\"PAGE\",\"setup\":\"fresh\",\"adds\":\"what it needs\",\"steps\":[{{\"do\":\"an act\",\"expect\":\"the draft's promise\",\"see\":\"words to see\"}}]}}\n```\nA case's surface is {names};").expect("string");
+        if self.pages.contains_key("ctl") {
+            text.push_str(r#" for ctl, page is one of its groups. For ctl steps, write do as ctl or forge drive lines. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#);
+        }
+        text.push_str(
+            " Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n",
+        );
     }
 }
 

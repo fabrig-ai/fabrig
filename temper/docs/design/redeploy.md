@@ -1,6 +1,8 @@
 # The redeploy
 
-Provisional, 2026-11-13. How a deployment of temper takes a new build
+Provisional, 2026-11-13, revised 2026-11-16 for milestone R8 (who was
+told the engine restarts, 4.2; each worker judged by its wait, 6.2).
+How a deployment of temper takes a new build
 while its work goes on, and how each redeploy is refereed afterwards:
 `temper-redeploy`, an internal tool run by the deployments' operator
 from a machine that reaches the deployment's hosts. It carries
@@ -37,8 +39,9 @@ the tool runs, in what order, what it keeps and how it judges.
   after it, the tool stops where it stands and says how to go back.
 - **A record** of the redeploy (section 5), written as it goes, which the
   referee reads.
-- **The referee** (section 6): each worker's agreed versions; the window
-  against the workers' grace; no try spent and no task held for a
+- **The referee** (section 6): each worker's agreed versions; each
+  worker's return against the wait it was given, the restart wait the
+  engine told it or its grace; no try spent and no task held for a
   failure but a run's own since the redeploy began; a verdict.
 - **Tested against a fake deployment** in the focused and fuzzy suites
   (section 8); running it against a deployment is a redeploy, the
@@ -184,7 +187,19 @@ A failure here refuses the redeploy with nothing stopped, exit 1.
 ### 4.2 The settled stop and the check
 
 - **The engine's `stop`** at the window's start (6.2). The workers keep
-  their runs, their grace running from their links' loss.
+  their runs, their grace or the restart wait running from their links'
+  loss.
+- **Who was told** (`draft/redeploys.md`, 5.3, *Who will not ride it is
+  named*): once the stop returns, the engine's `log` read with `{since}`
+  one second before it began. A line holding `serve: worker NAME told
+  the engine restarts: wait MS ms` says NAME was told MS; one holding
+  `serve: worker NAME not told the engine restarts: ` says it was not,
+  and keeps its grace (`protocol/wires.md`, section 4). A worker of the
+  description with neither line was not told: its link was down, or the
+  engine's build cannot say it, as the first redeploy onto the build
+  that brings the word is stopped by one that cannot. Read at the first
+  settled stop alone, the window's; each is printed and kept (section
+  5). A log that cannot be read fails the step as any.
 - **The check:** the engine's `check`, `{binary}` the staged
   `BUILDS/COMMIT/temper-engine`, run once per redeploy, at its first
   settled stop. Each of its lines is printed and kept. It never writes
@@ -198,8 +213,8 @@ A failure here refuses the redeploy with nothing stopped, exit 1.
   - exit 0, `workers may stay: no`, `workers may stay: unknown…`, or no
     such line: the engine started again on its old build, its openings
     waited for, then every part together (4.5).
-- **A backup** before the swap when the check's lines say it patched (a
-  line holding `upgrade: patched `): the engine's `backup`, `{name}`
+- **A backup** before the swap when the check's lines say it ran a job (a
+  line holding `upgrade: ran `): the engine's `backup`, `{name}`
   `COMMIT-YYYYMMDDTHHMMSSZ`, the time the backup's, UTC.
 
 ### 4.3 The engine alone
@@ -274,8 +289,10 @@ The outage runs from the first worker's `stop` to the last opening.
   logs them (`protocol/wires.md`, section 4).
 - **A line holding `serve: worker NAME refused at its opening: `** is
   NAME refused: its wait ends, the line kept, the step failed.
-- **The bound:** the largest grace among the workers waited for (4.1).
-  A worker unopened by then fails the step, named. Openings of a name
+- **The bound:** the largest wait given among the workers waited for:
+  for a worker told, the longer of its told wait and its grace; for any
+  other, its grace (4.1, 4.2). A worker unopened by then fails the step,
+  named. Openings of a name
   the description lacks are kept, never waited for.
 
 ## 5. The record
@@ -291,6 +308,7 @@ renamed over it. Its members, which the referee reads and a later
 | `began` | 4.1, step 6, wall nanoseconds since the Unix epoch, as every time here |
 | `previous` | each part's build before: `{"part": "engine" or a worker's name, "commit": …}` |
 | `graces` | each worker's grace: `{"worker", "grace_ms"}` |
+| `told` | each worker of the description, at the window's stop (4.2): `{"worker", "wait_ms"}`, `wait_ms` the wait the engine told it, or null when it was not told; null before that read, and absent from a record of a build before it, which a later `referee` reads as no worker told |
 | `before` | the referee's snapshot (6.1): `projects`, the project numbers read; `cut`, whether ctl cut the memberships; `tasks`, each `{"task", "project", "label", "phase", "held"}`, `held` the hold's failures class or null |
 | `lines` | every line the run printed, each `{"at", "line"}` |
 | `check` | `{"code", "lines"}`, or null before it ran |
@@ -335,10 +353,16 @@ activity of every task in either.
 1. **Openings:** each worker of the description has an opening in the
    record, unrefused; its agreed versions printed. A worker unopened or
    refused fails, named.
-2. **The window,** when the workers rode an engine's restart: its
-   length against the smallest grace among the workers; at or past it
-   fails. Outages are printed, not judged: a worker restarted in turn or
-   every part together ends its runs interrupted, spending no try.
+2. **Each worker's return,** when the workers rode an engine's restart
+   (`draft/redeploys.md`, 7.5): from the window's start to the worker's
+   opening in the record, against the wait it was given, the longer of
+   its told wait and its grace for a worker told (4.2), its grace for
+   any other; at or past it fails, named. A worker back within it ended
+   no run for contact, which the referee cannot read otherwise: a run's
+   end in the engine's activity keeps no cancel's reason (6.1). The
+   window is printed, not judged. Outages are printed, not judged: a
+   worker restarted in turn or every part together ends its runs
+   interrupted, spending no try.
 3. **Tries:** each run ended failed at or after `began`, of any class
    but the run's own (`run`), fails, named with its class: a redeploy
    can cause any of the others (lost, infrastructure, agent, transient,
@@ -364,8 +388,11 @@ seconds to one decimal. The referee's, after that prefix:
 worker NAME agreed WIRE VERSION, WIRE VERSION, …
 worker NAME did not open
 worker NAME refused: TEXT
-window SECONDS s within NAME's grace SECONDS s
-window SECONDS s past NAME's grace SECONDS s
+window SECONDS s
+worker NAME back in SECONDS s within its restart wait SECONDS s
+worker NAME back in SECONDS s past its restart wait SECONDS s
+worker NAME back in SECONDS s within its grace SECONDS s
+worker NAME back in SECONDS s past its grace SECONDS s
 WHAT was out SECONDS s
 task|goal T attempt A failed: CLASS
 task|goal T attempt A failed: run, its own
@@ -379,7 +406,9 @@ fail: N
 ```
 
 `run`'s lines name each step as it ends: the builds before, each stop
-with its time, the check's lines as it printed them, what it decided,
+with its time, each worker told or not at the window's stop (`worker
+NAME told: restart wait SECONDS s`, or `worker NAME keeps its grace: not
+told`), the check's lines as it printed them, what it decided,
 the backup, each swap with its builds, each start, each opening with
 its time and agreed versions, each worker's logins, and the outcome,
 `done`, `refused: WHY` or `failed at STEP: WHY`, the last naming what is
@@ -480,21 +509,28 @@ host: no `ssh`, no service manager, no network.
   engine started again and nothing swapped; a check saying no and
   unknown, the old engine started again, then the workers drained before
   the engine's stop; `--workers` one at a time, each waiting for its
-  logins; `--together`; a patching check's backup before the swap; a
-  refusal at the opening; a step failing before and after the swap; and
-  the referee: agreed versions, a window within and past the grace, a
-  lost try failing and a run's own not, a hold since failing and one
-  from before passed over, the task list's pages followed, a ctl call
-  failing.
+  logins; `--together`; a job-running check's backup before the swap (a
+  line holding `upgrade: ran `), no backup without such a line, and an
+  existing backup kept; a
+  refusal at the opening; a step failing before and after the swap; the
+  stop's lines read (4.2): a worker told, one not told, one with no
+  line, each kept and printed, and the openings' bound the largest wait
+  given; and the referee: agreed versions, a worker back within and past
+  its restart wait and within and past its grace, a record without
+  `told` judged by the graces, a lost try failing and a run's own not, a
+  hold since failing and one from before passed over, the task list's
+  pages followed, a ctl call failing.
 - **Fuzzy,** seeded, over deployments of one to four workers, each mode,
   each verdict, refusals, and steps failing at random: no binary swapped
   on a running part; no two workers stopped at once in turn; no engine
   stop while a worker runs in every part together; a refusal leaves
   every part running its previous build, nothing swapped; a done
   redeploy leaves every part it restarted on COMMIT; the record's lines
-  are the lines printed. The parsers: any opening line the engine's
-  renderer makes (`temper_engine_shell::lines::note_line`) parses back to
-  its worker and wires, and any word quoted reads back as itself.
+  are the lines printed. The parsers: any opening line, and any told or
+  not-told line, the engine's renderer makes
+  (`temper_engine_shell::lines::note_line`) parses back to its worker
+  and wires, or its worker and wait, and any word quoted reads back as
+  itself.
 - **The binary's table test,** and its reference documents, as
   `testing/tools.md`, sections 4.4 and 6.
 

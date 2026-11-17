@@ -5,11 +5,17 @@ mod case;
 mod cli;
 mod config;
 mod document;
+pub mod events;
 pub mod faces;
 mod findings;
+mod gap_document;
+mod gaps;
 pub mod hold;
 mod home;
+pub mod installation;
+mod kind;
 mod ledger;
+mod manifest;
 mod pass_brief;
 mod pass_document;
 mod pass_end;
@@ -30,7 +36,9 @@ pub use case::{CaseInput, Step};
 pub use cli::{AREA, HOME, SESSION, TABLE, main};
 pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
 pub use findings::{Check, Finding, FindingAnswer, FindingInput, FindingState, Note};
+pub use gaps::{Gap, GapClosed, GapState};
 pub use home::Home;
+pub use kind::Kind;
 pub use ledger::{
     Answer, Ask, Build, BuildState, Case, CaseAnswer, Exit, Landing, Ledger, Line, Pages, PlaceWait, Session,
 };

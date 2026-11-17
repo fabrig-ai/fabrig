@@ -403,8 +403,8 @@ fn cancellation_stops_once_before_settling() {
     let (mut command, mut below) = command();
     spawn(&mut command, &mut below);
     while below.pop().is_some() {}
-    command.cancel(&mut below);
-    command.cancel(&mut below);
+    command.cancel(kernel::Reason::Cancelled, &mut below);
+    command.cancel(kernel::Reason::Cancelled, &mut below);
     command.fire(Time::from_nanos(100), &mut below);
     assert_eq!(below.len(), 3);
     let Some(io::Request::Signal { child: CHILD, signal: kernel::Signal::Kill, .. }) = below.pop() else {
@@ -417,7 +417,7 @@ fn cancellation_stops_once_before_settling() {
     assert!(command.ended().is_none());
     close(&mut command, &mut below);
     while below.pop().is_some() {}
-    command.cancel(&mut below);
+    command.cancel(kernel::Reason::Cancelled, &mut below);
     assert!(below.is_empty());
     assert!(command.ended().is_some());
 }
@@ -425,7 +425,7 @@ fn cancellation_stops_once_before_settling() {
 #[test]
 fn cancellation_before_spawn_stops_the_late_child() {
     let (mut command, mut below) = command();
-    command.cancel(&mut below);
+    command.cancel(kernel::Reason::Cancelled, &mut below);
     assert!(below.is_empty());
     spawn(&mut command, &mut below);
     assert_eq!(below.len(), 5);

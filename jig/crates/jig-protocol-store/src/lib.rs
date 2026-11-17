@@ -3,23 +3,22 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
-mod baseline;
-
-#[path = "../patches/mod.rs"]
-pub mod patches;
 
 mod back;
 pub mod boundary;
+mod catalogue;
 mod census;
 pub mod checkpoints;
 pub use checkpoints::CheckpointName;
-pub mod codec;
+pub use jig_protocol_store_records::codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
 
 /// The oldest store this build serves (protocol/store/records.md, 3).
 pub const FLOOR: u32 = 1;
 mod checkpoint_open;
+/// The build to open older stores with before this build (protocol/store/records.md, 3).
+pub const FLOOR_BRIDGE: &str = "3d1c717d379e";
 mod directory;
 pub mod ended;
 mod file_handles;
@@ -38,27 +37,28 @@ pub use jobs::{
 mod open;
 mod pages;
 mod patch_set;
-mod patching;
-pub use patch_set::{JIG_STORE_PATCH_SET, STORE_FAMILIES};
+mod upgrade;
+pub use patch_set::{JIG_STORE_SET, STORE_FAMILIES};
+mod owners;
 mod rehearsal;
-pub use patching::Counts;
-pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
-pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, Retired, ValueType};
+pub use owners::{SKEIN_SET, SMITH_SET};
+pub use upgrade::sets::{Frames, JIG, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, Retired, ValueType};
 mod reads;
 mod registry;
 pub mod restore;
 pub mod retained;
+mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
-/// The binary's patch level of each owner, `None` before its first patch
+/// The binary's level of each owner, `None` where its set records none
 /// (jig/docs/design/protocol/store/opening.md, 5, and jig/docs/design/protocol/store/records.md, 3).
 #[must_use]
-pub fn levels(sets: &PatchSets) -> codec::component::Levels {
-    patching::plan::binary(sets)
+pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
+    upgrade::admission::binary(sets)
 }
 
 /// The store component's bounds (protocol/store/README.md, section 8).
@@ -122,10 +122,9 @@ pub struct Store {
     /// The installation's identifier (protocol/store/README.md 4.4): drawn by the shell and
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
-    patch_sets: PatchSets,
+    owner_sets: OwnerSets,
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
-    history_routing: bool,
     wires: &'static [Wire],
     /// Accepted opening keys, including commits not yet durable.
     opening_keys: skein_lib::Map<Box<[u8]>, ()>,
@@ -194,8 +193,7 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 4], seed: u64) -> Seede
 }
 
 impl Store {
-    /// Public application rows for a written site's context, at the copy's current
-    /// levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    /// Public application rows for a job's page, at the binary's levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
     pub fn patch_page(
         &mut self,
         range: skein_kv::Range,
@@ -204,15 +202,14 @@ impl Store {
     ) -> Result<PatchPage, OpenRefusal> {
         let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
         let out = match &**phase {
-            patching::phase::Patching::Walking(walking) => walking.at_site(),
-            patching::phase::Patching::Jobs(running) => running.at_page(),
-            patching::phase::Patching::Closing { .. }
-            | patching::phase::Patching::Dropping(_)
-            | patching::phase::Patching::Copying(_)
-            | patching::phase::Patching::Mapping { .. }
-            | patching::phase::Patching::Recovering { .. }
-            | patching::phase::Patching::Sealing { .. }
-            | patching::phase::Patching::Checking(_) => false,
+            upgrade::phase::Patching::Jobs(running) => running.at_page(),
+            upgrade::phase::Patching::Closing { .. }
+            | upgrade::phase::Patching::Dropping(_)
+            | upgrade::phase::Patching::Copying(_)
+            | upgrade::phase::Patching::Mapping { .. }
+            | upgrade::phase::Patching::Recovering { .. }
+            | upgrade::phase::Patching::Sealing { .. }
+            | upgrade::phase::Patching::Checking(_) => false,
         };
         if !out || rows == 0 || rows > self.limits.store.ops {
             return Err(OpenRefusal::Failed);
@@ -264,9 +261,8 @@ impl Store {
             secret_state: secrets::State::new(limits.secrets.queued, limits.held),
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
-            patch_sets: PatchSets::NONE,
+            owner_sets: OwnerSets::NONE,
             build_name: "",
-            history_routing: false,
             wires: &[],
             mark: Mark::Waiting,
             start_open_failure: None,
@@ -317,13 +313,13 @@ impl Store {
         self.build_name = name.get(..end).expect("character boundary");
     }
 
-    /// Supplies the owners' static patch data (protocol/store/opening.md 3).
-    pub fn patch_sets(&mut self, sets: PatchSets) {
+    /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening.md 3).
+    pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.directory.checked = None;
-        self.patch_sets = sets;
+        self.owner_sets = sets;
     }
 
-    /// Supplies the application's census names with its patch sets (protocol/store/README.md, 6.3).
+    /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).
     pub fn keyspaces(&mut self, names: Keyspaces) {
         for (index, &(tag, name)) in names.families.iter().enumerate() {
             assert!(name.len() <= 48, "census name is at most 48 bytes");
@@ -508,15 +504,14 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
-        Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
+        Request::Switch { owner } => upgrade::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation, purpose } => {
             directory::open(store, owner, root, installation, purpose, above, below);
         }
-        Request::Site { owner, patcher, result } => match store.phase {
-            Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
-            Phase::Closed | Phase::Stopped => patching::phase::site(store, env, owner, patcher, result, above, below),
-        },
-        Request::Job { owner, answer } => patching::phase::job(store, env, owner, answer, above, below),
+        Request::Site { owner, patcher, result } => {
+            transcripts::read::site(store, owner, patcher, result, above, below);
+        }
+        Request::Job { owner, answer } => upgrade::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => view::commit(store, env, number, writes, above, below),
         Request::Restore { owner, range, after, rows, bytes } => {
             view::ask(store, view::Ask::Restore { owner, range, after, rows, bytes }, above);
@@ -578,7 +573,7 @@ fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Even
         if !view::held(store) {
             transcripts::write::fire(store, env, above, below);
         }
-        patching::switch::resume(store, env, below);
+        upgrade::switch::resume(store, env, below);
     }
 }
 
@@ -604,7 +599,7 @@ fn fire_inner(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, be
         if !view::held(store) {
             transcripts::write::fire(store, env, above, below);
         }
-        patching::switch::resume(store, env, below);
+        upgrade::switch::resume(store, env, below);
     }
 }
 

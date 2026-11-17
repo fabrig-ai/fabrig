@@ -520,6 +520,7 @@ pub enum Op {
         pidfd: Fd,
         signal: Signal,
         to: Target,
+        reason: Reason,
     },
     /// Reads the process and reaped children resource usage (runtime/kernel.md, section 6.3).
     Usage,
@@ -626,6 +627,23 @@ pub enum Signal {
     Stop,
     /// Resume a stopped recipient (`SIGCONT`); otherwise change nothing.
     Continue,
+}
+
+/// Why an owner signals its child (runtime/io/processes.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Reason {
+    /// The sender said none.
+    Unknown,
+    /// Whoever drives the owner asked for it: a person, or a test's story.
+    Asked,
+    /// The child, or the work it runs, was closed or aborted while it ran.
+    Closed,
+    /// A gentler signal's grace passed with the child still running.
+    Grace,
+    /// The work's deadline passed.
+    Deadline,
+    /// The work was cancelled.
+    Cancelled,
 }
 
 /// A signal's recipient, selected by the pidfd's owner (runtime/kernel.md, section 6.2).

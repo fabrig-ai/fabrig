@@ -11,7 +11,7 @@
   first line of each one's version equal to temper's pin, Forgejo's and
   the runner's (`skein-forge`'s `VERSION` and `RUNNER_VERSION`, skein's
   `forge/README.md`, section 4.3), the versions skein's conformance checks
-  (`skein/docs/design/testing/fakes/forge.md`, section 7). Another binary refuses the command,
+  (`skein/docs/design/testing/fakes/throwaway.md`, section 2). Another binary refuses the command,
   naming its path and what it printed. A fetched binary is checked so
   too, after its digest at its fetch; temper downloads nothing but by
   `temper-box forge fetch` (6).

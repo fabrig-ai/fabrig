@@ -294,7 +294,6 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         | Event::Back { .. }
         | Event::BackRefused { .. }
         | Event::Closed { .. }
-        | Event::Patched { .. }
         | Event::Ran { .. }
         | Event::Opened { .. }
         | Event::Kept { .. }
