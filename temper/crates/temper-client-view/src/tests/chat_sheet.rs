@@ -376,18 +376,25 @@ fn the_line_stands_by_its_time() {
 }
 
 #[test]
-fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_both_shells() {
+fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_the_terminal() {
+    goal_row_titles(f::words());
+}
+
+#[test]
+fn the_goal_bar_and_started_fact_cut_their_goal_titles_in_the_browser() {
+    goal_row_titles(f::browser_words());
+}
+
+fn goal_row_titles(words: crate::words::Words) {
     for (title, cut) in f::row_titles() {
         let root = Case { linked: Some(MIDDLE), ..Case::READY }.root_named(title);
-        for words in [f::words(), f::browser_words()] {
-            let mut view = f::view_of(words);
-            let tree = f::build(&mut view, &root);
-            let link = skein_lib::bytes::concat(&[b"Goal ", cut, " →".as_bytes()]);
-            assert!(find(tree, Role::Link, &link).is_some());
-            assert_eq!(skein_lib::bytes::count(&f::text(tree), cut, 3), 2);
-            let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::TURN_TOOL)).unwrap();
-            let fact = skein_lib::bytes::concat(&[b"Started goal", cut, b"RunningOpen"]);
-            assert_eq!(f::node_text(tree, index), fact);
-        }
+        let mut view = f::view_of(words.clone());
+        let tree = f::build(&mut view, &root);
+        let link = skein_lib::bytes::concat(&[b"Goal ", cut, " →".as_bytes()]);
+        assert!(find(tree, Role::Link, &link).is_some());
+        assert_eq!(skein_lib::bytes::count(&f::text(tree), cut, 3), 2);
+        let index = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::TURN_TOOL)).unwrap();
+        let fact = skein_lib::bytes::concat(&[b"Started goal", cut, b"RunningOpen"]);
+        assert_eq!(f::node_text(tree, index), fact);
     }
 }
