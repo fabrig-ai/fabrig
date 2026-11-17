@@ -90,7 +90,7 @@ pub struct ConfiguredPolicy {
 }
 
 /// One first-start project seed (configuration.md, 3; domain/model.md, 6.1).
-#[derive(Hash, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct SeedProject {
     pub number: u32,
     pub name: Box<str>,
@@ -99,7 +99,7 @@ pub struct SeedProject {
 
 /// Application-supplied initial core state, in jig's vocabulary
 /// (`domain/engine/restart.md`; `configuration.md`, 3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     /// Configured worker names in authenticated protocol position order.
     pub worker_names: Box<[Box<[u8]>]>,
@@ -132,7 +132,7 @@ pub struct Config {
 }
 
 /// Deployment and current catalogue settings used by core decisions.
-#[derive(Hash, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Settings {
     pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.
