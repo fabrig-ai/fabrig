@@ -29,7 +29,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `root.journal.writes`: count, 12,288. Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot.
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 18,431,846. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
-- `root.journal.result_bytes`: bytes, 334,999. Bounds owned result text or assignment section text admitted to a held delivery.
+- `root.journal.result_bytes`: bytes, 318,306. Bounds owned result text or assignment section text admitted to a held delivery.
 - `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
@@ -41,7 +41,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `root.brief.sections`: count, 10. Bounds brief sections the root gathers at once.
 - `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
 - `root.brief.read_bytes`: bytes, 131,584. Bounds bytes read for one gathered brief section.
-- `root.brief.brief_bytes`: bytes, 334,999. Bounds the body of a gathered brief.
+- `root.brief.brief_bytes`: bytes, 318,306. Bounds the body of a gathered brief.
 - `root.brief.gather_ms`: milliseconds, 300,000. Bounds the time spent gathering a brief.
 - `root.brief.budgets.task`: bytes, 131,584. Bounds task section bytes in a gathered brief.
 - `root.brief.budgets.dependencies`: bytes, 128. Bounds dependency section bytes in a gathered brief.

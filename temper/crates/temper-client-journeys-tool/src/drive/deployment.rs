@@ -89,7 +89,6 @@ pub fn documents(files: &[(&str, &[u8])], place: &Place) -> Result<Vec<RenderedF
     let names = [
         ("engine.json", Document::Engine.path()),
         ("worker.json", Document::Worker.path()),
-        ("agent.json", Document::Agent.path()),
         ("forgejo.json", "config/forgejo.json"),
         ("model.json", "config/model.json"),
     ];
@@ -141,6 +140,9 @@ impl Values {
         }
     }
 }
+mod worker;
+pub use worker::Worker;
+
 pub fn values(place: &Place, forgejo: &[u8], model: &[u8]) -> Result<Values, String> {
     let forgejo = Json::parse("forgejo.json", forgejo, DOCUMENT_BYTES)?;
     let model = Json::parse("model.json", model, DOCUMENT_BYTES)?;
@@ -282,6 +284,14 @@ impl Json {
             Kind::Null => Self::Null,
             Kind::Key | Kind::ObjectEnd | Kind::ArrayEnd | Kind::Long => unreachable!("a parsed JSON value"),
         }
+    }
+    fn member(&self, name: &str, key: &[u8]) -> Result<&Self, String> {
+        if let Self::Object(members) = self
+            && let Some((_, value)) = members.iter().find(|(member, _)| member.as_ref() == key)
+        {
+            return Ok(value);
+        }
+        Err(format!("{name}: lacks {} member", String::from_utf8_lossy(key)))
     }
     fn member_string(&self, name: &str, key: &[u8]) -> Result<Box<[u8]>, String> {
         if let Self::Object(members) = self

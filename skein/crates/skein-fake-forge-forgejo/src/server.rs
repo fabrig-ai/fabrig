@@ -127,7 +127,7 @@ pub fn up(
 ) {
     up_on(server, service, None, env, event, above, below);
 }
-/// Serves bytes with setup collaborator grants applied to the lent domain before replying.
+/// Serves bytes with setup grants and protocol refusals checked against the lent domain.
 pub fn up_with_domain(
     server: &mut Server,
     service: &mut Service,
@@ -306,7 +306,7 @@ pub fn resume(
 ) {
     resume_on(server, service, None, env, above, below);
 }
-/// Resumes a pass with the same setup grant crossing as `up_with_domain`.
+/// Resumes a pass with the same domain lending as `up_with_domain`.
 pub fn resume_with_domain(
     server: &mut Server,
     service: &mut Service,
@@ -559,6 +559,7 @@ fn entrance(
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "request admission keeps protocol refusals before dispatch")]
 fn decoded(
     server: &mut Server,
     service: &mut Service,
@@ -591,6 +592,10 @@ fn decoded(
             &env.limits,
             response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }),
         );
+        return;
+    }
+    if let Some(failure) = merged_state_edit(&service.config, &request, domain.as_deref()) {
+        respond(server, &env.limits, response::failure(&env.limits, failure));
         return;
     }
     if route == crate::Route::Migrate || route == crate::Route::DeleteRepository {
@@ -668,6 +673,36 @@ fn decoded(
         (Ok(_), Ok(_), None) => error_reply(server, env, api::Error::Missing(api::What::Repository)),
     }
 }
+/// testing/fakes/forge.md, 4: both state edits are refused before the domain call.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only issue state edits and the inspected pull answer participate in this protocol refusal"
+)]
+fn merged_state_edit(
+    config: &crate::Config,
+    request: &Request,
+    hosted: Option<&Hosted<'_>>,
+) -> Option<errors::Failure> {
+    let number = match request {
+        Request::EditIssue { number, state: Some(_), .. } => *number,
+        _ => return None,
+    };
+    let hosted = hosted?;
+    let repository = routes::repository(config, request)?;
+    let answer = hosted.domain.inspect(hosted.config, &repository, &api::Read::Pull { number }).ok()?;
+    match answer {
+        api::Answer::Pull(pull) => {
+            pull.merged?;
+        }
+        _ => return None,
+    }
+    Some(errors::Failure {
+        status: 412,
+        message: b"cannot change state of this pull request, it was already merged",
+        retry_after: None,
+    })
+}
+
 fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
     let (granted, read, write): (bool, &[u8], &[u8]) = match request {
         Request::Repository { .. }

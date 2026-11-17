@@ -132,11 +132,15 @@ pub fn deployment(paths: &[PathBuf; 3]) {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
-    worker["endpoints"][0]["limits"]["output"] = 32_000.into();
+    // Keep the stock endpoint ceiling: its response holds the escaped stock tool payload.
+    // B0's model setting requests 32,000 tokens within that ceiling.
     worker["endpoints"][0]["limits"]["reasoning_item"] = 32_768.into();
-    // B0's carriers follow its one-call recipe.
+    // B0 uses one call per response.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
-    let turn = turn_bounds::turn_body(&worker);
+    // The stock carriers also hold the stock's 82-message inbox; keep their
+    // floor when the one-call recipe makes the agent's turn smaller.
+    let stock_turn = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("stock turn");
+    let turn = turn_bounds::turn_body(&worker).max(u32::try_from(stock_turn).expect("stock turn fits"));
     turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
@@ -144,7 +148,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
     assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
-    assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
+    assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
     temper_fixtures::agent::apply(&mut value, &paths[1], &worker);

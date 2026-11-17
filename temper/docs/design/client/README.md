@@ -561,8 +561,16 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   | `words(Text)` | `spec`: the base's, with its `words` replaced |
   | `dependencies(List<u64>)` | `dependencies`: the whole list |
   | `llm(LlmChoice)` | `llm`: the whole choice |
+  | `address(AddressChange)` | `addressed`: the person task's new address and the person revision it names |
 
-  An edit equal to the base is no change. A deadline needs the base's
+  An edit equal to the base is no change, but for an address, which is
+  always one: re-addressed to where it waits now, a person task is let
+  go by a party who took it (jig's `domain/tasks/changes.md`).
+  `amend::address(&c::Task, c::PersonAddress) -> Option<c::AddressChange>`
+  makes the change a read allows: the address at the document's
+  `person_revision`, and none for a document without one, which is no
+  person task; every caller that sends an address, a draft's or one
+  named whole, makes it so. A deadline needs the base's
   whole authority and words its whole spec: where the document cut it,
   the edit answers `Cut::Authority` or `Cut::Spec`, and the draft is
   unchanged, so a page shows the field read only and `ctl` says so.
@@ -574,7 +582,8 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
   without a change; else `Drafted { revision: Option<Revision>,
   change: c::Amendment }`, the revision absent exactly when the change
   is a tracked task's priority alone (jig's `domain/tasks/changes.md`
-  ), and the base's otherwise.
+  ), and the base's otherwise, an address among the changes that name
+  it.
 - **What is whose.** The editor holds the rules of a draft (what
   each edit keeps, what is cut, when a revision is named). The words
   and fields are the caller's: a page's form, `ctl`'s flags and its

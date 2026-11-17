@@ -654,9 +654,10 @@ repository and branch form above (2026-11-04).
 ## 7. A model with a larger output
 
 `temper-box init`'s limits hold the stock's models, each a window of 1,048,576
-tokens and an output of 8,192 (`stock.md`), as its agent's endpoints declare them. A
-deployment whose model takes a larger output (gpt-6.1-sol at effort high, output
-32,000, for one) raises its agent's endpoint and overrides its profile's turn limits, each derived
+tokens and an output of 8,192 (`stock.md`), within its agent endpoints' 48,000-token
+ceiling. A model requesting 32,000 tokens, such as gpt-6.1-sol at effort high,
+fits that ceiling. A deployment whose model takes more than the endpoint's ceiling
+raises its agent's endpoint and overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
@@ -664,9 +665,9 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every endpoint, so one set of bounds
   holds whichever model a charter names (smith's `protocol/limits.md`, 3.9).
-  `temper-box init`'s agent takes 48 calls per response, 26
+  `temper-box init`'s agent takes 48 calls per response, 32
   conversations (`stock.md`'s table) and 64 models a charter, its endpoints an
-  output of 8,192 and a `reasoning_item` of at most 65,536, and efforts
+  output of 48,000 and a `reasoning_item` of at most 65,536, and efforts
   move no figure of T, smith charging an effort's name at the charter
   codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's

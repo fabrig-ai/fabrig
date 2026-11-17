@@ -5531,6 +5531,7 @@ dependencies = [
  "temper-playground",
  "temper-real-loop-world",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",
@@ -5569,6 +5570,7 @@ dependencies = [
  "skein-forge-connection",
  "skein-http",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-oauth",
@@ -5595,6 +5597,7 @@ dependencies = [
  "temper-playground",
  "temper-real-loop-world",
  "temper-service",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
  "temper-worker-service",
@@ -8086,6 +8089,7 @@ dependencies = [
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+ "temper-worker-shell",
 ]
 
 [[package]]
