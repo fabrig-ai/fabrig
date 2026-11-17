@@ -152,6 +152,46 @@ fn ci_evidence_follows_native_commit_and_pull_reads() {
 }
 
 #[test]
+fn cached_expenses_follow_changes_and_are_reported_again_without_new_spend() {
+    use jig_fake_workers::Expense;
+    let mut expenses = std::collections::BTreeMap::from([
+        ((1, 1), Expense { spent: 7, lost: 2, lost_turns: 1, ..Expense::default() }),
+        ((1, 2), Expense { spent: 3, ..Expense::default() }),
+    ]);
+    let mut cached = observations::Expenses::default();
+    cached.refresh(&expenses);
+    expenses.insert((1, 1), Expense { spent: 9, kept: 9, ..Expense::default() });
+    cached.refresh(&expenses);
+    cached.refresh(&expenses);
+    let expected = vec![r::Observed::Spend { task: 1, spent: 12, lost_bound: 0 }];
+    let mut actual = Vec::new();
+    cached.observe(&mut actual);
+    assert_eq!(actual, expected, "replace an attempt's prior contribution and lost-turn evidence");
+    actual.clear();
+    cached.observe(&mut actual);
+    assert_eq!(actual, expected, "the current durable budget is checked at every inspection");
+}
+
+#[test]
+fn cached_root_inputs_keep_seed_scenario_and_story_and_are_independent_copies() {
+    use jig_conformance::scenarios::Scenario;
+    let mut changed = config::root(103, None, Some(stories::Story::RepairCi)).0;
+    changed.core.seed = 999;
+    changed.core.seed_projects[0].name = "changed".into();
+    let (other_seed, _) = config::root(104, None, Some(stories::Story::RepairCi));
+    assert_eq!(other_seed.core.seed, 104);
+    let (shared, shared_limits) = config::root(103, Some(Scenario::Compound), None);
+    assert_eq!(shared_limits.fleet.slots, 3);
+    assert_eq!(shared.core.seed_projects[0].policy.policy.roles.len(), 1);
+    let (other_story, _) = config::root(103, None, Some(stories::Story::PersonWords));
+    assert_eq!(other_story.core.seed_projects[0].policy.policy.roles.len(), 1);
+    let (again, _) = config::root(103, None, Some(stories::Story::RepairCi));
+    assert_eq!(again.core.seed, 103);
+    assert_eq!(again.core.seed_projects[0].name.as_ref(), "Project 1");
+    assert_eq!(again.core.seed_projects[0].policy.policy.roles.len(), 3);
+}
+
+#[test]
 fn expense_observations_keep_lost_turns_before_sorted_task_totals() {
     use jig_fake_workers::Expense;
     let mut actual = vec![r::Observed::Restart];
@@ -163,7 +203,9 @@ fn expense_observations_keep_lost_turns_before_sorted_task_totals() {
         ((3, 7), Expense { spent: 5, lost: 2, lost_turns: 1, ..Expense::default() }),
         ((2, 1), Expense::default()),
     ]);
-    observations::expenses(&expenses, &mut actual);
+    let mut cached = observations::Expenses::default();
+    cached.refresh(&expenses);
+    cached.observe(&mut actual);
     assert_eq!(
         actual,
         vec![

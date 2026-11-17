@@ -1,9 +1,41 @@
-//! Tiny forge policies and limits reconstructed for each cold start.
+//! Tiny forge policies and limits, copied from immutable per-process inputs.
 use jig_conformance::scenarios::Scenario;
 use jig_domain_authority as authority;
 use skein_lib::{Duration, Queue};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::walking;
+
+struct Root {
+    seed: u64,
+    scenario: Option<Scenario>,
+    story: Option<super::stories::Story>,
+    config: engine::Config,
+    limits: engine::Limits,
+}
+thread_local! {
+    static ROOTS: std::cell::RefCell<Vec<Root>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn root(
+    seed: u64,
+    scenario: Option<Scenario>,
+    story: Option<super::stories::Story>,
+) -> (engine::Config, engine::Limits) {
+    ROOTS.with_borrow_mut(|roots| {
+        let index = roots.iter().position(|root| root.seed == seed && root.scenario == scenario && root.story == story);
+        let root = if let Some(index) = index {
+            &roots[index]
+        } else {
+            let (config, limits) = build(seed, scenario, story);
+            // The domain world's copy excludes resumed in-process activations;
+            // these remote-worker fixtures configure none.
+            assert!(config.core.kept_starts.is_empty());
+            roots.push(Root { seed, scenario, story, config, limits });
+            roots.last().expect("inserted root inputs")
+        };
+        (temper_engine_domain_world::oracle::config::copy(&root.config), root.limits)
+    })
+}
 
 // Writes for the compact native stories and merge scenarios.
 const STORY_WRITES: u32 = 4_505;
@@ -15,7 +47,7 @@ const STORY_DELIVERIES: u32 = 32;
 const SCENARIO_DELIVERIES: u32 = 76;
 
 #[expect(clippy::too_many_lines, reason = "the fixture specifies its policy and child bounds together")]
-pub fn root(
+fn build(
     seed: u64,
     scenario: Option<jig_conformance::scenarios::Scenario>,
     story: Option<super::stories::Story>,

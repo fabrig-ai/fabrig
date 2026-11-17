@@ -117,6 +117,7 @@ pub struct Peers {
     applied: u64,
     first_start: Option<r::Snapshot>,
     projection: jig_conformance::core::Projection,
+    expenses: observations::Expenses,
     observed: Vec<r::Observed>,
     /// The protocol layer this world plays: decodes, renders, outcomes, accounts.
     protocol: Protocol,
@@ -277,6 +278,7 @@ impl Application for Temper {
             applied: 0,
             first_start: Some(observations::snapshot(&first)),
             projection: jig_conformance::core::Projection::default(),
+            expenses: observations::Expenses::default(),
             observed: Vec::new(),
             protocol: Protocol::default(),
             requests: std::collections::BTreeMap::new(),
@@ -332,6 +334,7 @@ impl Application for Temper {
             }
         }
         peers.worker.restart_engine();
+        peers.expenses.refresh(&peers.worker.expenses);
         peers.generation += 1;
         peers.started = false;
         peers.retries.extend(peers.calls.keys().map(|call| (*call, 0)));
@@ -551,6 +554,7 @@ impl Application for Temper {
             for up in peers.worker.tick(Time::from_nanos(clock.now)) {
                 events.push(link::worker_event(peers, up));
             }
+            peers.expenses.refresh(&peers.worker.expenses);
             if !peers.signed_in {
                 peers.signed_in = true;
                 events.push(engine::Event::Party(engine::PartyInput::SignedIn {
@@ -636,7 +640,11 @@ impl Application for Temper {
             peers.applied = store.applied;
             let mut snapshot = observations::projected(store, &mut peers.projection);
             observations::resolved(store, &mut snapshot, &mut peers.effects, &mut peers.held, &mut peers.settled);
-            for record in store.rows.values() {
+            let live = root::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(0)))
+                ..=root::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(u64::MAX)));
+            let ended = root::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(0)))
+                ..=root::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(u64::MAX)));
+            for (_, record) in store.rows.range(live).chain(store.rows.range(ended)) {
                 if let root::Record::Core(jig_domain_core::Record::Tasks(
                     tasks::Stored::Live(task) | tasks::Stored::Ended(task),
                 )) = record
@@ -667,7 +675,15 @@ impl Application for Temper {
         }
         observations.append(&mut peers.observed);
         observations.extend(systems.take_observed());
-        observations::expenses(&peers.worker.expenses, &mut observations);
+        #[cfg(test)]
+        let before_expenses = observations.len();
+        peers.expenses.observe(&mut observations);
+        #[cfg(test)]
+        {
+            let mut expected = Vec::new();
+            observations::expenses(&peers.worker.expenses, &mut expected);
+            assert_eq!(&observations[before_expenses..], expected.as_slice(), "cached expenses at every inspection");
+        }
         Ok(observations)
     }
     fn ready(domain: &Domain) -> bool {
