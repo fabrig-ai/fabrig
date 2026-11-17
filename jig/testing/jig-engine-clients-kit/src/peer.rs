@@ -37,6 +37,7 @@ struct Exchange {
     upload: Option<Box<[u8]>>,
     body: Vec<u8>,
     status: Option<u16>,
+    headers: Box<[skein_http::Header]>,
     done: bool,
     streaming: bool,
     paused: bool,
@@ -79,6 +80,7 @@ impl Exchange {
             upload: Some(body),
             body: Vec::new(),
             status: None,
+            headers: Box::new([]),
             done: false,
             streaming: method == skein_http::Method::Get,
             paused: false,
@@ -128,6 +130,7 @@ impl Exchange {
                 }
                 http::Event::Response(response) => {
                     self.status = Some(response.status);
+                    self.headers = response.headers;
                     self.read();
                 }
                 http::Event::Body(Up::Bytes(bytes)) => {
@@ -752,8 +755,20 @@ impl Peer {
         );
         self.pump();
     }
-    pub fn advance_time(&mut self, span: skein_lib::Duration) {
+    pub fn elapse_without_firing(&mut self, span: skein_lib::Duration) {
         self.env.now = self.env.now.saturating_add(span);
+        self.server.clock(self.env.now, self.env.wall);
+    }
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.component.next_deadline()
+    }
+    #[must_use]
+    pub fn response_headers(&self, socket: Token) -> &[skein_http::Header] {
+        &self.sockets.get(&socket).expect("exchange socket").headers
+    }
+    pub fn advance_time(&mut self, span: skein_lib::Duration) {
+        self.elapse_without_firing(span);
         self.component.fire(&self.env);
         self.pump();
     }
@@ -858,13 +873,13 @@ impl Peer {
         }
     }
     pub fn answer_signed_in(&mut self, sign_in: u64, person: u64) {
+        self.answer_signed_in_until(sign_in, person, fixtures::expires());
+    }
+    pub fn answer_signed_in_until(&mut self, sign_in: u64, person: u64, expires: Wall) {
         let to = self.take_sign_in();
         self.sign_ins.insert(sign_in, person);
 
-        self.event(Event::Reply {
-            to,
-            reply: people::Reply::SignedIn { sign_in, person, expires: fixtures::expires() },
-        });
+        self.event(Event::Reply { to, reply: people::Reply::SignedIn { sign_in, person, expires } });
     }
     pub fn refuse_sign_in(&mut self) {
         let to = self.take_sign_in();

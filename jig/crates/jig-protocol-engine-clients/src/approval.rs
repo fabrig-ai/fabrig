@@ -6,6 +6,7 @@ use jig_client_protocol_wire::ApprovalCode;
 use skein_lib::{CryptoRng, Duration, Map, Reader, Secret, Time, Wall, sha256};
 
 pub(crate) const WAITING: u32 = 4;
+pub(crate) const ASKED_LINKS: u32 = 4;
 pub(crate) const SPAN: Duration = Duration::from_secs(600);
 pub(crate) const PAST: u32 = 8;
 // Rejection draws are bounded; an RNG unable to supply a candidate fails stop.

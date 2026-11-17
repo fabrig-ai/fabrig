@@ -3,7 +3,7 @@ use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
     routes::{self, Route},
-    sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
+    sign_in::{self, Link, LinkKind, Past, Pending, Reservation, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v28 as w;
@@ -12,6 +12,8 @@ use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
 #[path = "approval.rs"]
 mod approval;
+#[path = "asked_link.rs"]
+mod asked_link;
 #[path = "closing.rs"]
 mod closing;
 #[path = "mint.rs"]
@@ -40,10 +42,11 @@ pub struct Component {
     settings: Settings,
     provider: provider::State,
     approval: approval::State,
+    asked: asked_link::State,
     rng: CryptoRng,
     printed: Slot,
     local: Slot,
-    past_links: Queue<(skein_lib::Secret, Past, Which)>,
+    past_links: Queue<(skein_lib::Secret, Past, LinkKind)>,
     connections: Map<Token, Exchange>,
     pending: Pending,
     streams: Map<Token, crate::stream::Stream>,
@@ -52,6 +55,10 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "settings validation and volatile state initialization share one admission"
+    )]
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
         let local_given = settings.local_secret.take();
@@ -119,6 +126,7 @@ impl Component {
             public,
             provider: provider::State::new(&env.limits),
             approval: approval::State::new(),
+            asked: asked_link::State::new(env.limits.exchanges),
             settings,
             rng,
             printed: Slot::new(),
@@ -173,14 +181,16 @@ impl Component {
         }
     }
     fn remember_link(&mut self, which: Which, link: Link, past: Past) {
+        self.remember_digest(LinkKind::Startup(which), sign_in::digest(link.secret.expose()), past);
+    }
+    fn remember_digest(&mut self, kind: LinkKind, digest: skein_lib::Secret, past: Past) {
         if self.past_links.room() == 0 {
             self.past_links.pop();
         }
-        let digest = sign_in::digest(link.secret.expose());
-        self.past_links.push((digest, past, which));
+        self.past_links.push((digest, past, kind));
     }
     // Why a secret is not live, and which link it belonged to.
-    fn link_answer(&self, secret: &[u8]) -> (Box<[u8]>, Option<Which>) {
+    fn link_answer(&self, secret: &[u8]) -> (Box<[u8]>, Option<LinkKind>) {
         if self.settings.link.is_none() {
             return (routes::refused(), None);
         }
@@ -218,26 +228,34 @@ impl Component {
                 any = true;
             }
         }
-        any
+        self.expire_asked(now) || any
     }
-    fn take_reservation(&mut self, exchange: Token) -> Option<(Which, Link)> {
+    fn take_reservation(&mut self, exchange: Token) -> Option<Reservation> {
         for which in [Which::Printed, Which::Local] {
             if let Some((reserved, _)) = &self.slot(which).spending
                 && *reserved == exchange
             {
                 let (_, link) = self.slot_mut(which).spending.take().expect("matching reservation");
-                return Some((which, link));
+                return Some(Reservation::Startup(which, link));
             }
         }
-        None
+        match self.asked.take(exchange) {
+            Some(link) => Some(Reservation::Asked(link)),
+            None => None,
+        }
     }
-    fn spend_link(&mut self, spent: Option<(Which, Link)>, env: &Env<Limits>, out: &mut Queue<Request>) {
-        if let Some((which, link)) = spent {
-            self.remember_link(which, link, Past::Used);
-            if which == Which::Local && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
-            {
-                self.fresh_link(Which::Local, env, out);
+    fn spend_link(&mut self, spent: Option<Reservation>, env: &Env<Limits>, out: &mut Queue<Request>) {
+        match spent {
+            Some(Reservation::Startup(which, link)) => {
+                self.remember_link(which, link, Past::Used);
+                if which == Which::Local
+                    && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
+                {
+                    self.fresh_link(Which::Local, env, out);
+                }
             }
+            Some(Reservation::Asked(link)) => self.remember_digest(LinkKind::Asked, link.digest, Past::Used),
+            None => {}
         }
     }
     pub fn down(&mut self, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -363,7 +381,9 @@ impl Component {
                     ready = Some(*exchange);
                     break;
                 }
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -382,7 +402,8 @@ impl Component {
         }
         if let Some(exchange) = ready {
             match self.pending.exchanges.remove(&exchange).expect("ready exchange") {
-                Waiting::Checked { sign_in, body, route } => match route {
+                Waiting::Checked { sign_in, expires, body, route } => match route {
+                    Route::LinkAsk => self.asked_checked(env, exchange, sign_in, expires, &body, out),
                     Route::Read => self.read(env, exchange, sign_in, &body, out),
                     Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => {
                         self.watch_route(env, exchange, sign_in, route, &body, out);
@@ -395,7 +416,9 @@ impl Component {
                     }
                     Route::ApprovalAsk | Route::ApprovalTake | Route::Link | Route::Service => {}
                 },
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -523,6 +546,9 @@ impl Component {
             return;
         }
         match route {
+            Route::LinkAsk if self.settings.link.is_none() || credential.is_none() => {
+                connection.respond(crate::Reply::Record(routes::link_ask_answer(w::LinkAskAnswer::Refused)));
+            }
             Route::ApprovalAsk if self.settings.approval => self.approval_ask(env, connection, &body),
             Route::ApprovalTake if self.settings.approval => self.approval_take(env, connection, &body, out),
             Route::ApprovalAsk => {
@@ -544,6 +570,9 @@ impl Component {
                 };
                 let digest = sign_in::digest(record.secret().expose());
                 self.expire_links(env.now);
+                if self.asked_sign_in(env, connection, &digest, out) {
+                    return;
+                }
                 let mut live = None;
                 let mut reserved = false;
                 for which in [Which::Printed, Which::Local] {
@@ -563,7 +592,7 @@ impl Component {
                 }
                 let Some(which) = live else {
                     let (answer, past) = self.link_answer(record.secret().expose());
-                    if past != Some(Which::Local) {
+                    if past != Some(LinkKind::Startup(Which::Local)) && past != Some(LinkKind::Asked) {
                         self.fresh_link(Which::Printed, env, out);
                     }
                     self.fresh_link(Which::Local, env, out);
@@ -588,7 +617,8 @@ impl Component {
                     self.link_sign_in(exchange, None, out);
                 }
             }
-            Route::ApprovalRead
+            Route::LinkAsk
+            | Route::ApprovalRead
             | Route::ApprovalDecide
             | Route::Authorize
             | Route::Service
@@ -638,6 +668,8 @@ impl Component {
             return;
         };
         match waiting {
+            Waiting::LinkAskWhose { sign_in, cap } => self.link_ask_whose(env, exchange, sign_in, cap, reply),
+            Waiting::AskedWhose { cap } => self.asked_whose(env, exchange, cap, reply, out),
             Waiting::SignOut { sign_in, committed } => match reply {
                 people::Reply::SignedOut => {
                     self.pending
@@ -737,7 +769,9 @@ impl Component {
                 let answer = crate::translate::answers::moving_out(account, number, record, &env.limits.wire);
                 self.answer(exchange, answer);
             }
-            Waiting::ApprovalWhose { .. }
+            Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
+            | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -786,7 +820,9 @@ impl Component {
                 };
                 self.answer(exchange, answer);
             }
-            Waiting::ApprovalWhose { .. }
+            Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
+            | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
@@ -854,7 +890,9 @@ impl Component {
         let mut count = 0_u32;
         for (_, waiting) in &self.pending.exchanges {
             match waiting {
-                Waiting::ApprovalWhose { .. }
+                Waiting::LinkAskWhose { .. }
+                | Waiting::AskedWhose { .. }
+                | Waiting::ApprovalWhose { .. }
                 | Waiting::ApprovalCore { .. }
                 | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -885,6 +923,12 @@ impl Component {
                     None => link.until,
                 });
             }
+        }
+        if let Some(deadline) = self.asked.next_deadline() {
+            next = Some(match next {
+                Some(next) => next.min(deadline),
+                None => deadline,
+            });
         }
         if let Some(deadline) = self.approval.next_deadline() {
             next = Some(match next {

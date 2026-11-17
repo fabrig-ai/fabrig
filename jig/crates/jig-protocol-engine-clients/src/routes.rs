@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::v28 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
+    LinkAsk,
     ApprovalAsk,
     ApprovalRead,
     ApprovalDecide,
@@ -20,6 +21,7 @@ pub(crate) enum Route {
 }
 pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
     match message {
+        crate::Message::LinkAsk(body) => (Route::LinkAsk, body),
         crate::Message::ApprovalAsk(body) => (Route::ApprovalAsk, body),
         crate::Message::ApprovalRead(body) => (Route::ApprovalRead, body),
         crate::Message::ApprovalDecide(body) => (Route::ApprovalDecide, body),
@@ -51,6 +53,12 @@ pub(crate) fn signed_in(answer: w::SignedIn) -> Box<[u8]> {
     let answer = w::SignInAnswer::SignedIn(answer);
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("admitted sign-in");
+    out.finish()
+}
+
+pub(crate) fn link_ask_answer(answer: w::LinkAskAnswer) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut out).expect("measured link ask answer");
     out.finish()
 }
 
@@ -115,6 +123,7 @@ pub(crate) fn close_answer(signed_out: bool) -> Box<[u8]> {
 }
 pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
     match route {
+        Route::LinkAsk => link_ask_answer(w::LinkAskAnswer::SignedOut),
         Route::Read => read_none(jig_domain_core_vocabulary::reads::Why::SignedOut, limits),
         Route::Watch => open_answer(Some(jig_domain_core_vocabulary::WatchRefusal::SignedOut), limits),
         Route::Unwatch => close_answer(true),
@@ -177,6 +186,7 @@ pub(crate) fn sign_out_not_ready() -> Box<[u8]> {
 }
 pub(crate) fn stopped(route: Route) -> Option<Box<[u8]>> {
     match route {
+        Route::LinkAsk => Some(link_ask_answer(w::LinkAskAnswer::NotReady)),
         Route::Link | Route::Service => Some(sign_in_not_ready()),
         Route::SignOut => Some(sign_out_not_ready()),
         Route::Authorize => Some(authorize_answer(w::AuthorizeAnswer::NotReady)),

@@ -269,6 +269,22 @@ fn the_bearer_wins_when_a_cookie_also_arrives() {
     );
 }
 
+#[test]
+fn the_asked_link_route_reaches_the_component() {
+    let mut mount = fixtures::mount();
+    let mut out = Queue::with_capacity(16);
+    fixtures::call(&mut mount, &mut out, Method::Post, b"/jig/v1/link/ask", &[], b"ask");
+    assert_eq!(
+        *fixtures::component(&mut out),
+        [kit::FromTransport::Exchange {
+            exchange: fixtures::EXCHANGE,
+            credential: None,
+            browser: false,
+            message: kit::Message::LinkAsk(Box::from(b"ask".as_slice())),
+        }]
+    );
+}
+
 type Fields = &'static [(&'static [u8], &'static [u8])];
 type ApprovalRoute = (&'static [u8], fn(Box<[u8]>) -> kit::Message);
 const APPROVAL_ROUTES: &[ApprovalRoute] = &[

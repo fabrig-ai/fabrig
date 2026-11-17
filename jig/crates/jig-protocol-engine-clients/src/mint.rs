@@ -46,13 +46,18 @@ impl Component {
             false
         }
     }
-    fn return_link(&mut self, spent: Option<(sign_in::Which, sign_in::Link)>) {
-        if let Some((which, link)) = spent
-            && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
-        {
-            let slot = self.slot_mut(which);
-            assert!(slot.live.is_none(), "a reserved link is not open");
-            slot.live = Some(link);
+    fn return_link(&mut self, spent: Option<sign_in::Reservation>) {
+        if self.phase != closing::Phase::Active && self.phase != closing::Phase::Stopped {
+            return;
+        }
+        match spent {
+            Some(sign_in::Reservation::Startup(which, link)) => {
+                let slot = self.slot_mut(which);
+                assert!(slot.live.is_none(), "a reserved link is not open");
+                slot.live = Some(link);
+            }
+            Some(sign_in::Reservation::Asked(link)) => self.return_asked(link),
+            None => {}
         }
     }
     pub(super) fn sign_in_reply(
@@ -70,8 +75,8 @@ impl Component {
         let spent = self.take_reservation(exchange);
         match reply {
             people::Reply::SignedIn { person, sign_in, expires } => {
-                if let Some((which, _)) = &spent
-                    && *which == sign_in::Which::Printed
+                if let Some(link) = &spent
+                    && link.printed()
                 {
                     out.push(Request::LinkSignedIn);
                 }
@@ -125,9 +130,8 @@ impl Component {
             people::Reply::Full { sign_ins, earliest } => {
                 if !self.mint_refused(exchange, MintRefusal::Busy, out) {
                     let answer = match &spent {
-                        Some((_, link)) => {
-                            let left = link.until.as_nanos().saturating_sub(env.now.as_nanos());
-                            let link_until = env.wall.as_nanos().saturating_add(left);
+                        Some(link) => {
+                            let link_until = link.expires(env);
                             routes::sign_in_full(&env.limits.wire, sign_ins, earliest.as_nanos(), link_until)
                         }
                         None => routes::sign_in_busy(),
