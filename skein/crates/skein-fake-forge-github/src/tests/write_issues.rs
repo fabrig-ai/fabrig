@@ -52,6 +52,27 @@ fn github_fake_issue_writes_drive_plans_and_read_back() {
     assert_eq!(comment.id, id);
     assert!(comment.body.ends_with(b"\ncomment"));
     assert_eq!(comment.key.as_deref(), Some(b"comment-key".as_slice()));
+    // testing/fakes/forge.md, 4: GitHub still closes a merged pull with 200.
+    let (number, head) = r::pull(&mut h);
+    h.env.now = skein_lib::Time::from_nanos(2_000_000_000);
+    r::call(
+        &mut h,
+        skein_fake_forge_domain::api::Op::Write(skein_fake_forge_domain::api::Write::Merge {
+            number,
+            head,
+            how: skein_fake_forge_domain::api::MergeHow::Style,
+        }),
+    );
+    let request = Request::Close { owner: f::boxed(b"acme"), name: f::boxed(b"widgets"), number };
+    let encoded = skein_forge::github::request::encode(&request, &h.limits.github).unwrap();
+    let response = h.ask(encoded.method, &encoded.target, Some(token.expose()), br#"{"state":"closed"}"#);
+    assert_eq!(response.status, 200);
+    assert_eq!(w::write(&mut h, &token, api::Write::Close { number }), Ok(api::Answer::Done));
+    let api::Answer::Pull(pull) = r::read(&mut h, &token, api::Read::Pull { number, ci: false }).unwrap() else {
+        panic!("closed merged pull")
+    };
+    assert_eq!(pull.state, api::State::Closed);
+    assert!(pull.merged.is_some());
     assert_eq!(w::write(&mut h, &token, api::Write::Close { number: 999 }), Err(api::Error::Missing));
     assert_eq!(
         w::write(

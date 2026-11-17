@@ -121,11 +121,18 @@ fn prepare_with_limits(
     let seeds = engine::seeds(link_secret, local_secret)?;
     let git = temper_shell::lookup::find(environment, b"git");
     let mut start = service::startup::checked_start_with_worker(
-        bytes, &jig_directories(directories), &files,
-        agent.as_ref().map(|prepared| &prepared.agent), &seeds,
-        List::with_capacity(0), Some(&checked), given,
-        git.as_ref().map(|path| path.as_os_str().as_bytes()), part,
-    ).map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        bytes,
+        &jig_directories(directories),
+        &files,
+        agent.as_ref().map(|prepared| &prepared.agent),
+        &seeds,
+        List::with_capacity(0),
+        Some(&checked),
+        given,
+        git.as_ref().map(|path| path.as_os_str().as_bytes()),
+        part,
+    )
+    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if !projects.is_empty() {
         let engine = start.engine_mut();
         engine.jig.owners = engine
@@ -206,7 +213,11 @@ fn prepare_agent(
     box_inputs_worker(part, directories)?;
     let claude = match crate::fake_backends::configured_claude(directories)? {
         Some(claude) => Some(claude),
-        None => part.claude.as_deref().map(path).map(std::path::Path::to_path_buf)
+        None => part
+            .claude
+            .as_deref()
+            .map(path)
+            .map(std::path::Path::to_path_buf)
             .or_else(|| worker::find_claude(environment)),
     };
     let bytes = agent::figures::configuration(
@@ -369,8 +380,11 @@ pub fn prepare_in_with_program(
 }
 /// Prepare typed project seeds supplied by a world.
 pub fn prepare_in_with_projects(
-    binary: &str, environment: &[EnvironmentEntry], working: &[u8],
-    directories: &Directories, given: &service::stock::Given,
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
     projects: &[jig_protocol_config::Project],
 ) -> Result<Service, String> {
     prepare_in_with_inputs(binary, environment, working, directories, given, None, projects)

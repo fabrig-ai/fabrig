@@ -401,7 +401,8 @@ impl Domain {
             None => false,
             Some(settings::SizedValue {
                 value:
-                    Value::AgentFigures(_) | Value::Rule(_)
+                    Value::AgentFigures(_)
+                    | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
