@@ -46,6 +46,7 @@ pub fn requests(asked: Vec<Asked>) -> transport::Requests {
                     headers,
                     body: call.body,
                     bound,
+                    pieces: None,
                     cache,
                     keep,
                 });
@@ -70,7 +71,10 @@ pub fn fetched(report: fetch::Report) -> Heard {
         fetch::Report::Answered { exchange, status, body, headers } => {
             Heard::Answered { exchange, status, body, headers }
         }
-        fetch::Report::Failed { exchange } => Heard::Failed { exchange },
+        fetch::Report::Failed { exchange }
+        | fetch::Report::Opened { exchange, .. }
+        | fetch::Report::Piece { exchange, .. }
+        | fetch::Report::Ended { exchange } => Heard::Failed { exchange },
         fetch::Report::StreamOpened => Heard::StreamOpened,
         fetch::Report::StreamRefused { status } => Heard::StreamRefused { status },
         fetch::Report::StreamPiece { bytes } => Heard::Piece { bytes },
