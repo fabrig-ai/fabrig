@@ -284,7 +284,8 @@ recording as its lines (3.2), and every byte field of each. It writes
 nothing and prints no original. A browser's saved file already holds
 the *link* and the *stored* replaced (3.1): their values are `x`s
 alone, which are no original, so `add` counts none of either, and its
-redaction of the rest is unchanged.
+redaction of the rest is unchanged. After the proof, what varies takes
+a placeholder (`../journey-placeholders.md`).
 
 - **The originals:**
   - *link:* the `secret` record's value;
@@ -446,7 +447,9 @@ prints: at each mark the replay's `Page::html()` is the recorded one,
 or the recording is refused, naming the mark and the first byte that
 differs. Such a replay is not faithful, and the defect is fixed in the
 seam or the replay, never recorded around. Once every mark matches, the
-live prints are dropped: the print is the replay's from then on.
+live prints are dropped, and the recording takes its placeholders and
+replays again (`../journey-placeholders.md`, 4.1): the print is that
+replay's.
 
 A refusal of `add`'s names the turn, the line and each record's kind:
 never a line's text, which may hold what the redaction missed. The
@@ -462,8 +465,10 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
 
 - `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
   FILE` takes a saved recording as the journey NAME, replacing one of
-  that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
-  it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
+  that name, redacts it (3.6), proves it (4.3), normalises it, scans it
+  (3.7) and prints it, in memory until the scan has passed. A NAME is
+  `[a-z][a-z0-9-]*`. `normalise` gives the committed recordings their
+  placeholders (`../journey-placeholders.md`, 4.3).
 - `cargo run -p temper-client-journeys -- add --help` says what `add` takes
   out and what it leaves to the person (3.8).
 - `cargo run -p temper-client-journeys` reprints every journey from its
@@ -507,7 +512,8 @@ Under `docs/design/client/web/journeys/`:
   `../journey.js`; in its body the page.
 - **For a diff:** one tag per line, the break inside the tag before its
   `>`, so that nothing drawn gains a space; and no `data-node`, whose
-  numbers follow the order the nodes appeared in, not what they are.
+  numbers follow the order the nodes appeared in, not what they are;
+  skein-ui's ids are numbered afresh (`../journey-placeholders.md`, 5).
   skein's `dom::print` escapes `<`, `>`, `"` and `&` in text and
   attribute values alike, so the tags of `Page::html()` are found
   exactly.
@@ -684,9 +690,8 @@ reprint carries, since its acts are events, not controls.
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
   FILE`). The README changes with it, and its new pages are read as new.
-- **A new recording reads anew:** its times are the new walk's, and so
-  are the fake box's loopback ports wherever a page shows one, so the
-  print's diff holds those as well as what changed (section 10).
+- **A new recording's times** are its walk's
+  (`../journey-placeholders.md`, 2.4).
 
 ### 8.1 Again
 
@@ -753,7 +758,7 @@ over skein's harness.
   A step whose event no control gives, in a still save, within 10
   seconds stops `again`: its acts no longer hold.
 - **The check, then `add`:** the new recording's walk is the old one's,
-  the same acts with their values and events in order and the key marks
+  both normalised (`../journey-placeholders.md`, 4.2), the same acts with their values and events in order and the key marks
   in their places, or `again` refuses, naming the first step that
   differs, and the journey is walked anew. The page may change between
   a still save and the act given; an act that then lands on a control
@@ -1061,11 +1066,6 @@ words in the welcome and Forges. No overlay rule changes.
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
-- **A new recording's noise:** ports fixed for a fake box that `again`
-  starts, where it takes the kernel's (`../../protocol/setup/box.md`, 5), and
-  which must not collide when several record at once, and a fixed start
-  for its clock and the browser's, so that a recording made again
-  differs from the last only where the client does.
 - **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
   ChatGPT", and the tab it opens stays beside the page. The next step's find
   brings the page to the front (skein's `testing/browser.md`, section 6), so a tab
