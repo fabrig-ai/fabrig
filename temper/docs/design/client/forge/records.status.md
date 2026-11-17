@@ -1,7 +1,8 @@
 # records: status
 
-2026-11-15. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-17. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** *A project's changes*, *Where each row came from*: the family is at version 28, and no row names its goal, chat or milestone, nor a signer its name [in flight: change 6293]; the engine names none of them [in flight: change 6301].
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
   `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:

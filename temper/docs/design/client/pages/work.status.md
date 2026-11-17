@@ -1,7 +1,9 @@
 # work: status
 
-2026-11-16. Where the tree's code lags or departs from [work.md](work.md).
+2026-11-17. Where the tree's code lags or departs from [work.md](work.md).
 
+- **Not yet:** 1, *Work*'s *Its reads* and *Goals*' reads: a report is read per goal row, one at a time, and the chats' documents by the project's notes by page [in flight: change 6312]; drawn milestones read their own document, totals, goals and ended pages [in flight: change 6313]; the goals' ended group is read again on every live delivery [in flight: change 6311].
+- **Not yet:** 1, *Its reads*, *What goes where*, *A landed row* and *Who signed*: a change's goal, chat and milestone come from a `Read::Task` per row, and signers are named from the project's people read [in flight: change 6302].
 
 - **Not yet:** 1, *Work*: no landed draft is read, placed or drawn, and
   no goal starts from one [in flight: change 664].

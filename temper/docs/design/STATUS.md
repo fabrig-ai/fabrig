@@ -450,6 +450,7 @@ Design documents:
 - [`client/forge/deployment.md`](client/forge/deployment.status.md)
 - [`client/forge/family.md`](client/forge/family.status.md)
 - [`client/forge/pages.md`](client/forge/pages.status.md)
+- [`client/forge/parts.md`](client/forge/parts.status.md)
 - [`client/forge/records.md`](client/forge/records.status.md)
 - [`client/forge/repositories.md`](client/forge/repositories.status.md)
 - [`client/forge/served.md`](client/forge/served.status.md)
