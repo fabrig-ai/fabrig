@@ -137,7 +137,7 @@ and `List::into_boxed` moves them into a box of exactly their number.
 the grown buffer: refilling to the previous length allocates nothing.
 
 **`raise(&mut self, capacity: u32)`** on `Queue`, `List`, `Map`, `Set`,
-`Lru` and `Slab` raises the container's capacity to `capacity` in place,
+`Lru`, `Slab` and `Deadlines` raises the container's capacity to `capacity` in place,
 allocating nothing: what it holds stays, storage still grows by the
 shared rule as it fills, and a slab's spent slots stay spent and its
 handles valid. A capacity below the current one is a bug, asserted, as
