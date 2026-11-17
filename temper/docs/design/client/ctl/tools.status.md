@@ -13,7 +13,6 @@
 
 - **Not yet:** 2: `landing times` [in flight: change 2671].
 
-- **Not yet:** 2: `settings show project-landing PROJECT` and `settings show project-gates PROJECT`: the table refuses both words, and a kind 4 or 5 item is named `landing-rule` [in flight: change 6929].
 
 - **Not yet:** 3: `project delete PROJECT`: the table's tool is `project remove`, its ask built through `me` by `shapes::remove_project` with the chat template's grace, so a number `me` no longer lists sends nothing and a rerun after the deletion never reaches jig's kept answer [in flight: change 634].
 - **Not yet:** 2: `project show` of a deleted project prints `unknown` or `gone`, never `project 3 was deleted` [in flight: change 634].
