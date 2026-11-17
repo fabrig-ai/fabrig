@@ -50,7 +50,7 @@ skein-io socket
   - its API's address and transport, its record's: plaintext to a
     socket address on loopback, or TLS with its server name and the
     machine's roots; GitHub's are github.com's unless the configuration's
-    machine names a fake (../configuration/engine.md);
+    `application.test.github` names a fake (../setup/place.md, 7);
   - its access, `Some` or `None` (1): the credential, the user it must
     stand for, and a Forgejo forge's webhook secret when it has one;
   - its `log_origins`, the origins a job log's redirect may reach, its

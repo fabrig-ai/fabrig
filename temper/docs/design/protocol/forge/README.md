@@ -204,8 +204,8 @@ be read from:
   only scheme, host and port, never a signed path, query or
   credentials; no member adds an origin (section 12).
 - **No document, example or test of temper's calls github.com:** GitHub's
-  addresses are the machine's GitHub place, github.com's when it names
-  none (../configuration/engine.md), and every test names skein's fake
+  addresses are github.com's unless `application.test.github` names a
+  place (../setup/place.md, 7), and every test names skein's fake
   there (`README.md`, section 9).
 
 ## 3. The engine's marks
