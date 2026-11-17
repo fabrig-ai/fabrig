@@ -5,20 +5,7 @@ use jig_client_world::{Settings, World, joint::Joint, stories};
 fn scripted(
     _facts: stories::shared::b_seed::Facts,
 ) -> jig_client_world::World<jig_client_world::Test, jig_client_world::Scripted> {
-    let mut fixture = stories::world(8510);
-    let engine = &fixture.front().engine;
-    let mut bounds = engine.bounds();
-    bounds.rows = jig_client_world::test::limits().client.domain.rows;
-    let script = jig_client_scripted_engine::Script {
-        versions: engine.versions(),
-        bounds,
-        truth: engine.truth().clone(),
-        rules: vec![],
-    };
-    World::new(
-        Settings { seed: 8510, ..Settings::default() },
-        jig_client_world::Scripted::new(script, 8510, jig_client_world::scripted::Family::default()),
-    )
+    stories::seeded_world(8510)
 }
 fn joint(
     facts: jig_client_world::stories::shared::b_seed::Facts,
