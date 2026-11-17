@@ -93,10 +93,15 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
   core's `Ask::Parts` for the forge's connector reaches
   `temper-engine-domain`'s root, which makes the parts in a module of
   its own, `route/parts.rs`, and answers `Event::Parts`: in the same
-  decision where all it needs is in memory, else after its loads. The
-  service's family vocabulary (`temper-engine-service-vocabulary`)
-  encodes each record, a milestone goal's line through jig's own
-  translation of a `TaskLine` at jig's `VERSION`.
+  decision where all it needs is in memory, else after its loads. It
+  encodes each record itself, synchronously, through a pure encoding in
+  a crate below it (the root can't name the service's vocabulary, which
+  names the root): the family's records as `temper-client-protocol-wire`
+  encodes them, a milestone goal's line through jig's own translation of
+  a `TaskLine` at jig's `VERSION`, made public where jig keeps it, never
+  copied. The service's family vocabulary
+  (`temper-engine-service-vocabulary`) re-exports that encoding and
+  makes no second one.
 - **From memory:** the core's live tasks (a goal's requester; a
   milestone's live delegates and their lines; a live milestone's
   `concluded`) and the forge's milestone rows, its totals made as
