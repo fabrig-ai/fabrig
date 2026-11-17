@@ -1,9 +1,14 @@
 # README: status
 
-2026-11-15. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-17. Where the tree's code lags or departs from [README.md](README.md).
 
 
 
+- **Not yet:** 4, *One temper saw closed takes no close*: a cancelled or
+  no-change release posts its comment and closes a pull request temper
+  saw merged or closed, and a refused close holds it whatever temper saw
+  since (`temper-engine-domain-forge/src/domain.rs`, `release_pull`,
+  `release_outcome`) [in flight: change 7116].
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
 - **Not yet:** 2, step 1: an early start merges its dependencies' branch
