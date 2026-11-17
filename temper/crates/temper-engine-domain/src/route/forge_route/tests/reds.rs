@@ -751,3 +751,49 @@ fn flake_words_cut_at_character_boundaries_and_name_unnamed_repositories_by_numb
     assert!(body.ends_with("é[cut]"));
     assert!((4095..=4096).contains(&row.body.len()));
 }
+
+#[test]
+fn landed_reads_require_a_recorded_head_and_keep_landed_verification_states() {
+    use crate::wire::{Answer, Ask, answer};
+    use temper_engine_domain_forge_change as change;
+    let (mut domain, env, context) = change_start_fixture();
+    let task = context.task;
+    let attempt = 1;
+    proof(&mut domain, task);
+    let head = [37; 32];
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded);
+    let dependency = 78;
+    let mut asking = change_row(None);
+    asking.task = task;
+    asking.change.task = task;
+    asking.change.early = change::Early::Spent(Box::new([change::StartedFrom { task: dependency, head }]));
+    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "missing dependency row");
+    for (state, expected) in [
+        (change::State::Producing { requested: true }, Answer::Unlanded),
+        (
+            change::State::Held {
+                was: Box::new(change::State::Producing { requested: true }),
+                why: change::Hold::Failed,
+            },
+            Answer::Unlanded,
+        ),
+        (change::State::NoChange { words: Box::new([]) }, Answer::Unlanded),
+        (change::State::Ended, Answer::Unlanded),
+        (change::State::Red { merge: [38; 32], since: skein_lib::Wall::EPOCH }, Answer::Landed),
+        (change::State::Cleared { merge: [38; 32] }, Answer::Landed),
+        (change::State::Uncleared { merge: [38; 32] }, Answer::Landed),
+    ] {
+        let mut row = change_row(None);
+        row.task = dependency;
+        row.change.task = dependency;
+        row.change.state = state;
+        restore(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+        assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), expected);
+    }
+    let mut asking = change_row(None);
+    asking.task = task;
+    asking.change.task = task;
+    restore(&mut domain, &env, forge::Stored::Change(Box::new(asking)));
+    assert_eq!(answer(&domain, task, attempt, Ask::Landed { head }), Answer::Unlanded, "no early start");
+}
