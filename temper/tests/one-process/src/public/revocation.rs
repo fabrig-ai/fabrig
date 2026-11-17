@@ -276,8 +276,8 @@ impl Walk {
                         .skip(2)
                         .filter_map(|id| visitor.answers.get(id))
                         .map(|answer| {
-                            jig_client_protocol_wire::v26::KeyedAnswer::decode(
-                                &jig_client_protocol_wire::v26::CEILINGS,
+                            jig_client_protocol_wire::v27::KeyedAnswer::decode(
+                                &jig_client_protocol_wire::v27::CEILINGS,
                                 &mut Reader::new(&answer.as_ref().ok_or_else(|| String::from("HTTP control"))?.body),
                             )
                             .map_err(|why| format!("control record: {why:?}"))

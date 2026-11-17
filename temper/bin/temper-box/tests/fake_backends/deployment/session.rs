@@ -250,6 +250,7 @@ pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[sup
         },
         Mode::Pipes,
         262_144,
+        // Supervision retains the leader-exit evidence checked after settlement.
         Expectation::Supervise,
         false,
     )
@@ -278,6 +279,7 @@ pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[sup
         panic!("journeys and pipes settled")
     };
     no_link(binary.stderr());
+    assert!(!binary.stderr_overflowed(), "bounded deployment stderr");
     // Status 3 is a failure here, not permission to recreate the copy. Its named line is in this diagnostic.
     assert_eq!(
         binary.exit_status(),

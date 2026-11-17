@@ -1,0 +1,26 @@
+{
+  "listen": {
+    "socket": "{place.forgejo}"
+  },
+  "admin_token": "{place.data}/forgejo/admin_token",
+  "owner": "fake",
+  "repositories": [],
+  "made_ci": {
+    "declared": ".fake-forge/ci"
+  },
+  "workflows": [
+    {
+      "file": "gate.yml",
+      "jobs": [
+        "gate"
+      ],
+      "cue": {
+        "declared": ".fake-forge/gate"
+      }
+    }
+  ],
+  "manual_merges": {
+    "allow": true,
+    "autodetect": true
+  }
+}

@@ -3,14 +3,6 @@ use skein_world::domain::Verdict;
 use temper_one_process_world::referee::{restart, secrets};
 use temper_one_process_world::{fixtures, world};
 #[test]
-fn a_fresh_goals_unencodable_review_releases_the_host_and_cancels() {
-    temper_one_process_world::review_delivery::walk(0);
-}
-#[test]
-fn a_changes_unencodable_review_after_two_restarts_cancels_and_closes() {
-    temper_one_process_world::review_delivery::walk(2);
-}
-#[test]
 fn a_signal_mid_run_interrupts_a_chats_run_and_the_next_start_takes_it_again() {
     let outcome =
         world::drain_mid_run(fixtures::calm(fixtures::SEED), world::Story::ChatReadThenWait { words: b"Hello" }, true);

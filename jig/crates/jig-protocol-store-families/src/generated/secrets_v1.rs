@@ -95,6 +95,40 @@ pub enum Path {
     NextCarriedTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::DigestExpiry => "Digest.expiry",
+            Self::DigestDigest => "Digest.digest",
+            Self::DigestVersion => "Digest (version)",
+            Self::DigestTail => "Digest (tail)",
+            Self::SourceRecordRecord => "SourceRecord.record",
+            Self::SourceRecordTail => "SourceRecord (tail)",
+            Self::SourceKeyKey => "SourceKey.key",
+            Self::SourceKeyTail => "SourceKey (tail)",
+            Self::SourceValueTag => "SourceValue (tag)",
+            Self::SourceValue => "Source.value",
+            Self::SourceVersion => "Source (version)",
+            Self::SourceTail => "Source (tail)",
+            Self::CarriedKeyKey => "CarriedKey.key",
+            Self::CarriedKeyTail => "CarriedKey (tail)",
+            Self::CarriedValueValue => "CarriedValue.value",
+            Self::CarriedValueTail => "CarriedValue (tail)",
+            Self::CarriedMovedMoved => "CarriedMoved.moved",
+            Self::CarriedMovedTail => "CarriedMoved (tail)",
+            Self::CarryingTag => "Carrying (tag)",
+            Self::CarriedValue => "Carried.value",
+            Self::CarriedVersion => "Carried (version)",
+            Self::CarriedTail => "Carried (tail)",
+            Self::NextCarriedNext => "NextCarried.next",
+            Self::NextCarriedVersion => "NextCarried (version)",
+            Self::NextCarriedTail => "NextCarried (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

@@ -1,7 +1,7 @@
 //! A pass's drive session and its one-shot clients (qa/places.md, 5).
 mod server;
 
-use crate::{Home, Kind, Refusal, faces::Environment, place::PlacePaths, private, refused};
+use crate::{Home, Refusal, faces::Environment, place::PlacePaths, private, refused};
 pub use server::Holder;
 use std::{
     fs::{self, File, OpenOptions},
@@ -39,10 +39,6 @@ pub struct Drive {
     files: PathBuf,
     ctl: bool,
 }
-struct SessionSetup {
-    scripts: Vec<PathBuf>,
-    root: Option<PathBuf>,
-}
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
         home.read(|ledger| {
@@ -74,31 +70,29 @@ impl Drive {
     fn holder_command(&self, program: &std::path::Path) -> Command {
         let mut command = Command::new(program);
         command.args(["pass", "hold"]);
-        if self.ctl && self.place.kind == Kind::Box {
+        if self.ctl {
             command.arg("--ctl");
         }
         command
     }
 
-    fn session_command(&self, scripts: &SessionSetup) -> Command {
+    fn session_command(&self, chain: Option<&crate::kind::Chain>) -> Command {
         let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
         command.arg("drive");
-        if self.place.kind == Kind::Deployment {
-            command.arg("--deployment").arg(scripts.root.as_ref().expect("deployment setup's root").join("config"));
-        }
+        command.args(self.place.kind.drive_arguments(chain.map(|chain| chain.root.as_path())));
         command.arg("--bin").arg(&self.place.bin);
-        if self.place.kind == Kind::Box {
-            command.arg("--bundle").arg(&self.place.bundle);
-        }
+        command.arg("--bundle").arg(&self.place.bundle);
         command.arg("--scratch").arg(&self.place.scratch);
-        for script in &scripts.scripts {
-            command.arg("--scripts").arg(script);
+        if let Some(chain) = chain {
+            for script in chain.members.iter().filter_map(|member| member.scripts.as_ref()) {
+                command.arg("--scripts").arg(script);
+            }
         }
         command.arg("--strict").arg("--files").arg(&self.files);
         if let Some(ports) = &self.place.ports {
             command.args(["--ports", ports]);
         }
-        if self.ctl && self.place.kind == Kind::Box {
+        if self.ctl {
             command.arg("--ctl");
         }
         command
@@ -210,7 +204,7 @@ impl Drive {
         exchange(stream, request, bound, &skein_shell::Clock::new())
     }
 
-    fn scripts(&self) -> Result<SessionSetup, Refusal> {
+    fn scripts(&self) -> Result<Option<crate::kind::Chain>, Refusal> {
         let setup = fs::read_to_string(&self.place.setup).map_err(|why| {
             if why.kind() == std::io::ErrorKind::NotFound {
                 refused(format!(
@@ -223,12 +217,8 @@ impl Drive {
         })?;
         let words: Vec<_> = setup.split_whitespace().collect();
         if words == ["fresh"] {
-            if self.place.kind == Kind::Deployment {
-                return Err(refused(
-                    "a deployment's place has no fresh setup: its setups start from their root's config/",
-                ));
-            }
-            return Ok(SessionSetup { scripts: Vec::new(), root: None });
+            self.place.kind.check_fresh()?;
+            return Ok(None);
         }
         let [name, hash] = words.as_slice() else {
             return Err(refused("setup: expected NAME HASH or fresh"));
@@ -239,54 +229,7 @@ impl Drive {
         {
             return Err(refused("setup: expected NAME HASH or fresh"));
         }
-        let mut name = (*name).to_owned();
-        let mut visited = Vec::new();
-        let mut scripts = Vec::new();
-        loop {
-            let fail = |why| refused(format!("recipe {name}: {why}"));
-            visited.push(name.clone());
-            let directory = self.setups.join(&name);
-            let recipe = fs::read_to_string(directory.join("recipe")).map_err(|why| fail(why.to_string()))?;
-            if recipe.len() > 64 * 1024 || recipe.lines().count() > 1024 {
-                return Err(fail("recipe exceeds its size or line bound".into()));
-            }
-            let mut lines = recipe.lines();
-            if lines.next() != Some("recipe 1") {
-                return Err(fail("expected recipe 1".into()));
-            }
-            let script = directory.join("scripts.json");
-            match fs::metadata(&script) {
-                Ok(metadata) if metadata.is_file() => {
-                    File::open(&script).map_err(|why| fail(why.to_string()))?;
-                    scripts.push(script);
-                }
-                Ok(_) => return Err(fail("scripts.json is not a file".into())),
-                Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
-                Err(why) => return Err(fail(why.to_string())),
-            }
-            let Some(second) = lines.next() else {
-                return Err(fail("no closing check".into()));
-            };
-            if second == "after" || second.starts_with("after\t") {
-                return Err(fail("invalid after record".into()));
-            }
-            let Some(after) = second.strip_prefix("after ") else {
-                break;
-            };
-            let parent = after.strip_prefix('"').and_then(|value| value.strip_suffix('"')).unwrap_or(after);
-            if !recipe_name(parent) {
-                return Err(fail("invalid after recipe name".into()));
-            }
-            if visited.iter().any(|name| name == parent) {
-                return Err(fail("cycle in after chain".into()));
-            }
-            if visited.len() == 9 {
-                return Err(fail("more than eight parents".into()));
-            }
-            name = parent.into();
-        }
-        scripts.reverse();
-        Ok(SessionSetup { scripts, root: Some(self.setups.join(name)) })
+        crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Holder).map(Some)
     }
 }
 /// Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,

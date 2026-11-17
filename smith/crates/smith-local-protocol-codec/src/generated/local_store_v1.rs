@@ -175,6 +175,70 @@ pub enum Path {
     LayoutsTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::StateIdentity => "State.identity",
+            Self::StateActivation => "State.activation",
+            Self::StateNextMessage => "State.next_message",
+            Self::StateRead => "State.read",
+            Self::StateVersion => "State (version)",
+            Self::StateTail => "State (tail)",
+            Self::TurnRead => "Turn.read",
+            Self::TurnOpensWindow => "Turn.opens_window",
+            Self::TurnBody => "Turn.body",
+            Self::TurnVersion => "Turn (version)",
+            Self::TurnTail => "Turn (tail)",
+            Self::CallNameActivation => "CallName.activation",
+            Self::CallNameCompletion => "CallName.completion",
+            Self::CallNamePosition => "CallName.position",
+            Self::CallNameTail => "CallName (tail)",
+            Self::PushTargetRemote => "PushTarget.remote",
+            Self::PushTargetBranch => "PushTarget.branch",
+            Self::PushTargetTail => "PushTarget (tail)",
+            Self::IntentDirectoryDirectory => "IntentDirectory.directory",
+            Self::IntentDirectoryChanged => "IntentDirectory.changed",
+            Self::IntentDirectoryHead => "IntentDirectory.head",
+            Self::IntentDirectoryPush => "IntentDirectory.push",
+            Self::IntentDirectoryTail => "IntentDirectory (tail)",
+            Self::DeliveryIntentDirectories => "DeliveryIntent.directories",
+            Self::DeliveryIntentTail => "DeliveryIntent (tail)",
+            Self::ReceiptDirectory => "Receipt.directory",
+            Self::ReceiptText => "Receipt.text",
+            Self::ReceiptTail => "Receipt (tail)",
+            Self::DeliveredReceipts => "Delivered.receipts",
+            Self::DeliveredTail => "Delivered (tail)",
+            Self::MarkerDirectory => "Marker.directory",
+            Self::MarkerPath => "Marker.path",
+            Self::MarkerTail => "Marker (tail)",
+            Self::DeliveryRefusalMarker => "DeliveryRefusal.marker",
+            Self::DeliveryRefusalExplanation => "DeliveryRefusal.explanation",
+            Self::DeliveryRefusalTail => "DeliveryRefusal (tail)",
+            Self::DeliveryReasonTag => "DeliveryReason (tag)",
+            Self::DeliveryFailureDirectory => "DeliveryFailure.directory",
+            Self::DeliveryFailureReason => "DeliveryFailure.reason",
+            Self::DeliveryFailureOutput => "DeliveryFailure.output",
+            Self::DeliveryFailureCut => "DeliveryFailure.cut",
+            Self::DeliveryFailureTail => "DeliveryFailure (tail)",
+            Self::AnswerTag => "Answer (tag)",
+            Self::DeliveryAnswerAnswer => "DeliveryAnswer.answer",
+            Self::DeliveryAnswerTail => "DeliveryAnswer (tail)",
+            Self::DeliveryStateTag => "DeliveryState (tag)",
+            Self::DeliveryName => "Delivery.name",
+            Self::DeliveryState => "Delivery.state",
+            Self::DeliveryLanded => "Delivery.landed",
+            Self::DeliveryVersion => "Delivery (version)",
+            Self::DeliveryTail => "Delivery (tail)",
+            Self::LayoutsStore => "Layouts.store",
+            Self::LayoutsTranscript => "Layouts.transcript",
+            Self::LayoutsVersion => "Layouts (version)",
+            Self::LayoutsTail => "Layouts (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

@@ -18,29 +18,33 @@ const JSON: tokenizer::Limits = tokenizer::Limits {
 /// All paths are absolute; port positions are those of the place, not process order.
 #[derive(Clone, Debug)]
 pub struct Place {
-    ports: [u16; 9],
+    ports: super::place::Ports,
     scratch: PathBuf,
     bin: PathBuf,
+    bundle: Option<PathBuf>,
 }
 impl Place {
-    pub fn new(ports: [u16; 9], scratch: PathBuf, bin: PathBuf) -> Result<Self, String> {
+    pub fn new(ports: [u16; 9], scratch: PathBuf, bin: PathBuf, bundle: Option<PathBuf>) -> Result<Self, String> {
         if !scratch.is_absolute() || !bin.is_absolute() {
             return Err("place scratch and --bin must be absolute".into());
+        }
+        if bundle.as_ref().is_some_and(|path| !path.is_absolute()) {
+            return Err("place --bundle must be absolute".into());
         }
         if ports.contains(&0) || ports.iter().collect::<std::collections::BTreeSet<_>>().len() != 9 {
             return Err("place requires nine distinct nonzero ports".into());
         }
-        Ok(Self { ports, scratch, bin })
+        Ok(Self { ports: super::place::Ports::new(ports), scratch, bin, bundle })
     }
     /// NAME without the `place.` prefix or braces.
     #[must_use]
     pub fn value(&self, name: &str) -> Option<Box<[u8]>> {
         let port = match name {
-            "clients" => Some(self.ports[0]),
-            "workers" => Some(self.ports[1]),
-            "webhooks" => Some(self.ports[4]),
-            "model" => Some(self.ports[7]),
-            "forgejo" => Some(self.ports[8]),
+            "clients" => Some(self.ports.clients),
+            "workers" => Some(self.ports.owned),
+            "webhooks" => Some(self.ports.webhooks),
+            "model" => Some(self.ports.model),
+            "forgejo" => Some(self.ports.forgejo),
             _ => None,
         };
         if let Some(port) = port {
@@ -50,6 +54,7 @@ impl Place {
             "config" | "data" | "cache" => self.scratch.join(name),
             "bin" => self.bin.clone(),
             "git" => self.scratch.join("data/bin/git"),
+            "bundle" => self.bundle.clone()?,
             _ => return None,
         };
         Some(path.as_os_str().as_bytes().into())
@@ -170,6 +175,7 @@ impl Plan {
             parse_ports(self.options.ports.as_deref().ok_or("--deployment requires --ports LIST")?)?,
             self.options.scratch.clone(),
             self.options.bin.clone(),
+            self.options.bundle.clone(),
         )
     }
     /// Forgejo, model, engine, worker, in start order (deployment.md, 5).
@@ -368,6 +374,9 @@ fn render_string(name: &str, text: &[u8], place: &Place) -> Result<Box<[u8]>, St
             .position(|byte| *byte == b'}')
             .ok_or_else(|| format!("{name}: unclosed place name {}", String::from_utf8_lossy(rest)))?;
         let key = String::from_utf8_lossy(&rest[..end]);
+        if key == "bundle" && place.bundle.is_none() {
+            return Err(format!("{name}: place name bundle needs --bundle"));
+        }
         let value = place.value(&key).ok_or_else(|| format!("{name}: unknown place name {key}"))?;
         out.extend_from_slice(&value);
         rest = &rest[end + 1..];

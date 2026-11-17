@@ -481,11 +481,11 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 
 ## 7. Upgrade
 
-- **A new stored layout,** with its version and patch, in the landing
-  that adds it (`../protocol/store.md`, 4; `../protocol/baseline.md`,
-  7): temper's patch adds the five families' records and `ChangeRow`'s
-  `history`, none for every row kept, and moves `STORE_VERSION`. The
-  restart's interval narrowing changes no stored row.
+- **Registered value types** for the five history families, and
+  `ChangeHot.history` defaulting to none in a kept row
+  (`../protocol/store.md`, 4; `../protocol/floor.md`, 6). No patch or
+  version move is needed. The restart's interval excludes the
+  demand-loaded families without changing a stored row.
 - **No history before it:** a change live at the upgrade has a partial
   history, from its first step after; nothing is rebuilt or backdated.
 - **ctl's wire** moves its version for the new read
@@ -497,8 +497,8 @@ Focused and fuzzy suites alone, each test failing first:
 
 - **The store's step tests:** each family's key against the derived
   order and its decoder; `Range::Forge`'s interval holding no key of
-  bytes 128 to 131 and every other forge key; the records' goldens and
-  the patch's.
+  bytes 128 to 131 and every other forge key; the current records'
+  goldens and registry layouts.
 - **The forge's world** (`../testing/README.md`; `landing.md`, 16): each
   kind written by its step, under `queue` and under `turn`, in the
   decision that decides or observes it, with both ends of each interval;

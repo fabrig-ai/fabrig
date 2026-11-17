@@ -760,7 +760,7 @@ impl Host for Person {
         client.iterate(now, wall);
         no_welcome_drawn(client.tree(), self.story);
         if crate::m15::observer::enabled() {
-            crate::m15::observer::page(format!("{:?}", client.tree().nodes()).as_bytes());
+            crate::m15::observer::page(client.tree().nodes());
         }
         while let Some(signing) = client.signing() {
             if matches!(signing, Signing::Again) {

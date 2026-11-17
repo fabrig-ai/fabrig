@@ -22,6 +22,7 @@ pub mod turn_landing;
 pub const PATIENCE: skein_lib::Duration = skein_lib::Duration::from_secs(20);
 mod agent;
 pub mod calls;
+mod cancel_kills;
 pub mod ending;
 mod patience;
 pub mod service;
@@ -131,12 +132,53 @@ impl Ran {
             notes.partition_point(|(at, _)| self.outcome.end.saturating_since(*at) > skein_lib::Duration::from_secs(5));
         &notes[first.max(notes.len().saturating_sub(100))..]
     }
-    fn kill_finding(&self, heading: &str) -> String {
+    fn cancel_kills(&self) -> cancel_kills::Judged {
+        let notes: Vec<_> = self
+            .outcome
+            .procs
+            .iter()
+            .enumerate()
+            .flat_map(|(root, proc)| {
+                let world::Kind::Service(service) = &proc.kind else { return Vec::new() };
+                service
+                    .notes
+                    .iter()
+                    .filter_map(|(at, note)| {
+                        if let temper_service::Note::Worker(temper_service::worker_alone::Note::Cancelling {
+                            run,
+                            attempt,
+                        }) = note
+                        {
+                            Some(cancel_kills::Note { root, at: *at, run: *run, attempt: *attempt })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        let kills: Vec<_> = self
+            .killed()
+            .iter()
+            .map(|kill| {
+                // Roots are admitted before hosted children and are never removed.
+                // Only service roots have notes; hosted requesters are not paired.
+                let root = self
+                    .outcome
+                    .procs
+                    .get(kill.requester)
+                    .and_then(|proc| matches!(&proc.kind, world::Kind::Service(_)).then_some(kill.requester));
+                cancel_kills::Kill { root, at: kill.at, reason: kill.reason, exit: kill.exit }
+            })
+            .collect();
+        cancel_kills::judge(&kills, &notes, &self.service().cancel_history, self.requested_kills())
+    }
+    fn kill_finding(&self, heading: &str, details: &[String]) -> String {
         use std::fmt::Write;
         let mut finding = format!("{heading}\n");
-        for killed in self.killed() {
+        for (killed, detail) in self.killed().iter().zip(details) {
             let millis = killed.at.saturating_since(self.outcome.start).as_millis();
-            writeln!(finding, "{killed}; {millis} ms from run start").expect("string writer");
+            writeln!(finding, "{killed}; {millis} ms from run start{detail}").expect("string writer");
         }
         finding.push_str("service notes (last 5 s, latest 100):\n");
         for (at, note) in self.recent_notes() {
@@ -194,17 +236,9 @@ pub fn check(ran: &Ran) -> Result<(), String> {
     ) {
         return Err(format!("service end {:?}", ran.served()));
     }
-    if ran.killed().len() != ran.requested_kills() {
-        return Err(ran.kill_finding(&format!(
-            "only requested kills: {} recorded for {} Kill steps",
-            ran.killed().len(),
-            ran.requested_kills()
-        )));
-    }
-    for killed in ran.killed() {
-        if killed.exit != Exit::Signal(9) {
-            return Err(ran.kill_finding(&format!("requested kill: expected Signal(9), got {:?}", killed.exit)));
-        }
+    let judged = ran.cancel_kills();
+    if let Some(heading) = judged.refusal {
+        return Err(ran.kill_finding(&heading, &judged.details));
     }
     Ok(())
 }

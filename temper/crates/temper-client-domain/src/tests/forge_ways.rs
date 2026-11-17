@@ -696,6 +696,7 @@ fn proposal_cards(key: u64, kind: u32) -> List<crate::pages::inbox::Card> {
     cards
         .push(crate::pages::inbox::Card {
             whole: None,
+            task: None,
             object: c::ObjectKey::Proposal(key),
             group: c::InboxGroup::Proposals,
             project: Some(f::PROJECT),

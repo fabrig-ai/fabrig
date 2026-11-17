@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::ffi::OsStr;
 
 fn place() -> Place {
-    Place::new([4101, 4102, 4103, 4104, 4105, 4106, 4107, 4108, 4109], "/scratch".into(), "/build/bin".into())
+    Place::new([4101, 4102, 4103, 4104, 4105, 4106, 4107, 4108, 4109], "/scratch".into(), "/build/bin".into(), None)
         .expect("absolute place")
 }
 fn json(bytes: &[u8]) -> Value {
@@ -34,10 +34,24 @@ fn place_names_render_only_string_values() {
     assert!(rendered.windows(b"1.234567890123456789e+42".len()).any(|bytes| bytes == b"1.234567890123456789e+42"));
     let why = render("worker.json", br#"{"value":"{place.missing}"}"#, &place).expect_err("unknown name");
     assert!(why.contains("worker.json") && why.contains("missing"), "{why}");
-    assert!(Place::new([1; 9], "/scratch".into(), "/bin".into()).is_err());
-    assert!(Place::new([0, 1, 2, 3, 4, 5, 6, 7, 8], "/scratch".into(), "/bin".into()).is_err());
-    assert!(Place::new(place.ports, "relative".into(), "/bin".into()).is_err());
-    assert!(Place::new(place.ports, "/scratch".into(), "relative".into()).is_err());
+    assert!(Place::new([1; 9], "/scratch".into(), "/bin".into(), None).is_err());
+    assert!(Place::new([0, 1, 2, 3, 4, 5, 6, 7, 8], "/scratch".into(), "/bin".into(), None).is_err());
+    assert!(Place::new(place.ports.array(), "relative".into(), "/bin".into(), None).is_err());
+    assert!(Place::new(place.ports.array(), "/scratch".into(), "relative".into(), None).is_err());
+}
+
+#[test]
+fn bundle_name_renders_the_absolute_bundle_and_requires_it_by_document_name() {
+    let mut place = place();
+    let input = br#"{"application":{"clients":{"bundle":"{place.bundle}"}}}"#;
+    let why = render("engine.json", input, &place).expect_err("bundle absent");
+    assert_eq!(why, "engine.json: place name bundle needs --bundle");
+    place.bundle = Some("/p/bundle".into());
+    assert_eq!(
+        json(&render("engine.json", input, &place).expect("bundle given")),
+        json!({"application":{"clients":{"bundle":"/p/bundle"}}})
+    );
+    assert!(Place::new(place.ports.array(), "/scratch".into(), "/bin".into(), Some("relative".into())).is_err());
 }
 
 #[test]

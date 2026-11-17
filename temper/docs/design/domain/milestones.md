@@ -7,9 +7,8 @@ goal lands on its own, by its own way. temper offers the primitive and
 nothing around it: a person or their scripts make milestones through
 `temper ctl` (`../client/ctl/milestones.md`). Underneath, a milestone
 is jig's gathering (jig's `domain/tasks/gatherings.md`). What the pages
-draw of it, the states of section 4 of the draft and its section 5,
-is designed in the pages' documents as milestone M3 of
-`../draft/home-for-a-person.execution.md` carries them out.
+read and draw of it, the states of section 4 of the draft and its
+section 5, is `../client/pages/milestone.md` and the pages it names.
 
 ## 1. In one page
 
@@ -105,18 +104,30 @@ is designed in the pages' documents as milestone M3 of
   reports as any goal of its way does, and keeps its forge issue
   (`forge/issues.md`).
 - **Its authority** is template 2's fill from the party's creating
-  offer, narrowed to the milestone's: delegation depth at most the
-  milestone's less one, its delegation's tasks at most the milestone's
-  task allowance less one (the task document carries the allowance, not
-  what is left of it; jig charges a delegate its own allowance and one
-  more), and none where its depth is zero, its deadline no later than
-  the milestone's where it has one. jig checks it against both the party's role and what the
-  milestone has left, refusing at admission (jig's `domain/authority.md`,
-  8.4); the tool prints that refusal.
+  offer, narrowed to what the milestone has left: delegation depth at
+  most the milestone's less one; its delegation's tasks at most what the
+  milestone's tasks have left less one, its task document's `tasks_left`
+  (jig's `client/domain/contract/documents.md`, 1), and none where its
+  depth is zero; its deadline no later than the milestone's where it has
+  one. jig counts every task the milestone's subtree makes against its
+  allowance, reserving none, and admits a delegate whose tasks and one
+  more fit what is left (jig's `domain/authority.md`, 5), so a goal
+  narrowed to what is left less one leaves the next goal room, each
+  later goal's allowance one less, as a change's is narrowed to its
+  goal's (`agent/tools.md`, 1). jig checks
+  it against both the party's role and what the milestone has left,
+  refusing at admission (jig's `domain/authority.md`, 8.4); the tool
+  prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
   milestone has left (jig's `domain/authority.md`, 8.4). So the
-  milestone's budget must hold every goal made at once.
+  milestone's budget must hold every goal made at once. `AsAllowed`
+  means what it means for any goal, all that fits: a goal started so
+  takes all the milestone has left, within the role's spend, and a
+  second started so after it is refused for the milestone's budget. A
+  script that starts several goals in one milestone gives each its
+  amount, `--budget N` (the user, 2026-11-17: no hidden share, which
+  would give a script's goals less and less in an order nobody chose).
 - **Its waits:** its batch's dependencies, each a task the party
   reaches, a goal or a person task, in a milestone or not. One done adds
   no wait; one failed or cancelled refuses the start, naming how it
@@ -324,5 +335,3 @@ Focused stories, each where its owner's are:
 - **The forge's rows past 256 a project.** Default: an ended
   milestone's dropped first, read again from jig's ended record without
   its landing.
-- **The pages' milestone state** (the draft's section 4) and its
-  headline: designed with the pages, milestone M3.

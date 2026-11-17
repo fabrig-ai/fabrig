@@ -23,6 +23,7 @@ pub struct DecisionLine {
     pub number: u32,
     pub task: u64,
     pub title: Option<Box<[u8]>>,
+    pub milestone: Option<Box<[u8]>>,
     pub at: Wall,
     pub question: Box<[u8]>,
     pub took: Box<[u8]>,
@@ -57,6 +58,7 @@ struct DecisionRead {
     task: u64,
     handle: Handle,
     title: Option<Box<[u8]>>,
+    milestone: Option<Box<[u8]>>,
     state: DecisionTask,
 }
 #[derive(Debug)]
@@ -121,6 +123,13 @@ impl Store {
                             Some((task, _)) => Some(bytes::copy_of(task.chip.title.bytes())),
                             None => None,
                         };
+                        row.milestone = match task {
+                            Some((task, _)) => match temper_client_domain_forge::milestones::lineage(task) {
+                                Some(lineage) => Some(bytes::copy_of(lineage.milestone.title.bytes())),
+                                None => None,
+                            },
+                            None => None,
+                        };
                         row.state = match task {
                             Some((task, ended)) => decision_task(task, ended),
                             None => DecisionTask::Unknown,
@@ -174,7 +183,13 @@ impl Store {
             let handle = Handle { asker: Owner::Pages.asker(), number: *next };
             *next = next.checked_add(1).expect("page handles fit");
             self.reads
-                .push(DecisionRead { task: row.task, handle, title: None, state: DecisionTask::Unknown })
+                .push(DecisionRead {
+                    task: row.task,
+                    handle,
+                    title: None,
+                    milestone: None,
+                    state: DecisionTask::Unknown,
+                })
                 .expect("seven drawn reads");
             out.push(super::Request::Client(jig_client::Event::Read {
                 handle,
@@ -183,7 +198,7 @@ impl Store {
         }
     }
 }
-fn task_read(page: &Readout, task: u64) -> Option<(&c::Task, Option<Wall>)> {
+pub(super) fn task_read(page: &Readout, task: u64) -> Option<(&c::Task, Option<Wall>)> {
     match page {
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(document))) if document.chip.task == task => {
             Some((document, None))
@@ -277,10 +292,12 @@ impl Pages {
             let Some((project, row)) = newest else { break };
             before = Some((row.at(), project, row.number()));
             let mut title = None;
+            let mut milestone = None;
             let mut state = DecisionTask::Unknown;
             for read in &self.decided.reads {
                 if read.task == row.task() {
                     title.clone_from(&read.title);
+                    milestone.clone_from(&read.milestone);
                     state = read.state;
                     break;
                 }
@@ -290,6 +307,7 @@ impl Pages {
                 number: row.number(),
                 task: row.task(),
                 title,
+                milestone,
                 state,
                 at: Wall::from_nanos(row.at()),
                 question: row.question().into(),

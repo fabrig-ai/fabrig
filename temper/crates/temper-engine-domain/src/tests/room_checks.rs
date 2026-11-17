@@ -11,13 +11,16 @@ use jig_domain_people as people;
 use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 
 // A synthetic host part isolates the admission boundary from smith's measured table.
+const ZERO: crate::room::Cost = crate::room::Cost { rendered: 0, owned: 0, encoded: 0 };
 const HOST: crate::room::HostPart = crate::room::HostPart {
-    bound: 3_048,
-    fixed: 0,
-    declared: 0,
-    settings: 0,
-    asking: 0,
-    asking_settings: 0,
+    bound: Some(3_048),
+    allowance: u64::MAX,
+    fixed: ZERO,
+    model: ZERO,
+    always: ZERO,
+    families: [ZERO; 12],
+    asking: ZERO,
+    asking_settings: ZERO,
     inspect: 0,
     modify: 0,
     shell: 0,
@@ -29,9 +32,9 @@ const REPLY: Token = Token::new(9);
 const SHORT_INSTRUCTIONS: u32 = 999;
 const WORDS: &[u8] = b"charter 1 leaves its brief 2,047 bytes of its host part's 3,048; it needs at least 2,048";
 
-fn root(host: Option<crate::room::HostPart>) -> (Domain, Env<Limits>) {
+fn root(host: &crate::room::HostPart) -> (Domain, Env<Limits>) {
     let mut config = resume_fixture::config(7);
-    config.host_part = host;
+    config.host_part = *host;
     resume_fixture::root_with_config(config)
 }
 fn short_charter() -> crate::Charter {
@@ -101,7 +104,7 @@ fn proposal() -> PartyInput {
     }
 }
 fn refused(input: PartyInput) -> people::Refusal {
-    let (mut root, env) = root(Some(HOST));
+    let (mut root, env) = root(&HOST);
     crate::try_step(&mut root, &env, Event::Party(input)).unwrap();
     let mut out = Queue::uncapped();
     crate::release(&mut root, &env, &mut out);
@@ -125,13 +128,13 @@ fn a_partys_change_counts_every_part() {
         Box::new([Item { setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Charter(Box::new(charter))) }])
     }
     // Instructions alone leave 4,000 bytes; the part and its blank line leave 998.
-    let host = crate::room::HostPart { bound: 5_001, ..HOST };
+    let host = crate::room::HostPart { bound: Some(5_001), ..HOST };
     let mut charter = short_charter();
     charter.policy.resume = false;
     let mut limits = resume_fixture::limits();
     limits.journal.run_bytes = 8_192;
     let (mut root, env) = owner_root_with_limits(&limits);
-    root.host_part = Some(host);
+    root.host_part = host;
     charter.parts = parts(3_000);
     assert_eq!(
         settled(&mut root, &env, with_items(change(), item(charter.clone()))),
@@ -172,7 +175,7 @@ fn party_overlays(propose: bool) {
         (overlay(0, None), false),
     ] {
         let (mut root, env) = owner_root();
-        root.host_part = Some(HOST);
+        root.host_part = HOST;
         let input = with_items(if propose { proposal() } else { change() }, overlay_items(overlay));
         let reply = settled(&mut root, &env, input);
         if short {
@@ -199,7 +202,7 @@ fn an_overlay_is_judged_over_the_default_not_the_current_change() {
         settled(&mut root, &env, change()),
         people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })
     );
-    root.host_part = Some(HOST);
+    root.host_part = HOST;
     // The current whole charter is short; a fields-only overlay replaces it with the fitting default.
     assert_eq!(crate::route::room_refusal(&root, &overlay_items(overlay(0, None))), None);
 }
@@ -208,7 +211,7 @@ fn an_overlay_is_judged_over_the_default_not_the_current_change() {
 fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
     for fits in [false, true] {
         let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
-        root.host_part = Some(HOST);
+        root.host_part = HOST;
         let default = resume_fixture::charter();
         let added = SHORT_INSTRUCTIONS - u32::try_from(default.policy.instructions.len()).unwrap() - 2;
         let overlay = overlay(0, Some(added - u32::from(fits)));
@@ -272,7 +275,11 @@ fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
         } else {
             assert_eq!(
                 root.start_stop(),
-                Some(crate::StartStop::Room(crate::room::Short { charter: CHARTER, room: 2_047, bound: HOST.bound }))
+                Some(crate::StartStop::Room(crate::room::Short {
+                    charter: CHARTER,
+                    room: 2_047,
+                    bound: HOST.bound.unwrap()
+                }))
             );
             assert_eq!(root.start_phase(), Some(core::start::Phase::LoadCore));
             assert!(!root.ready());
@@ -295,7 +302,7 @@ fn a_reset_carries_its_previously_admitted_value() {
     let (mut root, env) = owner_root();
     let _changed = settled(&mut root, &env, change());
     // Even the default leaves zero bytes under this new host bound.
-    root.host_part = Some(crate::room::HostPart { bound: 0, ..HOST });
+    root.host_part = crate::room::HostPart { bound: Some(0), ..HOST };
     let reply = settled(
         &mut root,
         &env,
@@ -316,17 +323,60 @@ fn a_reset_carries_its_previously_admitted_value() {
     assert_eq!(root.core.current.charter(CHARTER), Some(&resume_fixture::charter()));
 }
 
+const FIXED_WORDS: &[u8] = b"charter 1 on a first wake is 66,012 bytes owned before its brief, past its allowance of 65,536; trim its text, parts or tool families";
+fn fixed_host(charter: &crate::Charter) -> crate::room::HostPart {
+    let base = crate::room::HostPart { bound: None, allowance: 65_536, ..HOST };
+    let bytes = base.on_wake(charter, jig_domain_tasks::Reasons::FIRST).owned;
+    crate::room::HostPart { fixed: crate::room::Cost { owned: 66_012_u64.checked_sub(bytes).unwrap(), ..ZERO }, ..base }
+}
+
 #[test]
-fn a_root_without_an_agent_checks_no_room() {
+fn a_root_without_an_agent_checks_fixed_but_not_rendered_room() {
     let (mut root, env) = owner_root();
+    root.host_part = crate::room::HostPart { bound: None, allowance: 65_536, ..HOST };
     assert_eq!(
         settled(&mut root, &env, change()),
         people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })
     );
+    let (mut root, env) = owner_root();
+    root.host_part = fixed_host(&short_charter());
     assert_eq!(
-        root.core.current.charter(CHARTER).unwrap().policy.instructions.len(),
-        usize::try_from(SHORT_INSTRUCTIONS).unwrap()
+        settled(&mut root, &env, change()),
+        people::Reply::Refused(people::Refusal::Judged {
+            at: 1,
+            setting: Setting::Charter(CHARTER),
+            why: FIXED_WORDS.into(),
+        })
     );
+}
+
+#[test]
+fn fixed_parts_refuse_party_changes_proposals_and_default_overlays() {
+    for propose in [false, true] {
+        for overlaid in [false, true] {
+            let (mut root, env) = owner_root();
+            let mut input = if propose { proposal() } else { change() };
+            let at;
+            if overlaid {
+                let overlay = overlay(0, Some(100));
+                let charter = settings::overlaid(&resume_fixture::charter(), &overlay);
+                root.host_part = fixed_host(&charter);
+                input = with_items(input, overlay_items(overlay));
+                at = 0;
+            } else {
+                root.host_part = fixed_host(&short_charter());
+                at = 1;
+            }
+            assert_eq!(
+                settled(&mut root, &env, input),
+                people::Reply::Refused(people::Refusal::Judged {
+                    at,
+                    setting: Setting::Charter(CHARTER),
+                    why: FIXED_WORDS.into(),
+                })
+            );
+        }
+    }
 }
 
 fn changed_row() -> crate::Record {
@@ -339,7 +389,7 @@ fn changed_row() -> crate::Record {
 #[test]
 fn a_stored_short_charter_refuses_before_the_next_start_phase() {
     let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
-    root.host_part = Some(HOST);
+    root.host_part = HOST;
     crate::restart::restore_page_row(&mut root, &env, changed_row());
     root.work.push(crate::Work::StartDone(core::start::Phase::LoadCore));
     let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
@@ -358,14 +408,18 @@ fn a_stored_short_charter_refuses_before_the_next_start_phase() {
 }
 
 #[test]
-fn stored_charters_without_an_agent_do_not_check_room() {
-    let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
-    crate::restart::restore_page_row(&mut root, &env, changed_row());
-    root.work.push(crate::Work::StartDone(core::start::Phase::LoadCore));
-    let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
-    crate::route::route_into(&mut root, &env, &mut decision);
-    assert_eq!(root.start_stop(), None);
-    assert_ne!(root.start_phase(), Some(core::start::Phase::LoadCore));
+fn restored_fixed_parts_are_not_checked_with_or_without_an_agent() {
+    for bound in [None, Some(100_000)] {
+        let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
+        root.host_part = crate::room::HostPart { bound, ..fixed_host(&short_charter()) };
+        assert!(root.host_part.check_fixed(&short_charter()).is_err());
+        crate::restart::restore_page_row(&mut root, &env, changed_row());
+        root.work.push(crate::Work::StartDone(core::start::Phase::LoadCore));
+        let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
+        crate::route::route_into(&mut root, &env, &mut decision);
+        assert_eq!(root.start_stop(), None);
+        assert_ne!(root.start_phase(), Some(core::start::Phase::LoadCore));
+    }
 }
 
 fn run_root() -> (Domain, Env<Limits>, u64) {
@@ -373,7 +427,7 @@ fn run_root() -> (Domain, Env<Limits>, u64) {
     let mut row = source.core.tasks.task(task).unwrap().clone();
     row.authority.tools = core::RunPolicy::EVERY_FAMILY;
     let mut config = resume_fixture::config(7);
-    config.host_part = Some(HOST);
+    config.host_part = HOST;
     config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
     config.core.seed_projects[0].policy.policy.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
     let (mut root, env) = resume_fixture::root_with_records(
@@ -485,8 +539,18 @@ fn a_runs_proposal_judges_overlays_over_the_default() {
 
 #[test]
 fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
+    run_refusal(&HOST, WORDS);
+}
+
+#[test]
+fn a_runs_unfit_proposal_is_answered_and_its_next_call_is_decided() {
+    run_refusal(&fixed_host(&short_charter()), FIXED_WORDS);
+}
+
+fn run_refusal(host: &crate::room::HostPart, words: &[u8]) {
     use crate::route::host_route::{Flight, FlightRender};
     let (mut root, env, task) = run_root();
+    root.host_part = *host;
     let key = crate::CallKey { task, attempt: 1, completion: 1, position: 0 };
     root.call_renders
         .insert(
@@ -530,7 +594,7 @@ fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
     let Some(crate::Payload::SettledCall(call)) = root.hub_link.take_payload(answer) else {
         panic!("a settled host answer");
     };
-    assert_eq!(call.answer, core::SettledAnswer::Host { error: true, body: WORDS.into() });
+    assert_eq!(call.answer, core::SettledAnswer::Host { error: true, body: words.into() });
     assert!(!root.core.call_parts.contains_key(&key));
     assert_eq!(root.core.current.newest(), 1);
     let next = crate::CallKey { completion: 2, ..key };
@@ -605,7 +669,7 @@ fn an_accepted_stored_proposal_keeps_its_admitted_charter() {
     else {
         panic!("the proposal is stored");
     };
-    root.host_part = Some(HOST);
+    root.host_part = HOST;
     let reply = settled(
         &mut root,
         &env,

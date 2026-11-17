@@ -407,7 +407,10 @@ impl Session {
                         self.event(Event::OwnFailure(format!("session log: {why}")));
                     }
                 }
-                Action::StopDeployment { process, force } => {
+                Action::Stop { process, force } => {
+                    if process == Process::Box && force {
+                        self.pump.force_browser();
+                    }
                     for child in self.children.iter_mut().filter(|child| child.process == process && !child.settled) {
                         child.stop(&mut self.pump, force);
                     }
@@ -533,15 +536,7 @@ impl Session {
                     self.face_job = None;
                     self.pump.close_browser();
                 }
-                Action::TerminateBox | Action::KillBox => {
-                    let force = matches!(action, Action::KillBox);
-                    if force {
-                        self.pump.force_browser();
-                    }
-                    for child in self.children.iter_mut().filter(|c| c.process == Process::Box) {
-                        child.stop(&mut self.pump, force);
-                    }
-                }
+                Action::ForceBrowser => self.pump.force_browser(),
                 Action::Classify => match self.logs() {
                     Ok((serve, forges, box_tail)) => self.event(Event::Logs { serve, forges, box_tail }),
                     Err(why) => self.event(Event::OwnFailure(why)),

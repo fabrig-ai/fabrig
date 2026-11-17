@@ -915,6 +915,13 @@ implied by offline tests and requires a caller-provided current credential. Worl
 actual Client with the [shared scripted peer](../testing/fakes/llm.md); applications
 supply its schemas, body menus, invalid inputs and scripts.
 
+The live suite (`skein-llm-world`'s `live`) lends the public route a Codex
+`auth.json`: its `OPENAI_API_KEY` where a string, refused empty, else
+`tokens.access_token`. The daily live run lends an API key's, which
+`codex login --with-api-key` writes and which holds `api.responses.write`.
+A lent file is read once, within 64 KiB, only at mode 0600; no refusal
+holds a value read.
+
 The contracts of sections 2 and 4 add these, all in the focused suite
 unless marked:
 
@@ -1011,13 +1018,9 @@ unless marked:
   items after a previous response on the same connection, which would
   decouple a request's size from its history's. It is on skein's roadmap
   as a transport of its own, with a full resend when a connection is lost.
-- **How the owner runs the live stories.** A live provider story that no
-  credential lent to the automatic suite serves is run by the owner, one
-  at a time (section 5): Anthropic's, which need an API key, and the
-  public route's text and tool stories, which need a login whose access
-  token holds `api.responses.write`. How the owner runs them, and whether
-  a sign-in of the user's that holds the scope returns the public route's
-  stories to the automatic suite, are decided later.
+- **How the owner runs Anthropic's live stories.** Anthropic's live
+  stories need an API key that no live run lends, so the owner runs them,
+  one at a time (section 5). How the owner runs them is decided later.
 - **Anthropic's decoded bound.** `anthropic::decoded_bound` is OpenAI's with
   Anthropic's added (4), so it counts OpenAI's request items, which Anthropic
   never holds. Dropping them changes what a public function returns. Its one

@@ -32,13 +32,18 @@ struct Needle {
 struct Artifact {
     surface: &'static str,
     path: Vec<u8>,
+    // An append keeps its predecessor, so every earlier version remains searchable.
     bytes: Vec<u8>,
+    before: Option<usize>,
+    length: usize,
     checked_needles: usize,
 }
 struct Stream {
     role: Role,
     bytes: Vec<u8>,
     parsed: usize,
+    checked_bytes: usize,
+    checked_needles: usize,
 }
 #[derive(Default)]
 struct Observer {
@@ -46,13 +51,16 @@ struct Observer {
     search: RefCell<Option<aho_corasick::AhoCorasick>>,
     tokens: Vec<Secret>,
     names: BTreeMap<(Role, i32), Vec<u8>>,
-    files: BTreeMap<Vec<u8>, Vec<u8>>,
+    files: BTreeMap<Vec<u8>, usize>,
     wires: BTreeMap<(Role, i32), usize>,
     streams: Vec<Stream>,
     artifacts: Vec<Artifact>,
+    scanned_artifacts: usize,
+    scanned_needles: usize,
+    context_cursor: usize,
     contexts: usize,
     pages: usize,
-    last_page: Vec<u8>,
+    last_page: Option<Vec<skein_ui::Node>>,
     checkpoints: usize,
 }
 #[derive(Default, Debug)]
@@ -160,11 +168,51 @@ impl Observer {
         Ok(())
     }
     fn save(&mut self, surface: &'static str, path: &[u8], bytes: &[u8]) {
-        self.artifacts.push(Artifact { surface, path: path.to_vec(), bytes: bytes.to_vec(), checked_needles: 0 });
+        self.version(surface, path, None, bytes.to_vec());
+    }
+    fn version(&mut self, surface: &'static str, path: &[u8], before: Option<usize>, bytes: Vec<u8>) -> usize {
+        let length = before.map_or(0, |index| self.artifacts[index].length) + bytes.len();
+        let index = self.artifacts.len();
+        self.artifacts.push(Artifact { surface, path: path.to_vec(), bytes, before, length, checked_needles: 0 });
+        index
+    }
+    fn suffix(&self, index: usize, length: usize) -> Vec<u8> {
+        let mut chunks = Vec::new();
+        let mut remaining = length;
+        let mut next = Some(index);
+        while let Some(index) = next {
+            if remaining == 0 {
+                break;
+            }
+            let artifact = &self.artifacts[index];
+            let take = remaining.min(artifact.bytes.len());
+            chunks.push(&artifact.bytes[artifact.bytes.len() - take..]);
+            remaining -= take;
+            next = artifact.before;
+        }
+        chunks.reverse();
+        chunks.concat()
+    }
+    fn file(&mut self, surface: &'static str, path: &[u8], at: Option<usize>, bytes: &[u8]) {
+        let before = self.files.get(path).copied();
+        let length = before.map_or(0, |index| self.artifacts[index].length);
+        let at = at.unwrap_or(length);
+        let index = if at >= length {
+            let mut chunk = vec![0; at - length];
+            chunk.extend_from_slice(bytes);
+            self.version(surface, path, before, chunk)
+        } else {
+            // An overwrite starts a new chain; the old chain still holds every replaced version.
+            let mut version = self.suffix(before.expect("existing file"), length);
+            version.resize(length.max(at + bytes.len()), 0);
+            version[at..at + bytes.len()].copy_from_slice(bytes);
+            self.version(surface, path, None, version)
+        };
+        self.files.insert(path.to_vec(), index);
     }
     fn wire(&mut self, role: Role, fd: Fd, bytes: &[u8]) {
         let index = *self.wires.entry((role, fd.raw())).or_insert_with(|| {
-            self.streams.push(Stream { role, bytes: Vec::new(), parsed: 0 });
+            self.streams.push(Stream { role, bytes: Vec::new(), parsed: 0, checked_bytes: 0, checked_needles: 0 });
             self.streams.len() - 1
         });
         let stream = &mut self.streams[index];
@@ -201,12 +249,12 @@ impl Observer {
                 if let Some(path) = self.names.get(&(role, fd.raw())).cloned()
                     && !secret_path(&path)
                 {
-                    let file = self.files.entry(path.clone()).or_default();
-                    let at = usize::try_from(*at).expect("scenario file offset");
-                    file.resize(file.len().max(at + *count as usize), 0);
-                    file[at..at + *count as usize].copy_from_slice(&bytes[*from as usize..(*from + *count) as usize]);
-                    let version = file.clone();
-                    self.save("persisted write", &path, &version);
+                    self.file(
+                        "persisted write",
+                        &path,
+                        Some(usize::try_from(*at).expect("scenario file offset")),
+                        &bytes[*from as usize..(*from + *count) as usize],
+                    );
                 }
             }
             (Op::Send { fd, bytes, from }, Ok(Done::Count(count))) if role == Role::Forge => {
@@ -224,10 +272,7 @@ impl Observer {
                 if let Some(path) = self.names.get(&(role, fd.raw())).cloned()
                     && path.starts_with(b"stderr/")
                 {
-                    let log = self.files.entry(path.clone()).or_default();
-                    log.extend_from_slice(&bytes[*from as usize..(*from + *count) as usize]);
-                    let version = log.clone();
-                    self.save("process log", &path, &version);
+                    self.file("process log", &path, None, &bytes[*from as usize..(*from + *count) as usize]);
                 }
             }
             (Op::Close { fd }, _) => {
@@ -237,26 +282,49 @@ impl Observer {
             _ => {}
         }
     }
+    fn overlap(&self, first: usize) -> usize {
+        self.needles[first..].iter().map(|needle| needle.value.expose().len() - 1).max().expect("unchecked needles")
+    }
     fn scan(&mut self) -> Result<(), String> {
         if self.needles.is_empty() {
             return Err(String::from("the fake issued a key"));
         }
-        for index in 0..self.artifacts.len() {
+        let overlap = self.overlap(0);
+        let first = if self.scanned_needles == self.needles.len() { self.scanned_artifacts } else { 0 };
+        for index in first..self.artifacts.len() {
             let artifact = &self.artifacts[index];
-            // Artifacts are immutable; a newly issued needle checks every earlier version.
-            self.check_since(artifact.surface, &artifact.path, &artifact.bytes, artifact.checked_needles)?;
+            if artifact.checked_needles == self.needles.len() {
+                continue;
+            }
+            if let Some(before) = artifact.before {
+                let mut window = self.suffix(before, self.overlap(artifact.checked_needles));
+                window.extend_from_slice(&artifact.bytes);
+                self.check_since(artifact.surface, &artifact.path, &window, artifact.checked_needles)?;
+            } else {
+                self.check_since(artifact.surface, &artifact.path, &artifact.bytes, artifact.checked_needles)?;
+            }
             self.artifacts[index].checked_needles = self.needles.len();
         }
-        for stream in &self.streams {
-            if stream.role != Role::Forge {
-                let surface = if matches!(stream.role, Role::Agent | Role::Git | Role::Shell) {
-                    "worker process output"
-                } else {
-                    "client wire"
-                };
-                self.check(surface, b"", &stream.bytes)?;
+        for index in 0..self.streams.len() {
+            let stream = &self.streams[index];
+            if stream.role == Role::Forge {
+                continue;
             }
+            let surface = if matches!(stream.role, Role::Agent | Role::Git | Role::Shell) {
+                "worker process output"
+            } else {
+                "client wire"
+            };
+            // Newly issued needles also search the prefix kept before their issue.
+            self.check_since(surface, b"", &stream.bytes[..stream.checked_bytes], stream.checked_needles)?;
+            if stream.checked_bytes != stream.bytes.len() {
+                self.check(surface, b"", &stream.bytes[stream.checked_bytes.saturating_sub(overlap)..])?;
+            }
+            self.streams[index].checked_bytes = self.streams[index].bytes.len();
+            self.streams[index].checked_needles = self.needles.len();
         }
+        self.scanned_artifacts = self.artifacts.len();
+        self.scanned_needles = self.needles.len();
         self.checkpoints += 1;
 
         Ok(())
@@ -331,30 +399,35 @@ pub(crate) fn artifact(surface: &'static str, bytes: &[u8]) {
         }
     });
 }
-pub(crate) fn page(bytes: &[u8]) {
+pub(crate) fn page(nodes: &[skein_ui::Node]) {
     OBSERVER.with(|cell| {
         if let Some(observer) = &mut *cell.borrow_mut()
-            && observer.last_page != bytes
+            && observer.last_page.as_deref().is_none_or(|last| {
+                last != nodes
+                    // Debug includes the bounded lists' capacities as well as their items.
+                    || last.iter().zip(nodes).any(|(old, new)| {
+                        old.states.capacity() != new.states.capacity()
+                            || old.styles.capacity() != new.styles.capacity()
+                            || old.text.capacity() != new.text.capacity()
+                    })
+            })
         {
             observer.pages += 1;
-            observer.last_page = bytes.to_vec();
-            observer.save("rendered page", b"", bytes);
+            observer.last_page = Some(nodes.to_vec());
+            observer.save("rendered page", b"", format!("{nodes:?}").as_bytes());
         }
     });
 }
 pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) -> Result<(), String> {
     OBSERVER.with(|cell| {
         if let Some(observer) = &mut *cell.borrow_mut() {
-            let queries: Vec<_> = peer
-                .observations()
-                .iter()
-                .filter_map(|seen| {
-                    if let skein_fake_peers::llm::Observation::Query { query, .. } = seen { Some(query) } else { None }
-                })
-                .collect();
-            for query in
-                queries.get(observer.contexts..).ok_or_else(|| String::from("observed contexts are a query prefix"))?
+            let observations = peer.observations();
+            for seen in observations
+                .get(observer.context_cursor..)
+                .ok_or_else(|| String::from("observed contexts are an observation prefix"))?
             {
+                let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { continue };
+                observer.contexts += 1;
                 observer.save("agent prompt", b"", &query.system);
                 for part in query.messages.iter().flat_map(|message| message.parts.iter()) {
                     use skein_fake_llm_domain::api::Part;
@@ -373,7 +446,7 @@ pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) -> Result<(), String> 
                     }
                 }
             }
-            observer.contexts = queries.len();
+            observer.context_cursor = observations.len();
         }
         Ok(())
     })
@@ -585,6 +658,60 @@ mod tests {
         let mut disk = temper_playground::machine::fresh();
         assert_eq!(finish(&mut disk).expect_err("finish carries the scan finding"), finding);
         assert!(!enabled(), "finish clears the observer even on a finding");
+    }
+    #[test]
+    fn appended_chunks_find_values_across_checkpoint_boundaries() {
+        let control = b"observer-control-value";
+        for (surface, path, append) in
+            [("persisted write", b"state/log".as_slice(), false), ("process log", b"stderr/0", true)]
+        {
+            let mut observer = Observer::default();
+            observer.token(control);
+            let mut offset = 0;
+            for chunk in [&control[..7], &control[7..14]] {
+                observer.file(surface, path, (!append).then_some(offset), chunk);
+                offset += chunk.len();
+                assert_eq!(observer.scan(), Ok(()));
+            }
+            observer.file(surface, path, (!append).then_some(offset), &control[14..]);
+            assert_eq!(
+                observer.scan(),
+                Err(format!("installation token in {surface} {}", String::from_utf8_lossy(path)))
+            );
+        }
+    }
+    #[test]
+    fn a_new_token_checks_chunk_boundaries_in_overwritten_versions() {
+        let mut observer = Observer::default();
+        observer.token(b"prior");
+        let future = b"observer-second-value-that-is-much-longer-than-the-first";
+        observer.file("persisted write", b"state/log", Some(0), &future[..30]);
+        observer.file("persisted write", b"state/log", Some(30), &future[30..]);
+        observer.file("persisted write", b"state/log", Some(0), b"a replacement without the value");
+        assert_eq!(observer.scan(), Ok(()));
+        observer.token(future);
+        assert_eq!(observer.scan(), Err(String::from("installation token in persisted write state/log")));
+    }
+    #[test]
+    fn streams_check_appended_boundaries_and_new_tokens_in_closed_prefixes() {
+        let mut observer = Observer::default();
+        let control = b"observer-control-value";
+        observer.token(control);
+        observer.wire(Role::Client, Fd::new(10), &control[..8]);
+        assert_eq!(observer.scan(), Ok(()));
+        observer.wire(Role::Client, Fd::new(10), &control[8..]);
+        assert_eq!(observer.scan(), Err(String::from("installation token in client wire ")));
+
+        let mut observer = Observer::default();
+        observer.token(b"observer-first-value");
+        observer.wire(Role::Agent, Fd::new(11), control);
+        assert_eq!(observer.scan(), Ok(()));
+        observer.complete(
+            Role::Agent,
+            &Complete { op: skein_lib::Token::new(1), kind: Op::Close { fd: Fd::new(11) }, result: Ok(Done::Nothing) },
+        );
+        observer.token(control);
+        assert_eq!(observer.scan(), Err(String::from("installation token in worker process output ")));
     }
     #[test]
     fn exact_secret_scans_cover_binary_debug_and_basic_encodings() {

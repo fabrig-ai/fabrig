@@ -277,8 +277,8 @@ sections 2 and 4). The policy's types it adds are section 10's.
   (`landing-search.md`, 3).
 - **The store,** in the registered family `temper-store`
   (`../protocol/store.md`, section 2): fields added in place with their
-  defaults, no version moved and no patch (`../protocol/baseline.md`,
-  7):
+  defaults, no version moved and no patch (`../protocol/floor.md`,
+  6):
   - a gate's failed receipt keeps its `failures`, ids or many, which
     the `Receipt` row holds already for tiers;
   - the round's search keeps how it probes (whole, by test, or whole

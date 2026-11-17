@@ -67,7 +67,7 @@ impl Holder {
             let (output, child_output) = UnixStream::pair().map_err(io_refusal)?;
             input.set_nonblocking(true).map_err(io_refusal)?;
             output.set_nonblocking(true).map_err(io_refusal)?;
-            let mut command = drive.session_command(&scripts);
+            let mut command = drive.session_command(scripts.as_ref());
             crate::faces::captured(&mut command, &environment);
             let child = command
                 .stdin(Stdio::from(OwnedFd::from(child_input)))

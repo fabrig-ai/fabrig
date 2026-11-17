@@ -33,6 +33,7 @@ struct Place {
     root: support::Scratch,
     scratch: PathBuf,
     bin: PathBuf,
+    bundle: PathBuf,
     setups: PathBuf,
     ports: [std::net::SocketAddr; 9],
 }
@@ -41,11 +42,19 @@ impl Place {
         let root = support::Scratch::new("deployment-newer-build");
         let bin = root.path().join("bin");
         let scratch = root.path().join("deployment");
+        let bundle = root.path().join("bundle");
+        super::bundle(&bundle, super::SOURCE_PAGE);
         super::private(&bin);
         super::private(&scratch);
         let ports = support::free_addresses(&[]);
-        let place =
-            Self { root, scratch, bin, setups: skein_scratch::paths::tree().join("docs/development/qa/setups"), ports };
+        let place = Self {
+            root,
+            scratch,
+            bin,
+            bundle,
+            setups: skein_scratch::paths::tree().join("docs/development/qa/setups"),
+            ports,
+        };
         place.copy();
         place
     }
@@ -65,7 +74,12 @@ impl Place {
 
     fn arguments(&self, drive: bool, restored: bool) -> Vec<String> {
         let mut arguments = if drive {
-            vec!["drive".into(), "--deployment".into(), self.setups.join("turn-landing/config").display().to_string()]
+            vec![
+                "drive".into(),
+                "--ctl".into(),
+                "--deployment".into(),
+                self.setups.join("turn-landing/config").display().to_string(),
+            ]
         } else {
             vec![
                 "recipe".into(),
@@ -76,6 +90,8 @@ impl Place {
             ]
         };
         arguments.extend([
+            "--bundle".into(),
+            self.bundle.display().to_string(),
             "--bin".into(),
             self.bin.display().to_string(),
             "--scratch".into(),

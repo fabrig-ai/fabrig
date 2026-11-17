@@ -115,7 +115,11 @@ pub fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
     };
     let short = match kind {
         Kind::Funds { spent, limit } => w.say(Word::NeedsFunds, &[Hole::Number(spent), Hole::Number(limit)]),
-        Kind::Held | Kind::PersonTask => title.clone(),
+        Kind::Held => match card.document() {
+            Some(task) => crate::cards::proposal::dependency_question(task, w).unwrap_or(title.clone()),
+            None => title.clone(),
+        },
+        Kind::PersonTask => title.clone(),
         Kind::Question | Kind::Proposal => short,
     };
     Asked { card, kind, title, source, parsed, short, cut }

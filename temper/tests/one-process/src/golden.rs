@@ -1,4 +1,4 @@
-//! The once-made floor deployment (temper/docs/design/protocol/baseline.md, 6).
+//! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
 pub(crate) mod files;
 use crate::{
     ctl, fixtures,
@@ -166,7 +166,6 @@ pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
 enum Opening {
     Make,
     Read,
-    Refuse,
 }
 struct Judge {
     finding: Option<String>,
@@ -234,12 +233,6 @@ impl Judge {
         }
         let complete = match self.opening {
             Opening::Make => self.forge.forge_complete() && in_flight(&self.store.borrow()).is_some(),
-            Opening::Refuse => {
-                if service.service.wait_state().engine.is_some_and(|state| state.mark_durable) {
-                    return Err(String::from("floorless start passed the floor"));
-                }
-                service.service.end().is_some()
-            }
             Opening::Read => {
                 if !self.stopped
                     && let Some(end) = service.service.end()
@@ -492,17 +485,56 @@ pub fn make(directory: &Path) {
     world::lower_store(None);
 }
 
+// A refused open has no commits or running neighbours to observe.
+struct Refusal {
+    stopped: bool,
+    ticks: u32,
+}
+thread_local! {
+    static READ_DEFAULTS: RefCell<Option<temper_service::stock::Given>> = const { RefCell::new(None) };
+}
+impl Harness for Refusal {
+    type Service = ();
+    type Process = programs::Never;
+    fn seeds(seed: u64) -> temper_service::settings::Seeds {
+        Golden::seeds(seed)
+    }
+    fn files() -> temper_service::settings::Files {
+        Golden::files()
+    }
+    fn given(_: &serde_json::Value) -> temper_service::stock::Given {
+        READ_DEFAULTS.with(|defaults| defaults.borrow_mut().take().expect("one floorless open"))
+    }
+}
+impl skein_world::Referee<programs::Process<Refusal>> for Refusal {
+    fn watch(&mut self, _: Time, procs: &[programs::Process<Self>]) -> Result<(), String> {
+        self.ticks += 1;
+        if self.ticks >= 100_000 {
+            return Err(String::from("golden open's bounded turns"));
+        }
+        for proc in procs {
+            if let programs::Process::Service(service) = proc
+                && service.service.wait_state().engine.is_some_and(|state| state.mark_durable)
+            {
+                return Err(String::from("floorless start passed the floor"));
+            }
+        }
+        self.stopped = procs.iter().all(Host::is_empty);
+        Ok(())
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        (!self.stopped).then_some(Time::from_nanos(60_000_000_000))
+    }
+    fn overdue(&self, now: Time) -> Option<String> {
+        (!self.stopped && now >= Time::from_nanos(60_000_000_000)).then(|| String::from("golden open did not settle"))
+    }
+    fn passed(&self) -> bool {
+        self.stopped
+    }
+}
+
 /// The permanent floor registers later layouts and serves the kept person.
 pub fn read(directory: &Path) {
-    read_copy(directory, false);
-}
-
-pub fn refuse(directory: &Path) {
-    read_copy(directory, true);
-}
-
-#[expect(clippy::too_many_lines, reason = "one golden startup covers the floor and floorless copies through shutdown")]
-fn read_copy(directory: &Path, floorless: bool) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     UPGRADED.with(|lines| lines.borrow_mut().clear());
@@ -510,18 +542,8 @@ fn read_copy(directory: &Path, floorless: bool) {
     let configuration = read_configuration(directory);
     let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let mut disk = files::load(directory);
-    if floorless {
-        files::change_record(&mut disk, &[0, 13], None);
-    }
-    let before = files::image(&mut disk);
     let active = files::active(&mut disk);
-    if !floorless {
-        machine::lay_handover(
-            &mut disk,
-            b"client/private/address",
-            format!("http://{}\n", fixtures::CLIENTS).as_bytes(),
-        );
-    }
+    machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);
     let store = Rc::new(RefCell::new(Store::new()));
     store.borrow_mut().recovering();
@@ -547,7 +569,7 @@ fn read_copy(directory: &Path, floorless: bool) {
                 forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA),
                 stopped: false,
                 released: false,
-                opening: if floorless { Opening::Refuse } else { Opening::Read },
+                opening: Opening::Read,
                 checked: false,
                 ticks: 0,
             },
@@ -557,56 +579,89 @@ fn read_copy(directory: &Path, floorless: bool) {
             world.host_roots(program, roots);
         }
         world.spawn_restartable(programs::service_roots(), programs::service::<Golden>);
-        if !floorless {
-            world.host_roots(
-                ctl::program(|spawn, inherited| {
-                    Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn, inherited))))
-                }),
-                ctl::roots,
-            );
-            world.spawn_restartable(
-                vec![skein_world::StartupRoot {
-                    name: b"private".as_slice().into(),
-                    path: b"client".as_slice().into(),
-                }],
-                |inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))),
-            );
-            world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm_peer(), None))));
-            world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
-        }
+        world.host_roots(
+            ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn, inherited))))),
+            ctl::roots,
+        );
+        world.spawn_restartable(
+            vec![skein_world::StartupRoot { name: b"private".as_slice().into(), path: b"client".as_slice().into() }],
+            |inherited| Proc::Other(HarnessProcess::Calls(Box::new(ctl::Caller::scripted_restartable(inherited)))),
+        );
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm_peer(), None))));
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
         world.run()
     });
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
-    if floorless {
-        let why = jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Floor };
-        assert_eq!(
-            service.service.end(),
-            Some(&temper_service::End::Engine(temper_service::EngineEnd::Stopped(
-                temper_service::EngineStop::StoreOpen { why: why.clone() }
-            )))
-        );
-        assert!(why.words().join("").contains(jig_protocol_store::FLOOR_BRIDGE));
-        files::refused(&before, &mut outcome.machine.0.borrow_mut());
-    } else {
-        assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_engine_service::End::Drained)));
-        let caller = outcome
-            .procs
-            .iter()
-            .find_map(|proc| if let Proc::Other(HarnessProcess::Calls(caller)) = proc { Some(caller) } else { None })
-            .expect("kept-token caller");
-        assert_served(caller);
-    }
+    assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_engine_service::End::Drained)));
+    let caller = outcome
+        .procs
+        .iter()
+        .find_map(|proc| if let Proc::Other(HarnessProcess::Calls(caller)) = proc { Some(caller) } else { None })
+        .expect("kept-token caller");
+    assert_served(caller);
     assert_eq!(active, b"1\n", "the kept floor's generation");
-    let expected_active = if floorless { b"1\n" } else { b"2\n" };
     assert_eq!(
         files::active(&mut outcome.machine.0.borrow_mut()),
-        expected_active,
-        "the floorless store stays active; the current layouts register in one new generation"
+        b"2\n",
+        "the current layouts register in one new generation"
     );
     let upgraded = std::fs::read_to_string(directory.join("upgraded.txt")).expect("kept upgrade events");
     assert_eq!(UPGRADED.with(|lines| lines.borrow().concat()), upgraded);
     world::lower_store(None);
+}
+
+/// The floorless copy refuses before decoding, without switching generations.
+pub fn refuse(directory: &Path) {
+    stories::set(Story::PlaygroundA);
+    stories::setup_settings(world::Phase::Story);
+    let (configuration, defaults) = startup_configuration(directory);
+    READ_DEFAULTS.with(|at| *at.borrow_mut() = Some(defaults));
+    let mut disk = files::load(directory);
+    files::change_record(&mut disk, &[0, 13], None);
+    let before = files::image(&mut disk);
+    let active = files::active(&mut disk);
+    let machine = Machine::new(disk);
+    // Parameters carries a git transport even though no program can run before this refusal.
+    let config = temper_playground::documents::hosted_git::config();
+    let forge =
+        skein_fake_peers::forge::Forge::new(skein_fake_forge_domain::Domain::new(&config, fixtures::SEED), config);
+    let params = programs::Parameters {
+        deployment: configuration.into(),
+        seed: fixtures::SEED,
+        links: Links::Keep,
+        forge: temper_fake_git_hosted::Typed::new(Rc::new(RefCell::new(forge)), &stories::forge_table()),
+        route: None,
+        disk: machine.0.clone(),
+    };
+    let outcome = programs::with(params, || {
+        let mut world = skein_world::World::new(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            Refusal { stopped: false, ticks: 0 },
+            skein_world::Memory::Unchecked,
+        )
+        .with_machine(machine);
+        world.spawn_restartable(programs::service_roots(), programs::service::<Refusal>);
+        world.run()
+    });
+    let programs::Process::Service(service) = &outcome.procs[0] else { panic!("service first") };
+    assert!(service.service.is_empty());
+    let why = jig_protocol_store::OpenRefusal::OlderBuild { why: jig_protocol_store::Older::Floor };
+    assert_eq!(
+        service.service.end(),
+        Some(&temper_service::End::Engine(temper_service::EngineEnd::Stopped(temper_service::EngineStop::StoreOpen {
+            why: why.clone()
+        })))
+    );
+    assert!(why.words().join("").contains(jig_protocol_store::FLOOR_BRIDGE));
+    files::refused(&before, &mut outcome.machine.0.borrow_mut());
+    assert_eq!(active, b"1\n", "the kept floor's generation");
+    assert_eq!(
+        files::active(&mut outcome.machine.0.borrow_mut()),
+        active,
+        "refusal never switches the active generation"
+    );
 }
 
 fn assert_served(caller: &ctl::Caller) {
@@ -638,12 +693,29 @@ fn assert_served(caller: &ctl::Caller) {
     assert_eq!(task["chip"]["title"]["bytes"], "Export widget's table as CSV");
 }
 
-/// The kept world configuration with room for the stock milestone template.
+/// The kept world configuration with current admission bounds for its defaults.
 pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
-    let bytes = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
-    let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("kept configuration JSON");
-    document["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
-    serde_json::to_vec(&document).expect("floor reader configuration")
+    startup_configuration(directory).0
+}
+
+fn startup_configuration(directory: &Path) -> (Vec<u8>, temper_service::stock::Given) {
+    let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
+    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let sections =
+        document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
+    *sections = sections.as_u64().expect("brief section count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
+    let given = temper_playground::documents::given(&document);
+    let temper_service::stock::Given::Own { jig, .. } = &given else { panic!("golden world defaults") };
+    for (name, count) in [
+        ("tasks.charters", jig.charters.len()),
+        ("core.templates", jig.templates.len()),
+        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
+    ] {
+        let count = u64::try_from(count).expect("configured default count");
+        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
+        *bound = bound.as_u64().expect("count override").max(count).into();
+    }
+    (serde_json::to_vec(&document).expect("startup configuration"), given)
 }
 
 fn restart_history(store: &Store) -> Result<(), String> {

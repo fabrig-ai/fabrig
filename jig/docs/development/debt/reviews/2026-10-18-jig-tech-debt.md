@@ -345,7 +345,7 @@ numbers, file by file:
   lines; `phrases/jig.rs`, `shape` and `id`, 641 and 610) and
   `jig-domain-core/src/routing/tasks.rs:20`, `tag_tasks`, 1,385 lines.
   The translations jig-protocol's retrospective named are past 100 lines
-  still: `jig-protocol-store/src/codec/people/asks.rs`, `encode_ask`
+  still: `jig-protocol-store-records/src/codec/people/asks.rs`, `encode_ask`
   (170, :297) and `decode_ask` (127, :469);
   `jig-client-protocol-link/src/translate/asks.rs:553`, `ask` (120);
   `jig-protocol-engine-clients/src/translate/asks.rs:8`, `ask` (107).

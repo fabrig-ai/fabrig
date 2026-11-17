@@ -6,8 +6,9 @@ extern crate alloc;
 
 mod back;
 pub mod boundary;
+mod catalogue;
 mod census;
-pub mod codec;
+pub use jig_protocol_store_records::codec;
 mod commits;
 pub use census::{CENSUS_EVERY, Keyspaces};
 
@@ -42,6 +43,7 @@ mod reads;
 mod registry;
 pub mod restore;
 pub mod retained;
+mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;

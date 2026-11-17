@@ -6,6 +6,7 @@ fn deployment_plan() -> Plan {
     let mut plan = plan();
     plan.options.deployment = Some("/recipe/config".into());
     plan.options.bundle = None;
+    plan.options.ctl = true;
     plan.options.ports = Some("4101,4102,4103,4104,4105,4106,4107,4108,4109".into());
     plan.options.files = Some("/recipe/files".into());
     plan
@@ -69,7 +70,7 @@ fn deployment_ready() -> Machine {
     machine
 }
 fn stop(actions: &[Action], expected: Process, force: bool) {
-    assert!(actions.iter().any(|action| matches!(action, Action::StopDeployment { process, force: forced } if *process == expected && *forced == force)), "{actions:?}");
+    assert!(actions.iter().any(|action| matches!(action, Action::Stop { process, force: forced } if *process == expected && *forced == force)), "{actions:?}");
 }
 fn stopped(machine: &mut Machine) -> Vec<Action> {
     step(machine, Event::End);
@@ -130,7 +131,7 @@ fn values_and_forge_hands_come_from_documents_and_face_lines_are_unkept() {
     for source in ["web look", "web look 800", r#"web see "text""#, "tui look", r#"tui see "text""#] {
         let actions = line(&mut machine, source);
         assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{actions:?}");
-        assert!(answer(&actions).print().ends_with(": a deployment takes ctl, forge and deployment lines\n"));
+        assert!(answer(&actions).print().ends_with(": this session takes ctl, forge and deployment lines alone\n"));
     }
     let source = "ctl forge connect forgejo-admin {forgejo.admin} --api {forgejo.api} --git {forgejo.git} --git-program {git} --key {model.key}";
     let actions = line(&mut machine, source);
@@ -498,3 +499,6 @@ fn script_files_use_the_shared_joiner_and_name_a_bad_source() {
     assert!(refusal.contains(&format!("{}: unknown: unknown member", second.display())), "{refusal}");
     assert!(!output.exists());
 }
+
+#[path = "deployment_browser.rs"]
+mod browser;

@@ -14,6 +14,10 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    Cancelling {
+        run: u64,
+        attempt: u64,
+    },
     /// The longer of the word and this worker's grace (protocol/wires.md, 4).
     Restarting {
         keep: skein_lib::Duration,

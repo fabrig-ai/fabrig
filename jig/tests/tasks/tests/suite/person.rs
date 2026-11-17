@@ -43,6 +43,102 @@ fn notified(world: &World, task: u64) -> &tasks::ActivityLine {
 }
 
 #[test]
+fn a_person_report_outside_its_bounds_refuses_the_whole_batch() {
+    for address in [PersonAddress::Person(10), PersonAddress::Role(7)] {
+        for words in [0, LIMITS.result_bytes + 1] {
+            for after_valid in [false, true] {
+                let mut world = World::new(225, LIMITS);
+                let before = world.records.clone();
+                let mut new = task(7, &[]);
+                new.executor = Executor::Person(address);
+                new.contract = Contract::Report { words };
+                let mut batch = Vec::new();
+                if after_valid {
+                    let mut valid = task(6, &[]);
+                    valid.executor = Executor::Person(address);
+                    batch.push(valid);
+                }
+                batch.push(new);
+                let reply_to = world.to();
+                world.stage(Event::Make {
+                    reply_to,
+                    maker: None,
+                    places: Box::new([]),
+                    creator: PERSON_PARTY,
+                    batch: batch.into_boxed_slice(),
+                });
+                let [tasks::Request::Refused { problem, .. }] = world.staged_requests() else {
+                    panic!("a refused batch publishes no task, person inbox entry or news");
+                };
+                assert_eq!(problem, &tasks::Problem::new(Some(7), tasks::Refusal::Contract));
+                world.durable();
+                world.deliver();
+                assert_eq!(world.records, before, "no member of the batch is stored");
+            }
+        }
+    }
+}
+
+#[test]
+fn person_and_role_reports_at_the_bounds_are_answerable() {
+    for address in [PersonAddress::Person(10), PersonAddress::Role(7)] {
+        for words in [1, LIMITS.result_bytes] {
+            let mut world = World::new(226, LIMITS);
+            let mut new = task(1, &[]);
+            new.executor = Executor::Person(address);
+            new.contract = Contract::Report { words };
+            assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
+            if matches!(address, PersonAddress::Role(_)) {
+                assert_eq!(
+                    response(&mut world, |reply_to| Event::TakePerson { reply_to, task: 1, person: 10 }),
+                    Reply::Done
+                );
+            }
+            let result = TaskResult::Report {
+                words: vec![b'x'; usize::try_from(words).expect("result bound fits usize")].into_boxed_slice(),
+            };
+            assert_eq!(
+                response(&mut world, |reply_to| Event::AnswerPerson {
+                    reply_to,
+                    task: 1,
+                    person: 10,
+                    result: result.clone(),
+                }),
+                Reply::Done
+            );
+            world.settle(1);
+            assert_eq!(world.results[&1], tasks::Ending::Done(result));
+        }
+    }
+}
+
+#[test]
+fn a_persons_zero_word_verdict_is_answered_by_its_code() {
+    let mut world = World::new(227, LIMITS);
+    let mut new = task(1, &[]);
+    new.executor = Executor::Person(PersonAddress::Person(10));
+    new.contract =
+        Contract::Verdict { choices: Box::new([Verdict { fields: Box::new([]), code: 2, words: 0, followups: 0 }]) };
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
+    let result = TaskResult::Verdict { fields: Box::new([]), code: 2, words: Box::new([]) };
+    assert_eq!(
+        response(&mut world, |reply_to| Event::AnswerPerson { reply_to, task: 1, person: 10, result: result.clone() }),
+        Reply::Done
+    );
+    world.settle(1);
+    assert_eq!(world.results[&1], tasks::Ending::Done(result));
+}
+
+#[test]
+fn an_agents_zero_word_report_is_admitted() {
+    let mut world = World::new(228, LIMITS);
+    let mut new = task(1, &[]);
+    new.contract = Contract::Report { words: 0 };
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
+    assert_eq!(world.record(1).contract, Contract::Report { words: 0 });
+}
+
+#[test]
 fn a_person_task_is_taken_handed_back_and_answered() {
     let mut world = World::new(220, LIMITS);
     let mut new = task(1, &[]);

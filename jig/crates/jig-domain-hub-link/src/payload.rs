@@ -1,4 +1,4 @@
-//! Owned payloads and link metadata (jig/docs/design/domain/hosts/hub.md, 4–8).
+//! Owned payloads and link metadata (jig/docs/design/domain/hosts/hub.md, 3–8).
 use crate::Link;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
@@ -169,6 +169,12 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
         host::Ending::Refused(host::Refusal::Invalid(
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
         )) => tasks::End::Failed(tasks::Class::Transient),
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Other | host::StartCause::Grants,
+            why,
+        })) if !why.is_empty() => {
+            tasks::End::FailedWithReason { class: tasks::Class::Permanent, reason: start_reason(why) }
+        }
         host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::Ending::Parked { .. } => tasks::End::Parked,
         host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Model), model: Some(model), .. } => {
@@ -219,6 +225,30 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
         },
         host::Ending::Ended { .. } => unreachable!("ended payloads leave for the routing"),
     }
+}
+
+fn start_reason(why: &[u8]) -> Box<[u8]> {
+    let text = if skein_lib::bytes::is_utf8(why) {
+        Box::from(why)
+    } else {
+        let mut text = skein_lib::Writer::new(why.len());
+        for byte in why {
+            let byte = if byte.is_ascii() { *byte } else { b'?' };
+            text.put(&[byte]).expect("one text byte per diagnostic byte");
+        }
+        text.finish()
+    };
+    let bound = skein_lib::usize_of(tasks::REASON_BYTES);
+    if text.len() <= bound {
+        return text;
+    }
+    let marker = b" [cut]";
+    let head = skein_lib::bytes::utf8_prefix(&text, bound.saturating_sub(marker.len()));
+    let length = head.len().checked_add(marker.len()).expect("marked head fits the reason bound");
+    let mut reason = skein_lib::Writer::new(length);
+    reason.put(head).expect("head leaves room for cut marker");
+    reason.put(marker).expect("cut marker fits after head");
+    reason.finish()
 }
 
 /// Unusable resume history keeps its own reason (jig/docs/design/domain/hosts/hub.md, 3).

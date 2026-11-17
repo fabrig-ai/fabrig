@@ -81,8 +81,8 @@ impl Workers {
     ) {
         let (task, attempt) = (value.task, value.attempt);
         match self.encoded_assignment(now, channel, value, values) {
-            Some(event) => self.down(now, event, events),
-            None => events.push(root::Event::Worker(root::WorkerInput::Link {
+            Ok(event) => self.down(now, event, events),
+            Err(reason) => events.push(root::Event::Worker(root::WorkerInput::Link {
                 channel,
                 link: root::Link::Up {
                     up: host::LinkUp::Answer {
@@ -95,7 +95,7 @@ impl Workers {
                             spent: 0,
                             ending: host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
                                 cause: host::StartCause::Other,
-                                why: b"assignment cannot encode".as_slice().into(),
+                                why: reason.words(b"assignment"),
                             })),
                         },
                     },
@@ -104,14 +104,13 @@ impl Workers {
             })),
         }
     }
-    #[must_use]
     pub fn encoded_assignment(
         &self,
         now: Time,
         channel: Token,
         value: root::Assignment,
         values: &Values,
-    ) -> Option<kit::Event> {
+    ) -> Result<kit::Event, kit::Unencoded> {
         crate::assignment::down(value, &self.forges, &self.encoding, values, channel, now)
     }
     pub fn send(

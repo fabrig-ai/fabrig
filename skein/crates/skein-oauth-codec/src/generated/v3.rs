@@ -77,6 +77,28 @@ pub enum Path {
     SavedTokenTail,
 }
 
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::SavedTokenKey => "SavedToken.key",
+            Self::SavedTokenGeneration => "SavedToken.generation",
+            Self::SavedTokenExpiresAt => "SavedToken.expires_at",
+            Self::SavedTokenAccessToken => "SavedToken.access_token",
+            Self::SavedTokenRefreshToken => "SavedToken.refresh_token",
+            Self::SavedTokenMetadata => "SavedToken.metadata",
+            Self::SavedTokenIssuedClientId => "SavedToken.issued_client_id",
+            Self::SavedTokenGrantedScopes => "SavedToken.granted_scopes",
+            Self::SavedTokenSubject => "SavedToken.subject",
+            Self::SavedTokenIdToken => "SavedToken.id_token",
+            Self::SavedTokenEarliestRefreshAt => "SavedToken.earliest_refresh_at",
+            Self::SavedTokenVersion => "SavedToken (version)",
+            Self::SavedTokenTail => "SavedToken (tail)",
+        }
+    }
+}
+
 /// A decoding or bound failure at a schema path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Problem {

@@ -57,10 +57,16 @@ fn read_setups(
     git: &mut impl GitFace,
     commit: &str,
     configured: &[String],
+    kinds: &[Kind],
 ) -> Result<(Vec<(String, Kind)>, String), Refusal> {
-    let setups = setup_names(git, commit, configured)?;
-    let mut catalogue = String::from("- fresh (box): a fresh box at its welcome with nothing set up\n");
-    for (name, kind) in setups.iter().skip(1) {
+    let mut setups = setup_names(git, commit, configured)?;
+    setups.retain(|(_, kind)| kinds.contains(kind));
+    let mut catalogue = String::new();
+    for (name, kind) in &setups {
+        if name == "fresh" {
+            catalogue.push_str("- fresh (box): a fresh box at its welcome with nothing set up\n");
+            continue;
+        }
         let path = format!("{SETUPS_DIRECTORY}/{name}/README.md");
         let bytes = git.file(commit, &path)?.unwrap_or_default();
         let text = String::from_utf8_lossy(&bytes);
@@ -162,6 +168,7 @@ impl Inputs {
         git: &mut impl GitFace,
         landing: &Landing,
         configured: &[String],
+        kinds: &[Kind],
         build: &str,
     ) -> Result<Self, Refusal> {
         let commit = &landing.commit;
@@ -208,7 +215,7 @@ impl Inputs {
             pages.insert(surface.into(), names);
             writeln!(surfaces, "- {surface} journeys: {journeys}").expect("string");
         }
-        let (catalogue_setups, catalogue) = read_setups(git, build, configured)?;
+        let (catalogue_setups, catalogue) = read_setups(git, build, configured, kinds)?;
         let deployments = catalogue_setups
             .iter()
             .filter(|(_, kind)| *kind == Kind::Deployment)

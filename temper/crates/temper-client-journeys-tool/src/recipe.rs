@@ -124,9 +124,6 @@ impl Chain {
         for recipe in &chain.recipes {
             for line in recipe.steps.iter().chain(&recipe.check) {
                 let why = match (chain.kind(), line.line.record()) {
-                    (Kind::Deployment, Record::Web(_) | Record::Tui(_)) => {
-                        Some("a deployment recipe takes no web or tui line")
-                    }
                     (Kind::Box, Record::Deployment(_)) => Some("a box recipe takes no deployment line"),
                     _ => None,
                 };

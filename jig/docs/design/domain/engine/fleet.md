@@ -90,7 +90,7 @@ The fleet child domain knows the hosts and the runs they host:
 - **The grace is derived from that bound.** jig's profiles give
   `fleet.grace` 360 seconds, above the stop bound of a worker on their
   link profile (5 and 15 seconds) with an engine-away grace of 300
-  seconds, the five minutes that cover an engine's start that patches
+  seconds, the five minutes that cover an engine's start that upgrades
   its store (temper's `draft/redeploys.md`, 5.3), and the drain's
   default of 180 seconds: 326 seconds, 20 of notice and 300 of grace
   outlasting the drain, then 5 for an agent's stop and 1 for a save

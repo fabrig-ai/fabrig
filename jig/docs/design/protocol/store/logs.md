@@ -215,11 +215,11 @@ task logs this read has fetched. The jobs' pages read the map alone
   0b` row; its attempts' `00 0c` rows are orphans gone in the commits
   that follow, as the file's attempts' places are.
 
-## 6. The job `task-logs`
+## 6. History at the floor
 
-Not declared: every store at the floor has run it (temper's
-`draft/store-floor.md`, section 4.3), so no store's history is in the
-map, and every commit routes as 3 says.
+Every store at the floor keeps its history in task logs (temper's
+`draft/store-floor.md`, section 3). No backfill job runs at open;
+every commit routes as 3 says.
 
 ## 7. Generations
 

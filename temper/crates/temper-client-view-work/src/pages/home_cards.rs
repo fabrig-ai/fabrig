@@ -202,11 +202,7 @@ fn from(
         ask::text(b, Role::Text, &name, look::CHIP);
         b.text(Run::Plain, b" ");
     }
-    if let Some(task) = source {
-        ask::link(b, bindings, &title, Address::Task { task });
-    } else {
-        b.text(Run::Plain, &title);
-    }
+    ask::from_title(b, need, &title, source, bindings, true);
     b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
     b.text(Run::Plain, &when);
     if root.pages().needs().later(need.object()) {

@@ -693,7 +693,7 @@ each step the core asks for:
    commit is durable, the accounts' driver made after it (jig's
    `protocol/llm.md`, 5.1); over a pending generation the restores'
    commits before it land in the copy alone, and a refusal before the
-   switch leaves the generation patched from active (jig's
+   switch leaves the source generation active (jig's
    `domain/engine/restart.md`). A rehearsing root
    (`../protocol/binaries.md`, `temper-box upgrade --check`) ends
    before this step, reporting the restores whole.

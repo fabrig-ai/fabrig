@@ -231,14 +231,19 @@ impl Component {
                     | jig_domain_host::LinkDown::Cancel { .. }
                     | jig_domain_host::LinkDown::Grant { .. } => Reply::Drop,
                 };
-                let record = crate::translate::down(down, &parts, values, &self.codec);
-                if record.is_none() {
-                    let words: &[u8] = match reply {
-                        Reply::Job { .. } => b"job cannot encode",
-                        Reply::Assignment { .. } | Reply::ReadList { .. } | Reply::Drop => b"assignment cannot encode",
-                    };
-                    self.refused_record(channel, reply, words, out);
-                }
+                let record = match crate::translate::down(down, &parts, values, &self.codec) {
+                    Ok(record) => Some(record),
+                    Err(reason) => {
+                        let what: &[u8] = match reply {
+                            Reply::Assignment { .. } => b"assignment",
+                            Reply::Job { .. } => b"job",
+                            Reply::ReadList { .. } | Reply::Drop => b"record",
+                        };
+                        let words = reason.words(what);
+                        self.refused_record(channel, reply, &words, out);
+                        None
+                    }
+                };
                 self.send(now, connection, record, reply, out);
             } else {
                 self.dropped_down = self.dropped_down.saturating_add(1);

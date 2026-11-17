@@ -74,7 +74,10 @@ pub fn engine() -> settings::Engine {
         demo: None,
         welcome: false,
         program_environment: Box::new([]),
-        host_part: None,
+        host_part: temper_engine_domain::room::HostPart {
+            allowance: u64::MAX,
+            ..temper_engine_domain::room::HostPart::EMPTY
+        },
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
@@ -1844,7 +1847,7 @@ pub fn forge_connecting(
     request: temper_client_protocol_wire::v1::Request,
     bundle: Secret,
 ) {
-    use jig_client_protocol_wire::v26 as j;
+    use jig_client_protocol_wire::v27 as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
