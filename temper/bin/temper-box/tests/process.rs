@@ -1176,13 +1176,10 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
 // Past the story's deadline, a run that parks has already failed it.
 const CHAT_HOLDS_ITS_SLOT: Duration = support::WITHIN.saturating_mul(2);
 
-// A lost link heals: a stall past the 1 s silence loses it. The worker's contact
-// grace, graces.grace_ms 1000 (temper-service worker_settings.rs:145;
-// worker-link component.rs:629), outlasts two redials (125–250 ms, doubling:
-// backoff.rs:16; profile/small.rs:239); a re-hello clears it (component.rs:455).
-// The engine keeps that channel's attempts adrift for fleet.grace_ms 3000
-// (jig-domain-fleet channel.rs:250); re-hello lists them back (attempt.rs:49),
-// so nothing is placed twice.
+// A lost link heals: a stall past the fixture's 1 s silence loses it.
+// The stock worker contact grace outlasts its redials, and a re-hello clears it.
+// The engine keeps that channel's attempts adrift for its derived fleet grace;
+// re-hello lists them back, so nothing is placed twice (protocol/cluster.md, 3).
 #[test]
 fn a_task_runs_on_each_worker() {
     cluster_chats("cluster_each_worker", ClusterStory::Each).unwrap_or_else(|why| panic!("{why}"));
@@ -1213,9 +1210,8 @@ fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
 // Continue follows the connected:false read immediately. CLOCK_MONOTONIC keeps
 // advancing during STOP (skein-shell clock.rs:17), but w1 arms its contact
 // grace only on detecting its own loss after CONT (jig-protocol-worker-link
-// component.rs:169, :622). Its first redial is 125–250 ms (backoff.rs:15;
-// jig-protocol-config profile/small.rs:239); its re-hello must
-// reach the engine within the 3000 ms fleet grace (jig-domain-fleet
+// component.rs:169, :622). Its redials are jittered (backoff.rs:15);
+// its re-hello must reach the engine within the derived fleet grace (jig-domain-fleet
 // attempt.rs:505). This is a margin, checked by the unchanged attempt below.
 #[test]
 fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
@@ -1261,13 +1257,14 @@ fn cluster_chats_with(
     }
     let settings = cluster.settings_file();
     let key = cluster.dir("llm").join("llm.key");
-    let (mut members, hosts) = cluster.members();
+    let within = story.within();
+    let (mut members, hosts) = cluster.members_within(within);
     members.up(if story == ClusterStory::Each { &["w1", "w2"] } else { &["w1"] });
     let clock = skein_shell::Clock::new();
     let mut world = skein_world::real::World::new(ClusterChatJudge {
         finding: None,
         members,
-        deadline: clock.now().now.saturating_add(support::WITHIN),
+        deadline: clock.now().now.saturating_add(within),
         settings,
         key,
         client: scratch.path().join("client"),
@@ -1287,7 +1284,7 @@ fn cluster_chats_with(
         world.spawn(|| host);
     }
     world.spawn(support::cluster::Root::client);
-    let outcome = world.try_run(&clock, support::WITHIN)?;
+    let outcome = world.try_run(&clock, within)?;
     if !outcome.procs.iter().all(skein_shell::Host::is_empty) {
         return Err("every cluster root settled".into());
     }
@@ -1313,6 +1310,17 @@ enum ClusterStory {
     Hung,
     Later,
     Restart,
+}
+impl ClusterStory {
+    // protocol/cluster.md, 3: re-placement waits for the derived grace, then does the story's work.
+    fn within(self) -> Duration {
+        match self {
+            Self::Kill | Self::Hung => {
+                Duration::from_millis(support::cluster::FLEET_GRACE_MS).saturating_add(support::WITHIN)
+            }
+            Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
+        }
+    }
 }
 #[derive(Debug)]
 enum ClusterChatStage {
@@ -1379,14 +1387,14 @@ impl ClusterChatJudge {
     }
     fn slot_hold(&self) -> Result<(), String> {
         // Check the fixture's waiting and time overrides before applying them to current charters.
-        let settings: serde_json::Value = serde_json::from_slice(
+        let mut settings: serde_json::Value = serde_json::from_slice(
             &std::fs::read(&self.settings).map_err(|why| format!("cluster settings FILE: {why:?}"))?,
         )
         .map_err(|why| format!("settings JSON: {why:?}"))?;
-        let charter = &settings["items"]
-            .as_array()
+        let charter = &mut settings["items"]
+            .as_array_mut()
             .ok_or("settings items")?
-            .iter()
+            .iter_mut()
             .find(|item| item["setting"] == serde_json::json!({"kind":"charter","number":1}))
             .ok_or("chat charter setting")?["set"];
         if Duration::from_nanos(charter["waiting"].as_u64().ok_or("chat waiting")?) < CHAT_HOLDS_ITS_SLOT {
@@ -1396,6 +1404,13 @@ impl ClusterChatJudge {
         let reserve = charter["reserve_time"].as_u64().ok_or("chat reserve_time")?;
         if time.checked_sub(reserve).is_none_or(|ordinary| Duration::from_nanos(ordinary) < CHAT_HOLDS_ITS_SLOT) {
             return Err("bin/temper-box/tests/fixtures/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline".into());
+        }
+        if matches!(self.story, ClusterStory::Kill | ClusterStory::Hung) {
+            // protocol/cluster.md, 3: the chat must still hold its slot after re-placement.
+            let hold = self.story.within();
+            charter["waiting"] = hold.as_nanos().into();
+            charter["time"] = hold.saturating_add(Duration::from_nanos(reserve)).as_nanos().into();
+            support::write_private(&self.settings, &serde_json::to_vec(&settings).expect("cluster chat hold JSON"));
         }
 
         Ok(())
@@ -1416,6 +1431,8 @@ impl ClusterChatJudge {
                     cluster_settings(&settings, &calls[2..]);
                     support::ctl::settings_change(&calls[1], &settings, "cluster-settings")
                 })),
+                // configuration/moved.md, 3: projects are made at runtime, not in the engine document.
+                Step::Run(Call::new(&["project", "make", "Cluster", "--key", "cluster-project"])),
                 Step::Run(Call::new(&[
                     "account",
                     "add-key",
