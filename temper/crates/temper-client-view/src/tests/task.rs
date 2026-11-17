@@ -834,6 +834,97 @@ fn the_lineage_bar_links_the_parent_by_number_with_its_title() {
     }
 }
 
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests construct the long and boundary title cases"
+)]
+fn row_titles() -> [(String, String); 2] {
+    [
+        ("abcd ".repeat(20).trim_end().to_owned(), format!("{}…", ["abcd"; 16].join(" "))),
+        ("x".repeat(80), "x".repeat(80)),
+    ]
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests format the taskbar's expected heading")]
+fn the_lineage_cuts_titles_but_the_taskbar_keeps_its_whole_title() {
+    for (title, cut) in row_titles() {
+        let mut task = f::delegate();
+        task.activity = 0;
+        task.chip.title = fixtures::goal::text(title.as_bytes());
+        task.lineage_chips.get_mut(1).unwrap().title = fixtures::goal::text(title.as_bytes());
+        let root = f::agent_root(task, None, false);
+        for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            let lineage = styled(tree, look::AGENT_LINEAGE);
+            let parts = children(tree, lineage);
+            assert_eq!(parts.len(), 2);
+            for part in parts.as_slice() {
+                assert!(named(subtree(tree, *part), Role::Paragraph, cut.as_bytes()));
+            }
+            let link = tree.nodes()[index_of(tree, Role::Link, b"Task 12")].id;
+            let bar = subtree(tree, styled(tree, look::TASKBAR));
+            assert!(named(bar, Role::Heading { level: 1 }, format!("T9 · {title}").as_bytes()));
+            assert_eq!(
+                crate::act(&mut view, link, skein_ui::Act::Press),
+                Some(Action::Pages(Act::Go { address: temper_client_domain::Address::Task { task: CHILD } }))
+            );
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests format the taskbar's expected heading")]
+fn plan_rows_cut_titles_while_each_tasks_own_heading_stays_whole() {
+    for executor in [
+        c::ChipExecutor::Agent { charter: CHARTER },
+        c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE },
+        c::ChipExecutor::Party { party: PARTY },
+    ] {
+        for (title, cut) in row_titles() {
+            let mut task = f::delegate();
+            task.activity = 0;
+            task.chip.executor = executor;
+            task.chip.title = fixtures::goal::text(title.as_bytes());
+            let mut live = row();
+            live.chip.title = fixtures::goal::text(title.as_bytes());
+            let mut ended = ended_line(ENDED_CHILD, c::TaskStatus::Done);
+            ended.chip.title = fixtures::goal::text(title.as_bytes());
+            let mut delivery = f::tree();
+            let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
+            tree.rows = List::with_capacity(2);
+            tree.rows.push(live).unwrap();
+            let page = match executor {
+                c::ChipExecutor::Procedure { .. } => Some(tasks_page(&[ended], false, false)),
+                c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } => {
+                    let mut ended_row = row();
+                    ended_row.chip = ended.chip;
+                    tree.rows.push(ended_row).unwrap();
+                    None
+                }
+                c::ChipExecutor::Job { .. } | c::ChipExecutor::Role { .. } => unreachable!(),
+            };
+            let root = f::root_with_ended(task, delivery, page);
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let tree = view.tree();
+                let heading = match executor {
+                    c::ChipExecutor::Agent { .. } => format!("T9 · {title}"),
+                    c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } => title.clone(),
+                    c::ChipExecutor::Job { .. } | c::ChipExecutor::Role { .. } => unreachable!(),
+                };
+                assert!(named(tree.nodes(), Role::Heading { level: 1 }, heading.as_bytes()));
+                for name in [b"Task 12".as_slice(), b"Task 23"] {
+                    let item = subtree(tree, index_of(tree, Role::TreeItem, name));
+                    assert!(named(item, Role::Paragraph, cut.as_bytes()));
+                    assert!(named(item, Role::Link, name));
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn the_taskbar_says_number_title_state_executor_and_own_spend() {
     let mut task = f::delegate();
@@ -892,6 +983,7 @@ fn the_brief_says_its_spec_who_asked_and_its_dependencies() {
     for dependencies in [false, true] {
         let mut task = f::delegate();
         task.cut = true;
+        task.spec.specification.words = fixtures::goal::text(b"Refresh token handling\nRotate tokens **safely**.");
         if dependencies {
             task.dependencies = List::with_capacity(2);
             task.dependencies.push(c::TaskLink::Live(row().chip)).expect("live dependency");
@@ -921,6 +1013,36 @@ fn the_brief_says_its_spec_who_asked_and_its_dependencies() {
                 assert!(has_role(subtree(tree, item), Role::Status));
             }
             assert!(named(subtree(tree, items.as_slice()[1]), Role::Status, b"Completed"));
+        }
+    }
+}
+
+#[test]
+fn the_brief_omits_only_complete_title_only_words() {
+    for (spec, cut, shown) in [
+        (b"Release the runner".as_slice(), false, false),
+        (b"Release the runner\nIt waits on CI.", false, true),
+        (b"Release the runner", true, true),
+    ] {
+        let mut task = f::delegate();
+        task.activity = 0;
+        task.chip.title = f::document_words(b"Release the runner");
+        task.spec.specification.words = fixtures::goal::text(spec);
+        task.spec.specification.words.cut = cut;
+        task.dependencies = List::from_boxed(Box::new([c::TaskLink::Live(row().chip)]));
+        let root = f::agent_root(task, None, false);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            let at = styled(tree, look::AGENT_BRIEF);
+            let nodes = subtree(tree, at);
+            assert!(named(nodes, Role::Heading { level: 2 }, b"Task brief"));
+            assert_eq!(skein_lib::bytes::find(&fixtures::node_text(tree, at), b"Release the runner").is_some(), shown);
+            if shown && !cut {
+                assert!(skein_lib::bytes::find(&fixtures::node_text(tree, at), b"It waits on CI.").is_some());
+            }
+            assert!(named(nodes, Role::Paragraph, b"Asked by task 12"));
+            assert!(named(nodes, Role::List, b"Dependencies of task 9"));
+            assert!(named(nodes, Role::Link, b"Task 12"));
         }
     }
 }
