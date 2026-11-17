@@ -20,7 +20,7 @@
 
 - **Not yet:** "A limit's refusal names it", every other step of the forge's: past its holds, entries, subscriptions, paths, names, gates, steps, watches or landing keys it refuses with the bare `Refused`, naming no limit.
 
-- **Not yet:** `forge.changes`, its bound of 768 within the tier rows' 1,537: the store schema's ceilings stay 759, so the start's check bounds it at 379 (`../store.md`, 4) [in flight: change 6958].
+- **Not yet:** `forge.changes`, its bound of 768 within the tier rows' 1,537: the store schema's ceilings stay 759, so the start's check bounds it at 379 (`../store.md`, 4) [in flight: change 7113].
 
 - **Not yet:** the stock's `forge.changes` 768 and `forge.tiers.test_id_bytes` 512: the stock holds 379 and 256 [in flight: change 6959].
 
