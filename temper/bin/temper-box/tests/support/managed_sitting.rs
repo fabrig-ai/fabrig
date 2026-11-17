@@ -150,7 +150,7 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
     let mut value: Value = serde_json::from_str(&template).expect("rendered engine template");
     value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
     // Bind the machine endpoints as the process GitHub story does.
-    value["application"]["machine"]["github"] = json!({
+    value["application"]["test"]["github"] = json!({
         "api":{"socket":api.to_string()},"transport":"plaintext",
         "remote":format!("http://{git}"),"web":format!("http://{upstream}")
     });

@@ -61,8 +61,7 @@ fn the_fixture_document_starts() {
 }
 #[test]
 fn a_document_seeding_no_project_starts() {
-    let document = fixtures::with(&fixtures::document(), b"engine.projects", b"[]");
-    let document = fixtures::with(&document, b"application.landing.projects", b"[]");
+    let document = fixtures::document();
     assert_eq!(&*started(&document), b"");
 }
 #[test]
@@ -201,9 +200,12 @@ fn forges_past_the_clients_op_bytes_refuse_the_start() {
 }
 #[test]
 fn a_deployment_provider_0_refuses_the_start() {
-    let document = fixtures::with(&fixtures::document(), b"engine.providers[1].number", b"0");
+    let mut engine = fixtures::guard_engine();
+    engine.jig.providers[1].number = 0;
+    let mut found = Problems::empty();
+    checks::provider(&engine.jig, &mut found);
     assert_eq!(
-        &*started(&document),
+        lines(&found).as_ref(),
         b"engine.providers[1].number: the deployment's provider must not be 0, the forge's sign-in provider\n"
     );
 }
@@ -223,14 +225,27 @@ fn configured_worker_name_past_membership_names_its_startup_path() {
 
 #[test]
 fn landing_rules_do_not_enlarge_the_seed_policy() {
-    // Project 7 is document entry 0. Its policy fits without landing criteria.
+    // Project 7 is typed seed entry 0. Its policy fits without landing criteria.
     let document =
         fixtures::with(&fixtures::document(), b"engine.limits.overrides", format!("{{{ENGINE_OVERRIDES}}}").as_bytes());
-    let document = fixtures::with(&document, b"engine.projects[0].number", b"7");
-    let document = fixtures::with(&document, b"application.landing.projects[0].project", b"7");
-    // The old small inline form is jig's input only; this guard takes typed values.
     let mut engine = fixtures::guard_engine();
-    engine.jig = fixtures::parse_engine(&fixtures::with(fixtures::ENGINE, b"projects", fixtures::INLINE_PROJECTS));
+    let project = &mut engine.jig.projects[0];
+    project.policy.ceiling.grants = Box::default();
+    project.policy.ceiling.delegation.kinds = Box::new([jig_domain_authority::Executor::Charter(1)]);
+    project.policy.ceiling.delegation.depth = 4;
+    project.policy.ceiling.delegation.tasks = 8;
+    project.policy.ceiling.tools = jig_domain_authority::Tools(1);
+    project.policy.ceiling.notes = jig_domain_authority::Scopes(0);
+    project.policy.ceiling.note_resources = Box::default();
+    project.policy.ceiling.budget.spend = 100;
+    let mut role = project.policy.roles[0].clone();
+    role.authority = project.policy.ceiling.clone();
+    role.period_spend = 100;
+    project.policy.roles = Box::new([role]);
+    project.policy.period_spend = 100;
+    project.policy.projections = Box::default();
+    project.policy.requirements = Box::default();
+    project.roles = Box::new([jig_domain_people::PermissionRole { connector: 1, permission: 1, role: 0 }]);
     engine.jig.projects[0].number = 7;
     engine.jig.owners[0].project = 7;
     let parsed = jig_protocol_config::document(
@@ -240,7 +255,7 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
     .unwrap();
     let at = jig_protocol_config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"application").unwrap();
     let mut found = Problems::empty();
-    let application = crate::startup::application::parse(
+    let _application = crate::startup::application::parse(
         &parsed,
         at,
         &engine.jig,
@@ -248,12 +263,11 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
         &mut found,
     )
     .unwrap();
-    engine.landings = application.landings;
     let seeds = fixtures::seeds();
     let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
     let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     limits.policy_bytes = 512;
-    checks::root(core, &engine, &seeds, &application.landing_projects, &limits, &mut found);
+    checks::root(core, &engine, &seeds, &[], &limits, &mut found);
     assert!(found.is_empty(), "{}", String::from_utf8_lossy(&lines(&found)));
 }
 

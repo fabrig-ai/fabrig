@@ -142,22 +142,21 @@ fn turn_and_resume_bounds_admit_the_edge_and_refuse_one_byte_short() {
 }
 #[test]
 fn obsolete_owned_organization_members_refuse_startup() {
-    for member in ["orgs", "person.orgs"] {
-        let scratch = support::Scratch::startup(member);
-        support::first_repository::generated(scratch.path());
-        let file = scratch.path().join("temper.json");
-        let mut value: Value = serde_json::from_slice(&fs::read(&file).expect("configuration")).expect("JSON");
-        let owned = &mut value["application"]["machine"]["owned"];
-        let object = if member == "person.orgs" { &mut owned["person"] } else { owned };
-        object["orgs"] = json!(["work"]);
-        let why = temper_box_shell::operations_in(
-            &[],
-            b"/",
-            &support::configuration::directories(scratch.path()),
-            &serde_json::to_vec(&value).expect("JSON"),
-        )
-        .expect_err("obsolete orgs member");
-        assert!(why.contains(&format!("application.machine.owned.{member}: unknown member")), "{member}: {why}");
-        scratch.remove();
-    }
+    let scratch = support::Scratch::startup("machine-moved");
+    support::first_repository::generated(scratch.path());
+    let file = scratch.path().join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&file).expect("configuration")).expect("JSON");
+    value["application"]["machine"] = json!({});
+    let why = temper_box_shell::operations_in(
+        &[],
+        b"/",
+        &support::configuration::directories(scratch.path()),
+        &serde_json::to_vec(&value).expect("JSON"),
+    )
+    .expect_err("machine moved");
+    assert!(
+        why.contains("application.machine: moved: a forge's place is chosen when it's set up, and kept with the forge"),
+        "{why}"
+    );
+    scratch.remove();
 }

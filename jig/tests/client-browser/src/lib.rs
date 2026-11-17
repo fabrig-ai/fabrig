@@ -210,7 +210,7 @@ mod tests {
         let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
         let document = config::document(&bytes, &DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 })
             .expect("engine document");
-        config::engine(&document, 0, &Directories::working(), Defaults::Document)
+        config::engine(&document, 0, &Directories::working(), Defaults::Document, &config::Fixed::NONE)
             .expect("the browser engine must pass startup validation");
     }
     #[test]

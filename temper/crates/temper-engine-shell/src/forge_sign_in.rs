@@ -111,15 +111,11 @@ pub(crate) fn source(
     owned: &temper_forge_setup::setup::Owned,
     place: &temper_forge_setup::place::Place,
     deadline: skein_lib::Duration,
+    client: Option<&[u8]>,
 ) -> Result<u8, String> {
     use temper_forge_setup::{prepare::Exit, spec};
     use temper_forge_setup_shell::command;
-    let client = named
-        .machine
-        .owned
-        .as_ref()
-        .and_then(|owned| owned.sign_in.as_deref())
-        .ok_or("machine.owned.sign_in is not configured")?;
+    let client = client.ok_or("setup.sign_in is not configured")?;
     let discovery = discovery(bytes, named)?;
     let clock = skein_shell::Clock::new();
     let until = clock.now().now.saturating_add(deadline);

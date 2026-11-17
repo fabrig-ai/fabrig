@@ -41,24 +41,6 @@ pub fn check_with(
     let checked =
         Checked { limits: setup_limits, fetch_bytes, setup: temper_forge_setup::Setup { entries: Box::new([]) } };
     let mut problems = temper_engine_service::startup::Problems::empty();
-    let machine = &named.machine;
-    for (listen, listener) in [
-        (machine.owned.as_ref().map(|owned| owned.listen), temper_engine_service::startup::Listener::Owned(0)),
-        (machine.fake.as_ref().map(|fake| fake.listen), temper_engine_service::startup::Listener::Fake(0)),
-    ] {
-        if let Some(listen) = listen {
-            temper_engine_service::startup::redirect_ports(
-                &named.redirects,
-                Some(listen.port()),
-                listener,
-                &mut problems,
-            );
-            if listeners.contains(&listen) {
-                return Err("application.machine: listener must be unique".into());
-            }
-            listeners.push(listen);
-        }
-    }
     let facts = temper_fake::demo::Facts { llm: &named.llm, listeners: &listeners, directories };
     let demo = temper_fake::demo::read(&document, super::member(&document, application, b"demo"), &facts)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;

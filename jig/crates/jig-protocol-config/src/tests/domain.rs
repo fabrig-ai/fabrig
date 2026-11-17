@@ -562,7 +562,7 @@ pub(super) fn needs_document(needs_bytes: u64) -> Box<[u8]> {
 pub(super) fn needs_engine(bytes: &[u8]) -> Result<crate::Engine, crate::Problems> {
     let document =
         crate::document(bytes, &crate::DocumentLimits { bytes: 1_048_576, tokens: 131_072, depth: 16 }).unwrap();
-    crate::engine(&document, 0, &crate::Directories::working(), crate::Defaults::Document)
+    crate::engine(&document, 0, &crate::Directories::working(), crate::Defaults::Document, &crate::Fixed::NONE)
 }
 
 pub(super) fn needs_bound() -> (u64, u64) {

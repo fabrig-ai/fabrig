@@ -46,7 +46,7 @@ pub(crate) fn configure(value: &mut Value) {
     if !active() {
         return;
     }
-    value["application"]["machine"]["github"] = json!({"api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","remote":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)});
+    value["application"]["test"]["github"] = json!({"api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","remote":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)});
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
             for grant in project.pointer_mut(pointer).expect("grants").as_array_mut().expect("grants") {

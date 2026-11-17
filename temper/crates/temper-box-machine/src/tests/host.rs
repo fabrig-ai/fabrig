@@ -111,10 +111,7 @@ fn a_restored_owned_groups_front_waits_for_its_readiness_answer() {
         let mut steps = grouped_steps();
         let group = steps.asked.get_mut(0).unwrap();
         group.kind = Some(BoxKind::Owned);
-        group.steps = Box::new([(
-            Stage::Run,
-            long(b"forgejo 3", &[b"never"]).with_ready(address).listening(Box::new([address])),
-        )]);
+        group.steps = Box::new([(Stage::Run, long(b"forgejo 3", &[b"never"]).with_ready(address).listening_group())]);
         let items = [
             Item::directory(b"box"),
             Item::directory(b"box/groups"),
@@ -122,6 +119,7 @@ fn a_restored_owned_groups_front_waits_for_its_readiness_answer() {
             Item::directory(b"box/started"),
             Item::file(b"box/started/3", b""),
         ];
+        let items = super::fixtures::with_setup(&items, BoxKind::Owned, 3, 8200);
         let mut h = group_front_harness(steps, &items, front);
         assert_group_front(&mut h, front, b"starting Forgejo\n");
         assert!(h.log().ends_with(b"00:00:00Z Forge 3 (Forgejo): starting\n"));
@@ -156,7 +154,8 @@ fn asked_groups_tell_the_front_start_and_closed_stop_or_removal() {
                 let group = steps.asked.get_mut(0).unwrap();
                 group.kind = Some(kind);
                 group.label = bytes::copy_of(label);
-                let mut h = group_front_harness(steps, &[], front);
+                let items = super::fixtures::with_setup(&[], kind, 17, 3000);
+                let mut h = group_front_harness(steps, &items, front);
                 assert_group_front(&mut h, front, b"");
                 let before = h.log().len();
                 h.hold_spawn = Some(bytes::copy_of(b"fake-forge"));
@@ -207,7 +206,8 @@ fn a_failed_start_tells_the_front_the_group_is_dormant_not_started() {
         let group = steps.asked.get_mut(0).unwrap();
         group.kind = Some(BoxKind::Owned);
         group.steps = Box::new([(Stage::Prepare, once(b"prepare", &[b"exit", b"7"]))]);
-        let mut h = group_front_harness(steps, &[], front);
+        let items = super::fixtures::with_setup(&[], BoxKind::Owned, 3, 3000);
+        let mut h = group_front_harness(steps, &items, front);
         assert_group_front(&mut h, front, b"");
         h.ask(b"start 3 owned\n");
         assert_group_front(&mut h, front, b"starting Forgejo\ndormant Forgejo\n");
@@ -2445,7 +2445,13 @@ fn a_ready_probe_deadline_waits_for_request_credit() {
 #[test]
 fn a_kind_start_writes_then_runs_and_removal_unlinks_both_records() {
     use skein_fake_machine::{How, Refusal};
-    let mut h = Harness::grouped(super::fixtures::kind_steps(), &[], true);
+    let items = super::fixtures::with_setup(
+        &super::fixtures::with_setup(&[], temper_forge_setup::machine::BoxKind::Fake, 17, 3000),
+        temper_forge_setup::machine::BoxKind::Fake,
+        18,
+        3001,
+    );
+    let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
     h.run_until_idle();
@@ -2488,7 +2494,13 @@ fn a_failed_remover_reports_its_exit_and_preserves_both_records_for_retry() {
     use temper_forge_setup::FORGE_ARGUMENT;
     let mut steps = super::fixtures::kind_steps();
     steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
-    let mut h = Harness::grouped(steps, &[], true);
+    let items = super::fixtures::with_setup(
+        &super::fixtures::with_setup(&[], temper_forge_setup::machine::BoxKind::Fake, 17, 3000),
+        temper_forge_setup::machine::BoxKind::Fake,
+        18,
+        3001,
+    );
+    let mut h = Harness::grouped(steps, &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
     h.run_until_idle();
@@ -2540,6 +2552,7 @@ fn an_unknown_remove_unlinks_an_orphan_started_record() {
 fn a_failed_group_file_write_starts_no_group_step() {
     use skein_fake_machine::Item;
     let items = [Item::directory(b"box"), Item::directory(b"box/groups").mode(0o500)];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
@@ -2563,6 +2576,7 @@ fn an_unlink_failure_reports_failure_and_keeps_the_started_record() {
         Item::file(b"box/groups/17", b"fake\n"),
         Item::file(b"box/started/17", b""),
     ];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"remove 17\n");
@@ -2587,6 +2601,7 @@ fn an_unlink_failure_reports_failure_and_keeps_the_started_record() {
 fn a_kind_can_run_when_its_log_directory_is_unavailable() {
     use skein_fake_machine::Item;
     let items = [Item::directory(b"box"), Item::file(b"box/logs", b"kept")];
+    let items = super::fixtures::with_setup(&items, temper_forge_setup::machine::BoxKind::Fake, 17, 3000);
     let mut h = Harness::grouped(super::fixtures::kind_steps(), &items, true);
     h.run_until_idle();
     h.ask(b"start 17 fake\n");
@@ -2934,7 +2949,8 @@ fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
         for forge in [17, u16::MAX] {
             let mut steps = super::fixtures::kind_steps();
             steps.asked[0].label = label.into();
-            let mut h = Harness::grouped(steps, &[], true);
+            let items = super::fixtures::setup_items(forge, 3000);
+            let mut h = Harness::grouped(steps, &items, true);
             h.run_until_idle();
             h.write_child(h.serve_index(), 1, b"http://first\n");
             h.run_until_idle();
@@ -3204,4 +3220,140 @@ fn a_source_that_never_started_has_a_logged_outcome_and_never_fails_the_group() 
     assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
     assert_eq!(h.spawn_times(b"source 3").len(), 1);
     stop_fetch_box(&mut h);
+}
+
+#[test]
+fn group_listeners_are_released_only_after_successful_removal() {
+    use super::fixtures::{kind_steps, setup_items};
+    use temper_forge_setup::FORGE_ARGUMENT;
+    for succeeds in [true, false] {
+        let mut steps = kind_steps();
+        if !succeeds {
+            steps.asked.get_mut(0).unwrap().remover = Some(once(b"remove", &[b"exit", b"7", FORGE_ARGUMENT]));
+        }
+        let mut items = List::with_capacity(4);
+        for forge in [17, 18] {
+            for item in setup_items(forge, 3000) {
+                items.push(item).unwrap();
+            }
+        }
+        let mut h = Harness::grouped(steps, items.as_slice(), true);
+        h.run_until_idle();
+        h.ask(b"start 17\n");
+        h.run_until_idle();
+        assert_eq!(h.reply_bytes().as_ref(), b"step 17 run\nstarted 17\n");
+        let child = h.hosted.get(h.child_index(b"fake-forge")).unwrap();
+        assert_eq!(child.listeners.len(), 1, "the listener reaches the step");
+        let pid = child.pid;
+        h.replies.clear();
+        h.ask(b"remove 17\n");
+        h.run_until_idle();
+        h.sim.finish_service(pid, Exit::Code(0));
+        h.run_until_idle();
+        assert_eq!(
+            h.reply_bytes().as_ref(),
+            if succeeds { b"removed 17\n".as_slice() } else { b"failed 17 remove: exited 7\n" }
+        );
+        h.replies.clear();
+        h.ask(b"start 18\n");
+        h.run_until_idle();
+        if succeeds {
+            assert_eq!(h.reply_bytes().as_ref(), b"step 18 run\nstarted 18\n", "new group opens released port");
+        } else {
+            assert_eq!(h.reply_bytes().as_ref(), b"failed 18 listener 3000 taken\n", "failed removal keeps port");
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}
+#[test]
+fn a_removal_retry_skips_the_remover_when_its_directory_is_already_gone() {
+    use super::fixtures::{kind_steps, setup_items};
+    use skein_fake_machine::How;
+    let mut items = List::with_capacity(4);
+    for forge in [17, 18] {
+        for item in setup_items(forge, 3000) {
+            items.push(item).unwrap();
+        }
+    }
+    let mut h = Harness::grouped(kind_steps(), items.as_slice(), true);
+    h.run_until_idle();
+    h.ask(b"start 17\n");
+    h.run_until_idle();
+    let pid = h.hosted.get(h.child_index(b"fake-forge")).unwrap().pid;
+    h.replies.clear();
+    h.hold_spawn = Some(bytes::copy_of(b"remove"));
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    h.sim.finish_service(pid, Exit::Code(0));
+    h.run_until_idle();
+    assert!(h.held_spawn.is_some());
+    // The fake remover deletes its directory, then succeeds; the box's unlink alone fails.
+    let root = h.machine.reopen_root(0);
+    let dir = h.machine.open(root, b"playground-17", How::DirectoryNoFollow).unwrap();
+    h.machine.remove(dir, b"setup", false).unwrap();
+    h.machine.close(dir);
+    h.machine.remove(root, b"playground-17", true).unwrap();
+    h.machine.close(root);
+    h.refuse_remove = Some(bytes::copy_of(b"17"));
+    h.release_spawn();
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"failed 17 remove: files not removed\n");
+    assert_eq!(h.spawn_times(b"remove").len(), 1);
+    h.replies.clear();
+    h.ask(b"remove 17\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"removed 17\n");
+    assert_eq!(h.spawn_times(b"remove").len(), 1, "retry runs no remover");
+    h.replies.clear();
+    h.ask(b"start 18\n");
+    h.run_until_idle();
+    assert_eq!(h.reply_bytes().as_ref(), b"step 18 run\nstarted 18\n", "completed unlink frees the port");
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn restored_groups_open_their_setup_listener_before_steps_and_missing_files_stay_dormant() {
+    use super::fixtures::{kind_steps, setup_items};
+    use skein_fake_machine::Item;
+    for present in [false, true] {
+        let mut items = List::with_capacity(7);
+        for item in [
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/groups/17", b"fake\n"),
+            Item::file(b"box/started/17", b""),
+        ] {
+            items.push(item).unwrap();
+        }
+        if present {
+            for item in setup_items(17, 3456) {
+                items.push(item).unwrap();
+            }
+        }
+        let mut h = Harness::grouped(kind_steps(), items.as_slice(), true);
+        h.run_until_idle();
+        assert_eq!(h.spawn_times(b"serve").len(), 1);
+        if present {
+            assert_eq!(h.group_opens.as_slice(), &[(17, ([127, 0, 0, 1], 3456).into(), 0)]);
+            assert_eq!(h.spawn_times(b"fake-forge").len(), 1);
+        } else {
+            assert!(h.group_opens.is_empty());
+            assert_eq!(h.spawn_times(b"fake-forge").len(), 0);
+            assert!(Harness::contains(&h.stderr(), b"playground-17/setup"));
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
 }

@@ -155,7 +155,13 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let mut application = object(document, application.expect("required application checked"), &application_path)?;
     let (listener, bundle) =
         server(document, &mut application, link_enabled(document, at), approval_enabled(document, at), &mut problems)?;
-    let engine = match config::engine(document, at, &config::Directories::working(), config::Defaults::Document) {
+    let engine = match config::engine(
+        document,
+        at,
+        &config::Directories::working(),
+        config::Defaults::Document,
+        &config::Fixed::NONE,
+    ) {
         Ok(value) => value,
         Err(found) => {
             for found in &found.problems {
@@ -582,7 +588,12 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
     let mut specs = List::with_capacity(workers.len());
     for (index, at) in workers.iter().enumerate() {
         let here = indexed(&path.member(b"workers"), index);
-        let worker = match config::worker(document, *at, &config::Directories::working()) {
+        let worker = match config::worker(
+            document,
+            *at,
+            &config::Directories::working(),
+            &jig_protocol_config::FixedWorker::NONE,
+        ) {
             Ok(worker) => worker,
             Err(found) => {
                 for found in &found.problems {

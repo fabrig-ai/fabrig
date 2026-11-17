@@ -448,6 +448,16 @@ pub fn prepare_in(
     serve::prepare_in("temper", environment, working, directories)
 }
 /// Prepare an in-process world's service with the supplied defaults.
+/// A world's typed seed configuration, after the same checked document start.
+pub fn prepare_in_with_projects(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &temper_service::stock::Given,
+    projects: &[jig_protocol_config::Project],
+) -> Result<Service, String> {
+    serve::prepare_in_with_projects("temper", environment, working, directories, given, projects)
+}
 pub fn prepare_in_with(
     environment: &[EnvironmentEntry],
     working: &[u8],
