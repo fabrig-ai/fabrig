@@ -152,6 +152,12 @@ ideal_s = 30
 [gate.default.repository.checks]
 cpu_s = 72
 
+[[gate.default.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.1
+why = "Store frame_limits now owns the serving-frame decoder, generation refusal words and store-row page-size check without a simulated machine."
+
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
 
@@ -274,6 +280,12 @@ cpu_s = 9
 
 [gate.fuzzy.hearth.end-to-end]
 cpu_s = 1
+
+[[gate.fuzzy.moves]]
+from = "jig.simulated"
+to = "jig.step"
+cpu_s = 0.1
+why = "Store frame_limits now owns fuzzy::frames' 512 fixture-frame decode cases over hand-supplied file replies."
 
 [browser-skein]
 cpu_suite_s = 217.5

@@ -1,15 +1,13 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
-#[path = "../support/frame_reads.rs"]
-mod frame_reads;
+use jig_store_world::frame_reads;
 
 mod accounts;
 mod activity;
 mod carried;
 mod crashes;
 mod directories;
-mod frame_memory;
 mod generations;
 mod installation;
 mod joins;
@@ -30,7 +28,6 @@ mod upgrades;
 
 mod fuzzy {
     mod crashes;
-    mod frames;
     mod generations;
     mod pending_switch;
     #[path = "../readers_fuzzy.rs"]
