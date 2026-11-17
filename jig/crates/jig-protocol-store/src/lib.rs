@@ -28,7 +28,7 @@ mod loads;
 pub mod logs;
 mod view;
 pub use jobs::{
-    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange,
+    Converts, Job, JobAnswer, JobCount, JobLayout, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, KeyRange, Layouts,
 };
 mod open;
 mod pages;
