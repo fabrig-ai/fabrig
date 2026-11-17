@@ -81,7 +81,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
         kinds: Box::default(),
         period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
-        landings: parsed.application.landings,
+        landing_held: false,
         limits: parsed.application.limits,
     };
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits, settings.jig.memory)
@@ -103,7 +103,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
             identities,
             forges,
             playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
-            landings: settings.landings,
+            landing_held: false,
             under_box: false,
         },
         limits,

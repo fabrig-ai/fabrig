@@ -409,6 +409,8 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::Dependency(_)
             | Value::Welcome(_)
             | Value::ProjectAreas(_)
+            | Value::Landing(_)
+            | Value::Gates(_)
             | Value::ProjectTriager(_) => false,
         },
         Edit::Remove | Edit::Reset => false,

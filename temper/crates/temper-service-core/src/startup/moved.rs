@@ -7,7 +7,9 @@ pub struct Member {
     pub path: &'static str,
     pub words: &'static str,
 }
+pub const LANDING: &str = "moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply";
 pub const MEMBERS: &[Member] = &[
+    Member { path: "application.landing", words: LANDING },
     Member {
         path: "application.machine",
         words: "moved: a forge's place is chosen when it's set up, and kept with the forge",

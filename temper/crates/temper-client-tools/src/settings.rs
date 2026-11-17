@@ -76,6 +76,12 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let mut reader = Reader::new(bytes);
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
+        4 => w::ProjectLanding::decode(&w::CEILINGS, &mut reader).is_ok(),
+        5 => {
+            let mut check =
+                skein_json::writer::Encoder::measure(&skein_json::writer::Limits { depth: 32, length: u32::MAX });
+            return settings_form::render::application_value(5, bytes, &mut check);
+        }
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
         13 => w::Dependency::decode(&w::CEILINGS, &mut reader).is_ok(),
         12 => w::Follow::decode(&w::CEILINGS, &mut reader).is_ok(),

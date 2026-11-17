@@ -1,7 +1,6 @@
 //! Machine and client settings, read strictly (temper/docs/design/protocol/configuration/engine.md).
 //! A box's sign-in is exclusive (temper/docs/design/protocol/openid-provider.md, 9).
 mod demo;
-mod landing;
 pub mod push;
 mod read;
 pub mod sign_in;
@@ -21,9 +20,6 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub demo: Option<settings::Demo>,
-    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
-    /// The landing's projects in the document's order, which names a refused one's path.
-    pub landing_projects: Box<[u32]>,
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
@@ -255,7 +251,9 @@ pub fn parse(
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
     let push_at = object.member(document, b"push");
     let push = push::parse(document, push_at, directories, problems);
-    let landing_at = object.member(document, b"landing");
+    if object.member(document, b"landing").is_some() {
+        problems.push(path.member(b"landing"), What::Jig(config::What::Fixed));
+    }
     if object.member(document, b"welcome").is_some() {
         problems.push(path.member(b"welcome"), What::Jig(config::What::Fixed));
     }
@@ -270,14 +268,9 @@ pub fn parse(
     }
     let demo = demo::parse(document, demo_at, directories, problems);
     let workers = workers(document, directories, problems);
-    let landing = match landing_at {
-        Some(at) => landing::parse(document, at, jig, &bounds, problems),
-        None => Some((skein_lib::Map::with_capacity(0), Box::default())),
-    };
     if !problems.is_empty() {
         return None;
     }
-    let (landings, landing_projects) = landing?;
     Some(Members {
         clients: clients?,
         sign_in,
@@ -288,8 +281,6 @@ pub fn parse(
         workers: workers.into_boxed(),
         limits: limits?,
         overrides: overrides.into_boxed(),
-        landings,
-        landing_projects,
     })
 }
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).

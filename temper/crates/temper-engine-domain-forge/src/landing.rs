@@ -29,6 +29,8 @@ pub(crate) struct State {
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
     pub(crate) projects: Map<u32, ProjectLanding>,
+    pub(crate) settings: Map<u32, crate::settings::ProjectLanding>,
+    pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
@@ -151,6 +153,8 @@ impl State {
             due: Map::with_capacity(l.landings),
             receipts: Map::with_capacity(receipt_slots(l).expect("receipt bounds")),
             projects: Map::with_capacity(l.judge_projects),
+            settings: Map::with_capacity(l.judge_projects),
+            held: false,
             pending: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
             main_keys: Map::with_capacity(l.repositories.checked_mul(l.gates).expect("gate bounds")),
@@ -212,7 +216,108 @@ fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
     true
 }
 impl Domain {
-    /// A project's way and repository test gates (domain/landing.md, 13.1).
+    /// The operator's immutable start fact (domain/landing-settings.md, 1.3).
+    pub fn hold_landings(&mut self, held: bool) {
+        self.landing.held = held;
+    }
+    #[must_use]
+    pub fn landing_held(&self) -> bool {
+        self.landing.held
+    }
+    /// The landing built at restore, never the current proposed or committed setting.
+    #[must_use]
+    pub fn landing_settings(&self, project: u32) -> Option<&crate::settings::ProjectLanding> {
+        self.landing.settings.get(&project)
+    }
+    pub(crate) fn restore_landing_settings(&mut self) {
+        use crate::settings::{SettingSlot, Value};
+        let mut projects = Map::uncapped();
+        for (key, _) in &self.setting_rows {
+            if (key.kind == 4 || key.kind == 5) && (key.slot == SettingSlot::Change || key.slot == SettingSlot::Default)
+            {
+                projects.insert(key.scope, ()).expect("restored projects");
+            }
+        }
+        if let Some(stock) = &self.setting_stock {
+            for item in stock {
+                if item.kind == 4 || item.kind == 5 {
+                    projects.insert(item.scope, ()).expect("stock projects");
+                }
+            }
+        }
+        for (&project, ()) in &projects {
+            let settings = match self.setting(4, project, 1) {
+                Some(value) => match &value.value {
+                    Value::Landing(v) => v.clone(),
+                    Value::Gates(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
+                    | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
+                },
+                None => crate::settings::ProjectLanding::default(),
+            };
+            let gates = match self.setting(5, project, 1) {
+                Some(value) => match &value.value {
+                    Value::Gates(v) => v.repositories.clone(),
+                    Value::Landing(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_)
+                    | Value::Goal(_)
+                    | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
+                    | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
+                },
+                None => Box::new([]),
+            };
+            assert!(
+                self.project_landing(
+                    project,
+                    settings.by,
+                    gates,
+                    policy::Project {
+                        gate_retries: u32::from(settings.gate_retries),
+                        gate_timeout: skein_lib::Duration::from_millis(settings.gate_timeout_ms)
+                    },
+                    crate::AfterLanding {
+                        verdict: temper_engine_domain_forge_tiers::Settings {
+                            retries: u32::from(settings.tier_retries),
+                            suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                        },
+                        bound: skein_lib::Duration::from_millis(settings.verification_bound_ms)
+                    }
+                ),
+                "judged restored landing settings"
+            );
+            if settings.batch != 1 {
+                assert!(self.project_batch(project, settings.batch), "judged restored batch");
+            }
+            if let Some(command) = &settings.merge_job {
+                assert!(self.project_merge_job(project, command.clone()), "restored merge job");
+            }
+            if let Some(command) = &settings.close_job {
+                assert!(self.project_close_job(project, command.clone()), "restored close job");
+            }
+            self.landing.settings.insert(project, settings).expect("restored project settings");
+        }
+    }
+    /// A project's way and repository test gates (domain/landing-settings.md, 1.1).
     pub fn project_landing(
         &mut self,
         project: u32,
@@ -310,7 +415,7 @@ impl Domain {
         }
         saved
     }
-    /// The project's forming cap, checked against its deployment (domain/landing.md, 13.1).
+    /// The project's forming cap, checked against its deployment (domain/landing-settings.md, 1.1).
     pub fn project_batch(&mut self, project: u32, batch: u16) -> bool {
         if batch == 0 || u32::from(batch) > self.landing.limits.landing_members {
             return false;
@@ -349,7 +454,7 @@ impl Domain {
         let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
         command.as_deref()
     }
-    /// A project's landing way: queue where its configuration gives none (domain/landing.md, 13.1).
+    /// A project's landing way: queue where its configuration gives none (domain/landing-settings.md, 1.1).
     #[must_use]
     pub fn landing_way(&self, project: u32) -> change::Way {
         self.landing.way(project)
@@ -948,6 +1053,10 @@ fn retire_preparation(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one landing step keeps its admission and operator hold with the state handoff"
+)]
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -957,6 +1066,18 @@ pub(crate) fn step(
     out: &mut Queue<Request>,
 ) {
     if d.stopping {
+        return;
+    }
+    if d.landing.held {
+        emit(
+            out,
+            Request::LandingDecision {
+                task,
+                decision: policy::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
         return;
     }
     if let Some(job) = heard.job.take() {

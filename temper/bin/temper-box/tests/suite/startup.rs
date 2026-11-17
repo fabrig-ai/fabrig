@@ -19,7 +19,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
     document["application"]["demo"] = serde_json::Value::Null;
-    document["application"]["landing"] = serde_json::json!({"projects": []});
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")

@@ -686,6 +686,7 @@ pub fn checked_start_with(
         checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
 
     let mut engine = settings::Engine {
+        landing_held: false,
         setups: Box::new([]),
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
@@ -713,7 +714,6 @@ pub fn checked_start_with(
             crate::stock::Given::Stock => crate::stock::ways(),
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
-        landings: parsed.application.landings,
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
@@ -724,7 +724,7 @@ pub fn checked_start_with(
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),
     };
-    checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
+    checks::root(core, &engine, seeds, &[], &root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }

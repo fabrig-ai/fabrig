@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_protocol_config::{self as config, Path};
 use skein_io::Addr;
-use skein_lib::{Decimal, Duration, List, Map, Writer};
+use skein_lib::{Decimal, Duration, List, Writer};
 use temper_engine_domain as domain;
 pub use temper_engine_service_vocabulary::startup::checks::*;
 use temper_protocol_worker_wire as payload;
@@ -505,14 +505,6 @@ fn index_of(numbers: &[u32], number: u32) -> usize {
     }
     index
 }
-fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding> {
-    let mut landings = Map::with_capacity(engine.landings.capacity());
-    for (&project, landing) in &engine.landings {
-        landings.insert(project, landing.clone()).expect("the same capacity");
-    }
-    landings
-}
-
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 5).
 #[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
@@ -530,25 +522,6 @@ pub fn root(
             What::Past { bytes: u64::from(limits.forge.landing_members), bound: 5 },
         );
     }
-    let landings = landing_config(engine);
-    let mut turn = false;
-    for (_, project) in &landings {
-        turn |= project.by == domain::Way::Turn;
-    }
-    if turn {
-        if limits.authority.writes < limits.forge.landing_members {
-            against(problems, b"forge.landing_members", b"authority.writes");
-        }
-        if limits.forge.resources_per_task <= limits.forge.landing_members {
-            against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
-        }
-        if limits.forge.holds < limits.forge.landings.saturating_mul(limits.forge.landing_members) {
-            against(problems, b"forge.holds", b"forge.landings * forge.landing_members");
-        }
-        if limits.tasks.holdings < limits.forge.landing_members {
-            against(problems, b"forge.landing_members", b"tasks.holdings");
-        }
-    }
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     core.kinds.clone_from(&engine.kinds);
     let config = domain::Config {
@@ -558,7 +531,7 @@ pub fn root(
         period_span: engine.period_span,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
         core,
-        landings,
+        landing_held: false,
         forge,
         identities,
         machine: Some(crate::system::machine_config(engine.test_github.as_ref())),

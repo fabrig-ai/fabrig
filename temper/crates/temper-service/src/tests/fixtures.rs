@@ -97,7 +97,7 @@ pub fn engine() -> settings::Engine {
         host_part: None,
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landings: skein_lib::Map::with_capacity(0),
+        landing_held: false,
         limits: own,
     }
 }
@@ -1109,11 +1109,4 @@ pub fn turn_jig() -> jig_protocol_config::Engine {
     jig.limits.core.tasks.result_bytes = 4_096;
     jig.limits.core.tasks.message_bytes = 4_096;
     jig
-}
-
-/// A turn fixture receives the prepare job's result as a task message.
-pub fn turn_agent() -> settings::Agent {
-    let mut agent = startup_agent();
-    agent.bounds.message_bytes = 4_096;
-    agent
 }

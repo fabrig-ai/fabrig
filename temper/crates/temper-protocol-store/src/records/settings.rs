@@ -124,6 +124,7 @@ fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule,
         approvals: decoded_approvals.into_boxed(),
     })
 }
+#[expect(clippy::too_many_lines, reason = "the setting value dispatcher keeps each codec arm together")]
 pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let d::SettingRow { key: d::SettingKey { kind, scope, number, slot }, edit } = value;
     let slot = match slot {
@@ -139,6 +140,24 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let edit = match edit {
         d::Edit::Set(d::SizedValue { value, size }) => {
             let value = match value {
+                d::Value::Gates(v) => {
+                    let record = d::gates_record(v);
+                    let mut out = Writer::new(skein_lib::usize_of(record.measure()));
+                    record.encode(&mut out).expect(FITS);
+                    w::SettingValue::ProjectGates(
+                        w::ProjectGates::decode(&w::CEILINGS, &mut Reader::new(&out.finish()))
+                            .expect("matching landing settings records"),
+                    )
+                }
+                d::Value::Landing(v) => {
+                    let record = d::landing_record(v);
+                    let mut out = Writer::new(skein_lib::usize_of(record.measure()));
+                    record.encode(&mut out).expect(FITS);
+                    w::SettingValue::ProjectLanding(
+                        w::ProjectLanding::decode(&w::CEILINGS, &mut Reader::new(&out.finish()))
+                            .expect("matching landing settings records"),
+                    )
+                }
                 d::Value::Classes(classes) => {
                     let record = temper_protocol_reaches::classes_record(classes).expect(FITS);
                     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured classes length"));
@@ -221,6 +240,7 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     w::SettingRow::new(&w::CEILINGS, w::SettingRowParts { kind: *kind, scope: *scope, number: *number, slot, edit })
         .expect(FITS)
 }
+#[expect(clippy::too_many_lines, reason = "the setting decoder keeps each codec arm and retirement check together")]
 pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::SettingRow, Undecodable> {
     let w::SettingRowParts { kind, scope, number, slot, edit } = value.into_parts();
     d::Kind::of(kind).ok_or(Undecodable::Malformed)?;
@@ -248,6 +268,22 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
         w::SettingEdit::Set(value) => {
             let w::SizedValueParts { value, size } = value.into_parts();
             let value = match value {
+                w::SettingValue::ProjectGates(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut out = Writer::new(skein_lib::usize_of(record.measure()));
+                    record.encode(&mut out).or(Err(Undecodable::Malformed))?;
+                    let record = v1::ProjectGates::decode(&v1::CEILINGS, &mut Reader::new(&out.finish()))
+                        .or(Err(Undecodable::Malformed))?;
+                    d::Value::Gates(d::gates_from(record).ok_or(Undecodable::Malformed)?)
+                }
+                w::SettingValue::ProjectLanding(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut out = Writer::new(skein_lib::usize_of(record.measure()));
+                    record.encode(&mut out).or(Err(Undecodable::Malformed))?;
+                    let record = v1::ProjectLanding::decode(&v1::CEILINGS, &mut Reader::new(&out.finish()))
+                        .or(Err(Undecodable::Malformed))?;
+                    d::Value::Landing(d::landing_from(record))
+                }
                 w::SettingValue::Follow(record) => {
                     use temper_client_protocol_wire::v1;
                     let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);

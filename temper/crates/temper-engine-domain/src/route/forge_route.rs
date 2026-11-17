@@ -1677,7 +1677,10 @@ pub(crate) fn check_timeout(domain: &Domain, task: u64) -> Option<skein_lib::Dur
         | forge_change::Delegate::Repair(_)
         | forge_change::Delegate::Resolve { .. } => {
             let repository = domain.forge.repository(row.repository)?;
-            domain.config.landings.get(&repository.project)?.check_timeout
+            match domain.forge.landing_settings(repository.project)?.check_timeout_ms {
+                Some(ms) => Some(skein_lib::Duration::from_millis(ms)),
+                None => None,
+            }
         }
         forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {
             None

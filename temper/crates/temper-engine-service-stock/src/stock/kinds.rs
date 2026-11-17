@@ -98,6 +98,27 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             charters: 1,
         },
         Kind {
+            number: 4,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Landing(settings::ProjectLanding {
+                merge_job: Some(word(4096)),
+                close_job: Some(word(4096)),
+                check_timeout_ms: Some(u64::MAX),
+                ..settings::ProjectLanding::default()
+            })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 5,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: settings::CARRIER,
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
             number: 6,
             scope: KindScope::Project,
             connector,

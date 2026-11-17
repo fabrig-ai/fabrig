@@ -83,7 +83,7 @@ impl engine::Engine {
             ways_stock: settings.ways_stock,
             period_span: settings.period_span,
             core,
-            landings: settings.landings,
+            landing_held: settings.landing_held,
             forge: forge_config,
             identities,
             machine: Some(machine_config(settings.test_github.as_ref())),
@@ -144,6 +144,10 @@ impl engine::Engine {
         self.setup.page(forge, state, now)
     }
     /// The binary's build name for the store floor (jig's protocol/store/records.md, 3).
+    /// The shell supplies the immutable hold before starting the loop.
+    pub fn hold_landings(&mut self, held: bool) {
+        self.domain.hold_landings(held);
+    }
     pub fn build_name(&mut self, name: &'static str) {
         self.store.build_name(name);
     }

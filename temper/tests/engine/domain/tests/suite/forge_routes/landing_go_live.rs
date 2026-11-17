@@ -1,5 +1,5 @@
 //! Going live across a restart with running work kept on its revision
-//! (temper/docs/design/domain/landing.md, 13, 15;
+//! (temper/docs/design/domain/landing-settings.md, 1.1; temper/docs/design/domain/landing.md, 15;
 //! temper/docs/design/protocol/configuration/settings.md, 1).
 use super::super::{goal_branch, goal_landing, reviews};
 use super::*;
@@ -28,8 +28,8 @@ fn project_policy(world: &World) -> &people::PolicyValue {
     value
 }
 
-fn landing(by: engine::Way) -> engine::ProjectLanding {
-    engine::ProjectLanding {
+fn landing(by: temper_fixtures::landing::Way) -> temper_fixtures::landing::ProjectLanding {
+    temper_fixtures::landing::ProjectLanding {
         by,
         batch: 1,
         combine_main: engine::Combine::Merge,
@@ -40,10 +40,11 @@ fn landing(by: engine::Way) -> engine::ProjectLanding {
         check_timeout: None,
         close_job: None,
         merge_job: None,
-        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-        repositories: Box::new([engine::RepositoryChecks {
+        tier_retries: 2,
+        verification_bound_ms: 7_200_000,
+        repositories: Box::new([temper_fixtures::landing::RepositoryChecks {
             repository: forge_world::REPO,
-            gates: Box::new([engine::GateCheck {
+            gates: Box::new([temper_fixtures::landing::GateCheck {
                 name: b"gate".as_slice().into(),
                 workflow: b"gate.yml".as_slice().into(),
                 ignored: Box::new([]),
@@ -76,9 +77,8 @@ fn worker_hello(hosting: Box<[jig_domain_link::Hosting]>) -> engine::Event {
     hello
 }
 
-#[test]
 #[expect(clippy::too_many_lines, reason = "one owner revision takes a running producer across the go-live restart")]
-fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
+pub(crate) fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
     let broad = goal_branch::stock_defaults();
     let mut defaults = goal_branch::stock_defaults();
     narrow(&mut defaults.rules.ceiling);
@@ -93,7 +93,7 @@ fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
     limits.documents.lines = 8;
     let mut world = World::configured_stock_turn(&defaults, &stock::box_model(), &limits)
         .with_project_policy(initial)
-        .with_project_landing(1, landing(engine::Way::Queue))
+        .with_project_landing(1, landing(temper_fixtures::landing::Way::Queue))
         .with_settings_owner(&forge_top::user_key(1, 7));
     world.adopt();
     world.send(worker_hello(Box::new([])));
@@ -108,7 +108,19 @@ fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
     let policy_before = project_policy(&world).clone();
     assert_eq!(policy_before.permissions, own.permissions);
     assert_eq!(policy_before.roles.iter().find(|role| role.number == 1).expect("own member").requests, 185);
-    world.restart_with_project_landing(1, landing(engine::Way::Turn));
+    let (next, _) = landing(temper_fixtures::landing::Way::Turn).values();
+    let items =
+        Box::new([temper_engine_domain_world::kinds::item(4, 1, 1, &forge_top::settings::Value::Landing(next))]);
+    world.send(temper_engine_domain_world::kinds::change(world.signed_in.expect("owner"), prior, 94, items));
+    world.until(Until::Ready);
+    assert_eq!(temper_engine_domain_world::kinds::revision(&world.store.rows), prior + 1, "{:?}", world.web_replies);
+    assert_eq!(
+        world.root.landing_way(1),
+        temper_engine_domain_forge_change::Way::Queue,
+        "accepted while running waits for the next start"
+    );
+    world.drain_cut();
+    world.restart_same();
     for _ in 0..PAIR_TICKS {
         world.tick();
         if world.root.ready() {
@@ -119,6 +131,7 @@ fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
     world.send(worker_hello(
         [&chat, &producer].map(|run| protocol::hosting(run.task, run.attempt, jig_domain_link::Phase::Active)).into(),
     ));
+    assert_eq!(world.root.landing_way(1), temper_engine_domain_forge_change::Way::Turn);
     assert_eq!(*project_policy(&world), policy_before, "restart keeps the project's own roles");
     world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
         kinds: Box::new([]),
@@ -127,7 +140,7 @@ fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
         key: [95; 16],
         digest: [95; 32],
         change: Box::new(s::Change {
-            against: prior,
+            against: prior + 1,
             running: s::Running::Stays,
             items: Box::new([
                 s::Item { setting: s::Setting::Rules, edit: s::Edit::Set(s::Value::Rules(Box::new(broad.rules))) },
@@ -143,7 +156,7 @@ fn a_project_with_its_own_roles_goes_live_by_turn_with_running_stays() {
         }),
     }));
     world.until(Until::Ready);
-    assert_eq!(temper_engine_domain_world::kinds::revision(&world.store.rows), prior + 1, "{:?}", world.web_replies);
+    assert_eq!(temper_engine_domain_world::kinds::revision(&world.store.rows), prior + 2, "{:?}", world.web_replies);
     assert_eq!(live_task(&world, producer.task).settings.task, prior, "running stays");
     assert_eq!(live_task(&world, producer.task).settings.run, Some(prior));
     assert!(matches!(live_task(&world, producer.task).phase, tasks::Phase::Active(tasks::Active::Running { .. })));

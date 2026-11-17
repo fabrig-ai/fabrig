@@ -28,7 +28,9 @@ impl Domain {
                     None => None,
                 },
             };
-            let answer = match settings::judge(&check, bounds) {
+            let cleared = (item.kind == 4 || item.kind == 5) && (item.edit == Edit::Remove || item.edit == Edit::Reset);
+            let checked = if cleared { Ok(()) } else { settings::judge(&check, bounds) };
+            let answer = match checked {
                 Err(refusal) => settings::Judged::Refuse(refusal),
                 Ok(()) => {
                     let same = match &item.edit {
@@ -219,7 +221,9 @@ impl Domain {
                     None => None,
                 },
             };
-            let answer = match settings::judge(&check, bounds) {
+            let cleared = (item.kind == 4 || item.kind == 5) && (edit == Edit::Remove || edit == Edit::Reset);
+            let checked = if cleared { Ok(()) } else { settings::judge(&check, bounds) };
+            let answer = match checked {
                 Err(why) => settings::Judged::Refuse(why),
                 Ok(()) => {
                     let (size, charter) = value_state(value);
@@ -366,7 +370,9 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2
+            if (key.kind == 4
+                || key.kind == 5
+                || key.kind == 2
                 || key.kind == 6
                 || key.kind == 7
                 || key.kind == 8
@@ -406,7 +412,9 @@ impl Domain {
                     | Value::Follow(_)
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
-                    | Value::ProjectTriager(_),
+                    | Value::ProjectTriager(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_),
                 ..
             }) => unreachable!("welcome setting type"),
         }
@@ -430,6 +438,8 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -456,6 +466,8 @@ impl Domain {
                     | Value::Goal(_)
                     | Value::CharterWords(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -482,6 +494,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -508,6 +522,8 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_),
                 ..
@@ -533,6 +549,8 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -765,6 +783,8 @@ impl Domain {
                     | Value::CharterWords(_)
                     | Value::Classes(_)
                     | Value::ProjectAreas(_)
+                    | Value::Landing(_)
+                    | Value::Gates(_)
                     | Value::Welcome(_)
                     | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
@@ -823,6 +843,8 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::CharterWords(_)
                 | Value::Classes(_)
                 | Value::ProjectAreas(_)
+                | Value::Landing(_)
+                | Value::Gates(_)
                 | Value::Welcome(_)
                 | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),

@@ -115,3 +115,37 @@ pub fn forgejo_record(address: SocketAddr) -> forge::ForgeRecord {
         first: None,
     }
 }
+
+/// Seed typed application values beside their core metadata after the fixture's first start.
+/// This is bootstrap data, before any work or owner changes (domain/landing-settings.md, 1.1).
+pub fn seed_settings_file(path: &Path, bytes: &[u8]) {
+    use jig_domain_core::settings as s;
+    let mut writes = Vec::new();
+    for stock in temper_playground::documents::settings::kind_defaults(bytes) {
+        let setting = s::Setting::Application { kind: stock.kind, scope: stock.scope, number: stock.number };
+        let metadata = s::Record::Application {
+            setting,
+            state: s::application::State {
+                follows: s::application::Follows::Changed { revision: 1 },
+                size: stock.value.size,
+                charters: Box::new([]),
+            },
+        };
+        writes.push(jig_protocol_store::Write::Save(jig_domain_core::Record::Core(
+            jig_domain_core::CoreRecord::Settings(metadata),
+        )));
+        let key = forge::settings::SettingKey {
+            kind: stock.kind,
+            scope: stock.scope,
+            number: stock.number,
+            slot: forge::settings::SettingSlot::Change,
+        };
+        let row =
+            forge::Stored::Setting(forge::settings::SettingRow { key, edit: forge::settings::Edit::Set(stock.value) });
+        writes.push(jig_protocol_store::Write::Put {
+            key: temper_protocol_store::keys::encode(&forge::Key::Setting(key), 256).expect("fixture landing key"),
+            value: temper_protocol_store::records::encode(&row),
+        });
+    }
+    temper_github_app::seed_with(path, &[], writes).expect("durable settings fixture");
+}

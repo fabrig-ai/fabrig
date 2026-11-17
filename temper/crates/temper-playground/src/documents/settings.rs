@@ -189,12 +189,17 @@ pub fn forge(deployment: &Value) -> Box<[temper_engine_domain_forge::settings::S
             projects.insert(project, landing_rules(&entry["rules"])).expect("world project rules");
         }
     }
-    temper_engine_domain::landing_stock(
+    let mut stock = temper_engine_domain::landing_stock(
         &deployment,
         &projects,
         u32::try_from(flags["forge_charter"].as_u64().unwrap_or(1)).expect("world change charter"),
         4,
     )
+    .into_vec();
+    if flags["settings"].is_object() {
+        stock.extend(kind_defaults(&serde_json::to_vec(&flags["settings"]).expect("world settings file")));
+    }
+    stock.into_boxed_slice()
 }
 fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
     use temper_engine_domain::{Approval, Freshness, Gate, LandingRule};
@@ -275,7 +280,28 @@ pub fn strip_models(deployment: &mut Value) {
     deployment["engine"]["llm"].as_object_mut().expect("llm").remove("models");
 }
 
-/// Remove moved members from imported fixture documents.
+/// Typed application defaults for a world's settings file, including landing kinds 4 and 5.
+#[must_use]
+pub fn kind_defaults(bytes: &[u8]) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    use settings_form::view::{Setting, SettingEdit, SettingValue};
+    let items = settings_form::file::decode(bytes, &settings_form::Limits::standard()).expect("world settings file");
+    let mut stock = Vec::new();
+    for item in items.into_boxed() {
+        let Setting::Application { kind, scope, number } = item.setting else { panic!("application fixture setting") };
+        let SettingEdit::Set(set) = item.edit else { panic!("fixture default set") };
+        let SettingValue::Application(bytes) = set.value else { panic!("application fixture value") };
+        let value = temper_engine_smith::kinds::decode(
+            kind,
+            &bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+        )
+        .expect("typed fixture setting");
+        stock.push(temper_engine_domain_forge::settings::Stock { kind, scope, number, value });
+    }
+    stock.into_boxed_slice()
+}
+
+/// Remove members fixed by temper from imported jig fixture documents.
 pub fn strip_fixed(deployment: &mut Value) {
     if let Some(workers) = deployment.get_mut("workers").and_then(Value::as_array_mut) {
         for worker in workers {

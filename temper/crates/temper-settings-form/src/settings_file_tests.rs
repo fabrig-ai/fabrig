@@ -172,6 +172,9 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");

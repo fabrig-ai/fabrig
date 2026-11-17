@@ -1,7 +1,7 @@
 //! Real-loop fixtures on kernel-assigned ports (temper/docs/design/protocol/forge/engine.md, 1).
 mod kept;
 pub(crate) use kept::seed;
-pub use kept::{forgejo_record, seed_forgejo, seed_record};
+pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
 use std::{
     io::Write,
     net::SocketAddr,

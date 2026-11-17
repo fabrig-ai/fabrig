@@ -88,7 +88,7 @@ pub fn engine() -> settings::Engine {
         host_part: None,
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landings: skein_lib::Map::with_capacity(0),
+        landing_held: false,
         limits: own,
     }
 }
@@ -355,7 +355,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
         host_part: settings.host_part,
         period_span: settings.period_span,
         core,
-        landings: settings.landings,
+        landing_held: false,
         kinds_stock: crate::stock::with_welcome(settings.kinds_stock, false),
         ways_stock: settings.ways_stock,
         forge,

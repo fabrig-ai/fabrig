@@ -55,6 +55,7 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
     let mut cluster = Cluster::read_from(root, &setup::fixture());
     cluster.deployment_binaries();
     setup::prepare(&mut cluster, root, &support::free_addresses(&[]));
+    setup::seed(&cluster);
     if cut == Cut::Worker {
         let directory = root.join("held-git");
         fs::create_dir(&directory).expect("held git directory");

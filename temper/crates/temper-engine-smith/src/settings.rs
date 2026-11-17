@@ -73,6 +73,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"project-questions",
             b"project-classes",
             b"project-words",
+            b"project-landing",
+            b"project-gates",
             b"project-areas",
             b"project-triager",
         ] {

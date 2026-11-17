@@ -1611,6 +1611,28 @@ fn kinds_are_declared_with_their_bounds() {
                 charters: 1
             },
             Kind {
+                number: 4,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: u32::try_from(
+                    temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                        &temper_client_protocol_wire::v1::CEILINGS
+                    )
+                    .expect("landing bound")
+                )
+                .expect("bounded encoding"),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 5,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: settings::CARRIER,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
                 number: 6,
                 scope: KindScope::Project,
                 connector: CONNECTOR,

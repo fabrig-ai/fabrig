@@ -36,6 +36,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::LandingRule::decode(&limits, &mut reader).ok()?;
             settings::Value::Rule(rule(record))
         }
+        4 => settings::Value::Landing(settings::landing_from(
+            v1::ProjectLanding::decode(&v1::CEILINGS, &mut reader).ok()?,
+        )),
+        5 => settings::Value::Gates(settings::gates_from(v1::ProjectGates::decode(&v1::CEILINGS, &mut reader).ok()?)?),
         3 => {
             let record = v1::ForgeCharter::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Charter(record.charter())
@@ -96,6 +100,18 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 #[must_use]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
+        settings::Value::Gates(value) => {
+            let record = settings::gates_record(value);
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Landing(value) => {
+            let record = settings::landing_record(value);
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Welcome(value) => {
             let record = wire_welcome(*value);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -181,6 +197,8 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
+        settings::Value::Gates(v) => settings::gates_record(v).measure(),
+        settings::Value::Landing(v) => settings::landing_record(v).measure(),
         settings::Value::Rule(rule) => wire_rule(rule).measure(),
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),

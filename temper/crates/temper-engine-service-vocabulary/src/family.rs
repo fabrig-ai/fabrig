@@ -716,6 +716,7 @@ pub fn to_root(
 /// (client/forge/served.md, 2). No domain record carries a deployment's web address.
 #[must_use]
 pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let landing_hold = value.landing_hold();
     let pull = match value.pull {
         Some(number) => {
             Some(w::Pull::new(limits, w::PullParts { number, address: address(&value, number, forges) }).ok()?)
@@ -742,7 +743,13 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             head: value.head,
             pull,
             step: panel_step(value.step, limits)?,
-            hold: panel_hold(value.hold),
+            hold: if let Some(reason) = landing_hold {
+                Some(w::Hold::Authority(
+                    w::AuthorityHold::new(limits, w::AuthorityHoldParts { reason: Box::from(reason) }).ok()?,
+                ))
+            } else {
+                panel_hold(value.hold)
+            },
             runs: value.runs,
             ci_required: value.ci_required,
             ci: match value.ci {

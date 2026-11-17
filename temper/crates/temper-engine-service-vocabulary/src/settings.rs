@@ -100,6 +100,7 @@ pub struct Setup {
 /// temper's members (protocol/configuration/README.md, section 2 and protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Engine {
+    pub landing_held: bool,
     /// Checked receiving agent reply allowance; none when no local agent is configured.
     pub host_reply_bytes: Option<u32>,
     /// The local agent's charter allowance, smith's `run_bytes`; none when no local agent is configured.
@@ -124,7 +125,6 @@ pub struct Engine {
     /// The stock period span carried by startup (protocol/services.md, 4.2).
     pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
-    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,
 }
 

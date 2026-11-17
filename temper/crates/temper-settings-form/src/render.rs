@@ -45,8 +45,10 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
+        c::Setting::Application { kind: kind @ (4 | 5 | 6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
             out.put(match kind {
+                4 => b"project-landing ",
+                5 => b"project-gates ",
                 6 => b"project-questions ",
                 7 => b"project-ways ",
                 8 => b"project-classes ",
@@ -108,6 +110,8 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 11 => out.string(b"template-goal"),
                 12 => out.string(b"follow"),
                 13 => out.string(b"dependency"),
+                4 => out.string(b"project-landing"),
+                5 => out.string(b"project-gates"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
@@ -118,7 +122,9 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 20 => out.string(b"welcome"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2
+            if kind == 4
+                || kind == 5
+                || kind == 2
                 || kind == 6
                 || kind == 7
                 || kind == 8
@@ -134,7 +140,16 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 && kind != 20 {
+            if kind != 4
+                && kind != 5
+                && kind != 6
+                && kind != 7
+                && kind != 8
+                && kind != 10
+                && kind != 14
+                && kind != 15
+                && kind != 20
+            {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }

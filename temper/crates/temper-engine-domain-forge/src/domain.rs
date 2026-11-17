@@ -5711,7 +5711,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             reviewed = true;
         }
         let effect_prior = row.change.clone();
-        let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        if d.landing.held
+            && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
+        {
+            stepped.change = row.change.clone();
+            stepped.decision = change::Decision::Wait { until: None };
+        }
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
@@ -9204,6 +9210,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         }
     }
     d.rebuild_settings();
+    d.restore_landing_settings();
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -9223,6 +9230,13 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
+        let mut landing = d.landing.rows.contains_key(&row.entry.task);
+        if let skein_forge::api::Write::Merge { .. } = row.entry.effect.write {
+            landing = true;
+        }
+        if d.landing.held && landing {
+            continue;
+        }
         if !row.held && row.handoff != Handoff::Handed {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }

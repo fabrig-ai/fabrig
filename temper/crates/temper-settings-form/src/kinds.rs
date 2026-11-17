@@ -7,6 +7,7 @@ use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 mod follow;
+mod landing;
 
 fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
     let fields = d.object(at, &[b"project"])?;
@@ -57,6 +58,8 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         b"project-questions",
         b"project-classes",
         b"project-words",
+        b"project-landing",
+        b"project-gates",
         b"project-areas",
         b"project-triager",
     ]
@@ -75,6 +78,8 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
                 b"project-questions" => 6,
                 b"project-classes" => 8,
                 b"project-words" => 10,
+                b"project-landing" => 4,
+                b"project-gates" => 5,
                 b"project-areas" => 14,
                 b"project-triager" => 15,
                 _ => unreachable!("project kind selected"),
@@ -127,6 +132,18 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 4 {
+        let r = landing::landing(d, at)?;
+        let mut out = Writer::new(skein_lib::usize_of(r.measure()));
+        r.encode(&mut out).expect("measured landing");
+        return Ok(out.finish());
+    }
+    if kind == 5 {
+        let r = landing::gates(d, at)?;
+        let mut out = Writer::new(skein_lib::usize_of(r.measure()));
+        r.encode(&mut out).expect("measured gates");
+        return Ok(out.finish());
+    }
     if kind == 20 {
         let fields = d.object(at, &[b"shown"])?;
         let record = w::Welcome::new(&d.kinds, w::WelcomeParts { shown: boolean(d, &fields, b"shown")? })
@@ -443,6 +460,20 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
+        4 => {
+            let Ok(v) = w::ProjectLanding::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            landing::render_landing(&v, out);
+        }
+        5 => {
+            let Ok(v) = w::ProjectGates::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            return landing::render_gates(&v, out);
+        }
         20 => {
             let Ok(value) = w::Welcome::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

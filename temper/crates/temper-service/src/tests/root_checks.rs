@@ -62,7 +62,6 @@ fn the_fixture_document_starts() {
 #[test]
 fn a_document_seeding_no_project_starts() {
     let document = fixtures::document();
-    let document = fixtures::with(&document, b"application.landing.projects", b"[]");
     assert_eq!(&*started(&document), b"");
 }
 #[test]
@@ -229,7 +228,6 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
     // Project 7 is typed seed entry 0. Its policy fits without landing criteria.
     let document =
         fixtures::with(&fixtures::document(), b"engine.limits.overrides", format!("{{{ENGINE_OVERRIDES}}}").as_bytes());
-    let document = fixtures::with(&document, b"application.landing.projects[0].project", b"7");
     let mut engine = fixtures::guard_engine();
     let project = &mut engine.jig.projects[0];
     project.policy.ceiling.grants = Box::default();
@@ -257,7 +255,7 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
     .unwrap();
     let at = jig_protocol_config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"application").unwrap();
     let mut found = Problems::empty();
-    let application = crate::startup::application::parse(
+    let _application = crate::startup::application::parse(
         &parsed,
         at,
         &engine.jig,
@@ -265,12 +263,11 @@ fn landing_rules_do_not_enlarge_the_seed_policy() {
         &mut found,
     )
     .unwrap();
-    engine.landings = application.landings;
     let seeds = fixtures::seeds();
     let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
     let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     limits.policy_bytes = 512;
-    checks::root(core, &engine, &seeds, &application.landing_projects, &limits, &mut found);
+    checks::root(core, &engine, &seeds, &[], &limits, &mut found);
     assert!(found.is_empty(), "{}", String::from_utf8_lossy(&lines(&found)));
 }
 

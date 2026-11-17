@@ -9,6 +9,7 @@ use temper_engine_domain_forge::settings;
 use crate::{Decision, Domain, Limits, Work};
 mod dependencies;
 mod follows;
+mod landing;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {
@@ -110,6 +111,7 @@ fn restore(
                 Some(_) => Some(settings::Refusal::Way.words()),
                 None => follows::refusal(domain, &asked)
                     .or(dependencies::refusal(domain, &asked))
+                    .or(landing::refusal(domain, &asked))
                     .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)),
             };
             if let Some(why) = why {
@@ -175,6 +177,7 @@ fn judge(
                 .or(approval_refusal(domain, &asked))
                 .or(follows::refusal(domain, &asked))
                 .or(dependencies::refusal(domain, &asked))
+                .or(landing::refusal(domain, &asked))
                 .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked))
             {
                 Some(why) => connector::Judged::Refuse { why },
@@ -200,6 +203,8 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::CharterWords(_)
         | settings::Value::Classes(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::Landing(_)
+        | settings::Value::Gates(_)
         | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_) => return None,
@@ -262,6 +267,8 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectAreas(_)
+        | settings::Value::Landing(_)
+        | settings::Value::Gates(_)
         | settings::Value::Welcome(_)
         | settings::Value::ProjectTriager(_)
         | settings::Value::ProjectWords(_)
@@ -381,6 +388,11 @@ fn fake_approval_words(project: u32) -> Box<[u8]> {
 
 fn bounds(limits: &Limits) -> settings::Bounds {
     settings::Bounds {
+        landing_members: limits.forge.landing_members,
+        repositories: limits.forge.repositories,
+        landing_gates: limits.forge.gates,
+        tiers: limits.forge.tiers.tiers,
+        ignored_paths: limits.forge.ignored_paths,
         landing_rules: limits.forge.landing_rules,
         gates: limits.forge.change_policy.gates,
         roles: limits.forge.roles,
@@ -707,7 +719,9 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
                 Some(settings::Refusal::Owner { name: b"triager".as_slice().into(), owner: value.owner })
             }
         }
-        settings::Value::Rule(_)
+        settings::Value::Landing(_)
+        | settings::Value::Gates(_)
+        | settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Ways(_)

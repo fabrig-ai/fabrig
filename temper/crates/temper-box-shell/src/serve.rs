@@ -148,6 +148,10 @@ fn prepare_with_limits(
         engine::program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if let Some(line) = engine::landing_hold(path(&directories.data))? {
+        eprintln!("{line}");
+        service.engine_component().hold_landings(true);
+    }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent {

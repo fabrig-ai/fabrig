@@ -370,7 +370,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             // The forge is the deployment's one connector.
             connectors: Box::new([0]),
         },
-        landings: skein_lib::Map::with_capacity(1),
+        landing_held: false,
         forge: temper_engine_domain_forge::Config {
             push: None,
             namespace: Box::from(&b"root"[..]),

@@ -599,7 +599,7 @@ pub static PAGES: [Page; 74] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.",
+        summary: "Settings value types, bounds and effects, for settings files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

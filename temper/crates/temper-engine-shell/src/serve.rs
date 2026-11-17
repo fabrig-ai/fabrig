@@ -172,6 +172,10 @@ fn prepare_given(
         program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if let Some(line) = landing_hold(path(&directories.data))? {
+        eprintln!("{line}");
+        service.engine_component().hold_landings(true);
+    }
     service.engine_component().build_name(build_name);
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
@@ -369,3 +373,33 @@ mod program_environment;
 
 #[cfg(test)]
 mod tests;
+
+/// Check presence alone, never content; the result belongs to the whole run
+/// (temper/docs/design/domain/landing-settings.md, 1.3).
+pub fn landing_hold(data: &std::path::Path) -> Result<Option<String>, String> {
+    let path = data.join("landing-held");
+    match std::fs::symlink_metadata(&path) {
+        Ok(_) => Ok(Some(format!("landing held: {}; remove it and restart to land", path.display()))),
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(why) => Err(format!("{}: {why}", path.display())),
+    }
+}
+
+#[cfg(test)]
+mod landing_hold_tests {
+    #[test]
+    fn landing_held_is_presence_only_and_names_its_path() {
+        let scratch = skein_scratch::Scratch::new("landing-held");
+        assert_eq!(super::landing_hold(scratch.path()).expect("absent hold"), None);
+        let path = scratch.path().join("landing-held");
+        for content in [b"".as_slice(), b"any content\n"] {
+            std::fs::write(&path, content).expect("hold file");
+            assert_eq!(
+                super::landing_hold(scratch.path()).expect("present hold"),
+                Some(format!("landing held: {}; remove it and restart to land", path.display()))
+            );
+        }
+        std::fs::remove_file(&path).expect("release for the next start");
+        assert_eq!(super::landing_hold(scratch.path()).expect("removed hold"), None);
+    }
+}

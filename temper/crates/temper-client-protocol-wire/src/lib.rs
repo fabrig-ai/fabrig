@@ -15,6 +15,8 @@ pub mod v1;
 pub const fn settings_kind(kind: u32) -> bool {
     kind == 1
         || kind == 2
+        || kind == 4
+        || kind == 5
         || kind == 3
         || kind == 6
         || kind == 7
@@ -85,7 +87,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 29;
+pub const CLIENT_VERSION: u32 = 30;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;

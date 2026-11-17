@@ -29,10 +29,7 @@ const APPLICATION: &[u8] = br#"{
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
-"limits":{"profile":"small","overrides":{}},
-"landing":{"projects":[{"project":1,"by":"turn","batch":1,"combine":{"main":"merge","other":"squash"},"check_timeout_ms":900000,"landing_attempts":1,"merge_job":".temper/merge","close_job":".temper/close","gate_retries":2,"gate_timeout_ms":3600000,"tier_retries":2,"verification_bound_ms":7200000,
- "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true,"report":{"artifact":"results","format":"junit","fuzzy":"fuzzy::"}}],
- "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000,"description":"the slow suites"}]}]}]}
+"limits":{"profile":"small","overrides":{}}
 }"#;
 
 fn expanded() -> Box<[u8]> {
@@ -128,16 +125,10 @@ fn every_row_is_a_member_its_decoder_takes() {
     // Gone members are consumed and refused by their owning decoder, with the table's remedy.
     for (parent, what, shape, name) in [
         ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
+        ("application", What::Jig(config::What::Fixed), "application", "landing"),
         ("application", What::Jig(config::What::Fixed), "application", "workers"),
         ("application", What::Jig(config::What::Fixed), "application", "machine"),
         ("application", What::Jig(config::What::Fixed), "application", "welcome"),
-        ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
-        (
-            "application.landing.projects[]",
-            What::Half(startup::EngineWhat::ProjectLandingStored),
-            "landing-project",
-            "rules",
-        ),
     ] {
         let changed = gone(&document, parent, name);
         let problems =

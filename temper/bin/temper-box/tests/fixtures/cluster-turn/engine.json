@@ -160,30 +160,6 @@
         "forge.client.poll_ms": 50,
         "forge.landing_members": 1
       }}
-    }},
-    "landing": {{
-      "projects": [
-        {{
-          "project": 1,
-          "by": "turn",
-          "batch": 1,
-          "gates": [
-            {{
-              "forge": 1,
-              "repository": 1,
-              "gates": [
-                {{
-                  "name": "gate",
-                  "workflow": "gate.yml",
-                  "ignored": [],
-                  "blocking": true,
-                  "base": true
-                }}
-              ]
-            }}
-          ]
-        }}
-      ]
     }}
   }}
 }}
