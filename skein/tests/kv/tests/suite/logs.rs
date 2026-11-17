@@ -51,7 +51,7 @@ pub(super) fn read(
     direction: Direction,
     max: u32,
 ) -> (Box<[LogRecord]>, Option<u64>) {
-    world.request(Request::ReadLog { owner: OWNER, log, at, direction, max });
+    world.request(Request::ReadLog { owner: OWNER, log, at, direction, max, rows: u32::MAX });
     let Event::LogRead { records, next, .. } = world.pop() else { panic!("readable log") };
     (records, next)
 }
@@ -130,12 +130,45 @@ fn two_logs_sync_before_the_commit_and_reads_keep_offsets_and_bounds() {
     assert_eq!(records(&mut world, 7), vec![b"a".to_vec(), b"bb".to_vec()]);
     world.overwrite(PATH, 27, b"X");
     for (at, direction) in [(18, Direction::Forward), (37, Direction::Backward)] {
-        world.request(Request::ReadLog { owner: OWNER, log: 7, at, direction, max: 10 });
+        world.request(Request::ReadLog { owner: OWNER, log: 7, at, direction, max: 10, rows: u32::MAX });
         assert_eq!(world.pop(), Event::LogUnread { owner: OWNER, at: 18 });
     }
     world.request(Request::Close { owner: OWNER });
     assert_eq!(world.pop(), Event::Closed { owner: OWNER });
     assert_eq!(world.io.open_files(), 0);
+}
+
+#[test]
+fn one_record_reads_stop_before_checking_the_next_frame_in_either_direction() {
+    for direction in [Direction::Forward, Direction::Backward] {
+        let mut world = world();
+        let a = append(&world, 7, b"a");
+        let b = append(&world, 7, b"b");
+        commit(&mut world, vec![a, b], 1);
+        let (at, corrupt, expected) = match direction {
+            Direction::Forward => (0, 27, b"a"),
+            Direction::Backward => (36, 9, b"b"),
+        };
+        // The adjacent frame fails CRC if the reader crosses its row bound.
+        world.overwrite(PATH, corrupt, b"X");
+        world.file_requests.clear();
+        world.request(Request::ReadLog { owner: OWNER, log: 7, at, direction, max: 1024, rows: 1 });
+        let Event::LogRead { records, next: Some(18), .. } = world.pop() else { panic!("one valid record") };
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].record.as_deref(), Some(expected.as_slice()));
+        let reads = world.file_requests.iter().filter(|request| request.starts_with("ReadAt")).count();
+        assert_eq!(reads, 2, "only the selected frame's length and body are read");
+    }
+}
+
+#[test]
+fn a_zero_record_log_demand_is_refused() {
+    let mut world = world();
+    world.request(Request::ReadLog { owner: OWNER, log: 7, at: 0, direction: Direction::Forward, max: 1024, rows: 0 });
+    assert_eq!(
+        world.pop(),
+        Event::Refused { owner: OWNER, refusal: skein_kv::Refusal::TooLarge(skein_kv::Large::Page) }
+    );
 }
 
 #[test]
@@ -319,7 +352,14 @@ fn a_log_read_queued_during_snapshot_io_finishes_without_another_request() {
             world.drive(false);
         }
         assert!(world.below.iter().next().is_some_and(waiting), "snapshot reaches the file boundary");
-        world.start(Request::ReadLog { owner: OWNER, log: 7, at: 0, direction: Direction::Forward, max: 1024 });
+        world.start(Request::ReadLog {
+            owner: OWNER,
+            log: 7,
+            at: 0,
+            direction: Direction::Forward,
+            max: 1024,
+            rows: u32::MAX,
+        });
         world.drive(true);
         let Some(Event::LogRead { records, next: None, .. }) = world.above.pop() else {
             panic!("snapshot completion must start its queued payload read");

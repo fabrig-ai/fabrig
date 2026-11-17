@@ -51,6 +51,12 @@ test = "startup::welcome_policy::the_template_machine_gives_the_domain_its_place
 cpu_s = 0.2
 why = "Real init documents supply the stock and test machine places, which a domain Connect must keep in its forge record. Absent and null share one stock world; the overridden machine needs a second world."
 
+[[gate.default.reasons]]
+binary = "temper-engine-domain-world::suite"
+test = "forge_routes::landing::two_goals::two_goals_land_in_one_green_turn"
+cpu_s = 0.27
+why = "Two goals' changes, each approved by its review behind a person's latch, form one turn landing of two on one green gate run, with one fast-forward, member pulls merged at their candidates, and the landing's panel checked. Two goals forming one turn cannot be shown with fewer."
+
 [gate.default.skein]
 ideal_s = 40
 
