@@ -2,7 +2,10 @@ use super::fixtures::{document, path};
 use crate::{Limits, Problems, Profile, What, overrides, profile};
 
 fn small() -> Limits {
-    profile(Profile::Small)
+    let mut limits = profile(Profile::Small);
+    // The reader derives the unoverridden exchange carrier, leaving Small's figures alone.
+    limits.clients.exchanges = 6;
+    limits
 }
 fn parse(bytes: &[u8]) -> Result<Limits, Problems> {
     let parsed = overrides::parse(&document(bytes), 0, &path(&[b"limits"]));
@@ -234,6 +237,51 @@ fn stream_overrides_keep_four_exchanges_beside_every_stream() {
     ] {
         problem(bytes, &[b"limits", b"overrides", name], What::Override);
     }
+}
+
+#[test]
+fn stream_carriers_follow_unoverridden_bounds() {
+    for streams in [100, 200] {
+        for name in ["clients.streams", "clients_http.streams"] {
+            let bytes = super::fixtures::with(br#"{"overrides":{"NAME":STREAMS}}"#, b"NAME", name.as_bytes());
+            let bytes =
+                super::fixtures::with(&bytes, b"STREAMS", skein_lib::Decimal::of(u64::from(streams)).as_bytes());
+            let limits = parse(&bytes).unwrap();
+            assert_eq!(limits.clients_http.calls, streams + 4);
+            assert_eq!(limits.clients.exchanges, streams + 4);
+            let bytes = super::fixtures::with(
+                br#"{"overrides":{"clients_http.calls":CALLS,"NAME":STREAMS}}"#,
+                b"NAME",
+                name.as_bytes(),
+            );
+            let bytes =
+                super::fixtures::with(&bytes, b"STREAMS", skein_lib::Decimal::of(u64::from(streams)).as_bytes());
+            let bytes =
+                super::fixtures::with(&bytes, b"CALLS", skein_lib::Decimal::of(u64::from(streams + 3)).as_bytes());
+            problem(&bytes, &[b"limits", b"overrides", b"clients_http.calls"], What::Override);
+        }
+        let bytes = super::fixtures::with(
+            br#"{"overrides":{"clients_http.calls":CALLS,"clients.streams":STREAMS}}"#,
+            b"STREAMS",
+            skein_lib::Decimal::of(u64::from(streams)).as_bytes(),
+        );
+        let bytes = super::fixtures::with(&bytes, b"CALLS", skein_lib::Decimal::of(u64::from(streams + 5)).as_bytes());
+        let limits = parse(&bytes).unwrap();
+        assert_eq!(limits.clients.exchanges, streams + 5);
+        assert_eq!(limits.clients_http.calls, streams + 5);
+        let bytes = super::fixtures::with(
+            br#"{"overrides":{"clients.exchanges":CALLS,"clients.streams":STREAMS}}"#,
+            b"STREAMS",
+            skein_lib::Decimal::of(u64::from(streams)).as_bytes(),
+        );
+        let bytes = super::fixtures::with(&bytes, b"CALLS", skein_lib::Decimal::of(u64::from(streams + 3)).as_bytes());
+        problem(&bytes, &[b"limits", b"overrides", b"clients.exchanges"], What::Override);
+    }
+    let mut base = crate::stock();
+    base.clients.streams = 100;
+    let parsed = overrides::parse_over(&document(b"{}"), 0, &path(&[b"limits"]), &base);
+    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
+    assert_eq!((parsed.limits.clients_http.calls, parsed.limits.clients.exchanges), (104, 104));
 }
 
 #[test]

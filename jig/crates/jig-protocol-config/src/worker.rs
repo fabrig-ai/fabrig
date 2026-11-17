@@ -60,8 +60,10 @@ pub fn worker_over(document: &Document, at: u32, directories: &Directories, base
         return Err(problems);
     };
     let mut limits = *base;
+    let mut hub_slots_overridden = false;
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
+        let (parsed, overridden) = overrides::read_over(document, at, &path.member(b"limits"), base);
+        hub_slots_overridden = overridden.hub_slots;
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
             problems.push(problem.path.clone(), problem.what);
@@ -80,10 +82,12 @@ pub fn worker_over(document: &Document, at: u32, directories: &Directories, base
     }
     let secret = check::path(&mut object, document, b"secret", &path, Directory::Data, directories, &mut problems);
     let slots = check::count(&mut object, document, b"slots", &path, &mut problems);
-    if let Some(slots) = slots
-        && slots > limits.hub.slots
-    {
-        problems.push(path.member(b"slots"), What::SlotsPastHub);
+    if let Some(slots) = slots {
+        if !hub_slots_overridden {
+            limits.hub.slots = slots;
+        } else if slots > limits.hub.slots {
+            problems.push(path.member(b"slots"), What::SlotsPastHub);
+        }
     }
     let mut graces = None;
     if let Some(at) = object.required(document, b"graces", &path, &mut problems) {

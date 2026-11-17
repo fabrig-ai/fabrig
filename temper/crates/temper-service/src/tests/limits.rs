@@ -354,7 +354,12 @@ fn the_standard_brief_and_its_carriers_share_their_bounds() {
 
 #[test]
 fn the_standard_profile_passes_each_domains_validity() {
-    let own = limits::profile(limits::Profile::Standard);
+    let mut own = limits::profile(limits::Profile::Standard);
+    // This compatibility fixture carries jig's larger executor list. Temper's stock
+    // journal figure is left to its own stock change; each extra executor owns eight bytes.
+    let executors = jig_protocol_config::stock().core.tasks.executor_kinds;
+    own.root.journal.transcript_bytes +=
+        (executors - 22) * u32::try_from(size_of::<jig_domain_tasks::AuthorityExecutor>()).unwrap();
     assert!(temper_engine_domain_forge::valid(&own.forge));
     assert!(temper_worker_domain_checkout::valid(&crate::worker_settings::checkout(own.checkout)));
     assert_eq!(

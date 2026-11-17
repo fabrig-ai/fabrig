@@ -1746,7 +1746,8 @@ fn landing_configuration_reads_goal_tiers_and_optional_spans() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 129, &["tasks.tasks", "129", "people.inbox_tasks", "258"][..]),
+        (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
+        (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
         (
             b"tasks.batch",

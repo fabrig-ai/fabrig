@@ -1,5 +1,5 @@
 //! Limits for fabrig-scale development (jig/docs/design/protocol/limits.md).
-//! The profile holds project work with five times the largest figures seen.
+//! Counts cover twice fabrig's own development (2026-11-16), retaining higher stock figures.
 use super::small;
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
@@ -13,21 +13,32 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 pub(super) const TASKS: tasks::Limits = tasks::Limits {
-    placed_holds: 16,
-    project_placed_holds: 8,
-    party_placed_holds: 4,
-    exemptions: 128,
+    // Twice fabrig's own development's 256 placed holds (2026-11-16).
+    placed_holds: 512,
+    // Twice fabrig's own development's 128 project holds (2026-11-16).
+    project_placed_holds: 256,
+    // Twice fabrig's own development's 64 party holds (2026-11-16).
+    party_placed_holds: 128,
+    // One exemption per live task at the stock's task count.
+    exemptions: 768,
 
-    tasks: 128,
-    funders: 128,
-    project_tasks: 128,
+    // Twice fabrig's own development's 384 live tasks (2026-11-16).
+    tasks: 768,
+    // One funder per live task at the stock's task count.
+    funders: 768,
+    // Twice fabrig's own development's 384 project tasks (2026-11-16).
+    project_tasks: 768,
     project_goals: 80,
-    tree_tasks: 384,
+    // Twice fabrig's own development's 1,024 tree tasks (2026-11-16).
+    tree_tasks: 2_048,
     delegates: 80,
     resource_reports: 256,
-    pools: 128,
-    hold_waiters: 128,
-    charters: 16,
+    // One pool per live task at the stock's task count.
+    pools: 768,
+    // One hold waiter per live task at the stock's task count.
+    hold_waiters: 768,
+    // Twice fabrig's own development's 24 charters (2026-11-16).
+    charters: 48,
     charter_documents: 2,
     charter_parts: 8,
     facts: 128,
@@ -42,8 +53,8 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 8,
     authority_grants: 16,
     authority_bytes: 4_096,
-    // Twenty-two executor places hold the development delegation.
-    executor_kinds: 22,
+    // Twice fabrig's own development's 32 executor kinds (2026-11-16).
+    executor_kinds: 64,
     depth: 32,
     inbox_messages: 82,
     run_inbox: 82,
@@ -62,7 +73,8 @@ pub(super) const PEOPLE: people::Limits = people::Limits {
     operations: 81,
     batch: 4,
     people: 16,
-    inbox_tasks: 256,
+    // Twice fabrig's own development's 768 inbox tasks (2026-11-16); two per live task.
+    inbox_tasks: 1_536,
     inbox_recipients: 176,
     words: 8_192,
     spec_bytes: TASKS.spec_bytes,
@@ -88,7 +100,9 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     source_detail_bytes: 4096,
     needs_bytes: 262_144,
     grants: 32,
-    slots: 4,
+    // The most the engine's u32 link cap holds at the stock's and temper's figures,
+    // below twice fabrig's own development's 36 slots per worker (2026-11-16).
+    slots: 40,
     workstreams: 64,
     attempts: 64,
     calls: 256,
@@ -103,8 +117,8 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     roles: 8,
     requirements: 8,
     grants: 16,
-    // Twenty-two executor places hold the development delegation.
-    executors: 22,
+    // Twice fabrig's own development's 32 executors (2026-11-16).
+    executors: 64,
     segments: 8,
     batch: 32,
     writes: 8,
@@ -165,13 +179,17 @@ pub(super) const HUB: host::Limits = host::Limits {
     outcome_bytes: 131_072,
     event_bytes: 135_168,
     inbox: 82,
-    slots: 4,
+    // Twice fabrig's own development's 36 slots per worker (2026-11-16), rounded.
+    slots: 80,
     accounts: 32,
     facts: 256,
     told: 256,
     ..small::HUB
 };
 pub(super) const LINK: Link = Link { names: 64, opening: 16, facts: 4470, ..small::LINK };
+// Twice fabrig's own development's 32 streams (2026-11-16).
+const STREAMS: u32 = 64;
+
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,
     store: STORE,
@@ -189,8 +207,10 @@ pub(super) const LIMITS: Limits = Limits {
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
         public_calls: 0,
-        calls: 16,
-        streams: 8,
+        // The stock's stream bound plus four ordinary calls.
+        calls: CLIENTS.exchanges,
+        // Twice fabrig's own development's 32 HTTP streams (2026-11-16).
+        streams: CLIENTS.streams,
         body: CLIENTS.message_bytes,
         read: 16384,
         send: 16384,
@@ -203,10 +223,12 @@ pub(super) const LIMITS: Limits = Limits {
 
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
     public: jig_protocol_engine_clients::PublicLimits::OFF,
-    streams: 8,
+    // Twice fabrig's own development's 32 streams (2026-11-16).
+    streams: STREAMS,
     // A full web page holds this many watches (protocol/limits.md).
     watches_per_stream: 31,
-    exchanges: 32,
+    // The stock's streams plus four ordinary exchanges (protocol/limits.md).
+    exchanges: STREAMS.checked_add(4).expect("stock stream carriers fit u32"),
     mints: 16,
     provider_codes: 256,
     provider_tokens: 1024,

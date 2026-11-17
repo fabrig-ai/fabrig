@@ -719,13 +719,25 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
 /// Read the limits member over a base (protocol/limits.md, the stock).
 /// An absent or standard profile reads the base; problems retain the best-known limits.
 pub fn parse_over(document: &Document, at: u32, path: &Path, base: &Limits) -> Parsed {
+    read_over(document, at, path, base).0
+}
+
+/// The reader alone keeps the names needed for document-derived limits.
+pub(crate) struct Overridden {
+    calls: bool,
+    exchanges: bool,
+    pub(crate) hub_slots: bool,
+}
+
+pub(crate) fn read_over(document: &Document, at: u32, path: &Path, base: &Limits) -> (Parsed, Overridden) {
+    let mut overridden = Overridden { calls: false, exchanges: false, hub_slots: false };
     let mut limits = *base;
     let mut problems = Problems::empty();
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
         Err(what) => {
             problems.push(path.clone(), what);
-            return Parsed { limits, problems };
+            return (Parsed { limits, problems }, overridden);
         }
     };
     if let Some(at) = object.member(document, b"profile") {
@@ -741,9 +753,11 @@ pub fn parse_over(document: &Document, at: u32, path: &Path, base: &Limits) -> P
     let overrides_at = object.member(document, b"overrides");
     if let Some(at) = overrides_at {
         let path = path.member(b"overrides");
-        if let Err(what) = members(document, at, &path, &mut limits, &mut problems) {
+        if let Err(what) = members(document, at, &path, &mut limits, &mut problems, &mut overridden) {
             problems.push(path, what);
         }
+    } else {
+        overridden.derive_carriers(&mut limits);
     }
     limits.core.documents.segments = profile::name_segments(&limits.core.tasks, &limits.core.authority);
     limits.core.documents.grants = profile::authority_grants(&limits.core.tasks, &limits.core.authority);
@@ -766,7 +780,7 @@ pub fn parse_over(document: &Document, at: u32, path: &Path, base: &Limits) -> P
         let problem = codec_problem(document, overrides_at, path, problem);
         problems.push(problem.path, problem.what);
     }
-    Parsed { limits, problems }
+    (Parsed { limits, problems }, overridden)
 }
 
 // A canonical effective-limit path is translated back to its spelling in the
@@ -809,6 +823,7 @@ fn members(
     path: &Path,
     limits: &mut Limits,
     problems: &mut Problems,
+    overridden: &mut Overridden,
 ) -> Result<(), What> {
     let mut object = read::Object::new(document, at)?;
     let end = read::after(document, at)?.checked_sub(1).ok_or(What::Kind)?;
@@ -823,6 +838,9 @@ fn members(
             return Err(What::Kind);
         }
         let name = document.text(key).ok_or(What::Kind)?;
+        overridden.calls |= name == b"clients_http.calls";
+        overridden.exchanges |= name == b"clients.exchanges";
+        overridden.hub_slots |= name == b"hub.slots";
         stream_overrides |= name == b"clients.streams"
             || name == b"clients.exchanges"
             || name == b"clients_http.streams"
@@ -841,6 +859,7 @@ fn members(
         next = read::after(document, value_at)?;
     }
     object.finish(document, path, problems);
+    overridden.derive_carriers(limits);
     validate_members(document, at, end, path, limits, problems, stream_overrides)
 }
 
@@ -876,6 +895,21 @@ fn validate_members(
         check_carriers(limits, path, problems);
     }
     Ok(())
+}
+
+impl Overridden {
+    // Unoverridden carriers take the least room the stream relation requires.
+    fn derive_carriers(&self, limits: &mut Limits) {
+        let Some(minimum) = limits.clients.streams.max(limits.clients_http.streams).checked_add(4) else {
+            return; // check_carriers refuses the unrepresentable stream bound.
+        };
+        if !self.calls {
+            limits.clients_http.calls = minimum;
+        }
+        if !self.exchanges {
+            limits.clients.exchanges = minimum.max(limits.clients_http.calls);
+        }
+    }
 }
 
 // Stream overrides keep four ordinary exchanges beside the largest stream bound

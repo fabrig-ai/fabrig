@@ -17,7 +17,7 @@ fn supplied_profiles_have_valid_domain_limits() {
         assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
         assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
         assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "{selected:?} codecs");
-        jig_protocol_store::sizes::check_commits(
+        let sizes = jig_protocol_store::sizes::check_commits(
             &limits.core,
             &jig_protocol_store::sizes::Application { version: 1, key: 0, value: 0 },
             &limits.store.commits,
@@ -25,6 +25,9 @@ fn supplied_profiles_have_valid_domain_limits() {
             limits.store.orphan_erases,
         )
         .expect("profile store bounds");
+        if selected == Profile::Standard {
+            assert_eq!(sizes.value, limits.store.store.value, "stock's least value envelope");
+        }
         let writes = jig_domain_core_vocabulary::settings::writes_bound(&limits.core).expect("profile settings writes");
         assert!(writes <= limits.journal.writes, "{selected:?} journal");
         let mut problems = crate::Problems::empty();
@@ -119,15 +122,53 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     }
 }
 
-// jig/docs/design/protocol/limits.md: development figures and their coupled limits.
+// jig/docs/design/protocol/limits.md: sized from fabrig's own development (2026-11-16).
+#[test]
+fn stock_figures_cover_development_and_read_cleanly() {
+    let limits = crate::stock();
+    for (name, expected) in [
+        ("clients.streams", 64),
+        ("clients_http.streams", 64),
+        ("clients.exchanges", 68),
+        ("clients_http.calls", 68),
+        // These stock counts already exceed twice the development counts.
+        ("fleet.configured_workers", 64),
+        ("fleet.workers", 8),
+        ("fleet.slots", 40),
+        ("hub.slots", 80),
+        ("tasks.tree_tasks", 2_048),
+        ("tasks.party_placed_holds", 128),
+        ("tasks.project_placed_holds", 256),
+        ("tasks.placed_holds", 512),
+        ("authority.executors", 64),
+        ("tasks.executor_kinds", 64),
+        ("tasks.charters", 48),
+        ("tasks.tasks", 768),
+        ("tasks.project_tasks", 768),
+        ("people.inbox_tasks", 1_536),
+        // The stream-queue derivation and the policy bound already cover development.
+        ("clients.queued_bytes", 520_094_521),
+        ("core.policy_bytes", 16_384),
+        ("people.sign_in_lifetime_ms", 86_400_000),
+    ] {
+        let row = crate::names::find(name.as_bytes()).expect("named limit");
+        assert_eq!((row.value)(&limits), expected, "{name}");
+    }
+    let document = super::fixtures::document(br#"{"overrides":{}}"#);
+    let parsed = crate::overrides::parse_over(&document, 0, &crate::Path::root(), &limits);
+    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
+    assert_eq!(parsed.limits, limits);
+    let bytes = super::fixtures::with(super::fixtures::ENGINE_SMALL, br#""profile": "small""#, br#""overrides":{}"#);
+    let engine = super::fixtures::engine(&bytes).expect("stock engine passes every startup check");
+    assert_eq!(engine.limits, limits);
+}
+
+// Development figures and their coupled limits.
 #[test]
 fn standard_holds_fabrig_scale() {
     let limits = profile(Profile::Standard);
     let tasks = limits.core.tasks;
-    assert_eq!(tasks.tasks, 128);
-    assert_eq!(tasks.project_tasks, 128);
     assert_eq!(tasks.project_goals, 80);
-    assert_eq!(tasks.tree_tasks, 384);
     assert_eq!(tasks.depth, 32);
     assert_eq!(tasks.delegates, 80);
     assert_eq!(tasks.batch, 160);
@@ -136,26 +177,21 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(tasks.spec_bytes, 131_072);
     assert_eq!(tasks.result_bytes, 262_144);
     assert_eq!(tasks.message_bytes, 262_144);
-    assert_eq!(tasks.charters, 16);
-    // The development delegation has twenty-two executor places.
-    assert_eq!(tasks.executor_kinds, 22);
     assert_eq!(tasks.authority_grants, 16);
     assert_eq!(tasks.authority_segments, 8);
     assert_eq!(tasks.hold_segments, 8);
     assert_eq!(tasks.contract_choices, 4);
     assert_eq!(tasks.inbox_bytes, 21_495_808);
     assert_eq!(tasks.batch_bytes, 4_194_304);
-    assert_eq!(tasks.funders, 128);
-    assert_eq!(tasks.pools, 128);
-    assert_eq!(tasks.hold_waiters, 128);
-    assert_eq!(tasks.exemptions, 128);
+    assert_eq!(tasks.funders, tasks.tasks);
+    assert_eq!(tasks.pools, tasks.tasks);
+    assert_eq!(tasks.hold_waiters, tasks.tasks);
+    assert_eq!(tasks.exemptions, tasks.tasks);
     assert_eq!(limits.core.people.operations, 81);
-    assert_eq!(limits.core.people.inbox_tasks, 256);
+    assert_eq!(limits.core.people.inbox_tasks, tasks.tasks * 2);
     assert_eq!(limits.core.people.inbox_recipients, 176);
     assert_eq!(limits.core.people.words, 8_192);
     assert_eq!(limits.core.authority.grants, 16);
-    // The development delegation has twenty-two executor places.
-    assert_eq!(limits.core.authority.executors, 22);
     assert_eq!(limits.core.authority.segments, 8);
     assert_eq!(limits.core.authority.batch, 32);
     assert_eq!(limits.hub.charter_bytes, 262_144);

@@ -50,6 +50,18 @@ fn names(found: &[u8], figure: &[u8], source: &[u8]) {
     }
 }
 #[test]
+fn stock_engine_link_cap_holds_the_fleet_ceiling() {
+    let (_, _, jig, own) = case(1);
+    let mut settings = fixtures::engine();
+    settings.jig.limits = jig;
+    settings.limits = own;
+    let mut sizes = crate::workers::limits(&settings).expect("stock engine link").sizes;
+    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes).unwrap().bytes, 4_134_901_580);
+    sizes.slots = 48; // The next round figure above 40.
+    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes), None);
+}
+
+#[test]
 fn turn_carrier() {
     for scale in [1, 2] {
         let (s, agent, mut jig, own) = case(scale);

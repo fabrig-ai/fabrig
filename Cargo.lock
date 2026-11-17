@@ -1983,6 +1983,8 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
  "jig-protocol-store",
+ "jig-protocol-worker-wire",
+ "jig-test-service",
  "skein-http",
  "skein-io",
  "skein-json",

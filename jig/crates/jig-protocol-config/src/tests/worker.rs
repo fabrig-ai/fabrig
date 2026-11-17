@@ -166,8 +166,40 @@ fn an_agent_without_a_program_is_refused() {
 fn a_worker_name_past_the_profiles_bound_is_refused() {
     refuses(b"worker-a", b"012345678901234567890123456789012", fixtures::path(&[b"name"]), What::Bound);
 }
+#[test]
+fn a_workers_hub_slots_follow_its_places_unless_overridden() {
+    for slots in [12, 24] {
+        let places =
+            fixtures::with(br#""slots": SLOTS"#, b"SLOTS", skein_lib::Decimal::of(u64::from(slots)).as_bytes());
+        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, &places);
+        let bytes = fixtures::with(&bytes, br#""profile": "small""#, br#""overrides": {}"#);
+        let parsed = worker(&bytes).unwrap();
+        assert_eq!(parsed.slots, slots);
+        assert_eq!(parsed.limits.hub.slots, slots);
+        let explicit = fixtures::with(
+            br#""overrides": {"hub.slots": SLOTS}"#,
+            b"SLOTS",
+            skein_lib::Decimal::of(u64::from(slots)).as_bytes(),
+        );
+        let at = fixtures::with(&bytes, br#""overrides": {}"#, &explicit);
+        assert_eq!(worker(&at).unwrap().limits.hub.slots, slots);
+        let below = fixtures::with(&bytes, br#""overrides": {}"#, br#""overrides": {"hub.slots": 8}"#);
+        let errors = worker(&below).unwrap_err();
+        assert_eq!(
+            errors.problems.as_slice(),
+            &[Problem { path: fixtures::path(&[b"slots"]), what: What::SlotsPastHub }]
+        );
+    }
+}
 fn more_slots_than_the_hub_can_host_are_refused() {
-    refuses(br#""slots": 2"#, br#""slots": 3"#, fixtures::path(&[b"slots"]), What::SlotsPastHub);
+    let bytes = fixtures::with(
+        fixtures::WORKER_SMALL,
+        br#""profile": "small""#,
+        br#""profile": "small", "overrides": {"hub.slots": 2}"#,
+    );
+    let bytes = fixtures::with(&bytes, br#""slots": 2"#, br#""slots": 3"#);
+    let errors = worker(&bytes).unwrap_err();
+    assert_eq!(errors.problems.get(0), Some(&Problem { path: fixtures::path(&[b"slots"]), what: What::SlotsPastHub }));
 }
 fn a_worker_with_no_profile_adds_no_bound_of_small() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, br#""slots": 3"#);
