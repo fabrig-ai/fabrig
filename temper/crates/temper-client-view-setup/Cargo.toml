@@ -18,6 +18,8 @@ temper-client-view-words.workspace = true
 temper-protocol-reaches = { path = "../temper-protocol-reaches" }
 
 [dev-dependencies]
+jig-client-protocol-link.workspace = true
+jig-client-protocol-wire.workspace = true
 skein-ui-text.workspace = true
 temper-client-view-kit.workspace = true
 

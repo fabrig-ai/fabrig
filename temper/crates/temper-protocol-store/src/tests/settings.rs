@@ -473,3 +473,62 @@ fn retired_setting_tags_refuse_with_the_setting_identity() {
         }
     }
 }
+
+#[test]
+fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
+    use temper_client_protocol_wire::v1;
+    let mut profile = skein_lib::List::with_capacity(1);
+    profile
+        .push(
+            v1::AgentFigure::new(
+                &v1::CEILINGS,
+                v1::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let limits = v1::AgentLimits::new(
+        &v1::CEILINGS,
+        v1::AgentLimitsParts {
+            window: u32::MAX,
+            output: 1,
+            reasoning_item: 1,
+            head_ms: u64::MAX,
+            idle_ms: 1,
+            oversized: v1::Oversized::Drop,
+        },
+    )
+    .unwrap();
+    let mut endpoints = skein_lib::List::with_capacity(1);
+    endpoints
+        .push(
+            v1::AgentEndpointLimits::new(
+                &v1::CEILINGS,
+                v1::AgentEndpointLimitsParts { endpoint: b"openai".as_slice().into(), limits: limits.clone() },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let value =
+        v1::AgentFigures::new(&v1::CEILINGS, v1::AgentFiguresParts { profile, endpoints, fallback: limits }).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for slot in
+        [d::SettingSlot::Default, d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)]
+    {
+        let key = d::SettingKey { kind: 20, scope: 0, number: 1, slot };
+        let row = forge::Stored::Setting(d::SettingRow {
+            key,
+            edit: d::Edit::Set(d::SizedValue { size: value.measure(), value: d::Value::AgentFigures(value.clone()) }),
+        });
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+        let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+}

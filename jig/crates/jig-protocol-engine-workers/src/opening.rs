@@ -1,8 +1,8 @@
-//! Ordered authentication, wires and capacity checks (protocol/channel/wires.md, 3).
+//! Ordered authentication, wires and link-only room and capacity checks (protocol/channel/README.md, 4.1).
 use crate::{Component, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Agreed, Credential, Reason};
-use skein_io::digest::{Digest, digest};
+use skein_lib::sha256;
 use skein_lib::{List, Reader, Token};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum Verdict {
@@ -12,34 +12,45 @@ pub(crate) enum Verdict {
     Replace { worker: u32, older: Token, wires: List<Agreed>, statement: Statement },
 }
 impl Component {
-    pub(crate) fn judge(&self, credential: &[u8]) -> Verdict {
+    pub(crate) fn judge(&self, credential: &[u8], in_process: bool) -> Verdict {
         let Ok(credential) = Credential::decode(&self.codec, &mut Reader::new(credential)) else {
             return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
         };
-        let supplied = digest(credential.secret().expose());
+        let supplied = sha256::digest(credential.secret().expose());
         let mut found = None;
-        for (index, worker) in self.workers.iter().enumerate() {
-            if worker.name.as_ref() == credential.name() && same(&worker.digest, &supplied) {
-                found = Some(u32::try_from(index).expect("bounded workers"));
+        for worker in &self.workers {
+            let authorized = match &worker.digest {
+                Some(digest) => same(digest, &supplied),
+                None => in_process,
+            };
+            if !worker.withdrawn && worker.name.as_ref() == credential.name() && authorized {
+                found = worker.number.checked_sub(1);
             }
         }
         let Some(worker) = found else {
-            return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
+            return Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) };
         };
         let statement = Statement::credential(&credential);
         let wires = match crate::wires::agree(&self.wires, &statement.wires) {
             Ok(wires) => wires,
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },
         };
+        if *credential.opening() == jig_protocol_worker_wire::Opening::Figures {
+            return if self.figures.is_some() {
+                Verdict::Accept { worker, wires, statement }
+            } else {
+                Verdict::Refuse { worker: Some(worker), reason: Reason::Starting, text: Box::new([]) }
+            };
+        }
         if let Err(text) = crate::statement::output(self.limits.room, statement.output) {
             return Verdict::OutputRoom { worker, output: statement.output, text };
         }
         let mut open = 0_u32;
         for (token, connection) in &self.connections {
-            if connection.worker == Some(worker) {
+            if connection.worker == Some(worker) && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 return Verdict::Replace { worker, older: *token, wires, statement };
             }
-            if connection.worker.is_some() {
+            if connection.worker.is_some() && connection.opening == jig_protocol_worker_wire::Opening::Link {
                 open = open.saturating_add(1);
             }
         }
@@ -72,11 +83,9 @@ pub(crate) fn output_room_words(engine: u32, worker: u32) -> Box<[u8]> {
     }
     words.finish()
 }
-pub(crate) fn same(left: &Digest, right: &Digest) -> bool {
-    let mut different = 0_u64;
-    for index in 0..4 {
-        let left = left.0.get(index).expect("four digest words");
-        let right = right.0.get(index).expect("four digest words");
+pub(crate) fn same(left: &[u8; 32], right: &[u8; 32]) -> bool {
+    let mut different = 0_u8;
+    for (left, right) in left.iter().zip(right) {
         different |= left ^ right;
     }
     different == 0

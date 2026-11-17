@@ -205,6 +205,7 @@ fn a_live_person_task_is_absent_from_chats_inbox_results_and_me_projects() {
     );
     let subject = Subject::Query {
         query: TaskQuery {
+            parts: List::with_capacity(0),
             project: None,
             requester: Some(tasks::Party::Person(PERSON)),
             root: None,

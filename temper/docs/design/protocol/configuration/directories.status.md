@@ -2,6 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [directories.md](directories.md).
 
+
 - **Not yet:** 1: the fake rewrite dropping Anthropic's `keys`, `direct` and `anthropic-api` endpoint [in flight: change 929].
 
 

@@ -23,6 +23,44 @@ fn walker_paths(scratch: &Path) -> Paths {
 }
 
 #[test]
+fn a_setup_timeout_reports_the_browser_before_the_terminal_starts() {
+    use skein_browser::boundary::{Event, Request};
+    use skein_lib::Token;
+    let paths = walker_paths(Path::new("."));
+    let starting = Starting {
+        steps: vec![WalkStep::End],
+        setup: Some(Prepared {
+            setup: temper_client_shell_web::journey::setup(b"setup 1\nsee \"Ready\"\nreload \"/\"\n").expect("setup"),
+            sources: vec![("parent".into(), 7), ("parent".into(), 8)],
+        }),
+    };
+    let mut walker = Walker::new("first", &paths, vec![], &starting);
+    walker.since = Some(Time::ZERO);
+    let now = Time::from_nanos(60_000_000_000);
+    let mut face = BrowserFace::new(Token::new(1), "http://127.0.0.1:9000/old");
+    walker.check_deadline(&mut face, now);
+    let Request::Address { op, .. } = face.requests().next().expect("read setup timeout address") else {
+        panic!("the setup timeout reads its address")
+    };
+    let address = b"http://127.0.0.1:9000/welcome".as_slice();
+    face.event(&Event::Address { op, url: address.into() });
+    assert!(matches!(walker.next(&mut face, now), Next::Wait { .. }));
+    let Request::Snapshot { op, .. } = face.requests().next().expect("read setup timeout page") else {
+        panic!("the setup timeout reads its page")
+    };
+    let text = b"main\n  text Fetching Forgejo".as_slice();
+    face.event(&Event::Snapshot { op, text: text.into() });
+    assert_eq!(walker.next(&mut face, now), Next::Done);
+    assert!(walker.terminal.is_none(), "diagnosis never starts the terminal");
+    let Refusal::PageState { why, address: found_address, text: found_text } = walker.refusal.unwrap() else {
+        panic!("the setup timeout retains its browser page")
+    };
+    assert!(matches!(*why, Refusal::SetupTimeout { line: 7, .. }));
+    assert_eq!(found_address.as_ref(), address);
+    assert_eq!(found_text.as_ref(), text);
+}
+
+#[test]
 fn a_tui_walk_is_read_before_any_build_or_child() {
     let scratch = Scratch::new("tui-again-starting");
     let root = scratch.path();
@@ -93,8 +131,13 @@ fn a_tui_setup_is_read_whole_before_any_build_or_child() {
         assert!(walker.terminal.is_none(), "setup runs before the TUI");
         assert!(walker.deadline(Time::from_nanos(59_999_999_999)).is_ok());
         walker.check_deadline(&mut face, Time::from_nanos(60_000_000_000));
-        let refusal = walker.refusal.take().expect("setup deadline while a query is pending");
-        assert!(matches!(refusal,
+        assert!(walker.refusal.is_none(), "the failed setup first reads its page diagnostics");
+        let Phase::Diagnostic { page: crate::again::Diagnostic::Address { why } } =
+            std::mem::replace(&mut walker.phase, Phase::Finished)
+        else {
+            panic!("setup deadline starts diagnostics while a query is pending")
+        };
+        assert!(matches!(*why,
             Refusal::SetupTimeout { name, setup, line: found, sought: query }
             if name == "first" && setup == source && found == line && query.contains(sought)));
     }
@@ -205,7 +248,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
         if let Some(display) = display {
             given.push((Box::from(b"DISPLAY".as_slice()), Box::from(display.as_bytes())));
         }
-        let environment = environment(&given, &scratch).expect("scratch PATH");
+        let environment = crate::tui_driver::environment(&given, &scratch).expect("scratch PATH");
         let lookup = |name: &str| environment.iter().find(|(key, _)| key == name).map(|(_, value)| value.as_os_str());
         for (name, value) in [
             ("PATH", path.clone()),

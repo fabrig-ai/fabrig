@@ -13,6 +13,7 @@ pub mod acts;
 mod admission;
 pub mod documents;
 pub mod effects;
+mod ended_groups;
 mod funding;
 mod inbox;
 mod limits;
@@ -43,6 +44,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
+pub use jig_domain_core_vocabulary::limits::problems as worker_membership;
 use jig_domain_fleet as fleet;
 use jig_domain_link::Problem;
 use jig_domain_notes as notes;
@@ -119,7 +121,8 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, GATHERING, RECURRING, SeedProject, Settings, ToolFamilies,
+    Config, ConfiguredPolicy, EndpointFacts, GATHERING, MadePart, PartAsk, PartFailure, PartInputs, PartsAsk,
+    RECURRING, RowPart, SeedProject, Settings, ToolFamilies,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,
@@ -132,6 +135,8 @@ pub use jig_domain_core_vocabulary::{
     reason = "pending generation, worker placement, settling, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
+    pub(crate) part_kinds: Box<[jig_domain_core_vocabulary::PartKind]>,
+    pub(crate) ended_groups: ended_groups::Marks,
     erasures: erase::Erasures,
     deletions: deletion::Deletions,
     pub(crate) start: start::Script,
@@ -311,7 +316,7 @@ impl Core {
     /// A configured worker count or name exceeds the priced membership bounds.
     #[expect(clippy::too_many_lines, reason = "construct all bounded children, bindings and subject marks together")]
     pub fn new(mut config: Config, limits: &Limits) -> Result<Core, Problem> {
-        let worker_names = limits::problems(core::mem::replace(&mut config.worker_names, Box::new([])), limits)?;
+        let worker_names = limits::problems(&config.defaults.workers, limits)?;
         assert!(limits.people.words <= limits.tasks.message_bytes, "party words fit one run message");
         assert!(limits.tasks.message_bytes >= 24, "projection refusal news fits one run message");
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");
@@ -321,6 +326,7 @@ impl Core {
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
+        reads::parts::assert_kinds(&config.parts, &config.connectors);
         let mut previous = None;
         for job in &config.jobs {
             if let Some(kind) = previous {
@@ -431,6 +437,8 @@ impl Core {
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots.saturating_add(2)),
+            part_kinds: config.parts,
+            ended_groups: ended_groups::Marks::new(limits.tasks.tasks),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             flight_people_capacity: limits.people.pending,

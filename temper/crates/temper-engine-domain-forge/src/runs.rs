@@ -176,6 +176,25 @@ pub fn retry(follow: &mut Follow, attempt: u16) {
     follow.page = 1;
 }
 
+/// A known-flake failure reruns its failed jobs without spending a runner-fault attempt
+/// (domain/landing-regate.md, 2). The caller bounds and persists the pending jobs.
+pub(crate) fn rerun_flake(follow: &mut Follow) {
+    let run = follow.run.as_ref().expect("a failed flake has a run");
+    let mut writes = List::with_capacity(16);
+    for job in &run.jobs {
+        if job.conclusion == Some(api::Conclusion::Failure) {
+            writes
+                .push(api::Write::Rerun {
+                    attempt: api::JobAttempt { head: follow.commit, run: run.id, job: job.id, attempt: job.attempt },
+                })
+                .expect("bounded failed jobs");
+        }
+    }
+    follow.writes = writes.into_boxed();
+    follow.outcome = None;
+    follow.page = 1;
+}
+
 impl Follow {
     fn conflicts(
         &self,

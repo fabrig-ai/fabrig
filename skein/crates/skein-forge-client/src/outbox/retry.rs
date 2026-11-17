@@ -112,6 +112,7 @@ pub(super) fn failed(
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::Protected
         | Error::Refused
@@ -137,6 +138,7 @@ fn stopped_write(d: &mut Domain, number: u64, error: Error, out: &mut Queue<Requ
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::Protected
         | Error::Refused
@@ -205,6 +207,7 @@ fn retain_uncertain(
         | Error::NothingToMerge
         | Error::Closed
         | Error::Stale
+        | Error::BaseMoved { .. }
         | Error::Conflict
         | Error::Protected
         | Error::Refused

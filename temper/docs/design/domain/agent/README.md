@@ -24,6 +24,10 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+- **Which tools a run is declared** (`declarations.md`): its charter's
+  families' tools, each in a short declared form within 1,024 bytes, its
+  whole form on the `host-tools` page, and the contract the declarations
+  make, with the versions it answers.
 - **A charter's room** (`room.md`): the allowance a charter is fitted to,
   its brief cut to what the rest leaves, a refusal naming what didn't fit,
   and the checks at start and at each change of settings.
@@ -294,8 +298,8 @@ host:
 - A charter where the process has no local agent: `tools.md`, section 3.
 - A `see` answer by its worker's reply bound: `ask-temper.md`, section 5.
 - The person's forge identity in a chat's brief,: `agents.md`, section 5.
-- A collaborator's login in `read_collaborators`: `tools.md`, section 3.
-- `read_permission`'s login held to the settings family: `tools.md`, section 3.
+- A collaborator's login in `read_forge what=collaborators`: `tools.md`, section 3.
+- `read_forge what=permission`'s login held to the settings family: `tools.md`, section 3.
 - A person known by a login alone: `agents.md`, section 5.
 - Which host tools a charter offers: `tools.md`, section 3.
 - What sizes temper's own way: `agents.md`, section 5.

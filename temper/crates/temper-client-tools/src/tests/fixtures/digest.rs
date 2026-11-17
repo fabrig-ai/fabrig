@@ -19,11 +19,12 @@ pub(crate) fn tasks_first_window(rows: u32, more: bool) -> (c::TaskPage, c::Task
         live.push(row).expect("bounded rows");
     }
     let page = c::TaskPage {
+        ended_mark: 0,
         live: live.clone(),
         live_after: if more { Some(cursor()) } else { None },
         ended: c::EndedGroup::None,
     };
-    (page, c::Tasks { rows: live, more })
+    (page, c::Tasks { rows: live, more, ended_mark: 0 })
 }
 pub(crate) fn json_without_digest(bytes: &[u8]) -> Box<[u8]> {
     let at = skein_lib::bytes::find(bytes, b",\"digest\":").expect("digest last");

@@ -101,7 +101,7 @@ impl World {
         self.root_events.push_back(engine::Event::Party(engine::PartyInput::Read {
             reply_to: ReplyTo::new(READ),
             sign_in: self.party.sign_in.expect("authenticated party"),
-            read,
+            read: Box::new(read),
         }));
         for _ in 0..10000 {
             self.tick();

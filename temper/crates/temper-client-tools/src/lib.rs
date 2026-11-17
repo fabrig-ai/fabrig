@@ -6,6 +6,7 @@ extern crate alloc;
 pub mod adopt;
 mod amend;
 mod change;
+mod checkpoint;
 mod demo;
 mod drafts;
 mod finding;

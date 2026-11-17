@@ -27,3 +27,5 @@ mod fuzzy {
     mod translation;
     mod worker_side;
 }
+
+mod figures;

@@ -753,6 +753,8 @@ fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
     }
 }
 
+#[path = "settings_agents.rs"]
+mod agents;
 fn landing_gates() -> crate::settings::ProjectGates {
     crate::settings::ProjectGates {
         repositories: Box::new([crate::RepositoryGates {

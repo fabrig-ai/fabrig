@@ -61,6 +61,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::Model(value) => s::Setting::Model(value.number()),
+        w::Setting::Worker(value) => s::Setting::Worker(value.number()),
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
@@ -71,6 +72,13 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Worker(value) => s::Value::Worker(Box::new(s::WorkerSetting {
+            number: value.number(),
+            name: skein_lib::bytes::copy_of(value.name()),
+            places: value.places(),
+            digest: *value.digest(),
+            withdrawn: value.withdrawn(),
+        })),
         w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
         w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Overlay(value) => s::Value::Overlay(Box::new(overlay(*value))),
@@ -352,9 +360,12 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
     Ok(match value {
         w::TaskContractDocument::Job(_) => return Err(bad()),
         w::TaskContractDocument::Report(value) => t::Contract::Report { words: value.words() },
-        w::TaskContractDocument::Change(value) => {
-            t::Contract::Change { connector: value.connector(), kind: value.kind(), words: value.words() }
-        }
+        w::TaskContractDocument::Change(value) => t::Contract::Change {
+            connector: value.connector(),
+            kind: value.kind(),
+            words: value.words(),
+            choices: Box::new([]),
+        },
         w::TaskContractDocument::Approval(value) => {
             let v = value.into_parts();
             t::Contract::Approval { state: v.state, part: part(v.part) }

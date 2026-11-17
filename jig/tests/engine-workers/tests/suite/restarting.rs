@@ -9,49 +9,34 @@ fn a_restart_tells_each_worker_by_its_channels_version_and_can_be_asked_again() 
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
     let (current, _) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
     let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
-    let credential = fixtures::credential(fixtures::WORKER_B, fixtures::SECRET_B, fixtures::APPLICATION_VERSION);
-    let mut credential =
-        wire::Credential::decode(&codec, &mut Reader::new(&credential)).expect("credential").into_parts();
-    let mut wires = skein_lib::List::with_capacity(credential.wires.len());
-    for stated in credential.wires.into_boxed() {
-        let mut parts = stated.into_parts();
-        if parts.name.as_ref() == b"jig-worker-wire" {
-            parts.layouts.truncate(3);
-        }
-        wires.push(wire::Wire::new(&codec, parts).expect("older wire")).expect("wire slot");
-    }
-    credential.wires = wires;
-    let credential = wire::Credential::new(&codec, credential).expect("older credential");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(credential.measure()).expect("size"));
-    credential.encode(&mut bytes).expect("measured credential");
+    let previous = wire::wire::FLOOR.checked_sub(1).expect("previous channel version");
     let mut schema = fixtures::schema();
-    schema.versions.truncate(3);
-    let mut old = skein_fake_channel::ScriptedPeer::new(
+    schema.versions.truncate(1);
+    schema.versions.get_mut(0).expect("one version").version = previous;
+    let old = skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Initiator,
         fixtures::channel_limits(),
-        14,
-        bytes.finish(),
+        previous,
+        Box::new([]),
     )
     .expect("older worker");
-    old.play(fixtures::hello_frame());
     let older = world.connect(old);
     world.run();
-    assert!(world.ready(older));
+    assert_eq!(world.refusal(older).map(|(reason, _)| reason), Some(1));
+    let (second, _) = world.reporting(fixtures::WORKER_B, fixtures::SECRET_B);
     assert_eq!(world.root().iter().filter(|r| matches!(r, Request::Hello { .. })).count(), 2);
     let wait = Duration::from_millis(1_200_000);
     for count in 1..=2 {
         world.down(Event::Restarting { wait });
         world.run();
-        let words: Vec<_> = world.observed(current).iter().filter(|r| r.kind == 0x018f).collect();
-        assert_eq!(words.len(), count);
-        for word in words {
-            let record = wire::Restarting::decode(
-                &wire::sizes::limits(&fixtures::limits().sizes).expect("codec"),
-                &mut Reader::new(&word.body),
-            )
-            .expect("restart word");
-            assert_eq!(record.wait_ms(), 1_200_000);
+        for connection in [current, second] {
+            let words: Vec<_> = world.observed(connection).iter().filter(|r| r.kind == 0x018f).collect();
+            assert_eq!(words.len(), count);
+            for word in words {
+                let record = wire::Restarting::decode(&codec, &mut Reader::new(&word.body)).expect("restart word");
+                assert_eq!(record.wait_ms(), 1_200_000);
+            }
         }
         assert!(!world.observed(older).iter().any(|r| r.kind == 0x018f));
         let told: Vec<_> = world
@@ -63,8 +48,8 @@ fn a_restart_tells_each_worker_by_its_channels_version_and_can_be_asked_again() 
             })
             .collect();
         assert_eq!(told.len(), count * 2);
-        assert_eq!(told.iter().filter(|t| **t == (fixtures::WORKER_A, 15, Some(wait))).count(), count);
-        assert_eq!(told.iter().filter(|t| **t == (fixtures::WORKER_B, 14, None)).count(), count);
+        assert_eq!(told.iter().filter(|t| **t == (fixtures::WORKER_A, wire::VERSION, Some(wait))).count(), count);
+        assert_eq!(told.iter().filter(|t| **t == (fixtures::WORKER_B, wire::VERSION, Some(wait))).count(), count);
     }
 }
 

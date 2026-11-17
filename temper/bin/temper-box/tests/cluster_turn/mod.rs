@@ -305,7 +305,7 @@ impl Judge {
         let (host, _) = hosts.split_last_mut().ok_or("client root")?;
         self.tick = None;
         match self.stage {
-            Stage::Start if self.members.is_up() => self.begin(host)?,
+            Stage::Start if self.members.capture("engine", "link").is_some() => self.begin(host)?,
             Stage::PanelAgain(at) => {
                 if now >= at {
                     self.panel(host)?;

@@ -46,6 +46,7 @@ fn a_merge_outcome_ends_passed_reds_but_not_a_later_generation_or_another_destin
 }
 fn merged_pull() -> PendingStep {
     PendingStep {
+        progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
         entry: OPEN,
@@ -60,6 +61,7 @@ fn merged_pull() -> PendingStep {
         branch: Some(HEAD),
         branch_fresh: false,
         base_tip: Some(FIRST),
+        base_read: Some(FIRST),
         pull: Some(skein_forge::api::Pull {
             number: 1,
             head: b"temper/51".as_slice().into(),
@@ -115,6 +117,8 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        flake_reruns: Box::new([]),
+                        room: None,
                         job: None,
                         landing: landing::Landing {
                             task: 61,

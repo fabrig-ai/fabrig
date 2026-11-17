@@ -58,6 +58,7 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-engine-service-startup.workspace = true
 jig-client.workspace = true

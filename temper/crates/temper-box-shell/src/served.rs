@@ -43,7 +43,10 @@ pub const SERVED: Served<Service> = Served {
         Service::Worker(_) => {}
     },
     handover: |service| match service {
-        Service::Joined(service) => temper_engine_shell::served::handover(service.engine_component()),
+        Service::Joined(service) => {
+            temper_engine_shell::served::handover(service.engine_component());
+            keep_agents(service);
+        }
         Service::Worker(_) => {}
     },
     completions: |service| match service {
@@ -125,4 +128,35 @@ fn ending(
     store: &[u8],
 ) -> (String, u8) {
     crate::lines::ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled())
+}
+
+/// The engine asks; the shell alone replaces its data-directory copy.
+pub(crate) fn keep_agents(service: &mut service::Service) {
+    while let Some((path, bytes)) = service.engine_component().take_agents_write() {
+        if let Err(why) = write_agents(crate::path(&path), &bytes) {
+            service.notes().push(service::Note::Engine(temper_engine_service::Note::StartupWarning {
+                line: format!("agents.setting: {why}").into_bytes().into_boxed_slice(),
+            }));
+        }
+    }
+}
+pub(crate) fn write_agents(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    let temporary = path.with_extension("setting.new");
+    match std::fs::remove_file(&temporary) {
+        Ok(()) => {}
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(why),
+    }
+    let result = (|| {
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        std::fs::rename(&temporary, path)?;
+        std::fs::File::open(path.parent().expect("data directory"))?.sync_all()
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result
 }

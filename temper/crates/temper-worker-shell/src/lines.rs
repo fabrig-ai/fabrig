@@ -22,6 +22,9 @@ pub fn worker_service_ending(
 #[must_use]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
+        service::Note::FiguresChanged => {
+            "the engine's figures changed; they apply at this worker's next start\n".into()
+        }
         service::Note::Cancelling { run, attempt } => {
             format!("{binary} worker: run {run} attempt {attempt} cancelled by the engine\n")
         }
@@ -164,6 +167,7 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),
             Some(Reason::Stopping) => "stopping".into(),
+            Some(Reason::Starting) => "starting".into(),
             None => format!("code-{code}"),
         },
     }

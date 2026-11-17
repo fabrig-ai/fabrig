@@ -24,7 +24,7 @@ impl State {
     }
 }
 pub(crate) fn begin(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
-    if store.rehearsal.is_some() {
+    if store.rehearsal.is_some() || store.directory.purpose == crate::Purpose::Checkpoint {
         return finish(store, Ok(true), above);
     }
     let result = next(store, below);

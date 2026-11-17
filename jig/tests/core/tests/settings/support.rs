@@ -31,7 +31,10 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
     .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
     let mut config = jig_test_profile::config(SEED);
+    let mut worker = config.core.defaults.workers[0].clone();
+    worker.places = engine.limits.core.fleet.slots;
     config.core = jig_protocol_config::core(&engine, [31; 16], SEED);
+    config.core.defaults.workers = Box::new([worker]);
     // Auxiliary parties have configured roles even when they cannot decide settings.
     for project in &mut config.core.seed_projects {
         auxiliary_roles(&mut project.policy.policy);
@@ -544,7 +547,8 @@ impl RequestWorld {
                     root::Request::Deliver(root::Delivery::Core(core::Held::PeopleReply { reply: value, .. })) => {
                         assert!(reply.replace(value).is_none(), "one reply per call");
                     }
-                    root::Request::StoreCatalogue { .. }
+                    root::Request::Workers(_)
+                    | root::Request::StoreCatalogue { .. }
                     | root::Request::ClientsCatalogue { .. }
                     | root::Request::Deliver(_)
                     | root::Request::Now(_) => {}

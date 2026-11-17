@@ -146,6 +146,10 @@ them.
   below the version before, unless it declares the move breaking, and a
   floor rises alone once dev.fabrig.ai and staging.fabrig.ai have run
   past it for a week (`../draft/redeploys.md`, section 12).
+- **The workers' figures** move `jig-worker-wire` to 16, declared
+  breaking, its floor 16 (jig's `protocol/channel/figures.md`, section
+  5; `configuration/figures.md`). Its redeploy is the engine and every
+  worker together, as above.
 
 ## 4. At the opening
 

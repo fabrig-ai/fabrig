@@ -1552,13 +1552,15 @@ fn check_run() {
     let scratch = support::Scratch::startup("fake-check-run");
     let directory = scratch.path();
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper-box"));
-    support::write_private(&directory.join("agent.json"), &agent);
     support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    document(&directory.join("temper.json"), &support::configuration::check_document(directory));
+    let data = directory.join("data");
+    fs::create_dir(&data).expect("fixture data");
+    let mut value = support::configuration::check_document(directory);
+    temper_fixtures::agent::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
+    document(&directory.join("temper.json"), &value);
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
-    let data = directory.join("data");
     let cache = directory.join("cache");
     let ended = Command::new(skein_scratch::paths::binary("temper-box"))
         .env_clear()
@@ -1583,7 +1585,8 @@ fn check_run() {
         )
         .as_bytes()
     );
-    assert!(!data.exists());
+    assert_eq!(fs::read_dir(&data).expect("fixture data").count(), 1, "the check creates no data resources");
+    assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
     scratch.remove();
 }

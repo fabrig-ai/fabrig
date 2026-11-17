@@ -369,11 +369,21 @@ fn cancelling_the_requesters_subtree_ends_a_running_job_at_once() {
 
 fn restart(world: &mut World, seed: u64) {
     let (mut config, _) = jig_core_world::faults::plan_fixture(seed);
-    config.core.worker_names = Box::new([
-        b"caller".as_slice().into(),
-        b"first job worker".as_slice().into(),
-        b"second job worker".as_slice().into(),
-    ]);
+    config.core.defaults.workers = [
+        Box::<[u8]>::from(b"caller".as_slice()),
+        Box::<[u8]>::from(b"first-job-worker".as_slice()),
+        Box::<[u8]>::from(b"second-job-worker".as_slice()),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, name)| jig_domain_core::settings::WorkerSetting {
+        number: u32::try_from(index + 1).expect("fixture worker count"),
+        name,
+        places: 1,
+        digest: Some([7; 32]),
+        withdrawn: false,
+    })
+    .collect();
     config.core.jobs = Box::new([bound(7)]);
     let kinds: Box<[authority::Executor]> =
         Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(1), authority::Executor::Job(7)]);

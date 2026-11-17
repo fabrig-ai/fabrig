@@ -29,6 +29,7 @@ pub const fn settings_kind(kind: u32) -> bool {
         || kind == 14
         || kind == 15
         || kind == 20
+        || kind == 21
 }
 
 /// The forge's visitor records (temper/docs/design/client/forge/README.md, 9.4).
@@ -44,7 +45,7 @@ mod public;
 pub use public::{public_bounds, public_limits};
 
 /// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
-pub const PUBLIC_VERSION: u16 = 2;
+pub const PUBLIC_VERSION: u16 = 3;
 /// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
 /// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).
@@ -57,6 +58,18 @@ use skein_lib::{Reader, Writer};
 
 /// The forge connector's number on jig's client wire (client/forge/records.md).
 pub const FORGE: u16 = 1;
+/// A goal's report and milestone (temper/docs/design/client/forge/parts.md, 2).
+pub const GOAL_PART: u32 = 1;
+/// A chat's document description (temper/docs/design/client/forge/parts.md, 2).
+pub const CHAT_PART: u32 = 2;
+/// A milestone's totals and goals (temper/docs/design/client/forge/parts.md, 2).
+pub const MILESTONE_PART: u32 = 3;
+/// A goal part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const GOAL_PART_BYTES: u32 = 1024;
+/// A chat part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const CHAT_PART_BYTES: u32 = 1024;
+/// A milestone part's byte limit (temper/docs/design/client/forge/parts.md, 2).
+pub const MILESTONE_PART_BYTES: u32 = 32768;
 /// The application's stable owners on jig's client wire (client/forge/records.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Owner {
@@ -87,7 +100,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 31;
+pub const CLIENT_VERSION: u32 = 34;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
@@ -406,6 +419,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
+        | v1::Request::Checkpoint
         | v1::Request::EndPlayground => {}
     }
     Some(record)

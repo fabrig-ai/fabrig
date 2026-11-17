@@ -65,6 +65,7 @@ pub(crate) fn call(
                 Read::Escalation(_)
                 | Read::Proposal(_)
                 | Read::TaskProposal { .. }
+                | Read::Parts(_)
                 | Read::Ended(_)
                 | Read::Transcript { .. }
                 | Read::InputCheck(_)

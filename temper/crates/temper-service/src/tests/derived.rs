@@ -56,7 +56,7 @@ fn stock_engine_link_cap_holds_the_fleet_ceiling() {
     settings.jig.limits = jig;
     settings.limits = own;
     let mut sizes = crate::workers::limits(&settings).expect("stock engine link").sizes;
-    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes).unwrap().bytes, 4_134_901_580);
+    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes).unwrap().bytes, 4_144_964_324);
     sizes.slots = 48; // The next round figure above 40.
     assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes), None);
 }

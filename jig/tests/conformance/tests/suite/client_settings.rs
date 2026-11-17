@@ -2,7 +2,7 @@
 
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
-use jig_client_protocol_wire::v27 as w;
+use jig_client_protocol_wire as w;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
@@ -16,8 +16,11 @@ macro_rules! encoded {
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 27, record })
-        .expect("owned answer");
+    let owned = w::Owned::new(
+        limits.wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record },
+    )
+    .expect("owned answer");
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
 fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {

@@ -323,7 +323,7 @@ fn new_task(
 fn contract(value: &people::Contract) -> tasks::Contract {
     match value {
         people::Contract::Change { connector, kind, words } => {
-            tasks::Contract::Change { connector: *connector, kind: *kind, words: *words }
+            tasks::Contract::Change { connector: *connector, kind: *kind, words: *words, choices: Box::new([]) }
         }
         people::Contract::Report { words } => tasks::Contract::Report { words: *words },
         people::Contract::Verdict { choices } => {

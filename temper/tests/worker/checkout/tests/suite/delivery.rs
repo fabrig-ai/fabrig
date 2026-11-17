@@ -177,7 +177,7 @@ fn an_unpushed_second_parent_refuses_a_staged_or_committed_merge() {
             hosted::apply(&mut scenario, &Command::CheckOut { commit: translate::commit(base) });
             hosted::apply(&mut scenario, &Command::Merge { theirs: translate::commit(second) });
             hosted::apply(&mut scenario, &Command::Add);
-            if committed {
+            let head = if committed {
                 local::commit_merging(
                     &mut scenario.transport,
                     &mut scenario.checkout,
@@ -186,13 +186,18 @@ fn an_unpushed_second_parent_refuses_a_staged_or_committed_merge() {
                     second,
                     b"Local merge",
                 )
-                .expect("staged merge");
-            }
-            let git::Done::FailedWithOutput { fault, diagnostic } = deliver(&mut scenario, unchecked, None) else {
-                panic!("refused merge")
+                .expect("staged merge")
+            } else {
+                base
             };
-            assert_eq!(fault, git::Fault::Refused);
-            assert_eq!(diagnostic.output(), b"delivery second parent is not reachable from the branch's remote");
+            assert_eq!(
+                deliver(&mut scenario, unchecked, None),
+                git::Done::ParentUnreachable {
+                    head: translate::commit(head),
+                    merging: (!committed).then_some(translate::commit(second)),
+                    parent: translate::commit(second),
+                }
+            );
         }
     }
 }
@@ -245,4 +250,44 @@ fn a_changed_tree_lists_the_deleted_non_markdown_name_even_when_renamed_to_markd
     assert_eq!(answer.exit, 0);
     let expected = [deleted.as_slice(), b"\0renamed.md\0"].concat();
     assert_eq!(answer.stdout, expected, "no rename detection: deletion is listed in git order");
+}
+
+#[test]
+fn a_squashed_dependency_catches_up_delivery_without_pushing() {
+    temper_worker_checkout_world::merges::dependency_caught_up(false);
+}
+
+#[test]
+fn a_squashed_dependency_catches_up_and_records_an_unchecked_save() {
+    temper_worker_checkout_world::merges::dependency_caught_up(true);
+}
+
+#[test]
+fn a_landed_dependency_that_kept_ancestry_needs_no_question() {
+    temper_worker_checkout_world::merges::dependency_kept_ancestry();
+}
+
+#[test]
+fn a_dependency_catch_up_leaves_conflicts_to_settle_before_delivery_or_save() {
+    temper_worker_checkout_world::merges::dependency_catch_up_conflict();
+}
+
+#[test]
+fn an_unlanded_dependency_refuses_without_committing_or_moving_the_pin() {
+    temper_worker_checkout_world::merges::dependency_not_landed();
+}
+
+#[test]
+fn an_unreachable_non_starting_parent_refuses_without_a_question() {
+    temper_worker_checkout_world::merges::non_starting_parent_refused();
+}
+
+#[test]
+fn a_dependency_wait_aborts_releases_or_cuts_without_io_and_drops_late_answers() {
+    temper_worker_checkout_world::merges::dependency_wait_interrupted();
+}
+
+#[test]
+fn an_in_progress_starting_head_catches_up_with_both_work_parents_kept() {
+    temper_worker_checkout_world::merges::dependency_in_progress();
 }

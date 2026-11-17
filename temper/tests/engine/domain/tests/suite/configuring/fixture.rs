@@ -53,8 +53,13 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
+    let mut workers = config.core.defaults.workers.clone();
+    for worker in &mut workers {
+        worker.places = SLOTS;
+    }
     config.core.defaults =
         temper_engine_service_stock::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
+    config.core.defaults.workers = workers;
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
@@ -589,7 +594,7 @@ impl World {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(90)),
             sign_in: self.owner,
-            read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal },
+            read: Box::new(core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal }),
         }));
         self.driver.settle();
         self.driver

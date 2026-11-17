@@ -212,7 +212,7 @@ recipient.
   served) (`../../client/domain/contract/README.md`, section 4). A page's cursor
   is the engine's, opaque bytes the client gives back. Inside they are a
   record of the family `jig-engine-cursor`
-  (`jig/crates/jig-protocol-engine-clients/schema/cursor-v1.schema`),
+  (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
   whose goldens the families' drift check holds, with a key inside one in
   the store's codec. A cursor of another version does not decode, and
   its read is answered unknown (`../README.md`, section 7).
@@ -418,6 +418,15 @@ recipient.
   client's, and never a credential, an answer, a request carrying a
   value, or one whose answer carries one (`README.md`, section 3). A top-level `Seen` has no stored record. Each
   kept record is encoded with jig's wire, with its store version.
+- **A kept record holds the largest request.** A kept record's bytes
+  (`Kept.record`) are bounded by the widest request-table entry
+  (`TableEntry`), so that every request the client admits can be kept,
+  and so sent: 1,114,368 bytes, the request's 1,114,240 and 128 for the
+  entry's other fields and the request's length (56 at their widest).
+  The client's own
+  limits still bound what it writes (its `document_bytes`, section 10).
+  A record past them is not kept (below, *Kept requests stored before
+  sent*).
 - **The stream's name** is saved at each hello, in a write of its own,
   and replaces the last; nothing waits for it, and a write of it not
   stored retires nothing. It is not a credential: ending a stream takes
@@ -434,7 +443,10 @@ recipient.
   `Save` is answered `Stored`. `NotStored` (a quota full, a disk failing)
   is each request
   whose record that write was the last to carry not sent, parked or not,
-  answered *not kept* (`../../client/domain/client/README.md`, section 8). A
+  answered *not kept* (`../../client/domain/client/README.md`, section 8).
+  A record the link can't encode for the store is a write never made:
+  its request is answered *not kept* by its key, unsent, as for
+  `NotStored`, and never answered lost. A
   request carrying a value, or whose answer carries one, is never
   stored, and leaves at once, once (section 3). An account's move
   *written* is an ordinary request: kept, and sent again under its key.

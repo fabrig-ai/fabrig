@@ -485,7 +485,7 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
     let text = find(b"deployment").expect("deployment help").text;
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for requirement in [
-        "profile.declared.tool_payload",
+        "declared.tool_payload",
         "per piece",
         "4,487",
         "10,662",

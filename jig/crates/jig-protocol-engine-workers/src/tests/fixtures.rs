@@ -1,7 +1,7 @@
 use crate::{Component, Limits, Worker};
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant, Scheme};
-use skein_io::digest::digest;
+use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
@@ -103,8 +103,8 @@ pub const LIMITS: Limits = Limits {
 };
 pub fn workers() -> Box<[Worker]> {
     Box::new([
-        Worker { name: Box::from(WORKER_A), digest: digest(SECRET_A) },
-        Worker { name: Box::from(WORKER_B), digest: digest(SECRET_B) },
+        Worker { number: 1, name: Box::from(WORKER_A), places: 4, digest: Some(digest(SECRET_A)), withdrawn: false },
+        Worker { number: 2, name: Box::from(WORKER_B), places: 4, digest: Some(digest(SECRET_B)), withdrawn: false },
     ])
 }
 pub fn component() -> Component {
@@ -128,6 +128,7 @@ pub fn credential_with(
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
         jig_protocol_worker_wire::CredentialParts {
+            opening: jig_protocol_worker_wire::Opening::Link,
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
             wires,
@@ -319,7 +320,7 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-fn codec() -> jig_protocol_worker_wire::v15::Limits {
+fn codec() -> jig_protocol_worker_wire::v16::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

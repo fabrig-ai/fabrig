@@ -224,6 +224,7 @@ pub const fn hold(hold: &w::Hold) -> W {
         w::Hold::Closed => W::Closed,
         w::Hold::Retargeted => W::Retargeted,
         w::Hold::Failed => W::FailedHold,
+        w::Hold::Flake => W::FlakeHold,
         w::Hold::Rejected => W::Rejected,
         w::Hold::Authority(_) => W::AuthorityHold,
     }
@@ -323,6 +324,13 @@ impl<'a> Change<'a> {
     #[must_use]
     pub fn line(self) -> Said {
         line(self.panel)
+    }
+    #[must_use]
+    pub fn wait(self) -> Option<W> {
+        match self.panel.wait() {
+            Some(w::ChangeWait::OutboxRoom) => Some(W::OutboxRoom),
+            None => None,
+        }
     }
     #[must_use]
     pub fn hold(self) -> Option<(W, W, Box<[Hole]>)> {

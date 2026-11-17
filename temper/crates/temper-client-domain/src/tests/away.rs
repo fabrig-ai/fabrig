@@ -488,6 +488,7 @@ fn shown_by_classes_or_an_on_row() {
                 Up::Watched {
                     watch: goals_watch.expect("goals watch"),
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        ended_mark: 0,
                         rows: List::from_boxed(Box::new([goal_line()])),
                         more: false,
                     }))),
@@ -502,6 +503,7 @@ fn goal_line() -> c::TaskLine {
     let task = f::chat::task();
     let budget = task.chip.details.details.budget.clone();
     c::TaskLine {
+        parts: List::with_capacity(0),
         chip: task.chip,
         project: f::PROJECT,
         requester: c::Requester::Person(f::PARTY),

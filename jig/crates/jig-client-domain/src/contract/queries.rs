@@ -29,7 +29,7 @@ pub enum ExecutorKind {
     Job,
 }
 /// A conjunction of fixed keys with an owner-supplied order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskQuery {
     pub project: Option<u32>,
     pub requester: Option<Requester>,
@@ -40,6 +40,8 @@ pub struct TaskQuery {
     pub executor: Option<ExecutorKind>,
     pub tracked: Option<bool>,
     pub order: QueryOrder,
+    /// At most four parts, in row-answer order.
+    pub parts: skein_lib::List<super::PartAsk>,
 }
 /// The party an entry waits for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -103,6 +105,7 @@ pub struct TaskLine {
     pub delegates_total: u32,
     pub held_below: u32,
     pub conversation: Option<ConversationRead>,
+    pub parts: skein_lib::List<super::RowPart>,
 }
 
 /// A query's ended index, or no index for its keys.
@@ -116,5 +119,6 @@ pub enum EndedGroup {
 pub struct TaskPage {
     pub live: skein_lib::List<TaskLine>,
     pub live_after: Option<Cursor>,
+    pub ended_mark: u64,
     pub ended: EndedGroup,
 }

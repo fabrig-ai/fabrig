@@ -358,7 +358,7 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
         let mut delegate = ordinary_delegate(world, goal, words);
         if words != b"Unrelated report" {
             delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+            delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
             delegate.authority = live_task(world, goal.task).authority.clone();
             delegate.authority.delegation.depth -= 1;
             delegate.authority.delegation.tasks = 6;
@@ -1252,7 +1252,7 @@ fn a_goals_report_quotes_each_main_pulls_ci_selection() {
     let assigned = world.assigned.len();
     let mut delegate = ordinary_delegate(&world, &goal, b"Repair main");
     delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
-    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096, choices: Box::new([]) };
     delegate.authority = live_task(&world, goal.task).authority.clone();
     delegate.authority.delegation.depth -= 1;
     delegate.authority.delegation.tasks = 6;

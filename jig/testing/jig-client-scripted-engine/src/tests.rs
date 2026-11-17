@@ -1016,7 +1016,7 @@ mod escalation;
 mod offered;
 mod person_task;
 
-mod deployment;
+pub(crate) mod deployment;
 mod ended_objects;
 
 use jig_client_domain::contract::DecideOn;

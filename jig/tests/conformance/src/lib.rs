@@ -70,10 +70,21 @@ impl Config {
         self
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one conformance fixture applies each scenario's limits and default worker settings before making its root"
+    )]
     fn root(self) -> (root::Config, root::Limits) {
         let (mut config, mut limits) = jig_core_kit::peers::fixture(self.seed, u32::from(self.engine));
-        config.core.worker_names =
-            (0..self.workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
+        config.core.defaults.workers = (0..self.workers)
+            .map(|index| jig_domain_core::settings::WorkerSetting {
+                number: index.checked_add(1).expect("fixture worker number"),
+                name: format!("worker-{index}").into_bytes().into_boxed_slice(),
+                places: 1,
+                digest: Some([7; 32]),
+                withdrawn: false,
+            })
+            .collect();
         if self.scenario == Some(Scenario::Compound) {
             limits.core.tasks.tasks = 3;
             limits.core.tasks.project_tasks = 3;
@@ -470,7 +481,9 @@ impl Application for Testing {
         let mut read_afresh = None;
         while let Some(request) = queue.pop() {
             outputs.push(match request {
-                root::Request::StoreCatalogue { .. } | root::Request::ClientsCatalogue { .. } => continue,
+                root::Request::Workers(_)
+                | root::Request::StoreCatalogue { .. }
+                | root::Request::ClientsCatalogue { .. } => continue,
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();
                     while let Some(write) = writes.pop() {

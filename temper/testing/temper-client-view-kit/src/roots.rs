@@ -1874,6 +1874,7 @@ impl ReadPage {
         self.up(jig_client::Up::Watched {
             watch: self.chats.unwrap(),
             event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                ended_mark: 0,
                 rows: List::from_boxed(lines.into()),
                 more: false,
             }))),
@@ -1913,6 +1914,7 @@ impl ReadPage {
         self.answer(
             read,
             c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                ended_mark: 0,
                 live: List::with_capacity(0),
                 live_after: None,
                 ended: c::EndedGroup::Rows { rows: List::from_boxed(lines.into()), after: None, cut: false },
@@ -1963,6 +1965,7 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             } => jig_client::Up::Watched {
                 watch,
                 event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    ended_mark: 0,
                     rows: List::with_capacity(0),
                     more: false,
                 }))),
@@ -1975,6 +1978,7 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             } => jig_client::Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
                     live: List::with_capacity(0),
                     live_after: None,
                     ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },

@@ -191,7 +191,8 @@ pub(super) fn encode_landed(commit: api::Commit, task: u64) -> w::Landed {
     w::Landed::new(&w::CEILINGS, w::LandedParts { commit, task }).expect(FITS)
 }
 pub(super) fn encode_release(value: &d::ReleaseRow) -> w::ReleaseRow {
-    let d::ReleaseRow { task, root, ending, close_pull, comment, pending, failed, effects_settled, releasing } = value;
+    let d::ReleaseRow { task, root, ending, close_pull, comment, pending, failed, effects_settled, releasing, room } =
+        value;
     let pending = match pending {
         Some((entry, name)) => {
             let name = match name {
@@ -214,6 +215,7 @@ pub(super) fn encode_release(value: &d::ReleaseRow) -> w::ReleaseRow {
             failed: *failed,
             effects_settled: *effects_settled,
             releasing: *releasing,
+            room: *room,
         },
     )
     .expect(FITS)
@@ -229,6 +231,7 @@ pub(super) fn decode_release(value: w::ReleaseRow, bounds: &Bounds) -> Result<d:
         failed,
         effects_settled,
         releasing,
+        room,
     } = value.into_parts();
     let pending = match pending {
         Some(value) => {
@@ -242,6 +245,7 @@ pub(super) fn decode_release(value: w::ReleaseRow, bounds: &Bounds) -> Result<d:
         None => None,
     };
     Ok(d::ReleaseRow {
+        room,
         task,
         root,
         ending: decode_ending(ending),
