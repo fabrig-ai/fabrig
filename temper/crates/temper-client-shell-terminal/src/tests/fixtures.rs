@@ -447,7 +447,8 @@ fn populate_page(
                     }))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
                     Subject::Deployment => Some(Delivery::Deployment(Box::new(workers_deployment()))),
-                    Subject::Me | Subject::Terminal { .. }
+                    Subject::Me
+                    | Subject::Terminal { .. }
                     | Subject::Tree { .. }
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }

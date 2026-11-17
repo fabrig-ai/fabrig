@@ -14,7 +14,13 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
     h.link.step(Time::ZERO, Event::OpenStream, &mut h.out);
     h.clear();
     h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
-    assert!(h.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION }) }));
+    assert!(h.has(&Request::Hello {
+        family: None,
+        versions: Some(c::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION
+        })
+    }));
     let delivered = Request::Watch {
         watch: Token::new(0),
         event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(fixtures::frame()))),

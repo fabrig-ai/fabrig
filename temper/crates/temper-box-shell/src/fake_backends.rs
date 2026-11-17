@@ -571,7 +571,9 @@ pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, S
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
             let marker = record.parent().and_then(Path::parent).map(|root| root.join("prepared"));
             if marker.is_some_and(|marker| marker.exists()) {
-                return Err(format!("{ADAPTER}: missing pinned adapter; remove this sandbox directory explicitly to reset it"));
+                return Err(format!(
+                    "{ADAPTER}: missing pinned adapter; remove this sandbox directory explicitly to reset it"
+                ));
             }
             return Ok(None);
         }

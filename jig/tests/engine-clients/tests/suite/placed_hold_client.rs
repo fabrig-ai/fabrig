@@ -102,9 +102,11 @@ impl Party {
         let value = w::DeliveryValue::Me(me);
         let mut bytes = Writer::new(value.measure() as usize);
         value.encode(&mut bytes).expect("Me delivery");
-        let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() })
-                .expect("owned");
+        let document = w::Owned::new(
+            &w::CEILINGS,
+            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
+        )
+        .expect("owned");
         let opened = w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: document }).expect("opened");
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
