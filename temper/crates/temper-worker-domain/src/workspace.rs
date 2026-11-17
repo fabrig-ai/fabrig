@@ -47,7 +47,7 @@ use core::mem;
 use crate::wire;
 use jig_domain_host as host;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Env, Id, List, Map, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Token};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
 
@@ -849,19 +849,20 @@ pub(crate) fn report_repository(domain: &Domain, client: Token, repository: u32)
     let items = domain.items.get(&workspace.items)?;
     Some((workspace.run, *items.tags.get(usize::try_from(repository).ok()?)?))
 }
-/// Until the worker asks the engine, an unreachable starting head is refused.
-pub(crate) fn dependency_landed_unavailable(
+/// Ask the engine whether this hold's unreachable starting head has landed.
+pub(crate) fn dependency_landed(
     domain: &mut Domain,
     env: &Env<Limits>,
     client: Token,
-    _head: checkout::git::Commit,
+    head: checkout::git::Commit,
+    out: &mut Queue<crate::Request>,
 ) {
     let Some(record) = domain.workspaces.get(Id::from_token(client)) else { return };
     let hold = match record.state {
         State::Ready { hold, .. } => hold,
         State::Preparing { .. } | State::Releasing | State::Closed => return,
     };
-    route::checkout_step(domain, env, checkout::Event::DependencyLanded { hold, landed: false });
+    crate::reds::landed(domain, env, record.run, hold, head, out);
 }
 
 pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
