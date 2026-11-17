@@ -109,26 +109,6 @@ fn totals() -> Readout {
             .unwrap();
     Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
-fn note(number: u64) -> c::ReadValue {
-    let note = c::Note {
-        number: 1,
-        revision: c::Revision { value: 1 },
-        scope: c::NoteScope::Task { project: f::PROJECT, task: number },
-        description: f::goal::text(b"report: 5 of its 7 changes landed; the other 2 are building."),
-        body: f::goal::text(b"A report body not drawn here."),
-        writer: c::NoteAuthor::Task { task: number, attempt: 1 },
-        tasks: List::uncapped(),
-        changed: Some(NOW),
-        acts: List::uncapped(),
-        cut: false,
-    };
-    c::ReadValue::Notes(Box::new(c::NotePage {
-        rows: List::from_boxed(Box::new([note])),
-        before: None,
-        after: None,
-        cut: false,
-    }))
-}
 struct Harness {
     root: Domain,
     task: c::Task,
@@ -139,7 +119,13 @@ struct Harness {
     out: Queue<Request>,
 }
 impl Harness {
-    fn new(task: c::Task, rows: Vec<c::TaskLine>) -> Self {
+    fn new(task: c::Task, mut rows: Vec<c::TaskLine>) -> Self {
+        for row in &mut rows {
+            row.parts = List::from_boxed(Box::new([f::documents::goal_part(
+                Some((b"5 of its 7 changes landed; the other 2 are building.", NOW)),
+                Some(TASK),
+            )]));
+        }
         let (root, _, watch, _, _, _, inbox) = f::root_at_with_dismissals_and_needs(
             Address::Task { task: TASK },
             &f::domain_limits(),
@@ -176,7 +162,7 @@ impl Harness {
     }
     #[expect(
         clippy::too_many_lines,
-        reason = "one fixture answers the milestone's documents, reports and inbox together"
+        reason = "one fixture answers the milestone's documents, goals and inbox together"
     )]
     fn settle(&mut self) {
         while let Some(request) = self.out.pop() {
@@ -202,7 +188,7 @@ impl Harness {
                             row.last_activity = self.task.last_activity;
                             Some(page(&[row], true, false))
                         }
-                        c::Read::Notes { scope: c::NoteScope::Task { task, .. }, .. } => Some(note(task)),
+                        c::Read::Notes { scope: c::NoteScope::Task { .. }, .. } => panic!("no per-goal report read"),
                         c::Read::Inbox { group, goal: Some(TASK), .. } => {
                             let mut rows = List::uncapped();
                             let mut selection = List::uncapped();

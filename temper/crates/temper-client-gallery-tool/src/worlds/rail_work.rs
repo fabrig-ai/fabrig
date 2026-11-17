@@ -310,7 +310,10 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
                 task.budget.numbers.spent = spent;
                 task.budget.numbers.budget = budget;
                 let mut line = super::task_line(task);
-                line.parts = List::from_boxed(Box::new([super::documents::goal_part(Some((report.as_bytes(), at(if number == 81 { -37 } else { -1 }))), None)]));
+                line.parts = List::from_boxed(Box::new([super::documents::goal_part(
+                    Some((report.as_bytes(), at(if number == 81 { -37 } else { -1 }))),
+                    None,
+                )]));
                 line.delegates_done = done;
                 line.delegates_total = total;
                 rows.push(line).expect("two live goals");
@@ -334,7 +337,8 @@ fn rows(work: Work, query: &c::TaskQuery, ended: bool) -> List<c::TaskLine> {
                 -i64::try_from(*number).expect("few chats")
             });
             let mut line = super::task_line(task);
-            let document = if matches!(work, Work::Whole) && *number == 11 { Some(b"read-barriers".as_slice()) } else { None };
+            let document =
+                if matches!(work, Work::Whole) && *number == 11 { Some(b"read-barriers".as_slice()) } else { None };
             line.parts = List::from_boxed(Box::new([super::documents::chat_part(document)]));
             rows.push(line).expect("seven chats");
         }

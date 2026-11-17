@@ -649,7 +649,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
             }
         }
         for line in &milestone.goals {
-            gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+            gather_goal_in(&mut facts, line, !super::chats::ended(&line.chip), Some(milestone.task));
         }
     }
     if let Some(panel) = panel {
@@ -730,22 +730,21 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
 }
 
 fn gather_goal(facts: &mut Facts, milestones: &super::milestones::Milestones, row: &c::TaskLine, live: bool) {
+    gather_goal_in(facts, row, live, milestones.of(row));
+}
+
+fn gather_goal_in(facts: &mut Facts, row: &c::TaskLine, live: bool, milestone: Option<u64>) {
     for goal in facts.goals.iter_mut() {
         if goal.task == row.chip.task {
             if !goal.live && live {
-                *goal = Goal {
-                    task: row.chip.task,
-                    live: true,
-                    activity: row.last_activity,
-                    milestone: milestones.of(row),
-                };
+                *goal = Goal { task: row.chip.task, live: true, activity: row.last_activity, milestone };
             }
             return;
         }
     }
     facts
         .goals
-        .push(Goal { task: row.chip.task, live, activity: row.last_activity, milestone: milestones.of(row) })
+        .push(Goal { task: row.chip.task, live, activity: row.last_activity, milestone })
         .expect("one fact per goal");
 }
 

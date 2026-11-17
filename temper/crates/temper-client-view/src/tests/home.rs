@@ -2199,7 +2199,12 @@ fn goals_rows_are_live_first_and_at_least_five() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "the test inspects grouped semantic subtrees")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::too_many_lines,
+    reason = "the test inspects Home's grouped milestone part and its dependency names in both shells"
+)]
 fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     let mut limits = home_limits();
     limits.client.domain.handles = 96;
@@ -2240,8 +2245,7 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         .unwrap()
         .label;
     let goals = f::milestones::watch(&out, Some(goal_label), None, limits.client.domain.rows);
-    let out = f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
-    let children = f::milestones::watch(&out, None, Some(f::milestones::TASK), limits.client.domain.rows);
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     assert!(root.has_goals(f::PROJECT), "a milestone alone replaces Chats");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Region, b"Goals");
@@ -2258,7 +2262,23 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     waiting.chip.phase = c::Phase::Waiting;
     waiting.chip.details.phase =
         c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([3])), more: false, holds: false };
-    f::milestones::live(&mut root, &limits, children, core::slice::from_ref(&child), false);
+    child = f::milestones::in_milestone(child, f::milestones::TASK);
+    let totals = w::MilestoneTotals::new(
+        &w::CEILINGS,
+        w::MilestoneTotalsParts {
+            task: f::milestones::TASK,
+            done: 0,
+            failed: 0,
+            closed: 0,
+            live: 1,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
+    )
+    .unwrap();
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(None, totals, &[(child.clone(), None)], 0)]));
+    f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     // The dependency is held only by the milestone, not the shared goals list.
     for more in [true, false] {
         f::milestones::live(&mut root, &limits, goals, core::slice::from_ref(&waiting), more);

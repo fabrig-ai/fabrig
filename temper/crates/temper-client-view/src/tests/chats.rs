@@ -719,7 +719,8 @@ impl DraftsPage {
                     let mut rows = List::with_capacity(2);
                     let mut chat = line();
                     chat.last_activity = Wall::from_nanos(1);
-                    chat.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(Some(b"Away mode"))]));
+                    chat.parts =
+                        List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(Some(b"Away mode"))]));
                     if asking {
                         chat.chip.executor = ChipExecutor::Agent { charter: 37 };
                     }
@@ -810,7 +811,9 @@ impl DraftsPage {
                         ended: EndedGroup::Rows {
                             rows: List::from_boxed(Box::new([{
                                 let mut row = timed(8, 0, Some(0));
-                                row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(Some(b"Away mode"))]));
+                                row.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(
+                                    Some(b"Away mode"),
+                                )]));
                                 row
                             }])),
                             after: None,
@@ -959,7 +962,9 @@ fn drafts_empty_is_known_with_the_row_answers() {
     page.live_chats(&[]);
     page.closed(&[]);
     for (_, what) in &page.reads {
-        if let Read::Notes { .. } = what { panic!("no notes read is needed for Drafts"); }
+        if let Read::Notes { .. } = what {
+            panic!("no notes read is needed for Drafts");
+        }
     }
     for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
         assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_some());

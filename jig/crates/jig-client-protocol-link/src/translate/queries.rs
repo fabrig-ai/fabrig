@@ -115,7 +115,7 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
         w::WaitsOn::Nothing => c::WaitsOn::Nothing,
     }
 }
-pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
+pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
         parts: row_parts(value.parts())?,
         chip: documents::chip_fields(value.chip(), limits)?,

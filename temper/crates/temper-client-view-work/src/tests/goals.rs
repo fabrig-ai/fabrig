@@ -928,11 +928,11 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     let mut page = Page::populated();
     let m = fixtures::milestones::TASK;
     let mut planning = page_line(PLANNING_TASK, State::Planning);
-    planning.requester = c::Requester::Task(m);
+    planning = fixtures::milestones::in_milestone(planning, m);
     let mut needs = page_line(NEEDS_TASK, State::Needs { funds: false });
-    needs.requester = c::Requester::Task(m);
+    needs = fixtures::milestones::in_milestone(needs, m);
     let mut landed = page_line(LANDED_TASK, State::Landed);
-    landed.requester = c::Requester::Task(m);
+    landed = fixtures::milestones::in_milestone(landed, m);
     let mut unknown = page_line(PAUSED_TASK, State::Paused);
     unknown.requester = c::Requester::Task(9999);
     page.live_at(&[page_line(RUNNING_TASK, State::Running), planning.clone(), unknown, needs.clone()], false, 1);
@@ -944,9 +944,22 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     milestone.chip.title = fixtures::goal::text(b"Store shape");
     let mut empty = milestone.clone();
     empty.chip.task = m + 1;
-    let out = fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
-    let children = fixtures::milestones::watch(&out, None, Some(m), PAGE_ROWS);
-    fixtures::milestones::live(&mut page.root, &page.limits, children, &[planning, needs, landed], false);
+    let totals = temper_client_protocol_wire::v1::MilestoneTotals::new(
+        &temper_client_protocol_wire::v1::CEILINGS,
+        temper_client_protocol_wire::v1::MilestoneTotalsParts {
+            task: m,
+            done: 1,
+            failed: 0,
+            closed: 0,
+            live: 2,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
+    )
+    .unwrap();
+    milestone.parts = List::from_boxed(Box::new([fixtures::milestones::part(None, totals, &[], 0)]));
+    fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         for (filter, expected, children) in [
             (

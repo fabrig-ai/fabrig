@@ -2,7 +2,7 @@
 use super::fixtures::{self as f, chat};
 use crate::{
     forge::milestones as totals,
-    milestones::{self, Facts, Of},
+    milestones::{self, Facts},
 };
 use jig_client::{Readable, Readout, contract as c};
 use skein_lib::Wall;
@@ -103,10 +103,9 @@ fn facts_keep_the_name_words_maker_and_concluding_wall() {
     }
 }
 
-#[test]
-fn a_goals_requester_names_its_milestone_or_the_one_line_to_read() {
+fn row() -> c::TaskLine {
     let task = chat::task();
-    let mut line = c::TaskLine {
+    c::TaskLine {
         parts: skein_lib::List::with_capacity(0),
         chip: task.chip,
         project: task.project,
@@ -124,12 +123,102 @@ fn a_goals_requester_names_its_milestone_or_the_one_line_to_read() {
         delegates_total: 0,
         held_below: 0,
         conversation: None,
+    }
+}
+
+fn part(bytes: Box<[u8]>) -> c::RowPart {
+    c::RowPart::Value(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes })
+}
+
+#[test]
+fn a_goals_part_alone_names_its_milestone() {
+    let mut line = row();
+    assert_eq!(milestones::of(&line), None);
+    let part_value = w::GoalPart::new(&w::CEILINGS, w::GoalPartParts { report: None, milestone: Some(811) }).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(part_value.measure()).unwrap());
+    part_value.encode(&mut writer).unwrap();
+    line.parts = skein_lib::List::from_boxed(Box::new([part(writer.finish())]));
+    assert_eq!(milestones::of(&line), Some(811));
+    line.requester = c::Requester::Person(1);
+    assert_eq!(milestones::of(&line), Some(811), "no inference from the requester");
+}
+
+#[test]
+fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
+    use crate::parts;
+    use skein_lib::{List, Writer};
+    let limits =
+        jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
+    let mut line = row();
+    let goal = jig_client_test_records::task_line_record();
+    let mut writer = Writer::new(usize::try_from(goal.measure()).unwrap());
+    goal.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+    let goal_row = |bytes: &[u8]| {
+        w::MilestoneGoal::new(
+            &w::CEILINGS,
+            w::MilestoneGoalParts { line: bytes.into(), headline: Some(b"Newest report.".as_slice().into()) },
+        )
+        .unwrap()
     };
-    assert_eq!(milestones::of(&line, &[811, 812]), Of::Milestone(812));
-    assert_eq!(milestones::of(&line, &[811]), Of::Read(812));
-    for requester in [c::Requester::Person(812), c::Requester::Deployment { project: 1 }] {
-        line.requester = requester;
-        assert_eq!(milestones::of(&line, &[812]), Of::None);
+    let totals = w::MilestoneTotals::new(
+        &w::CEILINGS,
+        w::MilestoneTotalsParts {
+            task: line.chip.task,
+            done: 2,
+            failed: 0,
+            closed: 0,
+            live: 3,
+            ended: None,
+            last_landing: None,
+            spent: 40,
+        },
+    )
+    .unwrap();
+    let value = w::MilestonePart::new(
+        &w::CEILINGS,
+        w::MilestonePartParts {
+            whole: Some(17),
+            totals: totals.clone(),
+            goals: List::from_boxed(Box::new([
+                goal_row(&bytes),
+                goal_row(b"bad line"),
+                goal_row(&trailing),
+                goal_row(&bytes),
+            ])),
+            more: 3,
+        },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
+    value.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    line.parts = List::from_boxed(Box::new([part(bytes.clone())]));
+    let decoded = parts::milestone(&line, &limits).unwrap();
+    assert_eq!(decoded.whole, Some(Wall::from_nanos(17)));
+    assert_eq!(decoded.totals, totals);
+    assert_eq!(decoded.more, 5);
+    assert_eq!(decoded.goals.len(), 2);
+    let expected = jig_client_protocol_link::translate::queries::line(&goal, &limits).unwrap();
+    assert_eq!(decoded.goals.get(0).unwrap().0, expected);
+    assert_eq!(decoded.goals.get(0).unwrap().1.as_deref(), Some(b"Newest report.".as_slice()));
+    assert_eq!(decoded.goals.get(1).unwrap().0, expected);
+    let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
+    for bad in [
+        c::RowPart::Unknown,
+        c::RowPart::Failed(c::PartFailure::Unreadable),
+        part(trailing),
+        part(b"bad part".as_slice().into()),
+        c::RowPart::Value(jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION + 1,
+            bytes: bytes.clone(),
+        }),
+        c::RowPart::Value(jig_client::Family { family: wire::FORGE + 1, version: wire::CLIENT_VERSION, bytes }),
+    ] {
+        line.parts = List::from_boxed(Box::new([bad]));
+        assert!(parts::milestone(&line, &limits).is_none());
     }
 }
 

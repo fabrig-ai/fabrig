@@ -1982,7 +1982,7 @@ fn report_request(out: &Queue<Request>) -> Option<(jig_client::Handle, u64)> {
 }
 
 #[test]
-fn a_milestones_own_reads_serialize_reports_and_leave_with_its_inbox() {
+fn a_milestones_own_reads_take_goal_headlines_from_parts_and_leave_with_its_inbox() {
     let mut task = f::task();
     gathering(&mut task);
     task.priority = Some(PRIORITY);
@@ -2021,24 +2021,32 @@ fn a_milestones_own_reads_serialize_reports_and_leave_with_its_inbox() {
     assert!(totals && own_document);
     let mut one = super::chats::chat_line();
     one.chip.task = 30;
+    one.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+        Some((b"Goal headline.", Wall::EPOCH)),
+        None,
+    )]));
     let mut two = one.clone();
     two.chip.task = 31;
     let out = milestone_told(&mut pages, &client, Told::Page { handle: ended, page: task_rows(&[one, two]) });
-    let (report, number) = report_request(&out).unwrap();
-    assert_eq!(number, 30);
-    assert_eq!(pages.task().unwrap().milestone.as_ref().unwrap().milestone.goals.len(), 2);
-    let empty = jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-        rows: List::uncapped(),
-        before: None,
-        after: None,
-        cut: false,
-    }))));
-    let out = milestone_told(&mut pages, &client, Told::Page { handle: report, page: empty.clone() });
-    assert_eq!(report_request(&out), Some((report, 31)));
-    let out = milestone_told(&mut pages, &client, Told::Page { handle: report, page: empty });
-    assert!(report_request(&out).is_none());
+    assert!(report_request(&out).is_none(), "no per-goal report reads");
+    let milestone = pages.task().unwrap().milestone.as_ref().unwrap();
+    assert_eq!(milestone.milestone.goals.len(), 2);
+    assert_eq!(milestone.headline(30).as_deref(), Some(b"Goal headline.".as_slice()));
+    assert_eq!(milestone.headline(31).as_deref(), Some(b"Goal headline.".as_slice()));
+    for request in &opened {
+        if let Request::Client(
+            Event::Watch { subject: Watchable::Jig(c::Subject::Tasks { query, .. }), .. }
+            | Event::Read { read: Readable::Jig(c::Read::Tasks { query, .. }), .. },
+        ) = request
+            && query.parent == Some(task.chip.task)
+        {
+            assert_eq!(
+                query.parts.as_slice(),
+                [temper_client_domain_forge::parts::asks(temper_client_protocol_wire::GOAL_PART)]
+            );
+        }
+    }
     held.push(own_line).unwrap();
-    held.push(report).unwrap();
     let inbox = pages.inbox().unwrap();
     held.push(inbox.entries).unwrap();
     for handle in inbox.queries {

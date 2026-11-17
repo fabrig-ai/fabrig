@@ -75,3 +75,11 @@ pub fn live(
         },
     )
 }
+
+pub use temper_fixtures::milestones::part;
+
+#[must_use]
+pub fn in_milestone(mut line: c::TaskLine, milestone: u64) -> c::TaskLine {
+    line.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(None, Some(milestone))]));
+    line
+}

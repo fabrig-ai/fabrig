@@ -50,7 +50,7 @@ fn report() -> Report {
     }
 }
 fn word(words: &Words, headline: Headline, lines: &[c::TaskLine], report: Option<&Report>) -> Box<[u8]> {
-    milestones::headline(words, headline, lines, report, &Names::new())
+    milestones::headline(words, headline, lines, report.map(|report| report.headline.as_ref()), &Names::new())
 }
 
 #[test]
@@ -185,12 +185,19 @@ fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
         Action, Address,
         pages::{Act, goals::Goals},
     };
-    let mut next = 50;
-    let mut milestone = pure::Milestone::new(f::PROJECT, 99, &mut next);
+    let mut goals = Vec::new();
     for task in 1..=8 {
-        milestone.goals.push(if task == 7 { line(task, b"S7 logs") } else { done(task, b"S1 done") }).unwrap();
+        let mut goal = if task == 7 { line(task, b"S7 logs") } else { done(task, b"S1 done") };
+        if task != 7 {
+            goal.ended_at = Some(Wall::EPOCH);
+        }
+        goals.push((goal, None));
     }
-    milestone.totals = Some(totals(7, 0, 1));
+    let mut listed = line(99, b"Store shape");
+    listed.parts = List::from_boxed(Box::new([f::milestones::part(None, totals(7, 0, 1), &goals, 0)]));
+    let limits = f::domain_limits();
+    let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+    let milestone = pure::Milestone::from_line(&listed, &link);
     for ended in [false, true] {
         let listed = if ended { done(99, b"Store shape") } else { line(99, b"Store shape") };
         for words in [f::browser_words(), f::words()] {

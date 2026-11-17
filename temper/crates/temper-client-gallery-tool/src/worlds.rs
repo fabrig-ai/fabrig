@@ -1835,7 +1835,15 @@ fn chat_rows(w: World, ended: bool, drafts: bool) -> List<c::TaskLine> {
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
     for number in numbers {
         let mut row = task_line(document(w, *number));
-        let document = if drafts { match number { 1 => Some(b"Away mode".as_slice()), 3 => Some(b"Report format".as_slice()), _ => None } } else { None };
+        let document = if drafts {
+            match number {
+                1 => Some(b"Away mode".as_slice()),
+                3 => Some(b"Report format".as_slice()),
+                _ => None,
+            }
+        } else {
+            None
+        };
         row.parts = List::from_boxed(Box::new([documents::chat_part(document)]));
         rows.push(row).expect("row");
     }
@@ -2345,7 +2353,10 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     task.last_activity = offset(w, f.at);
     task.changed = task.last_activity;
     let mut line = task_line(finish_document(task));
-    line.parts = List::from_boxed(Box::new([documents::goal_part(f.headline.map(|headline| (headline.as_bytes(), offset(w, f.at))), None)]));
+    line.parts = List::from_boxed(Box::new([documents::goal_part(
+        f.headline.map(|headline| (headline.as_bytes(), offset(w, f.at))),
+        None,
+    )]));
     line.delegates_done = f.done;
     line.delegates_total = f.total;
     let (phase, details) = owner(&mut line.chip);

@@ -60,7 +60,7 @@ pub mod store;
 
 mod compound;
 
-pub(crate) mod queries;
+pub mod queries;
 
 mod account_hosts;
 

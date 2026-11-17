@@ -184,7 +184,10 @@ impl Fixture {
         goal.delegates_total = 9;
         goal.budget.numbers.spent = 31;
         goal.budget.numbers.budget = 50;
-        goal.parts = list(&[temper_fixtures::client_documents::goal_part(Some((b"Six of nine tasks landed.", Wall::from_nanos(RECENT))), None)]);
+        goal.parts = list(&[temper_fixtures::client_documents::goal_part(
+            Some((b"Six of nine tasks landed.", Wall::from_nanos(RECENT))),
+            None,
+        )]);
         self.live(self.goals, if full { core::slice::from_ref(&goal) } else { &[] });
         let mut draft = line(DRAFT, b"Read barriers");
         draft.parts = list(&[temper_fixtures::client_documents::chat_part(Some(b"Read barriers"))]);

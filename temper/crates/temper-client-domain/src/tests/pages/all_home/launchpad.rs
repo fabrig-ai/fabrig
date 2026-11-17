@@ -20,8 +20,12 @@ fn task_subject(fixture: &Across, project: Option<u32>, tracked: Option<bool>) -
     Watchable::Jig(c::Subject::Tasks {
         query: c::TaskQuery {
             parts: if project.is_some() && tracked.is_none() {
-                List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(temper_client_protocol_wire::CHAT_PART)]))
-            } else { List::with_capacity(0) },
+                List::from_boxed(Box::new([temper_client_domain_forge::parts::asks(
+                    temper_client_protocol_wire::CHAT_PART,
+                )]))
+            } else {
+                List::with_capacity(0)
+            },
             project,
             requester: Some(c::Requester::Person(f::PARTY)),
             root: None,

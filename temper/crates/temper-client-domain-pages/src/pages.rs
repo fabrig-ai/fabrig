@@ -1475,8 +1475,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.milestones = Some(milestones::Milestones::new(&mut pages.next));
         }
         if let Some(reads) = &mut pages.milestones {
-            reads.configure(me, project, client, &env.limits, env.wall, &mut pages.next, out);
-            reads.requesters(pages.goals.as_ref(), client, &mut pages.next, out);
+            reads.configure(me, project, client, &env.limits, env.wall, out);
         }
     }
     if let Some(inbox) = &mut pages.inbox {
@@ -1555,7 +1554,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if let Some(reads) = &mut pages.milestones
-        && reads.told(&told, client, &env.limits, out)
+        && reads.told(&told, client, out)
     {
         return true;
     }

@@ -3847,7 +3847,9 @@ fn tasks_with_parts(tasks: &w::Tasks, count: u32) -> w::Tasks {
     while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("row piece") {
         let mut row = w::TaskLine::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("row").into_parts();
         row.parts = skein_lib::List::with_capacity(count);
-        for _ in 0..count { row.parts.push(w::RowPart::Unknown).expect("part slot"); }
+        for _ in 0..count {
+            row.parts.push(w::RowPart::Unknown).expect("part slot");
+        }
         let row = w::TaskLine::new(&w::CEILINGS, row).expect("row parts");
         let mut writer = Writer::new(row.measure().try_into().expect("row size"));
         row.encode(&mut writer).expect("row encodes");
