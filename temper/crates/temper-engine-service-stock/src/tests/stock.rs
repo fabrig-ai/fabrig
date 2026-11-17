@@ -1253,12 +1253,16 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (9, 4, 300)] {
+        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (5, 800, 28_800), (9, 4, 300)] {
             let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
-            assert_eq!(charter.policy.reserve_time, skein_lib::Duration::from_secs(60), "{row}");
+            assert_eq!(
+                charter.policy.reserve_time,
+                skein_lib::Duration::from_secs(if number == 2 || number == 5 { 300 } else { 60 }),
+                "{row}"
+            );
         }
         for charter in &stock.charters {
             assert_eq!(charter.spend, k, "{row}");

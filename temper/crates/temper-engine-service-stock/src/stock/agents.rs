@@ -2,6 +2,9 @@
 use skein_lib::List;
 use temper_client_protocol_wire::v1 as w;
 
+// Fabrig's own development's check timeout in milliseconds.
+pub const CHECK_TIMEOUT_MS: u64 = 300_000;
+
 pub const AGENT_PROFILE: &[(&[u8], u64)] = &[
     (b"declared.memory", 2_147_483_648),
     // Fabrig's own development's tool payload.
@@ -13,8 +16,7 @@ pub const AGENT_PROFILE: &[(&[u8], u64)] = &[
     (b"declared.calls_per_response", 48),
     (b"declared.charter_models", 64),
     (b"policy.max_turns", 800),
-    // Fabrig's own development's check timeout in milliseconds.
-    (b"policy.check_timeout", 300_000),
+    (b"policy.check_timeout", CHECK_TIMEOUT_MS),
     (b"policy.group_stop", 10),
     // Fabrig's own development's inbox.
     (b"policy.inbox", 82),
