@@ -510,7 +510,7 @@ instead (`../landing.md`, section 5).
   So a lost write is recovered against its pin, each new update spending
   one of `updates` and up to `write_attempts` lifetimes. Past `updates`
   it holds, `Updates`, a person told why in the last write's account
-  (`update pull request #N: forge timed out`).
+  (`update pull request: forge timed out; ...`).
 - **Refused stale: a replan** (2026-11-16, `../../draft/landing-update-loop.md`).
   An update or a preparation the client's check refuses before any send
   of its own was never made: `Stale`, its pull request at another head,
@@ -539,7 +539,7 @@ instead (`../landing.md`, section 5).
   last decision, at least 1 second and at most 60 seconds, so the
   delays double from 1 second. Past `stall` from the first refusal it
   holds, `Stalled`, a person told why in the last refusal's account
-  (`update pull request #N: base moved`). The time is dropped as the
+  (`update pull request: base moved; ...`). The time is dropped as the
   change leaves updating or preparing, and at a release.
 - **`updates` counts sends.** The decision after a stale refusal, a
   replan or a try again, spends the refused update's count and none of
