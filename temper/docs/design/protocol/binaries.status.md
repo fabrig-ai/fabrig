@@ -5,7 +5,7 @@
 
 
 - **Not yet:** 1 and 2: neither binary's table has the `checkpoint` row [in flight: change 7060]
-- **Not yet:** 1 and 2: neither binary's table has the `restore` row
+- **Not yet:** 1 and 2: neither binary's table has the `restore` row [in flight: change 7100]
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
 
