@@ -333,7 +333,13 @@ impl core::fmt::Debug for Drivers {
 impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
-        let mut drivers = [driver(limits), driver(limits), driver(limits), driver(limits)];
+        let serving = serving_read(limits);
+        let mut drivers = [
+            driver(limits, serving),
+            driver(limits, serving),
+            driver(limits, serving),
+            driver(limits, serving.max(max_read(limits))),
+        ];
         let seeded = seed(&mut drivers, value);
         Self {
             below: Below {
@@ -783,10 +789,17 @@ pub fn check_read_page(limits: &crate::Limits) -> Option<()> {
     }
     Some(())
 }
-fn driver(limits: &crate::Limits) -> Driver {
+fn serving_read(limits: &crate::Limits) -> u32 {
+    limits
+        .store
+        .chunk
+        .max(limits.core.resume_bytes)
+        .max(u32::try_from(limits.core.load_bytes.min(u64::from(u32::MAX))).expect("file read length"))
+        .max(limits.store.record.saturating_add(17))
+        .max(limits.secrets.record.saturating_add(17))
+}
+fn driver(limits: &crate::Limits, read: u32) -> Driver {
     let files = handles(limits).expect("store and payload file handles fit");
-    let read =
-        max_read(limits).max(limits.store.record.saturating_add(17)).max(limits.secrets.record.saturating_add(17));
     let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.

@@ -261,6 +261,38 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
 }
 
 #[test]
+fn only_the_checkpoint_lane_has_room_for_checkpoint_chunks() {
+    // Each serving source can set the bound; record reads include their framing.
+    for (chunk, resume, load, record, secret, expected) in [
+        (4096, 65_536, 65_536, 8192, 8192, 65_536),
+        (131_072, 65_536, 65_536, 8192, 8192, 131_072),
+        (4096, 131_072, 65_536, 8192, 8192, 131_072),
+        (4096, 65_536, 131_072, 8192, 8192, 131_072),
+        (4096, 65_536, u64::MAX, 8192, 8192, u32::MAX),
+        (4096, 65_536, 65_536, 65_536, 8192, 65_553),
+        (4096, 65_536, 65_536, 8192, 65_536, 65_553),
+        (4096, 65_536, 65_536, u32::MAX, 8192, u32::MAX),
+    ] {
+        let mut limits = fixtures::store_limits();
+        limits.store.chunk = chunk;
+        limits.core.resume_bytes = resume;
+        limits.core.load_bytes = load;
+        limits.store.record = record;
+        limits.secrets.record = secret;
+        let host = Drivers::new(&limits, 1);
+        for lane in Lane::ALL {
+            let driver = host.drivers.get(lane.index()).unwrap();
+            let read = match lane {
+                Lane::Store | Lane::Secrets | Lane::Transcripts => expected,
+                Lane::Checkpoints => expected.max(crate::checkpoints::files::CHUNK),
+            };
+            assert_eq!(driver.file_limits.read, read, "{lane:?}");
+            assert_eq!(driver.file_limits.whole, super::max_whole(&limits), "{lane:?}");
+        }
+    }
+}
+
+#[test]
 fn a_registry_upgrade_without_a_logs_directory_opens() {
     use jig_test_layouts::layouts::{CURRENT, KEPT};
     const FAMILY: crate::KeptFamily = crate::KeptFamily {
