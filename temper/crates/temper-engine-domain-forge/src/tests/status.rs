@@ -93,6 +93,7 @@ fn observe_pull(d: &mut Domain) {
         branch: Some(HEAD),
         branch_fresh: false,
         base_tip: Some(FIRST),
+        base_read: Some(FIRST),
         pull: Some(pull),
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,

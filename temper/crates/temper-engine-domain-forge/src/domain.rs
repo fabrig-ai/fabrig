@@ -116,6 +116,7 @@ pub(crate) struct PendingStep {
     branch: Option<skein_forge::api::Commit>,
     branch_fresh: bool,
     base_tip: Option<skein_forge::api::Commit>,
+    base_read: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
@@ -4517,6 +4518,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         branch: None,
         branch_fresh: read_branch,
         base_tip: None,
+        base_read: None,
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4641,6 +4643,7 @@ fn step_verified(
         branch: row.change.last_head,
         branch_fresh: false,
         base_tip: Some(merge),
+        base_read: Some(merge),
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4852,6 +4855,7 @@ fn step_read(
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
                     let tip = if let change::State::Preparing { main, .. } = preparing { main } else { commit };
                     pending.base_tip = Some(tip);
+                    pending.base_read = Some(commit);
                     branch_changed(
                         d,
                         env,
@@ -6151,6 +6155,7 @@ fn change_facts(
             status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
         },
         base_tip,
+        base_read: pending.base_read.unwrap_or(base_tip),
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
         updates: requires.up_to_date,
@@ -6495,6 +6500,10 @@ pub(crate) fn change_outcome(
         },
         None => (false, false),
     };
+    let unsent = match d.entries.get(&entry) {
+        Some(row) => row.entry.attempt.is_none(),
+        None => false,
+    };
     rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
     let account = taking::make_account(d.changes.get(&task).expect("found change row"), account, outcome);
@@ -6527,6 +6536,9 @@ pub(crate) fn change_outcome(
         }
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
+        skein_forge_client::Outcome::Failed(
+            skein_forge::api::Error::Stale | skein_forge::api::Error::BaseMoved { .. },
+        ) if update && unsent => change::EffectResult::Stale,
         skein_forge_client::Outcome::Failed(
             skein_forge::api::Error::Timeout
             | skein_forge::api::Error::Unavailable
@@ -6812,7 +6824,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     let lifted = released.state != row.change.state;
     row.change = released;
     row.change.since = env.wall;
-    if lifted && row.effect == change::EffectResult::Failed {
+    if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {
         match row.change.state {
             change::State::Taking { .. }
             | change::State::Updating { .. }

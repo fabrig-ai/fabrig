@@ -876,6 +876,7 @@ mod tests {
                 repairs: 0,
                 resolutions: 0,
                 updates: 0,
+                stale: None,
                 since: skein_lib::Wall::EPOCH,
                 ready_since: None,
                 owns_turn: false,

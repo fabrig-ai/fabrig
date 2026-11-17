@@ -210,6 +210,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(0),
             ready_since: None,
             owns_turn: false,

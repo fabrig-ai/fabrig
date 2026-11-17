@@ -296,6 +296,8 @@ pub struct Change {
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,
+    /// The first stale refusal of the update outstanding, for its backoff.
+    pub stale: Option<Wall>,
     pub since: Wall,
     /// CI's execution clock at checking (domain/forge/change/stalls.md, 2).
     pub clock: Option<crate::Clock>,
@@ -389,6 +391,8 @@ pub struct Facts {
     pub execution: Option<crate::Reading>,
     pub base_ci: Ci,
     pub base_tip: Commit,
+    /// The base branch's tip as the step read it; `base_tip` is a preparation's pin while preparing.
+    pub base_read: Commit,
     /// Whether the head contains `Updating.base` while updating, otherwise `base_tip`.
     /// The asked base remains the update's even when its landing branch moves on.
     pub contains_base: Status,
@@ -453,6 +457,9 @@ pub enum EffectResult {
     Made,
     /// A mechanical update conflicted with the base.
     Conflict,
+    /// Refused by the client's check before any send: the forge was never asked
+    /// (domain/forge/README.md, 6).
+    Stale,
     /// An effect failed permanently.
     Failed,
 }

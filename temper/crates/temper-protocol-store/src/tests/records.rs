@@ -3358,3 +3358,20 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
         assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
     }
 }
+
+#[test]
+fn a_stale_updates_first_refusal_survives_the_store() {
+    use temper_engine_domain_forge_change::{EffectResult, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for stale in [None, Some(skein_lib::Wall::from_nanos(17))] {
+        let mut row = fixtures::change_row(State::Preparing {
+            from: [1; 32],
+            main: [2; 32],
+            ready_since: skein_lib::Wall::from_nanos(0),
+        });
+        row.effect = EffectResult::Stale;
+        row.change.stale = stale;
+        let stored = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+    }
+}

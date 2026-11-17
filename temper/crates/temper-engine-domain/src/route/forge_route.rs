@@ -2614,6 +2614,7 @@ pub(super) fn start_recovered_change(
                     repairs: 0,
                     resolutions: 0,
                     updates: 0,
+                    stale: None,
                     since: env.wall,
                     ready_since: None,
                     owns_turn: false,

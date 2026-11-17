@@ -1352,6 +1352,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: skein_lib::Wall::from_nanos(0),
             ready_since: None,
             owns_turn: false,

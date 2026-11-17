@@ -161,7 +161,7 @@ enum GateKind { agent, person, check, follow }
 enum AuthorityLack { tasks, depth, spend }
 record AuthorityHold { lack: AuthorityLack had: u64 released: bool task: u64 spec: u64 hold: u64 tasks: u64 }
 enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
-enum EffectResult { none, pending, made, conflict, failed }
+enum EffectResult { none, pending, made, conflict, failed, stale }
 record LandingRepair { gate: u16 }
 record LandedBelow { change: u64 pull: u64 }
 record LandingBelow { green: fixed 32 changes: list 4 LandedBelow by_test: bool = false top: bool = false }
@@ -199,7 +199,7 @@ record EarlyHeads { heads: list 64 StartedFrom }
 enum Early { none, started: EarlyHeads, spent: EarlyHeads }
 enum Execution { unknown, waiting, running }
 record ExecutionClock { since: u64 head: fixed 32 run: u64 attempt: u32 ran: u64 waited: u64 unknown: u64 at: u64 seen: Execution }
-record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 stale: option u64 = none since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }

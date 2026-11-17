@@ -110,6 +110,7 @@ pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: skein_lib::Wall::EPOCH,
             ready_since: None,
             owns_turn: false,

@@ -149,6 +149,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::EPOCH,
             ready_since: None,
             owns_turn: false,

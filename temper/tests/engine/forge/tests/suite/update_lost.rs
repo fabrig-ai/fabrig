@@ -361,3 +361,129 @@ fn a_copy_landing_after_the_change_moved_on_holds_and_lands_nothing_unchecked() 
         assert_eq!(world.branch(BRANCH), moved, "release keeps the observed head");
     }
 }
+
+// Leave the outbox uncommitted so the base can move before the client's check.
+fn decide_before_check(world: &mut World, entry: u64) -> change::Decision {
+    world.take_seen();
+    world.event(top::Event::StepChange {
+        task: CHANGE,
+        entry,
+        heard: change::Heard {
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            delegate_running: false,
+            delegate_live: false,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        kept: false,
+        merge_job: false,
+        pending: Box::new([]),
+    });
+    world.run_for(1);
+    let (decision, kept) = world
+        .seen()
+        .iter()
+        .find_map(|request| match request {
+            top::Request::ChangeDecision { task: CHANGE, decision, entry, .. } => Some((*decision, *entry)),
+            _ => None,
+        })
+        .expect("decision before the check");
+    assert_eq!(kept, Some(entry));
+    decision
+}
+
+fn single_prepare_world(conflict: bool) -> World {
+    let mut world = landings::turn_world();
+    world.produce(BRANCH);
+    world.push_file(b"main", if conflict { b"file" } else { b"base" }, b"main moved");
+    landings::ready_change(&mut world, CHANGE, BRANCH);
+    // A restored single landing prepares through the change's forge rebase.
+    let mut row = landings::landing_row(world.change(CHANGE));
+    row.landing.round.branch = Box::new([]);
+    row.landing.members[0].branch = BRANCH.into();
+    world.event(top::Event::Landing { row });
+    assert_eq!(landings::step_landing_raw(&mut world, LANDING, 100), landing::Decision::None);
+    let decision = landings::step_landing_raw(&mut world, LANDING, 101);
+    assert_eq!(decision, landing::Decision::None);
+    assert!(matches!(world.landing(LANDING).asks[0], Some(change::Ask::Prepare { .. })));
+    world
+}
+
+#[test]
+fn an_update_refused_before_sending_replans_and_lands_with_one_send() {
+    let mut world = queued();
+    let decision = decide_before_check(&mut world, 1);
+    assert!(matches!(decision, change::Decision::Effect(change::Effect::Update { .. })));
+    world.push_file(b"main", b"next", b"base moved before check");
+    let tip = translate::commit(world.branch(b"main"));
+    world.event(top::Event::Committed { entry: 1 });
+    world.run_for(1);
+    assert_eq!(world.change(CHANGE).effect, change::EffectResult::Stale);
+    assert_eq!(world.change(CHANGE).pending, None);
+    assert_eq!(updates(&mut world, api::UpdateStyle::Merge), 0);
+    assert!(
+        matches!(step(&mut world, 2), change::Decision::Effect(change::Effect::Update { base, .. }) if base == tip)
+    );
+    finish(&mut world, 3);
+    assert_eq!(world.change(CHANGE).change.updates, 1);
+    assert_eq!(updates(&mut world, api::UpdateStyle::Merge), 1);
+}
+
+#[test]
+fn a_preparation_refused_before_sending_replans_and_its_landing_reads_the_member_afresh() {
+    let mut world = single_prepare_world(false);
+    let decision = decide_before_check(&mut world, 1);
+    assert!(matches!(decision, change::Decision::Effect(change::Effect::Prepare { .. })));
+    world.push_file(b"main", b"next", b"base moved before check");
+    let tip = translate::commit(world.branch(b"main"));
+    world.event(top::Event::Committed { entry: 1 });
+    world.run_for(1);
+    assert_eq!(world.change(CHANGE).effect, change::EffectResult::Stale);
+    assert_eq!(updates(&mut world, api::UpdateStyle::Rebase), 0);
+    assert!(
+        matches!(step(&mut world, 2), change::Decision::Effect(change::Effect::Prepare { main, .. }) if main == tip)
+    );
+    landings::drive_landing(&mut world, LANDING);
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+    assert_eq!(world.change(CHANGE).change.updates, 1);
+    assert_eq!(updates(&mut world, api::UpdateStyle::Rebase), 1);
+}
+
+#[test]
+fn a_preparations_real_conflict_reaches_the_merge_job_then_a_resolution() {
+    use temper_engine_forge_world::changes::change_step_merge_job;
+    let mut world = single_prepare_world(true);
+    let from = translate::commit(world.branch(BRANCH));
+    let base = translate::commit(world.branch(b"main"));
+    assert_eq!(step(&mut world, 1), change::Decision::Effect(change::Effect::Prepare { head: from, main: base }));
+    let kind = change::Delegate::Merge { base, from: Some(from) };
+    assert_eq!(
+        change_step_merge_job(&mut world, 2, change::Status::Passed, Box::new([])),
+        change::Decision::Delegate(kind)
+    );
+    world.event(top::Event::Delegated { task: CHANGE, child: 52, kind });
+    let words = b"file: both modified; left for resolution";
+    world.event(top::Event::DelegateResult {
+        task: CHANGE,
+        child: 52,
+        status: change::Status::Passed,
+        no_change: false,
+        ended_at: None,
+        failed: false,
+        cancelled: false,
+        words: words.as_slice().into(),
+    });
+    assert_eq!(world.change(CHANGE).merge_result.as_deref(), Some(words.as_slice()));
+    assert_eq!(
+        change_step_merge_job(&mut world, 3, change::Status::Passed, Box::new([])),
+        change::Decision::Delegate(change::Delegate::Resolve { base })
+    );
+    assert_eq!(world.change(CHANGE).merge_result.as_deref(), Some(words.as_slice()));
+}

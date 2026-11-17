@@ -142,6 +142,7 @@ pub fn opening_row() -> ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: env().wall,
             ready_since: None,
             owns_turn: false,
