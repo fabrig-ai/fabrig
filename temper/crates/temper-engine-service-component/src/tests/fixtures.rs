@@ -1094,7 +1094,8 @@ fn restored_key() -> crate::Service {
     use jig_domain_accounts::{Holder, Kind, Stored};
     use jig_protocol_store::{SecretOwner, Secrets};
     use temper_engine_domain::{Record, Write};
-    let mut store = records_store();
+    // The completed store can accept the key directly, without a records-fixture reopen.
+    let mut store = completed_store();
     let mut writes = skein_lib::List::with_capacity(3);
     for row in [
         Stored::Account {

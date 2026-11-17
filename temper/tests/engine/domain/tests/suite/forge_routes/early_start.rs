@@ -365,7 +365,8 @@ pub(super) fn stop(world: &mut World, goal: &engine::Assignment) {
             grace: None,
         },
     }));
-    ticks(world);
+    // Cancellation drains internal work; hosted terminals need no quiet-time window.
+    world.until(Until::Ready);
     for run in world.assigned.clone() {
         if !ended(world, run.task) {
             let event =
