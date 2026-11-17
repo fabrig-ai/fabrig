@@ -381,6 +381,9 @@ fn load_document(
     let engine = match engine_at {
         Some(at) => match engine_with(document, at, directories, given) {
             Ok(mut engine) => {
+                if check_start {
+                    checks::figures(&engine, &mut problems);
+                }
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
             }

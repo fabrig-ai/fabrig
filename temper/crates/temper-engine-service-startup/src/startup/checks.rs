@@ -651,6 +651,17 @@ pub fn root(
         problems.push(path, what);
     }
 }
+/// Workers' figures carry at most 64 endpoints (protocol/configuration/figures.md, 2).
+pub fn figures(engine: &config::Engine, problems: &mut Problems) {
+    let count = u32::try_from(engine.llm.endpoints.len()).expect("document bounds endpoints");
+    if count > temper_engine_service_vocabulary::figures::ENDPOINTS {
+        problems.push(
+            Path::root().member(b"engine").member(b"llm"),
+            What::Half(crate::startup::EngineWhat::FigureEndpoints { count }),
+        );
+    }
+}
+
 /// Endpoint names, and every charter model, agree with the agent.
 pub fn agent(engine: &config::Engine, agent: &Declaration, problems: &mut Problems) {
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {

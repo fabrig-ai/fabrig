@@ -29,6 +29,7 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
+    figures: temper_engine_service_vocabulary::figures::Composer,
     worker_names: List<Box<[u8]>>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
@@ -38,7 +39,7 @@ impl Workers {
         files: &Files,
         encoding: Encoding,
         forges: Box<[Forge]>,
-        forge_limit: u32,
+        own: &crate::limits::Limits,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
@@ -47,7 +48,7 @@ impl Workers {
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
         let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
-        let mut table = crate::forges::Forges::with_capacity(forge_limit);
+        let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
@@ -58,6 +59,7 @@ impl Workers {
         let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
         Ok(Self {
             host,
+            figures: temper_engine_service_vocabulary::figures::Composer::new(config, own),
             encoding,
             forges: table,
             bad_parts: 0,
@@ -66,6 +68,22 @@ impl Workers {
             worker_names,
             opening_ends: Map::with_capacity(opening_names),
         })
+    }
+    /// Give restored or changed agents figures to every worker (protocol/configuration/figures.md, 2).
+    pub(crate) fn figures(
+        &mut self,
+        now: Time,
+        agents: &temper_client_protocol_wire::v1::AgentFigures,
+        revision: u32,
+        events: &mut Queue<root::Event>,
+    ) {
+        let figures = self.figures.compose(agents);
+        self.notes.push(crate::Note::WorkerFigures {
+            limits: figures.limits().len(),
+            endpoints: figures.agents().endpoints().len(),
+            revision,
+        });
+        self.down(now, kit::Event::Figures { figures }, events);
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
         self.host.down(now, event);
@@ -497,7 +515,7 @@ impl Workers {
                 ),
             },
             Box::new([]),
-            settings.limits.forge.forges,
+            &settings.limits,
             &worker_limits,
         )?;
         Ok(workers)

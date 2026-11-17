@@ -334,7 +334,7 @@ fn workers(settings: &settings::Engine) -> Workers {
         &fixtures::files(),
         encoding,
         forges,
-        settings.limits.forge.forges,
+        &settings.limits,
         &crate::workers::limits(settings).unwrap(),
     )
     .unwrap()

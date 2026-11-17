@@ -679,7 +679,7 @@ fn start_with_store_options(
     start_configured(engine(), projects, stored, two_forges, under_box)
 }
 // The durable first start and service fixtures use the same configuration.
-fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> settings::Engine {
+pub(super) fn start_settings(mut settings: settings::Engine, projects: &[(u32, u64)]) -> settings::Engine {
     settings.jig.limits.core.people.operations = 2;
     settings.jig.limits.core.tasks.tasks = 2;
     settings.jig.limits.core.tasks.exemptions = 2;
@@ -994,7 +994,7 @@ pub fn workers() -> crate::workers::Workers {
         &worker_digests(&settings),
         encoding,
         forges(),
-        settings.limits.forge.forges,
+        &settings.limits,
         &limits,
     )
     .unwrap()

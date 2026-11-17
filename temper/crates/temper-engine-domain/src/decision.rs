@@ -48,6 +48,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// The stored agents setting, released only after its decision commits
+    /// (temper/docs/design/protocol/configuration/figures.md, 2).
+    WorkerFigures {
+        agents: Box<temper_engine_domain_forge::settings::AgentFigures>,
+        revision: u32,
+    },
     /// A need's push, held behind its decision's commit (attention.md, 7.2).
     Push(crate::Push),
     /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
@@ -545,7 +551,8 @@ impl Decision {
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
-            Delivery::SourceSignedOut { .. }
+            Delivery::WorkerFigures { .. }
+            | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }

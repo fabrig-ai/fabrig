@@ -146,6 +146,10 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                     None
                 }
+                root::PartyRequest::Deliver(root::Delivery::WorkerFigures { agents, revision }) => {
+                    engine.workers.figures(engine.env.now, &agents, revision, &mut engine.events);
+                    None
+                }
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
                     engine.notes.push(crate::Note::Playground { line });
                     None
@@ -351,6 +355,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             }
             root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
             root::Delivery::Push(_)
+            | root::Delivery::WorkerFigures { .. }
             | root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }

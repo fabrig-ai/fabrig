@@ -474,6 +474,11 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
+        temper_engine_service::Note::WorkerFigures { limits, endpoints, revision } => {
+            format!(
+                "{binary} serve: figures for workers: {limits} limits, {endpoints} endpoints, agents setting revision {revision}\n"
+            )
+        }
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
         }
