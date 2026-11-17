@@ -6,5 +6,5 @@ ctl forge list --until made:1
 deployment patch engine landing.json
 check
 ctl project show Hello
-ctl forge list
+ctl forge list --until connected:1
 ctl forge repositories 1
