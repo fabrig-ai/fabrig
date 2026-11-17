@@ -49,6 +49,11 @@ filled so:
   with temper's limits) and the `agents` setting's value, and returns
   the generated `Figures` with `places` 0. The engine calls it, and so
   does the box for its own worker (4), so both build the same figures.
+- **At most 64 endpoints.** `Agents.endpoints` holds 64, so temper's
+  start checks refuse an `engine.llm` with more, naming it:
+  `engine.llm: N endpoints, at most 64, the workers' figures carry no
+  more`. jig's own reader keeps its bound; the check is temper's, run
+  before `compose`, so `compose` stays total.
 - **Limits by name both ways.** Each limits module has a list of its
   limits by name and value: jig's in `jig-protocol-config`, temper's in
   `temper-service-core`. Each is the reverse of that module's override
