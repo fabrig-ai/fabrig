@@ -546,6 +546,21 @@ pub fn read(directory: &Path) {
     document["world_settings"]["adopt_only"] = true.into();
     let configuration = serde_json::to_vec(&document).expect("reader configuration");
     let mut disk = files::load(directory);
+    // The pre-N5 floor has no setup file; supply the operator's prepare step to this copy.
+    let directories =
+        jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+    let setup = temper_forge_setup::setup_file::chosen(
+        temper_forge_setup::machine::BoxKind::Fake,
+        temper_playground::documents::FORGE.port(),
+        b"owner",
+        false,
+        &directories,
+    )
+    .expect("kept fake forge setup");
+    let setup_path = directories
+        .join(jig_protocol_config::Directory::Data, &temper_forge_setup::setup_file::path(1, setup.kind()))
+        .expect("world setup path");
+    machine::lay_handover(&mut disk, &setup_path, &temper_forge_setup::setup_file::encode(&setup));
     let active = files::active(&mut disk);
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
     let machine = Machine::new(disk);

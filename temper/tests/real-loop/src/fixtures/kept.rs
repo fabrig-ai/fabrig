@@ -5,6 +5,20 @@ use temper_protocol_records::{self as records, Item};
 use temper_protocol_records_forge as forge_records;
 
 pub(crate) fn seed(path: &Path, address: SocketAddr, github: Option<crate::github::Fixture>) {
+    seed_connection(path, address, github);
+    let flags = path.join("world-settings.json");
+    if flags.exists() {
+        let flags: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(flags).expect("fixture flags")).expect("fixture flags JSON");
+        if !flags["kinds"].is_null() {
+            seed_settings_file(
+                &path.join("state"),
+                &serde_json::to_vec(&flags["kinds"]).expect("fixture application settings"),
+            );
+        }
+    }
+}
+fn seed_connection(path: &Path, address: SocketAddr, github: Option<crate::github::Fixture>) {
     let mut record = forgejo_record(address);
     let secrets = if let Some(fixture) = github {
         record.kind = forge::Kind::GitHub;
