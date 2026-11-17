@@ -1,9 +1,10 @@
 # README: status
 
-2026-11-15. Where temper's code lags or departs from [README.md](README.md).
+2026-11-17. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
+- **Not yet:** 2: `NativeClient` has no `address`, the address it last applied [in flight: change 7062].
 
 
 
