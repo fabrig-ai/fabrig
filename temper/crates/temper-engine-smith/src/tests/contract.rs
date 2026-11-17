@@ -139,6 +139,20 @@ fn versions_outside_the_answered_range_are_error_answers() {
 }
 
 #[test]
+fn contract_selection_keeps_exact_escaped_names_and_all_their_forms() {
+    const READ: &str = r#"{"name":"read_docs","effect":"read","input":"{}"}"#;
+    const WRITE: &str = r#"{"name":"read_docs","effect":"write","input":"{}"}"#;
+    const OTHER: &str = r#"{"name":"read_docs_more","effect":"read","input":"{}"}"#;
+    const ESCAPED: &str = r#"{"name":"read\"docs","effect":"read","input":"{}"}"#;
+    let text = std::format!("{READ}\n{OTHER}\n{WRITE}\n{ESCAPED}");
+    let selected = super::tool_lines(&text, b"read_docs");
+    assert_eq!(selected.as_ref(), [Box::<[u8]>::from(READ.as_bytes()), WRITE.as_bytes().into()]);
+    let selected = super::tool_lines(&text, b"read\"docs");
+    assert_eq!(selected.as_ref(), [Box::<[u8]>::from(ESCAPED.as_bytes())]);
+    assert!(super::tool_lines(&text, b"read").is_empty());
+}
+
+#[test]
 fn kept_decided_calls_preserve_the_current_input() {
     let input = br#"{"question":"Which?","options":["Small","Broad"],"took":1,"why":"Fits","kind":"implementation","paths":["src/core.rs"],"under":3}"#;
     let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"decided", input).unwrap() else {

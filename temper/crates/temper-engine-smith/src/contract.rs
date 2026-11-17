@@ -267,6 +267,7 @@ impl Contract {
     }
 }
 
+#[cfg(test)]
 fn declaration_name(line: &str) -> Box<[u8]> {
     crate::json::parse(line.as_bytes())
         .expect("kept contract declaration is JSON")
@@ -277,9 +278,21 @@ fn declaration_name(line: &str) -> Box<[u8]> {
 }
 
 fn tool_lines(text: &str, tool: &[u8]) -> Box<[Box<[u8]>]> {
+    use skein_json::writer::{Encoder, Limits};
+
+    let limits = Limits { depth: 1, length: u32::MAX };
+    let mut measure = Encoder::measure(&limits);
+    measure.string(tool);
+    let mut out = Encoder::write(measure.measured().expect("tool name fits u32"), &limits);
+    out.string(tool);
+    let quoted = out.finish();
     let mut lines = List::with_capacity(u32::try_from(text.lines().count()).expect("kept declarations fit u32"));
     for line in text.lines() {
-        if declaration_name(line).as_ref() == tool {
+        // wire::declaration writes the name first. Compare its encoded string, not the schema's JSON.
+        if let Some(rest) = line.as_bytes().strip_prefix(br#"{"name":"#)
+            && let Some(rest) = rest.strip_prefix(quoted.as_ref())
+            && rest.starts_with(b",\"effect\":")
+        {
             lines.push(line.as_bytes().into()).expect("one slot per kept declaration");
         }
     }
