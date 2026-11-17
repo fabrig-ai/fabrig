@@ -14,8 +14,16 @@ pub(crate) const KEPT: &[&str] = &[
     include_str!("../contract/host-tools-v3.txt"),
     include_str!("../contract/host-tools-v4.txt"),
 ];
-const ADAPTERS: &[Adapter] =
-    &[Adapter { version: 1, tool: b"decided", map: decided }, Adapter { version: 2, tool: b"decided", map: decided }];
+const ADAPTERS: &[Adapter] = &[
+    Adapter { version: 1, tool: b"decided", map: decided },
+    Adapter { version: 2, tool: b"decided", map: decided },
+    Adapter { version: 1, tool: b"settings", map: settings },
+    Adapter { version: 2, tool: b"settings", map: settings },
+    Adapter { version: 3, tool: b"settings", map: settings },
+    Adapter { version: 1, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 2, tool: b"propose_settings", map: propose_settings },
+    Adapter { version: 3, tool: b"propose_settings", map: propose_settings },
+];
 const CONTRACT: Contract =
     Contract { floor: crate::wire::FLOOR, current: crate::wire::VERSION, kept: KEPT, adapters: ADAPTERS };
 
@@ -54,6 +62,16 @@ struct Mapped {
 #[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
 fn decided(input: &run::HostInput) -> Result<Mapped, Problem> {
     Ok(Mapped { tool: b"decided".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"settings".as_slice().into(), input: input.clone() })
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "adapters share a fallible mapping signature")]
+fn propose_settings(input: &run::HostInput) -> Result<Mapped, Problem> {
+    Ok(Mapped { tool: b"propose_settings".as_slice().into(), input: input.clone() })
 }
 
 impl Contract {

@@ -139,6 +139,42 @@ fn versions_outside_the_answered_range_are_error_answers() {
 }
 
 #[test]
+fn kept_settings_calls_preserve_the_current_input() {
+    let input =
+        run::HostInput::attested(br#"{"setting":{"kind":"model","number":1},"from":12}"#.as_slice().into()).unwrap();
+    let Decoded::Call(current) =
+        crate::call_for_contract(wire::VERSION, NAME, b"settings", &input, &[], &[], &[]).unwrap()
+    else {
+        panic!("current call decodes")
+    };
+    for version in [1, 2, 3] {
+        let Decoded::Call(kept) = crate::call_for_contract(version, NAME, b"settings", &input, &[], &[], &[]).unwrap()
+        else {
+            panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}
+
+#[test]
+fn kept_propose_settings_calls_preserve_the_current_input() {
+    let input = run::HostInput::attested(br#"{"against":2,"reason":"restore the default","items":[{"setting":{"kind":"charter","number":1},"edit":"reset"}]}"#.as_slice().into()).unwrap();
+    let Decoded::Call(current) =
+        crate::call_for_contract(wire::VERSION, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
+    else {
+        panic!("current call decodes")
+    };
+    for version in [1, 2, 3] {
+        let Decoded::Call(kept) =
+            crate::call_for_contract(version, NAME, b"propose_settings", &input, &[], &[], &[]).unwrap()
+        else {
+            panic!("kept call decodes")
+        };
+        assert_eq!(kept, current, "version {version}: input unchanged");
+    }
+}
+
+#[test]
 fn kept_decided_calls_preserve_the_current_input() {
     let input = br#"{"question":"Which?","options":["Small","Broad"],"took":1,"why":"Fits","kind":"implementation","paths":["src/core.rs"],"under":3}"#;
     let Decoded::Call(current) = decode(&CONTRACT, wire::VERSION, b"decided", input).unwrap() else {
