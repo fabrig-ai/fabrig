@@ -60,8 +60,12 @@ does: no worker, no listener, no root.
   absolute path; waits for it; lets the lock go; and exits as the child
   did: its status, or 128 and the signal's number when a signal ended
   it. A COMMAND that can't be run exits 127, naming it:
-  `temper-engine checkpoint: can't run COMMAND: WHY`, WHY `not found`
-  or the errno as the shell's other lines print one.
+  `temper-engine checkpoint: can't run COMMAND: WHY`. WHY is `not found`
+  when no program resolves (below), before anything is spawned. When
+  io's spawn fails (`Event::Failed`), WHY is the words of io's `Error`,
+  which keeps kernel errors below io (skein's `runtime/io/README.md`,
+  2): `no process slot` for `Busy`, `io refused the command` for every
+  other.
 - **The child** is io's (skein's `runtime/io/processes.md`), spawned
   from the step code with descriptors 0, 1 and 2 inherited
   (`Way::Inherit`), as a front end lends its terminal to a child
