@@ -408,8 +408,12 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     let value = crate::codec::encode(&record, &store.codec_limits, &store.names).unwrap();
     ops.push(skein_kv::Op::Put { key, value });
     let mut above = Queue::uncapped();
-    let mut below =
-        crate::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+    let mut below = crate::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
     let env = crate::memory_env(store.limits.store);
     skein_kv::down(
         &mut store.stores.store,

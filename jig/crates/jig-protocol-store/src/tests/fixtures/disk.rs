@@ -79,7 +79,7 @@ pub struct Disk {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     file_limits: FileLimits,
     seeded: crate::Seeded,
     cut: Option<u32>,
@@ -98,7 +98,7 @@ pub fn file_limits() -> FileLimits {
         timeout,
     }
 }
-fn drivers(fd: skein_io::kernel::Fd, limits: &FileLimits) -> [FileIo; 3] {
+fn drivers(fd: skein_io::kernel::Fd, limits: &FileLimits) -> [FileIo; 4] {
     core::array::from_fn(|_| {
         let mut io = FileIo::with_limits(limits).with_effective_user(0);
         assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
@@ -116,8 +116,8 @@ impl Disk {
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
         let mut io = drivers(fd, &file_limits);
-        let [store, secrets, transcripts] = &mut io;
-        let seeded = crate::seed([store, secrets, transcripts], SEED);
+        let [store, secrets, transcripts, checkpoints] = &mut io;
+        let seeded = crate::seed([store, secrets, transcripts, checkpoints], SEED);
         Disk {
             machine,
             handle,
@@ -171,7 +171,7 @@ impl Disk {
             crate::fire(store, &env(), &mut above, &mut below);
             let drove = self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below));
             let cut = self.cut.is_some_and(|cut| self.operations >= cut);
-            if !drove && (cut || !crate::patching::phase::ready(store)) {
+            if !drove && (cut || !store.work_pending()) {
                 break;
             }
         }
@@ -195,7 +195,8 @@ impl Disk {
             .pop()
             .map(|r| (0, r))
             .or_else(|| below.secrets.pop().map(|r| (1, r)))
-            .or_else(|| below.transcripts.pop().map(|r| (2, r)));
+            .or_else(|| below.transcripts.pop().map(|r| (2, r)))
+            .or_else(|| below.checkpoints.pop().map(|r| (3, r)));
         let Some((driver, request)) = next else {
             return false;
         };
@@ -205,6 +206,7 @@ impl Disk {
             0 => Io::Store(arrived),
             1 => Io::Secrets(arrived),
             2 => Io::Transcripts(arrived),
+            3 => Io::Checkpoints(arrived),
             _ => unreachable!(),
         };
         deliver(io, below);
@@ -283,9 +285,11 @@ impl Disk {
         self.root = Root { token: Token::new(1), fd };
         self.starts += 1;
         self.io = drivers(fd, &self.file_limits);
-        let [store, secrets, transcripts] = &mut self.io;
-        self.seeded =
-            crate::seed([store, secrets, transcripts], seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts));
+        let [store, secrets, transcripts, checkpoints] = &mut self.io;
+        self.seeded = crate::seed(
+            [store, secrets, transcripts, checkpoints],
+            seed ^ 0xd1b5_4a32_d192_ed03_u64.wrapping_mul(self.starts),
+        );
         self.cut = None;
         self.operations = 0;
         self.requests.clear();

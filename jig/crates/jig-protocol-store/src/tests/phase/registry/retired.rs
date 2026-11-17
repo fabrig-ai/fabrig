@@ -108,8 +108,12 @@ fn putting_into_a_retired_range_fails_the_commit() {
             )
         } else {
             let mut above = Queue::uncapped();
-            let mut below =
-                crate::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+            let mut below = crate::Below {
+                store: Queue::uncapped(),
+                secrets: Queue::uncapped(),
+                transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
+            };
             let env = fixtures::env();
             crate::commits::submit(
                 &mut store,

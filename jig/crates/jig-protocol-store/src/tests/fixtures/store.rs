@@ -286,17 +286,22 @@ pub fn env() -> Env<Limits> {
     Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits() }
 }
 pub fn below() -> Below {
-    Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() }
+    Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    }
 }
 fn unseeded_driver() -> FileIo {
     FileIo::with_limits(&FileLimits { read: 1, whole: 1, ..super::disk::file_limits() })
 }
 pub fn directory() -> (Store, Below) {
-    let mut drivers = [unseeded_driver(), unseeded_driver(), unseeded_driver()];
-    let [store, secrets, transcripts] = &mut drivers;
+    let mut drivers = [unseeded_driver(), unseeded_driver(), unseeded_driver(), unseeded_driver()];
+    let [store, secrets, transcripts, checkpoints] = &mut drivers;
     // Scripted terminals need no randomness; reuse the fixture's installation bytes as their seed.
     let seeded = crate::seed(
-        [store, secrets, transcripts],
+        [store, secrets, transcripts, checkpoints],
         u64::from_le_bytes(INSTALLATION.get(..8).expect("installation seed").try_into().expect("eight bytes")),
     );
     let mut store = Store::on_directory(&limits(), APPLICATION, &[], seeded);

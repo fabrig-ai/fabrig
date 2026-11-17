@@ -109,8 +109,12 @@ pub(crate) fn closed(sets: PatchSets, limits: &store::Limits) -> (store::Store, 
 }
 pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let mut above = Queue::uncapped();
-    let mut below =
-        store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
     store::down(
         component,
         env,
@@ -140,8 +144,12 @@ pub(crate) fn decode(
     no_site: bool,
 ) -> Option<Box<[u8]>> {
     let mut above = Queue::uncapped();
-    let mut below =
-        store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
     store::down(
         component,
         env,
@@ -176,7 +184,9 @@ pub(crate) fn decode(
                     store::down(component, env, Request::Site { owner, patcher, result }, &mut above, &mut below);
                     continue;
                 }
-                other @ (Event::Switched { .. }
+                other @ (Event::Checkpointed { .. }
+                | Event::CheckpointRefused { .. }
+                | Event::Switched { .. }
                 | Event::Opened { .. }
                 | Event::OpenRefused { .. }
                 | Event::Committed { .. }

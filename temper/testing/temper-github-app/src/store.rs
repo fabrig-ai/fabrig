@@ -49,7 +49,7 @@ pub(super) fn run_with(
             return Err(why.to_string());
         }
     };
-    let mut drivers: [Driver; 3] = std::array::from_fn(|_| Driver {
+    let mut drivers: [Driver; 4] = std::array::from_fn(|_| Driver {
         io: FileIo::with_limits(&file_limits(&limits)).with_effective_user(skein_shell::effective_user()),
         events: Queue::with_capacity(ROOM),
         handles: BTreeSet::new(),
@@ -62,8 +62,8 @@ pub(super) fn run_with(
         assert_eq!(cloned_token, token);
         driver.handles.insert(cloned_token);
     }
-    let [store, secrets, transcripts] = &mut drivers;
-    let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], 0);
+    let [store, secrets, transcripts, checkpoints] = &mut drivers;
+    let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io, &mut checkpoints.io], 0);
     let mut component = protocol::Store::on_directory(&limits, application, &[], seeded);
     assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
     component.patch_sets(temper_engine_service_vocabulary::store::PATCH_SETS);
@@ -76,6 +76,7 @@ pub(super) fn run_with(
             store: Queue::with_capacity(ROOM),
             secrets: Queue::with_capacity(ROOM),
             transcripts: Queue::with_capacity(ROOM),
+            checkpoints: Queue::uncapped(),
         },
         completions: Queue::with_capacity(OPERATIONS),
         submissions: Queue::with_capacity(OPERATIONS),
@@ -106,7 +107,7 @@ struct Driver {
 struct StoreHost {
     store: protocol::Store,
     limits: protocol::Limits,
-    drivers: [Driver; 3],
+    drivers: [Driver; 4],
     above: Queue<Event>,
     below: protocol::Below,
     completions: Queue<Complete>,
@@ -218,7 +219,7 @@ impl StoreHost {
         }
     }
     fn publish(&mut self, index: usize, submitted: &mut Queue<Submit>) {
-        let prefix = (u64::try_from(index).expect("three drivers") + 8) << 60;
+        let prefix = (u64::try_from(index).expect("four drivers") + 8) << 60;
         while let Some(mut submit) = submitted.pop() {
             submit.op = Token::new(submit.op.raw() | prefix);
             if let Op::Cancel { target } = &mut submit.kind {
@@ -232,6 +233,7 @@ impl StoreHost {
             0 => &mut self.below.store,
             1 => &mut self.below.secrets,
             2 => &mut self.below.transcripts,
+            3 => &mut self.below.checkpoints,
             _ => unreachable!(),
         }
     }
@@ -241,7 +243,7 @@ impl skein_shell::Host for StoreHost {
         let env = Env { now, wall, limits: self.limits };
         let file_env = env.with(file_limits(&self.limits));
         while let Some(mut complete) = self.completions.pop() {
-            let index = usize::try_from((complete.op.raw() >> 60) - 8).expect("three driver prefixes");
+            let index = usize::try_from((complete.op.raw() >> 60) - 8).expect("four driver prefixes");
             complete.op = Token::new(complete.op.raw() & MASK);
             if let Op::Cancel { target } = &mut complete.kind {
                 *target = Token::new(target.raw() & MASK);
@@ -251,7 +253,7 @@ impl skein_shell::Host for StoreHost {
             step::up(&mut driver.io, &file_env, complete, &mut driver.events, &mut submitted);
             self.publish(index, &mut submitted);
         }
-        for index in 0..3 {
+        for index in 0..4 {
             while let Some(event) = self.drivers[index].events.pop() {
                 if event.owner() == CLOSE {
                     continue;
@@ -268,6 +270,7 @@ impl skein_shell::Host for StoreHost {
                         0 => protocol::Io::Store(arrived),
                         1 => protocol::Io::Secrets(arrived),
                         2 => protocol::Io::Transcripts(arrived),
+                        3 => protocol::Io::Checkpoints(arrived),
                         _ => unreachable!(),
                     };
                     protocol::up(&mut self.store, &env, io, &mut self.above, &mut self.below);
@@ -283,7 +286,7 @@ impl skein_shell::Host for StoreHost {
             }
             protocol::fire(&mut self.store, &env, &mut self.above, &mut self.below);
         }
-        for index in 0..3 {
+        for index in 0..4 {
             let mut submitted = Queue::with_capacity(4);
             step::expire(&mut self.drivers[index].io, &file_env, &mut submitted);
             if self.drivers[index].io.takes() {
@@ -327,7 +330,8 @@ impl skein_shell::Host for StoreHost {
                             match i {
                                 0 => !self.below.store.is_empty(),
                                 1 => !self.below.secrets.is_empty(),
-                                _ => !self.below.transcripts.is_empty(),
+                                2 => !self.below.transcripts.is_empty(),
+                                _ => !self.below.checkpoints.is_empty(),
                             }
                         })
             })

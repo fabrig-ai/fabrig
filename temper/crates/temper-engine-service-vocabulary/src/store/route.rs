@@ -302,6 +302,8 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
         store::Event::SecretsNotReady { .. } => stop(routes, RouteStop::Secrets, into),
         store::Event::Decoded { .. }
+        | store::Event::Checkpointed { .. }
+        | store::Event::CheckpointRefused { .. }
         | store::Event::Undecodable { .. }
         | store::Event::Rehearsing { .. }
         | store::Event::Back { .. }

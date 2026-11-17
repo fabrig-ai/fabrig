@@ -8,6 +8,16 @@ pub struct Violation(pub &'static str);
 pub struct Referee;
 
 impl Referee {
+    /// A checkpoint recovers exactly its selected prefix, not the later serving state.
+    pub fn checkpoint(model: &Model, restored: &Restored, cut: u64) -> Result<(), Violation> {
+        if restored.last != cut {
+            return Err(Violation("checkpoint recovers exactly its C"));
+        }
+        let state = model.prefixes.get(&cut).ok_or(Violation("checkpoint has a selected model prefix"))?.clone();
+        let selected = Model { acknowledged: cut, prefixes: std::collections::BTreeMap::from([(cut, state)]) };
+        Self::check(&selected, restored)
+    }
+
     /// After a fresh switch, every claim is crossed and every window closed.
     ///
     /// # Errors

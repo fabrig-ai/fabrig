@@ -49,7 +49,7 @@ fn refuse(store: &mut Store, why: BackRefusal, above: &mut Queue<Event>) {
 }
 pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     let arrived = match io {
-        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
     };
     if arrived.event.owner() != directory::OWNER {
         let mut events = Queue::uncapped();

@@ -284,6 +284,8 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         // The shell driving open owns progress; this root route prints no lines.
         // This reference route does not consume the census (protocol/store/README.md, 6.3).
         Event::Census { .. }
+        | Event::Checkpointed { .. }
+        | Event::CheckpointRefused { .. }
         | Event::Decoded { .. }
         | Event::Undecodable { .. }
         | Event::Rehearsing { .. }

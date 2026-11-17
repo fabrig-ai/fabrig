@@ -74,6 +74,8 @@ impl Bridge {
                 kit::SecretsAnswer::Got { owner, value: Some(value) }
             }
             Event::SecretsLoaded { .. }
+            | Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
             | Event::Switched { .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }

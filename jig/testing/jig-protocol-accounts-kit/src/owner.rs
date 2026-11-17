@@ -186,6 +186,7 @@ impl Owner {
                 store: Queue::uncapped(),
                 secrets: Queue::uncapped(),
                 transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
             },
             paste: [0; 1024],
             paste_len: 0,
@@ -454,8 +455,12 @@ impl Owner {
     fn inspect_secret(&mut self, owner: store::SecretOwner, number: u64) -> Option<store::SecretValue> {
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.store_limits };
         let mut above = Queue::uncapped();
-        let mut below =
-            store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = store::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         store::down(
             &mut self.store,
             &env,

@@ -546,7 +546,12 @@ impl Store {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         loop {
             if self.reached_kill() {
                 return;
@@ -650,7 +655,9 @@ impl Store {
                 self.route(event, requests);
             }
             // These worlds supply sets without written sites; routing answers NoSite.
-            event @ (Event::Job { .. }
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Job { .. }
             | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Page { .. }

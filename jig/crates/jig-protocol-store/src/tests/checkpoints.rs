@@ -1,10 +1,161 @@
 //! Names and kept checkpoint bytes (protocol/store/checkpoints.md, 2).
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary Rust checkpoint fixtures (programming-model.md, 10.2)"
+)]
+use super::fixtures;
 use crate::{
     CheckpointName,
     checkpoints::FILES,
     codec::component::{Checkpoint, CheckpointFile, Manifest},
 };
-use skein_lib::{List, Reader, Writer};
+use crate::{CheckpointRefusal, Event, Request};
+use skein_lib::{List, Reader, Token, Writer};
+
+#[test]
+fn a_selection_distinguishes_live_and_ended_files_and_bounds_the_prefixes() {
+    use crate::{checkpoints::selection::Selection, codec::component::Transcript, keys};
+    let mut stores = fixtures::stores();
+    let mut ops = Vec::new();
+    let live = 7;
+    for task in [live, 8] {
+        ops.push(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Transcript { task }, fixtures::KEY_LIMIT).unwrap(),
+            value: Transcript { length: task * 10, window: 1 }.encode().unwrap(),
+        });
+        for log in [task * 2, task * 2 + 1] {
+            ops.push(skein_kv::Op::Put {
+                key: crate::logs::extent_key(log),
+                value: Box::from((log * 20).to_be_bytes()),
+            });
+        }
+    }
+    ops.push(skein_kv::Op::Put {
+        key: keys::encode(
+            &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::RunProof(live)),
+            fixtures::KEY_LIMIT,
+        )
+        .unwrap(),
+        value: Box::new([]),
+    });
+    fixtures::plant(&mut stores, &ops);
+    let mut store = fixtures::over(stores);
+    let mut selection = Selection::new();
+    selection
+        .held(
+            false,
+            true,
+            &[skein_kv::HeldSegment { first: 1, end: None }, skein_kv::HeldSegment { first: 2, end: Some(81) }],
+        )
+        .unwrap();
+    selection
+        .held(
+            true,
+            true,
+            &[skein_kv::HeldSegment { first: 1, end: None }, skein_kv::HeldSegment { first: 3, end: Some(90) }],
+        )
+        .unwrap();
+    let mut steps = 0_u32;
+    while !selection.page(&mut store).unwrap() {
+        steps += 1;
+        assert!(steps < 20);
+    }
+    assert!(steps >= 6, "selection yields between pages");
+    let found: Vec<_> =
+        selection.files.iter().map(|file| (file.row.part, file.row.number, file.end, file.row.way)).collect();
+    assert_eq!(
+        found,
+        vec![
+            (1, 0, None, 1),
+            (2, 1, None, 1),
+            (2, 2, Some(81), 2),
+            (5, 0, None, 2),
+            (6, 1, None, 2),
+            (6, 3, Some(90), 2),
+            (4, 7, Some(70), 2),
+            (4, 8, Some(80), 1),
+            (3, 14, Some(280), 2),
+            (3, 15, Some(300), 2),
+            (3, 16, Some(320), 2),
+            (3, 17, Some(340), 1)
+        ]
+    );
+}
+
+#[test]
+fn a_selection_admits_files_at_the_bound_and_refuses_the_next_one() {
+    let mut selection = crate::checkpoints::selection::Selection::new();
+    for number in 0..FILES {
+        selection.add(2, u64::from(number), None, true).expect("at FILES");
+    }
+    assert_eq!(selection.files.len(), FILES);
+    assert_eq!(selection.add(2, u64::from(FILES), None, true), Err(CheckpointRefusal::Files));
+    assert_eq!(selection.files.len(), FILES);
+}
+
+#[test]
+fn checkpoint_refusals_are_terminal_and_have_the_design_words() {
+    let owner = Token::new(45);
+    let mut memory = fixtures::opened();
+    let events = fixtures::run(&mut memory, Request::Checkpoint { owner, draw: [0; 16] });
+    let [Event::CheckpointRefused { owner: found, why: CheckpointRefusal::Unavailable }] = &*events else {
+        panic!("memory refusal: {events:?}");
+    };
+    assert_eq!(*found, owner);
+    let (mut disk, _) = fixtures::directory();
+    disk.phase = crate::Phase::Ready { next: 1, format_due: true };
+    fixtures::run(&mut disk, Request::Checkpoint { owner, draw: [0; 16] });
+    let events = fixtures::run(&mut disk, Request::Checkpoint { owner, draw: [1; 16] });
+    let [Event::CheckpointRefused { why: CheckpointRefusal::InProgress, .. }] = &*events else {
+        panic!("concurrent refusal: {events:?}");
+    };
+    for (why, words) in [
+        (CheckpointRefusal::InProgress, "checkpoint in progress"),
+        (CheckpointRefusal::Unavailable, "the store is not serving"),
+        (CheckpointRefusal::Files, "more than 65536 files to take"),
+        (CheckpointRefusal::Unrecognized { path: Box::from("store/odd") }, "an unrecognized file, store/odd"),
+        (CheckpointRefusal::Vanished { path: Box::from("store/log") }, "a selected file vanished, store/log"),
+        (
+            CheckpointRefusal::Failed { path: Box::from("store/log"), error: skein_io::kernel::Error::Permission },
+            "a file failed, store/log: Permission",
+        ),
+        (CheckpointRefusal::InUse, "in use: its lock is held"),
+        (CheckpointRefusal::Missing, "no such checkpoint"),
+    ] {
+        assert_eq!(&*why.words(), words);
+    }
+}
+
+#[test]
+fn a_serving_checkpoint_writes_its_record_manifest_and_active_before_rename() {
+    let mut disk = fixtures::disk::Disk::new(&[]);
+    let mut store = disk.store();
+    disk.open(&mut store);
+    disk.request(&mut store, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let events = disk.request(&mut store, Request::Checkpoint { owner: Token::new(55), draw: [0; 16] });
+    let [Event::Checkpointed { checkpoint, .. }] = &*events else {
+        panic!("checkpoint answer: {events:?}");
+    };
+    assert_eq!(checkpoint.name.store, 1);
+    assert!(checkpoint.copied > 0);
+    let base = [b"checkpoints/".as_slice(), &checkpoint.name.bytes()].concat();
+    let record = Checkpoint::decode(&disk.bytes(&[base.as_slice(), b"/checkpoint"].concat())).unwrap();
+    let manifest = Manifest::decode(&disk.bytes(&[base.as_slice(), b"/generations/1/manifest"].concat())).unwrap();
+    assert_eq!(record.store, 1);
+    assert_eq!(record.deployment, fixtures::DEPLOYMENT);
+    assert_eq!(manifest.generation, 1);
+    assert_eq!(manifest.from, None);
+    assert_eq!(manifest.before, record.levels);
+    assert_eq!(manifest.after, record.levels);
+    assert_eq!(manifest.store, record.store);
+    assert_eq!(manifest.secrets, Some(record.secrets));
+    assert_eq!(manifest.written, record.made);
+    assert!(manifest.counts.is_empty());
+    assert_eq!(&*disk.bytes(&[base.as_slice(), b"/active"].concat()), b"1\n");
+    assert!(!disk.tree().iter().any(|(path, _, _)| path.windows(7).any(|part| part == b".skein-")));
+}
 
 #[test]
 fn checkpoint_names_and_draw_halves_have_one_form() {

@@ -160,8 +160,13 @@ impl Store {
         }
     }
     pub fn complete(&mut self, mut complete: Complete) {
-        let index = usize::try_from((complete.op.raw() >> 60_u32).checked_sub(8).expect("driver namespace"))
-            .expect("three drivers");
+        let index = match complete.op.raw() >> 60_u32 {
+            8 => 0,
+            9 => 1,
+            10 => 2,
+            12 => 3,
+            _ => unreachable!("store driver namespace"),
+        };
         complete.op = Token::new(complete.op.raw() & MASK);
         if let Op::Cancel { target } = &mut complete.kind {
             *target = Token::new(target.raw() & MASK);

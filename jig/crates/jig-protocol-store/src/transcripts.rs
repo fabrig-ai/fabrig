@@ -189,7 +189,7 @@ pub(crate) fn name(number: u64) -> Box<[u8]> {
     }
     bytes.finish()
 }
-fn path(task: u64) -> Box<[u8]> {
+pub(crate) fn path(task: u64) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(33);
     writer.put(&name(task >> 12)).expect("high digits");
     writer.put(b"/").expect("separator");

@@ -517,7 +517,12 @@ impl Store {
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
-        let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         loop {
             if let Some(event) = above.pop() {
                 self.event(event, &mut requests);
@@ -547,6 +552,7 @@ impl Store {
             protocol::up(self.component.as_mut().expect("component exists"), &env, io, &mut above, &mut below);
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the fixture forwards every checkpoint terminal without interpreting it")]
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
             Event::Opened { last, pending, .. } => {
@@ -617,7 +623,12 @@ impl Store {
             | Event::FrameTooLarge { .. }
             | Event::OpenRefused { .. }
             | Event::SecretsNotReady { .. } => self.failed = true,
-            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Turns { .. } | Event::Got { .. })
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Page { .. }
+            | Event::Loaded { .. }
+            | Event::Turns { .. }
+            | Event::Got { .. })
                 if self.page_delay != 0 =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -626,7 +637,9 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
-            event @ (Event::Page { .. }
+            event @ (Event::Checkpointed { .. }
+            | Event::CheckpointRefused { .. }
+            | Event::Page { .. }
             | Event::PageRefused { .. }
             | Event::Switched { .. }
             | Event::Job { .. }

@@ -14,7 +14,7 @@ pub(in crate::tests) struct Disk {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     files: Limits,
     env: Env<store::Limits>,
     seeded: store::Seeded,
@@ -45,8 +45,8 @@ impl Disk {
             assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
             io
         });
-        let [a, b, c] = &mut io;
-        let seeded = store::seed([a, b, c], 1);
+        let [a, b, c, d] = &mut io;
+        let seeded = store::seed([a, b, c, d], 1);
         Self { machine, sim, pid, root: Root { token: Token::new(1), fd }, io, files, env, seeded }
     }
     pub fn active(&mut self) -> Vec<u8> {
@@ -101,8 +101,8 @@ impl Disk {
             assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
             io
         });
-        let [a, b, c] = &mut self.io;
-        self.seeded = store::seed([a, b, c], 1);
+        let [a, b, c, d] = &mut self.io;
+        self.seeded = store::seed([a, b, c, d], 1);
     }
     pub fn limits(&self) -> store::Limits {
         self.env.limits
@@ -115,8 +115,12 @@ impl Disk {
     }
     pub fn request(&mut self, store: &mut Store, request: Request) -> Vec<Event> {
         let mut above = Queue::uncapped();
-        let mut below =
-            store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
+        let mut below = store::Below {
+            store: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            transcripts: Queue::uncapped(),
+            checkpoints: Queue::uncapped(),
+        };
         store::down(store, &self.env, request, &mut above, &mut below);
         for _ in 0_u32..10_000 {
             store::fire(store, &self.env, &mut above, &mut below);
@@ -125,13 +129,15 @@ impl Disk {
                 .pop()
                 .map(|r| (0, r))
                 .or_else(|| below.secrets.pop().map(|r| (1, r)))
-                .or_else(|| below.transcripts.pop().map(|r| (2, r)));
+                .or_else(|| below.transcripts.pop().map(|r| (2, r)))
+                .or_else(|| below.checkpoints.pop().map(|r| (3, r)));
             if let Some((lane, request)) = next {
                 let arrived = self.file(lane, request);
                 let io = match lane {
                     0 => Io::Store(arrived),
                     1 => Io::Secrets(arrived),
                     2 => Io::Transcripts(arrived),
+                    3 => Io::Checkpoints(arrived),
                     _ => unreachable!(),
                 };
                 store::up(store, &self.env, io, &mut above, &mut below);

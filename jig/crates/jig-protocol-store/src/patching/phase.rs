@@ -195,6 +195,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
         Io::Transcripts(arrived) if arrived.event.owner() == crate::transcripts::census::OWNER => {
             return jobs::census_file(store, env, arrived, above, below);
         }
+        Io::Checkpoints(_) => unreachable!("checkpoint requests are unavailable while patching"),
         Io::Transcripts(arrived) => return file_up(store, env, arrived, false, above, below),
     };
     // KV recovery probes missing files; job commits also create payload logs.

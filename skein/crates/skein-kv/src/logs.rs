@@ -426,13 +426,17 @@ pub(crate) fn name(number: u64) -> Box<[u8]> {
     }
     Box::from(bytes)
 }
-pub(crate) fn directory(log: u64) -> Box<[u8]> {
+/// A payload log's shard, `logs/<log >> 12>` (skein/docs/design/data/kv.md, 6.1).
+#[must_use]
+pub fn directory(log: u64) -> Box<[u8]> {
     let mut out = Writer::new(21);
     out.put(b"logs/").expect("sized directory");
     out.put(&name(log >> 12)).expect("sized directory");
     out.finish()
 }
-pub(crate) fn path(log: u64) -> Box<[u8]> {
+/// A payload log's path, `logs/<log >> 12>/<log>` (skein/docs/design/data/kv.md, 6.1).
+#[must_use]
+pub fn path(log: u64) -> Box<[u8]> {
     let mut out = Writer::new(38);
     out.put(&directory(log)).expect("sized path");
     out.put(b"/").expect("sized path");

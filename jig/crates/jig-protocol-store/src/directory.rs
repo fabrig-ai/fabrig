@@ -905,6 +905,10 @@ fn open_stores(store: &mut Store, env: &Env<Limits>, opened: Root, above: &mut Q
     events_up(store, true, &mut events, above, below);
 }
 pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    if let Io::Checkpoints(arrived) = io {
+        crate::checkpoints::taking::up(store, env, arrived, above, below);
+        return;
+    }
     if store.phase == Phase::Stopped {
         return;
     }
@@ -913,6 +917,7 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
         return;
     }
     let (arrived, secret) = match io {
+        Io::Checkpoints(_) => unreachable!("checkpoint file lane routed above"),
         Io::Store(arrived) => (arrived, false),
         Io::Secrets(arrived) => (arrived, true),
         Io::Transcripts(arrived) => {
@@ -973,6 +978,25 @@ pub(crate) fn events_up(
         };
         if patching(store).is_some() {
             phase::event(store, secret, event, above, below);
+            continue;
+        }
+        if match &event {
+            skein_kv::Event::Held { owner, .. }
+            | skein_kv::Event::Released { owner }
+            | skein_kv::Event::Refused { owner, .. } => *owner == crate::checkpoints::taking::OWNER,
+            skein_kv::Event::Opened { .. }
+            | skein_kv::Event::Committed { .. }
+            | skein_kv::Event::Failed { .. }
+            | skein_kv::Event::Got { .. }
+            | skein_kv::Event::Loaded { .. }
+            | skein_kv::Event::LogRead { .. }
+            | skein_kv::Event::LogUnread { .. }
+            | skein_kv::Event::Closed { .. }
+            | skein_kv::Event::OpenFailed { .. }
+            | skein_kv::Event::Recovered { .. }
+            | skein_kv::Event::RecoveryFailed { .. } => false,
+        } {
+            crate::checkpoints::taking::event(store, secret, event, above, below);
             continue;
         }
         match event {
@@ -1049,7 +1073,9 @@ pub(crate) fn ready(store: &Store) -> bool {
     store.phase != Phase::Stopped
         && !crate::rehearsal::preparing(store)
         && store.back.is_none()
-        && (phase::ready(store)
+        && (crate::transcripts::drop::ready(store)
+            || crate::checkpoints::taking::ready(store)
+            || phase::ready(store)
             || skein_kv::is_ready(&store.stores.store, &store.limits.store)
             || skein_kv::is_ready(&store.stores.secrets, &store.limits.secrets))
 }

@@ -7,6 +7,8 @@ mod frame_reads;
 mod accounts;
 mod activity;
 mod carried;
+mod checkpoint_close;
+mod checkpoints;
 mod crashes;
 mod directories;
 mod frame_memory;
@@ -32,6 +34,7 @@ mod transcript_golden;
 mod upgrades;
 
 mod fuzzy {
+    mod checkpoints;
     mod crashes;
     mod frames;
     mod generations;

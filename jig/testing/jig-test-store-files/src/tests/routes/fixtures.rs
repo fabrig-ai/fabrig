@@ -89,6 +89,7 @@ pub fn send(
         store: skein_lib::Queue::uncapped(),
         secrets: skein_lib::Queue::uncapped(),
         transcripts: skein_lib::Queue::uncapped(),
+        checkpoints: skein_lib::Queue::uncapped(),
     };
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits: component.limits };
     jig_protocol_store::down(&mut component.store, &env, request, above, &mut below);
@@ -195,7 +196,8 @@ pub fn core_commit() -> jig_test_store::StoreOut {
 pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_store::Write]> {
     match request {
         jig_protocol_store::Request::Commit { writes, .. } => writes,
-        jig_protocol_store::Request::Rehearse { .. }
+        jig_protocol_store::Request::Checkpoint { .. }
+        | jig_protocol_store::Request::Rehearse { .. }
         | jig_protocol_store::Request::Back { .. }
         | jig_protocol_store::Request::Close { .. }
         | jig_protocol_store::Request::Switch { .. }

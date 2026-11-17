@@ -70,6 +70,7 @@ impl World {
                 store: Queue::uncapped(),
                 secrets: Queue::uncapped(),
                 transcripts: Queue::uncapped(),
+                checkpoints: Queue::uncapped(),
             },
         };
         let root = store::Root { token: Token::new(1), fd: skein_io::kernel::Fd::new(3) };

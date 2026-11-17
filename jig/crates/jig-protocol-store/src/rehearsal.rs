@@ -55,7 +55,7 @@ pub(crate) fn begin(
     let Some(handles) = crate::host::handles(&store.limits) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
-    let Some(handles) = handles.checked_mul(3) else {
+    let Some(handles) = handles.checked_mul(4) else {
         return open::refuse(store, owner, OpenRefusal::Failed, above);
     };
     store.rehearsal = Some(State {
@@ -238,15 +238,16 @@ pub(crate) fn closing(store: &Store) -> bool {
 }
 
 /// Account every single-terminal file ask, so Close can drain any interrupted phase.
-pub(crate) fn lengths(below: &Below) -> [u32; 3] {
-    [below.store.len(), below.secrets.len(), below.transcripts.len()]
+pub(crate) fn lengths(below: &Below) -> [u32; 4] {
+    [below.store.len(), below.secrets.len(), below.transcripts.len(), below.checkpoints.len()]
 }
-pub(crate) fn issued(store: &mut Store, below: &Below, lengths: [u32; 3]) {
+pub(crate) fn issued(store: &mut Store, below: &Below, lengths: [u32; 4]) {
     let Some(state) = &mut store.rehearsal else { return };
     for ((lane, queue), length) in [
         (crate::host::Lane::Store, &below.store),
         (crate::host::Lane::Secrets, &below.secrets),
         (crate::host::Lane::Transcripts, &below.transcripts),
+        (crate::host::Lane::Checkpoints, &below.checkpoints),
     ]
     .into_iter()
     .zip(lengths)
@@ -274,6 +275,7 @@ pub(crate) fn arriving(store: &mut Store, io: &Io) {
         Io::Store(a) => (crate::host::Lane::Store, a),
         Io::Secrets(a) => (crate::host::Lane::Secrets, a),
         Io::Transcripts(a) => (crate::host::Lane::Transcripts, a),
+        Io::Checkpoints(a) => (crate::host::Lane::Checkpoints, a),
     };
     state.pending = state.pending.checked_sub(1).expect("file terminal has an ask");
     if let file::Event::Opened { file, .. } = &arrived.event {
@@ -282,7 +284,7 @@ pub(crate) fn arriving(store: &mut Store, io: &Io) {
 }
 pub(crate) fn closing_up(store: &mut Store, io: Io, above: &mut Queue<Event>, below: &mut Below) {
     let arrived = match io {
-        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) | Io::Checkpoints(a) => a,
     };
     let state = state(store);
     match &mut state.stage {
@@ -318,6 +320,7 @@ pub(crate) fn advance_close(store: &mut Store, above: &mut Queue<Event>, below: 
                     crate::host::Lane::Store => &mut below.store,
                     crate::host::Lane::Secrets => &mut below.secrets,
                     crate::host::Lane::Transcripts => &mut below.transcripts,
+                    crate::host::Lane::Checkpoints => &mut below.checkpoints,
                 };
                 queue.push(file::Request::Close { owner: directory::OWNER, file });
             } else if state.fault {

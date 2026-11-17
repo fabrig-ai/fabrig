@@ -270,7 +270,7 @@ struct Harness {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
+    io: [FileIo; 4],
     file_limits: FileLimits,
     seeded: crate::Seeded,
     trace: Vec<(Stage, Trace)>,
@@ -304,8 +304,8 @@ impl Harness {
             assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
             io
         });
-        let [public, private, transcripts] = &mut io;
-        let seeded = crate::seed([public, private, transcripts], 1);
+        let [public, private, transcripts, checkpoints] = &mut io;
+        let seeded = crate::seed([public, private, transcripts, checkpoints], 1);
         Self {
             machine,
             handle,
@@ -443,6 +443,7 @@ impl Harness {
                 0 => Io::Store(arrived),
                 1 => Io::Secrets(arrived),
                 2 => Io::Transcripts(arrived),
+                3 => Io::Checkpoints(arrived),
                 _ => unreachable!(),
             };
             crate::up(store, &env, io, &mut above, &mut below);

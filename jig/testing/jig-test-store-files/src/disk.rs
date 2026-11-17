@@ -84,7 +84,8 @@ impl Disk {
             Request::Open { owner, root, installation } => {
                 self.host.adopt(root.fd, 0, owner, installation).expect("one fixture adoption");
             }
-            request @ (Request::Rehearse { .. }
+            request @ (Request::Checkpoint { .. }
+            | Request::Rehearse { .. }
             | Request::Back { .. }
             | Request::Close { .. }
             | Request::Switch { .. }

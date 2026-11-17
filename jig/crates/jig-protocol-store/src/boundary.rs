@@ -10,6 +10,8 @@ use skein_lib::{Queue, Secret, Token};
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
 pub enum Request {
+    /// Take a serving checkpoint at its ordered cut (protocol/store/checkpoints.md, 3).
+    Checkpoint { owner: Token, draw: [u8; 16] },
     /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
     Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
     /// Name the previous generation again, before the active one's first own commit.
@@ -591,6 +593,14 @@ pub enum CommitCheck {
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
+    Checkpointed {
+        owner: Token,
+        checkpoint: Checkpointed,
+    },
+    CheckpointRefused {
+        owner: Token,
+        why: CheckpointRefusal,
+    },
     Rehearsing {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
@@ -824,12 +834,62 @@ pub struct Root {
     pub fd: Fd,
 }
 
+/// The result of taking a checkpoint (protocol/store/checkpoints.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Checkpointed {
+    pub name: crate::CheckpointName,
+    pub secrets: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub paused: u64,
+    pub took: u64,
+    pub held: u64,
+    pub removed: u32,
+    pub skipped: u32,
+}
+
+/// Checkpoint refusals do not stop the serving store (protocol/store/checkpoints.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum CheckpointRefusal {
+    InProgress,
+    Unavailable,
+    Files,
+    Unrecognized { path: Box<str> },
+    Vanished { path: Box<str> },
+    Failed { path: Box<str>, error: skein_io::kernel::Error },
+    InUse,
+    Missing,
+}
+impl CheckpointRefusal {
+    #[must_use]
+    pub fn words(&self) -> Box<str> {
+        match self {
+            Self::InProgress => Box::from("checkpoint in progress"),
+            Self::Unavailable => Box::from("the store is not serving"),
+            Self::Files => Box::from("more than 65536 files to take"),
+            Self::Unrecognized { path } => {
+                alloc::fmt::format(format_args!("an unrecognized file, {path}")).into_boxed_str()
+            }
+            Self::Vanished { path } => {
+                alloc::fmt::format(format_args!("a selected file vanished, {path}")).into_boxed_str()
+            }
+            Self::Failed { path, error } => {
+                alloc::fmt::format(format_args!("a file failed, {path}: {error:?}")).into_boxed_str()
+            }
+            Self::InUse => Box::from("in use: its lock is held"),
+            Self::Missing => Box::from("no such checkpoint"),
+        }
+    }
+}
+
 /// Independent file drivers (protocol/store/README.md, section 8).
 #[derive(Debug)]
 pub struct Below {
     pub store: Queue<file::Request>,
     pub secrets: Queue<file::Request>,
     pub transcripts: Queue<file::Request>,
+    pub checkpoints: Queue<file::Request>,
 }
 
 /// A file terminal and its descriptor, read by the service alone.
@@ -844,4 +904,5 @@ pub enum Io {
     Store(Arrived),
     Secrets(Arrived),
     Transcripts(Arrived),
+    Checkpoints(Arrived),
 }

@@ -11,7 +11,7 @@ pub struct Wait {
     pub opening: &'static str,
     pub rehearsal: Option<&'static str>,
     pub maps_opened: u8,
-    pub lanes: [WaitLane; 3],
+    pub lanes: [WaitLane; 4],
     pub open_failure: Option<crate::restore::OpenFailure>,
 }
 
@@ -35,7 +35,7 @@ impl Hosted {
             opening: opening(&self.component.directory.opening),
             rehearsal: crate::rehearsal::waiting(&self.component),
             maps_opened: self.component.directory.opened,
-            lanes: [self.wait_lane(0), self.wait_lane(1), self.wait_lane(2)],
+            lanes: [self.wait_lane(0), self.wait_lane(1), self.wait_lane(2), self.wait_lane(3)],
             open_failure: self.component.start_open_failure().cloned(),
         }
     }
