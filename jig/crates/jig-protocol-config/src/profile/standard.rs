@@ -100,8 +100,8 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     source_detail_bytes: 4096,
     needs_bytes: 262_144,
     grants: 32,
-    // The most the engine's u32 link cap holds at the stock's and temper's figures,
-    // below twice fabrig's own development's 36 slots per worker (2026-11-16).
+    // The most the engine's u32 link cap holds at the stock's and the application's
+    // derived figures, below twice fabrig's own development's 36 slots per worker (2026-11-16).
     slots: 40,
     workstreams: 64,
     attempts: 64,

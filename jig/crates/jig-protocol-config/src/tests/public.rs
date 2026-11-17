@@ -51,8 +51,14 @@ fn start(values: &[(&str, u64)]) -> Result<crate::Engine, Problems> {
     let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""limits": {"profile": "small"}"#, limits.as_bytes());
     fixtures::engine(&bytes)
 }
-fn public_limits() -> Limits {
+fn parsed_small() -> Limits {
     let mut limits = crate::profile(Profile::Small);
+    // The reader derives the unoverridden carrier: two streams plus four ordinary exchanges.
+    limits.clients.exchanges = 6;
+    limits
+}
+fn public_limits() -> Limits {
+    let mut limits = parsed_small();
     limits.clients.public = PUBLIC;
     limits.clients_http.public_calls = PUBLIC.reads;
     limits.core.public = INDEX;
@@ -105,7 +111,7 @@ fn public_overrides_parse_at_their_paths() {
     let zero: Vec<_> = OVERRIDES.iter().map(|(name, _)| (*name, 0)).collect();
     let parsed = parse(&zero, &prefix);
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
-    assert_eq!(parsed.limits, crate::profile(Profile::Small));
+    assert_eq!(parsed.limits, parsed_small());
     for (name, maximum) in [
         ("clients.public.reads", u64::from(u32::MAX)),
         ("clients.public.rate", u64::from(u32::MAX)),
