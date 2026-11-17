@@ -569,6 +569,7 @@ fn project_document(number: u32) -> c::Project {
 fn deployment() -> c::Deployment {
     let mut doc = super::deployment(Reference);
     doc.hosts = super::builders();
+    doc.worker_settings = super::worker_settings(NOW);
     doc.tasks = c::Capacity { used: 12, limit: 100 };
     doc.workers = c::Capacity { used: 3, limit: 8 };
     doc.attempts_capacity = c::Capacity { used: 4, limit: 16 };

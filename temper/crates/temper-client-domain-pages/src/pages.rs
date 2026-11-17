@@ -251,6 +251,7 @@ pub enum Act {
     HandArea(team::hand::Act),
     Away(away::Act),
     Models(models::Act),
+    Builders(builders::Act),
     Remembered(remembered::Act),
     Told(told::Act),
     Switcher(switcher::Act),
@@ -856,6 +857,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::Remembered(act) } => {
             if let Some(page) = &mut pages.remembered {
                 page.act(act, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: Act::Builders(act) } => {
+            if let Address::Builders { .. } = pages.address
+                && pages.builders.act(client, act, &mut pages.next, out)
+            {
+                pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
             }
         }
         Event::Act { act: Act::Models(act) } => {
@@ -1588,7 +1596,8 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
-    if pages.models.told(client, &told)
+    if pages.builders.told(client, &told, &mut pages.serial, out)
+        || pages.models.told(client, &told)
         || pages.needs.told(&told)
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
@@ -2573,6 +2582,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Terminal(_)
         | Act::Told(_)
         | Act::Remembered(_)
+        | Act::Builders(_)
         | Act::Models(_)
         | Act::HandArea(_)
         | Act::StopAsking(_)
