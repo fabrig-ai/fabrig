@@ -787,6 +787,7 @@ pub const fn reason(error: skein_forge::api::Error) -> AdoptionRefusal {
         | skein_forge::api::Error::NothingToMerge
         | skein_forge::api::Error::Closed
         | skein_forge::api::Error::Stale
+        | skein_forge::api::Error::BaseMoved { .. }
         | skein_forge::api::Error::Conflict
         | skein_forge::api::Error::Protected
         | skein_forge::api::Error::InvalidAnswer => AdoptionRefusal::InvalidAnswer,

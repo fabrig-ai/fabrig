@@ -76,6 +76,7 @@ fn pending(task: u64) -> PendingStep {
         branch: Some(HEAD),
         branch_fresh: true,
         base_tip: Some(BASE),
+        base_read: Some(BASE),
         pull: Some(fixtures::open_pull()),
         pull_ci: true,
         ci: change::Status::Passed,

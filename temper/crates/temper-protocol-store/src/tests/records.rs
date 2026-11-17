@@ -180,6 +180,20 @@ fn each_named_call_payload_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_base_moved_outcome_round_trips_with_or_without_the_reported_commit() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for base in [Some([6; 32]), None] {
+        let row = fixtures::named_call(forge::CallPayload::Effect {
+            entry: 8,
+            deadline: skein_lib::Wall::from_nanos(123),
+            outcome: Some(skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base })),
+        });
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn error_tags_are_numbered_as_the_schema_lists_them() {
     for (error, tag) in fixtures::errors() {
         let bytes = fixtures::encoded(&records::encode_error(error));
@@ -3342,5 +3356,22 @@ fn receipt_row_report_defaults_without_changing_tier_rows() {
         to_new.convert(before.as_slice(), &mut after, &mut workspace).unwrap();
         let restored = skein_lib::bytes::concat(&[&bytes[..3], after.as_slice()]);
         assert_eq!(records::decode(&restored, &bounds).unwrap(), row);
+    }
+}
+
+#[test]
+fn a_stale_updates_first_refusal_survives_the_store() {
+    use temper_engine_domain_forge_change::{EffectResult, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for stale in [None, Some(skein_lib::Wall::from_nanos(17))] {
+        let mut row = fixtures::change_row(State::Preparing {
+            from: [1; 32],
+            main: [2; 32],
+            ready_since: skein_lib::Wall::from_nanos(0),
+        });
+        row.effect = EffectResult::Stale;
+        row.change.stale = stale;
+        let stored = fixtures::change_hot(row);
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
     }
 }

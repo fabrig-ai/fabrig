@@ -116,6 +116,7 @@ pub(crate) struct PendingStep {
     branch: Option<skein_forge::api::Commit>,
     branch_fresh: bool,
     base_tip: Option<skein_forge::api::Commit>,
+    base_read: Option<skein_forge::api::Commit>,
     pull: Option<skein_forge::api::Pull>,
     pull_ci: bool,
     ci: change::Status,
@@ -4533,6 +4534,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         branch: None,
         branch_fresh: read_branch,
         base_tip: None,
+        base_read: None,
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4657,6 +4659,7 @@ fn step_verified(
         branch: row.change.last_head,
         branch_fresh: false,
         base_tip: Some(merge),
+        base_read: Some(merge),
         pull: None,
         pull_ci: false,
         ci: change::Status::Unknown,
@@ -4868,6 +4871,7 @@ fn step_read(
                 Ok(skein_forge::api::Answer::Commit(commit)) => {
                     let tip = if let change::State::Preparing { main, .. } = preparing { main } else { commit };
                     pending.base_tip = Some(tip);
+                    pending.base_read = Some(commit);
                     branch_changed(
                         d,
                         env,
@@ -6173,6 +6177,7 @@ fn change_facts(
             status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
         },
         base_tip,
+        base_read: pending.base_read.unwrap_or(base_tip),
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         contains_head: pending.contains_head,
         updates: requires.up_to_date,
@@ -6359,9 +6364,20 @@ fn emit_change_effect(
     save_queue_change(d, env, before, row.clone(), out);
     admission::update_writer(d, env, &entry, true);
     if let skein_forge::api::Write::Update { style, .. } = entry.effect.write {
-        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style });
+        let forge_base = match &pending.pull {
+            Some(pull) => pull.base_commit,
+            None => None,
+        };
+        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style, forge_base });
         event.head = pending.branch;
-        event.base = pending.base_tip;
+        event.base = match &entry.effect.condition {
+            skein_forge_client::Condition::Update { base, .. } => Some(*base),
+            skein_forge_client::Condition::Merge { .. }
+            | skein_forge_client::Condition::Review { .. }
+            | skein_forge_client::Condition::None => {
+                unreachable!("update write carries its effect's pin")
+            }
+        };
         event.operation = crate::history::Operation::Of(pending.entry);
         crate::change_history::write(d, env.wall, row, event, out);
     }
@@ -6517,6 +6533,10 @@ pub(crate) fn change_outcome(
         },
         None => (false, false),
     };
+    let unsent = match d.entries.get(&entry) {
+        Some(row) => row.entry.attempt.is_none(),
+        None => false,
+    };
     rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
     let account = taking::make_account(d.changes.get(&task).expect("found change row"), account, outcome);
@@ -6550,7 +6570,13 @@ pub(crate) fn change_outcome(
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
         skein_forge_client::Outcome::Failed(
-            skein_forge::api::Error::Timeout | skein_forge::api::Error::Unavailable | skein_forge::api::Error::Stale,
+            skein_forge::api::Error::Stale | skein_forge::api::Error::BaseMoved { .. },
+        ) if update && unsent => change::EffectResult::Stale,
+        skein_forge_client::Outcome::Failed(
+            skein_forge::api::Error::Timeout
+            | skein_forge::api::Error::Unavailable
+            | skein_forge::api::Error::Stale
+            | skein_forge::api::Error::BaseMoved { .. },
         ) if update => change::EffectResult::None,
         skein_forge_client::Outcome::Failed(_)
         | skein_forge_client::Outcome::Raced { .. }
@@ -6564,10 +6590,13 @@ pub(crate) fn change_outcome(
     if update {
         let result = match outcome {
             skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => {
-                (crate::history::UpdateOutcome::Updated, Some(head))
+                (crate::history::UpdateOutcome::Updated, Some(head), updating_base(&saved.change.state))
             }
             skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => {
-                (crate::history::UpdateOutcome::Conflict, None)
+                (crate::history::UpdateOutcome::Conflict, None, None)
+            }
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::BaseMoved { base }) => {
+                (crate::history::UpdateOutcome::Failed, None, base)
             }
             skein_forge_client::Outcome::Made { .. }
             | skein_forge_client::Outcome::Failed(_)
@@ -6575,9 +6604,13 @@ pub(crate) fn change_outcome(
             | skein_forge_client::Outcome::Uncertain
             | skein_forge_client::Outcome::Queued
             | skein_forge_client::Outcome::Held
-            | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None),
+            | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None, None),
         };
-        let mut event = crate::change_history::step(d, &saved, crate::history::What::Updated { outcome: result.0 });
+        let mut event = crate::change_history::step(
+            d,
+            &saved,
+            crate::history::What::Updated { outcome: result.0, forge_base: result.2 },
+        );
         event.operation = crate::history::Operation::Of(entry);
         event.head = result.1;
         event.base = updating_base(&saved.change.state);
@@ -6831,7 +6864,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     let lifted = released.state != row.change.state;
     row.change = released;
     row.change.since = env.wall;
-    if lifted && row.effect == change::EffectResult::Failed {
+    if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {
         match row.change.state {
             change::State::Taking { .. }
             | change::State::Updating { .. }

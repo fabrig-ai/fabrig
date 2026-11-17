@@ -205,7 +205,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
         if let Some(display) = display {
             given.push((Box::from(b"DISPLAY".as_slice()), Box::from(display.as_bytes())));
         }
-        let environment = environment(&given, &scratch).expect("scratch PATH");
+        let environment = crate::tui_driver::environment(&given, &scratch).expect("scratch PATH");
         let lookup = |name: &str| environment.iter().find(|(key, _)| key == name).map(|(_, value)| value.as_os_str());
         for (name, value) in [
             ("PATH", path.clone()),

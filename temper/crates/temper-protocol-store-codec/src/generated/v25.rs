@@ -1501,6 +1501,10 @@ pub enum Path {
     RateLimitedAfter,
     /// Bytes after `RateLimited`.
     RateLimitedTail,
+    /// The `base` field of `BaseMoved`.
+    BaseMovedBase,
+    /// Bytes after `BaseMoved`.
+    BaseMovedTail,
     /// The tag of `Bound`.
     BoundTag,
     /// The `bound` field of `Excess`.
@@ -2217,6 +2221,8 @@ pub enum Path {
     ChangeResolutions,
     /// The `updates` field of `Change`.
     ChangeUpdates,
+    /// The `stale` field of `Change`.
+    ChangeStale,
     /// The `since` field of `Change`.
     ChangeSince,
     /// The `clock` field of `Change`.
@@ -4139,12 +4145,16 @@ pub enum Path {
     HistoryDepartedTail,
     /// The `style` field of `HistoryUpdate`.
     HistoryUpdateStyle,
+    /// The `forge_base` field of `HistoryUpdate`.
+    HistoryUpdateForgeBase,
     /// Bytes after `HistoryUpdate`.
     HistoryUpdateTail,
     /// The tag of `HistoryUpdateOutcome`.
     HistoryUpdateOutcomeTag,
     /// The `outcome` field of `HistoryUpdated`.
     HistoryUpdatedOutcome,
+    /// The `forge_base` field of `HistoryUpdated`.
+    HistoryUpdatedForgeBase,
     /// Bytes after `HistoryUpdated`.
     HistoryUpdatedTail,
     /// The `job` field of `HistoryJobStarted`.
@@ -4967,6 +4977,8 @@ impl Path {
             Self::ProposedEffectTail => "ProposedEffect (tail)",
             Self::RateLimitedAfter => "RateLimited.after",
             Self::RateLimitedTail => "RateLimited (tail)",
+            Self::BaseMovedBase => "BaseMoved.base",
+            Self::BaseMovedTail => "BaseMoved (tail)",
             Self::BoundTag => "Bound (tag)",
             Self::ExcessBound => "Excess.bound",
             Self::ExcessLimit => "Excess.limit",
@@ -5325,6 +5337,7 @@ impl Path {
             Self::ChangeRepairs => "Change.repairs",
             Self::ChangeResolutions => "Change.resolutions",
             Self::ChangeUpdates => "Change.updates",
+            Self::ChangeStale => "Change.stale",
             Self::ChangeSince => "Change.since",
             Self::ChangeClock => "Change.clock",
             Self::ChangeReadySince => "Change.ready_since",
@@ -6286,9 +6299,11 @@ impl Path {
             Self::HistoryDepartedCause => "HistoryDeparted.cause",
             Self::HistoryDepartedTail => "HistoryDeparted (tail)",
             Self::HistoryUpdateStyle => "HistoryUpdate.style",
+            Self::HistoryUpdateForgeBase => "HistoryUpdate.forge_base",
             Self::HistoryUpdateTail => "HistoryUpdate (tail)",
             Self::HistoryUpdateOutcomeTag => "HistoryUpdateOutcome (tag)",
             Self::HistoryUpdatedOutcome => "HistoryUpdated.outcome",
+            Self::HistoryUpdatedForgeBase => "HistoryUpdated.forge_base",
             Self::HistoryUpdatedTail => "HistoryUpdated (tail)",
             Self::HistoryJobStartedJob => "HistoryJobStarted.job",
             Self::HistoryJobStartedTask => "HistoryJobStarted.task",
@@ -9842,6 +9857,37 @@ impl RateLimited {
 
 }
 
+/// Movable fields of `BaseMoved`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BaseMovedParts {
+    /// The `base` field.
+    pub base: Option<[u8; 32]>,
+}
+
+/// `BaseMoved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BaseMoved {
+    base: Option<[u8; 32]>,
+}
+
+impl BaseMoved {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: BaseMovedParts) -> Result<Self, Problem> {
+        let BaseMovedParts { base } = parts;
+        let value = Self { base };
+        Ok(value)
+    }
+
+    /// Reads the `base` field.
+    #[must_use]
+    pub fn base(&self) -> &Option<[u8; 32]> { &self.base }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> BaseMovedParts { BaseMovedParts { base: self.base } }
+
+}
+
 /// `Bound` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Bound {
@@ -9958,6 +10004,8 @@ pub enum Error {
     Busy,
     /// `not_installed` without a payload.
     NotInstalled,
+    /// `base_moved` carrying `BaseMoved`.
+    BaseMoved(BaseMoved),
 }
 
 impl Error {
@@ -12938,6 +12986,8 @@ pub enum EffectResult {
     Conflict,
     /// `failed` without a payload.
     Failed,
+    /// `stale` without a payload.
+    Stale,
 }
 
 impl EffectResult {
@@ -14516,6 +14566,8 @@ pub struct ChangeParts {
     pub resolutions: u32,
     /// The `updates` field.
     pub updates: u32,
+    /// The `stale` field.
+    pub stale: Option<u64>,
     /// The `since` field.
     pub since: u64,
     /// The `clock` field.
@@ -14551,6 +14603,7 @@ pub struct Change {
     repairs: u32,
     resolutions: u32,
     updates: u32,
+    stale: Option<u64>,
     since: u64,
     clock: Option<ExecutionClock>,
     ready_since: Option<u64>,
@@ -14567,8 +14620,8 @@ pub struct Change {
 impl Change {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeParts) -> Result<Self, Problem> {
-        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, since, clock, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing } = parts;
-        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, since, clock, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing };
+        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing } = parts;
+        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, gate_failures, released, released_resolution, way, landing };
         value.check(limits)?;
         Ok(value)
     }
@@ -14604,6 +14657,10 @@ impl Change {
     /// Reads the `updates` field.
     #[must_use]
     pub fn updates(&self) -> u32 { self.updates }
+
+    /// Reads the `stale` field.
+    #[must_use]
+    pub fn stale(&self) -> &Option<u64> { &self.stale }
 
     /// Reads the `since` field.
     #[must_use]
@@ -14651,7 +14708,7 @@ impl Change {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, since: self.since, clock: self.clock, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, last_checked: self.last_checked, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing } }
+    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, stale: self.stale, since: self.since, clock: self.clock, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, last_checked: self.last_checked, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.early.check(limits)?;
@@ -26706,19 +26763,22 @@ impl HistoryDeparted {
 pub struct HistoryUpdateParts {
     /// The `style` field.
     pub style: UpdateStyle,
+    /// The `forge_base` field.
+    pub forge_base: Option<[u8; 32]>,
 }
 
 /// `HistoryUpdate` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HistoryUpdate {
     style: UpdateStyle,
+    forge_base: Option<[u8; 32]>,
 }
 
 impl HistoryUpdate {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: HistoryUpdateParts) -> Result<Self, Problem> {
-        let HistoryUpdateParts { style } = parts;
-        let value = Self { style };
+        let HistoryUpdateParts { style, forge_base } = parts;
+        let value = Self { style, forge_base };
         Ok(value)
     }
 
@@ -26726,9 +26786,13 @@ impl HistoryUpdate {
     #[must_use]
     pub fn style(&self) -> &UpdateStyle { &self.style }
 
+    /// Reads the `forge_base` field.
+    #[must_use]
+    pub fn forge_base(&self) -> &Option<[u8; 32]> { &self.forge_base }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> HistoryUpdateParts { HistoryUpdateParts { style: self.style } }
+    pub fn into_parts(self) -> HistoryUpdateParts { HistoryUpdateParts { style: self.style, forge_base: self.forge_base } }
 
 }
 
@@ -26756,19 +26820,22 @@ impl HistoryUpdateOutcome {
 pub struct HistoryUpdatedParts {
     /// The `outcome` field.
     pub outcome: HistoryUpdateOutcome,
+    /// The `forge_base` field.
+    pub forge_base: Option<[u8; 32]>,
 }
 
 /// `HistoryUpdated` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HistoryUpdated {
     outcome: HistoryUpdateOutcome,
+    forge_base: Option<[u8; 32]>,
 }
 
 impl HistoryUpdated {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: HistoryUpdatedParts) -> Result<Self, Problem> {
-        let HistoryUpdatedParts { outcome } = parts;
-        let value = Self { outcome };
+        let HistoryUpdatedParts { outcome, forge_base } = parts;
+        let value = Self { outcome, forge_base };
         Ok(value)
     }
 
@@ -26776,9 +26843,13 @@ impl HistoryUpdated {
     #[must_use]
     pub fn outcome(&self) -> &HistoryUpdateOutcome { &self.outcome }
 
+    /// Reads the `forge_base` field.
+    #[must_use]
+    pub fn forge_base(&self) -> &Option<[u8; 32]> { &self.forge_base }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> HistoryUpdatedParts { HistoryUpdatedParts { outcome: self.outcome } }
+    pub fn into_parts(self) -> HistoryUpdatedParts { HistoryUpdatedParts { outcome: self.outcome, forge_base: self.forge_base } }
 
 }
 
@@ -33583,6 +33654,45 @@ impl RateLimited {
     }
 }
 
+impl BaseMoved {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_base = &self.base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_base = &self.base;
+        match field_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::BaseMovedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_base = match reader.u8().ok_or(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::BaseMovedBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { base: decoded_base })
+    }
+}
+
 impl Bound {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -33673,6 +33783,7 @@ impl Error {
         match self {
             Self::RateLimited(record) => 1_u32.checked_add(RateLimited::measure(record)).expect("schema ceilings fit u32"),
             Self::TooLarge(record) => 1_u32.checked_add(Excess::measure(record)).expect("schema ceilings fit u32"),
+            Self::BaseMoved(record) => 1_u32.checked_add(BaseMoved::measure(record)).expect("schema ceilings fit u32"),
             Self::Unavailable | Self::Timeout | Self::Forbidden | Self::Missing | Self::MissingJob | Self::Empty | Self::Full | Self::Exists | Self::NothingToMerge | Self::Closed | Self::Stale | Self::Conflict | Self::Protected | Self::Refused | Self::InvalidAnswer | Self::Busy | Self::NotInstalled => 1,
         }
     }
@@ -33699,6 +33810,7 @@ impl Error {
             Self::InvalidAnswer => writer.put(&[16_u8])?,
             Self::Busy => writer.put(&[17_u8])?,
             Self::NotInstalled => writer.put(&[18_u8])?,
+            Self::BaseMoved(record) => { writer.put(&[19_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -33732,6 +33844,7 @@ impl Error {
             16 => Self::InvalidAnswer,
             17 => Self::Busy,
             18 => Self::NotInstalled,
+            19 => Self::BaseMoved(BaseMoved::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ErrorTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -36758,7 +36871,7 @@ impl EffectResult {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::None | Self::Pending | Self::Made | Self::Conflict | Self::Failed => 1,
+            Self::None | Self::Pending | Self::Made | Self::Conflict | Self::Failed | Self::Stale => 1,
         }
     }
 
@@ -36770,6 +36883,7 @@ impl EffectResult {
             Self::Made => writer.put(&[2_u8])?,
             Self::Conflict => writer.put(&[3_u8])?,
             Self::Failed => writer.put(&[4_u8])?,
+            Self::Stale => writer.put(&[5_u8])?,
         }
         Ok(())
     }
@@ -36789,6 +36903,7 @@ impl EffectResult {
             2 => Self::Made,
             3 => Self::Conflict,
             4 => Self::Failed,
+            5 => Self::Stale,
             _ => return Err(Problem { path: Path::EffectResultTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -38264,6 +38379,11 @@ impl Change {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_stale = &self.stale;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_stale.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_clock = &self.clock;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -38328,6 +38448,14 @@ impl Change {
         writer.put(&field_resolutions.to_be_bytes())?;
         let field_updates = &self.updates;
         writer.put(&field_updates.to_be_bytes())?;
+        let field_stale = &self.stale;
+        match field_stale {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_since = &self.since;
         writer.put(&field_since.to_be_bytes())?;
         let field_clock = &self.clock;
@@ -38408,6 +38536,7 @@ impl Change {
         let decoded_repairs = reader.u32().ok_or(Problem { path: Path::ChangeRepairs, reason: skein_codec::Reason::Short })?;
         let decoded_resolutions = reader.u32().ok_or(Problem { path: Path::ChangeResolutions, reason: skein_codec::Reason::Short })?;
         let decoded_updates = reader.u32().ok_or(Problem { path: Path::ChangeUpdates, reason: skein_codec::Reason::Short })?;
+        let decoded_stale = match reader.u8().ok_or(Problem { path: Path::ChangeStale, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeStale, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeStale, reason: skein_codec::Reason::Tag }) };
         let decoded_since = reader.u64().ok_or(Problem { path: Path::ChangeSince, reason: skein_codec::Reason::Short })?;
         let decoded_clock = match reader.u8().ok_or(Problem { path: Path::ChangeClock, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ExecutionClock::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeClock, reason: skein_codec::Reason::Tag }) };
         let decoded_ready_since = match reader.u8().ok_or(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeReadySince, reason: skein_codec::Reason::Tag }) };
@@ -38419,7 +38548,7 @@ impl Change {
         let decoded_released_resolution = match reader.u8().ok_or(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Bool }) };
         let decoded_way = Way::decode_from(limits, reader)?;
         let decoded_landing = match reader.u8().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, since: decoded_since, clock: decoded_clock, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, last_checked: decoded_last_checked, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing })
+        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, stale: decoded_stale, since: decoded_since, clock: decoded_clock, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, last_checked: decoded_last_checked, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing })
     }
 }
 
@@ -50969,6 +51098,11 @@ impl HistoryUpdate {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_forge_base = &self.forge_base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_forge_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -50976,6 +51110,14 @@ impl HistoryUpdate {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_style = &self.style;
         field_style.encode(writer)?;
+        let field_forge_base = &self.forge_base;
+        match field_forge_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -50988,7 +51130,8 @@ impl HistoryUpdate {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_style = UpdateStyle::decode_from(limits, reader)?;
-        Ok(Self { style: decoded_style })
+        let decoded_forge_base = match reader.u8().ok_or(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HistoryUpdateForgeBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { style: decoded_style, forge_base: decoded_forge_base })
     }
 }
 
@@ -51036,6 +51179,11 @@ impl HistoryUpdated {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_forge_base = &self.forge_base;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_forge_base.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -51043,6 +51191,14 @@ impl HistoryUpdated {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_outcome = &self.outcome;
         field_outcome.encode(writer)?;
+        let field_forge_base = &self.forge_base;
+        match field_forge_base {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -51055,7 +51211,8 @@ impl HistoryUpdated {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_outcome = HistoryUpdateOutcome::decode_from(limits, reader)?;
-        Ok(Self { outcome: decoded_outcome })
+        let decoded_forge_base = match reader.u8().ok_or(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HistoryUpdatedForgeBase, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { outcome: decoded_outcome, forge_base: decoded_forge_base })
     }
 }
 
@@ -57464,6 +57621,34 @@ impl RateLimited {
     }
 }
 
+impl BaseMoved {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Bound {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -57531,6 +57716,7 @@ impl Error {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(RateLimited::encoded_bound_within(limits)?).max(Excess::encoded_bound_within(limits)?);
+        biggest = biggest.max(BaseMoved::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -57544,6 +57730,7 @@ impl Error {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(RateLimited::decoded_bound_within(limits)?).max(Excess::decoded_bound_within(limits)?);
+        biggest = biggest.max(BaseMoved::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -60628,12 +60815,12 @@ impl Change {
         size = size.checked_add(ChangeState::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.change_gates).checked_mul(Gate::encoded_bound_within(limits)?)?)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.change_clean).checked_mul(u64::from(32_u32))?)?)?.checked_add(4_u64)?;
         size = size.checked_add(4_u64)?.checked_add(4_u64)?;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(ExecutionClock::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64)?.checked_add(Way::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(ExecutionClock::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(4_u64.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(Way::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -60650,12 +60837,12 @@ impl Change {
         heap = heap.checked_add(ChangeState::decoded_bound_within(limits)?)?.checked_add(List::<Gate>::price(limits.change_gates)?.checked_add(u64::from(limits.change_gates).checked_mul(Gate::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(List::<[u8; 32]>::price(limits.change_clean)?.checked_add(u64::from(limits.change_clean).checked_mul(0_u64)?)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(ExecutionClock::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(ExecutionClock::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<GateFailure>::price(limits.change_gate_failures)?.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeHold::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Way::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<GateFailure>::price(limits.change_gate_failures)?.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(ChangeHold::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Way::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -68446,7 +68633,7 @@ impl HistoryUpdate {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(UpdateStyle::encoded_bound_within(limits)?)?;
+        size = size.checked_add(UpdateStyle::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -68459,7 +68646,7 @@ impl HistoryUpdate {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(UpdateStyle::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(UpdateStyle::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -68500,7 +68687,7 @@ impl HistoryUpdated {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(HistoryUpdateOutcome::encoded_bound_within(limits)?)?;
+        size = size.checked_add(HistoryUpdateOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -68513,7 +68700,7 @@ impl HistoryUpdated {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(HistoryUpdateOutcome::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(HistoryUpdateOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -71341,6 +71528,7 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EntryRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ProposedEffect::encoded_bound_within(limits)?);
     biggest = biggest.max(RateLimited::encoded_bound_within(limits)?);
+    biggest = biggest.max(BaseMoved::encoded_bound_within(limits)?);
     biggest = biggest.max(Bound::encoded_bound_within(limits)?);
     biggest = biggest.max(Excess::encoded_bound_within(limits)?);
     biggest = biggest.max(Error::encoded_bound_within(limits)?);
@@ -71364,11 +71552,11 @@ fn encoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(BranchCreationValue::encoded_bound_within(limits)?);
     biggest = biggest.max(Kind::encoded_bound_within(limits)?);
     biggest = biggest.max(Provenance::encoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Summary::encoded_bound_within(limits)?);
     biggest = biggest.max(Comment::encoded_bound_within(limits)?);
     biggest = biggest.max(Review::encoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::encoded_bound_within(limits)?);
@@ -71458,11 +71646,11 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResultText::encoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::encoded_bound_within(limits)?);
     biggest = biggest.max(ModelEffort::encoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LlmChoice::encoded_bound_within(limits)?);
     biggest = biggest.max(Route::encoded_bound_within(limits)?);
     biggest = biggest.max(Held::encoded_bound_within(limits)?);
     biggest = biggest.max(Stands::encoded_bound_within(limits)?);
@@ -71552,11 +71740,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingRepairAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::encoded_bound_within(limits)?);
@@ -71646,11 +71834,11 @@ fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsGateReport::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGate::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsBranch::encoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsFollows::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingsFollows::encoded_bound_within(limits)?);
     biggest = biggest.max(SettingsTier::encoded_bound_within(limits)?);
     biggest = biggest.max(RepositoryGates::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectGates::encoded_bound_within(limits)?);
@@ -71740,11 +71928,11 @@ fn encoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryAsked::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswer::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswered::encoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryDelivered::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryDelivered::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPause::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPaused::encoded_bound_within(limits)?);
     biggest = biggest.max(HistoryMember::encoded_bound_within(limits)?);
@@ -71911,6 +72099,7 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(EntryRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ProposedEffect::decoded_bound_within(limits)?);
     biggest = biggest.max(RateLimited::decoded_bound_within(limits)?);
+    biggest = biggest.max(BaseMoved::decoded_bound_within(limits)?);
     biggest = biggest.max(Bound::decoded_bound_within(limits)?);
     biggest = biggest.max(Excess::decoded_bound_within(limits)?);
     biggest = biggest.max(Error::decoded_bound_within(limits)?);
@@ -71934,11 +72123,11 @@ fn decoded_bound_0(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(BranchCreationValue::decoded_bound_within(limits)?);
     biggest = biggest.max(Kind::decoded_bound_within(limits)?);
     biggest = biggest.max(Provenance::decoded_bound_within(limits)?);
-    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Summary::decoded_bound_within(limits)?);
     biggest = biggest.max(Comment::decoded_bound_within(limits)?);
     biggest = biggest.max(Review::decoded_bound_within(limits)?);
     biggest = biggest.max(ItemsAnswer::decoded_bound_within(limits)?);
@@ -72028,11 +72217,11 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResultText::decoded_bound_within(limits)?);
     biggest = biggest.max(ChangeResult::decoded_bound_within(limits)?);
     biggest = biggest.max(ModelEffort::decoded_bound_within(limits)?);
-    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LlmChoice::decoded_bound_within(limits)?);
     biggest = biggest.max(Route::decoded_bound_within(limits)?);
     biggest = biggest.max(Held::decoded_bound_within(limits)?);
     biggest = biggest.max(Stands::decoded_bound_within(limits)?);
@@ -72122,11 +72311,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(LandingRepairAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
-    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingAskSlot::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingOperation::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRun::decoded_bound_within(limits)?);
@@ -72216,11 +72405,11 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SettingsGateReport::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsGate::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsBranch::decoded_bound_within(limits)?);
-    biggest = biggest.max(SettingsFollows::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingsFollows::decoded_bound_within(limits)?);
     biggest = biggest.max(SettingsTier::decoded_bound_within(limits)?);
     biggest = biggest.max(RepositoryGates::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectGates::decoded_bound_within(limits)?);
@@ -72310,11 +72499,11 @@ fn decoded_bound_4(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(HistoryAsked::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswer::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryAnswered::decoded_bound_within(limits)?);
-    biggest = biggest.max(HistoryDelivered::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_5(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(HistoryDelivered::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPause::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryPaused::decoded_bound_within(limits)?);
     biggest = biggest.max(HistoryMember::decoded_bound_within(limits)?);

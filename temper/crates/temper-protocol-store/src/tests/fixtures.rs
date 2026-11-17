@@ -925,6 +925,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             repairs: 10,
             resolutions: 11,
             updates: 12,
+            stale: None,
             since: skein_lib::Wall::from_nanos(13),
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,

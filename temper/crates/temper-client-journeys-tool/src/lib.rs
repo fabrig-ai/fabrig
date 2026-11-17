@@ -7,6 +7,7 @@ use std::{
 };
 use temper_client_shell_web::journey::{self, Stale};
 
+mod isolation;
 mod run;
 mod table;
 pub use run::main;

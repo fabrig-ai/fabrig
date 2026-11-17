@@ -2617,6 +2617,7 @@ pub(super) fn start_recovered_change(
                     repairs: 0,
                     resolutions: 0,
                     updates: 0,
+                    stale: None,
                     since: env.wall,
                     ready_since: None,
                     owns_turn: false,
@@ -6146,6 +6147,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
         | skein_forge::api::Error::NothingToMerge
         | skein_forge::api::Error::Closed
         | skein_forge::api::Error::Stale
+        | skein_forge::api::Error::BaseMoved { .. }
         | skein_forge::api::Error::Conflict
         | skein_forge::api::Error::InvalidAnswer => people::Outcome::Refused(people::Refusal::Unknown),
     }

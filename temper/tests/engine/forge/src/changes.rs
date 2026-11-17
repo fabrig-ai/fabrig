@@ -35,6 +35,7 @@ pub fn change_row() -> top::ChangeRow {
             repairs: 0,
             resolutions: 0,
             updates: 0,
+            stale: None,
             since: Wall::from_nanos(100_000_000_000),
             ready_since: None,
             owns_turn: false,
