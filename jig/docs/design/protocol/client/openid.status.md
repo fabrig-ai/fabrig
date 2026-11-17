@@ -2,7 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [openid.md](openid.md).
 
-- **Not yet:** the whole document: the component takes no client added or removed while it runs, and a provider with no configured client is refused at start [in flight: change 5854].
 
 - **Departs:** the whole document: `authorize_reply` in
   `jig/crates/jig-protocol-engine-clients/src/provider.rs` maps people's
